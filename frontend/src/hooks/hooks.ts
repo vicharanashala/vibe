@@ -764,6 +764,27 @@ export function useUpdateCourseVersion(): {
   };
 }
 
+export function useCourseVersionArchive(): {
+  mutate: (variables: { params: { path: { versionId: string } }, body: components['schemas']['UpdateCourseVersionStatusBody'] }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string } }, body: components['schemas']['UpdateCourseVersionStatusBody'] }) => Promise<components['schemas']['CourseVersionDataResponse']>,
+  data: components['schemas']['CourseVersionDataResponse'] | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("patch", "/courses/versions/{versionId}/archive" as any );
+  return {
+    ...result,
+    error: result.error
+      ? result.error.message || "Course version status update failed"
+      : null,
+  };
+}
+
 // Module hooks
 
 // POST /courses/versions/{versionId}/modules
@@ -1050,7 +1071,9 @@ export function userParseCSVtoItems(): {
 export function useItemById(
   courseId: string,
   versionId: string,
-  itemId: string
+  itemId: string,
+  moduleId: string,
+  sectionId: string
 ): {
   data: components['schemas']['ItemDataResponse'] | undefined;
   isLoading: boolean;
@@ -1060,9 +1083,9 @@ export function useItemById(
 } {
   const result = api.useQuery(
     "get",
-    "/courses/{courseId}/versions/{versionId}/item/{itemId}",
+    "/courses/{courseId}/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/item/{itemId}",
     {
-      params: { path: { courseId, versionId, itemId } },
+      params: { path: { courseId, versionId, itemId, moduleId, sectionId } },
     },
     {
       enabled: !!courseId && !!versionId && !!itemId,
@@ -1167,8 +1190,8 @@ export function useVideoUserAnalytics(
 
 
 export function useUpdateCourseItem(): {
-  mutate: (variables: { params: { path: { versionId: string, itemId: string } }, body: components['schemas']['UpdateItemBody'] }) => void,
-  mutateAsync: (variables: { params: { path: { versionId: string, itemId: string } }, body: components['schemas']['UpdateItemBody'] }) => Promise<components['schemas']['ItemDataResponse']>,
+  mutate: (variables: { params: { path: { courseId: string, versionId: string, itemId: string } }, body: components['schemas']['UpdateItemBody'] }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, itemId: string } }, body: components['schemas']['UpdateItemBody'] }) => Promise<components['schemas']['ItemDataResponse']>,
   data: components['schemas']['ItemDataResponse'] | undefined,
   error: string | null,
   isPending: boolean,
@@ -1178,7 +1201,7 @@ export function useUpdateCourseItem(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("put", "/courses/versions/{versionId}/items/{itemId}");
+  const result = api.useMutation("put", "/courses/{courseId}/versions/{versionId}/items/{itemId}");
   return {
     ...result,
     error: result.error ? (result.error.message || 'Item update failed') : null
@@ -1206,9 +1229,9 @@ export function useUpdateItem(): {
 }
 
 // DELETE /courses/itemGroups/{itemsGroupId}/items/{itemId}
-export function useDeleteItem(): {
-  mutate: (variables: { params: { path: { itemsGroupId: string, itemId: string } } }) => void,
-  mutateAsync: (variables: { params: { path: { itemsGroupId: string, itemId: string } } }) => Promise<components['schemas']['DeletedItemResponse']>,
+export function useDeleteItem(): { 
+  mutate: (variables: { params: { path: { courseId: string, itemsGroupId: string, itemId: string } } }) => void,
+  mutateAsync: (variables: { params: { path: { courseId : string, itemsGroupId: string, itemId: string } } }) => Promise<components['schemas']['DeletedItemResponse']>,
   data: components['schemas']['DeletedItemResponse'] | undefined,
   error: string | null,
   isPending: boolean,
@@ -1218,7 +1241,7 @@ export function useDeleteItem(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("delete", "/courses/itemGroups/{itemsGroupId}/items/{itemId}");
+  const result = api.useMutation("delete", "/courses/{courseId}/itemGroups/{itemsGroupId}/items/{itemId}");
   return {
     ...result,
     error: result.error ? (result.error.message || 'Item deletion failed') : null
@@ -1288,7 +1311,7 @@ export function useUnenrollUser(): {
 }
 
 // GET /users/enrollments
-export function useUserEnrollments(page?: number, limit?: number, enabled: boolean = true, search?: string, role = "STUDENT"): {
+export function useUserEnrollments(page?: number, limit?: number, enabled: boolean = true, search?: string, role = "STUDENT", tab: 'active'|'archived' = "active" ): {
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -1296,7 +1319,7 @@ export function useUserEnrollments(page?: number, limit?: number, enabled: boole
 } {
   const result = api.useQuery("get", "/users/enrollments", {
     params: {
-      query: { page, limit, search, role }
+      query: { page, limit, search, role, tab }
     },
     enabled: enabled
   });
@@ -1633,10 +1656,16 @@ export function useSkipOptionalItem(): {
   isError: boolean,
   isIdle: boolean,
 } {
-  const result = api.useMutation("post", "/users/items/{itemId}/skip");
+  const result = api.useMutation("post", "/users/items/{itemId}/skip") as any;
+  const rawError = result.error as { message?: string; response?: { data?: { message?: string } } } | null;
   return {
     ...result,
-    error: result.error ? (result.error.message || 'Failed to skip item') : null
+    // error: result.error ? (result.error.message || 'Failed to skip item') : null
+   error: rawError
+      ? rawError.message
+        ?? rawError.response?.data?.message
+        ?? "Failed to skip item"
+      : null,
   }
 }
 
@@ -4548,6 +4577,42 @@ export function useToggleTimeSlots(): {
   };
 }
 
+// POST /timeslots/student/choose
+export function useChooseTimeSlot(): {
+  mutate: (variables: { body: { courseId: string; courseVersionId: string; timeSlot: { from: string; to: string } } }) => void,
+  mutateAsync: (variables: { body: { courseId: string; courseVersionId: string; timeSlot: { from: string; to: string } } }) => Promise<{ success: boolean; message?: string }>,
+  data: { success: boolean; message?: string } | undefined,
+  error: string | null,
+  isPending: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/timeslots/student/choose");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to choose time slot') : null
+  };
+}
+
+// POST /timeslots/teacher/remove-student
+export function useRemoveStudentFromTimeSlot(): {
+  mutateAsync: (variables:{body: {
+    courseId: string;
+    courseVersionId: string;
+    studentId: string;
+    timeSlot: { from: string; to: string };
+  }}) => Promise<any>;
+  isPending: boolean;
+  error: string | null;
+} {
+  const result = api.useMutation("post", "/timeslots/teacher/remove-student");
+  
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to remove student from time slot') : null
+  };
+}
+
 // GET /timeslots/course/{courseId}/version/{courseVersionId}
 export function useGetTimeSlots(
   courseId: string | undefined,
@@ -4578,40 +4643,6 @@ export function useGetTimeSlots(
     data: result.data?.data,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch time slots') : null,
-    refetch: result.refetch
-  };
-}
-
-// GET /timeslots/students/{courseId}/{courseVersionId}
-export function useGetStudentsInTimeSlots(
-  courseId: string | undefined,
-  courseVersionId: string | undefined,
-  enabled: boolean = true
-): {
-  data: Array<{ from: string; to: string; studentIds: string[] }> | undefined,
-  isLoading: boolean,
-  error: string | null,
-  refetch: () => void
-} {
-  const result = api.useQuery(
-    "get",
-    "/timeslots/students/{courseId}/{courseVersionId}",
-    {
-      params: {
-        path: { courseId: courseId!, courseVersionId: courseVersionId! }
-      }
-    },
-    {
-      enabled: !!courseId && !!courseVersionId && enabled,
-      retry: 1,
-      refetchOnWindowFocus: false
-    }
-  );
-
-  return {
-    data: result.data?.data,
-    isLoading: result.isLoading,
-    error: result.error ? (result.error.message || 'Failed to fetch students in time slots') : null,
     refetch: result.refetch
   };
 }

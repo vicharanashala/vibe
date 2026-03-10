@@ -170,7 +170,12 @@ export class CourseController {
     setAuditTrail(req, {
       category: AuditCategory.COURSE,
       action: AuditAction.COURSE_CREATE,
-      actor: ObjectId.createFromHexString(userId),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseId: createdCourse._id,
         courseVersionId: createdCourse.versions[createdCourse.versions.length - 1],
@@ -276,7 +281,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.COURSE,
       action: AuditAction.COURSE_UPDATE,
-      actor: ObjectId.createFromHexString(userId),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseId: ObjectId.createFromHexString(courseId),
         courseVersionId: updatedCourse.versions[lastIndex],
@@ -342,7 +352,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.COURSE,
       action: AuditAction.COURSE_DELETE,
-      actor: ObjectId.createFromHexString(userId),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseId: ObjectId.createFromHexString(courseId),
         courseVersionId: courseBeforeDelete.versions[courseBeforeDelete.versions.length - 1],

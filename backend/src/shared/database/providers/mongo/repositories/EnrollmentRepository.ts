@@ -7,6 +7,7 @@ import {
   IWatchTime,
   IUser,
   ID,
+  courseVersionStatus,
 } from '#shared/interfaces/models.js';
 import { injectable, inject } from 'inversify';
 import { ClientSession, Collection, ObjectId, OptionalId } from 'mongodb';
@@ -81,22 +82,23 @@ export class EnrollmentRepository {
 
   async findEnrollment(
     userId: string | ObjectId,
-    courseVersionId: string,
     courseId: string,
+    courseVersionId: string,
     session?: ClientSession,
   ): Promise<IEnrollment | null> {
     await this.init();
 
     const courseObjectId = new ObjectId(courseId);
     const courseVersionObjectId = new ObjectId(courseVersionId);
-
     const userObjectid = new ObjectId(userId);
 
     return await this.enrollmentCollection.findOne(
       {
-        userId: userObjectid,
-        courseId: courseObjectId,
-        courseVersionId: courseVersionObjectId,
+        userId: { $in: [userId, new ObjectId(userId)] },
+        courseId: { $in: [courseId, new ObjectId(courseId)] },
+        courseVersionId: {
+          $in: [courseVersionId, new ObjectId(courseVersionId)],
+        },
         isDeleted: { $ne: true },
       },
       { session },
@@ -117,9 +119,9 @@ export class EnrollmentRepository {
 
     return await this.enrollmentCollection.findOne(
       {
-        userId: userObjectid,
-        courseId: courseObjectId,
-        courseVersionId: courseVersionObjectId,
+        userId: { $in: [userObjectid, userId] },
+        courseId: { $in: [courseObjectId, courseId] },
+        courseVersionId: { $in: [courseVersionObjectId, courseVersionId] },
         status: 'ACTIVE',
         isDeleted: { $ne: true },
       },
@@ -137,8 +139,8 @@ export class EnrollmentRepository {
     const enrollments = await this.enrollmentCollection
       .find(
         {
-          courseId: new ObjectId(courseId),
-          courseVersionId: new ObjectId(versionId),
+          courseId: { $in: [new ObjectId(courseId), courseId] },
+          courseVersionId: { $in: [new ObjectId(versionId), versionId] },
           role: 'INSTRUCTOR',
           status: 'ACTIVE',
         },
@@ -159,6 +161,9 @@ export class EnrollmentRepository {
       const update: any = { percentCompleted };
       if (typeof completedItemsCount === 'number') {
         update.completedItemsCount = completedItemsCount;
+      }
+      if (percentCompleted >= 100) {
+        update.hasNewItemsAfterCompletion = false;
       }
 
       await this.enrollmentCollection.findOneAndUpdate(
@@ -333,7 +338,7 @@ export class EnrollmentRepository {
       const aggregationPipeline: any[] = [
         {
           $match: {
-            userId: userObjectId,
+            userId: { $in: [userObjectId, userId] },
             role,
             isDeleted: { $ne: true },
             status: 'ACTIVE',
@@ -523,7 +528,7 @@ export class EnrollmentRepository {
     const pipeline: any[] = [
       {
         $match: {
-          userId: userObjectId,
+          userId: { $in: [userObjectId, userId] },
           role,
           isDeleted: { $ne: true },
           status: { $regex: /^active$/i },
@@ -600,7 +605,7 @@ export class EnrollmentRepository {
             {
               $project: {
                 totalItems: 1,
-                // itemCounts: 1,
+                itemCounts: 1,
                 supportLink: 1,
                 version: 1,
                 description: 1,
@@ -752,7 +757,7 @@ export class EnrollmentRepository {
           enrollmentDate: 1,
           course: 1,
           courseVersion: 1,
-          assignedTimeSlot: 1,
+          assignedTimeSlots: 1,
           //getting current course completion details(not actual details)
           moduleNumber: '$moduleNumber',
           sectionNumber: '$sectionNumber',
@@ -763,6 +768,9 @@ export class EnrollmentRepository {
           // itemCounts: { $ifNull: ['$courseVersion.itemCounts', {}] },
 
           percentCompleted: { $ifNull: ['$percentCompleted', 0] },
+          hasNewItemsAfterCompletion: {
+            $ifNull: ['$hasNewItemsAfterCompletion', false],
+          },
         },
       },
     ];
@@ -780,6 +788,7 @@ export class EnrollmentRepository {
     limit: number,
     role: EnrollmentRole,
     search?: string,
+    tab?: courseVersionStatus,
   ) {
     await this.init();
 
@@ -787,7 +796,7 @@ export class EnrollmentRepository {
       /* ---------- EARLY FILTER (INDEXED) ---------- */
       {
         $match: {
-          userId: new ObjectId(userId),
+          userId: { $in: [new ObjectId(userId), userId] },
           role,
           isDeleted: { $ne: true },
           status: { $regex: /^active$/i },
@@ -813,7 +822,6 @@ export class EnrollmentRepository {
               },
             },
 
-            /* keep only required fields */
             {
               $project: {
                 name: 1,
@@ -823,7 +831,6 @@ export class EnrollmentRepository {
               },
             },
 
-            /* filter non-deleted versions */
             {
               $lookup: {
                 from: 'newCourseVersion',
@@ -831,9 +838,29 @@ export class EnrollmentRepository {
                 foreignField: '_id',
                 as: 'versions',
                 pipeline: [
-                  { $match: { isDeleted: { $ne: true } } },
+                  {
+                    $match: {
+                      isDeleted: { $ne: true },
+                      ...(tab === 'active'
+                        ? {
+                          $or: [
+                            { versionStatus: 'active' },
+                            { versionStatus: { $exists: false } },    // active courses versions and versions don't have versionStatus fields
+                          ],
+                        }
+                        : {
+                          versionStatus: 'archived',                  // atchived courses
+                        }),
+                    }
+                  },
                   { $project: { _id: 1 } },
                 ],
+              },
+            },
+
+            {
+              $match: {
+                versions: { $ne: [] }, // only keep courses with at least 1 version
               },
             },
 
@@ -1344,8 +1371,10 @@ export class EnrollmentRepository {
     await this.init();
 
     const baseMatch: any = {
-      courseId: new ObjectId(courseId),
-      courseVersionId: new ObjectId(courseVersionId),
+      courseId: { $in: [courseId, new ObjectId(courseId)] },
+      courseVersionId: {
+        $in: [courseVersionId, new ObjectId(courseVersionId)],
+      },
     };
 
     let matchStage: any = { ...baseMatch };
@@ -1367,31 +1396,6 @@ export class EnrollmentRepository {
       };
     }
 
-    // const matchStage: any = {
-    //   courseId: new ObjectId(courseId),
-    //   courseVersionId: new ObjectId(courseVersionId),
-    //   status: {$regex: /^active$/i},
-    //   isDeleted: {$ne: true}, // Exclude soft-deleted enrollments
-    // };
-
-    // // ✅ ACTIVE tab
-    // if (statusTab === 'ACTIVE') {
-    //   matchStage.status = {$regex: /^active$/i};
-    //   matchStage.isDeleted = {$ne: true};
-    // }
-
-    // // ✅ INACTIVE tab
-    // if (statusTab === 'INACTIVE') {
-    //   matchStage.$or = [{status: {$regex: /^inactive$/i}}, {isDeleted: true}];
-    // }
-
-    // const matchStage: any = {
-    //   courseId: new ObjectId(courseId),
-    //   courseVersionId: new ObjectId(courseVersionId),
-    //   // status: {$regex: /^active$/i},
-    //   isDeleted: {$ne: true}, // Exclude soft-deleted enrollments
-    // };
-
     if (filter) {
       if (filter === 'STUDENT') {
         matchStage.role = 'STUDENT';
@@ -1400,13 +1404,53 @@ export class EnrollmentRepository {
       }
     }
 
-    // decide sort field
+    // Initial pipeline for filtering and basic user data (required for sorting/searching)
+    const baseAggregation: any[] = [
+      { $match: matchStage },
+      {
+        $addFields: {
+          userIdObj: { $toObjectId: '$userId' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userIdObj',
+          foreignField: '_id',
+          as: 'userInfo',
+        },
+      },
+      { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
+    ];
+
+    // Search filter
+    if (search && search.trim() !== '') {
+      const searchTerm = search.trim();
+      const searchRegex = { $regex: searchTerm, $options: 'i' };
+      baseAggregation.push({
+        $match: {
+          $or: [
+            { 'userInfo.firstName': searchRegex },
+            { 'userInfo.lastName': searchRegex },
+            { 'userInfo.email': searchRegex },
+          ],
+        },
+      });
+    }
+
+    // 1. Get total count using simplified pipeline
+    const countPipeline = [...baseAggregation, { $count: 'total' }];
+    const countResult = await this.enrollmentCollection
+      .aggregate<{ total: number }>(countPipeline, { session })
+      .next();
+    const totalDocuments = countResult?.total || 0;
+
+    // 2. Decide sort field
     let sortField: any = {};
     if (sortBy === 'name') {
-      // sort by firstName + lastName
       sortField = {
-        firstName: sortOrder === 'asc' ? 1 : -1,
-        lastName: sortOrder === 'asc' ? 1 : -1,
+        'userInfo.firstName': sortOrder === 'asc' ? 1 : -1,
+        'userInfo.lastName': sortOrder === 'asc' ? 1 : -1,
       };
     } else if (sortBy === 'enrollmentDate') {
       sortField = { enrollmentDate: sortOrder === 'asc' ? 1 : -1 };
@@ -1414,24 +1458,126 @@ export class EnrollmentRepository {
       sortField = { percentCompleted: sortOrder === 'asc' ? 1 : -1 };
     } else if (sortBy === 'unenrolledAt') {
       sortField = { unenrolledAt: sortOrder === 'asc' ? 1 : -1 };
+    } else {
+      sortField = { enrollmentDate: -1 };
     }
 
-    const aggregationPipeline: any[] = [
-      { $match: matchStage },
+    // 3. Apply sorting and pagination
+    const paginatedPipeline = [
+      ...baseAggregation,
+      { $sort: sortField },
+      { $skip: skip },
+      { $limit: limit },
+    ];
+
+    // 4. Enrich only the current page records with expensive lookups
+    paginatedPipeline.push(
       {
-        $addFields: {
-          userId: { $toObjectId: '$userId' },
+        $lookup: {
+          from: 'newCourseVersion',
+          let: { versionId: { $toObjectId: '$courseVersionId' } },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ['$_id', '$$versionId'],
+                },
+              },
+            },
+            {
+              $project: {
+                totalItems: 1,
+                itemCounts: 1,
+              },
+            },
+          ],
+          as: 'courseVersionInfo',
+        },
+      },
+      {
+        $unwind: {
+          path: '$courseVersionInfo',
+          preserveNullAndEmptyArrays: true,
         },
       },
       {
         $lookup: {
-          from: 'users',
-          localField: 'userId',
-          foreignField: '_id',
-          as: 'userInfo',
+          from: 'watchTime',
+          let: {
+            userIdObj: '$userIdObj',
+            versionIdObj: { $toObjectId: '$courseVersionId' },
+            courseIdObj: { $toObjectId: '$courseId' },
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$userId', '$$userIdObj'] },
+                    { $eq: ['$courseVersionId', '$$versionIdObj'] },
+                    { $eq: ['$courseId', '$$courseIdObj'] },
+                    { $ne: [{ $ifNull: ['$endTime', null] }, null] },
+                    { $ne: ['$isDeleted', true] },
+                  ],
+                },
+              },
+            },
+            { $project: { itemId: 1 } },
+          ],
+          as: 'watchRecords',
         },
       },
-      { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          completedItemIds: '$watchRecords.itemId',
+        },
+      },
+      {
+        $lookup: {
+          from: 'itemsGroup',
+          let: { completedItemIds: '$completedItemIds' },
+          pipeline: [
+            { $unwind: '$items' },
+            {
+              $match: {
+                $expr: {
+                  $in: ['$items._id', '$$completedItemIds'],
+                },
+              },
+            },
+            {
+              $project: {
+                type: '$items.type',
+              },
+            },
+          ],
+          as: 'completedItems',
+        },
+      },
+      {
+        $addFields: {
+          completedItemCounts: {
+            $arrayToObject: {
+              $map: {
+                input: { $setUnion: ['$completedItems.type'] },
+                as: 'type',
+                in: {
+                  k: '$$type',
+                  v: {
+                    $size: {
+                      $filter: {
+                        input: '$completedItems',
+                        as: 'item',
+                        cond: { $eq: ['$$item.type', '$$type'] },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       {
         $addFields: {
           userId: { $toString: '$userInfo._id' },
@@ -1442,50 +1588,21 @@ export class EnrollmentRepository {
           lastName: '$userInfo.lastName',
           email: '$userInfo.email',
           completedItemsCount: { $ifNull: ['$completedItemsCount', 0] },
+          contentCounts: {
+            total: { $ifNull: ['$courseVersionInfo.totalItems', 0] },
+            completed: { $ifNull: ['$completedItemsCount', 0] },
+            itemCounts: { $ifNull: ['$courseVersionInfo.itemCounts', {}] },
+            completedItemCounts: { $ifNull: ['$completedItemCounts', {}] },
+          },
         },
       },
-    ];
-
-    // search
-    if (search && search.trim() !== '') {
-      const searchTerm = search.trim();
-      aggregationPipeline.push({
-        $match: {
-          $or: [
-            { 'userInfo.firstName': { $regex: search, $options: 'i' } },
-            { 'userInfo.email': { $regex: search, $options: 'i' } },
-            { firstName: { $regex: searchTerm, $options: 'i' } },
-            { lastName: { $regex: searchTerm, $options: 'i' } },
-            { email: { $regex: searchTerm, $options: 'i' } },
-          ],
-        },
-      });
-    }
-
-    // Get the total count with search applied
-    const countPipeline = [...aggregationPipeline, { $count: 'total' }];
-    const countResult = await this.enrollmentCollection
-      .aggregate<{ total: number }>(countPipeline, { session })
-      .next();
-    const totalDocuments = countResult?.total || 0;
-
-    // sorting
-    aggregationPipeline.push({ $sort: sortField });
-
-    // pagination
-    aggregationPipeline.push({ $skip: skip }, { $limit: limit });
-
-    // count separately
-    // const totalDocuments = await this.enrollmentCollection.countDocuments(
-    //   matchStage,
-    // );
+    );
 
     const enrollments = await this.enrollmentCollection
-      .aggregate(aggregationPipeline, { session })
+      .aggregate(paginatedPipeline, { session })
       .toArray();
 
     const totalPages = limit > 0 ? Math.ceil(totalDocuments / limit) : 1;
-
     return {
       totalDocuments,
       totalPages,
@@ -1508,8 +1625,12 @@ export class EnrollmentRepository {
         [
           {
             $match: {
-              courseId: new ObjectId(courseId),
-              courseVersionId: new ObjectId(courseVersionId),
+              courseId: {
+                $in: [courseId, new ObjectId(courseId)],
+              },
+              courseVersionId: {
+                $in: [courseVersionId, new ObjectId(courseVersionId)],
+              },
               role: 'STUDENT',
               status: { $regex: /^active$/i },
               isDeleted: { $ne: true }, // Exclude soft-deleted enrollments
@@ -1582,12 +1703,13 @@ export class EnrollmentRepository {
   async countEnrollments(
     userId: string,
     role: EnrollmentRole,
+    tab: courseVersionStatus,
     search?: string,
     courseVersionId?: string,
   ) {
     await this.init();
     const matchStage: any = {
-      userId: new ObjectId(userId),
+      userId: { $in: [new ObjectId(userId), userId] },
       role,
       isDeleted: { $ne: true },
       status: { $regex: /^active$/i },
@@ -1602,7 +1724,57 @@ export class EnrollmentRepository {
       {
         $match: matchStage,
       },
+    ];
+    if (role === 'STUDENT') {
+      pipeline.push(
+        {
+          $lookup: {
+            from: 'newCourseVersion',
+            localField: 'courseVersionId',
+            foreignField: '_id',
+            as: 'version',
+          },
+        },
+        {
+          $unwind: '$version',
+        },
+        {
+          $match: {
+            'version.versionStatus': { $ne: 'archived' },
+          },
+        },
+      );
+    }
+    else {
+      pipeline.push(
+        {
+          $lookup: {
+            from: 'newCourseVersion',
+            localField: 'courseVersionId',
+            foreignField: '_id',
+            as: 'version',
+          },
+        },
+        { $unwind: '$version' },
+        {
+          $match: {
+            ...(tab === 'active'
+              ? {
+                $or: [
+                  { 'version.versionStatus': 'active' },
+                  { 'version.versionStatus': { $exists: false } },
+                ],
+              }
+              : {
+                'version.versionStatus': 'archived',
+              }),
+          },
+        }
+      );
+    }
 
+    //  Existing course lookup
+    pipeline.push(
       {
         $lookup: {
           from: 'newCourse',
@@ -1625,7 +1797,7 @@ export class EnrollmentRepository {
       { $unwind: '$course' },
 
       { $count: 'total' },
-    ];
+    );
 
     const result = await this.enrollmentCollection
       .aggregate(pipeline)
@@ -1633,6 +1805,104 @@ export class EnrollmentRepository {
 
     return result[0]?.total || 0;
   }
+
+  async getActiveCount(userId: string, role: EnrollmentRole) {
+    await this.init();
+
+    const matchStage: any = {
+      userId: { $in: [new ObjectId(userId), userId] },
+      role,
+      isDeleted: { $ne: true },
+      status: { $regex: /^active$/i },
+    };
+
+    const pipeline: any[] = [
+      { $match: matchStage },
+
+      {
+        $lookup: {
+          from: 'newCourseVersion',
+          localField: 'courseVersionId',
+          foreignField: '_id',
+          as: 'version',
+        },
+      },
+      { $unwind: '$version' },
+
+      {
+        $match: {
+          $or: [
+            { 'version.versionStatus': 'active' },
+            { 'version.versionStatus': { $exists: false } },
+          ],
+        },
+      },
+
+      {
+        $lookup: {
+          from: 'newCourse',
+          localField: 'courseId',
+          foreignField: '_id',
+          as: 'course',
+        },
+      },
+      { $unwind: '$course' },
+
+      { $count: 'total' },
+    ];
+
+    const result = await this.enrollmentCollection.aggregate(pipeline).toArray();
+
+    return result[0]?.total || 0;
+  }
+
+  async getArchiveCount(userId: string, role: EnrollmentRole) {
+    await this.init();
+
+    const matchStage: any = {
+      userId: { $in: [new ObjectId(userId), userId] },
+      role,
+      isDeleted: { $ne: true },
+      status: { $regex: /^active$/i },
+    };
+
+    const pipeline: any[] = [
+      { $match: matchStage },
+
+      {
+        $lookup: {
+          from: 'newCourseVersion',
+          localField: 'courseVersionId',
+          foreignField: '_id',
+          as: 'version',
+        },
+      },
+      { $unwind: '$version' },
+
+      {
+        $match: {
+          'version.versionStatus': 'archived',
+        },
+      },
+
+      {
+        $lookup: {
+          from: 'newCourse',
+          localField: 'courseId',
+          foreignField: '_id',
+          as: 'course',
+        },
+      },
+      { $unwind: '$course' },
+
+      { $count: 'total' },
+    ];
+
+    const result = await this.enrollmentCollection.aggregate(pipeline).toArray();
+
+    return result[0]?.total || 0;
+  }
+
 
   /*Update enrollments for all records in db */
   async bulkUpdateEnrollments(
@@ -1742,6 +2012,7 @@ export class EnrollmentRepository {
 
   private async processCompletedItemsBatch(
     enrollments: any[],
+    totalItemsMap: Map<string, number>,
     session?: ClientSession,
   ): Promise<number> {
     if (enrollments.length === 0) return 0;
@@ -1751,17 +2022,17 @@ export class EnrollmentRepository {
     enrollments.forEach(e => {
       enrollmentMap.set(
         `${e.userId}_${e.courseId}_${e.courseVersionId}`,
-        e._id,
+        { id: e._id, courseVersionId: e.courseVersionId.toString() },
       );
     });
 
-    // 🔥 Single aggregation for entire batch
     const completedCounts = await this.watchTimeCollection
       .aggregate(
         [
           {
             $match: {
               isDeleted: { $ne: true },
+              isHidden: { $ne: true },
               $or: enrollments.map(e => ({
                 userId: e.userId,
                 courseId: e.courseId,
@@ -1791,31 +2062,38 @@ export class EnrollmentRepository {
 
     const operations = completedCounts.map(c => {
       const key = `${c._id.userId}_${c._id.courseId}_${c._id.courseVersionId}`;
-      const enrollmentId = enrollmentMap.get(key);
+      const entry = enrollmentMap.get(key);
+      if (!entry) return null;
+
+      const totalItems = totalItemsMap.get(entry.courseVersionId) || 0;
+      const completedItemsCount = c.completedItemsCount;
+      const percentCompleted = totalItems > 0
+        ? Number(((completedItemsCount / totalItems) * 100).toFixed(2))
+        : 0;
 
       return {
         updateOne: {
-          filter: { _id: enrollmentId },
+          filter: { _id: entry.id },
           update: {
             $set: {
-              completedItemsCount: c.completedItemsCount,
+              completedItemsCount,
+              percentCompleted,
               updatedAt: new Date(),
             },
           },
         },
       };
-    });
+    }).filter(Boolean);
 
     if (operations.length === 0) return 0;
 
-    const result = await this.enrollmentCollection.bulkWrite(operations, {
+    const result = await this.enrollmentCollection.bulkWrite(operations as any[], {
       session,
     });
 
     return result.modifiedCount;
   }
 
-  /* Update completed items count for all enrollments in batches of 100 */
   async bulkUpdateCompletedItemsCountForCourseVersion(
     filters: {
       courseVersionId: string;
@@ -1829,6 +2107,13 @@ export class EnrollmentRepository {
     const BATCH_SIZE = 500;
     let totalCount = 0;
     let updatedCount = 0;
+
+    const courseVersion = await this.courseVersionCollection.findOne(
+      { _id: new ObjectId(filters.courseVersionId) },
+      { projection: { totalItems: 1 }, session },
+    );
+    const totalItems = courseVersion?.totalItems ?? 0;
+    const totalItemsMap = new Map<string, number>([[filters.courseVersionId, totalItems]]);
 
     const match: any = {
       isDeleted: { $ne: true },
@@ -1855,18 +2140,14 @@ export class EnrollmentRepository {
       totalCount++;
 
       if (batch.length === BATCH_SIZE) {
-        updatedCount += await this.processCompletedItemsBatch(batch, session);
+        updatedCount += await this.processCompletedItemsBatch(batch, totalItemsMap, session);
         batch = [];
       }
     }
 
     if (batch.length > 0) {
-      updatedCount += await this.processCompletedItemsBatch(batch, session);
+      updatedCount += await this.processCompletedItemsBatch(batch, totalItemsMap, session);
     }
-
-    console.log(
-      `✅ CourseVersion ${filters.courseVersionId} → scanned=${totalCount}, updated=${updatedCount}`,
-    );
 
     return { totalCount, updatedCount };
   }
@@ -2604,6 +2885,28 @@ export class EnrollmentRepository {
     /* -------------------------------------------------------
      * 3️⃣ AGGREGATE SUBMISSIONS IN MONGO (🔥 FIX)
      * ----------------------------------------------------- */
+    const attemptsAggregation = await this.submissionCollection
+      .aggregate([
+        {
+          $match: {
+            userId: { $in: userIds },
+            quizId: { $in: quizIdsObj },
+          },
+        },
+        {
+          $group: {
+            _id: {
+              userId: '$userId',
+              quizId: '$quizId',
+            },
+            attempts: { $sum: 1 },
+            maxScore: { $max: '$gradingResult.totalScore' },
+          },
+        },
+      ])
+      .toArray();
+
+    // Aggregation for question scores
     const aggregatedSubmissions = await this.submissionCollection
       .aggregate([
         {
@@ -2625,10 +2928,6 @@ export class EnrollmentRepository {
             questionScore: {
               $max: '$gradingResult.overallFeedback.score',
             },
-            maxScore: {
-              $max: '$gradingResult.totalScore',
-            },
-            attempts: { $sum: 1 },
           },
         },
       ])
@@ -2641,24 +2940,27 @@ export class EnrollmentRepository {
     const maxScoreMap = new Map<string, Map<string, number>>();
     const attemptsMap = new Map<string, Map<string, number>>();
 
-    for (const row of aggregatedSubmissions) {
+    // Build attempts and max score maps from separate aggregation
+    for (const row of attemptsAggregation) {
       const userId = row._id.userId.toString();
       const quizId = row._id.quizId.toString();
-      const questionId = row._id.questionId.toString();
 
-      // attempts
       attemptsMap
         .set(userId, attemptsMap.get(userId) ?? new Map())
         .get(userId)!
         .set(quizId, row.attempts);
 
-      // max score
       maxScoreMap
         .set(userId, maxScoreMap.get(userId) ?? new Map())
         .get(userId)!
         .set(quizId, row.maxScore ?? 0);
+    }
 
-      // question score
+    for (const row of aggregatedSubmissions) {
+      const userId = row._id.userId.toString();
+      const quizId = row._id.quizId.toString();
+      const questionId = row._id.questionId.toString();
+
       scoreMap
         .set(userId, scoreMap.get(userId) ?? new Map())
         .get(userId)!
@@ -3227,7 +3529,7 @@ export class EnrollmentRepository {
           role: 1,
           status: 1,
           enrollmentDate: 1,
-          assignedTimeSlot: 1,
+          assignedTimeSlots: 1,
           course: 1,
           courseVersion: 1,
           //getting current course completion details(not actual details)
@@ -3301,7 +3603,7 @@ export class EnrollmentRepository {
   }
 
   /**
-   * Update enrollment time slot
+   * Add a time slot to enrollment's assigned time slots
    */
   async updateEnrollmentTimeSlot(
     enrollmentId: string,
@@ -3313,37 +3615,54 @@ export class EnrollmentRepository {
     const updateResult = await this.enrollmentCollection.updateOne(
       { _id: new ObjectId(enrollmentId) },
       {
+        $addToSet: {
+          assignedTimeSlots: timeSlot,
+        },
         $set: {
-          assignedTimeSlot: timeSlot,
-          updatedAt: new Date()
-        }
+          updatedAt: new Date(),
+        },
       },
-      { session }
+      { session },
     );
 
     return updateResult;
   }
 
   /**
-   * Remove assigned time slot from enrollment
+   * Remove a specific time slot from enrollment's assigned time slots
    */
   async removeEnrollmentTimeSlot(
     enrollmentId: string,
+    timeSlot?: { from: string; to: string },
     session?: ClientSession,
   ): Promise<any> {
     await this.init();
 
+    const updateQuery: any = {
+      $set: {
+        updatedAt: new Date(),
+      },
+    };
+
+    if (timeSlot) {
+      // Remove specific time slot
+      updateQuery.$pull = {
+        assignedTimeSlots: {
+          from: timeSlot.from,
+          to: timeSlot.to,
+        },
+      };
+    } else {
+      // Remove all time slots
+      updateQuery.$unset = {
+        assignedTimeSlots: 1,
+      };
+    }
+
     const updateResult = await this.enrollmentCollection.updateOne(
       { _id: new ObjectId(enrollmentId) },
-      {
-        $unset: {
-          assignedTimeSlot: 1
-        },
-        $set: {
-          updatedAt: new Date()
-        }
-      },
-      { session }
+      updateQuery,
+      { session },
     );
 
     return updateResult;
@@ -3360,15 +3679,121 @@ export class EnrollmentRepository {
   ): Promise<any[]> {
     await this.init();
 
-    const enrollments = await this.enrollmentCollection.find({
-      courseId: new ObjectId(courseId),
-      courseVersionId: new ObjectId(courseVersionId),
-      'assignedTimeSlot.from': timeSlot.from,
-      'assignedTimeSlot.to': timeSlot.to,
-      status: 'ACTIVE',
-      role: 'STUDENT'
-    }).toArray();
+    const enrollments = await this.enrollmentCollection
+      .find({
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        assignedTimeSlots: {
+          $elemMatch: {
+            from: timeSlot.from,
+            to: timeSlot.to,
+          },
+        },
+        status: 'ACTIVE',
+        role: 'STUDENT',
+      })
+      .toArray();
 
     return enrollments;
+  }
+
+  /**
+   * Update a specific time slot in the assignedTimeSlots array
+   */
+  async updateSpecificTimeSlot(
+    enrollmentId: string,
+    oldTimeSlot: { from: string; to: string },
+    newTimeSlot: { from: string; to: string },
+    session?: ClientSession,
+  ): Promise<any> {
+    await this.init();
+
+    const updateResult = await this.enrollmentCollection.updateOne(
+      {
+        _id: new ObjectId(enrollmentId),
+        assignedTimeSlots: {
+          $elemMatch: { from: oldTimeSlot.from, to: oldTimeSlot.to },
+        },
+      },
+      {
+        $set: {
+          'assignedTimeSlots.$.from': newTimeSlot.from,
+          'assignedTimeSlots.$.to': newTimeSlot.to,
+          updatedAt: new Date(),
+        },
+      },
+      { session },
+    );
+
+    return updateResult;
+  }
+
+  /**
+   * Add multiple time slots to enrollment
+   */
+  async addMultipleTimeSlots(
+    enrollmentId: string,
+    timeSlots: Array<{ from: string; to: string }>,
+    session?: ClientSession,
+  ): Promise<any> {
+    await this.init();
+
+    const updateResult = await this.enrollmentCollection.updateOne(
+      { _id: new ObjectId(enrollmentId) },
+      {
+        $addToSet: {
+          assignedTimeSlots: { $each: timeSlots },
+        },
+        $set: {
+          updatedAt: new Date(),
+        },
+      },
+      { session },
+    );
+
+    return updateResult;
+  }
+
+  /**
+   * Replace all time slots for enrollment
+   */
+  async replaceAllTimeSlots(
+    enrollmentId: string,
+    timeSlots: Array<{ from: string; to: string }>,
+    session?: ClientSession,
+  ): Promise<any> {
+    await this.init();
+
+    const updateResult = await this.enrollmentCollection.updateOne(
+      { _id: new ObjectId(enrollmentId) },
+      {
+        $set: {
+          assignedTimeSlots: timeSlots,
+          updatedAt: new Date(),
+        },
+      },
+      { session },
+    );
+
+    return updateResult;
+  }
+  async flagCompletedEnrollmentsWithNewItems(
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    await this.enrollmentCollection.updateMany(
+      {
+        courseVersionId: {
+          $in: [courseVersionId, new ObjectId(courseVersionId)],
+        },
+        role: 'STUDENT',
+        status: 'ACTIVE',
+        isDeleted: { $ne: true },
+        percentCompleted: { $gte: 100 },
+      },
+      { $set: { hasNewItemsAfterCompletion: true } },
+      { session },
+    );
   }
 }

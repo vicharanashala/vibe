@@ -6,6 +6,7 @@ import {
   NotFoundError,
   InternalServerError,
   BadRequestError,
+  ForbiddenError,
 } from 'routing-controllers';
 import {COURSES_TYPES} from '#courses/types.js';
 import {ItemsGroup} from '#courses/classes/transformers/Item.js';
@@ -41,6 +42,11 @@ export class SectionService extends BaseService {
     body: CreateSectionBody,
   ): Promise<ICourseVersion> {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+      
+      if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is archived and cannot create sections.");
+        }
       const version = await this.courseRepo.readVersion(versionId, session);
 
       //Find Module
@@ -108,6 +114,11 @@ export class SectionService extends BaseService {
     body: CreateSectionBody,
   ): Promise<ICourseVersion> {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+      
+      if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is archived and cannot be modified.");
+        }
       const version = await this.courseRepo.readVersion(versionId, session);
 
       //Find Module
@@ -157,6 +168,11 @@ export class SectionService extends BaseService {
     beforeSectionId: string,
   ): Promise<ICourseVersion> {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+      
+      if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is archived and cannot be modified.");
+        }
       const version = await this.courseRepo.readVersion(versionId, session);
 
       //Find Module
@@ -216,6 +232,11 @@ export class SectionService extends BaseService {
     sectionId: string,
   ): Promise<UpdateResult | null> {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+      
+      if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is archived and sections cannot be deleted");
+        }
       const readCourseVersion = await this.courseRepo.readVersion(
         versionId,
         session,
@@ -228,6 +249,40 @@ export class SectionService extends BaseService {
       const modules = readCourseVersion.modules;
       if (!modules) {
         throw new NotFoundError('../../../modules not found');
+      }
+
+    
+      const activeModules = modules.filter((m: any) => !m.isDeleted);
+      const moduleIndex = activeModules.findIndex((m: any) =>
+        (m.sections || []).some((s: any) => s.sectionId?.toString() === sectionId)
+      );
+
+      if (moduleIndex !== -1) {
+        const isLastModule = moduleIndex === activeModules.length - 1;
+
+        if (!isLastModule) {
+          const sections = (activeModules[moduleIndex].sections || []).filter((s: any) => !s.isDeleted);
+          const isOnlySection = sections.length === 1;
+          const isLastSection = sections[sections.length - 1]?.sectionId?.toString() === sectionId;
+
+          if (isOnlySection) {
+            throw new BadRequestError(
+              'Cannot delete this section. It is the only section in its module, and a subsequent module exists.',
+            );
+          }
+
+          if (isLastSection) {
+            const newLastSection = sections[sections.length - 2];
+            const newLastItemsGroup = newLastSection?.itemsGroupId
+              ? await this.itemRepo.readItemsGroup(newLastSection.itemsGroupId.toString(), session)
+              : null;
+            if (!newLastItemsGroup?.items?.length) {
+              throw new BadRequestError(
+                'Cannot delete this section. The section that would become the last in this module has no items.',
+              );
+            }
+          }
+        }
       }
 
       const deleteResult = await this.courseRepo.deleteSection(
@@ -278,6 +333,11 @@ export class SectionService extends BaseService {
     hide: boolean,
   ): Promise<ICourseVersion> {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+      
+      if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is archived and cannot be modified.");
+        }
       const version = await this.courseRepo.readVersion(versionId, session);
 
       // Find Module

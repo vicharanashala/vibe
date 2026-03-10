@@ -16,7 +16,7 @@ import {QuestionBody} from '../validators/QuestionValidator.js';
 
 abstract class BaseQuestion implements IQuestion {
   _id?: string | ObjectId;
-  createdBy?: string;
+  createdBy?: string | ObjectId;
   text: string;
   type: QuestionType;
   isParameterized: boolean;
@@ -30,7 +30,7 @@ abstract class BaseQuestion implements IQuestion {
 
   constructor(question: IQuestion, userId: string) {
     this._id = question._id;
-    this.createdBy = userId;
+    this.createdBy = new ObjectId(userId);
     this.text = question.text;
     this.type = question.type;
     this.isParameterized = question.isParameterized;

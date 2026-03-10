@@ -8,7 +8,7 @@ import { inject, injectable } from 'inversify';
 import { PROJECTS_TYPES } from '../types.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { SubmissionResponse } from '../classes/validators/ProjectValidators.js';
-import { InternalServerError, NotFoundError } from 'routing-controllers';
+import { ForbiddenError, InternalServerError, NotFoundError } from 'routing-controllers';
 import { IProjectSubmissionRepository } from '../interfaces/index.js';
 
 @injectable()
@@ -41,6 +41,11 @@ export class ProjectService extends BaseService {
           versionId,
           session,
         );
+        const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId);
+      
+        if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is inactive, you can't access items");
+        }
         if (!isVersionExist)
           throw new NotFoundError(`Failed to find course version`);
         const existingSubmission = 

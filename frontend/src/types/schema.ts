@@ -905,6 +905,12 @@ export interface components {
              * @example 2023-10-01T12:00:00Z
              */
             readonly createdAt: string;
+
+            /**
+             * @description version status
+             * @example open
+             */
+            readonly versionStatus: 'active' | 'archived';
             /**
              * Format: date-time
              * @description Last update timestamp
@@ -912,6 +918,13 @@ export interface components {
              */
             readonly updatedAt: string;
         };
+        UpdateCourseVersionStatusBody:{
+            /**
+             * @description version status
+             * @example open
+             */
+            versionStatus: 'active' | 'archived';
+        }
         CourseVersionNotFoundErrorResponse: {
             /**
              * @description HTTP status code
@@ -2045,6 +2058,8 @@ export interface components {
             totalPages: number;
             currentPage: number;
             enrollments: Record<string, never>[];
+            activeCount?: number;
+            archivedCount?: number;
         };
         EnrollmentNotFoundErrorResponse: {
             /**

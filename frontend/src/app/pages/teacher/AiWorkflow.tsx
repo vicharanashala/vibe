@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, editQuestionData, getApiUrl, getTaskStatus, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
+import { aiSectionAPI,getJobStatus, Chunk, connectToLiveStatusUpdates, editQuestionData, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
 import { ArrowLeft, ArrowRight, ChevronRight, ChevronLeft, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors, Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap, Info, Power, Check } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react'
@@ -32,6 +32,8 @@ export interface CurrentJob {
 }
 
 
+
+
 const formatTime = (time: number | string): string => {
   if (typeof time === 'string' && /^\d{2}:\d{2}:\d{3}$/.test(time)) {
     return time;
@@ -54,14 +56,15 @@ const AiWorkflow = () => {
   // <<<<<<<<< Store >>>>>>>>>>
   const { currentCourse } = useCourseStore();
 
-  // <<<<<<<<< State >>>>>>>>>>
-  const [youtubeUrl, setYoutubeUrl] = useState("");
-  const [showUrl, setShowUrl] = useState(false);
-  const [urlError, setUrlError] = useState<string | null>(null); // yt url error
-  const [aiJobId, setAiJobId] = useState<string | null>(null);
-  const clearStoredQuestions = () => {
-    localStorage.removeItem('questions');
-  };
+    // <<<<<<<<< State >>>>>>>>>>
+    const [youtubeUrl, setYoutubeUrl] = useState("");
+    const [showUrl, setShowUrl] = useState(false);
+    const [urlError, setUrlError] = useState<string | null>(null); // yt url error
+    const [aiJobId, setAiJobId] = useState<string | null>(null); 
+    const [shouldPoll, setShouldPoll] = useState(false);
+    const clearStoredQuestions = () => {
+      sessionStorage.removeItem('questions');
+    };
 
   const [uploadParams, setUploadParams] = useState<UploadParams>({
     videoItemBaseName: "video_item",
@@ -71,12 +74,12 @@ const AiWorkflow = () => {
   });
   const [customQuestionParams, setCustomQuestionParams] =
     useState<QuestionGenerationParameters>({
-      model: "deepseek-r1:70b",
-      SOL: 0,
-      SML: 0,
-      NAT: 0,
-      DES: 0,
-      prompt: `Focus on conceptual understanding
+       
+        SOL: 10,
+        SML: 0,
+        NAT: 0,
+        DES: 0,
+        prompt: `Focus on conceptual understanding
     - Test comprehension of key ideas, principles, and relationships discussed in the content
     - Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content
     - The answer of questions should be present within the content, but not directly quoted
@@ -91,6 +94,14 @@ const AiWorkflow = () => {
       runs: 25,
       noiseId: -1,
     });
+
+    const STEP_ORDER = {
+  AUDIO_EXTRACTION: 0,
+  TRANSCRIPT_GENERATION: 1,
+  SEGMENTATION: 2,
+  QUESTION_GENERATION: 3,
+  UPLOAD_CONTENT: 4
+};
 
   const [aiJobStatus, setAiJobStatus] = useState<JobStatus | null>(null); // to track current job status
   const [transcribedData, setTranscribedData] = useState<TranscriberData | undefined>(undefined); // to store the generated transcription
@@ -123,185 +134,114 @@ const AiWorkflow = () => {
 
   const navigate = useNavigate();
 
-  const handleIncomingStatus = (incoming: JobStatus) => {
-  // 1. Set current job
-  setCurrentJob({
-    task: incoming.task,
-    status: incoming.status
-  });
+    const mapJobStatusToIncoming = (jobStatus: any) => {
+  const order = [
+    { key: "audioExtraction", task: "AUDIO_EXTRACTION" },
+    { key: "transcriptGeneration", task: "TRANSCRIPT_GENERATION" },
+    { key: "segmentation", task: "SEGMENTATION" },
+    { key: "questionGeneration", task: "QUESTION_GENERATION" },
+    { key: "uploadContent", task: "UPLOAD_CONTENT" },
+  ];
 
-  if (incoming.status === "COMPLETED") {
-    handleShowHandleResult(incoming.task);
-    setProgress(100);
-    setTimeout(() => setIsLoading(false), 500);
-
-    if (incoming.task === "SEGMENTATION") {
-      toast.success("Segmentation completed!");
-    } else if (incoming.task === "QUESTION_GENERATION") {
-      toast.success("Question generation completed!");
+  // 1️⃣ Check running first
+  for (const step of order) {
+    if (jobStatus?.[step.key] === "RUNNING") {
+      return { task: step.task, status: "RUNNING" };
     }
-  } 
-  else if (incoming.status === "RUNNING") {
-    setIsWaitingServer(false);
-    setIsLoading(true);
-  } 
-  else if (incoming.status === "FAILED") {
-    setProgress(0);
-    setIsLoading(false);
   }
 
-  // Preserve your aiJobStatus logic
-  setAiJobStatus(() => {
-    let next: any = { ...incoming };
-    const failing = optimisticFailedTaskRef.current;
-
-    if (next && failing) {
-      const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
-      const setTop = (taskStr: string) => { next.task = taskStr; next.status = 'FAILED'; };
-
-      switch (failing) {
-        case 'AUDIO_EXTRACTION':
-          setTop('AUDIO_EXTRACTION');
-          ensureJobStatus();
-          next.jobStatus.audioExtraction = 'FAILED';
-          break;
-        case 'TRANSCRIPT_GENERATION':
-          setTop('TRANSCRIPT_GENERATION');
-          ensureJobStatus();
-          next.jobStatus.transcriptGeneration = 'FAILED';
-          break;
-        case 'SEGMENTATION':
-          setTop('SEGMENTATION');
-          ensureJobStatus();
-          next.jobStatus.segmentation = 'FAILED';
-          break;
-        case 'QUESTION_GENERATION':
-          setTop('QUESTION_GENERATION');
-          ensureJobStatus();
-          next.jobStatus.questionGeneration = 'FAILED';
-          break;
-        case 'UPLOAD_CONTENT':
-          setTop('UPLOAD_CONTENT');
-          ensureJobStatus();
-          next.jobStatus.uploadContent = 'FAILED';
-          break;
-      }
+  // 2️⃣ Check failed
+  for (const step of order) {
+    if (jobStatus?.[step.key] === "FAILED") {
+      return { task: step.task, status: "FAILED" };
     }
+  }
 
-    if (next?.status === 'FAILED' || next?.status === 'STOPPED') {
-      optimisticFailedTaskRef.current = null;
+  // 3️⃣ Return last completed step
+  let lastCompleted = null;
+
+  for (const step of order) {
+    if (jobStatus?.[step.key] === "COMPLETED") {
+      lastCompleted = step;
+    } else {
+      break;
     }
+  }
 
-    return next;
-  });
+  if (lastCompleted) {
+    return { task: lastCompleted.task, status: "COMPLETED" };
+  }
+
+  return null;
 };
 
+
+    // <<<<<<<<<< UseEffects >>>>>>>>>>
+  
+    // For live status
 useEffect(() => {
-  if (!aiJobId) return;
-  let isMounted = true;
+  if (!aiJobId || !shouldPoll) return;
 
-  const pollStatus = async () => {
-    try {
-      const status = await getTaskStatus(aiJobId, currentJob?.task);
+  const interval = setInterval(async () => {
+    const res = await getJobStatus(aiJobId);
 
-      if (!isMounted) return;
+    const incoming = mapJobStatusToIncoming(res.jobStatus);
+    if (!incoming) return;
 
-      handleIncomingStatus(status);
+    setCurrentJob((prev) => {
+      if (!prev) return incoming;
 
-    } catch (err) {
-      console.error("Polling error:", err);
+      const prevStep = STEP_ORDER[prev.task as keyof typeof STEP_ORDER];
+      const incomingStep = STEP_ORDER[incoming.task as keyof typeof STEP_ORDER];
+
+      if (incomingStep < prevStep) {
+        return prev;
+      }
+
+      return incoming;
+    });
+
+    if (incoming.status === "COMPLETED") {
+
+      handleShowHandleResult(incoming.task);
+
+      setProgress(100);
+      setTimeout(() => setIsLoading(false), 500);
+
+      // ⛔ stop polling when completed
+      setShouldPoll(false);
+
+      if (incoming.task === "SEGMENTATION") {
+        toast.success("Segmentation completed!");
+      }
+
+      if (incoming.task === "QUESTION_GENERATION") {
+        toast.success("Question generation completed!");
+      }
+
+    } 
+    else if (incoming.status === "RUNNING") {
+      setIsWaitingServer(false);
+      setIsLoading(true);
+
+      // keep polling
+      setShouldPoll(true);
+    } 
+    else if (incoming.status === "FAILED") {
+      setProgress(0);
+      setIsLoading(false);
+
+      // stop polling
+      setShouldPoll(false);
     }
-  };
 
-  // Call immediately
-  pollStatus();
+    setAiJobStatus(res);
 
-  return () => {
-    isMounted = false;
-  };
+  }, 5000);
 
-}, [aiJobId]);
+  return () => clearInterval(interval);
 
-
-
-  // <<<<<<<<<< UseEffects >>>>>>>>>>
-
-  // For live status
-  // useEffect(() => {
-  //   if (!aiJobId) return;
-  //   const es = connectToLiveStatusUpdates(aiJobId, (incoming) => {
-  //     // 1. Set current job for live status update
-  //     setCurrentJob({
-  //       task: incoming.task,
-  //       status: incoming.status
-  //     })
-  //     // 2. If status is completed then need to show result, need to hide the progress bar (%) and set next task status as waiting
-  //     if (incoming.status == "COMPLETED") {
-  //       handleShowHandleResult(incoming.task); // to show the result of the tasks
-  //       setProgress(100);
-  //       setTimeout(() => setIsLoading(false), 500);
-
-  //       if (incoming.task == "SEGMENTATION") {
-  //         toast.success("Segmentation completed!")
-  //         // setCurrentJob({task: "QUESTION_GENERATION", status: "WAITING"}) // Setting next task as waiting
-  //       }
-  //       else if (incoming.task == "QUESTION_GENERATION") {
-  //         toast.success("Question generation completed!")
-  //         // setCurrentJob({task: "UPLOAD_CONTENT", status: "WAITING"})
-  //       }
-  //     } else if (incoming.status == "RUNNING") {
-  //       setIsWaitingServer(false);
-  //       setIsLoading(true); // for progress bar (%) 
-  //     } else if (incoming.status == "FAILED") {
-  //       setProgress(0);
-  //       setIsLoading(false);
-  //     }
-  //     // 3. Set ai job status for live status (currently not using)
-  //     setAiJobStatus(() => {
-  //       let next: any = { ...incoming };
-  //       const failing = optimisticFailedTaskRef.current;
-  //       if (next && failing) {
-  //         const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
-  //         const setTop = (taskStr: string) => { next.task = taskStr; next.status = 'FAILED'; };
-  //         switch (failing) {
-  //           case 'AUDIO_EXTRACTION':
-  //             setTop('AUDIO_EXTRACTION');
-  //             ensureJobStatus();
-  //             next.jobStatus.audioExtraction = 'FAILED';
-  //             break;
-  //           case 'TRANSCRIPT_GENERATION':
-  //             setTop('TRANSCRIPT_GENERATION');
-  //             ensureJobStatus();
-  //             next.jobStatus.transcriptGeneration = 'FAILED';
-  //             break;
-  //           case 'SEGMENTATION':
-  //             setTop('SEGMENTATION');
-  //             ensureJobStatus();
-  //             next.jobStatus.segmentation = 'FAILED';
-  //             break;
-  //           case 'QUESTION_GENERATION':
-  //             setTop('QUESTION_GENERATION');
-  //             ensureJobStatus();
-  //             next.jobStatus.questionGeneration = 'FAILED';
-  //             break;
-  //           case 'UPLOAD_CONTENT':
-  //             setTop('UPLOAD_CONTENT');
-  //             ensureJobStatus();
-  //             next.jobStatus.uploadContent = 'FAILED';
-  //             break;
-  //         }
-  //       }
-  //       if (next?.status === 'FAILED' || next?.status === 'STOPPED') {
-  //         optimisticFailedTaskRef.current = null;
-  //       }
-
-  //       return next;
-  //     });
-
-  //   });
-  //   // 4. Clean up
-  //   return () => es.close();
-  // }, [aiJobId]);
+}, [aiJobId, shouldPoll]);
 
   // To track transcription status and start ai job for segementation
   useEffect(() => {
@@ -660,15 +600,15 @@ useEffect(() => {
         noiseId: customSegmentationParams.noiseId ?? -1,
       };
 
-      jobParams.questionGenerationParameters = {
-        model: customQuestionParams.model || "deepseek-r1:70b",
-        SOL: customQuestionParams.SOL ?? 1,
-        SML: customQuestionParams.SML ?? 0,
-        NAT: customQuestionParams.NAT ?? 0,
-        DES: customQuestionParams.DES ?? 0,
-        prompt:
-          customQuestionParams.prompt ||
-          `Focus on conceptual understanding
+        jobParams.questionGenerationParameters = {
+           
+            SOL: customQuestionParams.SOL ?? 10,
+            SML: customQuestionParams.SML ?? 0,
+            NAT: customQuestionParams.NAT ?? 0,
+            DES: customQuestionParams.DES ?? 0,
+            prompt:
+            customQuestionParams.prompt ||
+            `Focus on conceptual understanding
     - Test comprehension of key ideas, principles, and relationships discussed in the content
     - Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content
     - The answer of questions should be present within the content, but not directly quoted
@@ -742,37 +682,38 @@ useEffect(() => {
     }
   };
 
-  const handleApproveTask = async (qnGenParams?: QuestionGenerationParameters, filteredQuestions?: any[]) => {
-    try {
-      // 1. Check aiJobId
-      if (!aiJobId) {
-        toast.error("Job not found");
-        return;
-      }
-      setError("");
-      setIsApprovingTask(true);
-      setIsWaitingServer(false) // set to false, because now we are going to hit server again!
-      setProgress(0);
-      // 2. Fetch status to get current job
-      const status = await aiSectionAPI.getJobStatus(aiJobId);
-
-      if (!status || !status.jobStatus) {
-        toast.error("Failed to fetch job status, Try again!");
-        return;
-      }
-
-      const currentTaskData = getCurrentTask(status.jobStatus);
-
-      if (!currentTaskData) {
-        toast.error("Current task is missing");
-        return;
-      }
-
-      const currentTask = currentTaskData.task;
-      const currentStatus = currentTaskData.status;
-
-      if (currentTask == "uploadContent") // Manully adding upload status, becuae live status api will not trigger
-        updateCurrentJob("uploadContent", "RUNNING");
+    const handleApproveTask = async(qnGenParams?: QuestionGenerationParameters, filteredQuestions?: any[]) => {
+        try {
+            // 1. Check aiJobId
+            if (!aiJobId) {
+              toast.error("Job not found");
+              return;
+            }
+            setError(""); 
+            setIsApprovingTask(true);
+            
+            setIsWaitingServer(false) // set to false, because now we are going to hit server again!
+            setProgress(0);
+            // 2. Fetch status to get current job
+            const status = await aiSectionAPI.getJobStatus(aiJobId);
+            
+            if(!status || !status.jobStatus){
+                toast.error("Failed to fetch job status, Try again!");
+                return;
+            }
+            
+            const currentTaskData = getCurrentTask(status.jobStatus);
+            
+            if (!currentTaskData) {
+              toast.error("Current task is missing");
+              return;
+            }
+            
+            const currentTask = currentTaskData.task; 
+            const currentStatus = currentTaskData.status;
+            
+            if(currentTask == "uploadContent") // Manully adding upload status, becuae live status api will not trigger
+              updateCurrentJob("uploadContent", "RUNNING");
 
       setAiJobStatus({ ...status, task: currentTask, status: currentStatus });
 
@@ -787,24 +728,24 @@ useEffect(() => {
         questionsPerQuiz: uploadParams.questionsPerQuiz
       };
 
-      if (filteredQuestions && filteredQuestions.length > 0) {
-        customUploadParams.questions = filteredQuestions;
-      } else {
-        try {
-          const storedQuestions = localStorage.getItem('questions');
-          if (storedQuestions) {
-            const parsedQuestions = JSON.parse(storedQuestions);
-            const acceptedQuestions = parsedQuestions.filter((q: any) => q.isAccept === true);
-            if (acceptedQuestions.length > 0) {
-              customUploadParams.questions = acceptedQuestions;
+            if (filteredQuestions && filteredQuestions.length > 0) {
+              customUploadParams.questions = filteredQuestions;
+            } else {
+              try {
+                const storedQuestions = sessionStorage.getItem('questions');
+                if (storedQuestions) {
+                  const parsedQuestions = JSON.parse(storedQuestions);
+                  const acceptedQuestions = parsedQuestions.filter((q: any) => q.isAccept === true);
+                  if (acceptedQuestions.length > 0) {
+                    customUploadParams.questions = acceptedQuestions;
+                  }
+                }
+              } catch (error) {
+                console.error('Error getting accepted questions from sessionStorage:', error);
+              }
             }
-          }
-        } catch (error) {
-          console.error('Error getting accepted questions from localStorage:', error);
-        }
-      }
-
-      const customQuestionGenParams = qnGenParams || customQuestionParams;
+            
+            const customQuestionGenParams = qnGenParams || customQuestionParams;
 
       let params: Record<string, any> | null = null;
       // 3. Set proper request params
@@ -827,13 +768,14 @@ useEffect(() => {
       await aiSectionAPI.approveContinueTask(aiJobId);
       await aiSectionAPI.approveStartTask(aiJobId, params);
 
-      toast.success("Task approved!");
-      setIsWaitingServer(true) // setting true until we get response from live status ap
-
-      if (currentTask == "uploadContent") {
-        handleRefreshStatus(); // for upload content status refresh
-        toast.success("Content upload successfully!");
-      }
+              toast.success("Task approved!");
+              setShouldPoll(true);
+              setIsWaitingServer(true) // setting true until we get response from live status ap
+            
+            if(currentTask == "uploadContent") {
+                handleRefreshStatus(); // for upload content status refresh
+                toast.success("Content upload successfully!");
+              }
 
     } catch (error) {
       if (!isWaitingServer) {
@@ -1678,53 +1620,53 @@ export const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = (
         }
       }
 
-      const questionsToStore = questions.map((question, index) => {
-        const existingQuestion = existingQuestions.find(
-          (q: any) => q.question?.text === question.question?.text &&
-            q.segmentId === question.segmentId
-        );
-
-        if (existingQuestion && existingQuestion.hasOwnProperty('isAccept')) {
-          return {
-            ...question,
-            isAccept: existingQuestion.isAccept
-          };
-        } else {
-          return question;
-        }
-      });
-
-      localStorage.setItem('questions', JSON.stringify(questionsToStore));
-    }
-  }, [questions]);
-
-  useEffect(() => {
-    const storedQuestions = localStorage.getItem('questions');
-    if (storedQuestions) {
-      try {
-        const parsedQuestions = JSON.parse(storedQuestions);
-
-        const accepted = new Set<number>();
-        const rejected = new Set<number>();
-
-        parsedQuestions.forEach((question: any, index: number) => {
-          if (question.hasOwnProperty('isAccept')) {
-            if (question.isAccept === true) {
-              accepted.add(index);
-            } else if (question.isAccept === false) {
-              rejected.add(index);
-            }
+        const questionsToStore = questions.map((question, index) => {
+          const existingQuestion = existingQuestions.find(
+            (q: any) => q.question?.text === question.question?.text && 
+                      q.segmentId === question.segmentId
+          );
+          
+          if (existingQuestion && existingQuestion.hasOwnProperty('isAccept')) {
+            return {
+              ...question,
+              isAccept: existingQuestion.isAccept
+            };
+          } else {
+            return question;
           }
         });
-
-        setAcceptedQuestions(accepted);
-        setRejectedQuestions(rejected);
-
-      } catch (error) {
-        console.error('Error parsing stored questions:', error);
+        
+        sessionStorage.setItem('questions', JSON.stringify(questionsToStore));
       }
-    }
-  }, []);
+    }, [questions]);
+
+    useEffect(() => {
+      const storedQuestions = sessionStorage.getItem('questions');
+      if (storedQuestions) {
+        try {
+          const parsedQuestions = JSON.parse(storedQuestions);
+          
+          const accepted = new Set<number>();
+          const rejected = new Set<number>();
+          
+          parsedQuestions.forEach((question: any, index: number) => {
+            if (question.hasOwnProperty('isAccept')) {
+              if (question.isAccept === true) {
+                accepted.add(index);
+              } else if (question.isAccept === false) {
+                rejected.add(index);
+              }
+            }
+          });
+          
+          setAcceptedQuestions(accepted);
+          setRejectedQuestions(rejected);
+          
+        } catch (error) {
+          console.error('Error parsing stored questions:', error);
+        }
+      }
+    }, []);
 
   const isLocked = Boolean(!aiJobId) || isWaitingServer || isLoading || isApprovingTask;
   const [isMCQ, setIsMCQ] = useState(true);
@@ -1889,109 +1831,237 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
       });
     }
   };
-
-  const handlePreviousSegment = () => {
-    if (currentSegmentIndex > 0) {
-      setCurrentSegmentIndex(prev => {
-        const newIndex = prev - 1;
-
-        const prevSegmentQuestions = questions.filter(q => q.segmentId === segmentIds[newIndex]);
-        const firstPendingIndex = prevSegmentQuestions.findIndex((_, idx) => !isQuestionDecidedInSegment(newIndex, idx));
-
-        setIsNewQuestionEntering(true);
-        setCurrentQuestionIndexBySegment(prevState => ({
-          ...prevState,
-          [newIndex]: firstPendingIndex >= 0 ? firstPendingIndex : 0
-        }));
+        const handleSwipe = (direction: 'left' | 'right') => {
+        setSwipeDirection(direction);
+        
+        const currentQuestion = currentSegmentQuestions[currentQuestionInSegment];
+        const globalIndex = questions.findIndex(q => q === currentQuestion);
+      
+      const storedQuestions = sessionStorage.getItem('questions');
+      let allQuestions: any[] = [];
+      
+      if (storedQuestions) {
+        try {
+          allQuestions = JSON.parse(storedQuestions);
+        } catch (error) {
+          console.error('Error parsing stored questions:', error);
+        }
+      }
+  
+        if (direction === 'right') {
+          setAcceptedQuestions(prev => {
+            const newSet = new Set(prev);
+            newSet.add(globalIndex);
+            return newSet;
+          });
+          
+          setRejectedQuestions(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(globalIndex);
+            return newSet;
+          });
+          
+          if (allQuestions[globalIndex]) {
+            allQuestions[globalIndex].isAccept = true;
+            sessionStorage.setItem('questions', JSON.stringify(allQuestions));
+          }
+        } else {
+          setRejectedQuestions(prev => {
+            const newSet = new Set(prev);
+            newSet.add(globalIndex);
+            return newSet;
+          });
+          
+          setAcceptedQuestions(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(globalIndex);
+            return newSet;
+          });
+          
+          if (allQuestions[globalIndex]) {
+            allQuestions[globalIndex].isAccept = false;
+            sessionStorage.setItem('questions', JSON.stringify(allQuestions));
+          }
+        }
+        
         setTimeout(() => {
-          setIsNewQuestionEntering(false);
-        }, 400);
+        const nextPendingIndex = currentSegmentQuestions.findIndex((_, idx) => {
+          const isDecided = isQuestionDecidedInSegment(currentSegmentIndex, idx);
+          const isRejected = isQuestionRejected(idx);
+          return idx > currentQuestionInSegment && !isDecided && !isRejected;
+        });
+          
+          setSwipeDirection(null);
+          
+          if (nextPendingIndex >= 0) {
+          setTimeout(() => {
+            setIsNewQuestionEntering(true);
+            setCurrentQuestionIndexBySegment(prevState => ({
+              ...prevState,
+              [currentSegmentIndex]: nextPendingIndex
+            }));
+            setTimeout(() => {
+              setIsNewQuestionEntering(false);
+            }, 400);
+          }, 100);
+          } else {
+            setCurrentQuestionIndexBySegment(prevState => ({
+              ...prevState,
+              [currentSegmentIndex]: currentQuestionInSegment
+            }));
+          }
+        }, 500);
+      };
+      const isQuestionDecidedInSegment = (segmentIndex: number, questionIndexInSegment: number) => {
+        const segmentId = segmentIds[segmentIndex];
+        const segmentQuestions = questions.filter(q => q.segmentId === segmentId);
+        const question = segmentQuestions[questionIndexInSegment];
+        
+        if (!question) return false;
+        
+        const globalIndex = questions.findIndex(q => q === question);
+        
+        if (acceptedQuestions.has(globalIndex) || rejectedQuestions.has(globalIndex)) {
+          return true;
+        }
+        
+        const storedQuestions = sessionStorage.getItem('questions');
+        if (storedQuestions) {
+          try {
+            const parsedQuestions = JSON.parse(storedQuestions);
+            const storedQuestion = parsedQuestions[globalIndex];
+            return storedQuestion?.hasOwnProperty('isAccept');
+          } catch (error) {
+            console.error('Error checking question decision:', error);
+          }
+        }
+        
+        return false;
+      };
+        const handleNextSegment = () => {
+        if (currentSegmentIndex < segmentIds.length - 1) {
+            setCurrentSegmentIndex(prev => {
+                const newIndex = prev + 1;
+            
+            const nextSegmentQuestions = questions.filter(q => q.segmentId === segmentIds[newIndex]);
+            const firstPendingIndex = nextSegmentQuestions.findIndex((_, idx) => !isQuestionDecidedInSegment(newIndex, idx));
+            
+            setIsNewQuestionEntering(true);
+            setCurrentQuestionIndexBySegment(prevState => ({
+              ...prevState,
+              [newIndex]: firstPendingIndex >= 0 ? firstPendingIndex : 0
+            }));
+            setTimeout(() => {
+              setIsNewQuestionEntering(false);
+            }, 400);
+            
+                return newIndex;
+            });
+        }
+    };
 
-        return newIndex;
-      });
+    const handlePreviousSegment = () => {
+        if (currentSegmentIndex > 0) {
+            setCurrentSegmentIndex(prev => {
+            const newIndex = prev - 1;
+            
+            const prevSegmentQuestions = questions.filter(q => q.segmentId === segmentIds[newIndex]);
+            const firstPendingIndex = prevSegmentQuestions.findIndex((_, idx) => !isQuestionDecidedInSegment(newIndex, idx));
+            
+            setIsNewQuestionEntering(true);
+            setCurrentQuestionIndexBySegment(prevState => ({
+              ...prevState,
+              [newIndex]: firstPendingIndex >= 0 ? firstPendingIndex : 0
+            }));
+            setTimeout(() => {
+              setIsNewQuestionEntering(false);
+            }, 400);
+            
+            return newIndex;
+          });
+        }
+      };
+      const isQuestionAccepted = (index: number) => {
+        const globalIndex = questions.findIndex(q => 
+            q.segmentId === currentSegmentId && 
+            q === currentSegmentQuestions[index]
+        );
+  
+  if (acceptedQuestions.has(globalIndex)) return true;
+  
+  const storedQuestions = sessionStorage.getItem('questions');
+  if (storedQuestions) {
+    try {
+      const parsedQuestions = JSON.parse(storedQuestions);
+      const storedQuestion = parsedQuestions[globalIndex];
+      return storedQuestion?.isAccept === true;
+    } catch (error) {
+      console.error('Error checking question status:', error);
     }
-  };
-  const isQuestionAccepted = (index: number) => {
-    const globalIndex = questions.findIndex(q =>
-      q.segmentId === currentSegmentId &&
-      q === currentSegmentQuestions[index]
-    );
+  }
+  
+  return false;
+};
 
-    if (acceptedQuestions.has(globalIndex)) return true;
-
-    const storedQuestions = localStorage.getItem('questions');
-    if (storedQuestions) {
-      try {
-        const parsedQuestions = JSON.parse(storedQuestions);
-        const storedQuestion = parsedQuestions[globalIndex];
-        return storedQuestion?.isAccept === true;
-      } catch (error) {
-        console.error('Error checking question status:', error);
-      }
+    const isQuestionRejected = (index: number) => {
+        const globalIndex = questions.findIndex(q => 
+            q.segmentId === currentSegmentId && 
+            q === currentSegmentQuestions[index]
+        );
+  
+  if (rejectedQuestions.has(globalIndex)) return true;
+  
+  const storedQuestions = sessionStorage.getItem('questions');
+  if (storedQuestions) {
+    try {
+      const parsedQuestions = JSON.parse(storedQuestions);
+      const storedQuestion = parsedQuestions[globalIndex];
+      return storedQuestion?.isAccept === false;
+    } catch (error) {
+      console.error('Error checking question status:', error);
     }
-
-    return false;
-  };
-
-  const isQuestionRejected = (index: number) => {
-    const globalIndex = questions.findIndex(q =>
-      q.segmentId === currentSegmentId &&
-      q === currentSegmentQuestions[index]
-    );
-
-    if (rejectedQuestions.has(globalIndex)) return true;
-
-    const storedQuestions = localStorage.getItem('questions');
-    if (storedQuestions) {
-      try {
-        const parsedQuestions = JSON.parse(storedQuestions);
-        const storedQuestion = parsedQuestions[globalIndex];
-        return storedQuestion?.isAccept === false;
-      } catch (error) {
-        console.error('Error checking question status:', error);
-      }
-    }
-
-    return false;
-  };
+  }
+  
+  return false;
+};
   const getAcceptedQuestionsFromStorage = () => {
-    const storedQuestions = localStorage.getItem('questions');
-    if (storedQuestions) {
-      try {
-        const questions = JSON.parse(storedQuestions);
-        return questions.filter((q: any) => q.isAccept === true);
-      } catch (error) {
-        console.error('Error getting accepted questions:', error);
-        return [];
+      const storedQuestions = sessionStorage.getItem('questions');
+      if (storedQuestions) {
+          try {
+              const questions = JSON.parse(storedQuestions);
+              return questions.filter((q: any) => q.isAccept === true);
+          } catch (error) {
+              console.error('Error getting accepted questions:', error);
+              return [];
+          }
       }
-    }
-    return [];
+      return [];
   };
 
-  const clearStoredQuestions = () => {
-    localStorage.removeItem('questions');
-    setAcceptedQuestions(new Set());
-    setRejectedQuestions(new Set());
-  };
+const clearStoredQuestions = () => {
+  sessionStorage.removeItem('questions');
+  setAcceptedQuestions(new Set());
+  setRejectedQuestions(new Set());
+};
 
   const handleNext = () => {
     const acceptedQuestions = getAcceptedQuestionsFromStorage();
     updateCurrentJob("uploadContent", "WAITING");
   }
 
-  const handleAddParams = async () => {
-    if (!aiJobId) {
-      toast.error("Failed to find jobId!")
-      return;
-    }
-    const newParams = {
-      ...customQuestionParams,
-      SOL: (isMCQ) ? numberOfQuestions : 0,
-      SML: isMSQ ? numberOfQuestions : 0,
-      BIN: isBinary ? numberOfQuestions : 0,
-      numberOfQuestions: numberOfQuestions,
-      // prompt: isBinary ? binaryPrompt : customQuestionParams.prompt,
-    };
+    const handleAddParams = async() => {
+      if(!aiJobId){
+        toast.error("Failed to find jobId!")
+        return;      
+      }
+      const newParams = {
+        ...customQuestionParams,
+        SOL: (isMCQ) ? numberOfQuestions : 0,
+        SML: isMSQ  ? numberOfQuestions : 0,
+        // BIN:isBinary ? numberOfQuestions : 0,
+        numberOfQuestions: numberOfQuestions,
+        prompt: isBinary ? binaryPrompt : customQuestionParams.prompt,
+      };
 
     if (currentJobStatus === "COMPLETED") {
       try {
@@ -2021,30 +2091,30 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
     }
   }
 
-  const isQuestionAcceptedInSegment = (segmentIndex: number, questionIndexInSegment: number) => {
-    const segmentId = segmentIds[segmentIndex];
-    const segmentQuestions = questions.filter(q => q.segmentId === segmentId);
-    const question = segmentQuestions[questionIndexInSegment];
-
-    if (!question) return false;
-
-    const globalIndex = questions.findIndex(q => q === question);
-
-    if (acceptedQuestions.has(globalIndex)) return true;
-
-    const storedQuestions = localStorage.getItem('questions');
-    if (storedQuestions) {
-      try {
-        const parsedQuestions = JSON.parse(storedQuestions);
-        const storedQuestion = parsedQuestions[globalIndex];
-        return storedQuestion?.isAccept === true;
-      } catch (error) {
-        console.error('Error checking question acceptance:', error);
-      }
+    const isQuestionAcceptedInSegment = (segmentIndex: number, questionIndexInSegment: number) => {
+  const segmentId = segmentIds[segmentIndex];
+  const segmentQuestions = questions.filter(q => q.segmentId === segmentId);
+  const question = segmentQuestions[questionIndexInSegment];
+  
+  if (!question) return false;
+  
+  const globalIndex = questions.findIndex(q => q === question);
+  
+  if (acceptedQuestions.has(globalIndex)) return true;
+  
+  const storedQuestions = sessionStorage.getItem('questions');
+  if (storedQuestions) {
+    try {
+      const parsedQuestions = JSON.parse(storedQuestions);
+      const storedQuestion = parsedQuestions[globalIndex];
+      return storedQuestion?.isAccept === true;
+    } catch (error) {
+      console.error('Error checking question acceptance:', error);
     }
-
-    return false;
-  };
+  }
+  
+  return false;
+};
 
   const currentSegmentAcceptedCount = useMemo(() => {
     return currentSegmentQuestions.filter((_, idx) => {
@@ -2153,15 +2223,15 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
               {/* <p className="text-sm text-muted-foreground">Choose the model used to generate questions.</p>
                       // </div> */}
 
-              <div className="space-y-2 min-w-[220px]">
-                <Label className="text-sm font-medium">Model</Label>
-                <div className="h-10 flex items-center px-3 rounded-md border border-input bg-card text-sm">
-                  DeepSeek R1 70B
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {/* Choose the model used to generate questions. */}
-                </p>
-              </div>
+                       {/* <div className="space-y-2 min-w-[220px]">
+                        <Label className="text-sm font-medium">Model</Label>
+                        <div className="h-10 flex items-center px-3 rounded-md border border-input bg-card text-sm">
+                          DeepSeek R1 70B
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                         
+                        </p>
+                      </div>  */}
 
 
               <div className="space-y-2">
@@ -3797,7 +3867,7 @@ const UploadContentView: React.FC<UploadContentProps> = ({
       return;
     }
 
-    const storedQuestions = localStorage.getItem('questions');
+    const storedQuestions = sessionStorage.getItem('questions');
     let acceptedQuestions: any[] = [];
 
     if (storedQuestions) {

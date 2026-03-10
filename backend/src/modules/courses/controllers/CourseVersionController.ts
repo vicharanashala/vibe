@@ -36,6 +36,8 @@ import {
   CopyCourseVersionParams,
   CourseVersionWatchTimeResponse,
   GetCourseVersionWatchTimeParams,
+  UpdateCourseVersionStatusBody,
+  UpdateCourseVersionStatusParams,
 } from '#courses/classes/validators/CourseVersionValidators.js';
 import {
   CourseVersionActions,
@@ -50,6 +52,7 @@ import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 import { setAuditTrail } from '#root/utils/setAuditTrail.js';
 import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 import { ObjectId } from 'mongodb';
+import { ICourseVersion } from '#root/shared/index.js';
 
 @OpenAPI({
   tags: ['Course Versions'],
@@ -120,7 +123,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.COURSE_VERSION,
       action: AuditAction.COURSE_VERSION_CREATE,
-      actor: ObjectId.createFromHexString(userId),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context:{
         courseId: ObjectId.createFromHexString(courseId),
         courseVersionId: ObjectId.createFromHexString(createdCourseVersion._id.toString()),
@@ -225,7 +233,12 @@ Accessible to:
       setAuditTrail(req,{
       category: AuditCategory.COURSE_VERSION,
       action: AuditAction.COURSE_VERSION_UPDATE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context:{
         courseId: ObjectId.createFromHexString(courseId),
         courseVersionId: ObjectId.createFromHexString(versionId),
@@ -310,7 +323,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.COURSE_VERSION,
       action: AuditAction.COURSE_VERSION_DELETE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context:{
         courseId: ObjectId.createFromHexString(courseId),
         courseVersionId: ObjectId.createFromHexString(versionId),
@@ -387,7 +405,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.COURSE_VERSION,
       action: AuditAction.COURSE_VERSION_CLONE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context:{
         courseId: ObjectId.createFromHexString(courseId),
         courseVersionId: ObjectId.createFromHexString(versionId),
@@ -467,5 +490,70 @@ Accessible to:
       totalHoursRounded: Number(totalHours.toFixed(2)),
       readableDuration,
     };
+  }
+  
+  @OpenAPI({
+    summary: 'Update a course status',
+    description: `Updates course status to archive and unarchive.<br/>
+  Accessible to:
+  - Instructor or manager for the course.`,
+  })
+  @Authorized()
+  @Patch('/versions/:versionId/archive', {transformResponse: true})
+  @UseInterceptor(AuditTrailsHandler)
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseVersionNotFoundErrorResponse, {
+    description: 'Course version not found',
+    statusCode: 404,
+  })
+  async updateStatus(
+  @Params() params: UpdateCourseVersionStatusParams,
+  @Body() body: UpdateCourseVersionStatusBody,
+  @Ability(getCourseVersionAbility) { ability, user },
+  @Req() req: Request,
+  ) : Promise<ICourseVersion> {
+    const { versionId } = params;
+
+    const courseVersionSubject = subject('CourseVersion', { versionId });
+
+    if (!ability.can(CourseVersionActions.Archive, courseVersionSubject)) {
+      throw new ForbiddenError(
+        'You do not have permission to archive or Unarchive this course version',
+      );
+    }
+
+    const existingVersion = await this.courseVersionService.readCourseVersion(versionId, user._id);
+    const updatedVersion = await this.courseVersionService.updateCourseVersionStatus(versionId, body.versionStatus);
+    setAuditTrail(req, {
+      category: AuditCategory.COURSE_VERSION,
+      action: AuditAction.COURSE_VERSION_STATUS_UPDATE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        courseId: ObjectId.createFromHexString(
+          existingVersion.courseId.toString(),
+        ),
+      },
+      changes: {
+        before: {
+          versionStatus: existingVersion.versionStatus,
+        },
+        after: {
+          versionStatus: updatedVersion.versionStatus,
+        },
+      },
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    });
+    return updatedVersion;
   }
 }

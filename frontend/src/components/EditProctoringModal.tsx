@@ -12,6 +12,7 @@ import { Label } from "./ui/label"
 import { Separator } from "./ui/separator"
 import { Switch } from "./ui/switch"
 import { toast } from "sonner"
+import { ChevronDown } from "lucide-react"
 
 enum ProctoringComponent {
   CAMERAMICRO = 'cameraMic',
@@ -58,6 +59,7 @@ export function ProctoringModal({
   const [linearProgressionEnabled, setLinearProgressionEnabled] = useState(true);
   const [seekForwardEnabled, setSeekForwardEnabled] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
+  const [isAdditionalSettingsExpanded, setIsAdditionalSettingsExpanded] = useState(false);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -149,34 +151,50 @@ export function ProctoringModal({
 
             {/* Additional Settings Section */}
             <div className="space-y-4">
-              <div className="space-y-1">
-                <h3 className="text-sm font-medium text-foreground">Additional Settings</h3>
-                <p className="text-xs text-muted-foreground">Configure course behavior and progression</p>
+              {/* Expandable Header */}
+              <div 
+                className="flex items-center justify-between cursor-pointer hover:bg-muted/50 rounded-lg p-2 -mx-2 transition-colors"
+                onClick={() => setIsAdditionalSettingsExpanded(!isAdditionalSettingsExpanded)}
+              >
+                <div className="space-y-1">
+                  <h3 className="text-sm font-medium text-foreground">Additional Settings</h3>
+                  <p className="text-xs text-muted-foreground">Configure course behavior and progression</p>
+                </div>
+                <ChevronDown 
+                  className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                    isAdditionalSettingsExpanded ? 'rotate-180' : ''
+                  }`}
+                />
               </div>
 
-              <div className="flex items-center justify-between space-x-3">
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">Linear Course Progression</Label>
-                  <p className="text-xs text-muted-foreground">Students must follow lessons sequentially</p>
-                </div>
-                <Switch checked={linearProgressionEnabled} onCheckedChange={()=>setLinearProgressionEnabled(prev=>!prev)} />
-              </div>
+              {/* Collapsible Content */}
+              {isAdditionalSettingsExpanded && (
+                <div className="space-y-4 pl-2 border-l-2 border-border">
+                  <div className="flex items-center justify-between space-x-3">
+                    <div className="space-y-1">
+                      <Label className="text-sm font-medium">Linear Course Progression</Label>
+                      <p className="text-xs text-muted-foreground">Students must follow lessons sequentially</p>
+                    </div>
+                    <Switch checked={linearProgressionEnabled} onCheckedChange={()=>setLinearProgressionEnabled(prev=>!prev)} />
+                  </div>
 
-              <div className="flex items-center justify-between space-x-3">
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">Seek Forward</Label>
-                  <p className="text-xs text-muted-foreground">Allow students to seek forward in all videos</p>
-                </div>
-                <Switch checked={seekForwardEnabled} onCheckedChange={()=>setSeekForwardEnabled(prev=>!prev)} />
-              </div>
+                  <div className="flex items-center justify-between space-x-3">
+                    <div className="space-y-1">
+                      <Label className="text-sm font-medium">Seek Forward</Label>
+                      <p className="text-xs text-muted-foreground">Allow students to seek forward in all videos</p>
+                    </div>
+                    <Switch checked={seekForwardEnabled} onCheckedChange={()=>setSeekForwardEnabled(prev=>!prev)} />
+                  </div>
 
-              <div className="flex items-center justify-between space-x-3">
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">Make Public</Label>
-                  <p className="text-xs text-muted-foreground">Make this course available to all students</p>
+                  <div className="flex items-center justify-between space-x-3">
+                    <div className="space-y-1">
+                      <Label className="text-sm font-medium">Make Public</Label>
+                      <p className="text-xs text-muted-foreground">Make this course available to all students</p>
+                    </div>
+                    <Switch checked={isPublic} onCheckedChange={() => setIsPublic(prev => !prev)} />
+                  </div>
                 </div>
-                <Switch checked={isPublic} onCheckedChange={() => setIsPublic(prev => !prev)} />
-              </div>
+              )}
             </div>
           </div>
 

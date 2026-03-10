@@ -51,7 +51,7 @@ import {
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { subject } from '@casl/ability';
 
-import {  BadRequestErrorResponse } from '#root/shared/index.js';
+import { BadRequestErrorResponse } from '#root/shared/index.js';
 import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 import { QuizNotFoundErrorResponse } from '#root/modules/quizzes/classes/index.js';
 import { setAuditTrail } from '#root/utils/setAuditTrail.js';
@@ -92,7 +92,7 @@ export class EnrollmentController {
   async enrollUser(
     @Params() params: EnrollmentParams,
     @Body() body: EnrollmentBody,
-    @Ability(getEnrollmentAbility) {ability, user},
+    @Ability(getEnrollmentAbility) { ability, user },
     @Req() req: Request,
   ): Promise<EnrollUserResponse> {
     const { userId, courseId, versionId } = params;
@@ -117,23 +117,28 @@ export class EnrollmentController {
       courseId,
       versionId,
       role,
-    )) as {enrollment: IEnrollment; progress: IProgress; role: EnrollmentRole};
+    )) as { enrollment: IEnrollment; progress: IProgress; role: EnrollmentRole };
 
-    setAuditTrail(req,{
+    setAuditTrail(req, {
       category: AuditCategory.ENROLLMENT,
       action: AuditAction.ENROLLMENT_ADD,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseId: ObjectId.createFromHexString(courseId),
         courseVersionId: ObjectId.createFromHexString(versionId),
         userId: ObjectId.createFromHexString(userId)
       },
-      changes:{
-        after:{
+      changes: {
+        after: {
           role: body.role
         }
       },
-      outcome:{
+      outcome: {
         status: OutComeStatus.SUCCESS
       }
     })
@@ -165,7 +170,7 @@ export class EnrollmentController {
   })
   async unenrollUser(
     @Params() params: EnrollmentParams,
-    @Ability(getEnrollmentAbility) {ability, user},
+    @Ability(getEnrollmentAbility) { ability, user },
     @Req() req: Request,
   ): Promise<EnrollUserResponse> {
     const { userId, courseId, versionId } = params;
@@ -195,25 +200,30 @@ export class EnrollmentController {
       enrollmentData,
     );
 
-      setAuditTrail(req,{
+    setAuditTrail(req, {
       category: AuditCategory.ENROLLMENT,
       action: enrollmentData.role === "INSTRUCTOR" ? AuditAction.ENROLLMENT_REMOVE_INSTRUCTOR : AuditAction.ENROLLMENT_REMOVE_STUDENT,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseId: ObjectId.createFromHexString(courseId),
         courseVersionId: ObjectId.createFromHexString(versionId),
         userId: ObjectId.createFromHexString(userId)
       },
-      changes:{
-        before:{
+      changes: {
+        before: {
           role: enrollmentData.role
         }
       },
-      outcome:{
+      outcome: {
         status: OutComeStatus.SUCCESS
       }
 
-      })
+    })
 
     return new EnrollUserResponse(
       responseData.enrollment,
@@ -243,7 +253,7 @@ export class EnrollmentController {
     @Param('courseId') courseId: string,
     @Param('versionId') versionId: string,
     @Body() body: BulkUnenrollBody,
-    @Ability(getEnrollmentAbility) {ability, user},
+    @Ability(getEnrollmentAbility) { ability, user },
     @Req() req: Request,
   ): Promise<BulkUnenrollResponse> {
     const { userIds } = body;
@@ -276,13 +286,18 @@ export class EnrollmentController {
     setAuditTrail(req, {
       category: AuditCategory.ENROLLMENT,
       action: AuditAction.BULK_ENROLLMENT_REMOVE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
-      context:{
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
         courseId: ObjectId.createFromHexString(courseId),
         courseVersionId: ObjectId.createFromHexString(versionId),
       },
-      changes:{
-        after:{
+      changes: {
+        after: {
           totalRequested: userIds.length,
           successCount: results.successCount,
           failureCount: results.failureCount,
@@ -290,7 +305,7 @@ export class EnrollmentController {
           userId: userIds.map(id => new ObjectId(id))
         }
       },
-      outcome:{
+      outcome: {
         status: OutComeStatus.SUCCESS
       }
     })
@@ -328,14 +343,16 @@ export class EnrollmentController {
     @Ability(getEnrollmentAbility) { user },
     @Req() req: any,
   ): Promise<EnrollmentResponse> {
-    const { page, limit, search = '', role } = query;
+    const { page, limit, search = '', role, tab = 'active' } = query;
     const userId = user._id.toString();
     const skip = (page - 1) * limit;
 
     // 🚀 Run DB queries in parallel
-    const [enrollments, totalDocuments] = await Promise.all([
-      this.enrollmentService.getEnrollments(userId, skip, limit, role, search),
-      this.enrollmentService.countEnrollments(userId, role, search),
+    const [enrollments, totalDocuments, activeCount, archivedCount] = await Promise.all([
+      this.enrollmentService.getEnrollments(userId, skip, limit, role, search, tab),
+      this.enrollmentService.countEnrollments(userId, role, tab, search),
+      this.enrollmentService.getActiveCount(userId, role),
+      this.enrollmentService.getArchiveCount(userId, role)
     ]);
 
     if (!enrollments || enrollments.length === 0) {
@@ -345,6 +362,8 @@ export class EnrollmentController {
         currentPage: page,
         enrollments: [],
         message: 'No enrollments found for the user',
+        activeCount: activeCount,
+        archivedCount: archivedCount,
       };
     }
 
@@ -353,6 +372,8 @@ export class EnrollmentController {
       totalPages: Math.ceil(totalDocuments / limit),
       currentPage: page,
       enrollments,
+      activeCount: activeCount,
+      archivedCount: archivedCount,
     };
   }
 
@@ -464,6 +485,10 @@ export class EnrollmentController {
         statusTab,
       );
 
+      // console.log("Enrollments Data:", enrollmentsData)
+      // console.log("Enrollments Data:", enrollmentsData.enrollments.map(e => e.userInfo));
+      console.log("Enrollments Data:", enrollmentsData.enrollments.map(e => e.contentCounts));
+
     if (
       !enrollmentsData ||
       !enrollmentsData.enrollments ||
@@ -519,7 +544,7 @@ export class EnrollmentController {
       'Recomputes and updates progress for all enrollments across all courses or a specific course if courseId is provided.',
   })
   @Authorized()
-  @Patch('/enrollments/progress', {transformResponse: true})
+  @Patch('/enrollments/progress', { transformResponse: true })
   @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(UpdateEnrollmentProgressResponse, {
     description: 'Enrollment progress updated successfully',
@@ -530,7 +555,7 @@ export class EnrollmentController {
     statusCode: 400,
   })
   async updateAllEnrollmentsProgress(
-    @Ability(getEnrollmentAbility) {ability, user},
+    @Ability(getEnrollmentAbility) { ability, user },
     @QueryParams() query: BulkEnrollmentsQuery,
     @Req() req: any,
   ) {
@@ -538,25 +563,30 @@ export class EnrollmentController {
     const updatedEnrollment =
       await this.enrollmentService.bulkUpdateAllEnrollments(courseId, userId);
 
-      setAuditTrail(req, {
-        category: AuditCategory.ENROLLMENT,
-        action: AuditAction.PROGRESS_RECALCULATE,
-        actor: ObjectId.createFromHexString(user._id.toString()),
-        context: {
-          courseId: courseId ? ObjectId.createFromHexString(courseId) : undefined,
-          userId: userId ? ObjectId.createFromHexString(userId) : undefined,
-        },
-        changes:{
-          after:{
-            totalCount: updatedEnrollment.totalCount,
-            progressUpdatedCount: updatedEnrollment.updatedCount
-          }
-        },
-
-        outcome:{
-          status: OutComeStatus.SUCCESS
+    setAuditTrail(req, {
+      category: AuditCategory.ENROLLMENT,
+      action: AuditAction.PROGRESS_RECALCULATE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        courseId: courseId ? ObjectId.createFromHexString(courseId) : undefined,
+        userId: userId ? ObjectId.createFromHexString(userId) : undefined,
+      },
+      changes: {
+        after: {
+          totalCount: updatedEnrollment.totalCount,
+          progressUpdatedCount: updatedEnrollment.updatedCount
         }
-      })
+      },
+
+      outcome: {
+        status: OutComeStatus.SUCCESS
+      }
+    })
     return updatedEnrollment;
   }
 
@@ -644,11 +674,17 @@ export class EnrollmentController {
     @Param('courseId') courseId: string,
     @Param('versionId') versionId: string,
     @QueryParam('statusTab') statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
-    @Ability(getEnrollmentAbility) { ability },
+    @Ability(getEnrollmentAbility) { ability, user },
   ): Promise<QuizScoresExportResponseDto> {
-    const enrollmentResource = subject('Enrollment', { courseId, versionId });
+    // Check if user has instructor or manager role (can view course-level enrollments)
+    const courseResource = subject('Enrollment', { courseId });
+    const hasCourseLevelAccess = ability.can(EnrollmentActions.ViewAll, courseResource);
 
-    if (!ability.can(EnrollmentActions.ViewAll, enrollmentResource)) {
+    // Check if user has TA role (can view version-level enrollments)
+    const versionResource = subject('Enrollment', { courseId, versionId });
+    const hasVersionLevelAccess = ability.can(EnrollmentActions.ViewAll, versionResource);
+
+    if (!hasCourseLevelAccess && !hasVersionLevelAccess) {
       throw new ForbiddenError(
         'You do not have permission to view quiz scores for this course',
       );
@@ -679,10 +715,11 @@ export class EnrollmentController {
     @Ability(getEnrollmentAbility) { ability },
     @QueryParams() query: BulkEnrollmentsQuery,
   ): Promise<{ message: string; totalUpdated: any }> {
-    const { courseId, userId } = query;
+    const { courseId, versionId, userId } = query;
     const totalUpdated =
       await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion(
         courseId,
+        versionId,
         userId,
       );
 

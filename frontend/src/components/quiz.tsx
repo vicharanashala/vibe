@@ -498,40 +498,26 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     [currentCourse, stopItem, attemptId]
   );
 
+  useEffect(() => {
+    return () => {
+      if (emptyQuizNextTimerRef.current) {
+        clearTimeout(emptyQuizNextTimerRef.current);
+      }
+    };
+  }, []);
 
   // Handle empty quiz without attempting to start it
   const handleEmptyQuiz = useCallback(async () => {
     try {
-
       // Set empty quiz states
-      setEmptyQuizRedirectCountdown(10);
       setIsEmptyQuiz(true);
       setQuizStarted(true);
       setQuizCompleted(true);
-
-      // Start progress tracking
-      // await handleSendStartItem();
-      // call skipitem to create both start 
-      // await handleSkipItem();
-
-      if (emptyQuizNextTimerRef.current) {
-        clearTimeout(emptyQuizNextTimerRef.current);
-      }
-      // handleStopItem(true);
-      emptyQuizNextTimerRef.current = setTimeout(async () => {
-        await handleSkipItem();
-        if (onNext) {
-          onNext();
-        } else {
-          console.warn('No onNext handler available for empty quiz navigation');
-        }
-      }, 10000);
-
     } catch (error) {
       console.error('Error handling empty quiz:', error);
       toast.error('Error processing empty quiz. Please try refreshing.');
     }
-  }, [handleSendStartItem, handleStopItem, setQuizPassed, onNext]);
+  }, []);
 
   useEffect(() => {
     if (emptyQuizRedirectCountdown === null) return;
@@ -548,35 +534,18 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   // Handle empty quiz after quiz attempt was already made
   const handleEmptyQuizAfterAttempt = useCallback(async () => {
     try {
-
       // Set empty quiz states
       setIsEmptyQuiz(true);
       setQuizStarted(true);
       setQuizCompleted(true);
       setQuizPassed?.(1);
 
-      // We already have an attempt ID, so the item tracking should already be started
-      // Just mark it as completed with skip
-      setTimeout(() => {
-        handleStopItem(true);
-
-        // Displaying  a Toast Message
-        toast.info('No questions available in this quiz. Moving to next item...');
-
-        setTimeout(() => {
-          if (onNext) {
-            onNext();
-          } else {
-            console.warn('No onNext handler available for empty quiz navigation');
-          }
-        }, 1500);
-      }, 500);
-
+      toast.info('No questions available in this quiz.');
     } catch (error) {
       console.error('Error handling empty quiz after attempt:', error);
       toast.error('Error processing empty quiz. Please try refreshing.');
     }
-  }, [handleStopItem, setQuizPassed, onNext]);
+  }, [setQuizPassed]);
 
   // ===== QUIZ LIFECYCLE FUNCTIONS =====
   const startQuiz = useCallback(async () => {
@@ -661,28 +630,11 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       console.log('Error message:', errorMessage);
 
       if (errorMessage && (errorMessage.includes('No available attempts left') || errorMessage.includes('no available attempts'))) {
-        toast.info('You have used all available attempts for this quiz. Moving to next item...');
+        toast.info('You have used all available attempts for this quiz.');
 
         setQuizCompleted(true);
         setQuizPassed?.(1);
         setNoAttemptsLeft(true);
-
-        // await handleSendStartItem();
-        // await handleStopItem(true);
-        await handleSkipItem();
-        if (onNext) {
-          onNext();
-        }
-
-        // setTimeout(() => {
-        //   handleStopItem(true);
-
-        //   setTimeout(() => {
-        //     if (onNext) {
-        //       onNext();
-        //     }
-        //   }, 1500);
-        // }, 500);
 
         return;
       }
@@ -752,13 +704,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         setScore(totalScore);
       }
 
-      // try removing  this 
-      if (response.gradingStatus === 'FAILED') {
-        console.log('Quiz failed - immediately updating progress to previous video');
+      // Only call stopItem for PASSED quizzes to mark them as completed
+      if (response.gradingStatus === 'PASSED') {
+        // console.log('Quiz passed - marking as completed');
         try {
           await handleStopItem(false);
         } catch (stopError) {
-          console.error('Failed to update progress after quiz failure:', stopError);
+          console.error('Failed to update progress after quiz pass:', stopError);
         }
       }
       completedItemIdsRef.current.add(processedQuizId);
@@ -767,8 +719,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       setFinshingQuiz(false);
     } catch (err) {
       console.error('Failed to submit quiz:', err);
-      // ✅ Even on error, mark as completed so course-page can handle stop API
-      setQuizCompleted(true);
+        setQuizCompleted(false);
       setFinshingQuiz(false);
     }
   }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem, saveQuiz]);
@@ -1480,7 +1431,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 const userAnswer = answers[question.id];
                 const hasAnswer = userAnswer !== undefined && userAnswer !== null && userAnswer !== '';
                 const questionFeedback = submissionResults?.overallFeedback?.find(
-                  feedback => feedback.questionId === question.id
+                  feedback => {
+                    const fbId = typeof feedback.questionId === 'object' && feedback.questionId !== null && 'buffer' in feedback.questionId
+                      ? bufferToHex(feedback.questionId as any)
+                      : String(feedback.questionId);
+                    return fbId === question.id;
+                  }
                 );
 
                 return (
@@ -1593,13 +1549,32 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             <p className="text-muted-foreground text-lg">
               This quiz doesn't contain any questions at the moment.
             </p>
-            <p className="text-sm text-muted-foreground">
-              You'll be automatically moved to the next item in a few seconds...
-            </p>
           </div>
-          <div className="flex justify-center">
-            <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
-          </div>
+          {onNext && (
+            <div className="pt-4">
+              <Button
+                onClick={() => {
+                  handleSkipItem();
+                  onNext();
+                }}
+                disabled={isProgressUpdating}
+                className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
+                size="lg"
+              >
+                {isProgressUpdating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
+                    Processing
+                  </>
+                ) : (
+                  <>
+                    Next Lesson
+                    <ChevronRight className="h-4 w-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     );

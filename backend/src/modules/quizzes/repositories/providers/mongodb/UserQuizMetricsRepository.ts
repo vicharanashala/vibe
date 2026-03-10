@@ -91,7 +91,19 @@ class UserQuizMetricsRepository {
     session?: ClientSession,
   ): Promise<IUserQuizMetrics> {
     await this.init();
-
+    updateData =  
+    {...updateData,
+      userId: new ObjectId(updateData.userId),
+      quizId: new ObjectId(updateData.quizId),
+      latestAttemptId: updateData.latestAttemptId ? new ObjectId(updateData.latestAttemptId): null,
+      latestSubmissionResultId:updateData.latestSubmissionResultId ?
+        new ObjectId(updateData.latestSubmissionResultId) :null,
+      attempts: updateData.attempts.map(attempt => ({
+        ...attempt,
+        attemptId: new ObjectId(attempt.attemptId),
+        submissionResultId: attempt.submissionResultId ? new ObjectId(attempt.submissionResultId): null,
+      }))
+    }
     const result = await this.userQuizMetricsCollection.findOneAndUpdate(
       {_id: new ObjectId(metricsId)},
       {$set: updateData},

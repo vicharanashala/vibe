@@ -42,6 +42,7 @@ import { useCourseStore } from "@/store/course-store"
 import type { EmailInvite, EnrollmentRole, InviteStatus, InviteResult } from "@/types/invite.types"
 import { useNavigate, redirect } from "@tanstack/react-router"
 import { Pagination } from "@/components/ui/Pagination"
+import CourseBackButton from "./CourseBackButton";
 
 const isValidEmail = (email: string) => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -197,6 +198,10 @@ export default function InvitePage() {
       return "Course version data is not available"
     }
 
+    if (courseVersion.versionStatus !== "active") {
+      return "Invites cannot be sent because this course version is archived. Please activate the course version first."
+    }
+
     if (!courseVersion.modules || courseVersion.modules.length === 0) {
       return "Course must have at least one module to send invites to students"
     }
@@ -213,7 +218,9 @@ export default function InvitePage() {
   }
 
   // Check if course has required structure
-  const canSendInvites = hasRequiredStructure()
+  const isVersionActive = courseVersion?.versionStatus === "active"
+
+  const canSendInvites = hasRequiredStructure() && isVersionActive
 
   // Default role based on course structure
   const defaultRole: EnrollmentRole = canSendInvites ? "STUDENT" : "INSTRUCTOR";
@@ -596,6 +603,7 @@ const hasInvalidEmail = inviteEmails.some(
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      <CourseBackButton />
       {/* Header */}
       <div className="flex items-center space-x-2">
         <UserPlus className="w-6 h-6" />
@@ -608,16 +616,27 @@ const hasInvalidEmail = inviteEmails.some(
       </div>
 
       {/* Course Structure Warning */}
-      {!canSendInvites && (
+      {courseVersion && !canSendInvites && (
         <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20">
           <CardContent className="pt-6">
             <div className="flex items-center space-x-2 text-orange-800 dark:text-orange-200">
               <AlertTriangle className="w-5 h-5" />
-              <span className="font-medium">Course Structure Required</span>
+              <span className="font-medium">
+                {courseVersion.versionStatus !== "active"
+                  ? "Archived Course Version"
+                  : "Course Structure Required"}
+              </span>
             </div>
+
             <p className="mt-2 text-sm text-orange-700 dark:text-orange-300">
-              {getInviteBlockReason()}. Please add the required content before sending invites.
+              {getInviteBlockReason()}
             </p>
+
+            {courseVersion.versionStatus !== "active" && (
+              <p className="mt-2 text-sm font-medium text-red-600 dark:text-red-400">
+                You cannot send invites to archived courses.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -727,7 +746,7 @@ const hasInvalidEmail = inviteEmails.some(
               <Button
                 variant="outline"
                 onClick={() => setInviteEmails([{ email: "", role: "STUDENT" }])}
-                disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0}
+                disabled={inviteUsers.isPending || !canSendInvites  || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0}
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Reset
@@ -756,7 +775,7 @@ const hasInvalidEmail = inviteEmails.some(
                 )}
               </Button> */}
 
-              <Button className="min-w-[120px]" onClick={() => setShowConfirmationModal(true)} disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0}>Send Invites</Button>
+              <Button className="min-w-[120px]" onClick={() => setShowConfirmationModal(true)} disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0 || !isVersionActive} title={!isVersionActive ? "Cannot send invites to archived courses" : undefined}>Send Invites</Button>
             </div>
           </div>
         </CardContent>

@@ -8,6 +8,7 @@ export enum CourseVersionActions {
     Delete = "delete",
     View = "view",
     Modify = "modify",
+    Archive = "archive",
 }
 
 // Subjects
@@ -44,6 +45,7 @@ export function setupCourseVersionAbilities(
                 can(CourseVersionActions.View, 'CourseVersion', versionBounded);
                 can(CourseVersionActions.Modify, 'CourseVersion', versionBounded);
                 cannot(CourseVersionActions.Delete, 'CourseVersion', versionBounded);
+                cannot(CourseVersionActions.Archive, 'CourseVersion', versionBounded);
                 break;
             case 'MANAGER':
                 can('manage', 'CourseVersion', versionBounded);

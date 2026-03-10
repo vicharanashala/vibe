@@ -108,7 +108,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.MODULE,
       action: AuditAction.MODULE_ADD,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseId: ObjectId.createFromHexString(getCourse.courseId.toString()),
         courseVersionId: ObjectId.createFromHexString(versionId),
@@ -178,7 +183,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.MODULE,
       action: AuditAction.MODULE_UPDATE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseId: ObjectId.createFromHexString(getCourse.courseId.toString()),
         courseVersionId: ObjectId.createFromHexString(versionId),
@@ -255,7 +265,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.MODULE,
       action:AuditAction.MODULE_HIDE ,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseId: ObjectId.createFromHexString(getCourse.courseId.toString()),
         courseVersionId: ObjectId.createFromHexString(versionId),
@@ -352,7 +367,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.MODULE,
       action: AuditAction.MODULE_REORDER,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseId: ObjectId.createFromHexString(getCourse.courseId.toString()),
         courseVersionId: ObjectId.createFromHexString(versionId),
@@ -426,7 +446,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.MODULE,
       action: AuditAction.MODULE_DELETE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseId: ObjectId.createFromHexString(getCourse.courseId.toString()),
         courseVersionId: ObjectId.createFromHexString(versionId),
