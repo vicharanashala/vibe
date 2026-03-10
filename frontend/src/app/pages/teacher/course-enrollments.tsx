@@ -914,7 +914,7 @@ export default function CourseEnrollments() {
                 <div className="flex items-center gap-3">
                   <div className="h-8 w-1 bg-gradient-to-b from-primary to-accent rounded-full"></div>
                   <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-foreground">{course.name}</h2>
-                  <span className="text-lg text-muted-foreground">â€¢</span>
+                  <span className="text-lg text-muted-foreground">&bull;</span>
                   <h3 className="text-base md:text-lg lg:text-xl font-semibold text-accent">{version.version}</h3>
                 </div>
                 <div className="h-1 w-32 bg-gradient-to-r from-primary to-accent rounded-full ml-4"></div>
@@ -1222,13 +1222,13 @@ export default function CourseEnrollments() {
                             {currentPath.module.name}
                           </span>
 
-                          <span className="text-muted-foreground">â€º</span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
 
                           <span className="px-2 py-1 rounded bg-emerald-100 text-emerald-700">
                             {currentPath.section.name}
                           </span>
 
-                          <span className="text-muted-foreground">â€º</span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
 
                           <span className="px-2 py-1 rounded bg-purple-100 text-purple-700">
                             {currentPath.item.name}
