@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import {
+import { 
     FileText,
     Link as LinkIcon,
     Clock,
@@ -17,8 +17,10 @@ import {
     Trash2,
     Loader2,
     Send,
-    Image as ImageIcon
+    Image as ImageIcon,
+    Search
 } from "lucide-react";
+
 import { HpActivity } from "@/lib/api/hp-system";
 
 export default function StudentActivities() {
@@ -30,6 +32,26 @@ export default function StudentActivities() {
         cohortName as string
     );
     const { mutateAsync: submitActivity, isPending: isSubmitting } = useSubmitActivity();
+    // Search & Pagination
+    const [search, setSearch] = useState("");
+    const [page, setPage] = useState(1);
+    const pageSize = 6;
+
+    const filteredActivities = (activities ?? []).filter((activity) => {
+        if (!search) return true;
+        const q = search.toLowerCase();
+        return (
+            activity.title?.toLowerCase().includes(q) ||
+            activity.description?.toLowerCase().includes(q) ||
+            activity.activityType?.toLowerCase().includes(q)
+        );
+    });
+
+    const totalPages = Math.max(1, Math.ceil(filteredActivities.length / pageSize));
+    const paginatedActivities = filteredActivities.slice(
+        (page - 1) * pageSize,
+        page * pageSize
+    );
 
     // Submit dialog state
     const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
@@ -166,17 +188,39 @@ export default function StudentActivities() {
                 </Button>
             </div>
 
+             <div className="relative max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder="Search activities..."
+                    className="pl-8"
+                    value={search}
+                    onChange={(e) => {
+                        setSearch(e.target.value);
+                        setPage(1);
+                    }}
+                />
+            </div>
+
             {(!activities || activities.length === 0) ? (
-                <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
-                    <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                    <h3 className="text-lg font-medium">No Activities Yet</h3>
-                    <p className="text-sm text-muted-foreground mt-2 max-w-sm">
-                        There are no activities published for this cohort at the moment.
-                    </p>
-                </Card>
-            ) : (
-                <div className="grid grid-cols-1 gap-6">
-                    {activities.map((activity: HpActivity) => (
+                    <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
+                        <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                        <h3 className="text-lg font-medium">No Activities Yet</h3>
+                        <p className="text-sm text-muted-foreground mt-2 max-w-sm">
+                            There are no activities published for this cohort at the moment.
+                        </p>
+                    </Card>
+                ) : filteredActivities.length === 0 ? (
+                    <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
+                        <Search className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                        <h3 className="text-lg font-medium">No Results Found</h3>
+                        <p className="text-sm text-muted-foreground mt-2 max-w-sm">
+                            No activities match your search. Try a different keyword.
+                        </p>
+                    </Card>
+                ) : (
+                    <>
+                    <div className="grid grid-cols-1 gap-6">
+                        {paginatedActivities.map((activity: HpActivity) => (
                         <Card key={activity._id} className="overflow-hidden">
                             <CardHeader className="bg-muted/30 pb-4">
                                 <div className="flex justify-between items-start gap-4">
@@ -283,7 +327,27 @@ export default function StudentActivities() {
                         </Card>
                     ))}
                 </div>
-            )}
+                <Card className="mt-8">
+                    <CardContent className="flex flex-col items-center gap-3 py-3">
+                        <div className="text-sm text-muted-foreground">
+                            Page {page} of {totalPages} • {filteredActivities.length} total
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" size="icon" disabled={page === 1} onClick={() => setPage(page - 1)}>‹</Button>
+                            {Array.from({ length: totalPages }, (_, i) => {
+                                const pageNumber = i + 1;
+                                return (
+                                    <Button key={pageNumber} size="icon" variant={page === pageNumber ? "default" : "outline"} onClick={() => setPage(pageNumber)}>
+                                        {pageNumber}
+                                    </Button>
+                                );
+                            })}
+                            <Button variant="outline" size="icon" disabled={page === totalPages} onClick={() => setPage(page + 1)}>›</Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </>
+        )}
 
             {/* Submit Activity Dialog */}
             <Dialog open={submitDialogOpen} onOpenChange={setSubmitDialogOpen}>

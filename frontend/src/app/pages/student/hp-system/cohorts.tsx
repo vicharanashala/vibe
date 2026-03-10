@@ -4,10 +4,31 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { BookOpen, ArrowRight, Trophy, CheckCircle2, LayoutDashboard } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 export default function StudentCohorts() {
     const { data: cohorts, isLoading, error } = useHpStudentCohorts();
     const navigate = useNavigate();
+    const [search, setSearch] = useState("");
+    const [page, setPage] = useState(1);
+    const pageSize = 6;
+
+    const filteredCohorts = (cohorts ?? []).filter((cohort) => {
+        if (!search) return true;
+        const q = search.toLowerCase();
+        return (
+            cohort.courseName?.toLowerCase().includes(q) ||
+            cohort.cohortName?.toLowerCase().includes(q)
+        );
+    });
+
+    const totalPages = Math.max(1, Math.ceil(filteredCohorts.length / pageSize));
+    const paginatedCohorts = filteredCohorts.slice(
+        (page - 1) * pageSize,
+        page * pageSize
+    );
 
     // The backend endpoint isn't wired yet so we use mock data from the hook
     if (isLoading) {
@@ -29,6 +50,18 @@ export default function StudentCohorts() {
                 <p className="text-muted-foreground">
                     Select a cohort to view your activities, submissions, and current House Points (HP) standing.
                 </p>
+            </div>
+            <div className="relative max-w-sm mt-4">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder="Search cohorts..."
+                    className="pl-8"
+                    value={search}
+                    onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                    }}
+                />
             </div>
 
             {/* Mock Analytics Summary */}
@@ -81,7 +114,7 @@ export default function StudentCohorts() {
                 </Card>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-                    {cohorts.map((cohort, index) => (
+                    {paginatedCohorts.map((cohort, index) => (
                         <Card key={index} className="flex flex-col hover:border-primary/50 transition-colors">
                             <CardHeader>
                                 <div className="flex justify-between items-start gap-4">
@@ -93,7 +126,6 @@ export default function StudentCohorts() {
                                     </div>
                                 </div>
                             </CardHeader>
-
                             <CardContent className="flex-grow">
                                 <div className="space-y-4 pt-4 border-t">
                                     <div className="space-y-2">
@@ -112,7 +144,6 @@ export default function StudentCohorts() {
                                     </div>
                                 </div>
                             </CardContent>
-
                             <CardFooter>
                                 <Button
                                     className="w-full group"
@@ -126,6 +157,36 @@ export default function StudentCohorts() {
                     ))}
                 </div>
             )}
+
+            {/* Pagination */}
+            <Card className="mt-8">
+                <CardContent className="flex flex-col items-center gap-3 py-3">
+                    <div className="text-sm text-muted-foreground">
+                        Page {page} of {totalPages} • {filteredCohorts.length} total
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="icon" disabled={page === 1} onClick={() => setPage(page - 1)}>
+                            ‹
+                        </Button>
+                        {Array.from({ length: totalPages }, (_, i) => {
+                            const pageNumber = i + 1;
+                            return (
+                                <Button
+                                    key={pageNumber}
+                                    size="icon"
+                                    variant={page === pageNumber ? "default" : "outline"}
+                                    onClick={() => setPage(pageNumber)}
+                                >
+                                    {pageNumber}
+                                </Button>
+                            );
+                        })}
+                        <Button variant="outline" size="icon" disabled={page === totalPages} onClick={() => setPage(page + 1)}>
+                            ›
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }

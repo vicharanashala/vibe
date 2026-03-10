@@ -21,8 +21,13 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [page, setPage] = useState(1);
+    const pageSize = 6;
+    useEffect(() => {
+        setPage(1);
+        }, [search, statusFilter]);
 
-
+        
     // Edit Dialog state
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [editingActivity, setEditingActivity] = useState<HpActivity | null>(null);
@@ -41,6 +46,27 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
     const { data: activities, isLoading: loading, refetch } = useHpActivities(
         courseVersionId, cohortName, statusFilter, debouncedSearch
     );
+    const filteredActivities = (activities ?? []).filter((activity) => {
+    if (!debouncedSearch) return true;
+    const q = debouncedSearch.toLowerCase();
+        return (
+                activity.title?.toLowerCase().includes(q) ||
+                activity.description?.toLowerCase().includes(q) ||
+                activity.activityType?.toLowerCase().includes(q)
+            );
+    });
+    const totalPages = Math.max(1, Math.ceil(filteredActivities.length / pageSize));
+    const paginatedActivities = filteredActivities.slice(
+        (page - 1) * pageSize,
+        page * pageSize
+    );
+
+    useEffect(() => {
+        if (page > totalPages) {
+            setPage(1);
+        }
+        }, [activities]);
+
     const { mutateAsync: updateActivity } = useUpdateHpActivity();
     const { mutateAsync: publishActivity } = usePublishHpActivity();
     const { mutateAsync: archiveActivity } = useArchiveHpActivity();
@@ -110,191 +136,235 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                 <div className="w-full h-32 flex items-center justify-center text-muted-foreground border rounded-md">
                     Loading activities...
                 </div>
-            ) : activities.length === 0 ? (
+            ) : (activities.length ?? 0) === 0 ? (
                 <div className="w-full h-32 flex items-center justify-center text-muted-foreground border rounded-md">
                     No activities found.
                 </div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-                    {activities.map((activity) => (
-                        <Card
-                            key={activity._id}
-                            className="flex flex-col relative overflow-hidden rounded-xl border bg-card shadow-sm hover:shadow-md transition-all"
-                        >
-                            {/* Top decorative border based on status */}
-                            <div className={`h-1 w-full absolute top-0 left-0 ${activity.status === 'PUBLISHED'
-                                ? 'bg-emerald-500'
-                                : 'bg-amber-400'
-                                }`} />
+                <>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+                        {paginatedActivities?.map((activity) => (
+                            <Card
+                                key={activity._id}
+                                className="flex flex-col relative overflow-hidden rounded-xl border bg-card shadow-sm hover:shadow-md transition-all"
+                            >
+                                {/* Top decorative border based on status */}
+                                <div className={`h-1 w-full absolute top-0 left-0 ${activity.status === 'PUBLISHED'
+                                    ? 'bg-emerald-500'
+                                    : 'bg-amber-400'
+                                    }`} />
 
-                            <CardHeader className="pb-4 pt-6">
-                                <div className="flex justify-between items-start">
-                                    <div className="space-y-1">
-                                        <CardTitle
-                                            className="text-lg line-clamp-1"
-                                            title={activity.title}
-                                        >
-                                            {activity.title}
-                                        </CardTitle>
-
-                                        <div className="flex gap-2 text-xs">
-                                            <Badge
-                                                variant="outline"
-                                                className="bg-muted/50 text-muted-foreground"
+                                <CardHeader className="pb-4 pt-6">
+                                    <div className="flex justify-between items-start">
+                                        <div className="space-y-1">
+                                            <CardTitle
+                                                className="text-lg line-clamp-1"
+                                                title={activity.title}
                                             >
-                                                {activity.activityType}
-                                            </Badge>
+                                                {activity.title}
+                                            </CardTitle>
 
-                                            <Badge
-                                                variant={
-                                                    activity.status === "PUBLISHED"
-                                                        ? "default"
-                                                        : "secondary"
-                                                }
-                                                className="text-[10px] uppercase tracking-wide font-medium"
-                                            >
-                                                {activity.status}
-                                            </Badge>
-                                        </div>
-                                    </div>
-                                </div>
-                            </CardHeader>
+                                            <div className="flex gap-2 text-xs">
+                                                <Badge
+                                                    variant="outline"
+                                                    className="bg-muted/50 text-muted-foreground"
+                                                >
+                                                    {activity.activityType}
+                                                </Badge>
 
-                            <CardContent className="flex-1 space-y-4">
-                                <p className="text-sm text-muted-foreground line-clamp-2">
-                                    {activity.description || "No description provided."}
-                                </p>
-
-                                <div className="text-xs space-y-2 mt-4">
-                                    <div className="flex items-center text-muted-foreground">
-                                        <span className="w-24 font-medium text-foreground">Created By:</span>
-                                        <span>{activity.instructorName || `Teacher ID ${activity.createdByTeacherId || "Unknown"}`}</span>
-                                    </div>
-                                    {activity.rules && (
-                                        <>
-                                            <div className="flex items-center text-muted-foreground">
-                                                <span className="w-24 font-medium text-foreground">Mandatory:</span>
-                                                <span>{activity.rules.isMandatory ? 'Yes' : 'No'}</span>
+                                                <Badge
+                                                    variant={
+                                                        activity.status === "PUBLISHED"
+                                                            ? "default"
+                                                            : "secondary"
+                                                    }
+                                                    className="text-[10px] uppercase tracking-wide font-medium"
+                                                >
+                                                    {activity.status}
+                                                </Badge>
                                             </div>
-                                            {activity.rules.deadlineAt && (
+                                        </div>
+                                    </div>
+                                </CardHeader>
+
+                                <CardContent className="flex-1 space-y-4">
+                                    <p className="text-sm text-muted-foreground line-clamp-2">
+                                        {activity.description || "No description provided."}
+                                    </p>
+
+                                    <div className="text-xs space-y-2 mt-4">
+                                        <div className="flex items-center text-muted-foreground">
+                                            <span className="w-24 font-medium text-foreground">Created By:</span>
+                                            <span>{activity.instructorName || `Teacher ID ${activity.createdByTeacherId || "Unknown"}`}</span>
+                                        </div>
+                                        {activity.rules && (
+                                            <>
                                                 <div className="flex items-center text-muted-foreground">
-                                                    <span className="w-24 font-medium text-foreground">Deadline:</span>
-                                                    <span>{new Date(activity.rules.deadlineAt).toLocaleDateString()}</span>
+                                                    <span className="w-24 font-medium text-foreground">Mandatory:</span>
+                                                    <span>{activity.rules.isMandatory ? 'Yes' : 'No'}</span>
                                                 </div>
-                                            )}
-                                        </>
-                                    )}
-                                    <div className="flex items-center text-muted-foreground">
-                                        <span className="w-24 font-medium text-foreground">Submission:</span>
-                                        <span>{(activity.submissionMode || "").replace('_', ' ')}</span>
-                                    </div>
-                                    <div className="flex items-start text-muted-foreground">
-                                        <span className="w-24 font-medium text-foreground whitespace-nowrap mt-0.5">Attachments:</span>
-                                        <div className="flex flex-col gap-1 w-full">
-                                            {(!activity.attachments || activity.attachments.length === 0) ? (
-                                                <span className="flex items-center gap-1 text-xs">
-                                                    <Paperclip className="h-3 w-3" /> None
-                                                </span>
-                                            ) : (
-                                                activity.attachments.map((att, idx) => (
-                                                    <a
-                                                        key={idx}
-                                                        href={att.url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="flex items-center gap-1.5 text-blue-600 hover:underline hover:text-blue-800 text-xs w-fit max-w-full"
-                                                    >
-                                                        {att.kind === 'PDF' ? <FileText className="h-3 w-3 flex-shrink-0" /> : <LinkIcon className="h-3 w-3 flex-shrink-0" />}
-                                                        <span className="truncate">{att.name}</span>
-                                                    </a>
-                                                ))
-                                            )}
+                                                {activity.rules.deadlineAt && (
+                                                    <div className="flex items-center text-muted-foreground">
+                                                        <span className="w-24 font-medium text-foreground">Deadline:</span>
+                                                        <span>{new Date(activity.rules.deadlineAt).toLocaleDateString()}</span>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                        <div className="flex items-center text-muted-foreground">
+                                            <span className="w-24 font-medium text-foreground">Submission:</span>
+                                            <span>{(activity.submissionMode || "").replace('_', ' ')}</span>
                                         </div>
-                                    </div>
-                                    {activity.submissionMode === 'EXTERNAL_LINK' && activity.externalLink && (
                                         <div className="flex items-start text-muted-foreground">
-                                            <span className="w-24 font-medium text-foreground whitespace-nowrap mt-0.5">Ext. Link:</span>
-                                            <a
-                                                href={activity.externalLink}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-blue-600 hover:underline hover:text-blue-800 text-xs truncate max-w-[200px]"
-                                            >
-                                                {activity.externalLink}
-                                            </a>
+                                            <span className="w-24 font-medium text-foreground whitespace-nowrap mt-0.5">Attachments:</span>
+                                            <div className="flex flex-col gap-1 w-full">
+                                                {(!activity.attachments || activity.attachments.length === 0) ? (
+                                                    <span className="flex items-center gap-1 text-xs">
+                                                        <Paperclip className="h-3 w-3" /> None
+                                                    </span>
+                                                ) : (
+                                                    activity.attachments.map((att, idx) => (
+                                                        <a
+                                                            key={idx}
+                                                            href={att.url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center gap-1.5 text-blue-600 hover:underline hover:text-blue-800 text-xs w-fit max-w-full"
+                                                        >
+                                                            {att.kind === 'PDF' ? <FileText className="h-3 w-3 flex-shrink-0" /> : <LinkIcon className="h-3 w-3 flex-shrink-0" />}
+                                                            <span className="truncate">{att.name}</span>
+                                                        </a>
+                                                    ))
+                                                )}
+                                            </div>
                                         </div>
-                                    )}
-                                </div>
-
-                                {/* Stats block from backend */}
-                                <div className="bg-muted/30 p-3 rounded-md flex justify-between items-center mt-4 border text-xs">
-                                    <div className="text-center px-2">
-                                        <div className="font-bold text-foreground">{activity.stats?.submittedCount ?? 0}/{activity.stats?.totalStudents ?? 0}</div>
-                                        <div className="text-muted-foreground">Submitted</div>
+                                        {activity.submissionMode === 'EXTERNAL_LINK' && activity.externalLink && (
+                                            <div className="flex items-start text-muted-foreground">
+                                                <span className="w-24 font-medium text-foreground whitespace-nowrap mt-0.5">Ext. Link:</span>
+                                                <a
+                                                    href={activity.externalLink}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-blue-600 hover:underline hover:text-blue-800 text-xs truncate max-w-[200px]"
+                                                >
+                                                    {activity.externalLink}
+                                                </a>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="w-px h-8 bg-border" />
-                                    <div className="text-center px-2">
-                                        <div className="font-bold text-foreground">{activity.stats?.overdueCount ?? 0}</div>
-                                        <div className="text-muted-foreground">Overdue</div>
+
+                                    {/* Stats block from backend */}
+                                    <div className="bg-muted/30 p-3 rounded-md flex justify-between items-center mt-4 border text-xs">
+                                        <div className="text-center px-2">
+                                            <div className="font-bold text-foreground">{activity.stats?.submittedCount ?? 0}/{activity.stats?.totalStudents ?? 0}</div>
+                                            <div className="text-muted-foreground">Submitted</div>
+                                        </div>
+                                        <div className="w-px h-8 bg-border" />
+                                        <div className="text-center px-2">
+                                            <div className="font-bold text-foreground">{activity.stats?.overdueCount ?? 0}</div>
+                                            <div className="text-muted-foreground">Overdue</div>
+                                        </div>
+                                        <div className="w-px h-8 bg-border" />
+                                        <div className="text-center px-2">
+                                            <div className="font-bold text-green-600">{activity.stats?.completedCount ?? 0}</div>
+                                            <div className="text-muted-foreground">Completed</div>
+                                        </div>
                                     </div>
-                                    <div className="w-px h-8 bg-border" />
-                                    <div className="text-center px-2">
-                                        <div className="font-bold text-green-600">{activity.stats?.completedCount ?? 0}</div>
-                                        <div className="text-muted-foreground">Completed</div>
+                                </CardContent>
+
+                                <CardFooter className="pt-4 pb-4 border-t">
+                                    <div className="flex flex-wrap sm:flex-nowrap justify-end gap-2 w-full">
+
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-9 px-4"
+                                            onClick={() => handleOpenEdit(activity)}
+                                        >
+                                            <Edit className="mr-2 h-3.5 w-3.5" /> Edit
+                                        </Button>
+
+                                        <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            className="h-9 px-4"
+                                            onClick={() => handleDelete(activity._id)}
+                                        >
+                                            <Trash2 className="mr-2 h-3.5 w-3.5" /> Archive
+                                        </Button>
+
+                                        <Button
+                                            size="sm"
+                                            variant="secondary"
+                                            className="h-9 px-4"
+                                            disabled={activity.status === 'PUBLISHED'}
+                                            onClick={() => handlePublish(activity._id)}
+                                        >
+                                            <Send className="mr-2 h-3.5 w-3.5" />
+                                            Publish
+                                        </Button>
+
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-9 px-4"
+                                            onClick={() => {
+                                                setSelectedActivityId(activity._id);
+                                                setIsRulesOpen(true);
+                                            }}
+                                        >
+                                            <Settings className="mr-2 h-3.5 w-3.5" /> Rules
+                                        </Button>
+
+
                                     </div>
-                                </div>
-                            </CardContent>
+                                </CardFooter>
+                            </Card>
+                        ))}
+                    </div>
+                    <Card className="mt-8">
+                        <CardContent className="flex flex-col items-center gap-3 py-3">
+                            <div className="text-sm text-muted-foreground">
+                            Page {page} of {totalPages} • {filteredActivities.length} total
+                            </div>
 
-                            <CardFooter className="pt-4 pb-4 border-t">
-                                <div className="flex flex-wrap sm:flex-nowrap justify-end gap-2 w-full">
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    disabled={page === 1}
+                                    onClick={() => setPage(page - 1)}
+                                >
+                                    ‹
+                                </Button>
 
+                                {Array.from({ length: totalPages }, (_, i) => {
+                                    const pageNumber = i + 1;
+
+                                    return (
                                     <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-9 px-4"
-                                        onClick={() => handleOpenEdit(activity)}
+                                        key={pageNumber}
+                                        size="icon"
+                                        variant={page === pageNumber ? "default" : "outline"}
+                                        onClick={() => setPage(pageNumber)}
                                     >
-                                        <Edit className="mr-2 h-3.5 w-3.5" /> Edit
+                                        {pageNumber}
                                     </Button>
+                                    );
+                                })}
 
-                                    <Button
-                                        variant="destructive"
-                                        size="sm"
-                                        className="h-9 px-4"
-                                        onClick={() => handleDelete(activity._id)}
-                                    >
-                                        <Trash2 className="mr-2 h-3.5 w-3.5" /> Archive
-                                    </Button>
-
-                                    <Button
-                                        size="sm"
-                                        variant="secondary"
-                                        className="h-9 px-4"
-                                        disabled={activity.status === 'PUBLISHED'}
-                                        onClick={() => handlePublish(activity._id)}
-                                    >
-                                        <Send className="mr-2 h-3.5 w-3.5" />
-                                        Publish
-                                    </Button>
-
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-9 px-4"
-                                        onClick={() => {
-                                            setSelectedActivityId(activity._id);
-                                            setIsRulesOpen(true);
-                                        }}
-                                    >
-                                        <Settings className="mr-2 h-3.5 w-3.5" /> Rules
-                                    </Button>
-
-
-                                </div>
-                            </CardFooter>
-                        </Card>
-                    ))}
-                </div>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    disabled={page === totalPages}
+                                    onClick={() => setPage(page + 1)}
+                                >
+                                    ›
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </>
             )}
 
             <EditActivityDialog

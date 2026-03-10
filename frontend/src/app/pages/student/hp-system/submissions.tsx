@@ -3,7 +3,9 @@ import { useStudentMySubmissions } from "@/hooks/hooks";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Link as LinkIcon, FileText, Clock } from "lucide-react";
+import { ArrowLeft, Loader2, Link as LinkIcon, FileText, Clock, Search } from "lucide-react";
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
 
 export default function StudentSubmissions() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
@@ -12,6 +14,21 @@ export default function StudentSubmissions() {
     const { data: submissions, isLoading, error } = useStudentMySubmissions(
         courseVersionId as string,
         cohortName as string
+    );
+    const [search, setSearch] = useState("");
+    const [page, setPage] = useState(1);
+    const pageSize = 6;
+
+    const filteredSubmissions = (submissions ?? []).filter((sub: any) => {
+        if (!search) return true;
+        const q = search.toLowerCase();
+        return sub.activity?.title?.toLowerCase().includes(q);
+    });
+
+    const totalPages = Math.max(1, Math.ceil(filteredSubmissions.length / pageSize));
+    const paginatedSubmissions = filteredSubmissions.slice(
+        (page - 1) * pageSize,
+        page * pageSize
     );
 
     const formatDateTime = (dateString: string) => {
@@ -78,6 +95,15 @@ export default function StudentSubmissions() {
                     </p>
                 </div>
             </div>
+            <div className="relative max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder="Search submissions..."
+                    className="pl-8"
+                    value={search}
+                    onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                />
+            </div>
 
             {(!submissions || submissions.length === 0) ? (
                 <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
@@ -94,9 +120,18 @@ export default function StudentSubmissions() {
                         View Activities
                     </Button>
                 </Card>
+            ) : filteredSubmissions.length === 0 ? (
+                <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
+                    <Search className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                    <h3 className="text-lg font-medium">No Results Found</h3>
+                    <p className="text-sm text-muted-foreground mt-2 max-w-sm">
+                        No submissions match your search.
+                    </p>
+                </Card>
             ) : (
+                <>
                 <div className="space-y-4">
-                    {submissions.map((sub: any) => (
+                    {paginatedSubmissions.map((sub: any) => (
                         <Card key={sub.id} className="overflow-hidden">
                             <CardHeader className="bg-muted/30 pb-4">
                                 <div className="flex justify-between items-start gap-4">
@@ -197,6 +232,26 @@ export default function StudentSubmissions() {
                         </Card>
                     ))}
                 </div>
+                <Card className="mt-8">
+                    <CardContent className="flex flex-col items-center gap-3 py-3">
+                        <div className="text-sm text-muted-foreground">
+                            Page {page} of {totalPages} • {filteredSubmissions.length} total
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" size="icon" disabled={page === 1} onClick={() => setPage(page - 1)}>‹</Button>
+                            {Array.from({ length: totalPages }, (_, i) => {
+                                const pageNumber = i + 1;
+                                return (
+                                    <Button key={pageNumber} size="icon" variant={page === pageNumber ? "default" : "outline"} onClick={() => setPage(pageNumber)}>
+                                        {pageNumber}
+                                    </Button>
+                                );
+                            })}
+                            <Button variant="outline" size="icon" disabled={page === totalPages} onClick={() => setPage(page + 1)}>›</Button>
+                        </div>
+                    </CardContent>
+                </Card>
+                </>
             )}
         </div>
     );
