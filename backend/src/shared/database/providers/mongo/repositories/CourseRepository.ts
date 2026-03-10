@@ -818,6 +818,22 @@ export class CourseRepository implements ICourseRepository {
         };
       });
 
+      if (version?.cohorts?.length > 0) {
+        const cohortDeleteResult =  await this.cohortsCollection.updateMany(
+          { courseVersionId: new ObjectId(versionId) },
+          {
+            $set: {
+              isDeleted: true,
+              deletedAt: now
+            }
+          },
+          { session }
+        );
+        if (cohortDeleteResult.modifiedCount !== version?.cohorts?.length) {
+          throw new InternalServerError('Failed to delete cohorts');
+        }
+      }
+
       const versionDeleteResult = await this.courseVersionCollection.updateOne(
         {
           _id: new ObjectId(versionId),
