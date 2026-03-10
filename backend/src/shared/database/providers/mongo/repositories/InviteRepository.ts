@@ -293,4 +293,18 @@ export class InviteRepository {
       {session},
     );
   }
+
+  async cancelPendingInvitesByCourseId(
+    courseId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.inviteCollection.updateMany(
+      {
+        courseId: new ObjectId(courseId),
+        inviteStatus: {$in: ['PENDING', 'EMAIL_FAILED']},
+      },
+      {$set: {inviteStatus: 'CANCELLED'}},
+      {session},
+    );
+  }
 }
