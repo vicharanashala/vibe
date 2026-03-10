@@ -1,5 +1,6 @@
+import { useMemo } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
-import { useHpStudentLedger, useHpStudents } from "@/hooks/hooks";
+import { useHpStudentLedger, useHpStudents, useHpCourseVersions } from "@/hooks/hooks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,20 +21,45 @@ export default function StudentLedgerPage() {
     const { data: students } = useHpStudents(courseVersionId || '', cohortName || '');
     const student = students.find(s => s._id === studentId);
 
-    const { data: ledger, isLoading } = useHpStudentLedger(
-        studentId || '', courseVersionId || '', cohortName || ''
+    const { data: courses } = useHpCourseVersions();
+    const courseId = useMemo(() => {
+        if (!courses || !courseVersionId) return '';
+        for (const c of courses) {
+            if (c.versions.some((v: any) => v.courseVersionId === courseVersionId)) return c.courseId;
+        }
+        return '';
+    }, [courses, courseVersionId]);
+
+    const { data: ledgerResp, isLoading } = useHpStudentLedger(
+        studentId || '', courseVersionId || '', cohortName || '', courseId
     );
 
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'SUBMITTED':
-                return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Submitted</Badge>;
-            case 'PENDING':
-                return <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">Pending</Badge>;
-            case 'REVERTED':
-                return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">Reverted</Badge>;
-            default:
-                return <Badge variant="secondary">{status}</Badge>;
+    const ledger = ledgerResp?.data || [];
+    const studentInfo = ledgerResp?.studentDetails || {
+        studentName: student?.name || 'Loading...',
+        studentEmail: student?.email || '—',
+        hpPoints: 0
+    };
+
+    const getEventBadge = (eventType: string, direction: string) => {
+        if (direction === 'CREDIT') {
+            return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Credit</Badge>;
+        }
+        if (eventType === 'REVERSAL') {
+            return <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">Reversal</Badge>;
+        }
+        if (eventType === 'REJECTION') {
+            return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">Rejection</Badge>;
+        }
+        return <Badge variant="secondary">{eventType}</Badge>;
+    };
+
+    const getReasonLabel = (reasonCode?: string) => {
+        switch (reasonCode) {
+            case 'SUBMISSION_REWARD': return 'Submission Reward';
+            case 'REWARD_REVERSAL': return 'Reward Reversal';
+            case 'REJECTION_PENALTY': return 'Rejection Penalty';
+            default: return reasonCode || '—';
         }
     };
 
@@ -45,7 +71,7 @@ export default function StudentLedgerPage() {
         });
     };
 
-    const totalHp = ledger.reduce((sum, e) => sum + e.currentHp, 0);
+    const totalHp = studentInfo.hpPoints;
 
     return (
         <div className="space-y-6 w-full pb-12">
@@ -73,16 +99,16 @@ export default function StudentLedgerPage() {
                 <CardContent className="flex items-center justify-between p-6">
                     <div className="flex items-center gap-4">
                         <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-primary font-semibold text-lg">
-                            {student ? student.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '??'}
+                            {studentInfo.studentName !== 'Loading...' ? studentInfo.studentName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '??'}
                         </div>
                         <div>
                             <div className="flex items-center gap-2 text-lg font-semibold">
                                 <User className="h-4 w-4 text-muted-foreground" />
-                                {student?.name || 'Loading...'}
+                                {studentInfo.studentName}
                             </div>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <Mail className="h-3.5 w-3.5" />
-                                {student?.email || '—'}
+                                {studentInfo.studentEmail}
                             </div>
                         </div>
                     </div>
@@ -114,47 +140,44 @@ export default function StudentLedgerPage() {
                         <Table className="w-full">
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="min-w-[200px]">Activity</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Base HP</TableHead>
-                                    <TableHead className="text-right">Current HP</TableHead>
-                                    <TableHead className="min-w-[160px]">Submitted At</TableHead>
-                                    <TableHead className="min-w-[250px]">Instructor Feedback</TableHead>
+                                    <TableHead>Event</TableHead>
+                                    <TableHead>Reason</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                    <TableHead className="text-right">Balance After</TableHead>
+                                    <TableHead className="min-w-[160px]">Date</TableHead>
+                                    <TableHead className="min-w-[250px]">Note</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {ledger.map(entry => (
                                     <TableRow key={entry._id}>
                                         <TableCell>
-                                            <div className="font-medium">{entry.activityTitle}</div>
-                                            <div className="text-xs text-muted-foreground mt-0.5">
-                                                {formatDateTime(entry.createdAt)}
-                                            </div>
+                                            {getEventBadge(entry.eventType, entry.direction)}
                                         </TableCell>
-                                        <TableCell>{getStatusBadge(entry.status)}</TableCell>
-                                        <TableCell className="text-right">
-                                            <span className="font-semibold text-muted-foreground">{entry.baseHp}</span>
+                                        <TableCell>
+                                            <span className="text-sm">{getReasonLabel(entry.calc?.reasonCode)}</span>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <span className={`font-semibold ${entry.currentHp > 0 ? 'text-green-600 dark:text-green-400' : entry.currentHp < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
-                                                {entry.currentHp > 0 ? '+' : ''}{entry.currentHp}
+                                            <span className={`font-semibold ${entry.direction === 'CREDIT' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                {entry.direction === 'CREDIT' ? '+' : '-'}{entry.amount}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <span className="font-semibold text-muted-foreground">
+                                                {entry.calc?.computedAmount ?? '—'}
                                             </span>
                                         </TableCell>
                                         <TableCell>
-                                            {entry.submittedAt ? (
-                                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                                    <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-                                                    <span>{formatDateTime(entry.submittedAt)}</span>
-                                                </div>
-                                            ) : (
-                                                <span className="text-sm text-muted-foreground">—</span>
-                                            )}
+                                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                                <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                                                <span>{formatDateTime(entry.createdAt)}</span>
+                                            </div>
                                         </TableCell>
                                         <TableCell>
-                                            {entry.instructorFeedback ? (
+                                            {entry.meta?.note ? (
                                                 <div className="flex items-start gap-1.5 text-sm">
                                                     <MessageSquare className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-muted-foreground" />
-                                                    <span>{entry.instructorFeedback}</span>
+                                                    <span>{entry.meta.note}</span>
                                                 </div>
                                             ) : (
                                                 <span className="text-sm text-muted-foreground">—</span>
