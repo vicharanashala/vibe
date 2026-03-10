@@ -407,6 +407,7 @@ export default function CourseEnrollments() {
     studentId: string;
     name: string;
     email: string;
+    cohortName?: string | null;
     quizScores?: QuizScore[];
   }
 
@@ -458,6 +459,7 @@ export default function CourseEnrollments() {
           studentId: student.studentId ?? `student-${index}`,
           name: student.name ?? 'Unknown Student',
           email: student.email ?? '',
+          cohortName: student.cohortName ?? null,
           quizScores: Array.isArray(student.quizScores)
             ? student.quizScores.map((quiz: any) => ({
               moduleId: quiz.moduleId ?? 'unknown',

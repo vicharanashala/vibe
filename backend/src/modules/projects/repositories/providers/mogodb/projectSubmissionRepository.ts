@@ -88,6 +88,15 @@ export class ProjectSubmissionRepository
           },
 
           {
+            $lookup: {
+              from: 'cohorts',
+              localField: 'cohortId',
+              foreignField: '_id',
+              as: 'cohort',
+            },
+          },
+
+          {
             $group: {
               _id: {
                 courseId: '$courseId',
@@ -95,6 +104,7 @@ export class ProjectSubmissionRepository
               },
               course: { $first: '$course' },
               courseVersion: { $first: '$courseVersion' },
+              cohort: { $first: '$cohort' },
               userInfo: {
                 $push: {
                   firstName: { $arrayElemAt: ['$userInfo.firstName', 0] },
@@ -102,6 +112,7 @@ export class ProjectSubmissionRepository
                   email: { $arrayElemAt: ['$userInfo.email', 0] },
                   submissionURL: '$submissionURL',
                   comment: '$comment',
+                  cohortName: { $arrayElemAt: ['$cohort.name', 0] },
                 },
               },
             },

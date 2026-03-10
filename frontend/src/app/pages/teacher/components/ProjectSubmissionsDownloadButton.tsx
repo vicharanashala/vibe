@@ -54,7 +54,7 @@ const ProjectSubmissionsPDF: React.FC<ProjectSubmissionsPDFProps> = ({ course, c
         </View>
         {userInfo?.map((u: ProjectSubmissionUserInfo, idx: number) => (
           <View style={styles.tableRow} key={idx}>
-            <View style={[styles.tableCol, { width: '18%' }]}><Text style={styles.tableCell}>{(u.firstName || "") + " " + (u.lastName || "")}</Text></View>
+            <View style={[styles.tableCol, { width: '18%' }]}><Text style={styles.tableCell}>{(u.firstName || "") + " " + (u.lastName || "") + ((u as any).cohortName ? ` (${(u as any).cohortName})` : "")}</Text></View>
             <View style={[styles.tableCol, { width: '18%' }]}><Text style={styles.tableCell}>{u.email || ""}</Text></View>
             {/* <View style={[styles.tableCol, { width: '32%' }]}><Text style={styles.tableCell}>{u.submissionURL}</Text></View> */}
             <View style={[styles.tableCol, { width: '32%' }]}><Text style={styles.tableCell}><Link href={u.submissionURL}>{u.submissionURL}</Link></Text></View>
