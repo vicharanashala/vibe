@@ -351,9 +351,9 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         );
     }
 
-    async getLatestByStudentId(studentId: string): Promise<HpActivitySubmission | null> {
+    async getLatestByStudentId(studentId: string, activityId: string): Promise<HpActivitySubmission | null> {
         await this.init()
-        return await this.hpActivitySubmissionCollection.findOne({ studentId: new ObjectId(studentId) }, { sort: { createdAt: -1 } })
+        return await this.hpActivitySubmissionCollection.findOne({ studentId: new ObjectId(studentId), activityId: new ObjectId(activityId) }, { sort: { createdAt: -1 } })
     }
 
     async getCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number> {

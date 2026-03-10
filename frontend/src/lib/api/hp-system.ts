@@ -452,7 +452,7 @@ export const hpApi = {
     ): Promise<{ success: boolean; data: any[] }> => {
         const params = new URLSearchParams({ courseVersionId, cohort });
         // The backend returns { success, data: StudentActivitySubmissionsViewDto[] }
-        return apiFetch(`${BASE_URL}/activity-submissions/student/${studentId}?${params.toString()}`);
+        return apiFetch(`${BASE_URL}/activity-submissions/student/${studentId}/cohort/${cohort}?${params.toString()}`);
     },
 
     getStudentLedger: async (
