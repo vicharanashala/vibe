@@ -74,8 +74,8 @@ export class ActivitySubmissionsService extends BaseService {
                 throw new BadRequestError("Activity rule config not found");
             }
 
-            const latestSubmissions = await this.activitySubmissionsRepository.getLatestByStudentId(student.id)
-            if (latestSubmissions && latestSubmissions.status != "REVERTED")
+            const latestSubmissions = await this.activitySubmissionsRepository.getLatestByStudentId(student.id, activityId)
+            if (latestSubmissions && latestSubmissions.status !== "REVERTED")
                 throw new BadRequestError("You have already attended this activity.")
 
             const cohort = body.cohort;
