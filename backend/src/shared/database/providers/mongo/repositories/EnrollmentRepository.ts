@@ -1570,12 +1570,66 @@ export class EnrollmentRepository {
           },
         },
       },
+      // include watch hours for the student within this course/version
+      {
+        $lookup: {
+          from: 'watchTime',
+          let: { uid: '$userId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$userId', { $toObjectId: '$$uid' }] },
+                    { $in: ['$courseId', [courseId, courseIdObj]] },
+                    { $in: ['$courseVersionId', [courseVersionId, versionIdObj]] },
+                    { $ne: ['$isDeleted', true] },
+                    { $ne: ['$endTime', null] },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                duration: {
+                  $divide: [
+                    { $subtract: ['$endTime', '$startTime'] },
+                    3600000,
+                  ],
+                },
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                totalHours: { $sum: '$duration' },
+              },
+            },
+          ],
+          as: 'watchInfo',
+        },
+      },
+      {
+        $addFields: {
+          watchHours: {
+            $round: [
+              { $ifNull: [{ $arrayElemAt: ['$watchInfo.totalHours', 0] }, 0] },
+              2,
+            ],
+          },
+        },
+      },
+      { $project: { watchInfo: 0 } },
       { $limit: 1 },
     ];
 
     const result = await this.enrollmentCollection
       .aggregate(pipeline, { session })
       .toArray();
+
+    if (result[0]) {
+      console.debug('Student progress detail for user', userId, 'course', courseId, 'version', courseVersionId, 'watchHours=', result[0].watchHours);
+    }
 
     return result[0] || null;
   }
@@ -1645,6 +1699,9 @@ export class EnrollmentRepository {
     courseVersionId: string,
     session?: ClientSession,
   ): Promise<EnrollmentStats> {
+    await this.init();
+
+    // first run the existing aggregation to calculate enrollments and progress
     const [result] = await this.enrollmentCollection
       .aggregate<{
         totalEnrollments: number;
@@ -1705,13 +1762,74 @@ export class EnrollmentRepository {
       )
       .toArray();
 
-    return (
+    const baseStats =
       result || {
         totalEnrollments: 0,
         completedCount: 0,
         averageProgressPercent: 0,
-      }
-    );
+      };
+
+    // second aggregation to compute average watch hours per user for this course version
+    const watchAgg = await this.watchTimeCollection
+      .aggregate<{
+        averageWatchHoursPerUser: number;
+      }>(
+        [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $in: ['$courseId', [courseId, new ObjectId(courseId)]] },
+                  { $in: ['$courseVersionId', [courseVersionId, new ObjectId(courseVersionId)]] },
+                  { $ne: ['$isDeleted', true] },
+                  { $ne: ['$endTime', null] },
+                ],
+              },
+            },
+          },
+          {
+            $project: {
+              userId: 1,
+              duration: {
+                $divide: [
+                  { $subtract: ['$endTime', '$startTime'] },
+                  3600000, // convert ms to hours
+                ],
+              },
+            },
+          },
+          {
+            $group: {
+              _id: '$userId',
+              totalHours: { $sum: '$duration' },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              averageWatchHoursPerUser: { $avg: '$totalHours' },
+            },
+          },
+          {
+            $project: { _id: 0, averageWatchHoursPerUser: 1 },
+          },
+        ],
+        { session },
+      )
+      .toArray();
+
+    const watchStats = watchAgg[0] || { averageWatchHoursPerUser: 0 };
+    // debug log
+    console.debug('Computed averageWatchHoursPerUser for course', courseId, courseVersionId, watchStats.averageWatchHoursPerUser);
+
+    return {
+      totalEnrollments: baseStats.totalEnrollments,
+      completedCount: baseStats.completedCount,
+      averageProgressPercent: baseStats.averageProgressPercent,
+      averageWatchHoursPerUser: Number(
+        (watchStats.averageWatchHoursPerUser || 0).toFixed(2),
+      ),
+    };
   }
 
   /**

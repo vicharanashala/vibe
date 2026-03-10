@@ -656,7 +656,7 @@ export class EnrollmentController {
   @OpenAPI({
     summary: 'Get enrollment statistics for a course version',
     description:
-      'Provides total enrollments, completed enrollments count, and average progress percentage for a specific course version.',
+      'Provides total enrollments, completed enrollments count, average progress percentage, and average watch hours per user for a specific course version.',
   })
   @Authorized()
   @Get('/enrollments/courses/:courseId/versions/:versionId/statistics')
@@ -686,12 +686,14 @@ export class EnrollmentController {
         courseId,
         versionId,
       );
+    // stats now includes averageWatchHoursPerUser
 
     if (!stats || stats.totalEnrollments === 0) {
       return {
         totalEnrollments: 0,
         completedCount: 0,
         averageProgressPercent: 0,
+        averageWatchHoursPerUser: 0,
       };
     }
 
