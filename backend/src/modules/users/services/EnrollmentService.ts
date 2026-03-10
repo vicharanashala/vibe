@@ -6,6 +6,7 @@ import { IItemRepository } from '#root/shared/database/interfaces/IItemRepositor
 import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
 import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
+  courseVersionStatus,
   EnrollmentRole,
   EnrollmentStatus,
   ICourseVersion,
@@ -21,6 +22,7 @@ import {
   BadRequestError,
   NotFoundError,
   InternalServerError,
+  ForbiddenError,
 } from 'routing-controllers';
 import { ProgressService } from './ProgressService.js';
 import { ProgressRepository, InviteRepository } from '#root/shared/index.js';
@@ -67,6 +69,11 @@ export class EnrollmentService extends BaseService {
     throughInvite: boolean = false,
     session?: ClientSession,
   ) {
+    // const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId,session);
+
+    // if(versionStatus==="archived"){
+    //   throw new ForbiddenError("This enrollment is invalid. Because course version is archived.");
+    // }
     const execute = async (session: ClientSession) => {
       const user = await this.userRepo.findById(userId, session);
       if (!user) throw new NotFoundError('User not found');
@@ -81,6 +88,13 @@ export class EnrollmentService extends BaseService {
       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
         throw new NotFoundError(
           'Course version not found or does not belong to this course',
+        );
+      }
+
+      // Check if version is archived (only for existing versions, not newly created ones)
+      if (courseVersion.versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'This enrollment is invalid. Because course version is archived.',
         );
       }
 
@@ -149,9 +163,7 @@ export class EnrollmentService extends BaseService {
             session,
           );
         } else {
-          console.log(
-            '=== ENROLLMENT: No progress data returned - course may have no valid items ===',
-          );
+          // No progress data returned - course may have no valid items
         }
       }
 
@@ -238,6 +250,16 @@ export class EnrollmentService extends BaseService {
     enrollment: Enrollment | null,
   ) {
     return this._withTransaction(async (session: ClientSession) => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        courseVersionId,
+        session,
+      );
+
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'This course version is archived, cannot unenroll users',
+        );
+      }
       if (!enrollment) {
         throw new NotFoundError('Enrollment not found');
       }
@@ -273,6 +295,14 @@ export class EnrollmentService extends BaseService {
       errors: [] as string[],
     };
 
+    const versionStatus =
+      await this.courseRepo.getCourseVersionStatus(courseVersionId);
+
+    if (versionStatus === 'archived') {
+      throw new ForbiddenError(
+        'This course version is archived, cannot unenroll users',
+      );
+    }
     // Process unenrollments in parallel with error handling
     await Promise.allSettled(
       userIds.map(async userId => {
@@ -333,6 +363,7 @@ export class EnrollmentService extends BaseService {
     limit: number,
     role: EnrollmentRole,
     search: string,
+    tab?: courseVersionStatus,
   ): Promise<EnrollmentDataResponse[]> {
     let enrollments = [];
     if (role === 'INSTRUCTOR') {
@@ -342,6 +373,7 @@ export class EnrollmentService extends BaseService {
         limit,
         role,
         search,
+        tab,
       );
     } else {
       enrollments = await this.enrollmentRepo.getBasicEnrollments(
@@ -363,6 +395,15 @@ export class EnrollmentService extends BaseService {
       // Get all active course versions in a single call
       const courseVersions = await this.courseRepo.getActiveVersions(
         Array.from(enrolledVersionIds),
+      );
+
+      //Filtering Active versions enrollments
+      const activeVersionIds = new Set(
+        courseVersions.map(v => v._id.toString()),
+      );
+
+      const activeEnrollments = enrollments.filter(enr =>
+        activeVersionIds.has(enr.courseVersionId.toString()),
       );
 
       // Create a map for quick lookup
@@ -395,73 +436,62 @@ export class EnrollmentService extends BaseService {
         courseVersionId: new ObjectId(e.courseVersionId),
       }));
 
-      // Batch all async operations together
       const [
         watchedItemsMap,
-        // watchedItemsByTypeMap,
+        watchedItemsByTypeMap,
         quizSubmissionGrades,
       ]: [
           Map<string, number>,
-          // Map<
-          //   string,
-          //   {videos: number; quizzes: number; articles: number; projects: number}
-          // >,
+          Map<string, { videos: number; quizzes: number; articles: number; projects: number }>,
           ISubmission[],
         ] = await Promise.all([
           this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
-          // this.enrollmentRepo.getWatchedItemCountsByTypeBatch(watchedKeys),
+          this.enrollmentRepo.getWatchedItemCountsByTypeBatch(watchedKeys),
           allQuizIds.length > 0
             ? this.enrollmentRepo.getQuizSubmissionGrade(userId, allQuizIds)
             : Promise.resolve([]),
         ]);
 
-      // Create a map for quick quiz grade lookup
-      // const quizGradeMap: Map<string, IGradingResult> = new Map(
-      //   quizSubmissionGrades.map(grade => [
-      //     grade.quizId.toString(),
-      //     grade.gradingResult,
-      //   ]),
-      // );
+      const quizGradeMap: Map<string, IGradingResult> = new Map(
+        quizSubmissionGrades.map(grade => [
+          grade.quizId.toString(),
+          grade.gradingResult,
+        ]),
+      );
 
-      return enrollments.map(enr => {
+      return activeEnrollments.map(enr => {
         const versionIdStr = enr.courseVersionId.toString();
         const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
-        // const versionItemGroups = versionToItemGroups.get(versionIdStr) || [];
-        // const versionQuizIds = quizInfo.filter(quiz =>
-        //   versionItemGroups.includes(quiz._id.toString()),
-        // );
 
-        // Get quiz grades for this enrollment's quizzes
-        // const enrollmentQuizGrades = versionQuizIds
-        //   .map(q =>
-        //     q.items?._id ? quizGradeMap.get(q.items._id.toString()) : null,
-        //   )
-        //   .filter(Boolean) as IGradingResult[];
-
-        // update percentage if contentCountsMap / watchedItemsMap has different value from enrollment.percentCompleted
-        // ratio is calculated as (watchedItems / totalItems) * 100
+        const versionItemGroups = versionToItemGroups.get(versionIdStr) || [];
+        const versionQuizIds = quizInfo.filter(quiz =>
+          versionItemGroups.includes(quiz._id.toString()),
+        );
+        const enrollmentQuizGrades = versionQuizIds
+          .map(q =>
+            q.items?._id ? quizGradeMap.get(q.items._id.toString()) : null,
+          )
+          .filter(Boolean) as IGradingResult[];
 
         const completedCount = watchedItemsMap.get(watchedKey) || 0;
+        // const completedByType = watchedItemsByTypeMap.get(watchedKey) || {
+        //   videos: 0,
+        //   quizzes: 0,
+        //   articles: 0,
+        //   projects: 0,
+        // };
+        const itemCounts = enr.courseVersion?.itemCounts || {};
 
-        const ratio = completedCount / (enr.totalItems || 1); // avoid division by zero
-        // const calculatedPercent = Math.floor(ratio * 100);
+        const ratio = completedCount / (enr.totalItems || 1);
         const calculatedPercent = Number((ratio * 100).toFixed(2));
 
-        // if different, update enrollment percentCompleted and completedItemsCount
         if (enr.percentCompleted !== calculatedPercent) {
-          /*console.log(
-            `Updating percentCompleted for enrollment ${enr._id.toString()} from ${
-              enr.percentCompleted
-            } to ${calculatedPercent}`,
-          );*/
-
           void this.enrollmentRepo.updateProgressPercentById(
             enr._id.toString(),
             calculatedPercent,
             undefined,
             completedCount,
           );
-
           enr.percentCompleted = calculatedPercent;
           enr.completedItemsCount = completedCount;
         }
@@ -474,7 +504,7 @@ export class EnrollmentService extends BaseService {
             role: enr.role,
             status: enr.status,
             enrollmentDate: new Date(enr.enrollmentDate),
-            assignedTimeSlot: enr.assignedTimeSlot,
+            assignedTimeSlot: enr.assignedTimeSlots,
             course: this.filterCourseVersions(enr.course, enrolledVersionIds),
             percentCompleted: enr.percentCompleted || 0,
             moduleNumber: enr.moduleNumber,
@@ -483,8 +513,8 @@ export class EnrollmentService extends BaseService {
             contentCounts: {
               totalItems: enr.totalItems ?? 0,
             },
-
             completedItems: watchedItemsMap.get(watchedKey) || 0,
+            hasNewItemsAfterCompletion: enr.hasNewItemsAfterCompletion || false,
           };
         }
       });
@@ -497,9 +527,29 @@ export class EnrollmentService extends BaseService {
       role: enr.role,
       status: enr.status,
       enrollmentDate: new Date(enr.enrollmentDate),
-      assignedTimeSlot: enr.assignedTimeSlot,
+      assignedTimeSlot: enr.assignedTimeSlots,
       course: this.filterCourseVersions(enr.course, enrolledVersionIds),
     }));
+  }
+
+  public async getActiveCount(
+    userId: string,
+    role: EnrollmentRole,
+  ): Promise<number> {
+    if (role === "STUDENT") {
+      return 0;
+    }
+    return await this.enrollmentRepo.getActiveCount(userId, role);
+  }
+
+  public async getArchiveCount(
+    userId: string,
+    role: EnrollmentRole,
+  ): Promise<number> {
+    if (role === "STUDENT") {
+      return 0;
+    }
+    return await this.enrollmentRepo.getArchiveCount(userId, role);
   }
 
   public async getDetailedEnrollment(
@@ -633,7 +683,7 @@ export class EnrollmentService extends BaseService {
             course: this.filterCourseVersions(enr.course, enrolledVersionIds),
             // courseVersion: enr.courseVersion,
             percentCompleted: enr.percentCompleted || 0,
-            assignedTimeSlot:enr.assignedTimeSlot,
+            assignedTimeSlot: enr.assignedTimeSlots,
             moduleNumber: enr.moduleNumber,
             sectionNumber: enr.sectionNumber,
             itemType: enr.itemType,
@@ -733,6 +783,7 @@ export class EnrollmentService extends BaseService {
           statusTab,
           session,
         );
+        // console.log("Enrollment Data from service is ", enrollmentsData.enrollments[0].contentCounts)
 
       // if (enrollmentsData.enrollments.length > 0 && filter === 'STUDENT') {
       //   await this.enrichEnrollmentsWithQuizScores(
@@ -767,7 +818,7 @@ export class EnrollmentService extends BaseService {
 
         // flatten
         const flattened = allStudentEnrollments.flat();
-
+        // console.log("Fetched detailed enrollments for students:", flattened);
         // build lookup map
         const contentCountsMap = new Map<string, any>();
 
@@ -777,12 +828,13 @@ export class EnrollmentService extends BaseService {
         });
 
         // attach to instructor enrollments
-        enrollmentsData.enrollments.forEach(enr => {
-          const key = `${enr.courseVersionId.toString()}-${enr._id.toString()}`;
-          enr.contentCounts = contentCountsMap.get(key);
-        });
+        // enrollmentsData.enrollments.forEach(enr => {
+        //   const key = `${enr.courseVersionId.toString()}-${enr._id.toString()}`;
+        //   enr.contentCounts = contentCountsMap.get(key);
+        // });
       }
-
+      // console.log("Enrollment data before return from service, " , enrollmentsData)
+      //       console.log("Enrollment data before return from service of enrollments, " , enrollmentsData.enrollments)
       return enrollmentsData;
     });
   }
@@ -938,6 +990,7 @@ export class EnrollmentService extends BaseService {
   async countEnrollments(
     userId: string,
     role: EnrollmentRole,
+    tab: courseVersionStatus,
     search?: string,
     courseVersionId?: string,
   ) {
@@ -945,6 +998,7 @@ export class EnrollmentService extends BaseService {
       const result = await this.enrollmentRepo.countEnrollments(
         userId,
         role,
+        tab,
         search,
         courseVersionId,
       );
@@ -959,6 +1013,15 @@ export class EnrollmentService extends BaseService {
     const invite = await this.inviteRepo.findInviteById(inviteId);
     if (!invite) {
       throw new Error('Bulk Invite Not Found');
+    }
+    const versionStatus = await this.courseRepo.getCourseVersionStatus(
+      invite.courseVersionId.toString(),
+    );
+
+    if (versionStatus === 'archived') {
+      throw new ForbiddenError(
+        'Cannot process invites. Because course version is archived.',
+      );
     }
     const result = await this.enrollUser(
       userId,
@@ -1001,6 +1064,15 @@ export class EnrollmentService extends BaseService {
     message: string;
   }> {
     try {
+      const versionStatus =
+        await this.courseRepo.getCourseVersionStatus(versionId);
+
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          "Can'not recalculate progress. Because course version is archived.",
+        );
+      }
+
       const enrollments = await this.enrollmentRepo.getEnrollmentsByFilters({
         courseId,
         courseVersionId: versionId,
@@ -1150,10 +1222,7 @@ export class EnrollmentService extends BaseService {
                   session,
                 );
                 updatedCount += bulkOperations.length;
-                console.log(
-                  `✅ Batch ${++batchCount}: Updated ${bulkOperations.length
-                  } enrollments`,
-                );
+                // Batch ${++batchCount}: Updated ${bulkOperations.length} enrollments
                 bulkOperations.length = 0;
               });
             }
@@ -1205,6 +1274,16 @@ export class EnrollmentService extends BaseService {
     session?: ClientSession,
   ) {
     const execute = async (session: ClientSession) => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        courseVersionId,
+        session,
+      );
+
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'This enrollment is invalid. Because course version is archived.',
+        );
+      }
       const course = await this.courseRepo.read(courseId, session);
       if (!course) throw new NotFoundError('Course not found');
 
@@ -1301,11 +1380,18 @@ export class EnrollmentService extends BaseService {
 
   async bulkUpdateCompletedItemsCountParallelPerCourseVersion(
     courseId?: string,
+    versionId?: string,
     userId?: string,
   ): Promise<{ totalCount: number; updatedCount: number }> {
     const MAX_CONCURRENCY = 4;
 
-    // 1. Load courses
+    if (versionId) {
+      const result = await this.enrollmentRepo.bulkUpdateCompletedItemsCountForCourseVersion(
+        { courseVersionId: versionId, courseId, userId },
+      );
+      return result;
+    }
+
     const courses = courseId
       ? [await this.courseRepo.read(courseId)]
       : await this.courseRepo.getAllCourses();
@@ -1314,17 +1400,13 @@ export class EnrollmentService extends BaseService {
       throw new Error('Course not found');
     }
 
-    // 2. Extract courseVersionIds
     const courseVersionIds = courses.flatMap(c =>
       c.versions.map(v => v.toString()),
     );
 
     let index = 0;
-
-    // 🔑 THIS is the Safe Alternative
     const results: { totalCount: number; updatedCount: number }[] = [];
 
-    // 3. Worker
     const worker = async () => {
       while (index < courseVersionIds.length) {
         const currentIndex = index++;
@@ -1335,17 +1417,14 @@ export class EnrollmentService extends BaseService {
             { courseVersionId, courseId, userId },
           );
 
-        // ✅ push result instead of mutating shared counters
         results.push(result);
       }
     };
 
-    // 4. Start workers
     const workers = Array.from({ length: MAX_CONCURRENCY }, () => worker());
 
     await Promise.all(workers);
 
-    // 5. Final aggregation (SAFE)
     const totalCount = results.reduce((sum, r) => sum + r.totalCount, 0);
     const updatedCount = results.reduce((sum, r) => sum + r.updatedCount, 0);
 
@@ -1356,12 +1435,14 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     versionId: string,
-  ): Promise<Array<{
-    moduleId: string;
-    moduleName: string;
-    totalItems: number;
-    completedItems: number;
-  }>> {
+  ): Promise<
+    Array<{
+      moduleId: string;
+      moduleName: string;
+      totalItems: number;
+      completedItems: number;
+    }>
+  > {
     // Delegate to ProgressService which already has working module progress logic
     return await this.progressService.getModuleWiseProgress(
       userId,
@@ -1381,6 +1462,16 @@ export class EnrollmentService extends BaseService {
     session?: ClientSession,
   ): Promise<boolean> {
     const execute = async (session: ClientSession) => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        courseVersionId,
+        session,
+      );
+
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'Cannot update time slot. Because course version is archived.',
+        );
+      }
       const enrollment = await this.enrollmentRepo.findActiveEnrollment(
         userId,
         courseId,
@@ -1414,6 +1505,11 @@ export class EnrollmentService extends BaseService {
     session?: ClientSession,
   ): Promise<boolean> {
     const execute = async (session: ClientSession) => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(courseVersionId, session);
+
+      if (versionStatus === "archived") {
+        throw new ForbiddenError("Can not remove time slot. Because course version is archived.");
+      }
       const enrollment = await this.enrollmentRepo.findActiveEnrollment(
         userId,
         courseId,
@@ -1427,6 +1523,7 @@ export class EnrollmentService extends BaseService {
 
       const result = await this.enrollmentRepo.removeEnrollmentTimeSlot(
         enrollment._id?.toString(),
+        undefined,
         session,
       );
 
@@ -1448,10 +1545,14 @@ export class EnrollmentService extends BaseService {
     session?: ClientSession,
   ): Promise<boolean> {
     const execute = async (session: ClientSession) => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(courseVersionId, session);
+
+      if (versionStatus === "archived") {
+        throw new ForbiddenError("Cannot update time slot. Because course version is archived.");
+      }
       const results = await Promise.all(
         userIds.map(async (userId) => {
           try {
-            // Find enrollment with the old time slot
             const enrollment = await this.enrollmentRepo.findActiveEnrollment(
               userId,
               courseId,
@@ -1459,22 +1560,21 @@ export class EnrollmentService extends BaseService {
               session,
             );
 
-            if (!enrollment || !enrollment.assignedTimeSlot) {
+            if (!enrollment || !enrollment.assignedTimeSlots?.length) {
               return false;
             }
 
-            // Check if this enrollment has the old time slot
-            const hasOldTimeSlot = 
-              enrollment.assignedTimeSlot.from === oldTimeSlot.from &&
-              enrollment.assignedTimeSlot.to === oldTimeSlot.to;
+            const hasOldTimeSlot = enrollment.assignedTimeSlots.some(
+              slot => slot.from === oldTimeSlot.from && slot.to === oldTimeSlot.to,
+            );
 
             if (!hasOldTimeSlot) {
               return false;
             }
 
-            // Update to new time slot
-            const result = await this.enrollmentRepo.updateEnrollmentTimeSlot(
+            const result = await this.enrollmentRepo.updateSpecificTimeSlot(
               enrollment._id?.toString(),
+              oldTimeSlot,
               newTimeSlot,
               session,
             );
@@ -1484,10 +1584,9 @@ export class EnrollmentService extends BaseService {
             console.error(`Failed to update time slot for user ${userId}:`, error);
             return false;
           }
-        })
+        }),
       );
 
-      // Return true if all updates succeeded
       return results.every(result => result);
     };
 
@@ -1528,6 +1627,16 @@ export class EnrollmentService extends BaseService {
     session?: ClientSession,
   ): Promise<boolean> {
     const execute = async (session: ClientSession) => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        courseVersionId,
+        session,
+      );
+
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'Cannot update time slot. Because course version is archived.',
+        );
+      }
       // Find all enrollments with the old time slot
       const enrollments = await this.findEnrollmentsByTimeSlot(
         courseId,
@@ -1536,16 +1645,18 @@ export class EnrollmentService extends BaseService {
         session,
       );
 
-      // Update each enrollment to the new time slot
+      // Update each enrollment - replace old slot with new slot in one operation
       const results = await Promise.all(
-        enrollments.map(async (enrollment) => {
-          const result = await this.enrollmentRepo.updateEnrollmentTimeSlot(
+        enrollments.map(async enrollment => {
+          // Update the specific timeslot in the array
+          const result = await this.enrollmentRepo.updateSpecificTimeSlot(
             enrollment._id?.toString(),
+            oldTimeSlot,
             newTimeSlot,
             session,
           );
           return !!result;
-        })
+        }),
       );
 
       // Return true if all updates succeeded
@@ -1553,5 +1664,167 @@ export class EnrollmentService extends BaseService {
     };
 
     return session ? execute(session) : this._withTransaction(execute);
+  }
+
+  /**
+   * Add multiple time slots to a student's enrollment
+   */
+  async addMultipleTimeSlotsToStudent(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    timeSlots: Array<{ from: string; to: string }>,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    const execute = async (session: ClientSession) => {
+      // Check if course version is archived
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        courseVersionId,
+        session,
+      );
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'Cannot add time slots. Because course version is archived.',
+        );
+      }
+
+      // Find enrollment and add time slots
+      const enrollment = await this.enrollmentRepo.findActiveEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        session,
+      );
+
+      if (!enrollment) {
+        throw new NotFoundError('Enrollment not found for this student.');
+      }
+
+      return !!(await this.enrollmentRepo.addMultipleTimeSlots(
+        enrollment._id?.toString(),
+        timeSlots,
+        session,
+      ));
+    };
+
+    return session ? execute(session) : this._withTransaction(execute);
+  }
+
+  /**
+   * Remove specific time slot from student's enrollment
+   */
+  async removeSpecificTimeSlotFromStudent(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    timeSlot: { from: string; to: string },
+    session?: ClientSession,
+  ): Promise<boolean> {
+    const execute = async (session: ClientSession) => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        courseVersionId,
+        session,
+      );
+
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'Cannot remove time slot. Because course version is archived.',
+        );
+      }
+      const enrollment = await this.enrollmentRepo.findActiveEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        session,
+      );
+
+      if (!enrollment) {
+        throw new NotFoundError('Enrollment not found for this student.');
+      }
+
+      const result = await this.enrollmentRepo.removeEnrollmentTimeSlot(
+        enrollment._id?.toString(),
+        timeSlot,
+        session,
+      );
+
+      return !!result;
+    };
+
+    return session ? execute(session) : this._withTransaction(execute);
+  }
+
+  /**
+   * Remove a single time slot from a student's enrollment
+   */
+  async removeSingleTimeSlotFromStudent(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    timeSlotToRemove: { from: string; to: string },
+    session?: ClientSession,
+  ): Promise<boolean> {
+    const execute = async (session: ClientSession) => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        courseVersionId,
+        session,
+      );
+
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'Cannot remove time slot. Because course version is archived.',
+        );
+      }
+
+      const enrollment = await this.enrollmentRepo.findActiveEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        session,
+      );
+
+      if (!enrollment) {
+        throw new NotFoundError('Enrollment not found for this student.');
+      }
+
+      if (
+        !enrollment.assignedTimeSlots ||
+        enrollment.assignedTimeSlots.length === 0
+      ) {
+        throw new BadRequestError(
+          'Student does not have any assigned time slots.',
+        );
+      }
+
+      // Filter out the specific timeslot to remove
+      const updatedTimeSlots = enrollment.assignedTimeSlots.filter(
+        slot =>
+          !(
+            slot.from === timeSlotToRemove.from &&
+            slot.to === timeSlotToRemove.to
+          ),
+      );
+
+      // Update enrollment with filtered timeslots
+      const result = await this.enrollmentRepo.replaceAllTimeSlots(
+        enrollment._id?.toString(),
+        updatedTimeSlots,
+        session,
+      );
+
+      return !!result;
+    };
+
+    return session ? execute(session) : this._withTransaction(execute);
+  }
+
+  async flagNewItemsForCompletedStudents(
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.enrollmentRepo.flagCompletedEnrollmentsWithNewItems(
+      courseVersionId,
+      session,
+    );
   }
 }

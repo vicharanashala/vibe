@@ -41,7 +41,7 @@ import {
   X,
   CircleCheckIcon,
   Headphones,
-  ExternalLink,Menu
+  ExternalLink, Menu
 } from "lucide-react";
 import FloatingVideo, { FloatingVideoPlaceholder } from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
@@ -109,9 +109,9 @@ export default function CoursePage() {
   const [allProctorsDisabled, setAllProctorsDisabled] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const isMobile=useIsMobile();
+  const isMobile = useIsMobile();
 
-  
+
 
   // Check for microphone and camera access, otherwise redirect to dashboard
   useEffect(() => {
@@ -187,8 +187,16 @@ export default function CoursePage() {
   const [readyToDetect, setReadyToDetect] = useState(false);
   const [isNavigatingToPrev, setIsNavigatingToPrev] = useState<boolean>(false);
   const completedItemIdsRef = useRef<Set<string>>(new Set());
-   // State for sidebar visibility
+  // State for sidebar visibility
   const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
+
+    // Separate state purely for pre-loading the next section in the background.
+// Must NOT share activeSectionInfo — that state drives useItemById for the current item.
+const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
+  moduleId: string;
+  sectionId: string;
+} | null>(null);
+  const [isGoingToNext, setIsGoingToNext] = useState(false);
 
 
   // State to track when we're waiting for next section items to load
@@ -258,7 +266,9 @@ export default function CoursePage() {
   } = useItemById(
     shouldFetchItem ? COURSE_ID : '',
     shouldFetchItem ? VERSION_ID : '',
-    shouldFetchItem ? selectedItemId! : ''
+    shouldFetchItem ? selectedItemId! : '',
+    shouldFetchItem ? activeSectionInfo!.moduleId : '',
+    shouldFetchItem ? activeSectionInfo!.sectionId : '',
   );
   // State to track previous valid item for reverting
   const [previousValidItem, setPreviousValidItem] = useState<{
@@ -343,6 +353,8 @@ export default function CoursePage() {
     }
 
     if (itemError && selectedItemId && itemErrorName === "ForbiddenError") {
+
+      toast.error(itemError);
       // Clear loading state on error
       setIsNavigatingToNext(false);
       setIsItemForbidden(true);
@@ -356,12 +368,22 @@ export default function CoursePage() {
         setSelectedSectionId(previousValidItem.sectionId);
         setSelectedItemId(previousValidItem.itemId);
 
+        // Ensure section items are loaded for the previous valid item
+        if (!sectionItems[previousValidItem.sectionId]) {
+          setActiveSectionInfo({
+            moduleId: previousValidItem.moduleId,
+            sectionId: previousValidItem.sectionId
+          });
+        }
+
         // Update course store navigation
         updateCourseNavigation(
           previousValidItem.moduleId,
           previousValidItem.sectionId,
           previousValidItem.itemId
         );
+      } else {
+        setIsNavigatingToNext(false);
       }
 
       // Always clear error after a delay, regardless of whether we reverted
@@ -516,6 +538,13 @@ export default function CoursePage() {
       setSelectedModuleId(moduleId);
       setSelectedSectionId(sectionId);
       setSelectedItemId(itemId);
+
+      // Initialize previous valid item to always have a fallback
+      setPreviousValidItem({
+        moduleId,
+        sectionId,
+        itemId
+      });
 
       // Auto-expand the module and section
       setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
@@ -1048,40 +1077,70 @@ export default function CoursePage() {
           }
         }
 
+        setSectionItems(prev => ({
+          ...prev,
+          [selectedSectionId!]: prev[selectedSectionId!].map(item =>
+            item._id === selectedItemId
+              ? { ...item, isCompleted: true }
+              : item
+          )
+        }));
+
         // 2️⃣ Determine next item
         const nextItem = findNextItem();
-
+       
         if (!nextItem) {
           console.log("🎉 Course complete");
           setIsNavigatingToNext(false);
 
-          // Confetti celebration
-          const end = Date.now() + 3000;
-          const colors = ["#a786ff", "#fd8bbc", "#eca184", "#f8deb1"];
+          const allSections = ((courseVersionData as any)?.modules || [])?.flatMap((m: any) => m.sections || []) || [];
+          const allItemIds = new Set<string>();
+          const completedItemIds = new Set<string>();
 
-          const frame = () => {
-            if (Date.now() > end) return;
+          allSections.forEach((section: any) => {
+            const items = sectionItems[section.sectionId] || [];
+            items.forEach((item: any) => {
+              allItemIds.add(item._id);
 
-            confetti({
-              particleCount: 2,
-              angle: 60,
-              spread: 55,
-              startVelocity: 60,
-              origin: { x: 0, y: 0.5 },
-              colors,
+              if (item.isCompleted || item._id === selectedItemId) {
+                completedItemIds.add(item._id);
+              }
             });
-            confetti({
-              particleCount: 2,
-              angle: 120,
-              spread: 55,
-              startVelocity: 60,
-              origin: { x: 1, y: 0.5 },
-              colors,
-            });
+          });
 
-            requestAnimationFrame(frame);
-          };
-          frame();
+          completedItemIdsRef.current.forEach((id: string) => completedItemIds.add(id));
+
+          const isCourseFullyCompleted = allItemIds.size > 0 && allItemIds.size === completedItemIds.size;
+
+          if (isCourseFullyCompleted) {
+            // Confetti celebration
+            const end = Date.now() + 3000;
+            const colors = ["#a786ff", "#fd8bbc", "#eca184", "#f8deb1"];
+
+            const frame = () => {
+              if (Date.now() > end) return;
+
+              confetti({
+                particleCount: 2,
+                angle: 60,
+                spread: 55,
+                startVelocity: 60,
+                origin: { x: 0, y: 0.5 },
+                colors,
+              });
+              confetti({
+                particleCount: 2,
+                angle: 120,
+                spread: 55,
+                startVelocity: 60,
+                origin: { x: 1, y: 0.5 },
+                colors,
+              });
+
+              requestAnimationFrame(frame);
+            };
+            frame();
+          }
 
           setTimeout(() => router.navigate({ to: "/student" }), 3500);
           // Recalcualate and update the progress % and completed items count properly
@@ -1093,15 +1152,6 @@ export default function CoursePage() {
           });
           return;
         }
-        // set the current item as completed
-        setSectionItems(prev => ({
-          ...prev,
-          [selectedSectionId!]: prev[selectedSectionId!].map(item =>
-            item._id === selectedItemId
-              ? { ...item, isCompleted: true }
-              : item
-          )
-        }));
 
         // 3️⃣ If next section requires loading
         if ((nextItem as any).needsLoading) {
@@ -1179,6 +1229,10 @@ export default function CoursePage() {
     sectionItems,
     updateCourseNavigation,
     router,
+    courseVersionData,
+    recalculateStudentProgressAsync,
+    COURSE_ID,
+    VERSION_ID,
   ]);
 
 
@@ -1353,6 +1407,53 @@ export default function CoursePage() {
     // Navigate back to courses page
     window.history.back();
   };
+  
+const nextItemInfo = findNextItem();
+
+const isCurrentItemCompleted = Boolean((currentItem as any)?.isCompleted);
+
+const isNextItemAlreadyCompleted = (() => {
+  if (!nextItemInfo || (nextItemInfo as any).needsLoading) return false;
+  const { sectionId: nextSectionId, itemId: nextItemId } = nextItemInfo;
+  const nextSectionItems = sectionItems[nextSectionId] ?? [];
+  return nextSectionItems.some(
+    (item: any) => item._id === nextItemId && item.isCompleted,
+  );
+})();
+
+const showGoToNextButton =
+  isCurrentItemCompleted && !!nextItemInfo && isNextItemAlreadyCompleted && !isGoingToNext;
+
+const handleGoToNextItem = async () => {
+  if (isGoingToNext || !nextItemInfo) return; // guard against double-clicks
+
+  setIsGoingToNext(true);
+  try {
+    const { moduleId, sectionId: nextSectionId, itemId } = nextItemInfo as any;
+    if (!moduleId || !nextSectionId || !itemId) return;
+
+    handleSelectItem(moduleId, nextSectionId, itemId);
+  } finally {
+    // Re-enable after navigation state has been handed off
+    setTimeout(() => setIsGoingToNext(false), 800);
+  }
+};
+// Auto-redirect to dashboard when the learner lands on the last item
+// and it is already completed (no next item exists in the sequence).
+useEffect(() => {
+  if (!currentItem) return;
+  if (!(currentItem as any).isCompleted) return;
+
+  const next = findNextItem();
+  if (next) return; // not the last item
+  // Small delay so the learner briefly sees the item before redirect
+  const timer = setTimeout(() => {
+    router.navigate({ to: '/student' });
+  }, 2000);
+  return () => clearTimeout(timer);
+}, [currentItem, findNextItem, router]);
+
+
 
   // Autoscroll to selected sidebar item when selectedItemId changes
   useEffect(() => {
@@ -1402,8 +1503,8 @@ export default function CoursePage() {
     );
   }
 
-  if(isMobile && !allProctorsDisabled)
-    return <MobileFallbackScreen/>
+  if (isMobile && !allProctorsDisabled)
+    return <MobileFallbackScreen />
 
   const modules = (courseVersionData as any)?.modules || [];
 
@@ -1436,40 +1537,40 @@ export default function CoursePage() {
       </Dialog>
 
       <SidebarProvider defaultOpen={true}>
-         <ResizablePanelGroup direction="horizontal" className="h-screen w-full">
+        <ResizablePanelGroup direction="horizontal" className="h-screen w-full">
           {/* Enhanced Course Navigation Sidebar */}
           {/* {isDesktopSidebarVisible && ( */}
-            <SidebarResizablePanel
-              // defaultSize={20}
-              // minSize={useSidebar().state=="collapsed"?0:5}
-              // maxSize={useSidebar().state=="collapsed"?0:40}
-              // className="hidden md:block "
-            >
-              <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
-          {/* <Sidebar variant="inset" className="border-r border-border/40 bg-sidebar/50 backdrop-blur-sm"> */}
-          <Sidebar variant="inset" collapsible="none" className="h-screen w-full">
-            <SidebarHeader className="border-b border-border/40 bg-gradient-to-b from-sidebar/80 to-sidebar/60">
-              {/* Vibe Logo and Brand */}
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg overflow-hidden">
-                  <img
-                    src={logo}
-                    alt="Vibe Logo"
-                    className="h-8 w-8 object-contain"
-                  />
-                </div>
-                <div className="flex flex-col leading-tight">
-                  <span className="text-[1.15rem] font-bold leading-none">
-                    <AuroraText colors={["#A07CFE", "#FE8FB5", "#FFBE7B"]}><b>ViBe</b></AuroraText>
-                  </span>
-                  <p className="text-xs text-muted-foreground">Learning Platform</p>
-                </div>
-              </div>
+          <SidebarResizablePanel
+          // defaultSize={20}
+          // minSize={useSidebar().state=="collapsed"?0:5}
+          // maxSize={useSidebar().state=="collapsed"?0:40}
+          // className="hidden md:block "
+          >
+            <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
+              {/* <Sidebar variant="inset" className="border-r border-border/40 bg-sidebar/50 backdrop-blur-sm"> */}
+              <Sidebar variant="inset" collapsible="none" className="h-screen w-full">
+                <SidebarHeader className="border-b border-border/40 bg-gradient-to-b from-sidebar/80 to-sidebar/60">
+                  {/* Vibe Logo and Brand */}
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg overflow-hidden">
+                      <img
+                        src={logo}
+                        alt="Vibe Logo"
+                        className="h-8 w-8 object-contain"
+                      />
+                    </div>
+                    <div className="flex flex-col leading-tight">
+                      <span className="text-[1.15rem] font-bold leading-none">
+                        <AuroraText colors={["#A07CFE", "#FE8FB5", "#FFBE7B"]}><b>ViBe</b></AuroraText>
+                      </span>
+                      <p className="text-xs text-muted-foreground">Learning Platform</p>
+                    </div>
+                  </div>
 
-              <Separator className="opacity-50" />
+                  <Separator className="opacity-50" />
 
-              {/* Course Info */}
-              {/* <div className="flex items-center gap-2 px-4 py-3">
+                  {/* Course Info */}
+                  {/* <div className="flex items-center gap-2 px-4 py-3">
                 <div className="p-1.5 rounded-lg bg-gradient-to-br from-primary/15 to-primary/5">
                   <BookOpen className="h-4 w-4 text-primary" />
                 </div>
@@ -1482,552 +1583,597 @@ export default function CoursePage() {
                   </p>
                 </div>
               </div> */}
-            </SidebarHeader>
+                </SidebarHeader>
 
-            <SidebarContent className="bg-card/50 pl-2 shadow-sm border border-border/30">
-              <ScrollArea className="flex-1 transition-colors">
-                <SidebarMenu className="space-y-1 text-sm pr-0">
-                  {modules.map((module: any) => {
-                    const moduleId = module.moduleId;
-                    const progress = moduleProgressMap.get(moduleId);
-                    const isModuleExpanded = expandedModules[moduleId];
-                    const isCurrentModule = moduleId === selectedModuleId;
+                <SidebarContent className="bg-card/50 pl-2 shadow-sm border border-border/30">
+                  <ScrollArea className="flex-1 transition-colors">
+                    <SidebarMenu className="space-y-1 text-sm pr-0">
+                      {modules.map((module: any) => {
+                        const moduleId = module.moduleId;
+                        const progress = moduleProgressMap.get(moduleId);
+                        const isModuleExpanded = expandedModules[moduleId];
+                        const isCurrentModule = moduleId === selectedModuleId;
 
-                    return (
-                      <SidebarMenuItem key={moduleId}>
-                        <SidebarMenuButton
-                          onClick={() => toggleModule(moduleId)}
-                          isActive={isCurrentModule}
-                          aria-expanded={isModuleExpanded}
-                          data-state={isModuleExpanded ? 'open' : 'closed'}
-                          className="group relative h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/15 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm"
-                        >
-                          <ChevronRight
-                            className={`h-3.5 w-3.5 transition-transform duration-200 flex-shrink-0 ${isModuleExpanded ? 'rotate-90' : ''
-                              }`}
-                          />
-                          <div className="flex-1 text-left min-w-0 ml-2">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="flex gap-4 items-center justify-between">
+                        return (
+                          <SidebarMenuItem 
+                          key={moduleId}
+                          data-testid="course-module"
+                          data-module-id={moduleId}
+                          >
+                            <SidebarMenuButton
+                              data-testid="course-module-toggle"
+                              data-module-id={moduleId} 
+                              onClick={() => toggleModule(moduleId)}
+                              isActive={isCurrentModule}
+                              aria-expanded={isModuleExpanded}
+                              data-state={isModuleExpanded ? 'open' : 'closed'}
+                              className="group relative h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/15 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm"
+                            >
+                              <ChevronRight
+                                className={`h-3.5 w-3.5 transition-transform duration-200 flex-shrink-0 ${isModuleExpanded ? 'rotate-90' : ''
+                                  }`}
+                              />
+                              <div className="flex-1 text-left min-w-0 ml-2">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="flex gap-4 items-center justify-between">
 
-                                  <div className="font-medium text-xs truncate">
-                                    {module.name.length > 34 ? `${module.name.substring(0, 31)}...` : module.name}
-                                  </div>
-                                  <div className={`text-[10px] ${(progress?.completedItems === progress?.totalItems && progress?.totalItems > 0) ? `dark:text-green-500 text-green-600 ` : ` text-muted-foreground`}`}>
-                                    {moduleProgressLoading
-                                      ? "..."
-                                      : `${progress?.completedItems ?? 0}/${progress?.totalItems ?? 0} completed`
-                                    }
-                                  </div>
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent side="right" align="center">
-                                {module.name}
-                              </TooltipContent>
-                            </Tooltip>
-                            <div className="text-[10px] text-muted-foreground truncate">
-                              {module.sections?.length || 0} sections
-                            </div>
-
-                          </div>
-                        </SidebarMenuButton>
-
-                        {isModuleExpanded && module.sections && (
-                          <SidebarMenuSub className="ml-0 mt-1 space-y-1">
-                            {module.sections.map((section: any) => {
-                              const sectionId = section.sectionId;
-                              const isSectionExpanded = expandedSections[sectionId];
-                              const isCurrentSection = sectionId === selectedSectionId;
-                              const isLoadingItems = activeSectionInfo?.sectionId === sectionId && itemsLoading;
-
-                              return (
-                                <SidebarMenuSubItem key={sectionId}>
-                                  <SidebarMenuSubButton
-                                    onClick={() => toggleSection(moduleId, sectionId)}
-                                    isActive={isCurrentSection}
-                                    aria-expanded={isModuleExpanded}
-                                    data-state={isModuleExpanded ? 'open' : 'closed'}
-                                    className="group relative h-8 px-3 w-full rounded-md text-xs transition-all duration-200 hover:bg-accent/10 hover:text-accent-foreground data-[state=active]:bg-accent/15 data-[state=active]:text-accent-foreground"
-                                  >
-                                    <ChevronRight
-                                      className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${isSectionExpanded ? 'rotate-90' : ''
-                                        }`}
-                                    />
-                                    <div className="font-medium truncate flex-1 min-w-0 ml-2 ">
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <div className="font-medium text-xs truncate">
-                                            {section.name.length > 27 ? `${section.name.substring(0, 24)}...` : section.name}
-                                          </div>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="right" align="center">
-                                          {section.name}
-                                        </TooltipContent>
-                                      </Tooltip>
+                                      <div className="font-medium text-xs truncate">
+                                        {module.name.length > 34 ? `${module.name.substring(0, 31)}...` : module.name}
+                                      </div>
+                                      <div className={`text-[10px] ${(progress?.completedItems === progress?.totalItems && progress?.totalItems > 0) ? `dark:text-green-500 text-green-600 ` : ` text-muted-foreground`}`}>
+                                        {moduleProgressLoading
+                                          ? "..."
+                                          : `${progress?.completedItems ?? 0}/${progress?.totalItems ?? 0} completed`
+                                        }
+                                      </div>
                                     </div>
-                                  </SidebarMenuSubButton>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="right" align="center">
+                                    {module.name}
+                                  </TooltipContent>
+                                </Tooltip>
+                                <div className="text-[10px] text-muted-foreground truncate">
+                                  {module.sections?.length || 0} sections
+                                </div>
 
-                                  {isSectionExpanded && (
-                                    <SidebarMenuSub className="ml-0 mt-1 space-y-0.5">
-                                      {isLoadingItems ? (
-                                        <div className="space-y-1 p-2">
-                                          <Skeleton className="h-4 w-full rounded" />
-                                          <Skeleton className="h-4 w-4/5 rounded" />
+                              </div>
+                            </SidebarMenuButton>
+
+                            {isModuleExpanded && module.sections && (
+                              <SidebarMenuSub className="ml-0 mt-1 space-y-1">
+                                {module.sections.map((section: any) => {
+                                  const sectionId = section.sectionId;
+                                  const isSectionExpanded = expandedSections[sectionId];
+                                  const isCurrentSection = sectionId === selectedSectionId;
+                                  const isLoadingItems = activeSectionInfo?.sectionId === sectionId && itemsLoading;
+
+                                  return (
+                                    <SidebarMenuSubItem 
+                                      key={sectionId}
+                                      data-testid="course-section"
+                                      data-section-id={sectionId}
+                                      data-module-id={moduleId}
+                                    >
+                                      <SidebarMenuSubButton
+                                        data-testid="course-section-toggle"
+                                        data-section-id={sectionId}
+                                        data-module-id={moduleId}
+                                        onClick={() => toggleSection(moduleId, sectionId)}
+                                        isActive={isCurrentSection}
+                                        aria-expanded={isSectionExpanded}
+                                        data-state={isSectionExpanded ? 'open' : 'closed'}
+                                        className="group relative h-8 px-3 w-full rounded-md text-xs transition-all duration-200 hover:bg-accent/10 hover:text-accent-foreground data-[state=active]:bg-accent/15 data-[state=active]:text-accent-foreground"
+                                      >
+                                        <ChevronRight
+                                          className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${isSectionExpanded ? 'rotate-90' : ''
+                                            }`}
+                                        />
+                                        <div className="font-medium truncate flex-1 min-w-0 ml-2 ">
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <div className="font-medium text-xs truncate">
+                                                {section.name.length > 27 ? `${section.name.substring(0, 24)}...` : section.name}
+                                              </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="right" align="center">
+                                              {section.name}
+                                            </TooltipContent>
+                                          </Tooltip>
                                         </div>
-                                      ) : sectionItems[sectionId] ? (
-                                        sortItemsByOrder(sectionItems[sectionId]).map((item: any) => {
-                                          const itemId = item._id;
-                                          const isCurrentItem = itemId === selectedItemId;
-                                          
-                                          return (
-                                            <SidebarMenuSubItem key={itemId}>
-                                              <SidebarMenuSubButton
-                                                onClick={() => handleSelectItem(moduleId, sectionId, itemId)}
-                                                isActive={isCurrentItem}
-                                                className="group relative h-8 px-3 w-full rounded-md transition-all duration-200 hover:bg-accent/10 dark:data-[state=active]:bg-primary/10 data-[state=active]:bg-primary/10 data-[state=active]:text-primary justify-start"
-                                                // Assign ref only to the selected item for autoscroll
-                                                ref={isCurrentItem ? selectedItemRef : undefined}
-                                              >
-                                                <div className="flex items-center gap-2 w-full min-w-0">
-                                                  <div className={`p-0.5 rounded transition-colors flex-shrink-0 ${isCurrentItem
-                                                    ? "dark:bg-primary/15 dark:text-primary bg-primary/50 text-white/80"
-                                                    : "bg-accent/15 text-accent-foreground group-hover:bg-accent/25"
-                                                    }`}>
-                                                    {getItemIcon(item.type)}
-                                                  </div>
-                                                  <div className="flex-1 text-left min-w-0">
-                                                    <div className="text-xs font-medium truncate w-full " title={currentItem?.name || 'Loading...'}>
-                                                      {(() => {
-                                                        // Show loading state if this is the selected item and it's loading
-                                                        if (selectedItemId === itemId && itemLoading) {
-                                                          return 'Loading...';
-                                                        }
+                                      </SidebarMenuSubButton>
+                                      {isSectionExpanded && (
+                                        <SidebarMenuSub className="ml-0 mt-1 space-y-0.5">
+                                          {isLoadingItems ? (
+                                            <div className="space-y-1 p-2">
+                                              <Skeleton className="h-4 w-full rounded" />
+                                              <Skeleton className="h-4 w-4/5 rounded" />
+                                            </div>
+                                          ) : sectionItems[sectionId] ? (
+                                            sortItemsByOrder(sectionItems[sectionId]).map((item: any) => {
+                                              const itemId = item._id;
+                                              const isCurrentItem = itemId === selectedItemId;
 
-                                                        // Always show the actual item name, truncated if necessary
-                                                        const itemName = item?.name || item?.title || 'Untitled';
-                                                        return itemName.length > 18 ? `${itemName.substring(0, 15)}...` : itemName;
-                                                      })()}
-                                                    </div>
-                                                    {item.isCompleted && (
-                                                      <div className={`text-[10px] dark:text-green-500 text-green-600 font-medium mt-0.5 flex items-center gap-1 ${selectedItemId === itemId ? "text-green-900" : ""} `}>
-                                                        <CheckCircle className="h-3 w-3" />
-                                                        Completed
+                                              return (
+                                                <SidebarMenuSubItem 
+                                                key={itemId}
+                                                data-testid="course-item"
+                                                data-item-id={itemId}
+                                                data-section-id={sectionId}
+                                                data-module-id={moduleId}
+                                                data-item-type={item.type?.toLowerCase()}
+                                                >
+                                                  <SidebarMenuSubButton
+                                                    onClick={() => handleSelectItem(moduleId, sectionId, itemId)}
+                                                    isActive={isCurrentItem}
+                                                    className="group relative h-8 px-3 w-full rounded-md transition-all duration-200 hover:bg-accent/10 dark:data-[state=active]:bg-primary/10 data-[state=active]:bg-primary/10 data-[state=active]:text-primary justify-start"
+                                                    // Assign ref only to the selected item for autoscroll
+                                                    ref={isCurrentItem ? selectedItemRef : undefined}
+                                                  >
+                                                    <div className="flex items-center gap-2 w-full min-w-0">
+                                                      <div className={`p-0.5 rounded transition-colors flex-shrink-0 ${isCurrentItem
+                                                        ? "dark:bg-primary/15 dark:text-primary bg-primary/50 text-white/80"
+                                                        : "bg-accent/15 text-accent-foreground group-hover:bg-accent/25"
+                                                        }`}>
+                                                        {getItemIcon(item.type)}
                                                       </div>
-                                                    )}
-                                                  </div>
-                                                </div>
-                                              </SidebarMenuSubButton>
-                                            </SidebarMenuSubItem>
-                                          );
-                                        })
-                                      ) : (
-                                        <div className="p-3 text-center">
-                                          <div className="text-xs text-muted-foreground">No items found</div>
-                                        </div>
+                                                      <div className="flex-1 text-left min-w-0">
+                                                        <div className="text-xs font-medium truncate w-full " title={currentItem?.name || 'Loading...'}>
+                                                          {(() => {
+                                                            // Show loading state if this is the selected item and it's loading
+                                                            if (selectedItemId === itemId && itemLoading) {
+                                                              return 'Loading...';
+                                                            }
+
+                                                            // Always show the actual item name, truncated if necessary
+                                                            const itemName = item?.name || item?.title || 'Untitled';
+                                                            return itemName.length > 18 ? `${itemName.substring(0, 15)}...` : itemName;
+                                                          })()}
+                                                        </div>
+                                                        {item.isCompleted && (
+                                                          <div className={`text-[10px] dark:text-green-500 text-green-600 font-medium mt-0.5 flex items-center gap-1 ${selectedItemId === itemId ? "text-green-900" : ""} `}>
+                                                            <CheckCircle className="h-3 w-3" />
+                                                            Completed
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                  </SidebarMenuSubButton>
+                                                </SidebarMenuSubItem>
+                                              );
+                                            })
+                                          ) : (
+                                            <div className="p-3 text-center">
+                                              <div className="text-xs text-muted-foreground">No items found</div>
+                                            </div>
+                                          )}
+                                        </SidebarMenuSub>
                                       )}
-                                    </SidebarMenuSub>
-                                  )}
-                                </SidebarMenuSubItem>
-                              );
-                            })}
-                          </SidebarMenuSub>
-                        )}
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-              </ScrollArea>
-            </SidebarContent>
-            <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60 ">
-              {!showProctorDialog ?
-                <FloatingVideo
-                  isVisible={!allProctorsDisabled}
-                  onClose={() => { }}
-                  onAnomalyDetected={() => { }}
-                  setDoGesture={setDoGesture}
-                  settings={proctoringData || {
-                    _id: "",
-                    studentId: "",
-                    versionId: "",
-                    courseId: "",
-                    settings: {
-                      proctors: {
-                        detectors: []
-                      },
-                      linearProgressionEnabled: true
-                    }
-                  }}
-                  anomalies={anomalies}
-                  readyToDetect={readyToDetect}
-                  setReadyToDetect={setReadyToDetect}
-                  setAnomalies={setAnomalies}
-                  rewindVid={rewindVid}
-                  setRewindVid={setRewindVid}
-                  pauseVid={pauseVid}
-                  setPauseVid={setPauseVid}
-                /> :
-                <FloatingVideoPlaceholder />}
-            </SidebarFooter>
-            {/* Navigation Footer */}
-            <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
-              <SidebarMenu className="space-y-1 pl-2 py-3">
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
-                  >
-                    <Link to="/student" className="flex items-center gap-3">
-                      <div className="p-1 rounded-md bg-accent/15">
-                        <Home className="h-4 w-4 text-accent-foreground" />
-                      </div>
-                      <span className="text-sm font-medium">Dashboard</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
-                  >
-                    <Link to="/student/courses" className="flex items-center gap-3">
-                      <div className="p-1 rounded-md bg-accent/15">
-                        <GraduationCap className="h-4 w-4 text-accent-foreground" />
-                      </div>
-                      <span className="text-sm font-medium">Courses</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                {(courseVersionData as any)?.supportLink && (() => {
-                  const link = (courseVersionData as any).supportLink;
-                  const isEmail = link.startsWith('mailto:') || (!link.startsWith('http://') && !link.startsWith('https://') && !link.startsWith('//') && link.includes('@'));
-                  const href = link.startsWith('mailto:')
-                    ? link
-                    : link.startsWith('http://') || link.startsWith('https://') || link.startsWith('//')
-                      ? link
-                      : link.includes('@')
-                        ? `mailto:${link}`
-                        : link;
-                  return (
+                                    </SidebarMenuSubItem>
+                                  );
+                                })}
+                              </SidebarMenuSub>
+                            )}
+                          </SidebarMenuItem>
+                        );
+                      })}
+                    </SidebarMenu>
+                  </ScrollArea>
+                </SidebarContent>
+                <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60 ">
+                  {!showProctorDialog ?
+                    <FloatingVideo
+                      isVisible={!allProctorsDisabled}
+                      onClose={() => { }}
+                      onAnomalyDetected={() => { }}
+                      setDoGesture={setDoGesture}
+                      settings={proctoringData || {
+                        _id: "",
+                        studentId: "",
+                        versionId: "",
+                        courseId: "",
+                        settings: {
+                          proctors: {
+                            detectors: []
+                          },
+                          linearProgressionEnabled: true
+                        }
+                      }}
+                      anomalies={anomalies}
+                      readyToDetect={readyToDetect}
+                      setReadyToDetect={setReadyToDetect}
+                      setAnomalies={setAnomalies}
+                      rewindVid={rewindVid}
+                      setRewindVid={setRewindVid}
+                      pauseVid={pauseVid}
+                      setPauseVid={setPauseVid}
+                    /> :
+                    <FloatingVideoPlaceholder />}
+                </SidebarFooter>
+                {/* Navigation Footer */}
+                <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
+                  <SidebarMenu className="space-y-1 pl-2 py-3">
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         asChild
                         className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
                       >
-                        <a
-                          href={href}
-                          target={isEmail ? undefined : "_blank"}
-                          rel={isEmail ? undefined : "noopener noreferrer"}
-                          className="flex items-center gap-3"
-                        >
+                        <Link to="/student" className="flex items-center gap-3">
                           <div className="p-1 rounded-md bg-accent/15">
-                            <Headphones className="h-4 w-4 text-accent-foreground" />
+                            <Home className="h-4 w-4 text-accent-foreground" />
                           </div>
-                          <span className="text-sm font-medium">Get Support</span>
-                          <ExternalLink className="h-3 w-3 text-muted-foreground ml-auto" />
-                        </a>
+                          <span className="text-sm font-medium">Dashboard</span>
+                        </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
-                  );
-                })()}
 
-                <Separator className="my-2 opacity-50" />
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                      >
+                        <Link to="/student/courses" className="flex items-center gap-3">
+                          <div className="p-1 rounded-md bg-accent/15">
+                            <GraduationCap className="h-4 w-4 text-accent-foreground" />
+                          </div>
+                          <span className="text-sm font-medium">Courses</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
 
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    className="h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
-                  >
-                    <Link to="/student/profile" className="flex items-center gap-3">
-                      <Avatar className="h-6 w-6 border border-border/20">
-                        <AvatarImage src={user?.avatar} alt={user?.name} />
-                        <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/5 text-primary font-bold text-xs">
-                          {user?.name?.charAt(0).toUpperCase() || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 text-left min-w-0">
-                        <div className="text-sm font-medium truncate" title={user?.name || 'Profile'}>{user?.name || 'Profile'}</div>
-                        <div className="text-xs text-muted-foreground">View Profile</div>
-                      </div>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarFooter>
-          </Sidebar>
-          </div>
+                    {(courseVersionData as any)?.supportLink && (() => {
+                      const link = (courseVersionData as any).supportLink;
+                      const isEmail = link.startsWith('mailto:') || (!link.startsWith('http://') && !link.startsWith('https://') && !link.startsWith('//') && link.includes('@'));
+                      const href = link.startsWith('mailto:')
+                        ? link
+                        : link.startsWith('http://') || link.startsWith('https://') || link.startsWith('//')
+                          ? link
+                          : link.includes('@')
+                            ? `mailto:${link}`
+                            : link;
+                      return (
+                        <SidebarMenuItem>
+                          <SidebarMenuButton
+                            asChild
+                            className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                          >
+                            <a
+                              href={href}
+                              target={isEmail ? undefined : "_blank"}
+                              rel={isEmail ? undefined : "noopener noreferrer"}
+                              className="flex items-center gap-3"
+                            >
+                              <div className="p-1 rounded-md bg-accent/15">
+                                <Headphones className="h-4 w-4 text-accent-foreground" />
+                              </div>
+                              <span className="text-sm font-medium">Get Support</span>
+                              <ExternalLink className="h-3 w-3 text-muted-foreground ml-auto" />
+                            </a>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    })()}
+
+                    <Separator className="my-2 opacity-50" />
+
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        className="h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                      >
+                        <Link to="/student/profile" className="flex items-center gap-3">
+                          <Avatar className="h-6 w-6 border border-border/20">
+                            <AvatarImage src={user?.avatar} alt={user?.name} />
+                            <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/5 text-primary font-bold text-xs">
+                              {user?.name?.charAt(0).toUpperCase() || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 text-left min-w-0">
+                            <div className="text-sm font-medium truncate" title={user?.name || 'Profile'}>{user?.name || 'Profile'}</div>
+                            <div className="text-xs text-muted-foreground">View Profile</div>
+                          </div>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarFooter>
+              </Sidebar>
+            </div>
           </SidebarResizablePanel>
-        {/* // )} */}
-{/* {isDesktopSidebarVisible &&  */}
-<ResizableHandle className="hidden md:flex h-screen" />
-{/* } */}
- <ResizablePanel defaultSize={80} className="min-w-0 min-h-screen">
-          {/* Main Content Area */}
-          <SidebarInset className="flex-1  bg-gradient-to-br from-background via-background to-background/95 peer-data-[variant=inset]:!m-0">
-            <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/20 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-4">
-              {/* <Button
+          {/* // )} */}
+          {/* {isDesktopSidebarVisible &&  */}
+          <ResizableHandle className="hidden md:flex h-screen" />
+          {/* } */}
+          <ResizablePanel defaultSize={80} className="min-w-0 min-h-screen">
+            {/* Main Content Area */}
+            <SidebarInset className="flex-1  bg-gradient-to-br from-background via-background to-background/95 peer-data-[variant=inset]:!m-0">
+              <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/20 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-4">
+                {/* <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsDesktopSidebarVisible((p) => !p)}
                   className="hidden md:inline-flex"
                 > */}
-                  {/* <Menu className="h-5 w-5" /> */}
-                  <SidebarTrigger />
+                {/* <Menu className="h-5 w-5" /> */}
+                <SidebarTrigger />
                 {/* </Button> */}
-              <Separator orientation="vertical" className="mr-2 h-4" />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleGoBack}
-                className="relative h-10 w-10 p-0 mr-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <div className="text-xl font-medium text-foreground truncate" title={currentItem ? currentItem.name : 'Select content to begin learning'}>
-                  <b>{currentItem ? currentItem.name : 'Select content to begin learning'}</b>
+                <Separator orientation="vertical" className="mr-2 h-4" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleGoBack}
+                  className="relative h-10 w-10 p-0 mr-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div 
+                  data-testid="current-item-title"
+                  data-item-id={currentItem?._id ?? ""}
+                  className="text-xl font-medium text-foreground truncate"
+                  title={currentItem ? currentItem.name : 'Select content to begin learning'}>
+                    <b>{currentItem ? currentItem.name : 'Select content to begin learning'}</b>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 ml-auto">
-                <ThemeToggle />
-              </div>
-            </header>
+                <div className="flex items-center gap-2 ml-auto">
+                  <ThemeToggle />
+                </div>
+              </header>
 
-            <div className="flex-1 overflow-hidden relative">
-              {/* Ambient background effect */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.01] via-transparent to-secondary/[0.01] pointer-events-none" />
+              <div className="flex-1 overflow-hidden relative">
+                {/* Ambient background effect */}
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.01] via-transparent to-secondary/[0.01] pointer-events-none" />
 
-              {/* Notification Stack */}
-              <div className="fixed top-6 right-6 z-50 flex flex-col gap-2 w-90 ">
-                {/* ✅ Item Access Error Notification */}
-                {isItemForbidden && (
-                  <Card className="border border-red-400/40 bg-red-600/95 text-red-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
-                    <CardContent className="flex items-center gap-3 px-4 py-0">
-                      <div className="flex h-22 w-22 items-center justify-center rounded-l border-red-50/30 bg-red-50/10 text-4xl p-4">
-                        <AlertCircle className="h-16 w-16" />
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <Badge variant="outline" className="border-red-50/30 bg-red-50/10 text-red-50 text-lg font-bold">
-                          Access Restricted
-                        </Badge>
-                        <p className="text-md font-medium leading-relaxed">
-                          {previousValidItem
-                            ? "Returning to previous valid content."
-                            : "Complete current item first to access this content."
-                          }
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setIsItemForbidden(false)}
-                        className="h-6 w-6 p-0 text-red-50 hover:bg-red-50/10"
-                      >
-                        ×
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Gesture Notification */}
-                {doGesture && currentItem?.type !== 'VIDEO' && (
-                  <Card className="border border-amber-400/20 bg-amber-600/90 text-amber-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
-                    <CardContent className="flex items-center gap-3 px-4 py-0">
-                      <div className="flex h-22 w-22 items-center justify-center rounded-lg bg-white text-4xl p-4">
-                        <img src="https://em-content.zobj.net/source/microsoft/309/thumbs-up_1f44d.png" className="w-auto h-full" />
-                      </div>
-                      <div className="flex-1 space-y-1 py-3">
-                        <Badge variant="outline" className="border-amber-50/30 bg-amber-50/10 text-amber-50 text-xl font-bold">
-                          Gesture Required
-                        </Badge>
-                        <p className="text-lg font-medium leading-relaxed m-1">
-                          Show a <strong>thumbs up</strong>!
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Quiz Passed/Failed */}
-
-                {quizPassed !== 2 && !isQuizSkipped && (
-                  <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-5 fade-in duration-200">
-                    <div
-                      className={`relative w-[380px] rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 
-        ${quizPassed === 1
-                          ? 'bg-gradient-to-br from-emerald-500 to-green-600'
-                          : 'bg-gradient-to-br from-rose-500 to-red-600'
-                        }`}
-                    >
-                      {/* Close Button */}
-                      <button
-                        onClick={() => {
-                          setClosing(true)
-                          // setQuizPassed(2)
-                          setTimeout(() => setQuizPassed(2), 300)
-                        }}
-                        className="absolute top-3 right-3 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors duration-200 group"
-                        aria-label="Close"
-                      >
-                        <X className="h-5 w-5 text-white group-hover:rotate-90 transition-transform duration-200" />
-                      </button>
-
-                      <div className="p-6 space-y-4">
-                        {/* Icon + Title */}
-                        <div className="flex items-center gap-4">
-                          <div className="relative">
-                            <div
-                              className={`absolute inset-0 rounded-full blur-xl opacity-50 
-              ${quizPassed === 1 ? 'bg-emerald-200' : 'bg-rose-200'}`}
-                            />
-                            <div className="relative bg-white/20 backdrop-blur-sm rounded-full p-4 border border-white/40">
-                              {quizPassed === 1 ? (
-                                <CheckCircle className="h-12 w-12 text-white" strokeWidth={2.5} />
-                              ) : (
-                                <XCircle className="h-12 w-12 text-white" strokeWidth={2.5} />
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex-1 space-y-1">
-                            <h2 className="text-xl font-bold text-white">
-                              {quizPassed === 1 ? 'Quiz Passed!' : 'Quiz Failed'}
-                            </h2>
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm border border-white/30">
-                              <div
-                                className={`h-2 w-2 rounded-full animate-pulse 
-                ${quizPassed === 1 ? 'bg-emerald-200' : 'bg-rose-200'}`}
-                              />
-                              <span className="text-xs font-medium text-white/90">
-                                {quizPassed === 1 ? 'Great job!' : 'Keep learning'}
-                              </span>
-                            </div>
-                          </div>
+                {/* Notification Stack */}
+                <div className="fixed top-6 right-6 z-50 flex flex-col gap-2 w-90 ">
+                  {/* ✅ Item Access Error Notification */}
+                  {isItemForbidden && (
+                    <Card className="border border-red-400/40 bg-red-600/95 text-red-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
+                      <CardContent className="flex items-center gap-3 px-4 py-0">
+                        <div className="flex h-22 w-22 items-center justify-center rounded-l border-red-50/30 bg-red-50/10 text-4xl p-4">
+                          <AlertCircle className="h-16 w-16" />
                         </div>
-
-                        {/* Redirect Indicator */}
-                        <div className="flex items-center gap-2 pt-1">
-                          <div className="flex gap-1">
-                            <div className="h-2 w-2 rounded-full bg-white/60 animate-bounce" style={{ animationDelay: '0ms' }} />
-                            <div className="h-2 w-2 rounded-full bg-white/60 animate-bounce" style={{ animationDelay: '150ms' }} />
-                            <div className="h-2 w-2 rounded-full bg-white/60 animate-bounce" style={{ animationDelay: '300ms' }} />
-                          </div>
-                          <p className="text-white/90 text-xs font-medium">
-                            {quizPassed === 1 ? 'Moving to the next video' : 'Redirecting to the previous video'}
+                        <div className="flex-1 space-y-1">
+                          <Badge variant="outline" className="border-red-50/30 bg-red-50/10 text-red-50 text-lg font-bold">
+                            Access Restricted
+                          </Badge>
+                          <p className="text-md font-medium leading-relaxed">
+                            {itemError && itemErrorName === "ForbiddenError"
+                              ? itemError
+                              : previousValidItem
+                                ? "Returning to previous valid content."
+                                : "Complete current item first to access this content."
+                            }
                           </p>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsItemForbidden(false)}
+                          className="h-6 w-6 p-0 text-red-50 hover:bg-red-50/10"
+                        >
+                          ×
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Gesture Notification */}
+                  {doGesture && currentItem?.type !== 'VIDEO' && (
+                    <Card className="border border-amber-400/20 bg-amber-600/90 text-amber-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
+                      <CardContent className="flex items-center gap-3 px-4 py-0">
+                        <div className="flex h-22 w-22 items-center justify-center rounded-lg bg-white text-4xl p-4">
+                          <img src="https://em-content.zobj.net/source/microsoft/309/thumbs-up_1f44d.png" className="w-auto h-full" />
+                        </div>
+                        <div className="flex-1 space-y-1 py-3">
+                          <Badge variant="outline" className="border-amber-50/30 bg-amber-50/10 text-amber-50 text-xl font-bold">
+                            Gesture Required
+                          </Badge>
+                          <p className="text-lg font-medium leading-relaxed m-1">
+                            Show a <strong>thumbs up</strong>!
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Quiz Passed/Failed */}
+
+                  {quizPassed !== 2 && !isQuizSkipped && (
+                    <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-5 fade-in duration-200">
+                      <div
+                        className={`relative w-[380px] rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 
+        ${quizPassed === 1
+                            ? 'bg-gradient-to-br from-emerald-500 to-green-600'
+                            : 'bg-gradient-to-br from-rose-500 to-red-600'
+                          }`}
+                      >
+                        {/* Close Button */}
+                        <button
+                          onClick={() => {
+                            setClosing(true)
+                            // setQuizPassed(2)
+                            setTimeout(() => setQuizPassed(2), 300)
+                          }}
+                          className="absolute top-3 right-3 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors duration-200 group"
+                          aria-label="Close"
+                        >
+                          <X className="h-5 w-5 text-white group-hover:rotate-90 transition-transform duration-200" />
+                        </button>
+
+                        <div className="p-6 space-y-4">
+                          {/* Icon + Title */}
+                          <div className="flex items-center gap-4">
+                            <div className="relative">
+                              <div
+                                className={`absolute inset-0 rounded-full blur-xl opacity-50 
+              ${quizPassed === 1 ? 'bg-emerald-200' : 'bg-rose-200'}`}
+                              />
+                              <div className="relative bg-white/20 backdrop-blur-sm rounded-full p-4 border border-white/40">
+                                {quizPassed === 1 ? (
+                                  <CheckCircle className="h-12 w-12 text-white" strokeWidth={2.5} />
+                                ) : (
+                                  <XCircle className="h-12 w-12 text-white" strokeWidth={2.5} />
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex-1 space-y-1">
+                              <h2 className="text-xl font-bold text-white">
+                                {quizPassed === 1 ? 'Quiz Passed!' : 'Quiz Failed'}
+                              </h2>
+                              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm border border-white/30">
+                                <div
+                                  className={`h-2 w-2 rounded-full animate-pulse 
+                ${quizPassed === 1 ? 'bg-emerald-200' : 'bg-rose-200'}`}
+                                />
+                                <span className="text-xs font-medium text-white/90">
+                                  {quizPassed === 1 ? 'Great job!' : 'Keep learning'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Redirect Indicator */}
+                          <div className="flex items-center gap-2 pt-1">
+                            <div className="flex gap-1">
+                              <div className="h-2 w-2 rounded-full bg-white/60 animate-bounce" style={{ animationDelay: '0ms' }} />
+                              <div className="h-2 w-2 rounded-full bg-white/60 animate-bounce" style={{ animationDelay: '150ms' }} />
+                              <div className="h-2 w-2 rounded-full bg-white/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+                            </div>
+                            <p className="text-white/90 text-xs font-medium">
+                              {quizPassed === 1 ? 'Moving to the next video' : 'Redirecting to the previous video'}
+                            </p>
+                          </div>
+                        </div>
                       </div>
+                    </div>
+                  )}
+
+
+                </div>
+                <FlagModal
+                  open={isFlagModalOpen}
+                  onOpenChange={setIsFlagModalOpen}
+                  onSubmit={handleFlagSubmit}
+                  isSubmitting={isPending}
+                />
+                {currentItem ? (
+                  <div className="relative z-10 h-full flex flex-col mb-2  sm:mb-1">
+                    <div className="flex justify-end mb-1 me-10 gap-2 ">
+                      {!isFlagSubmitted &&
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="text-xs gap-1"
+                          title="Flag this content"
+                          onClick={() => setIsFlagModalOpen(true)}
+                        >
+                          <FlagTriangleRightIcon className="h-4 w-4" />
+                          <span className="max-sm:hidden">Submit Flag</span>
+                        </Button>
+                      }
+               
+{(currentItem as any)?.isOptional && (
+  <Button
+    size="sm"
+    variant="outline"
+    className="text-xs gap-1 border-amber-500 text-amber-500 hover:bg-amber-50 hover:text-amber-600"
+    title="Skip this optional item"
+    onClick={handleSkipItem}
+    disabled={isSkippingItem || isSkipping}
+  >
+    <span className="max-sm:hidden">Skip</span>
+    <ChevronRight className="h-4 w-4" />
+  </Button>
+)}
+
+{showGoToNextButton && (
+  <Button
+    size="sm"
+    variant="outline"
+    className="text-xs gap-1 border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700"
+    title="Go to next item"
+    onClick={handleGoToNextItem}
+    disabled={isGoingToNext}
+  >
+    <CircleCheckIcon className="h-4 w-4" />
+    <span className="max-sm:hidden">Go to Next Item</span>
+    <ChevronRight className="h-4 w-4" />
+  </Button>
+)}
+
+
+
+                    </div>
+                    {currentItem?.type === 'PROJECT' ? (
+                      <StudentProjectItem
+                        item={currentItem}
+                        onNext={handleNext}
+                        isProgressUpdating={isNavigatingToNext}
+                        completedItemIdsRef={completedItemIdsRef}
+                        isAlreadyWatched={currentItem.isAlreadyWatched}
+                      />
+                    ) : (
+
+                      <ItemContainer
+                        ref={itemContainerRef}
+                        item={currentItem}
+                        doGesture={doGesture}
+                        onNext={handleNext}
+                        onPrevVideo={handlePrevVideo}
+                        isProgressUpdating={isNavigatingToNext}
+                        isNavigatingToPrev={isNavigatingToPrev}
+                        attemptId={attemptId || undefined}
+                        setAttemptId={setAttemptId}
+                        rewindVid={rewindVid}
+                        readyToDetect={readyToDetect}
+                        pauseVid={pauseVid}
+                        displayNextLesson={false}
+                        setQuizPassed={setQuizPassed}
+                        anomalies={anomalies}
+                        keyboardLockEnabled={!isFlagModalOpen}
+                        linearProgressionEnabled={proctoringData?.settings.linearProgressionEnabled || true}
+                        seekForwardEnabled={proctoringData?.settings.seekForwardEnabled || false}
+                        setIsQuizSkipped={setIsQuizSkipped}
+                        courseId={COURSE_ID}
+                        versionId={VERSION_ID}
+                        sectionId={sectionId}
+                        completedItemIdsRef={completedItemIdsRef}
+                        nextItem={findNextItem()}
+                      />
+                    )}
+
+                  </div>
+                ) : (
+                  <div className="h-full flex items-center justify-center relative z-10">
+                    <div className="text-center max-w-md">
+                      <div className="relative mb-6">
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 rounded-full blur-xl opacity-60" />
+                        <div className="relative p-6 rounded-full bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20">
+                          <BookOpen className="h-12 w-12 text-primary mx-auto" />
+                        </div>
+                      </div>
+                      <h3 className="text-xl font-bold mb-3 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                        Ready to Learn?
+                      </h3>
+                      <p className="text-muted-foreground mb-6 leading-relaxed">
+                        Select an item from the course navigation to begin your learning journey and unlock new knowledge.
+                      </p>
+                      <Button
+                        variant="outline"
+                        className="transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/10 hover:to-accent/5 hover:border-accent/30 hover:shadow-lg hover:shadow-accent/10"
+                      >
+                        <Target className="h-4 w-4 mr-2" />
+                        Browse Content
+                      </Button>
                     </div>
                   </div>
                 )}
-
-
               </div>
-              <FlagModal
-                open={isFlagModalOpen}
-                onOpenChange={setIsFlagModalOpen}
-                onSubmit={handleFlagSubmit}
-                isSubmitting={isPending}
-              />
-              {currentItem ? (
-                <div className="relative z-10 h-full flex flex-col mb-2  sm:mb-1">
-                  <div className="flex justify-end mb-1 me-10 gap-2 ">
-                    {!isFlagSubmitted &&
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="text-xs gap-1"
-                        title="Flag this content"
-                        onClick={() => setIsFlagModalOpen(true)}
-                      >
-                        <FlagTriangleRightIcon className="h-4 w-4" />
-                        <span className="max-sm:hidden">Submit Flag</span>
-                      </Button>
-                    }
-                    {currentItem?.isOptional && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-xs gap-1 border-amber-500 text-amber-500 hover:bg-amber-50 hover:text-amber-600"
-                        title="Skip this optional item"
-                        onClick={handleSkipItem}
-                        disabled={isSkippingItem || isSkipping}
-                      >
-                        <span className="max-sm:hidden">Skip</span>
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                  {currentItem?.type === 'PROJECT' ? (
-                    <StudentProjectItem
-                      item={currentItem}
-                      onNext={handleNext}
-                      isProgressUpdating={isNavigatingToNext}
-                      completedItemIdsRef={completedItemIdsRef}
-                      isAlreadyWatched={currentItem.isAlreadyWatched}
-                    />
-                  ) : (
-                    
-                    <ItemContainer
-                      ref={itemContainerRef}
-                      item={currentItem}
-                      doGesture={doGesture}
-                      onNext={handleNext}
-                      onPrevVideo={handlePrevVideo}
-                      isProgressUpdating={isNavigatingToNext}
-                      isNavigatingToPrev={isNavigatingToPrev}
-                      attemptId={attemptId || undefined}
-                      setAttemptId={setAttemptId}
-                      rewindVid={rewindVid}
-                      readyToDetect={readyToDetect}
-                      pauseVid={pauseVid}
-                      displayNextLesson={false}
-                      setQuizPassed={setQuizPassed}
-                      anomalies={anomalies}
-                      keyboardLockEnabled={!isFlagModalOpen}
-                      linearProgressionEnabled={proctoringData?.settings.linearProgressionEnabled || true}
-                      seekForwardEnabled={proctoringData?.settings.seekForwardEnabled || false}
-                      setIsQuizSkipped={setIsQuizSkipped}
-                      courseId={COURSE_ID}
-                      versionId={VERSION_ID}
-                      sectionId={sectionId}
-                      completedItemIdsRef={completedItemIdsRef}
-                      nextItem={findNextItem()}
-                    />
-                  )}
-
-                </div>
-              ) : (
-                <div className="h-full flex items-center justify-center relative z-10">
-                  <div className="text-center max-w-md">
-                    <div className="relative mb-6">
-                      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 rounded-full blur-xl opacity-60" />
-                      <div className="relative p-6 rounded-full bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20">
-                        <BookOpen className="h-12 w-12 text-primary mx-auto" />
-                      </div>
-                    </div>
-                    <h3 className="text-xl font-bold mb-3 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                      Ready to Learn?
-                    </h3>
-                    <p className="text-muted-foreground mb-6 leading-relaxed">
-                      Select an item from the course navigation to begin your learning journey and unlock new knowledge.
-                    </p>
-                    <Button
-                      variant="outline"
-                      className="transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/10 hover:to-accent/5 hover:border-accent/30 hover:shadow-lg hover:shadow-accent/10"
-                    >
-                      <Target className="h-4 w-4 mr-2" />
-                      Browse Content
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </SidebarInset>
+            </SidebarInset>
           </ResizablePanel>
-       </ResizablePanelGroup>
+        </ResizablePanelGroup>
       </SidebarProvider>
     </>
   );

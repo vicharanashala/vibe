@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, lazy } from "react"
+import { useState, useEffect, lazy, ChangeEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -32,13 +32,17 @@ import {
   UserCheck,
   Headphones,
   ExternalLink,
+  Megaphone,
   CheckCheckIcon,
+  Archive,
+  ArchiveRestore,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { ProctoringModal } from "@/components/EditProctoringModal"
 import { Pagination } from "@/components/ui/Pagination"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // Import the hooks and auth store
 import {
@@ -47,6 +51,7 @@ import {
   useCreateCourseVersion,
   useDeleteCourseVersion,
   useUpdateCourseVersion,
+  useCourseVersionArchive,
   useUserEnrollments,
   useCourseById,
   useCourseVersionById,
@@ -65,6 +70,9 @@ import { useAnomalyStore } from "@/store/anomaly-store"
 import { ProjectSubmissionsDownloadButton } from "./components/ProjectSubmissionsDownloadButton"
 import { toast } from "sonner"
 import ConfirmationModal from "./components/confirmation-modal"
+import { AnnouncementModal } from "@/components/announcements/AnnouncementModal"
+import { AnnouncementType } from "@/types/announcement.types"
+import { useAnnouncements } from "@/hooks/announcement-hooks"
 
 // Utility function to format relative time
 const getUpdateMessage = (updatedAt?: string) => {
@@ -103,22 +111,30 @@ export default function TeacherCoursesPage() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
   const [initialDocumentCount, setInitialDocumentCount] = useState(0);
   const [lastEmptyState, setLastEmptyState] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1)
+  const [currentPage, setCurrentPage] = useState(() => {
+    const stored = sessionStorage.getItem("teacher_page")
+    return stored ? Number(stored) : 1
+  })
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false)
+  const { isAdmin } = useAnnouncements();
   const queryClient = useQueryClient()
 
   const role = "INSTRUCTOR"
   // Fetch user enrollments with pagination (use reasonable page size)
   const { token } = useAuthStore()
+  const [tab, setTab] = useState<'active' | 'archived'>('active');
   const {
     data: enrollmentsResponse,
     isLoading: enrollmentsLoading,
     error: enrollmentsError,
     refetch,
-  } = useUserEnrollments(currentPage, 10, !!token, debouncedSearchQuery, role) // Use pagination with 10 items per page
+  } = useUserEnrollments(currentPage, 10, !!token, debouncedSearchQuery, role, tab) // Use pagination with 10 items per page
   const enrollments = enrollmentsResponse?.enrollments || []
 
   const totalPages = enrollmentsResponse?.totalPages || 1
   const totalDocuments = enrollmentsResponse?.totalDocuments || 0
+  const activeCount = enrollmentsResponse?.activeCount || 0
+  const archivedCount = enrollmentsResponse?.archivedCount || 0
 
   // Get unique courses (in case user is enrolled in multiple versions of same course)
   // Since we're using pagination, we'll work with the current page data
@@ -160,11 +176,16 @@ export default function TeacherCoursesPage() {
     }
   }, [totalDocuments, initialDocumentCount, enrollmentsResponse])
 
+ useEffect(() => {
+    sessionStorage.removeItem("teacher_page")
+  }, [])
 
   // Reset page to 1 when search query changes
   useEffect(() => {
+  if (searchQuery) {
     setCurrentPage(1)
-  }, [searchQuery])
+  }
+}, [searchQuery])
 
   useEffect(() => {
     if (initialDocumentCount === 0) {
@@ -228,8 +249,7 @@ export default function TeacherCoursesPage() {
       </div>
     )
   }
-
-  if (uniqueCourses.length === 0 && !searchQuery && !enrollmentsLoading) {
+  if ( activeCount === 0 && archivedCount === 0 && !enrollmentsLoading ) {
     return (
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-6xl mx-auto">
@@ -290,20 +310,38 @@ export default function TeacherCoursesPage() {
                   </div>
                 </div>
               </div>
-              <Button
-                onClick={createNewCourse}
-                className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_auto] hover:bg-[length:100%_auto] shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 hover:-translate-y-1 h-12 px-8 group mt-4 lg:mt-0"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                <div className="relative flex items-center gap-2">
-                  <div className="relative">
-                    <Plus className="h-4 w-4 mr-1 transition-transform duration-300 group-hover:rotate-90" />
-                    <div className="absolute inset-0 bg-white/30 rounded-full blur-sm animate-ping opacity-75"></div>
+              <div className="flex flex-col lg:flex-row gap-3 mt-4 lg:mt-0">
+                {isAdmin && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAnnouncementModal(true)}
+                    className="bg-background/50 hover:bg-background/80 border-primary/20 hover:border-primary/50 text-foreground h-12 px-6"
+                  >
+                    <Megaphone className="h-4 w-4 mr-2 text-primary" />
+                    General Announcements
+                  </Button>
+                )}
+                <Button
+                  onClick={createNewCourse}
+                  className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_auto] hover:bg-[length:100%_auto] shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 hover:-translate-y-1 h-12 px-8 group"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                  <div className="relative flex items-center gap-2">
+                    <div className="relative">
+                      <Plus className="h-4 w-4 mr-1 transition-transform duration-300 group-hover:rotate-90" />
+                      <div className="absolute inset-0 bg-white/30 rounded-full blur-sm animate-ping opacity-75"></div>
+                    </div>
+                    <span className="font-semibold">Create New Course</span>
                   </div>
-                  <span className="font-semibold">Create New Course</span>
-                </div>
-              </Button>
+                </Button>
+              </div>
             </div>
+            <AnnouncementModal
+              isOpen={showAnnouncementModal}
+              onClose={() => setShowAnnouncementModal(false)}
+              defaultType={AnnouncementType.GENERAL}
+              isAdmin={isAdmin}
+            />
           </div>
         </div>
 
@@ -311,6 +349,36 @@ export default function TeacherCoursesPage() {
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-muted/20 to-muted/10 rounded-xl blur-sm"></div>
           <div className="relative bg-card/60 backdrop-blur-sm border border-border/50 rounded-xl p-4">
+            <Tabs
+              value={tab}
+              onValueChange={(v) => {
+                setTab(v as 'active' | 'archived')
+                setCurrentPage(1)
+              }}
+              className="w-full"
+            >
+              <TabsList className="grid w-full sm:w-[420px] grid-cols-2 h-11 bg-muted/40 backdrop-blur-sm border border-border/50 p-1 rounded-xl overflow-hidden mb-4">
+              <TabsTrigger
+                value="active"
+                className="rounded-lg text-sm font-semibold text-muted-foreground transition-all duration-200
+                data-[state=active]:bg-background/80
+                data-[state=active]:text-foreground
+                data-[state=active]:shadow-sm"
+              >
+                Active Versions({activeCount})
+              </TabsTrigger>
+
+              <TabsTrigger
+                value="archived"
+                className="rounded-lg text-sm font-semibold text-muted-foreground transition-all duration-200
+                data-[state=active]:bg-background/80
+                data-[state=active]:text-foreground
+                data-[state=active]:shadow-sm"
+              >
+                Archived Versions({archivedCount})
+              </TabsTrigger>
+              </TabsList>
+            </Tabs>
             <div className="md:flex flex-row items-center justify-between gap-4">
               <div className="relative flex-1 max-w-md">
                 <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg "></div>
@@ -320,7 +388,7 @@ export default function TeacherCoursesPage() {
                     disabled={initialDocumentCount === 0}
                     placeholder="Search courses..."
                     value={searchQuery}
-                    onChange={() => handleSearchQueryChange(event)}
+                    onChange={handleSearchQueryChange}
                     className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
                   />
                 </div>
@@ -346,9 +414,9 @@ export default function TeacherCoursesPage() {
                   Loading courses...
                 </span>
               </div> :
-              searchQuery && uniqueCourses.length === 0 ? (
+              uniqueCourses.length === 0 && !enrollmentsLoading ? (
                 <div className="flex items-center justify-center text-muted-foreground">
-                  No courses found.
+                  No {tab} courses found.
                 </div>
               ) :
                 filteredCourses.map((enrollment: any, index: number) => (
@@ -360,6 +428,7 @@ export default function TeacherCoursesPage() {
                     <CourseCard
                       enrollment={enrollment}
                       onInvalidate={invalidateAllQueries}
+                      currentPage={currentPage}
                     />
                   </div>
                 ))}
@@ -387,9 +456,11 @@ export default function TeacherCoursesPage() {
 function CourseCard({
   enrollment,
   onInvalidate,
+  currentPage,
 }: {
   enrollment: RawEnrollment
   onInvalidate: () => void
+  currentPage: number
 }) {
   const [showNewVersionForm, setShowNewVersionForm] = useState(false)
   const [newVersionData, setNewVersionData] = useState({ version: "", description: "" })
@@ -400,10 +471,10 @@ function CourseCard({
     name: "",
     description: "",
   })
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false)
 
   const [creatingErrors, setCreatingErrors] = useState<{ name?: string; description?: string }>({});
   const [editingErrors, setEditingErrors] = useState<{ name?: string; description?: string }>({});
-
 
   const queryClient = useQueryClient()
 
@@ -427,6 +498,13 @@ function CourseCard({
 
   // 3. Choose final course value
   const course = localCourse || fetchedCourse;
+
+  // determine whether the enrollment corresponds to an archived version
+  const enrollmentVersionStatus = enrollment.course?.versionDetails?.find((v: any) =>
+    v.id === bufferToHex(enrollment.courseVersionId as any)
+  )?.versionStatus;
+  const isArchivedEnrollment = enrollmentVersionStatus === 'archived';
+
 
   if (courseLoading) {
     return (
@@ -601,7 +679,7 @@ function CourseCard({
 
   const navigate = useNavigate()
 
-  const handleAuditClick = ()=>{
+  const handleAuditClick = () => {
     // Navigate to the audit page for this course
     localStorage.setItem("selectedCourseId", courseIdHex)
     localStorage.setItem("selectedCourseVersionId", bufferToHex(enrollment.courseVersionId as any))
@@ -638,14 +716,39 @@ function CourseCard({
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                  {/* <div className="flex flex-row sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2"> */}
+                  <div className="flex flex-row items-center gap-2 sm:gap-3 mb-2">
                     <CardTitle className="text-lg md:text-xl font-bold text-foreground sm:line-clamp-2 break-words">
-                      {course.name}
+                        {(() => {
+                          const MAX_TITLE_LENGTH = 60;
+                          const isLong = course.name.length > MAX_TITLE_LENGTH;
+                          const displayName = isLong ? course.name.slice(0, MAX_TITLE_LENGTH) + "..." : course.name;
+                          return (
+                            <span
+                              className="relative cursor-pointer"
+                              title={isLong ? course.name : undefined}
+                              style={{
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                maxWidth: "100%",
+                                display: "inline-block"
+                              }}
+                            >
+                              {displayName}
+                              {isLong && (
+                                <span className="absolute left-0 top-full z-10 mt-1 px-2 py-1 bg-background border border-border rounded shadow text-xs text-foreground whitespace-pre-line opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                                  {course.name}
+                                </span>
+                              )}
+                            </span>
+                          );
+                        })()}
                     </CardTitle>
-                    <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary w-fit shrink-0">
+                    {/* <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary w-fit shrink-0">
                       <FileText className="h-3 w-3 mr-1" />
                       {`${course.versions?.length || 0} version${course.versions?.length > 1 ? 's' : ''}`}
-                    </Badge>
+                    </Badge> */}
                   </div>
 
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -660,7 +763,7 @@ function CourseCard({
 
               <div className="flex items-center justify-end gap-2 shrink-0 mt-3 md:mt-0">
                 <Button variant="outline" size="sm" onClick={handleAuditClick}>
-                  <CheckCheckIcon/>  View Audit
+                  <CheckCheckIcon />  View Audit
                 </Button>
                 <Button
                   variant="outline"
@@ -671,7 +774,8 @@ function CourseCard({
                     startEditing()
                   }}
                   className="h-9 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
-                  disabled={updateCourseMutation.isPending}
+                  disabled={updateCourseMutation.isPending || isArchivedEnrollment}
+                  title={isArchivedEnrollment ? "Cannot edit archived course" : undefined}
                 >
                   {updateCourseMutation.isPending ? (
                     <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -686,18 +790,14 @@ function CourseCard({
                   size="sm"
                   onClick={(e) => {
                     e.stopPropagation()
-                    if (!expandedCourse) toggleCourse()
-                    setShowDeleteCourseModal(true)
+                    setShowAnnouncementModal(true)
                   }}
-                  className="h-9 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive dark:hover:text-destructive-foreground transition-all duration-300"
-                  disabled={deleteCourseMutation.isPending}
+                  className="h-9 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
+                  disabled={isArchivedEnrollment}
+                  title={isArchivedEnrollment ? "Cannot announce on archived course" : undefined}
                 >
-                  {deleteCourseMutation.isPending ? (
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-3 w-3 mr-1" />
-                  )}
-                  Delete Course
+                  <Megaphone className="h-3 w-3 mr-1" />
+                  Announce
                 </Button>
               </div>
             </div>
@@ -717,6 +817,12 @@ function CourseCard({
             loadingText="Cloning..."
           />
           <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <AnnouncementModal
+            isOpen={showAnnouncementModal}
+            onClose={() => setShowAnnouncementModal(false)}
+            defaultType={AnnouncementType.COURSE_SPECIFIC}
+            courseId={courseIdHex}
+          />
         </div>
 
         {/* Expanded Content */}
@@ -854,6 +960,24 @@ function CourseCard({
                       )}
                       Add Version
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (!expandedCourse) toggleCourse()
+                        setShowDeleteCourseModal(true)
+                      }}
+                      className="h-9 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive dark:hover:text-destructive-foreground transition-all duration-300"
+                      disabled={deleteCourseMutation.isPending}
+                    >
+                      {deleteCourseMutation.isPending ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3 w-3 mr-1" />
+                      )}
+                      Delete Course
+                    </Button>
                   </div>
                 </div>
 
@@ -918,7 +1042,6 @@ function CourseCard({
                     </Card>
                   </div>
                 )}
-
                 {/* Display All Versions */}
                 <div className="space-y-3">
                   {localCourseVersionDetails && localCourseVersionDetails.length > 0 ? (
@@ -934,6 +1057,7 @@ function CourseCard({
                           onInvalidate={onInvalidate}
                           deleteVersionMutation={deleteVersionMutation}
                           versionCount={course?.versions?.length}
+                          currentPage={currentPage}
                         />
                       </div>
                     ))
@@ -950,6 +1074,7 @@ function CourseCard({
                           onInvalidate={onInvalidate}
                           deleteVersionMutation={deleteVersionMutation}
                           versionCount={course?.versions?.length}
+                          currentPage={currentPage}
                         />
                       </div>
                     ))
@@ -989,6 +1114,7 @@ function VersionCard({
   onInvalidate,
   deleteVersionMutation,
   versionCount,
+  currentPage,
 }: {
   versionData?: components['schemas']['CourseVersionDataResponse'];
   versionId?: string
@@ -996,9 +1122,17 @@ function VersionCard({
   onInvalidate: () => void
   deleteVersionMutation: any
   versionCount: number
+  currentPage: number
 }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const storePageAndNavigate = (path: string) => {
+  sessionStorage.setItem("teacher_page", String(currentPage))
+
+  navigate({
+    to: path as any,
+  })
+}
   const { setCurrentCourse } = useCourseStore()
   const [showProctoringModal, setShowProctoringModal] = useState(false)
   const { setCurrentCourseFlag } = useFlagStore()
@@ -1012,13 +1146,15 @@ function VersionCard({
     description: "",
     supportLink: "",
   })
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false)
   const [editingErrors, setEditingErrors] = useState<{ version?: string; description?: string; supportLink?: string }>({})
 
   // Add update version hook
   const updateVersionMutation = useUpdateCourseVersion()
 
   const [showLinkModal, setShowLinkModal] = useState(false);
-  const [showDeleteVersionModel, setShowDeleteVersionModel] = useState(false)
+  const [showDeleteVersionModel, setShowDeleteVersionModel] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [generatedLink, setGeneratedLink] = useState('');
   const generateLinkMutation = useGenerateLink();
   // To copy a entire course version
@@ -1032,7 +1168,31 @@ function VersionCard({
 
   const selectedVersionId = version?.id || versionId;
 
-  // Edit functions
+  const isArchived = (version as any)?.versionStatus === 'archived';
+  const { mutateAsync: archiveMutateAsync, isPending: isArchivePending } = useCourseVersionArchive();
+  const handleArchive = async () => {
+    try {
+      await archiveMutateAsync({
+        params: {
+          path: {
+            courseId: courseId,
+            versionId: selectedVersionId,
+          },
+        },
+        body: {
+          versionStatus: isArchived ? 'active' : 'archived',
+        },
+      } as any);
+
+      toast.success(isArchived ? 'Version unarchived successfully' : 'Version archived successfully');
+      onInvalidate();
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to update version status');
+    }
+  };
+
+  if (!version) return null;
+
   const startEditingVersion = () => {
     setEditingVersion(true)
     setEditingValues({
@@ -1155,9 +1315,7 @@ function VersionCard({
       itemId: null,
       watchItemId: null,
     })
-    navigate({
-      to: "/teacher/courses/enrollments",
-    })
+    storePageAndNavigate("/teacher/courses/enrollments")
   }
 
   const goToRegistrations = () => {
@@ -1169,9 +1327,7 @@ function VersionCard({
       itemId: null,
       watchItemId: null,
     })
-    navigate({
-      to: "/teacher/courses/registration-requests" as any,
-    })
+    storePageAndNavigate("/teacher/courses/registration-requests")
   }
 
   const viewInstructors = () => {
@@ -1184,9 +1340,7 @@ function VersionCard({
       itemId: null,
       watchItemId: null,
     })
-    navigate({
-      to: "/teacher/courses/instructors",
-    })
+    storePageAndNavigate("/teacher/courses/instructors")
   }
 
   const viewFlags = () => {
@@ -1199,9 +1353,7 @@ function VersionCard({
       itemId: null,
       watchItemId: null,
     })
-    navigate({
-      to: "/teacher/courses/flags/list" as any,
-    })
+    storePageAndNavigate("/teacher/courses/flags/list")
   }
   const viewAnomalies = () => {
     setCurrentAnomaly({
@@ -1212,9 +1364,7 @@ function VersionCard({
       itemId: null,
       watchItemId: null
     });
-    navigate({
-      to: "/teacher/courses/anomalies/list" as any
-    });
+    storePageAndNavigate("/teacher/courses/anomalies/list")
   }
   const sendInvites = () => {
     // Set course info in store and navigate to invite page
@@ -1226,9 +1376,7 @@ function VersionCard({
       itemId: null,
       watchItemId: null,
     })
-    navigate({
-      to: "/teacher/courses/invite",
-    })
+    storePageAndNavigate("/teacher/courses/invite")
   }
 
   const viewCourse = () => {
@@ -1241,9 +1389,7 @@ function VersionCard({
       itemId: null,
       watchItemId: null,
     })
-    navigate({
-      to: "/teacher/courses/view",
-    })
+    storePageAndNavigate("/teacher/courses/view")
   }
 
   const handleGenerateLink = async () => {
@@ -1364,7 +1510,8 @@ function VersionCard({
                     size="sm"
                     onClick={() => setIsCopyModalOpen(true)}
                     className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-                    disabled={copyVersionIsPending}
+                    disabled={copyVersionIsPending || isArchived}
+                    title={isArchived ? "Cannot clone archived version" : undefined}
                   >
                     {copyVersionIsPending ? (
                       <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -1372,6 +1519,17 @@ function VersionCard({
                       <Copy className="h-3 w-3 mr-1" />
                     )}
                     Clone
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAnnouncementModal(true)}
+                    className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                    disabled={isArchived}
+                    title={isArchived ? "Cannot announce on archived version" : undefined}
+                  >
+                    <Megaphone className="h-3 w-3 mr-1" />
+                    Announce
                   </Button>
                   {(version as any)?.supportLink && (() => {
                     const link = (version as any).supportLink;
@@ -1408,7 +1566,8 @@ function VersionCard({
                     size="sm"
                     onClick={startEditingVersion}
                     className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-                    disabled={updateVersionMutation.isPending}
+                    disabled={updateVersionMutation.isPending || isArchived}
+                    title={isArchived ? "Cannot edit archived version" : undefined}
                   >
                     {updateVersionMutation.isPending ? (
                       <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -1417,6 +1576,41 @@ function VersionCard({
                     )}
                     Edit
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowArchiveModal(true)}
+                    disabled={isArchivePending}
+                    className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                  >
+                    {isArchivePending ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : isArchived ? (
+                      <Archive className="h-3 w-3 mr-1" />
+                    ) : (
+                      <ArchiveRestore className="h-3 w-3 mr-1" />
+                    )}
+                    {isArchived ? "Unarchive" : "Archive"}
+                  </Button>
+                  <ConfirmationModal
+                    isOpen={showArchiveModal}
+                    onClose={() => setShowArchiveModal(false)}
+                    onConfirm={async () => {
+                      await handleArchive();
+                      setShowArchiveModal(false);
+                    }}
+                    title={isArchived ? "Unarchive Version" : "Archive Version"}
+                    description={
+                      isArchived
+                        ? "Are you sure you want to unarchive this version? Students will be able to access it again. Note: Only administrators can use this feature."
+                        : "Are you sure you want to archive this version? Students will no longer be able to access it. Note: Only administrators can use this feature."
+                    }
+                    confirmText={isArchived ? "Unarchive" : "Archive"}
+                    cancelText="Cancel"
+                    isDestructive={false}
+                    isLoading={isArchivePending}
+                    loadingText={isArchived ? "Unarchiving..." : "Archiving..."}
+                  />
                   <Button
                     variant="outline"
                     size="sm"
@@ -1449,6 +1643,13 @@ function VersionCard({
                     loadingText="Deleting..."
                   />
                   <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <AnnouncementModal
+                    isOpen={showAnnouncementModal}
+                    onClose={() => setShowAnnouncementModal(false)}
+                    defaultType={AnnouncementType.VERSION_SPECIFIC}
+                    courseId={courseId}
+                    versionId={versionId}
+                  />
                 </div>
               </div>
 
@@ -1630,6 +1831,7 @@ function VersionCard({
                   size="sm"
                   onClick={viewCourse}
                   className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                  // Manage remains enabled even for archived versions
                 >
                   <BookOpenIcon className="h-3 w-3 mr-1" />
                   Manage
@@ -1639,6 +1841,8 @@ function VersionCard({
                   size="sm"
                   onClick={sendInvites}
                   className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                  disabled={isArchived}
+                  title={isArchived ? "Cannot send invites to archived version" : undefined}
                 >
                   <MailPlus className="h-3 w-3 mr-1" />
                   Send Invites
@@ -1653,6 +1857,8 @@ function VersionCard({
                     setShowProctoringModal(true)
                   }}
                   className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
+                  disabled={isArchived}
+                  title={isArchived ? "Cannot open settings for archived version" : undefined}
                 >
                   <Settings2 className="h-3 w-3 mr-1" />
                   Settings

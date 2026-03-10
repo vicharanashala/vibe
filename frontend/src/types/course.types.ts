@@ -8,6 +8,7 @@ export interface itemref {
 
 export interface CourseCardProps {
   enrollment: {
+    hasNewItemsAfterCompletion:boolean;
     courseId: string | { buffer: { data: number[] } };
     courseVersionId: string | { buffer: { data: number[] } };
     percentCompleted?: number;
@@ -37,6 +38,10 @@ export interface CourseCardProps {
     moduleNumber?: string;
     sectionNumber?: string;
     itemType?: string;
+    assignedTimeSlot?: {
+      from: string;
+      to: string;
+    };
     _id?: string;
   };
   isLoading: boolean;
@@ -105,6 +110,28 @@ export interface EnrolledUser {
   progress: number
   completedItemsCount?: number
   isDeleted?: boolean
+}
+
+export interface EnrollmentDetails {
+  id: string
+  name: string,
+  email: string,
+  enrolledDate: string
+  progress: number
+  completedItemsCount?: number
+  contentCounts?:{
+    totalItems?: number;
+    videos?: number;
+    quizzes?: number;
+    articles?: number;
+    projects?: number;
+    completedVideos?: number;
+    completedQuizzes?: number;
+    completedArticles?: number;
+    completedProjects?: number;
+    totalQuizScore?: number;
+    totalQuizMaxScore?: number;
+  }
 }
 
 export interface ResetProgressData {

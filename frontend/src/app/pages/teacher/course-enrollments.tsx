@@ -20,6 +20,7 @@ import { useStudentCurrentProgressPath } from "@/hooks/hooks"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { MoreVertical, Trash2 } from "lucide-react"
+import CourseBackButton from "./CourseBackButton";
 
 // Import hooks - including the new quiz hooks
 import {
@@ -39,7 +40,7 @@ import {
 } from "@/hooks/hooks"
 import { toast } from "sonner"
 import { useCourseStore } from "@/store/course-store"
-import type { EnrolledUser } from "@/types/course.types"
+import type { EnrolledUser, EnrollmentDetails } from "@/types/course.types"
 import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
 import { generateExcel } from "@/lib/excel-export"
@@ -162,7 +163,7 @@ export default function CourseEnrollments() {
     !!(courseId && versionId)
   )
 
-  const [selectedUser, setSelectedUser] = useState<EnrolledUser | null>(null)
+  const [selectedUser, setSelectedUser] = useState<EnrollmentDetails | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false)
   const [isRecalculateProgressOpen, setIsRecalculateProgressOpen] = useState(false)
@@ -214,6 +215,18 @@ export default function CourseEnrollments() {
       slot.studentIds?.forEach((id: string) => assignedIds.add(id));
     });
     return assignedIds;
+  };
+
+  // Get assigned timeslot for a student
+  const getStudentTimeSlot = (studentId: string) => {
+    if (!timeSlotsData?.slots) return null;
+    
+    for (const slot of timeSlotsData.slots) {
+      if (slot.studentIds?.includes(studentId)) {
+        return slot;
+      }
+    }
+    return null;
   };
 
   // Handle student selection completion for time slots
@@ -504,7 +517,7 @@ export default function CourseEnrollments() {
 
   // const studentEnrollments = enrollmentsData?.enrollments || [];
   const studentEnrollments = enrollmentsData?.enrollments || []
-
+  console.log("Fetched Enrollments:", enrollmentsData)
   // Filter out already assigned students if excludeAssigned is true
   const filteredStudentEnrollments = excludeAssigned 
     ? studentEnrollments.filter((enrollment: any) => {
@@ -513,6 +526,8 @@ export default function CourseEnrollments() {
         return !assignedIds.has(studentId);
       })
     : studentEnrollments;
+
+    console.log("Filtered Enrollments:", filteredStudentEnrollments)
 
   const handleSelectAll = (checked: boolean) => {
     const visibleUserIds = filteredStudentEnrollments.map((e: any) => e.user?._id || e.user?.id).filter(Boolean)
@@ -606,23 +621,9 @@ export default function CourseEnrollments() {
     setIsResetDialogOpen(true)
   }
 
-  const handleViewProgress = (user: EnrolledUser) => {
-    setSelectedUser({
-      ...user,
-      contentCounts: user.contentCounts || {
-        totalItems: 0,
-        videos: 0,
-        quizzes: 0,
-        articles: 0,
-        project: 0,
-        completedVideos: 0,
-        completedQuizzes: 0,
-        completedArticles: 0,
-        completedProjects: 0,
-        totalQuizScore: 0,
-        totalQuizMaxScore: 0,
-      },
-    })
+  const handleViewProgress = (user: EnrollmentDetails) => {
+    console.log("Selected user for progress view:", user)
+    setSelectedUser(user)
 
     setIsViewProgressDialogOpen(true)
   }
@@ -881,6 +882,7 @@ export default function CourseEnrollments() {
     <>
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-4 space-y-8">
+          <CourseBackButton />
           {/* Enhanced Header */}
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="space-y-4">
@@ -1041,6 +1043,8 @@ export default function CourseEnrollments() {
               toggleSelectionMode={toggleSelectionMode}
               handleBulkUnenroll={handleBulkUnenroll}
               setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
+              timeSlotsData={timeSlotsData}
+              getStudentTimeSlot={getStudentTimeSlot}
             />
           </TabsContent>
 
@@ -1072,6 +1076,8 @@ export default function CourseEnrollments() {
               toggleSelectionMode={toggleSelectionMode}
               handleBulkUnenroll={handleBulkUnenroll}
               setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
+              timeSlotsData={timeSlotsData}
+              getStudentTimeSlot={getStudentTimeSlot}
             />
           </TabsContent>
         </Tabs>
@@ -1165,7 +1171,7 @@ export default function CourseEnrollments() {
 
                           <SummaryRow
                             label="Projects"
-                            value={`${selectedUser.contentCounts.completedProjects} / ${selectedUser.contentCounts.project}`}
+                            value={`${selectedUser.contentCounts.completedProjects} / ${selectedUser.contentCounts.projects}`}
                           />
 
                           <SummaryRow
@@ -1839,12 +1845,14 @@ export default function CourseEnrollments() {
     </div>
     
     {/* Time Slots Modal */}
-    <TimeSlotsModal
-      isOpen={isTimeSlotsModalOpen}
-      onClose={() => setIsTimeSlotsModalOpen(false)}
-      courseId={courseId || ""}
-      courseVersionId={versionId || ""}
-    />
+    {courseId && versionId && (
+      <TimeSlotsModal
+        isOpen={isTimeSlotsModalOpen}
+        onClose={() => setIsTimeSlotsModalOpen(false)}
+        courseId={courseId}
+        courseVersionId={versionId}
+      />
+    )}
     </>
   )
 }
@@ -2034,6 +2042,8 @@ function EnrollmentsTable({
   toggleSelectionMode,
   handleBulkUnenroll,
   setIsTimeSlotsModalOpen,
+  timeSlotsData,
+  getStudentTimeSlot,
 }: any) {
   const isInactiveTab = enrollmentTab === "INACTIVE"
 
@@ -2138,9 +2148,10 @@ function EnrollmentsTable({
                       <Checkbox
                         checked={
                           studentEnrollments.length > 0 &&
-                          studentEnrollments.every((e: any) =>
-                            selectedUsers.has(e.user?._id || e.user?.id)
-                          )
+                          studentEnrollments.every((e: any) => {
+                            const studentId = e.user?._id || e.user?.id;
+                            return selectedUsers.has(studentId);
+                          })
                         }
                         onCheckedChange={onSelectAll}
                         aria-label="Select all"
@@ -2154,12 +2165,14 @@ function EnrollmentsTable({
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
                         { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                         { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
                       ]
                       : [
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                         { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
                       ];
                     return columns.map(({ key, label, className }) => (
@@ -2224,9 +2237,10 @@ function EnrollmentsTable({
                       <Checkbox
                         checked={
                           studentEnrollments.length > 0 &&
-                          studentEnrollments.every((e: any) =>
-                            selectedUsers.has(e.user?._id || e.user?.id)
-                          )
+                          studentEnrollments.every((e: any) => {
+                            const studentId = e.user?._id || e.user?.id;
+                            return selectedUsers.has(studentId);
+                          })
                         }
                         onCheckedChange={onSelectAll}
                         aria-label="Select all"
@@ -2240,12 +2254,14 @@ function EnrollmentsTable({
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
                         { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                         { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
                       ]
                       : [
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                         { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
                       ];
                     return columns.map(({ key, label, className }) => (
@@ -2383,6 +2399,26 @@ function EnrollmentsTable({
                         <EnrollmentProgress progress={enrollment.progress || 0} />
                       </TableCell>
 
+                      {/* Assigned Time Slot */}
+                      <TableCell className="py-6">
+                        <div className="text-muted-foreground font-medium">
+                          {(() => {
+                            const timeSlot = getStudentTimeSlot(enrollment.user?._id || enrollment.user?.id);
+                            if (timeSlot && timeSlot.from && timeSlot.to) {
+                              const formatTime = (time: string) => {
+                                const [hour, minute] = time.split(':');
+                                const h = parseInt(hour);
+                                const suffix = h >= 12 ? 'PM' : 'AM';
+                                const displayHour = h > 12 ? h - 12 : h === 0 ? 12 : h;
+                                return `${displayHour}:${minute} ${suffix}`;
+                              };
+                              return `${formatTime(timeSlot.from)} - ${formatTime(timeSlot.to)}`;
+                            }
+                            return "Not Assigned";
+                          })()}
+                        </div>
+                      </TableCell>
+
                       {/* Score obtained */}
                       <TableCell className="py-6">
                         <div className="text-muted-foreground font-medium">
@@ -2411,17 +2447,17 @@ function EnrollmentsTable({
                                 completedItemsCount: enrollment.completedItemsCount || 0,
 
                                 contentCounts: {
-                                  totalItems: enrollment.contentCounts?.totalItems || 0,
-                                  videos: enrollment.contentCounts?.videos || 0,
-                                  quizzes: enrollment.contentCounts?.quizzes || 0,
-                                  articles: enrollment.contentCounts?.articles || 0,
-                                  project: enrollment.contentCounts?.project || 0,
-                                  completedVideos: enrollment.contentCounts?.completedVideos || 0,
-                                  completedQuizzes: enrollment.contentCounts?.completedQuizzes || 0,
-                                  completedArticles: enrollment.contentCounts?.completedArticles || 0,
-                                  completedProjects: enrollment.contentCounts?.completedProjects || 0,
-                                  totalQuizScore: enrollment.contentCounts?.totalQuizScore || 0,
-                                  totalQuizMaxScore: enrollment.contentCounts?.totalQuizMaxScore || 0,
+                                  totalItems: enrollment.contentCounts?.total || 0,
+                                  videos: enrollment.contentCounts?.itemCounts.VIDEO || 0,
+                                  quizzes: enrollment.contentCounts?.itemCounts.QUIZ || 0,
+                                  articles: enrollment.contentCounts?.itemCounts.BLOG || 0,
+                                  projects: enrollment.contentCounts?.itemCounts.PROJECT || 0,
+                                  completedVideos: enrollment.contentCounts?.completedItemCounts.VIDEO || 0,
+                                  completedQuizzes: enrollment.contentCounts?.completedItemCounts.QUIZ || 0,
+                                  completedArticles: enrollment.contentCounts?.completedItemCounts.BLOG || 0,
+                                  completedProjects: enrollment.contentCounts?.completedItemCounts.PROJECT || 0,
+                                  totalQuizScore: enrollment.totalQuizScore || 0,
+                                  totalQuizMaxScore: enrollment.totalQuizMaxScore || 0,
                                 },
 
                                 isDeleted: enrollment.isDeleted,

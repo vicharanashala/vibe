@@ -381,7 +381,14 @@ export default function AuthPage({ role }: AuthPageProps) {
               <div className="inline-flex items-center gap-3 px-4 py-2">
                 <span className="text-md text-muted-foreground">Want to teach on ViBe?</span>
                 <button
-                  onClick={() => navigate({ to: "/select-role" })}
+                  onClick={() => {
+                    const searchParams = new URLSearchParams(window.location.search);
+                    const redirectUrl = searchParams.get("redirect");
+                    navigate({
+                      to: "/select-role",
+                      search: redirectUrl ? { redirect: redirectUrl } : undefined
+                    });
+                  }}
                   className="cursor-pointer text-md font-medium text-primary hover:text-primary/80 hover:underline hover:underline-offset-4 transition-colors"
                 >
                   Switch role
@@ -496,7 +503,7 @@ export default function AuthPage({ role }: AuthPageProps) {
                         onClick={handleEmailLogin}
                         disabled={loading || (!recaptchaToken && isRecaptchaEnabled)}
                       >
-                       {loading ? "Signing in..." : `Sign in as ${activeRole=="student"?'learner':activeRole}`}
+                        {loading ? "Signing in..." : `Sign in as ${activeRole == "student" ? 'learner' : activeRole}`}
                       </Button>
 
                       {/* Divider */}

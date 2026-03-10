@@ -21,8 +21,6 @@ import {
 } from '#shared/index.js';
 import { getISTFormattedTimestamp } from '#root/utils/toISOFormat.js';
 import { ObjectId } from 'mongodb';
-import { TimeSlotService } from './TimeSlotService.js';
-import { SETTING_TYPES } from '../types.js';
 
 
 /**
@@ -40,9 +38,6 @@ class CourseSettingService extends BaseService {
 
     @inject(GLOBAL_TYPES.Database)
     private readonly mongoDatabase: MongoDatabase,
-
-    @inject(SETTING_TYPES.TimeSlotService)
-    private readonly timeSlotService: TimeSlotService,
   ) {
     super(mongoDatabase);
   }
@@ -319,27 +314,6 @@ class CourseSettingService extends BaseService {
         session,
       );
       return isCourseEnabled;
-    });
-  }
-
-    /**
-   * Check if student can access course based on time slot
-   */
-  async canStudentAccessCourse(
-    userId: string,
-    courseId: string,
-    courseVersionId: string,
-  ): Promise<{ canAccess: boolean; message?: string }> {
-    return this._withTransaction(async (session) => {
-      // Get timeslots settings
-      const canAccess = await this.timeSlotService.canStudentAccessCourse(
-        userId,
-        courseId,
-        courseVersionId,
-      );
-
-
-     return canAccess;
     });
   }
 }

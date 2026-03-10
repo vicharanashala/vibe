@@ -516,7 +516,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
             {isLoading ? <Loader /> :
                 <div
                     ref={modalRef}
-                    className="bg-white rounded-lg p-6 
+                    className="bg-card text-foreground rounded-lg p-6 
                     overflow-y-auto
                     min-w-4xl shadow-lg"
                 >
@@ -546,7 +546,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                             value={name}
                             onChange={e => setName(e.target.value)}
                             disabled={action === "view"}
-                            className="bg-white border-gray-200"
+                            className="bg-background border-border"
                         />
                         {errorList.name && (
                             <p className="text-xs text-red-500 mt-1">{errorList.name}</p>
@@ -556,7 +556,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                             value={url}
                             onChange={e => setUrl(e.target.value)}
                             disabled={action === "view"}
-                            className="bg-white border-gray-200"
+                            className="bg-background border-border"
                         />
                         {errorList.url && (
                             <p className="text-xs text-red-500 mt-1">{errorList.url}</p>
@@ -567,8 +567,8 @@ const VideoModal: React.FC<VideoModalProps> = ({
                             onChange={e => setDescription(e.target.value)}
                             disabled={action === "view"}
                             rows={3}
-                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm
-                            bg-white focus:border-primary focus:ring-1 focus:ring-primary"
+                            className="w-full rounded-lg border border-border px-3 py-2 text-sm
+                                bg-card text-foreground focus:border-primary focus:ring-1 focus:ring-primary"
                         />
                         {errorList.description && (
                             <p className="text-xs text-red-500 mt-1">{errorList.description}</p>
@@ -581,7 +581,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                     margin: "0 auto",
                                     borderRadius: 12,
                                     overflow: "hidden",
-                                    background: "#fff",
+                                    background: "var(--card)",
                                     border: "1px solid #e5e7eb",
                                     display: "flex",
                                     flexDirection: "column",
@@ -642,9 +642,6 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                 {/* Start/End Time Inputs Below Video */}
                                 <div
                                     style={{
-                                        background: '#f9fafb',
-                                        padding: '16px',
-                                        borderTop: '1px solid #e5e7eb',
                                         borderRadius: '0 0 12px 12px',
                                         userSelect: 'none',
                                         WebkitUserSelect: 'none',
@@ -652,7 +649,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                         msUserSelect: 'none',
                                         flexShrink: 0,
                                     }}
-                                    className="xl:flex items-center justify-start relative gap-2"
+                                    className="bg-muted border-t border-border p-4 xl:flex items-center justify-start relative gap-2"
                                 >
                                     <div className="flex flex-col gap-2">
                                         <div className="flex items-center lg:gap-2 gap-6 lg:flex-row flex-col">
@@ -730,7 +727,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                 </div>
                             </div>
                         )}
-                        <div className="mt-4 p-4 bg-white border border-gray-200 rounded-lg ">
+                        <div className="mt-4 p-4 bg-card border border-border rounded-lg">
                             <label className="block mb-2 font-medium text-sm text-gray-700">Points</label>
                             <Input
                                 type="number"
@@ -739,12 +736,12 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                 onChange={e => setPoints(Number(e.target.value))}
                                 disabled={action === "view"}
                                 style={{ width: 120 }}
-                                className="bg-white border-gray-200"
+                                className="bg-background border-border"
                             />
                         </div>
                         {(action === "add" || action === "edit") && (
                             <div className="flex justify-end gap-2 mt-6">
-                                <Button variant="outline" onClick={handleCancel} className="border-gray-300">
+                                <Button variant="outline" onClick={handleCancel} className="border-border">
                                     Cancel
                                 </Button>
                                 {action === "edit" && (

@@ -80,7 +80,12 @@ class QuestionBankController {
     setAuditTrail(req, {
       category: AuditCategory.QUESTION_BANK,
       action: AuditAction.QUESTION_BANK_CREATE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context:{
         courseId: ObjectId.createFromHexString(body.courseId.toString()),
         courseVersionId: ObjectId.createFromHexString(body.courseVersionId.toString()),
@@ -177,7 +182,12 @@ class QuestionBankController {
     setAuditTrail(req, {
       category: AuditCategory.QUESTION_BANK,
       action: AuditAction.QUESTION_ADD,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context:{
         courseId: ObjectId.createFromHexString(questionBank.courseId.toString()),
         courseVersionId: ObjectId.createFromHexString(questionBank.courseVersionId.toString()),
@@ -236,7 +246,12 @@ class QuestionBankController {
     setAuditTrail(req, {
       category: AuditCategory.QUESTION_BANK,
       action: AuditAction.QUESTION_DELETE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context:{
         courseId: ObjectId.createFromHexString(questionBank.courseId.toString()),
         courseVersionId: ObjectId.createFromHexString(questionBank.courseVersionId.toString()),
