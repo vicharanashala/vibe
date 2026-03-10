@@ -15,11 +15,12 @@ import { toast } from 'sonner';
 import validator from "@rjsf/validator-ajv8";
 import type { IChangeEvent } from "@rjsf/core";
 import { Skeleton } from '@/components/ui/skeleton';
-import { BookOpen, CalendarDays, ChevronDown, ChevronUp, GraduationCap, ListChecks, Loader2, NotebookText, UserPlus, Users } from 'lucide-react';
+import { BookOpen, CalendarDays, CheckCircle2, ChevronDown, ChevronUp, GraduationCap, ListChecks, Loader2, NotebookText, UserPlus, Users } from 'lucide-react';
 import { AlignedFieldTemplate } from './components/AlignedFieldTemplate';
 import { CustomSubmitButton } from './components/CustomSubmitButton';
 import { FocusableSelectWidget } from './components/FocusableSelectWidget';
 import { useAuthStore } from '@/store/auth-store';
+import { fetchClient } from '@/lib/openapi';
 
 interface IModule {
   id: string;
@@ -141,6 +142,8 @@ const CourseRegistration: React.FC = () => {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isRegistering, setIsRegistering] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
+  const [approvalStatus, setApprovalStatus] = useState<'idle' | 'polling' | 'approved' | 'pending'>('idle');
+  const [pollAttempt, setPollAttempt] = useState(0);
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
   const [submitErrors, setSubmitErrors] = useState<string[]>([]);
@@ -198,7 +201,9 @@ const CourseRegistration: React.FC = () => {
 
 
       setIsRegistering(false);
-      setIsRegistered(true)
+      setIsRegistered(true);
+      setApprovalStatus('polling');
+      setPollAttempt(1);
       setFormData(buildEmptyFormData(jsonSchema!));
 
     } catch (err: any) {
@@ -271,6 +276,36 @@ const computedUiSchema = React.useMemo(() => {
 
 
   useEffect(() => { setIsRegistered(false) }, [])
+
+  // Polling effect: checks enrollment status every 1s for up to 3 attempts after registration
+  useEffect(() => {
+    if (approvalStatus !== 'polling' || pollAttempt === 0) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await fetchClient.GET('/users/enrollments' as any, {
+          params: { query: { tab: 'active', role: 'STUDENT', page: 1, limit: 100 } },
+        });
+        const enrollments = ((data as any)?.enrollments || []) as any[];
+        const approved = enrollments.some(
+          (e: any) => e.courseVersionId === versionId || e.courseVersionId?.toString() === versionId,
+        );
+        if (approved) {
+          setApprovalStatus('approved');
+          return;
+        }
+      } catch {
+        // ignore fetch error, fall through to next attempt
+      }
+      if (pollAttempt >= 3) {
+        setApprovalStatus('pending');
+      } else {
+        setPollAttempt((prev) => prev + 1);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [pollAttempt, approvalStatus, versionId]);
 
 
 
@@ -570,39 +605,112 @@ const computedUiSchema = React.useMemo(() => {
             </Card>
           ) : (
             <>
+              {/* Polling: checking approval status */}
+              {approvalStatus === 'polling' && (
+                <Card className="w-full max-w-3xl mx-auto border border-blue-200 dark:border-blue-700 rounded-xl shadow-sm animate-in fade-in zoom-in-95 duration-500">
+                  <CardHeader className="text-center space-y-2 pb-2">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
+                      <Loader2 className="h-7 w-7 text-blue-600 dark:text-blue-400 animate-spin" />
+                    </div>
+                    <CardTitle className="text-2xl font-bold text-blue-700 dark:text-blue-400">
+                      Registration Submitted
+                    </CardTitle>
+                    <CardDescription className="text-base">
+                      Checking approval status…
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              )}
 
-              <Card className="w-full max-w-3xl mx-auto border border-green-300 dark:border-green-700 rounded-xl shadow-sm animate-in fade-in zoom-in-95 duration-500">
-                <CardHeader className="text-center space-y-2 pb-2">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
-                    <GraduationCap className="h-7 w-7 text-green-600 dark:text-green-400" />
-                  </div>
-
-                  <CardTitle className="text-2xl font-bold text-green-700 dark:text-green-400">
-                     Registration Request Submitted 🎉
-                  </CardTitle>
-
-                  <CardDescription className="text-base">
-                      Your enrollment request has been successfully submitted.
-                  </CardDescription>
-
-                   <p className="text-sm text-muted-foreground max-w-md mx-auto text-center">
-                      Our team will review your request and notify you once it is approved.
-                    </p>
-                </CardHeader>
-
-                <CardContent className="space-y-1 text-center py-3">
-                  <div className="flex flex-col items-center justify-center gap-1 pt-2">
-                   <Button
-                      onClick={() => window.location.href = "/student"}
-                      className="flex items-center gap-2 px-6 py-4 text-base"
+              {/* Auto-approved */}
+              {approvalStatus === 'approved' && (
+                <Card className="w-full max-w-3xl mx-auto border border-green-300 dark:border-green-700 rounded-xl shadow-sm animate-in fade-in zoom-in-95 duration-500">
+                  <CardHeader className="text-center space-y-2 pb-2">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
+                      <CheckCircle2 className="h-7 w-7 text-green-600 dark:text-green-400" />
+                    </div>
+                    <CardTitle className="text-2xl font-bold text-green-700 dark:text-green-400">
+                      Registration Approved 🎉
+                    </CardTitle>
+                    <CardDescription className="text-base">
+                      Your enrollment has been automatically approved. You can start learning right away!
+                    </CardDescription>
+                    <div className="mt-4">
+                      <div
+                        className="w-full max-w-md mx-auto rounded-md p-3 text-sm font-medium"
+                        style={{
+                          background: '#D1FAE5',
+                          color: '#065F46',
+                          border: '1px solid #6EE7B7',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.5rem',
+                        }}
                       >
-                      <BookOpen className="w-5 h-5" />
-                      Go to Dashboard
-                    </Button>
-                  </div>
-                </CardContent>
+                        <span role="img" aria-label="approved">✅</span>
+                        Your registration has been approved!
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-1 text-center py-3">
+                    <div className="flex flex-col items-center justify-center gap-1 pt-2">
+                      <Button
+                        onClick={() => window.location.href = '/student'}
+                        className="flex items-center gap-2 px-6 py-4 text-base"
+                      >
+                        <BookOpen className="w-5 h-5" />
+                        Go to Dashboard
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
-              </Card>
+              {/* Pending: still waiting after 3 attempts */}
+              {approvalStatus === 'pending' && (
+                <Card className="w-full max-w-3xl mx-auto border border-amber-300 dark:border-amber-700 rounded-xl shadow-sm animate-in fade-in zoom-in-95 duration-500">
+                  <CardHeader className="text-center space-y-2 pb-2">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900">
+                      <GraduationCap className="h-7 w-7 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <CardTitle className="text-2xl font-bold text-amber-700 dark:text-amber-400">
+                      Registration Request Submitted 🎉
+                    </CardTitle>
+                    <CardDescription className="text-base">
+                      Your enrollment request has been successfully submitted.
+                    </CardDescription>
+                    <div className="mt-4">
+                      <div
+                        className="w-full max-w-md mx-auto rounded-md p-3 text-sm font-medium"
+                        style={{
+                          background: '#FEF3C7',
+                          color: '#92400E',
+                          border: '1px solid #FCD34D',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.5rem',
+                        }}
+                      >
+                        <span role="img" aria-label="pending">⏳</span>
+                        Waiting for approval from instructor.
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-1 text-center py-3">
+                    <div className="flex flex-col items-center justify-center gap-1 pt-2">
+                      <Button
+                        onClick={() => window.location.href = '/student'}
+                        className="flex items-center gap-2 px-6 py-4 text-base"
+                      >
+                        <BookOpen className="w-5 h-5" />
+                        Check Registration Status
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </>)}
         </section>
       </section>

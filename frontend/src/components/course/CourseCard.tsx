@@ -48,6 +48,9 @@ const isCurrentTimeInTimeSlot = (timeSlot?: { from: string; to: string }) => {
 };
 
 export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
+    // Registration status: pending/approved
+    // Treat 'inactive' as pending approval (backend does not use 'pending')
+    const registrationStatus = (enrollment as any).status === 'inactive' ? 'pending' : (enrollment as any).status || undefined;
   // Add null checks to prevent errors when enrollment data is incomplete
   if (!enrollment || !enrollment.courseId || !enrollment.courseVersionId) {
     console.error('Invalid enrollment data:', enrollment);
@@ -183,14 +186,19 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
         </div>
         <CardContent className="p-3 sm:pl-0 flex flex-col flex-1">
           {/* isCompleted && */}
-           {enrollment.hasNewItemsAfterCompletion && (
+          {enrollment.hasNewItemsAfterCompletion && (
             <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300 text-xs my-1">
               New content added
             </Badge>
           )}
+          {/* Registration status badge */}
+          {registrationStatus === 'pending' && (
+            <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 text-xs my-1">
+              Waiting for Approval
+            </Badge>
+          )}
           <div className="flex items-start justify-between xl:flex-row flex-col gap-2 mb-2">
             <div className="flex items-center">
-              
               <Badge className="bg-secondary/70 text-secondary-foreground border-0 font-normal">
                 Course
               </Badge>
@@ -199,7 +207,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   Completed
                 </Badge>
               )}
-              
             </div>
             <div className="text-sm text-muted-foreground">
               <div className="flex flex-col xl:flex-row gap-3 2xl:gap-8 xl:gap-4">

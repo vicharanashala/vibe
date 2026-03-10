@@ -75,5 +75,6 @@ fetchClient.use({
   },
 });
 
+export { fetchClient };
 export const api = createClient(fetchClient);
 

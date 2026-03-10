@@ -74,21 +74,33 @@ function DashboardContent() {
     }, 60000);
     return () => clearInterval(intervalId);
   }, []);
+
   // Only fetch enrollments if user is authenticated (i.e., token is present)
   const { token } = useAuthStore();
 
-  // Fetch more enrollments to properly populate tabs
+  // Fetch both active and archived enrollments to include pending registrations
   const {
-    data: enrollmentsData,
-    isLoading: enrollmentsLoading,
-  } = useUserEnrollments(1, 100, !!token); // Fetching 100 to get a good list for client-side filtering safely for now
+    data: activeEnrollmentsData,
+    isLoading: activeEnrollmentsLoading,
+  } = useUserEnrollments(1, 100, !!token, undefined, 'STUDENT', 'active');
 
+  const {
+    data: archivedEnrollmentsData,
+    isLoading: archivedEnrollmentsLoading,
+  } = useUserEnrollments(1, 100, !!token, undefined, 'STUDENT', 'archived');
 
-  // Cast to CourseCardProps['enrollment'][] to satisfy type checker if needed, 
-  // but simpler to let TS infer from usage if types match. 
-  // Explicitly casting here to be safe given previous type errors.
-  const enrollments = (enrollmentsData?.enrollments || []) as unknown as CourseCardProps['enrollment'][];
-  const totalEnrollments = enrollmentsData?.totalDocuments || 0;
+  // Merge and deduplicate enrollments by _id
+  const allEnrollmentsArr = [
+    ...(activeEnrollmentsData?.enrollments || []),
+    ...(archivedEnrollmentsData?.enrollments || [])
+  ];
+  const enrollmentsMap = new Map();
+  allEnrollmentsArr.forEach((enr: any) => {
+    if (enr && enr._id) enrollmentsMap.set(enr._id, enr);
+  });
+  const enrollments = Array.from(enrollmentsMap.values()) as CourseCardProps['enrollment'][];
+  const totalEnrollments = enrollments.length;
+  const enrollmentsLoading = activeEnrollmentsLoading || archivedEnrollmentsLoading;
 
   const {
     data: publicCoursesData,
@@ -103,8 +115,13 @@ function DashboardContent() {
   const [completion, setCompletion] = useState<CoursePctCompletion[]>([]);
 
   // Calculate distinct lists for tabs
+  // Show all enrollments that are not completed in the Enrolled tab
   const activeEnrollments = useMemo(() => {
-    return enrollments.filter(enrollment => enrollment.percentCompleted !== 100);
+    return enrollments.filter(
+      (enrollment) => {
+        return enrollment.percentCompleted !== 100;
+      }
+    );
   }, [enrollments]);
 
   const completedEnrollments = useMemo(() => {
