@@ -36,7 +36,8 @@ export interface IActivitySubmissionRepository {
         studentId: string,
         query: FilterQueryDto,
         courseId?: string,
-        courseVersionId?: string
+        courseVersionId?: string,
+        cohortName?: string
     ): Promise<StudentActivitySubmissionsViewDto[]>
 
     getLatestByStudentId(studentId: string, activityId: string): Promise<HpActivitySubmission>

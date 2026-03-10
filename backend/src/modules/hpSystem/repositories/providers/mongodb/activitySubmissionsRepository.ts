@@ -82,7 +82,8 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         studentId: string,
         query: FilterQueryDto,
         courseId?: string,
-        courseVersionId?: string
+        courseVersionId?: string,
+        cohortName?: string
     ): Promise<StudentActivitySubmissionsViewDto[]> {
         await this.init();
 
@@ -121,6 +122,9 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
 
         if (courseVersionId)
             matchStage.courseVersionId = new ObjectId(courseVersionId)
+
+        if (cohortName)
+            matchStage.cohort = cohortName;
 
 
         const pipeline: any[] = [
