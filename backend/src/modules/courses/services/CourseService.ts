@@ -302,7 +302,7 @@ class CourseService extends BaseService {
       const skip = (page - 1) * limit;
 
       // const publicCourses = await this.settingsRepo.getPublicCourses(
-      //   enrolledCourseIds,
+      //   enrolledCourseVersionIds,
       //   skip,
       //   limit,
       //   search,
@@ -310,7 +310,7 @@ class CourseService extends BaseService {
       // );
 
       // const totalDocuments = await this.settingsRepo.countPublicCourses(
-      //   enrolledCourseIds,
+      //   enrolledCourseVersionIds,
       //   search,
       //   session
       // );
