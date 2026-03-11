@@ -174,6 +174,7 @@ export class InviteRepository {
     email: string,
     courseId: string,
     courseVersionId: string,
+    cohortId?:string,
     session?: ClientSession,
   ): Promise<Invite | null> {
     await this.init();
@@ -183,6 +184,7 @@ export class InviteRepository {
         email: email.toLowerCase(),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
         inviteStatus: 'PENDING',
       },
       {session},

@@ -25,6 +25,7 @@ export default function CreateCourse() {
   const [courseDescription, setCourseDescription] = useState("");
   const [versionName, setVersionName] = useState("");
   const [versionDescription, setVersionDescription] = useState("");
+  const [cohorts, setCohorts] = useState<string[]>([]);
 
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +66,8 @@ export default function CreateCourse() {
           name: courseName,
           description: courseDescription,
           versionName,
-          versionDescription
+          versionDescription,
+          cohorts
         }
       });
 
@@ -75,6 +77,7 @@ export default function CreateCourse() {
         setSuccess(true);
         setCourseName("");
         setCourseDescription("");
+        setCohorts([]);
         queryClient.invalidateQueries({
           queryKey: ["get", "/users/enrollments"],
           exact: false, // let it match all queries with different params
@@ -138,6 +141,8 @@ export default function CreateCourse() {
             setVersionDescription={setVersionDescription}
             setVersionName={setVersionName}
             setCreateErrors={setCreateErrors}
+            cohorts={cohorts}
+            setCohorts={setCohorts}
           />
 
 
@@ -411,6 +416,8 @@ type CourseVersionMetaFormProps = {
   setVersionDescription: (value: string) => void;
   createErrors: CreateErrors;
   setCreateErrors: React.Dispatch<React.SetStateAction<CreateErrors>>;
+  cohorts: string[];
+  setCohorts: React.Dispatch<React.SetStateAction<string[]>>;
 };
 
 const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
@@ -420,7 +427,31 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
   versionDescription,
   setVersionDescription,
   setCreateErrors,
+  cohorts,
+  setCohorts
 }) => {
+  const [cohortInput, setCohortInput] = useState("");
+  const MAX_COHORTS = 10;
+  const addCohort = (value: string) => {
+    const trimmed = value.trim();
+
+    if (!trimmed) return;
+    if (cohorts.includes(trimmed)) return;
+    if (cohorts.length >= MAX_COHORTS) return;
+
+    setCohorts(prev => [...prev, trimmed.toLocaleLowerCase()]);
+    setCohortInput("");
+  };
+  const removeCohort = (cohortToRemove: string) => {
+    setCohorts(prev => prev.filter(cohort => cohort !== cohortToRemove));
+  };
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addCohort(cohortInput);
+    }
+  };
+
   return (
     <div className="relative">
       <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-accent/10 rounded-xl blur-sm"></div>
@@ -544,6 +575,43 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
                     Description must be less than {MAX_DESCRIPTION_LENGTH} characters
                   </p>
                 )}
+              </div>
+              <div className="mt-4">
+                <label className="block text-sm font-medium mb-2">
+                  Version Cohorts
+                </label>
+
+                <div className="flex flex-wrap items-center gap-2 border border-border rounded-md px-3 py-2 focus-within:ring-2 focus-within:ring-primary/20">
+                  
+                  {cohorts.map(cohort => (
+                    <span
+                      key={cohort}
+                      className="flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded-full text-sm"
+                    >
+                      {cohort}
+                      <button
+                        type="button"
+                        onClick={() => removeCohort(cohort)}
+                        className="text-xs hover:text-destructive"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+
+                  <input
+                    type="text"
+                    value={cohortInput}
+                    onChange={e => setCohortInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Add a cohort name and press Enter"
+                    className="flex-1 bg-transparent outline-none text-sm min-w-[120px]"
+                  />
+                </div>
+
+                <p className="text-xs text-muted-foreground mt-1">
+                  Press Enter or comma to add cohorts (max {MAX_COHORTS})
+                </p>
               </div>
             </div>
           </div>
