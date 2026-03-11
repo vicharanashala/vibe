@@ -2,6 +2,7 @@ import { ClientSession } from "mongodb";
 import { FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsViewDto, SubmissionPayloadDto } from "../classes/validators/activitySubmissionValidators.js";
 import { ID, SubmissionSource } from "../constants.js";
 import { HpActivitySubmission } from "../models.js";
+import { SubmissionFeedbackItem } from "../classes/transformers/ActivitySubmission.js";
 
 
 
@@ -45,4 +46,6 @@ export interface IActivitySubmissionRepository {
     getCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number>
 
     getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number>
+
+    updateFeedbackById(id: string, feedback: SubmissionFeedbackItem, session?: ClientSession): Promise<boolean>
 }

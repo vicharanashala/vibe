@@ -1,3 +1,4 @@
+import { SubmissionFeedbackItem } from "#root/modules/hpSystem/classes/transformers/ActivitySubmission.js";
 import { FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsViewDto, SubmissionPayloadDto } from "#root/modules/hpSystem/classes/validators/activitySubmissionValidators.js";
 import { IActivitySubmissionRepository } from "#root/modules/hpSystem/interfaces/IActivitySubmissionRepository.js";
 import { HpActivitySubmission, SubmissionSource, SubmissionStatus } from "#root/modules/hpSystem/models.js";
@@ -6,6 +7,7 @@ import { GLOBAL_TYPES } from "#root/types.js";
 import { plainToInstance } from "class-transformer";
 import { inject, injectable } from "inversify";
 import { ClientSession, Collection, ObjectId } from "mongodb";
+import { NotFoundError } from "routing-controllers";
 
 @injectable()
 export class ActivitySubmissionsRepository implements IActivitySubmissionRepository {
@@ -377,6 +379,29 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             courseVersionId: new ObjectId(courseVersionId),
             isLate: true
         });
+    }
+
+    async updateFeedbackById(id: string, feedback: SubmissionFeedbackItem, session?: ClientSession): Promise<boolean> {
+        await this.init();
+
+        const result = await this.hpActivitySubmissionCollection.updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $push: {
+                    feedbacks: {
+                        teacherId: new ObjectId(feedback.teacherId),
+                        feedbackAt: feedback.feedbackAt,
+                        feedback: feedback.feedback.trim(),
+                    },
+                },
+            }
+        );
+
+        if (result.matchedCount === 0) {
+            throw new NotFoundError("Submission not found");
+        }
+
+        return true;
     }
 
 }

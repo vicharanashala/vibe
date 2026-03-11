@@ -113,6 +113,38 @@ export class HpSubmissionPayload {
     images: HpSubmissionImage[];
 }
 
+
+export class SubmissionFeedbackItem {
+    @Expose()
+    @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+    @Transform(StringToObjectId.transformer, { toClassOnly: true })
+    @JSONSchema({
+        title: 'Teacher ID',
+        type: 'string',
+        example: '60d5ec49b3f1c8e4a8f8b8c1',
+    })
+    teacherId: ID;
+
+    @Expose()
+    @Type(() => Date)
+    @JSONSchema({
+        title: 'Feedback At',
+        type: 'string',
+        format: 'date-time',
+        example: '2026-02-28T10:00:00Z',
+    })
+    feedbackAt: Date;
+
+    @Expose()
+    @IsString()
+    @JSONSchema({
+        title: 'Feedback',
+        type: 'string',
+        example: 'Please improve the explanation and resubmit.',
+    })
+    feedback: string;
+}
+
 export class HpSubmissionReview {
     @Expose()
     @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
@@ -273,6 +305,20 @@ export class HpActivitySubmission {
     @JSONSchema({ title: 'Ledger References', type: 'object' })
     ledgerRefs: HpSubmissionLedgerRefs;
 
+
+    @Expose()
+    @Type(() => SubmissionFeedbackItem)
+    @ValidateNested({ each: true })
+    @IsArray()
+    @JSONSchema({
+        title: 'Feedbacks',
+        type: 'array',
+        items: {
+            $ref: '#/components/schemas/SubmissionFeedbackItem',
+        },
+    })
+    feedbacks: SubmissionFeedbackItem[];
+
     // Useful flags
     @Expose()
     @IsBoolean()
@@ -302,9 +348,9 @@ export class HpActivitySubmission {
     constructor(body?: Partial<HpActivitySubmission>) {
         if (body) Object.assign(this, body);
 
-        // Keep structure stable
-        this.payload = this.payload ?? ({ links: [], files: [], images: [] } as any);
-        this.ledgerRefs = this.ledgerRefs ?? ({} as any);
-        this.review = this.review ?? ({} as any);
+        this.payload = this.payload ?? ({ links: [], files: [], images: [] } as HpSubmissionPayload);
+        this.ledgerRefs = this.ledgerRefs ?? {} as HpSubmissionLedgerRefs;
+        this.review = this.review ?? {} as HpSubmissionReview;
+        this.feedbacks = this.feedbacks ?? [] as SubmissionFeedbackItem[]
     }
 }

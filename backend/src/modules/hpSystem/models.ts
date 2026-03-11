@@ -136,6 +136,12 @@ export interface HpActivitySubmission {
         penaltyLedgerId: ID; // reference to the ledger entry that penalizes the student for late submission, populated when status is APPROVED and submission is late and lateRewardPolicy is REWARD_ALLOWED
     } | null;
 
+    feedbacks: {
+        teacherId: ID,
+        feedbackAt: Date;
+        feedback: string
+    }[];
+
     // Flags
     isLate: boolean; // populated when status is SUBMITTED, indicates whether the submission was submitted after the deadline
     submissionSource: SubmissionSource;
