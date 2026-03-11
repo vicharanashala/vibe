@@ -689,6 +689,20 @@ export class ActivitySubmissionsService extends BaseService {
 
     async review(submissionId: string, teacherId: string, body: ReviewHpActivitySubmissionBodyDto) {
         return this._withTransaction(async (session) => {
+            // Custom validation for required notes - only for REJECT and REVERTED
+            if (body.decision === "REJECTED" && (!body.note || body.note.trim().length < 10)) {
+                throw new BadRequestError("Note must be at least 10 characters long for reject action");
+            }
+            
+            if (body.decision === "REVERTED" && (!body.note || body.note.trim().length < 10)) {
+                throw new BadRequestError("Note must be at least 10 characters long for revert action");
+            }
+
+            // Points deduction validation for reject action
+            if (body.decision === "REJECTED" && body.pointsToDeduct !== undefined && body.pointsToDeduct < 0) {
+                throw new BadRequestError("Points to deduct cannot be negative");
+            }
+
             // 1. Initial Data Fetching
             const submission = await this.activitySubmissionsRepository.findById(submissionId, { session });
             if (!submission) throw new NotFoundError(`Submission ${submissionId} not found.`);
@@ -717,6 +731,7 @@ export class ActivitySubmissionsService extends BaseService {
             const totalStudentHpPoints = enrollment.hpPoints ?? 0;
             const ruleType = rewardConfig?.type ?? "ABSOLUTE";
             const isApprovalRequired = rewardConfig?.enabled && rewardConfig.applyWhen === "ON_APPROVAL";
+            const baseHp = rewardConfig?.value ?? 0;
 
             const isApprove = body.decision === "APPROVED";
             const isRevert = body.decision === "REVERTED";
@@ -734,6 +749,11 @@ export class ActivitySubmissionsService extends BaseService {
 
             if (isApprove && (currentStatus === "APPROVED" || (currentStatus === "SUBMITTED" && rewardConfig?.applyWhen !== "ON_APPROVAL"))) {
                 throw new BadRequestError("Conflict: Points already granted. Use REVERT or REJECT.");
+            }
+
+            // Points deduction limit validation for reject action
+            if (isReject && body.pointsToDeduct !== undefined && body.pointsToDeduct > baseHp) {
+                throw new BadRequestError(`Points to deduct cannot exceed base HP of ${baseHp}`);
             }
 
 
