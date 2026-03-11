@@ -1522,114 +1522,8 @@ export class EnrollmentRepository {
       { $limit: limit },
     ];
 
-   // 4. Enrich only the current page records with expensive lookups
+    // 4. Enrich only with basic user data and assigned time slots (no heavy watchTime/itemsGroup lookups)
     paginatedPipeline.push(
-      {
-        $lookup: {
-          from: 'newCourseVersion',
-          let: { versionId: { $toObjectId: '$courseVersionId' } },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $eq: ['$_id', '$$versionId'],
-                },
-              },
-            },
-            {
-              $project: {
-                totalItems: 1,
-                itemCounts: 1,
-              },
-            },
-          ],
-          as: 'courseVersionInfo',
-        },
-      },
-      {
-        $unwind: {
-          path: '$courseVersionInfo',
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $lookup: {
-          from: 'watchTime',
-          let: {
-            userIdObj: '$userIdObj',
-            versionIdObj: { $toObjectId: '$courseVersionId' },
-            courseIdObj: { $toObjectId: '$courseId' },
-          },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ['$userId', '$$userIdObj'] },
-                    { $eq: ['$courseVersionId', '$$versionIdObj'] },
-                    { $eq: ['$courseId', '$$courseIdObj'] },
-                    { $ne: [{ $ifNull: ['$endTime', null] }, null] },
-                    { $ne: ['$isDeleted', true] },
-                  ],
-                },
-              },
-            },
-            { $project: { itemId: 1 } },
-          ],
-          as: 'watchRecords',
-        },
-      },
-      {
-        $addFields: {
-          completedItemIds: '$watchRecords.itemId',
-        },
-      },
-      {
-        $lookup: {
-          from: 'itemsGroup',
-          let: { completedItemIds: '$completedItemIds' },
-          pipeline: [
-            { $unwind: '$items' },
-            {
-              $match: {
-                $expr: {
-                  $in: ['$items._id', '$$completedItemIds'],
-                },
-              },
-            },
-            {
-              $project: {
-                type: '$items.type',
-              },
-            },
-          ],
-          as: 'completedItems',
-        },
-      },
-      {
-        $addFields: {
-          completedItemCounts: {
-            $arrayToObject: {
-              $map: {
-                input: { $setUnion: ['$completedItems.type'] },
-                as: 'type',
-                in: {
-                  k: '$$type',
-                  v: {
-                    $size: {
-                      $filter: {
-                        input: '$completedItems',
-                        as: 'item',
-                        cond: { $eq: ['$$item.type', '$$type'] },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
       {
         $addFields: {
           userId: { $toString: '$userInfo._id' },
@@ -1640,20 +1534,6 @@ export class EnrollmentRepository {
           lastName: '$userInfo.lastName',
           email: '$userInfo.email',
           completedItemsCount: { $ifNull: ['$completedItemsCount', 0] },
-          cohortId: {
-            $cond: [
-              { $ifNull: ["$cohort._id", false] },
-              { $toString: "$cohort._id" },
-              null
-            ]
-          },
-          cohortName: "$cohort.name",
-          contentCounts: {
-            total: { $ifNull: ['$courseVersionInfo.totalItems', 0] },
-            completed: { $ifNull: ['$completedItemsCount', 0] },
-            itemCounts: { $ifNull: ['$courseVersionInfo.itemCounts', {}] },
-            completedItemCounts: { $ifNull: ['$completedItemCounts', {}] },
-          },
         },
       },
     );
@@ -1669,6 +1549,155 @@ export class EnrollmentRepository {
       currentPage: limit > 0 ? Math.floor(skip / limit) + 1 : 1,
       enrollments,
     };
+  }
+
+  /**
+   * API 2: Get basic content summary for a specific student's enrollment.
+   * Used by the "View Progress" modal. Only fetches enrollment + courseVersion content counts.
+   */
+  async getStudentProgressDetail(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ) {
+    await this.init();
+
+    const userIdObj = ObjectId.isValid(userId) ? new ObjectId(userId) : null;
+    const courseIdObj = ObjectId.isValid(courseId) ? new ObjectId(courseId) : null;
+    const versionIdObj = ObjectId.isValid(courseVersionId) ? new ObjectId(courseVersionId) : null;
+
+    if (!userIdObj || !courseIdObj || !versionIdObj) return null;
+
+    const pipeline: any[] = [
+      {
+        $match: {
+          userId: { $in: [userId, userIdObj] },
+          courseId: { $in: [courseId, courseIdObj] },
+          courseVersionId: { $in: [courseVersionId, versionIdObj] },
+          role: 'STUDENT',
+        },
+      },
+      // Join user info
+      {
+        $lookup: {
+          from: 'users',
+          let: { uid: { $toObjectId: '$userId' } },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$_id', '$$uid'] } } },
+            { $project: { firstName: 1, lastName: 1, email: 1, avatar: 1 } },
+          ],
+          as: 'userInfo',
+        },
+      },
+      { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
+      // Join course version for content counts (totalItems, itemCounts)
+      {
+        $lookup: {
+          from: 'newCourseVersion',
+          let: { vid: { $toObjectId: '$courseVersionId' } },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$_id', '$$vid'] } } },
+            { $project: { totalItems: 1, itemCounts: 1 } },
+          ],
+          as: 'courseVersionInfo',
+        },
+      },
+      { $unwind: { path: '$courseVersionInfo', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: { $toString: '$_id' },
+          userId: { $toString: '$userInfo._id' },
+          firstName: '$userInfo.firstName',
+          lastName: '$userInfo.lastName',
+          email: '$userInfo.email',
+          avatar: '$userInfo.avatar',
+          enrollmentDate: 1,
+          percentCompleted: { $ifNull: ['$percentCompleted', 0] },
+          completedItemsCount: { $ifNull: ['$completedItemsCount', 0] },
+          assignedTimeSlots: 1,
+          cohortId: {
+            $cond: [
+              { $ifNull: ["$cohort._id", false] },
+              { $toString: "$cohort._id" },
+              null
+            ]
+          },
+          cohortName: "$cohort.name",
+          contentCounts: {
+            totalItems: { $ifNull: ['$courseVersionInfo.totalItems', 0] },
+            itemCounts: { $ifNull: ['$courseVersionInfo.itemCounts', {}] },
+          },
+        },
+      },
+      { $limit: 1 },
+    ];
+
+    const result = await this.enrollmentCollection
+      .aggregate(pipeline, { session })
+      .toArray();
+
+    return result[0] || null;
+  }
+
+  /**
+   * API 3: Get current learning position and course structure for a student.
+   * Used when instructor clicks "View Course Structure" (lazy load on demand).
+   */
+  async getStudentCourseStructure(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ) {
+    await this.init();
+
+    const userIdObj = ObjectId.isValid(userId) ? new ObjectId(userId) : null;
+    const courseIdObj = ObjectId.isValid(courseId) ? new ObjectId(courseId) : null;
+    const versionIdObj = ObjectId.isValid(courseVersionId) ? new ObjectId(courseVersionId) : null;
+
+    if (!userIdObj || !courseIdObj || !versionIdObj) return null;
+
+    // Get course structure (modules/sections) from courseVersion
+    const pipeline: any[] = [
+      {
+        $match: {
+          userId: { $in: [userId, userIdObj] },
+          courseId: { $in: [courseId, courseIdObj] },
+          courseVersionId: { $in: [courseVersionId, versionIdObj] },
+          role: 'STUDENT',
+        },
+      },
+      // Join course version for full module/section structure
+      {
+        $lookup: {
+          from: 'newCourseVersion',
+          let: { vid: { $toObjectId: '$courseVersionId' } },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$_id', '$$vid'] } } },
+            { $project: { modules: 1, totalItems: 1, itemCounts: 1 } },
+          ],
+          as: 'courseVersionInfo',
+        },
+      },
+      { $unwind: { path: '$courseVersionInfo', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: { $toString: '$_id' },
+          userId: { $toString: '$userId' },
+          courseStructure: '$courseVersionInfo.modules',
+          totalItems: { $ifNull: ['$courseVersionInfo.totalItems', 0] },
+          itemCounts: { $ifNull: ['$courseVersionInfo.itemCounts', {}] },
+        },
+      },
+      { $limit: 1 },
+    ];
+
+    const result = await this.enrollmentCollection
+      .aggregate(pipeline, { session })
+      .toArray();
+
+    return result[0] || null;
   }
 
   async getVersionEnrollmentStats(

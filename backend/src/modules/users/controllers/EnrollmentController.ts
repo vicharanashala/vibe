@@ -520,6 +520,7 @@ export class EnrollmentController {
           user: { ...enrollment.userInfo, _id: enrollment.userId },
           progress: enrollment.percentCompleted,
           completedItemsCount: enrollment.completedItemsCount || 0,
+          assignedTimeSlots: enrollment.assignedTimeSlots || [],
           totalQuizScore: enrollment.totalQuizScore || 0,
           totalQuizMaxScore: enrollment.totalQuizMaxScore || 0,
           contentCounts: enrollment.contentCounts,
@@ -536,6 +537,72 @@ export class EnrollmentController {
       totalPages,
       currentPage: page,
     };
+  }
+
+  @OpenAPI({
+    summary: 'Get student progress detail for the View Progress modal',
+    description: 'Returns content summary (completion %, total items, quiz score, item type counts) for a specific enrolled student. Intended to be called only when the instructor opens the View Progress modal.',
+  })
+  @Authorized()
+  @Get('/:userId/enrollments/courses/:courseId/versions/:versionId/progress-detail')
+  @HttpCode(200)
+  async getStudentProgressDetail(
+    @Params() params: EnrollmentParams,
+    @Ability(getEnrollmentAbility) { ability }: any,
+  ): Promise<any> {
+    const { userId, courseId, versionId } = params;
+
+    const enrollmentResource = subject('Enrollment', { courseId, versionId });
+    if (!ability.can(EnrollmentActions.ViewAll, enrollmentResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to view this student progress',
+      );
+    }
+
+    const detail = await this.enrollmentService.getStudentProgressDetail(
+      userId,
+      courseId,
+      versionId,
+    );
+
+    if (!detail) {
+      return { message: 'Enrollment not found' };
+    }
+
+    return detail;
+  }
+
+  @OpenAPI({
+    summary: 'Get student course structure for the View Course Structure panel',
+    description: 'Returns the full course module/section structure and the current learning position for a specific enrolled student. Intended to be called lazily when the instructor clicks View Course Structure.',
+  })
+  @Authorized()
+  @Get('/:userId/enrollments/courses/:courseId/versions/:versionId/course-structure')
+  @HttpCode(200)
+  async getStudentCourseStructure(
+    @Params() params: EnrollmentParams,
+    @Ability(getEnrollmentAbility) { ability }: any,
+  ): Promise<any> {
+    const { userId, courseId, versionId } = params;
+
+    const enrollmentResource = subject('Enrollment', { courseId, versionId });
+    if (!ability.can(EnrollmentActions.ViewAll, enrollmentResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to view this student course structure',
+      );
+    }
+
+    const structure = await this.enrollmentService.getStudentCourseStructure(
+      userId,
+      courseId,
+      versionId,
+    );
+
+    if (!structure) {
+      return { message: 'Enrollment not found' };
+    }
+
+    return structure;
   }
   @OpenAPI({
     summary: 'Update Enrollment Progress',
