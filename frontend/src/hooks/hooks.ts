@@ -5080,11 +5080,31 @@ export function useRestoreHpEntry() {
   };
 }
 
+export function useAddFeedback() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: async ({ submissionId, feedback }: { submissionId: string; feedback: string }) => {
+      const res = await hpApi.addFeedback(submissionId, feedback);
+      if (!res.success) throw new Error(res.message || 'Failed to add feedback');
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hpStudentSubmissions'] });
+      toast.success('Feedback added successfully');
+    },
+  });
+
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+  };
+}
+
 export function useReviewSubmission() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: async ({ submissionId, decision, note }: { submissionId: string; decision: "APPROVED" | "REJECTED" | "REVERTED"; note?: string }) => {
-      const res = await hpApi.reviewSubmission(submissionId, decision, note);
+    mutationFn: async ({ submissionId, decision, note, pointsToDeduct }: { submissionId: string; decision: "APPROVED" | "REJECTED" | "REVERTED"; note?: string; pointsToDeduct?: number }) => {
+      const res = await hpApi.reviewSubmission(submissionId, decision, note, pointsToDeduct);
       if (!res.success) throw new Error(res.message || 'Failed to review submission');
       return res.data;
     },
