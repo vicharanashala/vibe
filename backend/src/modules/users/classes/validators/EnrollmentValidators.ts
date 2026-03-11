@@ -164,6 +164,12 @@ export class EnrollmentDataResponse {
   })
   @IsOptional()
   hasNewItemsAfterCompletion?: boolean;
+
+  @IsOptional()
+  cohortId?: ID;
+
+  @IsOptional()
+  cohortName?: string;
 }
 
 class QuizScoresResponse {
@@ -534,6 +540,9 @@ export class EnrollmentStatisticsResponse {
 
   @IsNumber()
   averageProgressPercent: number;
+
+  @IsNumber()
+  averageWatchHoursPerUser: number; // newly added to support watch hours stats
 }
 
 export const ENROLLMENT_VALIDATORS = [

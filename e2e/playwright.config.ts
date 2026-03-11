@@ -12,7 +12,7 @@ export default defineConfig({
 
   use: {
     // Base URL for the app
-    baseURL: process.env.BASE_URL || "http://localhost:5173",
+    baseURL: process.env.BASE_URL || 'http://localhost:5173',
 
     // Required for CI
     permissions: ['camera', 'microphone'],

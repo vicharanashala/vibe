@@ -107,3 +107,12 @@ export enum TriggeredBy {
   STUDENT = 'STUDENT',
   JOB = 'JOB',
 }
+
+
+export const COHORT_OVERRIDES: Record<string, { courseId: string; versionId: string }> = {
+  Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
+  Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150" },
+  Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57" },
+  RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719" },
+  AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
+};
