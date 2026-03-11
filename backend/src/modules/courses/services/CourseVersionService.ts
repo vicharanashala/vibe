@@ -1,5 +1,6 @@
 import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
 import {
+  CohortsResponse,
   CourseVersionWatchTimeResponse,
   CreateCourseVersionBody,
   UpdateCourseVersionBody,
@@ -45,6 +46,8 @@ import {
   QuestionBankRepository,
   QuestionRepository,
 } from '#root/modules/quizzes/repositories/index.js';
+import {InviteService} from '#root/modules/notifications/index.js';
+import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
 @injectable()
 export class CourseVersionService extends BaseService {
   constructor(
@@ -68,6 +71,8 @@ export class CourseVersionService extends BaseService {
     private readonly questionBankRepo: QuestionBankRepository,
     @inject(USERS_TYPES.ProgressRepo)
     private readonly progressRepository: ProgressRepository,
+    @inject(NOTIFICATIONS_TYPES.InviteService)
+    private readonly inviteService: InviteService,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -94,6 +99,7 @@ export class CourseVersionService extends BaseService {
 
       const createdVersion = await this.courseRepo.createVersion(
         {...newVersion, courseId: new ObjectId(newVersion.courseId)},
+        // body.cohorts,
         txnSession,
       );
       if (!createdVersion) {
@@ -149,6 +155,27 @@ export class CourseVersionService extends BaseService {
       if (!readVersion) {
         throw new InternalServerError('Failed to read course version.');
       }
+      if (readVersion.cohorts?.length) {
+        const cohorts = await this.courseRepo.getCohortsByIds(
+          readVersion.cohorts,
+          undefined,
+          session,
+        );
+
+        for (const cohort of cohorts) {
+          if (!readVersion.cohorts.some(id => id.toString() === cohort._id.toString())) {
+            throw new InternalServerError(
+              `Cohort ID ${cohort._id} not referenced in course version ${courseVersionId}`
+            );
+          }
+        }
+        (readVersion as any).cohortDetails  = cohorts.map(cohort => ({
+          id: cohort._id.toString(),
+          name: cohort.name,
+          createdAt: cohort.createdAt,
+          updatedAt: cohort.updatedAt
+        }));
+      }
 
       const courseId = readVersion.courseId.toString();
 
@@ -185,6 +212,72 @@ export class CourseVersionService extends BaseService {
     });
   }
 
+  public async getCohortsByVersion(
+    courseVersionId: string,
+    skip?: number,
+    limit?: number,
+    search?: string,
+    sortBy?: "name" | "createdAt" | "updatedAt",
+    sortOrder?: "asc" | "desc"
+  ):Promise<CohortsResponse>{
+    const  courseVersion = await this.courseRepo.readVersion(
+      courseVersionId
+    );
+    if(!courseVersion.cohorts || courseVersion.cohorts.length == 0){
+        const cohortDetails: CohortsResponse = {
+        version: courseVersion.version,
+      };
+      return cohortDetails;
+    }
+    const cohorts = 
+    await this.courseRepo.getCohortsByIds(
+      courseVersion.cohorts,{ search, sortBy, sortOrder, skip, limit }
+    );
+
+
+    const cohortDetails: CohortsResponse = {
+      cohorts: cohorts.map(cohort => ({
+        id: cohort._id.toString(),
+        name: cohort.name,
+        createdAt: cohort.createdAt,
+        updatedAt: cohort.updatedAt,
+        isPublic: cohort.isPublic
+      })),
+      version: courseVersion.version,
+    };
+
+    return cohortDetails;
+  }
+
+
+  public async updateCohortInCourseVersion(cohortId: string, cohortName: string, isPublic: boolean): Promise<boolean>{
+    return this._withTransaction(async session => {
+      if (!cohortName && (isPublic === null || isPublic === undefined)) {
+        throw new BadRequestError("No information provided in request body");
+      }
+      const existingCohort = await this.courseRepo.getCohortsByIds(Array.of(new ObjectId(cohortId)),undefined, session);
+      if(!existingCohort){
+        throw new NotFoundError("Cohort Id doesn't exist");
+      }
+      return await this.courseRepo.modifyCohortById(new ObjectId(cohortId), cohortName, isPublic, session);
+    });
+  }
+
+  public async deleteCohortInCourseVersion(versionId: string, cohortId: string):Promise<boolean>{
+    return this._withTransaction(async session => {
+      const existingCohort = await this.courseRepo.getCohortsByIds(Array.of(new ObjectId(cohortId)), undefined, session);
+      if(!existingCohort){
+        throw new NotFoundError("Cohort Id doesn't exist");
+      }
+      const enrollmentExists = await this.enrollmentService.enrollmentExists(versionId, cohortId, session);
+      if(enrollmentExists){
+        throw new BadRequestError("Students are already enrolled in this cohort, can't delete");
+      }
+      await this.courseRepo.deleteCohortById(cohortId, session);
+      return await this.courseRepo.removeCohortFromVersion(versionId, cohortId, session);
+    });
+  }
+
   public async updateCourseVersion(
     courseVersionId: string,
     body: UpdateCourseVersionBody,
@@ -212,7 +305,24 @@ export class CourseVersionService extends BaseService {
       if (body.supportLink !== undefined)
         existingVersion.supportLink = body.supportLink;
       existingVersion.updatedAt = new Date();
+      if(body.cohorts){
+        const cohortIds = await this.courseRepo.createCohorts(
+          courseVersionId,
+          body.cohorts,
+          session
+        );
+        if (!existingVersion.cohorts) {
+          existingVersion.cohorts = [];
+        }
+        const existing = new Set(existingVersion.cohorts.map(id => id.toString()));
+        for (const id of cohortIds) {
+          if (!existing.has(id.toString())) {
+            existingVersion.cohorts.push(id);
+          }
+        }
+      }
 
+// console.log("Updating course version with data:", existingVersion, body);
       const updatedVersion = await this.courseRepo.updateVersion(
         courseVersionId,
         existingVersion,
@@ -258,9 +368,12 @@ export class CourseVersionService extends BaseService {
       if (!course) {
         throw new NotFoundError(`Course with ID ${courseId} not found.`);
       }
+      // Cancel pending invites regardless of which path we take
+      await this.inviteService.cancelPendingInvites({courseVersionId}, session);
 
       const versionsCount = course.versions.length;
       if (versionsCount === 1) {
+        // await this.inviteService.cancelPendingInvites({courseId}, session);
         const results = await this.courseRepo.delete(courseId, session);
         return true;
       }
@@ -488,6 +601,12 @@ export class CourseVersionService extends BaseService {
     versionStatus: courseVersionStatus,
   ): Promise<ICourseVersion | null> {
     return this._withTransaction(async session => {
+      if (versionStatus === 'archived') {
+        await this.inviteService.cancelPendingInvites(
+          {courseVersionId: versionId},
+          session,
+        );
+      }
       const result = await this.courseRepo.updateCourseVersionStatus(
         versionId,
         versionStatus,

@@ -19,6 +19,7 @@ import {
   Check,
   Pencil,
   Trash2,
+  Layers,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -43,6 +44,13 @@ import type { EmailInvite, EnrollmentRole, InviteStatus, InviteResult } from "@/
 import { useNavigate, redirect } from "@tanstack/react-router"
 import { Pagination } from "@/components/ui/Pagination"
 import CourseBackButton from "./CourseBackButton";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@/components/ui/dropdown-menu";
 
 const isValidEmail = (email: string) => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -74,6 +82,7 @@ export default function InvitePage() {
   const [error, setError] = useState<string>("")
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [isMessageBulk, setIsMessageBulk] = useState(false);
+  const [cohort, setCohort] = useState<string | null>(null);
 
   // handle edit or remove csv parsed emails starts
   const startEdit = (item: { id: string, email: string }) => {
@@ -331,7 +340,6 @@ const addInviteRow = () => {
     newInvites[index].role = role
     setInviteEmails(newInvites)
   }
-
   // Handle sending invites
   const handleSendInvites = async () => {
     if (!courseId || !versionId) {
@@ -346,6 +354,12 @@ const addInviteRow = () => {
       return
     }
 
+    const hasStudentInvite = validInvites.some(i => i.role === "STUDENT");
+    if (hasStudentInvite && courseVersion?.cohortDetails?.length > 0 && !cohort) {
+      toast.error("Please select a cohort before sending invites for students");
+      return;
+    }
+
     try {
       await inviteUsers.mutateAsync({
         params: {
@@ -356,6 +370,7 @@ const addInviteRow = () => {
         },
         body: {
           inviteData: validInvites,
+          cohortId: cohort
         },
       })
 
@@ -492,6 +507,10 @@ const addInviteRow = () => {
       toast.error("No emails to send")
       return
     }
+    if(courseVersion?.cohortDetails?.length > 0 && !cohort){  
+      toast.error("Please select a cohort before sending invites");
+      return;
+    }
 
     try {
       const inviteData = parsedEmails.map(item => ({
@@ -508,6 +527,7 @@ const addInviteRow = () => {
         },
         body: {
           inviteData,
+          cohortId: cohort
         },
       })
 
@@ -612,6 +632,36 @@ const hasInvalidEmail = inviteEmails.some(
           <Badge variant="outline" className="ml-2">
             {course.name}
           </Badge>
+        )}
+        {courseVersion?.cohortDetails?.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="ml-2 px-3 py-2 text-sm"
+              >
+                                <Layers className="h-4 w-4 text-muted-foreground" />
+        {cohort ? courseVersion?.cohortDetails?.find(c => c.id === cohort)?.name : "Select Cohort"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuRadioGroup
+                value={cohort ?? ""}
+                onValueChange={(value) => {
+                  setCohort(value);
+                }}
+              >
+                {courseVersion?.cohortDetails?.map((cohort) => (
+                  <DropdownMenuRadioItem
+                      key={cohort.id}
+                      value={cohort.id}
+                    >
+                      {cohort.name}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
 
@@ -775,7 +825,7 @@ const hasInvalidEmail = inviteEmails.some(
                 )}
               </Button> */}
 
-              <Button className="min-w-[120px]" onClick={() => setShowConfirmationModal(true)} disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0}>Send Invites</Button>
+              <Button className="min-w-[120px]" onClick={() => setShowConfirmationModal(true)} disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0 || !isVersionActive} title={!isVersionActive ? "Cannot send invites to archived courses" : undefined}>Send Invites</Button>
             </div>
           </div>
         </CardContent>

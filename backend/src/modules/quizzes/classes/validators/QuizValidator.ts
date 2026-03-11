@@ -17,7 +17,7 @@ import {
   IQuizDetails,
   IQuestionBankRef,
 } from '#shared/interfaces/models.js';
-import {Type} from 'class-transformer';
+import {Expose, Type} from 'class-transformer';
 import {
   IsMongoId,
   IsNotEmpty,
@@ -474,6 +474,15 @@ class SubmitFeedbackBody {
   //   example: false,
   // })
   // isSkipped?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Cohort of the student',
+    type: 'string',
+    example: 'cohort-1',
+  })
+  cohortId?:string;
 }
 
 class QuestionRenderView extends Question implements IQuestionRenderView {
@@ -1607,6 +1616,7 @@ export interface QuestionAnswersBodydto {
   isSkipped?: boolean;
   courseId?: string;
   courseVersionId?: string;
+  cohortId?: string;
 }
 
 

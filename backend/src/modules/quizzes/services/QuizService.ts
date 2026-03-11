@@ -234,6 +234,7 @@ class QuizService extends BaseService {
       const metrics = await this.userQuizMetricsRepo.get(
         userId,
         quizId,
+        undefined,
         session,
       );
       if (!metrics) {
@@ -250,11 +251,12 @@ class QuizService extends BaseService {
       return metrics;
     });
   }
-  getAttemptDetails(attemptId: string, quizId: string) {
+  getAttemptDetails(attemptId: string, quizId: string, cohort?: string) {
     return this._withTransaction(async session => {
       const attempt = await this.attemptRepo.getById(
         attemptId,
         quizId,
+        cohort,
         session,
       );
       if (!attempt) {
@@ -589,6 +591,7 @@ class QuizService extends BaseService {
       const metrics = await this.userQuizMetricsRepo.get(
         userId,
         quizId,
+        undefined,
         session,
       );
       if (!metrics) {
