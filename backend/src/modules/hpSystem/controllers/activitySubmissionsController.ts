@@ -70,7 +70,7 @@ export class ActivitySubmissionsController {
     @CurrentUser() user: IUser,
     @Param("submissionId") submissionId: string,
     @Body({ required: true }) body: CreateOrUpdateHpActivitySubmissionBodyDto,
-    @Req() req: Req,
+    @Req() req: any,
   ) {
     const allFiles = req.files as Express.Multer.File[];
     const files = allFiles?.filter(f => f.fieldname === "files");
