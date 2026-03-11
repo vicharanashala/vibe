@@ -482,10 +482,28 @@ export class ActivitySubmissionsService extends BaseService {
             const submission = await this.activitySubmissionsRepository.findById(submissionId, { session });
             if (!submission) throw new NotFoundError(`Submission ${submissionId} not found.`);
 
+            const cohort = submission.cohort;
+            let courseId = submission.courseId.toString()
+            let courseVersionId = submission.courseVersionId.toString()
+
+            const COHORT_OVERRIDES: Record<string, { courseId: string; versionId: string }> = {
+                Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
+                Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150" },
+                Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57" },
+                RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719" },
+                AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
+            };
+
+            const override = COHORT_OVERRIDES[cohort];
+            if (override) {
+                courseId = override.courseId;
+                courseVersionId = override.versionId;
+            }
+
             const [activityRuleConfig, user, enrollment] = await Promise.all([
                 this.ruleConfigService.getByActivityId(submission.activityId.toString()),
                 this.userRepo.findById(submission.studentId.toString()),
-                this.cohortRepository.findEnrollment(submission.studentId.toString(), submission.courseId.toString(), submission.courseVersionId.toString())
+                this.cohortRepository.findEnrollment(submission.studentId.toString(), courseId, courseVersionId)
             ]);
 
             if (!user || !enrollment) throw new BadRequestError(!user ? "Student account missing." : "Enrollment data missing.");
@@ -586,7 +604,7 @@ export class ActivitySubmissionsService extends BaseService {
 
             await Promise.all([
                 ...ledgerPromises,
-                this.cohortRepository.setHPForEnrollment(submission.studentId.toString(), submission.courseId.toString(), submission.courseVersionId.toString(), finalHpBalance, session)
+                this.cohortRepository.setHPForEnrollment(submission.studentId.toString(), courseId, courseVersionId, finalHpBalance, session)
             ]);
 
             return { success: true };
