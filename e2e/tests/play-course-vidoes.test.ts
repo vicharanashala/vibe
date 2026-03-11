@@ -1,5 +1,4 @@
 import { test, expect, Locator, Page } from '@playwright/test';
-import fs from 'fs';
 
 const COURSE_NAME =
   process.env.COURSE_NAME ?? 'MERN Developer Sprint: For MERN developer team testing';
@@ -156,6 +155,58 @@ test('Test course video playback and quiz', async ({ page }) => {
     throw new Error(`Invalid time format: ${time}`);
   }
 
+    async function fastForwardIfAvailable(page, timeDisplay) {
+      const forwardButton = page.getByRole('button', { name: /forward 10 seconds/i });
+
+      // Check if button exists
+      if ((await forwardButton.count()) === 0) {
+        console.log('⏩ Forward button not present');
+        return;
+      }
+
+      console.log('⏩ Forward button detected');
+
+      // Wait until first 10 seconds have played
+      await expect
+        .poll(async () => {
+          const text = await timeDisplay.textContent();
+          if (!text) return 0;
+
+          const [currentText] = text.split('/').map(t => t.trim());
+          return parseTimeToSeconds(currentText);
+        },
+        {
+          timeout: 20000, // allow enough time for 10s playback
+          message: 'Waiting for first 10 seconds of playback',
+        }      
+      )
+      .toBeGreaterThanOrEqual(10);
+
+      console.log('⏩ First 10 seconds played');
+
+      // Keep forwarding until near the end
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const text = await timeDisplay.textContent();
+        if (!text) break;
+
+        const [currentText, totalText] = text.split('/').map(t => t.trim());
+
+        const current = parseTimeToSeconds(currentText);
+        const total = parseTimeToSeconds(totalText);
+
+        if (current >= total - 10) {
+          console.log('⏩ Reached last 10 seconds');
+          break;
+        }
+
+        await forwardButton.click();
+        console.log('⏩ Forwarded 10 seconds');
+
+        await page.waitForTimeout(500);
+      }
+  }
+
   async function playAndWaitForCompletion(page) {
     // Play button
     const playButton = page.getByRole('button', { name: /^play$/i });
@@ -208,6 +259,8 @@ test('Test course video playback and quiz', async ({ page }) => {
       .not.toBe(startTime);
 
     console.log('⏳ Playback started');
+
+    await fastForwardIfAvailable(page, timeDisplay);
 
     // Wait for completion (1s tolerance)
     await expect
