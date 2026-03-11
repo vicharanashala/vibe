@@ -110,7 +110,7 @@ interface VideoData {
 }
 
 type QuestionGenParams = {
-  model: string;
+ 
   SOL: number;
   SML: number;
   NAT: number;
@@ -448,7 +448,7 @@ export default function AISectionPage() {
 
   // Add state for question generation parameters
   const [questionGenParams, setQuestionGenParams] = useState<QuestionGenParams>({
-    model: 'deepseek-r1:70b',
+   
     SOL: 2,
     SML: 0,
     NAT: 0,
@@ -939,7 +939,7 @@ export default function AISectionPage() {
                 <option value="hi">Hindi</option>
               </select>
             </div>
-            <div className="flex-1 flex flex-col items-start min-w-0">
+            {/* <div className="flex-1 flex flex-col items-start min-w-0">
               <label className="mb-2.5 flex items-center text-sm font-medium text-gray-700 dark:text-[#a8a29e]">
                 <span className="w-2 h-2 bg-purple-500 rounded-full mr-2 flex-shrink-0"></span>
                 <span className="truncate">AI Model</span>
@@ -950,9 +950,9 @@ export default function AISectionPage() {
                 className="w-full px-3 sm:px-4 py-2 rounded-full border border-gray-200 dark:border-[#26211E] bg-white dark:bg-[#202020] shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
               >
                 <option value="default">default</option>
-                {/* Add more models as needed */}
+               
               </select>
-            </div>
+            </div> */}
           </div>
         )}
         {task === 'transcription' && (
@@ -1019,7 +1019,7 @@ export default function AISectionPage() {
         {task === 'question' && (
           <div className="flex flex-col gap-2 mb-2">
             <div className="flex flex-row gap-2">
-              <div className="flex-1 flex flex-col">
+              {/* <div className="flex-1 flex flex-col">
                 <label>Model:</label>
                 <Input
                   type="text"
@@ -1027,7 +1027,7 @@ export default function AISectionPage() {
                   onChange={e => handleParamChange("model", e.target.value)}
                   className="w-full dark:bg-[#0D0D0DCC]"
                 />
-              </div>
+              </div> */}
               {fields.map(field => (
                 <div key={field} className="flex-1 flex flex-col">
                   <label>{field}:</label>
@@ -2116,104 +2116,111 @@ export default function AISectionPage() {
   useEffect(() => {
     if (!aiJobId) return;
 
-    const es = connectToLiveStatusUpdates(aiJobId, (incoming) => {
-      setAiJobStatus((prev) => {
-        let next: any = incoming ? { ...incoming } : incoming;
-        const failing = optimisticFailedTaskRef.current;
-        if (next && failing) {
-          const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
-          const setTop = (taskStr: string) => { next.task = taskStr; next.status = 'FAILED'; };
-          switch (failing) {
-            case 'AUDIO_EXTRACTION':
-              setTop('AUDIO_EXTRACTION');
-              ensureJobStatus();
-              next.jobStatus.audioExtraction = 'FAILED';
-              break;
-            case 'TRANSCRIPT_GENERATION':
-              setTop('TRANSCRIPT_GENERATION');
-              ensureJobStatus();
-              next.jobStatus.transcriptGeneration = 'FAILED';
-              break;
-            case 'SEGMENTATION':
-              setTop('SEGMENTATION');
-              ensureJobStatus();
-              next.jobStatus.segmentation = 'FAILED';
-              break;
-            case 'QUESTION_GENERATION':
-              setTop('QUESTION_GENERATION');
-              ensureJobStatus();
-              next.jobStatus.questionGeneration = 'FAILED';
-              break;
-            case 'UPLOAD_CONTENT':
-              setTop('UPLOAD_CONTENT');
-              ensureJobStatus();
-              next.jobStatus.uploadContent = 'FAILED';
-              break;
-          }
-        }
-        if (next?.status === 'FAILED' || next?.status === 'STOPPED') {
-          optimisticFailedTaskRef.current = null;
-        }
+    // const es = connectToLiveStatusUpdates(aiJobId, (incoming) => {
 
-        if (next?.task === 'AUDIO_EXTRACTION') {
-          if (next?.status === 'RUNNING') {
-            setAudioExtractionStatus('processing');
-          }
-          if (next?.status === 'COMPLETED') {
-            setAudioExtractionStatus('completed');
-            setAudioExtractionProgress(100);
-            setEstimatedTimeRemaining('');
-          }
-          if (next?.status === 'STOPPED') {
-            setAudioExtractionStatus('ready');
-            setAudioExtractionProgress(0);
-            setEstimatedTimeRemaining('');
-          }
-        }
+    //   setAiJobStatus((prev) => {
+    //     let next: any = incoming ? { ...incoming } : incoming;
+    //     const failing = optimisticFailedTaskRef.current;
+    //     if (next && failing) {
+    //       const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
+    //       const setTop = (taskStr: string) => { next.task = taskStr; next.status = 'FAILED'; };
+    //       switch (failing) {
+    //         case 'AUDIO_EXTRACTION':
+    //           setTop('AUDIO_EXTRACTION');
+    //           ensureJobStatus();
+    //           next.jobStatus.audioExtraction = 'FAILED';
+    //           break;
+    //         case 'TRANSCRIPT_GENERATION':
+    //           setTop('TRANSCRIPT_GENERATION');
+    //           ensureJobStatus();
+    //           next.jobStatus.transcriptGeneration = 'FAILED';
+    //           break;
+    //         case 'SEGMENTATION':
+    //           setTop('SEGMENTATION');
+    //           ensureJobStatus();
+    //           next.jobStatus.segmentation = 'FAILED';
+    //           break;
+    //         case 'QUESTION_GENERATION':
+    //           setTop('QUESTION_GENERATION');
+    //           ensureJobStatus();
+    //           next.jobStatus.questionGeneration = 'FAILED';
+    //           break;
+    //         case 'UPLOAD_CONTENT':
+    //           setTop('UPLOAD_CONTENT');
+    //           ensureJobStatus();
+    //           next.jobStatus.uploadContent = 'FAILED';
+    //           break;
+    //       }
+    //     }
+    //     if (next?.status === 'FAILED' || next?.status === 'STOPPED') {
+    //       optimisticFailedTaskRef.current = null;
+    //     }
 
-        if (next?.task === 'TRANSCRIPT_GENERATION' && next?.status === 'COMPLETED') {
-          setTimeout(() => {
-            setTaskRuns((prevTaskRuns: any) => {
-              const lastLoadingIdx = [...prevTaskRuns.transcription].reverse().findIndex(run => run.status === 'loading');
-              if (lastLoadingIdx === -1) {
-                return prevTaskRuns;
-              }
+    //     if (next?.task === 'AUDIO_EXTRACTION') {
+    //       if (next?.status === 'RUNNING') {
+    //         setAudioExtractionStatus('processing');
+    //       }
+    //       if (next?.status === 'COMPLETED') {
+    //         setAudioExtractionStatus('completed');
+    //         setAudioExtractionProgress(100);
+    //         setEstimatedTimeRemaining('');
+    //       }
+    //       if (next?.status === 'STOPPED') {
+    //         setAudioExtractionStatus('ready');
+    //         setAudioExtractionProgress(0);
+    //         setEstimatedTimeRemaining('');
+    //       }
+    //     }
 
-              const idxToUpdate = prevTaskRuns.transcription.length - 1 - lastLoadingIdx;
-              const updatedRun = prevTaskRuns.transcription[idxToUpdate];
-              const completedRunId = updatedRun.id;
+    //     if (next?.task === 'TRANSCRIPT_GENERATION' && next?.status === 'COMPLETED') {
+    //       setTimeout(() => {
+    //         setTaskRuns((prevTaskRuns: any) => {
+    //           const lastLoadingIdx = [...prevTaskRuns.transcription].reverse().findIndex(run => run.status === 'loading');
+    //           if (lastLoadingIdx === -1) {
+    //             return prevTaskRuns;
+    //           }
 
-              const updatedTaskRuns = {
-                ...prevTaskRuns,
-                transcription: prevTaskRuns.transcription.map((run: any, idx: number) =>
-                  idx === idxToUpdate ? { ...run, status: 'done', result: next } : run
-                ),
-              };
+    //           const idxToUpdate = prevTaskRuns.transcription.length - 1 - lastLoadingIdx;
+    //           const updatedRun = prevTaskRuns.transcription[idxToUpdate];
+    //           const completedRunId = updatedRun.id;
 
-              if (completedRunId && !manuallyCollapsedItems.includes(completedRunId)) {
+    //           const updatedTaskRuns = {
+    //             ...prevTaskRuns,
+    //             transcription: prevTaskRuns.transcription.map((run: any, idx: number) =>
+    //               idx === idxToUpdate ? { ...run, status: 'done', result: next } : run
+    //             ),
+    //           };
 
-                setExpandedAccordionItems(prevExpanded => {
-                  if (!prevExpanded.includes(completedRunId)) {
-                    const newExpanded = [...prevExpanded, completedRunId];
-                    return newExpanded;
-                  }
-                  return prevExpanded;
-                });
-              } else {
-                console.log('Live update: Not expanding accordion - completedRunId:', completedRunId, 'manuallyCollapsed:', manuallyCollapsedItems.includes(completedRunId));
-              }
+    //           if (completedRunId && !manuallyCollapsedItems.includes(completedRunId)) {
 
-              return updatedTaskRuns;
-            });
-            toast.success('Transcription completed!');
-          }, 50);
-        }
+    //             setExpandedAccordionItems(prevExpanded => {
+    //               if (!prevExpanded.includes(completedRunId)) {
+    //                 const newExpanded = [...prevExpanded, completedRunId];
+    //                 return newExpanded;
+    //               }
+    //               return prevExpanded;
+    //             });
+    //           } else {
+    //             console.log('Live update: Not expanding accordion - completedRunId:', completedRunId, 'manuallyCollapsed:', manuallyCollapsedItems.includes(completedRunId));
+    //           }
 
-        return next;
-      });
-    });
-    return () => es.close();
+    //           return updatedTaskRuns;
+    //         });
+    //         toast.success('Transcription completed!');
+    //       }, 50);
+    //     }
 
+    //     return next;
+    //   });
+    // });
+    // return () => es.close();
+
+
+    const interval=setInterval(()=>{
+      handleRefreshStatus();
+    },5000);
+
+    return () => clearInterval(interval);
   }, [aiJobId, manuallyCollapsedItems]);
 
   useEffect(() => {

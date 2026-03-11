@@ -3,7 +3,7 @@ import { GLOBAL_TYPES } from "#root/types.js";
 import { inject, injectable } from "inversify";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivityRepository, ActivitySubmissionsRepository, LedgerRepository } from "../repositories/index.js";
-import { CreateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, StudentActivitySubmissionStatsViewDto, StudentActivitySubmissionsViewDto } from "../classes/validators/activitySubmissionValidators.js";
+import { CreateOrUpdateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, StudentActivitySubmissionStatsViewDto, StudentActivitySubmissionsViewDto } from "../classes/validators/activitySubmissionValidators.js";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { appConfig } from "#root/config/app.js";
 import { Bucket, Storage } from '@google-cloud/storage';
@@ -15,7 +15,7 @@ import { HpActivitySubmission, HpLedger, HpLedgerDirection, HpLedgerEventType, H
 import { ObjectId } from "mongodb";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { SubmissionFeedbackItem } from "../classes/transformers/ActivitySubmission.js";
-import { ID } from "../constants.js";
+import { COHORT_OVERRIDES, ID } from "../constants.js";
 
 
 @injectable()
@@ -54,10 +54,91 @@ export class ActivitySubmissionsService extends BaseService {
         super(mongoDatabase);
     }
 
+    private getActivitySubmissionBucket() {
+        const storage = new Storage({
+            keyFilename: appConfig.GOOGLE_APPLICATION_CREDENTIALS,
+        });
+
+        return storage.bucket(appConfig.GCP_BACKUP_ACTIVITY_BUCKET);
+    }
+
+    private async uploadSubmissionFileToGcp(
+        bucket: Bucket,
+        studentId: string,
+        file: Express.Multer.File,
+        folder: string
+    ) {
+        const ext = path.extname(file.originalname) || "";
+        const baseName = path.basename(file.originalname, ext);
+        const safeBase = baseName.replace(/[^\w\-]+/g, "_");
+        const unique = randomBytes(8).toString("hex");
+        const timestamp = Date.now();
+
+        const fileName = `${studentId}_${safeBase}_${timestamp}_${unique}${ext}`;
+        const objectPath = `${folder}/${fileName}`;
+        const gcpFile = bucket.file(objectPath);
+
+        await gcpFile.save(file.buffer, {
+            resumable: false,
+            contentType: file.mimetype,
+            metadata: {
+                contentDisposition: `inline; filename="${file.originalname}"`,
+            },
+        });
+
+        const [signedUrl] = await gcpFile.getSignedUrl({
+            action: "read",
+            expires: Date.now() + 1000 * 60 * 60 * 24 * 7,
+        });
+
+        return {
+            fileId: objectPath,
+            url: signedUrl,
+            name: fileName,
+            mimeType: file.mimetype,
+            sizeBytes: file.size,
+        };
+    }
+
+    private async uploadSubmissionAssets(
+        studentId: string,
+        cohort: string,
+        activityId: string,
+        files: Express.Multer.File[],
+        images: Express.Multer.File[]
+    ) {
+        const bucket = this.getActivitySubmissionBucket();
+
+        const [uploadedPdfs, uploadedImages] = await Promise.all([
+            Promise.all(
+                files.map((file) =>
+                    this.uploadSubmissionFileToGcp(
+                        bucket,
+                        studentId,
+                        file,
+                        `hp-activity-submissions/${cohort}/${activityId}/${studentId}/files`
+                    )
+                )
+            ),
+            Promise.all(
+                images.map((image) =>
+                    this.uploadSubmissionFileToGcp(
+                        bucket,
+                        studentId,
+                        image,
+                        `hp-activity-submissions/${cohort}/${activityId}/${studentId}/images`
+                    )
+                )
+            ),
+        ]);
+
+        return { uploadedPdfs, uploadedImages };
+    }
 
 
 
-    async submit(student: { id: string; email: string; name: string }, body: CreateHpActivitySubmissionBodyDto, upload?: { files?: Express.Multer.File[]; images?: Express.Multer.File[] }
+
+    async submit(student: { id: string; email: string; name: string }, body: CreateOrUpdateHpActivitySubmissionBodyDto, upload?: { files?: Express.Multer.File[]; images?: Express.Multer.File[] }
     ) {
         return this._withTransaction(async (session) => {
             if (!body.courseId || !body.courseVersionId || !body.activityId || !body.cohort) {
@@ -83,13 +164,6 @@ export class ActivitySubmissionsService extends BaseService {
             const cohort = body.cohort;
 
             // 1. Define the Cohort Override Map
-            const COHORT_OVERRIDES: Record<string, { courseId: string; versionId: string }> = {
-                Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
-                Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150" },
-                Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57" },
-                RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719" },
-                AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
-            };
 
             // 2. Apply Overrides (Fall back to body values if cohort isn't in the map)
             const finalCourseId = COHORT_OVERRIDES[cohort]?.courseId ?? body.courseId;
@@ -143,72 +217,80 @@ export class ActivitySubmissionsService extends BaseService {
             }
 
             // GCP Storage setup
-            const storage = new Storage({
-                keyFilename: appConfig.GOOGLE_APPLICATION_CREDENTIALS,
-            });
+            // const storage = new Storage({
+            //     keyFilename: appConfig.GOOGLE_APPLICATION_CREDENTIALS,
+            // });
 
-            const bucketName = appConfig.GCP_BACKUP_ACTIVITY_BUCKET;
-            const bucket = storage.bucket(bucketName);
+            // const bucketName = appConfig.GCP_BACKUP_ACTIVITY_BUCKET;
+            // const bucket = storage.bucket(bucketName);
 
 
-            const uploadToGcp = async (f: Express.Multer.File, folder: string) => {
-                const ext = path.extname(f.originalname) || "";
-                const baseName = path.basename(f.originalname, ext);
+            // const uploadToGcp = async (f: Express.Multer.File, folder: string) => {
+            //     const ext = path.extname(f.originalname) || "";
+            //     const baseName = path.basename(f.originalname, ext);
 
-                const safeBase = baseName.replace(/[^\w\-]+/g, "_");
+            //     const safeBase = baseName.replace(/[^\w\-]+/g, "_");
 
-                const unique = randomBytes(8).toString("hex");
-                const timestamp = Date.now();
+            //     const unique = randomBytes(8).toString("hex");
+            //     const timestamp = Date.now();
 
-                const fileName = `${student.id}_${safeBase}_${timestamp}_${unique}${ext}`;
+            //     const fileName = `${student.id}_${safeBase}_${timestamp}_${unique}${ext}`;
 
-                const objectPath = `${folder}/${fileName}`;
+            //     const objectPath = `${folder}/${fileName}`;
 
-                const file = bucket.file(objectPath);
+            //     const file = bucket.file(objectPath);
 
-                await file.save(f.buffer, {
-                    resumable: false,
-                    contentType: f.mimetype,
-                    metadata: {
-                        contentDisposition: `inline; filename="${f.originalname}"`,
-                    },
-                });
+            //     await file.save(f.buffer, {
+            //         resumable: false,
+            //         contentType: f.mimetype,
+            //         metadata: {
+            //             contentDisposition: `inline; filename="${f.originalname}"`,
+            //         },
+            //     });
 
-                const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectPath}`;
+            //     const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectPath}`;
 
-                const [signedUrl] = await file.getSignedUrl({
-                    action: "read",
-                    expires: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 days
-                });
+            //     const [signedUrl] = await file.getSignedUrl({
+            //         action: "read",
+            //         expires: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 days
+            //     });
 
-                return {
-                    fileId: objectPath,
-                    url: signedUrl,
-                    name: fileName,
-                    mimeType: f.mimetype,
-                    sizeBytes: f.size,
-                };
-            };
+            //     return {
+            //         fileId: objectPath,
+            //         url: signedUrl,
+            //         name: fileName,
+            //         mimeType: f.mimetype,
+            //         sizeBytes: f.size,
+            //     };
+            // };
 
-            // Upload concurrently
-            const [uploadedPdfs, uploadedImages] = await Promise.all([
-                Promise.all(
-                    files.map((f) =>
-                        uploadToGcp(
-                            f,
-                            `hp-activity-submissions/${body.cohort}/${body.activityId}/${student.id}/files`
-                        )
-                    )
-                ),
-                Promise.all(
-                    images.map((img) =>
-                        uploadToGcp(
-                            img,
-                            `hp-activity-submissions/${body.cohort}/${body.activityId}/${student.id}/images`
-                        )
-                    )
-                ),
-            ]);
+            // // Upload concurrently
+            // const [uploadedPdfs, uploadedImages] = await Promise.all([
+            //     Promise.all(
+            //         files.map((f) =>
+            //             uploadToGcp(
+            //                 f,
+            //                 `hp-activity-submissions/${body.cohort}/${body.activityId}/${student.id}/files`
+            //             )
+            //         )
+            //     ),
+            //     Promise.all(
+            //         images.map((img) =>
+            //             uploadToGcp(
+            //                 img,
+            //                 `hp-activity-submissions/${body.cohort}/${body.activityId}/${student.id}/images`
+            //             )
+            //         )
+            //     ),
+            // ]);
+
+            const { uploadedPdfs, uploadedImages } = await this.uploadSubmissionAssets(
+                student.id,
+                body.cohort,
+                body.activityId,
+                files,
+                images
+            );
 
             const payload = {
                 ...basePayload,
@@ -327,6 +409,150 @@ export class ActivitySubmissionsService extends BaseService {
         });
     }
 
+    async updateSubmission(
+        submissionId: string,
+        student: { id: string; email: string; name: string },
+        body: CreateOrUpdateHpActivitySubmissionBodyDto,
+        upload?: { files?: Express.Multer.File[]; images?: Express.Multer.File[] }
+    ) {
+        return this._withTransaction(async (session) => {
+            if (!body.courseId || !body.courseVersionId || !body.activityId || !body.cohort) {
+                throw new BadRequestError("Missing required fields");
+            }
+
+            const submission = await this.activitySubmissionsRepository.findById(submissionId, { session });
+            if (!submission) {
+                throw new NotFoundError(`Submission ${submissionId} not found.`);
+            }
+
+            const ledger = await this.ledgerRepository.findByStudentAndSubmissionId(submissionId, student.id);
+            if (ledger) {
+                throw new BadRequestError(
+                    "This submission cannot be updated because it has already been reviewed or approved by the instructor."
+                );
+            }
+            const basePayload = {
+                textResponse: body.payload?.textResponse ?? "",
+                links: body.payload?.links ?? [],
+            };
+
+            const files = upload?.files ?? [];
+            const images = upload?.images ?? [];
+
+            // Validate uploads
+            for (const f of files) {
+                if (f.mimetype !== "application/pdf") {
+                    throw new BadRequestError(`Only PDF allowed in files. Invalid: ${f.originalname}`);
+                }
+            }
+
+            for (const img of images) {
+                if (!img.mimetype.startsWith("image/")) {
+                    throw new BadRequestError(`Only images allowed in images. Invalid: ${img.originalname}`);
+                }
+            }
+
+            // const storage = new Storage({
+            //     keyFilename: appConfig.GOOGLE_APPLICATION_CREDENTIALS,
+            // });
+
+            // const bucketName = appConfig.GCP_BACKUP_ACTIVITY_BUCKET;
+            // const bucket = storage.bucket(bucketName);
+
+            // const uploadToGcp = async (f: Express.Multer.File, folder: string) => {
+            //     const ext = path.extname(f.originalname) || "";
+            //     const baseName = path.basename(f.originalname, ext);
+            //     const safeBase = baseName.replace(/[^\w\-]+/g, "_");
+            //     const unique = randomBytes(8).toString("hex");
+            //     const timestamp = Date.now();
+
+            //     const fileName = `${student.id}_${safeBase}_${timestamp}_${unique}${ext}`;
+            //     const objectPath = `${folder}/${fileName}`;
+            //     const file = bucket.file(objectPath);
+
+            //     await file.save(f.buffer, {
+            //         resumable: false,
+            //         contentType: f.mimetype,
+            //         metadata: {
+            //             contentDisposition: `inline; filename="${f.originalname}"`,
+            //         },
+            //     });
+
+            //     const [signedUrl] = await file.getSignedUrl({
+            //         action: "read",
+            //         expires: Date.now() + 1000 * 60 * 60 * 24 * 7,
+            //     });
+
+            //     return {
+            //         fileId: objectPath,
+            //         url: signedUrl,
+            //         name: fileName,
+            //         mimeType: f.mimetype,
+            //         sizeBytes: f.size,
+            //     };
+            // };
+
+            // const [uploadedPdfs, uploadedImages] = await Promise.all([
+            //     Promise.all(
+            //         files.map((f) =>
+            //             uploadToGcp(
+            //                 f,
+            //                 `hp-activity-submissions/${body.cohort}/${body.activityId}/${student.id}/files`
+            //             )
+            //         )
+            //     ),
+            //     Promise.all(
+            //         images.map((img) =>
+            //             uploadToGcp(
+            //                 img,
+            //                 `hp-activity-submissions/${body.cohort}/${body.activityId}/${student.id}/images`
+            //             )
+            //         )
+            //     ),
+            // ]);
+
+            const { uploadedPdfs, uploadedImages } = await this.uploadSubmissionAssets(
+                student.id,
+                body.cohort,
+                body.activityId,
+                files,
+                images
+            );
+
+            const payload = {
+                ...basePayload,
+                files: uploadedPdfs.map((x) => ({
+                    fileId: x.fileId,
+                    url: x.url,
+                    name: x.name,
+                    mimeType: x.mimeType,
+                    sizeBytes: x.sizeBytes,
+                })),
+                images: uploadedImages.map((x) => ({
+                    fileId: x.fileId,
+                    url: x.url,
+                    name: x.name,
+                })),
+            };
+
+            await this.activitySubmissionsRepository.updateById(
+                submissionId,
+                {
+                    payload,
+                },
+                { session }
+            );
+
+            const updatedSubmission = await this.activitySubmissionsRepository.findById(submissionId, { session });
+            if (!updatedSubmission) {
+                throw new Error("Failed to update submission");
+            }
+
+            return updatedSubmission;
+        });
+    }
+
+
     async getById(id: string): Promise<any> {
         const doc = await this.activitySubmissionsRepository.findById(id);
         if (!doc) throw new NotFoundError("Submission not found");
@@ -343,14 +569,6 @@ export class ActivitySubmissionsService extends BaseService {
     }
 
     async list(query: ListSubmissionsQueryDto): Promise<any[]> {
-
-        const COHORT_OVERRIDES: Record<string, { courseId: string; versionId: string }> = {
-            Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
-            Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150" },
-            Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57" },
-            RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719" },
-            AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
-        };
 
         const effectiveQuery: ListSubmissionsQueryDto = { ...query };
 
@@ -398,13 +616,6 @@ export class ActivitySubmissionsService extends BaseService {
             throw new BadRequestError("Student not found");
         }
 
-        const COHORT_OVERRIDES: Record<string, { courseId: string; versionId: string }> = {
-            Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
-            Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150" },
-            Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57" },
-            RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719" },
-            AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
-        };
 
         let courseId: string;
         let courseVersionId: string;
@@ -478,6 +689,20 @@ export class ActivitySubmissionsService extends BaseService {
 
     async review(submissionId: string, teacherId: string, body: ReviewHpActivitySubmissionBodyDto) {
         return this._withTransaction(async (session) => {
+            // Custom validation for required notes - only for REJECT and REVERTED
+            if (body.decision === "REJECTED" && (!body.note || body.note.trim().length < 10)) {
+                throw new BadRequestError("Note must be at least 10 characters long for reject action");
+            }
+            
+            if (body.decision === "REVERTED" && (!body.note || body.note.trim().length < 10)) {
+                throw new BadRequestError("Note must be at least 10 characters long for revert action");
+            }
+
+            // Points deduction validation for reject action
+            if (body.decision === "REJECTED" && body.pointsToDeduct !== undefined && body.pointsToDeduct < 0) {
+                throw new BadRequestError("Points to deduct cannot be negative");
+            }
+
             // 1. Initial Data Fetching
             const submission = await this.activitySubmissionsRepository.findById(submissionId, { session });
             if (!submission) throw new NotFoundError(`Submission ${submissionId} not found.`);
@@ -485,14 +710,6 @@ export class ActivitySubmissionsService extends BaseService {
             const cohort = submission.cohort;
             let courseId = submission.courseId.toString()
             let courseVersionId = submission.courseVersionId.toString()
-
-            const COHORT_OVERRIDES: Record<string, { courseId: string; versionId: string }> = {
-                Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
-                Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150" },
-                Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57" },
-                RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719" },
-                AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
-            };
 
             const override = COHORT_OVERRIDES[cohort];
             if (override) {
@@ -514,6 +731,7 @@ export class ActivitySubmissionsService extends BaseService {
             const totalStudentHpPoints = enrollment.hpPoints ?? 0;
             const ruleType = rewardConfig?.type ?? "ABSOLUTE";
             const isApprovalRequired = rewardConfig?.enabled && rewardConfig.applyWhen === "ON_APPROVAL";
+            const baseHp = rewardConfig?.value ?? 0;
 
             const isApprove = body.decision === "APPROVED";
             const isRevert = body.decision === "REVERTED";
@@ -525,12 +743,17 @@ export class ActivitySubmissionsService extends BaseService {
             // 3. Validation
             if (["REVERTED", "REJECTED"].includes(currentStatus)) throw new BadRequestError(`Submission is already ${currentStatus}.`);
 
-            if (isApprovalRequired && !isApprove && currentStatus == "SUBMITTED") {
-                throw new BadRequestError("This activity requires approval. Only APPROVE is allowed.");
+            if (isApprovalRequired && isRevert && currentStatus == "SUBMITTED") {
+                throw new BadRequestError("This activity requires approval. Only APPROVE/REJECT is allowed.");
             }
 
             if (isApprove && (currentStatus === "APPROVED" || (currentStatus === "SUBMITTED" && rewardConfig?.applyWhen !== "ON_APPROVAL"))) {
                 throw new BadRequestError("Conflict: Points already granted. Use REVERT or REJECT.");
+            }
+
+            // Points deduction limit validation for reject action
+            if (isReject && body.pointsToDeduct !== undefined && body.pointsToDeduct > baseHp) {
+                throw new BadRequestError(`Points to deduct cannot exceed base HP of ${baseHp}`);
             }
 
 

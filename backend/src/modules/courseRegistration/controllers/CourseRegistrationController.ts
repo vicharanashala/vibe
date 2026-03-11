@@ -270,11 +270,12 @@ class CourseRegistrationController {
     @Req() req: Request,
   ) {
     const { registrationId } = params;
-    const { status } = body;
+    const { status, cohort } = body;
 
     const result = await this.courseRegistrationService.updateStatus(
       registrationId,
       status,
+      cohort
     );
 
     setAuditTrail(req, {
