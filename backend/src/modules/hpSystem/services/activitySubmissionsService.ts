@@ -47,7 +47,7 @@ export class ActivitySubmissionsService extends BaseService {
         private readonly activityRepository: ActivityRepository,
 
         @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
-        
+
     ) {
         super(mongoDatabase);
     }
@@ -445,8 +445,8 @@ export class ActivitySubmissionsService extends BaseService {
         };
     }
 
-    async listMySubmissions(studentId: string, query: FilterQueryDto): Promise<any> {
-        const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query);
+    async listMySubmissions(studentId: string, query: FilterQueryDto, cohortName?: string): Promise<any> {
+        const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined, undefined, cohortName);
 
         return {
             success: true,
