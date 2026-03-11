@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate, useSearch } from "@tanstack/react-router"
-import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check, Layers,Video, HelpCircle } from 'lucide-react'
+import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check, Video, HelpCircle } from 'lucide-react'
 import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -46,13 +46,6 @@ import type { EnrolledUser, EnrollmentDetails } from "@/types/course.types"
 import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
 import { generateExcel } from "@/lib/excel-export"
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-} from "@/components/ui/dropdown-menu";
 
 // Types for quiz functionality
 
@@ -178,13 +171,19 @@ export default function CourseEnrollments() {
   // Fetch course and version data
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
-// console.log("----version-----", version);
+
   // Fetch course anomalies stats
   const { data: enrollmentStats, isLoading: statsLoading, error: statsError } = useCourseEnrollmentsStats(
     courseId,
     versionId,
     !!(courseId && versionId)
   )
+
+  useEffect(() => {
+    if (enrollmentStats) {
+      console.debug('Enrollment stats received:', enrollmentStats);
+    }
+  }, [enrollmentStats]);
 
   const [selectedUser, setSelectedUser] = useState<EnrollmentDetails | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
@@ -295,10 +294,9 @@ export default function CourseEnrollments() {
   const { data: userModuleProgress, isLoading: moduleProgressLoading } = useUserModuleProgress(
     selectedUser?.id || "",
     courseId || "",
-    versionId || "",
-    selectedUser?.cohortId,
+    versionId || ""
   )
-// console.log("selectedUser cohort", selectedUser);
+
   const toggleSelectionMode = () => {
     setIsSelectionMode((prev) => {
       if (prev) {
@@ -333,15 +331,11 @@ export default function CourseEnrollments() {
       toast.error('Course or version information missing')
       return
     }
-    if(!cohort) {
-      toast.error('Please select a cohort for unenrollment')
-      return;
-    }
 
     try {
       const userIds = Array.from(selectedUsers)
 
-      await bulkUnenrollMutation.mutateAsync({// need to be changed for cohort support
+      await bulkUnenrollMutation.mutateAsync({
         params: {
           path: {
             courseId,
@@ -350,7 +344,6 @@ export default function CourseEnrollments() {
         },
         body: {
           userIds,
-          cohort: cohort,
         },
       })
 
@@ -425,7 +418,6 @@ export default function CourseEnrollments() {
     studentId: string;
     name: string;
     email: string;
-    cohortName?: string | null;
     quizScores?: QuizScore[];
   }
 
@@ -436,40 +428,11 @@ export default function CourseEnrollments() {
       return;
     }
 
-    // Frontend validation: Check if cohort is selected and has students
-    if (cohort) {
-      const cohortName = (version as any)?.cohortDetails?.find((c: any) => c.id === cohort)?.name;
-      
-      const cohortStudents = filteredStudentEnrollments.filter((enrollment: any) => {
-        // The cohort ID is stored directly on the enrollment object
-        return enrollment.cohortId === cohort;
-      });
-      
-      if (!cohortName) {
-        toast.error('Selected cohort not found');
-        return;
-      }
-      
-      if (cohortStudents.length === 0) {
-        toast.warning(`No students found in cohort: ${cohortName}`);
-        return;
-      }
-    }
-
     if (!quizScores?.data?.length || isLoadingQuizScores) {
-      const cohortName = cohort ? (version as any)?.cohortDetails?.find((c: any) => c.id === cohort)?.name : null;
-      const message = cohort 
-        ? `No quiz scores available for cohort: ${cohortName || 'selected cohort'}`
-        : 'No quiz scores available';
-      toast.warning(message);
-      return;
-    }
-    if (isLoadingQuizScores) {
-      toast.loading('Fetching quiz scores...');
+      toast.warning('No quiz scores available');
       return;
     }
 
-    // console.log("---quizscores------", quizScores);
     try {
       // âš¡ FAST: single-pass formatting, no unused maps
       const formattedData = quizScores.data.map(
@@ -477,7 +440,6 @@ export default function CourseEnrollments() {
           studentId: student.studentId ?? `student-${index}`,
           name: student.name ?? 'Unknown Student',
           email: student.email ?? '',
-          cohortName: student.cohortName ?? null,
           quizScores: Array.isArray(student.quizScores)
             ? student.quizScores.map((quiz: any) => ({
               moduleId: quiz.moduleId ?? 'unknown',
@@ -507,13 +469,11 @@ export default function CourseEnrollments() {
       // â±ï¸ Stable filename (no locale overhead)
       const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
       const statusLabel = enrollmentTab === 'ACTIVE' ? 'active' : 'inactive';
-      const cohortName = cohort ? (version as any)?.cohortDetails?.find((c: any) => c.id === cohort)?.name : null;
-      const cohortLabel = cohortName ? `cohort-${cohortName.toLowerCase().replace(/\s+/g, '_')}_` : '';
-      const filename = `quiz_scores_${cohortLabel}${statusLabel}_${timestamp}.xlsx`;
+      const filename = `quiz_scores_${statusLabel}_${timestamp}.xlsx`;
 
       // ðŸ§  Let UI breathe before heavy Excel generation
       await new Promise(resolve => setTimeout(resolve, 0));
-// console.log("JSON.stringify(formattedData,---",JSON.stringify(formattedData, null, 2));
+
       generateExcel(formattedData, filename);
       toast.success(`${enrollmentTab.toLowerCase()} quiz scores exported successfully`);
     } catch (error) {
@@ -546,13 +506,13 @@ export default function CourseEnrollments() {
   const statusTab: "ACTIVE" | "INACTIVE" = enrollmentTab
   const [activeCount, setActiveCount] = useState(0)
   const [inactiveCount, setInactiveCount] = useState(0)
-  const [cohort, setCohort] = useState<string | null>(null);
   const {
     data: quizScores,
     isLoading: isLoadingQuizScores,
     error: quizScoresError,
     refetch: fetchQuizScores,
-  } = useCourseQuizScores(courseId, versionId, isExporting, enrollmentTab, cohort);
+  } = useCourseQuizScores(courseId, versionId, isExporting, enrollmentTab);
+
 
   // Fetch enrollments data
   const {
@@ -571,7 +531,6 @@ export default function CourseEnrollments() {
     !!(courseId && versionId),
     'STUDENT',
     statusTab,
-    cohort,
   );
 
   // Active / Inactive tab
@@ -631,7 +590,7 @@ export default function CourseEnrollments() {
     }
   }, [totalDocuments, enrollmentTab])
   const totalPages = enrollmentsData?.totalPages || 1
-// console.log("enrollmentsData--------------", enrollmentsData);
+
 
   // Sorting handler
   const handleSort = (column: 'name' | 'enrollmentDate' | 'progress' | "scoreObtained" | "unenrolledAt") => {
@@ -693,7 +652,6 @@ export default function CourseEnrollments() {
 
 
   const handleRemoveStudent = (user: EnrolledUser) => {
-    // console.log("Preparing to remove student:", user);
     setUserToRemove(user)
     setIsRemoveDialogOpen(true)
   }
@@ -705,7 +663,6 @@ export default function CourseEnrollments() {
 
   const confirmRemoveStudent = async () => {
     if (userToRemove && courseId && versionId) {
-      // console.log("Attempting to remove student:", userToRemove);
       try {
         await unenrollMutation.mutateAsync({
           params: {
@@ -714,9 +671,6 @@ export default function CourseEnrollments() {
               courseId: courseId,
               courseVersionId: versionId,
             },
-          },
-          body: {
-            cohortId: userToRemove.cohortId,
           },
         })
         setIsRemoveDialogOpen(false)
@@ -737,7 +691,7 @@ export default function CourseEnrollments() {
             userId: userId,
             courseId: courseId,
             courseVersionId: versionId,
-            cohortId: selectedUser?.cohortId,
+
           },
         })
         setIsRecalculateProgressOpen(false)
@@ -767,9 +721,6 @@ export default function CourseEnrollments() {
         requestBody.moduleId = selectedModule
         requestBody.sectionId = selectedSection
         requestBody.itemId = selectedItem
-      }
-      if(selectedUser.cohortId) {
-        requestBody.cohortId = selectedUser.cohortId
       }
 
       await resetProgressMutation.mutateAsync({
@@ -879,6 +830,18 @@ export default function CourseEnrollments() {
       color: "text-purple-600",
       bgColor: "bg-purple-50",
     },
+    {
+      title: "Avg Watch Hours",
+      value: (() => {
+        const v = enrollmentStats?.averageWatchHoursPerUser ?? 0;
+        if (v <= 0) return `0h`;
+        if (v < 0.005) return `<0.01h`;
+        return `${v.toFixed(2)}h`;
+      })(),
+      icon: Clock,
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
+    },
   ]
   const {
     data: currentPath,
@@ -899,9 +862,14 @@ export default function CourseEnrollments() {
     selectedUser?.id,
     courseId,
     versionId,
-    isViewProgressDialogOpen,
-    selectedUser?.cohortId
+    isViewProgressDialogOpen
   )
+
+  useEffect(() => {
+    if (progressDetail) {
+      console.debug('Progress detail fetched:', progressDetail);
+    }
+  }, [progressDetail]);
 
   // API 3: Course structure — fetched lazily when View Course Structure is clicked
   const {
@@ -1015,78 +983,6 @@ export default function CourseEnrollments() {
               </Card>
             ))}
           </div>
-          {/* Active Tab */}
-          <TabsContent value="ACTIVE" className="mt-4">
-            <EnrollmentsTable
-              totalDocuments={totalDocuments}
-              studentEnrollments={filteredStudentEnrollments}
-              enrollmentsLoading={enrollmentsLoading}
-              isSearching={isSearching}
-              enrollmentTab={enrollmentTab}
-              searchQuery={searchQuery}
-              limit={limit}
-              handleLimitChange={handleLimitChange}
-              handleSort={handleSort}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              isLoadingQuizScores={isLoadingQuizScores}
-              setIsExporting={setIsExporting}
-              unenrollMutation={unenrollMutation}
-              user={user}
-              handleViewProgress={handleViewProgress}
-              handleRemoveStudent={handleRemoveStudent}
-              getRoleBadge={getRoleBadge}
-              isSelectionMode={isSelectionMode}
-              selectedUsers={selectedUsers}
-              onSelectUser={handleSelectUser}
-              onSelectAll={handleSelectAll}
-              toggleSelectionMode={toggleSelectionMode}
-              handleBulkUnenroll={handleBulkUnenroll}
-              setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
-              timeSlotsData={timeSlotsData}
-              getStudentTimeSlot={getStudentTimeSlot}
-              version={version}
-              cohort={cohort}
-              setCohort={setCohort}
-            />
-          </TabsContent>
-
-          {/* Inactive Tab */}
-          <TabsContent value="INACTIVE" className="mt-4">
-            <EnrollmentsTable
-              totalDocuments={totalDocuments}
-              studentEnrollments={studentEnrollments}
-              enrollmentsLoading={enrollmentsLoading}
-              isSearching={isSearching}
-              enrollmentTab={enrollmentTab}
-              searchQuery={searchQuery}
-              limit={limit}
-              handleLimitChange={handleLimitChange}
-              handleSort={handleSort}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              isLoadingQuizScores={isLoadingQuizScores}
-              setIsExporting={setIsExporting}
-              unenrollMutation={unenrollMutation}
-              user={user}
-              handleViewProgress={handleViewProgress}
-              handleRemoveStudent={handleRemoveStudent}
-              getRoleBadge={getRoleBadge}
-              isSelectionMode={false}
-              selectedUsers={new Set()}
-              onSelectUser={handleSelectUser}
-              onSelectAll={handleSelectAll}
-              toggleSelectionMode={toggleSelectionMode}
-              handleBulkUnenroll={handleBulkUnenroll}
-              setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
-              timeSlotsData={timeSlotsData}
-              getStudentTimeSlot={getStudentTimeSlot}
-              version={version}
-              cohort={cohort}
-              setCohort={setCohort}
-            />
-          </TabsContent>
-        </Tabs>
 
           {/* Search */}
           <div className="flex flex-col sm:flex-row gap-4">
@@ -1248,23 +1144,6 @@ export default function CourseEnrollments() {
                   >
                     <X className="h-4 w-4" />
                   </Button>
-              {/* Enhanced Student Info */}
-              <div className="flex flex-wrap items-center gap-4 p-6 bg-gradient-to-r from-muted/30 to-muted/10 rounded-xl border border-border">
-                <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md">
-                  <AvatarImage src={selectedUser.avatar || "/placeholder.svg"} alt={selectedUser.name} />
-                  <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold">
-                    {selectedUser.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <p className="font-medium text-card-foreground truncate text-base md:text-lg">{selectedUser.name}</p>
-                  <p className="text-muted-foreground truncate">{selectedUser.email}</p>
-                  {selectedUser.cohortName && (
-                    <p className="text-muted-foreground truncate">(Cohort-{selectedUser.cohortName})</p>
-                  )}
                 </div>
 
                 {/* Enhanced Student Info & Content Summary */}
@@ -1307,6 +1186,10 @@ export default function CourseEnrollments() {
                           <SummaryRow
                             label="Items Completed"
                             value={`${progressDetail.completedItemsCount ?? 0} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
+                          />
+                          <SummaryRow
+                            label="Watch Hours"
+                            value={`${(progressDetail.watchHours ?? 0).toFixed(2)}h`}
                           />
                         </div>
                       </>
@@ -1378,76 +1261,6 @@ export default function CourseEnrollments() {
                           <span className="px-2 py-1 rounded bg-purple-100 text-purple-700">
                             {currentPath.item.name}
                           </span>
-              {/* Course Structure */}
-              <div className="space-y-4">
-                {enrollmentTab === "ACTIVE" && (
-                  <div className="flex justify-between">
-                    <TooltipProvider delayDuration={300}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              handleResetProgress({
-                                id: selectedUser.id,
-                                name: `${selectedUser.name || ""}`.trim() || "Unknown User",
-                                email: selectedUser.email,
-                                enrolledDate: selectedUser.enrolledDate,
-                                progress: 0,
-                                cohortId: selectedUser.cohortId,
-                                cohortName: selectedUser.cohortName,
-                              })
-                            }
-                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
-                            disabled={resetProgressMutation.isPending || selectedUser.isDeleted}
-                          >
-                            {resetProgressMutation.isPending ? (
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                              <RotateCcw className="h-4 w-4 mr-2" />
-                            )}
-                            Reset
-                          </Button>
-                        </TooltipTrigger>
-
-                        <TooltipContent>
-                          <p>Reset student progress</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              handleRecalculateProgress({
-                                id: selectedUser.id,
-                                name: `${selectedUser.name || ""}`.trim() || "Unknown User",
-                                email: selectedUser.email,
-                                enrolledDate: selectedUser.enrolledDate,
-                                progress: 0,
-                                cohortId: selectedUser.cohortId,
-                                cohortName: selectedUser.cohortName,
-                              })
-                            }
-                            className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
-                            disabled={
-                              unenrollMutation.isPending ||
-                              user?.email == selectedUser.email ||
-                              selectedUser.isDeleted
-                            }
-                          >
-                            {unenrollMutation.isPending ? (
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                              <RotateCcw className="h-4 w-4 mr-2" />
-                            )}
-                            Recalculate
-                          </Button>
-                        </TooltipTrigger>
 
                           <span className="ml-2 text-xs px-2 py-0.5 rounded border">
                             {currentPath.item.type}
@@ -1680,14 +1493,14 @@ export default function CourseEnrollments() {
                   </Button>
                 </div>
 
-              <div className="space-y-8">
-                <p className="text-lg text-card-foreground">
-                  Want to remove <strong className="text-primary">{userToRemove?.name}</strong> from{" "}
-                  <strong className="text-primary">
-                    {course.name} ({version.version}) ({userToRemove?.cohortName})
-                  </strong>
-                  ?
-                </p>
+                <div className="space-y-8">
+                  <p className="text-lg text-card-foreground">
+                    Want to remove <strong className="text-primary">{userToRemove?.name}</strong> from{" "}
+                    <strong className="text-primary">
+                      {course.name} ({version.version})
+                    </strong>
+                    ?
+                  </p>
 
                   <div className="flex gap-4 p-6 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl">
                     <div><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" /></div>
@@ -1786,47 +1599,7 @@ export default function CourseEnrollments() {
                 </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Enhanced Reset Progress Modal */}
-        {isResetDialogOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
-            <div
-              className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
-              onClick={() => setIsResetDialogOpen(false)}
-            />
-            <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-3xl w-full mx-4 sm:p-8 p-4 space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Reset Student Progress</h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsResetDialogOpen(false)}
-                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {selectedUser && (
-                <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-muted/30 to-muted/10 rounded-xl border border-border">
-                  <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md">
-                    <AvatarImage src={selectedUser.avatar || "/placeholder.svg"} alt={selectedUser.name} />
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold">
-                      {selectedUser.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-card-foreground truncate text-lg">{selectedUser.name}</p>
-                    <p className="text-muted-foreground truncate">{selectedUser.email}</p>
-                    <p className="text-muted-foreground truncate">Cohort: {selectedUser.cohortName}</p>
-                  </div>
-                </div>
-              )}
+          )}
 
           {/* Enhanced Reset Progress Modal */}
           {isResetDialogOpen && (
@@ -2291,10 +2064,7 @@ function EnrollmentsTable({
   handleBulkUnenroll,
   setIsTimeSlotsModalOpen,
   getStudentTimeSlot,
-  version,
-  cohort,
-  setCohort,
-}: any) {
+}: EnrollmentsTableProps) {
   const isInactiveTab = enrollmentTab === "INACTIVE"
 
   return (
@@ -2357,42 +2127,6 @@ function EnrollmentsTable({
             </Button>
           )}
 
-          {(version as any)?.cohortDetails?.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                >
-                <Layers className="h-4 w-4 text-muted-foreground" />
-        {cohort ? (version as any).cohortDetails.find((c: any) => c.id === cohort)?.name : "Select Cohort"}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuRadioGroup
-                  value={cohort ?? ""}
-                  onValueChange={(id) => {
-                    setCohort(id);
-                  }}
-                >
-            <DropdownMenuRadioItem
-              value={""}
-              onClick={() => setCohort(undefined)}>
-              All Cohorts
-            </DropdownMenuRadioItem>
-                  {(version as any)?.cohortDetails?.map((cohort: any) => (
-                    <DropdownMenuRadioItem
-                      key={cohort.id}
-                      value={cohort.id}
-                    >
-                      {cohort.name}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-
           {/* Bulk Actions Bar */}
           {isSelectionMode && selectedUsers.size > 0 && (
             <Button
@@ -2402,8 +2136,7 @@ function EnrollmentsTable({
               className="flex items-center gap-2 animate-in fade-in zoom-in duration-200"
             >
               <Trash2 className="h-4 w-4" />
-              {/* <span>Remove ({selectedUsers.size})</span> */}
-              <span>Remove</span>
+              <span>Remove ({selectedUsers.size})</span>
             </Button>
           )}
 
@@ -2600,7 +2333,7 @@ function EnrollmentsTable({
                 ) : (
                   studentEnrollments.map((enrollment: any) => (
                     <TableRow
-                      key={enrollment._id || `enrollment-${Math.random()}`}
+                      key={enrollment._id || enrollment.user?._id || `enrollment-${Math.random()}`}
                       className={`border-border hover:bg-muted/20 transition-colors duration-200 group ${isInactiveTab ? "opacity-80" : ""
                         }`}
                     >
@@ -2645,11 +2378,6 @@ function EnrollmentsTable({
                             <p className="text-xs md:text-sm text-muted-foreground truncate">
                               {enrollment?.user?.email || ""}
                             </p>
-                            {enrollment?.cohortName && (
-                            <p className="text-xs md:text-sm text-muted-foreground truncate">
-                              (Cohort- {enrollment?.cohortName || ""})
-                            </p>
-                            )}
                           </div>
                         </div>
                       </TableCell>
@@ -2728,20 +2456,19 @@ function EnrollmentsTable({
 
                                 contentCounts: {
                                   totalItems: enrollment.contentCounts?.total || 0,
-                                  videos: enrollment.contentCounts?.itemCounts?.VIDEO || 0,
-                                  quizzes: enrollment.contentCounts?.itemCounts?.QUIZ || 0,
-                                  articles: enrollment.contentCounts?.itemCounts?.BLOG || 0,
-                                  projects: enrollment.contentCounts?.itemCounts?.PROJECT || 0,
-                                  completedVideos: enrollment.contentCounts?.completedItemCounts?.VIDEO || 0,
-                                  completedQuizzes: enrollment.contentCounts?.completedItemCounts?.QUIZ || 0,
-                                  completedArticles: enrollment.contentCounts?.completedItemCounts?.BLOG || 0,
-                                  completedProjects: enrollment.contentCounts?.completedItemCounts?.PROJECT || 0,
+                                  videos: enrollment.contentCounts?.itemCounts.VIDEO || 0,
+                                  quizzes: enrollment.contentCounts?.itemCounts.QUIZ || 0,
+                                  articles: enrollment.contentCounts?.itemCounts.BLOG || 0,
+                                  projects: enrollment.contentCounts?.itemCounts.PROJECT || 0,
+                                  completedVideos: enrollment.contentCounts?.completedItemCounts.VIDEO || 0,
+                                  completedQuizzes: enrollment.contentCounts?.completedItemCounts.QUIZ || 0,
+                                  completedArticles: enrollment.contentCounts?.completedItemCounts.BLOG || 0,
+                                  completedProjects: enrollment.contentCounts?.completedItemCounts.PROJECT || 0,
                                   totalQuizScore: enrollment.totalQuizScore || 0,
                                   totalQuizMaxScore: enrollment.totalQuizMaxScore || 0,
                                 },
+
                                 isDeleted: enrollment.isDeleted,
-                                cohortId: enrollment.cohortId,
-                                cohortName: enrollment.cohortName
                               })
                             }
 
@@ -2759,7 +2486,6 @@ function EnrollmentsTable({
                             variant="ghost"
                             size="sm"
                             onClick={() =>
-                                {console.log("Remove student clicked:", enrollment);
                               handleRemoveStudent({
                                 id: enrollment.user?._id,
                                 name:
@@ -2768,9 +2494,7 @@ function EnrollmentsTable({
                                 email: enrollment.user?.email,
                                 enrolledDate: enrollment.enrollmentDate,
                                 progress: 0,
-                                cohortId: enrollment.cohortId,
-                                cohortName: enrollment.cohortName
-                              })}
+                              })
                             }
                             className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
                             disabled={
