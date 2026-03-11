@@ -241,6 +241,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                     deadline: "$rule.deadlineAt",
 
                     submission: {
+                        _id: { $toString: "$_id" },
                         status: "$status",
                         submittedAt: "$submittedAt",
                         isLate: "$isLate",
