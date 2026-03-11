@@ -1,22 +1,23 @@
-import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
+import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
 import {
+  CohortsResponse,
   CourseVersionWatchTimeResponse,
   CreateCourseVersionBody,
   UpdateCourseVersionBody,
 } from '#courses/classes/validators/CourseVersionValidators.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { instanceToPlain } from 'class-transformer';
-import { injectable, inject } from 'inversify';
-import { ClientSession, ObjectId } from 'mongodb';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {instanceToPlain} from 'class-transformer';
+import {injectable, inject} from 'inversify';
+import {ClientSession, ObjectId} from 'mongodb';
 import {
   NotFoundError,
   InternalServerError,
   BadRequestError,
 } from 'routing-controllers';
-import { Course, Module } from '../classes/index.js';
+import {Course, Module} from '../classes/index.js';
 import {
   courseVersionStatus,
   ICourse,
@@ -26,24 +27,26 @@ import {
   ProgressRepository,
   SettingRepository,
 } from '#root/shared/index.js';
-import { USERS_TYPES } from '#root/modules/users/types.js';
-import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
-import { COURSES_TYPES } from '../types.js';
-import { ModuleService } from './ModuleService.js';
-import { SectionService } from './SectionService.js';
-import { ItemService } from './ItemService.js';
-import { cloneModules } from '../utils/cloneModules.js';
-import { getCopyCourseName } from '../utils/getCopyCourseName.js';
-import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
+import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
+import {COURSES_TYPES} from '../types.js';
+import {ModuleService} from './ModuleService.js';
+import {SectionService} from './SectionService.js';
+import {ItemService} from './ItemService.js';
+import {cloneModules} from '../utils/cloneModules.js';
+import {getCopyCourseName} from '../utils/getCopyCourseName.js';
+import {SETTING_TYPES} from '#root/modules/setting/types.js';
 import {
   CourseSetting,
   CreateCourseSettingBody,
 } from '#root/modules/setting/index.js';
-import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
+import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
 import {
   QuestionBankRepository,
   QuestionRepository,
 } from '#root/modules/quizzes/repositories/index.js';
+import {InviteService} from '#root/modules/notifications/index.js';
+import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
 @injectable()
 export class CourseVersionService extends BaseService {
   constructor(
@@ -67,6 +70,8 @@ export class CourseVersionService extends BaseService {
     private readonly questionBankRepo: QuestionBankRepository,
     @inject(USERS_TYPES.ProgressRepo)
     private readonly progressRepository: ProgressRepository,
+    @inject(NOTIFICATIONS_TYPES.InviteService)
+    private readonly inviteService: InviteService,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -93,6 +98,7 @@ export class CourseVersionService extends BaseService {
 
       const createdVersion = await this.courseRepo.createVersion(
         {...newVersion, courseId: new ObjectId(newVersion.courseId)},
+        // body.cohorts,
         txnSession,
       );
       if (!createdVersion) {
@@ -109,7 +115,7 @@ export class CourseVersionService extends BaseService {
           proctors: {
             detectors: Object.values(ProctoringComponent).map(detector => ({
               detectorName: detector,
-              settings: { enabled: false, options: {} },
+              settings: {enabled: false, options: {}},
             })),
           },
           linearProgressionEnabled: false,
@@ -148,6 +154,27 @@ export class CourseVersionService extends BaseService {
       if (!readVersion) {
         throw new InternalServerError('Failed to read course version.');
       }
+      if (readVersion.cohorts?.length) {
+        const cohorts = await this.courseRepo.getCohortsByIds(
+          readVersion.cohorts,
+          undefined,
+          session,
+        );
+
+        for (const cohort of cohorts) {
+          if (!readVersion.cohorts.some(id => id.toString() === cohort._id.toString())) {
+            throw new InternalServerError(
+              `Cohort ID ${cohort._id} not referenced in course version ${courseVersionId}`
+            );
+          }
+        }
+        (readVersion as any).cohortDetails  = cohorts.map(cohort => ({
+          id: cohort._id.toString(),
+          name: cohort.name,
+          createdAt: cohort.createdAt,
+          updatedAt: cohort.updatedAt
+        }));
+      }
 
       const courseId = readVersion.courseId.toString();
 
@@ -172,7 +199,7 @@ export class CourseVersionService extends BaseService {
             const visibleSections = module.sections.filter(
               section => !section.isHidden,
             );
-            return { ...module, sections: visibleSections };
+            return {...module, sections: visibleSections};
           });
       }
 
@@ -181,6 +208,72 @@ export class CourseVersionService extends BaseService {
       ) as CourseVersion;
 
       return version;
+    });
+  }
+
+  public async getCohortsByVersion(
+    courseVersionId: string,
+    skip?: number,
+    limit?: number,
+    search?: string,
+    sortBy?: "name" | "createdAt" | "updatedAt",
+    sortOrder?: "asc" | "desc"
+  ):Promise<CohortsResponse>{
+    const  courseVersion = await this.courseRepo.readVersion(
+      courseVersionId
+    );
+    if(!courseVersion.cohorts || courseVersion.cohorts.length == 0){
+        const cohortDetails: CohortsResponse = {
+        version: courseVersion.version,
+      };
+      return cohortDetails;
+    }
+    const cohorts = 
+    await this.courseRepo.getCohortsByIds(
+      courseVersion.cohorts,{ search, sortBy, sortOrder, skip, limit }
+    );
+
+
+    const cohortDetails: CohortsResponse = {
+      cohorts: cohorts.map(cohort => ({
+        id: cohort._id.toString(),
+        name: cohort.name,
+        createdAt: cohort.createdAt,
+        updatedAt: cohort.updatedAt,
+        isPublic: cohort.isPublic
+      })),
+      version: courseVersion.version,
+    };
+
+    return cohortDetails;
+  }
+
+
+  public async updateCohortInCourseVersion(cohortId: string, cohortName: string, isPublic: boolean): Promise<boolean>{
+    return this._withTransaction(async session => {
+      if (!cohortName && (isPublic === null || isPublic === undefined)) {
+        throw new BadRequestError("No information provided in request body");
+      }
+      const existingCohort = await this.courseRepo.getCohortsByIds(Array.of(new ObjectId(cohortId)),undefined, session);
+      if(!existingCohort){
+        throw new NotFoundError("Cohort Id doesn't exist");
+      }
+      return await this.courseRepo.modifyCohortById(new ObjectId(cohortId), cohortName, isPublic, session);
+    });
+  }
+
+  public async deleteCohortInCourseVersion(versionId: string, cohortId: string):Promise<boolean>{
+    return this._withTransaction(async session => {
+      const existingCohort = await this.courseRepo.getCohortsByIds(Array.of(new ObjectId(cohortId)), undefined, session);
+      if(!existingCohort){
+        throw new NotFoundError("Cohort Id doesn't exist");
+      }
+      const enrollmentExists = await this.enrollmentService.enrollmentExists(versionId, cohortId, session);
+      if(enrollmentExists){
+        throw new BadRequestError("Students are already enrolled in this cohort, can't delete");
+      }
+      await this.courseRepo.deleteCohortById(cohortId, session);
+      return await this.courseRepo.removeCohortFromVersion(versionId, cohortId, session);
     });
   }
 
@@ -200,9 +293,27 @@ export class CourseVersionService extends BaseService {
       if (body.version) existingVersion.version = body.version;
       if (body.description) existingVersion.description = body.description;
       // Handle supportLink - allow setting, updating, or clearing
-      if (body.supportLink !== undefined) existingVersion.supportLink = body.supportLink;
+      if (body.supportLink !== undefined)
+        existingVersion.supportLink = body.supportLink;
       existingVersion.updatedAt = new Date();
+      if(body.cohorts){
+        const cohortIds = await this.courseRepo.createCohorts(
+          courseVersionId,
+          body.cohorts,
+          session
+        );
+        if (!existingVersion.cohorts) {
+          existingVersion.cohorts = [];
+        }
+        const existing = new Set(existingVersion.cohorts.map(id => id.toString()));
+        for (const id of cohortIds) {
+          if (!existing.has(id.toString())) {
+            existingVersion.cohorts.push(id);
+          }
+        }
+      }
 
+// console.log("Updating course version with data:", existingVersion, body);
       const updatedVersion = await this.courseRepo.updateVersion(
         courseVersionId,
         existingVersion,
@@ -240,9 +351,12 @@ export class CourseVersionService extends BaseService {
       if (!course) {
         throw new NotFoundError(`Course with ID ${courseId} not found.`);
       }
+      // Cancel pending invites regardless of which path we take
+      await this.inviteService.cancelPendingInvites({courseVersionId}, session);
 
       const versionsCount = course.versions.length;
       if (versionsCount === 1) {
+        // await this.inviteService.cancelPendingInvites({courseId}, session);
         const results = await this.courseRepo.delete(courseId, session);
         return true;
       }
@@ -319,7 +433,9 @@ export class CourseVersionService extends BaseService {
       console.log(`Modules to clone: ${existingVersion.modules.length}`);
 
       if (USE_WORKERS) {
-        const { startCourseCloneProcessing } = await import('#root/workers/clone-course.pool.js');
+        const {startCourseCloneProcessing} = await import(
+          '#root/workers/clone-course.pool.js'
+        );
 
         [newModules, existingEnrollments] = await Promise.all([
           startCourseCloneProcessing(
@@ -353,9 +469,14 @@ export class CourseVersionService extends BaseService {
       const durationMs = cloneEndTime - cloneStartTime;
       const durationSec = (durationMs / 1000).toFixed(2);
 
-      const totalSections = newModules.reduce((sum, mod) => sum + mod.sections.length, 0);
+      const totalSections = newModules.reduce(
+        (sum, mod) => sum + mod.sections.length,
+        0,
+      );
       const totalItemGroups = newModules.reduce(
-        (sum, mod) => sum + mod.sections.reduce((s, sec) => s + (sec.itemsGroupId ? 1 : 0), 0),
+        (sum, mod) =>
+          sum +
+          mod.sections.reduce((s, sec) => s + (sec.itemsGroupId ? 1 : 0), 0),
         0,
       );
 
@@ -364,12 +485,17 @@ export class CourseVersionService extends BaseService {
         for (const section of module.sections) {
           if (section.itemsGroupId) {
             try {
-              const itemsGroup = await this.itemRepo.readItemsGroup(section.itemsGroupId.toString());
+              const itemsGroup = await this.itemRepo.readItemsGroup(
+                section.itemsGroupId.toString(),
+              );
               if (itemsGroup?.items) {
                 totalItems += itemsGroup.items.length;
               }
             } catch (error) {
-              console.error(`Error reading items group ${section.itemsGroupId}:`, error);
+              console.error(
+                `Error reading items group ${section.itemsGroupId}:`,
+                error,
+              );
             }
           }
         }
@@ -411,7 +537,7 @@ export class CourseVersionService extends BaseService {
           proctors: {
             detectors: Object.values(ProctoringComponent).map(detector => ({
               detectorName: detector,
-              settings: { enabled: false, options: {} },
+              settings: {enabled: false, options: {}},
             })),
           },
           linearProgressionEnabled: false,
@@ -432,7 +558,11 @@ export class CourseVersionService extends BaseService {
     courseId: string,
     versionId: string,
   ): Promise<CourseVersionWatchTimeResponse> {
-    const totalWatchTime = await this.progressRepository.getCourseVersionTotalWatchTime(courseId, versionId);
+    const totalWatchTime =
+      await this.progressRepository.getCourseVersionTotalWatchTime(
+        courseId,
+        versionId,
+      );
     if (totalWatchTime === null) {
       throw new NotFoundError('Course version not found');
     }
@@ -450,12 +580,21 @@ export class CourseVersionService extends BaseService {
     return response;
   }
 
-  async updateCourseVersionStatus(versionId:string,versionStatus:courseVersionStatus):Promise<ICourseVersion|null>{
+  async updateCourseVersionStatus(
+    versionId: string,
+    versionStatus: courseVersionStatus,
+  ): Promise<ICourseVersion | null> {
     return this._withTransaction(async session => {
+      if (versionStatus === 'archived') {
+        await this.inviteService.cancelPendingInvites(
+          {courseVersionId: versionId},
+          session,
+        );
+      }
       const result = await this.courseRepo.updateCourseVersionStatus(
         versionId,
         versionStatus,
-        session
+        session,
       );
       return result;
     });

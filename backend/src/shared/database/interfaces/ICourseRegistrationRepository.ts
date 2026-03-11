@@ -1,4 +1,4 @@
-import { ICourseRegistration } from '#root/shared/interfaces/models.js';
+import { ICourseRegistration, ICourseVersion } from '#root/shared/interfaces/models.js';
 import { ClientSession } from 'mongodb';
 
 export interface ICourseRegistrationRepository {
@@ -18,7 +18,7 @@ export interface ICourseRegistrationRepository {
     session?: ClientSession,
   ): Promise<ICourseRegistration | null>;
   findAllregistrations(
-    versionId: string,
+    version: ICourseVersion,
     filter: { status?: string; search?: string },
     skip: number,
     limit: number,
@@ -48,4 +48,10 @@ export interface ICourseRegistrationRepository {
     registrationId: string,
     session?: ClientSession,
   ): Promise<boolean>;
+  findPendingRequestsByUserIdAndCohort(
+    userId: string,
+    versionId: string,
+    cohort?:string,
+    session?: ClientSession,
+  ): Promise<ICourseRegistration>;
 }
