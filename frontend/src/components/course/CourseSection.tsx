@@ -77,10 +77,10 @@ export const CourseSection = ({
             .filter((enrollment: any) => enrollment && enrollment.courseVersionId)
             .map((enrollment: any, index) => {
               const courseId = enrollment.courseVersionId as string;
-
+              const cohortId = enrollment?.cohortId as string;
               return (
                 <CourseCard
-                  key={courseId}
+                  key={courseId + cohortId}
                   enrollment={enrollment}
                   index={index}
                   variant={cardVariant || variant}

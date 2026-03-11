@@ -43,7 +43,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef }: VideoProps) {
+export default function Video({ URL, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef}: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -108,6 +108,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     userId: '',
     courseId: '',
     versionId: '',
+    cohortId: undefined, // Will be set when currentCourse is available
     rewindData: [],
     fastForwardData: []
   });
@@ -135,6 +136,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         userId: userId,
         courseId: currentCourse?.courseId || '',
         versionId: currentCourse?.versionId || '',
+        cohortId: currentCourse?.cohortId || undefined,
         // Don't override videoId - use the tracked one
       };
       await storeWatchTimeTrack({ body: trackData });
@@ -147,6 +149,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         userId: '',
         courseId: '',
         versionId: '',
+        cohortId: undefined,
         rewindData: [],
         fastForwardData: []
       });
@@ -261,9 +264,10 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         videoId: currentCourse.itemId || '',
         courseId: currentCourse.courseId || '',
         versionId: currentCourse.versionId || '',
+        cohortId: currentCourse.cohortId || undefined,
       }));
     }
-  }, [videoId, startTimeSeconds, currentCourse?.itemId, currentCourse?.courseId, currentCourse?.versionId]);
+  }, [videoId, startTimeSeconds, currentCourse?.itemId, currentCourse?.courseId, currentCourse?.versionId, currentCourse?.cohortId]);
 
   // // Ensure video doesn't autoplay accidentally
   // useEffect(() => {
@@ -377,6 +381,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
               sectionId: currentCourse!.sectionId ?? '',
               seekForwardEnabled, 
               nextItemId,
+              cohortId: currentCourse!.cohortId ?? '',
             },
           });
         }
@@ -567,6 +572,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
 
 
   function handleSendStartItem() {
+
     if (!currentCourse?.itemId) return;
     if(!isAlreadyWatched && !completedItemIdsRef.current.has(currentCourse!.itemId)){
       startItem.mutate({
@@ -580,6 +586,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
           itemId: currentCourse.itemId,
           moduleId: currentCourse.moduleId ?? '',
           sectionId: currentCourse.sectionId ?? '',
+          cohortId: currentCourse.cohortId ?? '',
         }
       });
     }
@@ -698,7 +705,6 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
     clearTimeout(stopTimeoutRef.current);
     stopTimeoutRef.current = null;
   }
-
     // Stop if started but not yet stopped (immediate on unmount, no debounce)
   if (!progressStoppedRef.current && !stopInFlightRef.current && watchItemIdRef.current && currentCourse) {
     stopInFlightRef.current = true;
@@ -716,6 +722,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
         sectionId: currentCourse.sectionId ?? '',
         seekForwardEnabled,
         nextItemId,
+        cohortId: currentCourse.cohortId ?? '',
       },
     });
   }
