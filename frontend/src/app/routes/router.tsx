@@ -50,6 +50,7 @@ import StudentLogin from '../pages/student/StudentLogin'
 import TeacherLogin from '../pages/teacher/TeacherLogin'
 import SelectRolePage from '../pages/SelectRolePage'
 import AuditPage from '../pages/teacher/AuditPage'
+import ConfigureCohorts from '../pages/teacher/configure-cohorts'
 
 
 // Root route with error and notFound handling
@@ -307,6 +308,13 @@ const teacherCourseInstructorsRoute = new Route({
   component: CourseInstructors,
 });
 
+// Teacher Course Instructors route
+const teacherConfigureCohortsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/cohorts',
+  component: ConfigureCohorts,
+});
+
 // Teacher Course Regstration requests
 const teacherCourseRegistrationRequests = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -436,7 +444,8 @@ const studentAnnouncementsRoute = new Route({
 
 export const studentCourseInviteRegistration = new Route({
   getParentRoute: () => rootRoute, // 👈 IMPORTANT: NOT studentLayoutRoute
-  path: "/student/course-registration/$versionId",
+  // path: "/student/course-registration/$versionId",
+  path: "/student/course-registration/$versionId/{-$cohort}",
   component: CourseRegistration,
   beforeLoad: () => {
     const { isAuthenticated, user } = useAuthStore.getState();
@@ -555,7 +564,8 @@ const routeTree = rootRoute.addChildren([
     teacherCourseRegistrationRequests,
     teacherFeedBackEditorRoute,
     teacherAnnouncementsRoute,
-    teacherAuditRoute
+    teacherAuditRoute,
+    teacherConfigureCohortsRoute
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
@@ -564,7 +574,7 @@ const routeTree = rootRoute.addChildren([
     studentCourseInviteRegistration,
     studentIssuesRoute,
     studentLeaderboardRoute,
-    studentAnnouncementsRoute
+    studentAnnouncementsRoute,
   ]),
   coursePageRoute,
 ]);

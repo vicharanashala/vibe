@@ -21,6 +21,7 @@ export class ProjectSubmissionRepository
     userId: string,
     versionId: string,
     courseId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<IProjectSubmission | null> {
     await this.init();
@@ -29,6 +30,7 @@ export class ProjectSubmissionRepository
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(versionId),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       { session },
     );
@@ -36,18 +38,26 @@ export class ProjectSubmissionRepository
   async getAllSubmissions(
     courseId: string,
     courseVersionId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<IProjectSubmissionWithUser> {
     await this.init();
+
+    const matchStage: any = {
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+    };
+
+    // Add cohort filter if cohortId is provided
+    if (cohortId) {
+      matchStage.cohortId = new ObjectId(cohortId);
+    }
 
     const submissions = await this._projectSubmissionCollection
       .aggregate(
         [
           {
-            $match: {
-              courseId: new ObjectId(courseId),
-              courseVersionId: new ObjectId(courseVersionId),
-            },
+            $match: matchStage,
           },
 
           {
@@ -78,6 +88,15 @@ export class ProjectSubmissionRepository
           },
 
           {
+            $lookup: {
+              from: 'cohorts',
+              localField: 'cohortId',
+              foreignField: '_id',
+              as: 'cohort',
+            },
+          },
+
+          {
             $group: {
               _id: {
                 courseId: '$courseId',
@@ -85,6 +104,7 @@ export class ProjectSubmissionRepository
               },
               course: { $first: '$course' },
               courseVersion: { $first: '$courseVersion' },
+              cohort: { $first: '$cohort' },
               userInfo: {
                 $push: {
                   firstName: { $arrayElemAt: ['$userInfo.firstName', 0] },
@@ -92,6 +112,7 @@ export class ProjectSubmissionRepository
                   email: { $arrayElemAt: ['$userInfo.email', 0] },
                   submissionURL: '$submissionURL',
                   comment: '$comment',
+                  cohortName: { $arrayElemAt: ['$cohort.name', 0] },
                 },
               },
             },
@@ -130,6 +151,7 @@ export class ProjectSubmissionRepository
     userId: string,
     submissionURL: string,
     comment: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<ID> {
     await this.init();
@@ -142,6 +164,7 @@ export class ProjectSubmissionRepository
         submissionURL,
         comment,
         createdAt: new Date(),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}), 
       },
       { session },
     );
@@ -182,6 +205,7 @@ export class ProjectSubmissionRepository
   async deleteByUserAndVersion(
     userId: string,
     courseVersionId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<boolean> {
     await this.init();
@@ -189,6 +213,7 @@ export class ProjectSubmissionRepository
       {
         userId: new ObjectId(userId),
         courseVersionId: new ObjectId(courseVersionId),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       { session },
     );

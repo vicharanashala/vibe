@@ -504,7 +504,7 @@ export function useChangePassword(): {
 // POST /courses/
 export function useCreateCourse(): {
   mutate: (variables: { body: components['schemas']['CreateCourseBody'] }) => void,
-  mutateAsync: (variables: { body: { name: string, description: string, versionName: string, versionDescription: string } }) => Promise<components['schemas']['CourseDataResponse']>,
+  mutateAsync: (variables: { body: { name: string, description: string, versionName: string, versionDescription: string, cohorts: string[]} }) => Promise<components['schemas']['CourseDataResponse']>,
   data: components['schemas']['CourseDataResponse'] | undefined,
   error: string | null,
   isPending: boolean,
@@ -585,7 +585,8 @@ export function useStudentCurrentProgressPath(
   userId?: string,
   courseId?: string,
   versionId?: string,
-  enabled?: boolean
+  enabled?: boolean,
+  cohortId?: string
 ) {
   const result = api.useQuery(
     "get",
@@ -593,7 +594,7 @@ export function useStudentCurrentProgressPath(
     {
       params: {
         path: { courseId: courseId!, versionId: versionId! },
-        query: { userId: userId! },
+        query: { userId: userId!, cohortId },
       },
     },
     {
@@ -605,6 +606,90 @@ export function useStudentCurrentProgressPath(
     data: result.data,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to load current progress') : null,
+    refetch: result.refetch
+  };
+}
+
+// GET /:userId/enrollments/courses/:courseId/versions/:versionId/progress-detail (API 2)
+export function useStudentProgressDetail(
+  userId?: string,
+  courseId?: string,
+  versionId?: string,
+  enabled?: boolean
+) {
+  const result = api.useQuery(
+    'get',
+    `/users/${userId}/enrollments/courses/${courseId}/versions/${versionId}/progress-detail` as any,
+    {
+      params: {
+        path: { userId: userId!, courseId: courseId!, versionId: versionId! },
+      },
+    },
+    {
+      enabled: Boolean(enabled && userId && courseId && versionId),
+    }
+  );
+
+  return {
+    data: result.data as {
+      _id: string;
+      userId: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      avatar?: string;
+      enrollmentDate: string;
+      percentCompleted: number;
+      completedItemsCount: number;
+      assignedTimeSlots?: any[];
+      contentCounts: {
+        totalItems: number;
+        itemCounts: {
+          VIDEO?: number;
+          QUIZ?: number;
+          BLOG?: number;
+          PROJECT?: number;
+        };
+      };
+      totalQuizScore: number;
+      totalQuizMaxScore: number;
+    } | undefined,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to load student progress') : null,
+    refetch: result.refetch
+  };
+}
+
+// GET /:userId/enrollments/courses/:courseId/versions/:versionId/course-structure (API 3)
+export function useStudentCourseStructure(
+  userId?: string,
+  courseId?: string,
+  versionId?: string,
+  enabled?: boolean
+) {
+  const result = api.useQuery(
+    'get',
+    `/users/${userId}/enrollments/courses/${courseId}/versions/${versionId}/course-structure` as any,
+    {
+      params: {
+        path: { userId: userId!, courseId: courseId!, versionId: versionId! },
+      },
+    },
+    {
+      enabled: Boolean(enabled && userId && courseId && versionId),
+    }
+  );
+
+  return {
+    data: result.data as {
+      _id: string;
+      userId: string;
+      courseStructure: any[];
+      totalItems: number;
+      itemCounts: any;
+    } | undefined,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to load course structure') : null,
     refetch: result.refetch
   };
 }
@@ -764,6 +849,148 @@ export function useUpdateCourseVersion(): {
   };
 }
 
+export interface CohortResponse {
+  id: string
+  name: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface CohortsResponse {
+  cohorts: CohortResponse[]
+  version: string
+}
+
+
+// GET /courses/{courseId}/versions/{versionId}/cohorts
+export function useCourseVersionCohorts(
+  courseId: string | undefined,
+  versionId: string | undefined,
+  page: number = 1,
+  limit: number = 10,
+  search: string = "",
+  sortBy: 'name' | 'createdAt' | 'updatedAt',
+  sortOrder: 'asc' | 'desc' = 'desc',
+  // enabled: boolean = true,
+  // filter: 'STUDENT' | 'OTHER',
+  // statusTab: 'ACTIVE' | "INACTIVE",
+  // cohort?: string
+): {
+  data: CohortsResponse | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+
+  const result = api.useQuery(
+    "get",
+    "/courses/{courseId}/versions/{versionId}/cohorts",
+    {
+      params: {
+        path: { courseId, versionId },
+        query: { page, limit, search, sortBy, sortOrder },
+      },
+      // enabled: enabled && !!courseId && !!courseVersionId,
+    }
+  );
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch course version enrollments') : null,
+    refetch: result.refetch,
+  };
+}
+
+  export function useCreateCohort():{
+  mutate: (variables: { params: { path: { courseId: string, versionId: string } }, body: {newCohortName: string} }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string } }, body: {newCohortName: string} }) => Promise<CohortsResponse>,
+  data: CohortsResponse | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/courses/{courseId}/versions/{versionId}/cohorts" as any);
+    return {
+    mutate: result.mutate,
+    mutateAsync: result.mutateAsync,
+    data: result.data,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+    error: result.error
+      ? result.error.message || "Create cohort failed"
+      : null
+  };
+}
+
+  export function useUpdateCohort():{
+  mutate: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: {newCohortName?: string, isPublic?: boolean} }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: {newCohortName?: string, isPublic?: boolean} }) => Promise<CohortsResponse>,
+  data: CohortsResponse | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("patch", "/courses/{courseId}/versions/{versionId}/cohorts/{cohortId}" as any);
+    return {
+    mutate: result.mutate,
+    mutateAsync: result.mutateAsync,
+    data: result.data,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+    error: result.error
+      ? result.error.message || "Create cohort failed"
+      : null
+  };
+}
+
+
+  export function useDeleteCohort():{
+  mutate: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } } }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } } }) => Promise<CohortsResponse>,
+  data: CohortsResponse | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("delete", "/courses/{courseId}/versions/{versionId}/cohorts/{cohortId}" as any);
+    return {
+    mutate: result.mutate,
+    mutateAsync: result.mutateAsync,
+    data: result.data,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+    error: result.error
+      ? result.error.message || "Create cohort failed"
+      : null
+  };
+}
+
+
 export function useCourseVersionArchive(): {
   mutate: (variables: { params: { path: { versionId: string } }, body: components['schemas']['UpdateCourseVersionStatusBody'] }) => void,
   mutateAsync: (variables: { params: { path: { courseId: string, versionId: string } }, body: components['schemas']['UpdateCourseVersionStatusBody'] }) => Promise<components['schemas']['CourseVersionDataResponse']>,
@@ -776,7 +1003,7 @@ export function useCourseVersionArchive(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("patch", "/courses/versions/{versionId}/archive" as any );
+  const result = api.useMutation("patch", "/courses/versions/{versionId}/archive" as any);
   return {
     ...result,
     error: result.error
@@ -992,7 +1219,7 @@ export function useCourseVersionAuditDetails(
 
 
 // GET /courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items
-export function useItemsBySectionId(versionId: string, moduleId: string, sectionId: string): {
+export function useItemsBySectionId(versionId: string, moduleId: string, sectionId: string, cohortId?: string): {
   data: components['schemas']['ItemDataResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -1009,7 +1236,7 @@ export function useItemsBySectionId(versionId: string, moduleId: string, section
       : null;
 
   const result = api.useQuery("get", "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items", {
-    params: { path: { versionId, moduleId, sectionId } }
+    params: { path: { versionId, moduleId, sectionId }, query: { cohortId } }
   }, { enabled: isEnabled ?? false });
 
   return {
@@ -1073,7 +1300,8 @@ export function useItemById(
   versionId: string,
   itemId: string,
   moduleId: string,
-  sectionId: string
+  sectionId: string,
+  cohortId?: string
 ): {
   data: components['schemas']['ItemDataResponse'] | undefined;
   isLoading: boolean;
@@ -1085,7 +1313,7 @@ export function useItemById(
     "get",
     "/courses/{courseId}/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/item/{itemId}",
     {
-      params: { path: { courseId, versionId, itemId, moduleId, sectionId } },
+      params: { path: { courseId, versionId, itemId, moduleId, sectionId }, query: { cohortId } },
     },
     {
       enabled: !!courseId && !!versionId && !!itemId,
@@ -1229,9 +1457,9 @@ export function useUpdateItem(): {
 }
 
 // DELETE /courses/itemGroups/{itemsGroupId}/items/{itemId}
-export function useDeleteItem(): { 
+export function useDeleteItem(): {
   mutate: (variables: { params: { path: { courseId: string, itemsGroupId: string, itemId: string } } }) => void,
-  mutateAsync: (variables: { params: { path: { courseId : string, itemsGroupId: string, itemId: string } } }) => Promise<components['schemas']['DeletedItemResponse']>,
+  mutateAsync: (variables: { params: { path: { courseId: string, itemsGroupId: string, itemId: string } } }) => Promise<components['schemas']['DeletedItemResponse']>,
   data: components['schemas']['DeletedItemResponse'] | undefined,
   error: string | null,
   isPending: boolean,
@@ -1292,8 +1520,8 @@ export function useEnrollUser(): {
 
 // POST /users/{userId}/enrollments/courses/{courseId}/versions/{courseVersionId}/unenroll
 export function useUnenrollUser(): {
-  mutate: (variables: { params: { path: { userId: string, courseId: string, courseVersionId: string } } }) => void,
-  mutateAsync: (variables: { params: { path: { userId: string, courseId: string, courseVersionId: string } } }) => Promise<components['schemas']['EnrollUserResponseData']>,
+  mutate: (variables: { params: { path: { userId: string, courseId: string, courseVersionId: string } } }, body: {cohortId?: string}) => void,
+  mutateAsync: (variables: { params: { path: { userId: string, courseId: string, courseVersionId: string } } }, body: {cohortId?: string}) => Promise<components['schemas']['EnrollUserResponseData']>,
   data: components['schemas']['EnrollUserResponseData'] | undefined,
   error: string | null,
   isPending: boolean,
@@ -1311,7 +1539,7 @@ export function useUnenrollUser(): {
 }
 
 // GET /users/enrollments
-export function useUserEnrollments(page?: number, limit?: number, enabled: boolean = true, search?: string, role = "STUDENT", tab: 'active'|'archived' = "active" ): {
+export function useUserEnrollments(page?: number, limit?: number, enabled: boolean = true, search?: string, role = "STUDENT", tab: 'active' | 'archived' = "active"): {
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -1371,7 +1599,8 @@ export function useCourseQuizScores(
   courseId: string | undefined,
   versionId: string | undefined,
   enabled: boolean = true,
-  statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE'
+  statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
+  cohortId?: string | null
 ): {
   data: any | undefined,
   isLoading: boolean,
@@ -1384,7 +1613,7 @@ export function useCourseQuizScores(
     {
       params: {
         path: { courseId, versionId },
-        query: { statusTab }
+        query: { statusTab, ...(cohortId && { cohortId }) }
       }
     },
     {
@@ -1414,6 +1643,7 @@ export function useCourseVersionEnrollments(
   enabled: boolean = true,
   filter: 'STUDENT' | 'OTHER',
   statusTab: 'ACTIVE' | "INACTIVE",
+  cohort?: string
 ): {
   data: components['schemas']['CourseVersionEnrollmentResponse'] | undefined,
   isLoading: boolean,
@@ -1426,7 +1656,7 @@ export function useCourseVersionEnrollments(
     {
       params: {
         path: { courseId, courseVersionId },
-        query: { page, limit, search, sortBy, sortOrder, filter, statusTab },
+        query: { page, limit, search, sortBy, sortOrder, filter, statusTab, cohort },
       },
       enabled: enabled && !!courseId && !!courseVersionId,
     }
@@ -1444,14 +1674,14 @@ export function useCourseVersionEnrollments(
 // Progress hooks
 
 // GET /users/progress/courses/{courseId}/versions/{courseVersionId}/
-export function useUserProgress(courseId: string, courseVersionId: string): {
+export function useUserProgress(courseId: string, courseVersionId: string, cohortId?: string): {
   data: components['schemas']['ProgressDataResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
   const result = api.useQuery("get", "/users/progress/courses/{courseId}/versions/{courseVersionId}", {
-    params: { path: { courseId, courseVersionId } }
+    params: { path: { courseId, courseVersionId }, query: { cohortId } }
   }, { enabled: !!courseId && !!courseVersionId }
   );
 
@@ -1602,7 +1832,7 @@ export function useStopItem() {
           params: {
             path: { courseId, courseVersionId },
           },
-          body: { itemId },
+          body: { itemId , cohortId},
         } = variables;
 
         //  queryClient.invalidateQueries({
@@ -1647,8 +1877,8 @@ export function useStopItem() {
 }
 
 export function useSkipOptionalItem(): {
-  mutate: (variables: { params: { path: { itemId: String } } }) => void,
-  mutateAsync: (variables: { params: { path: { itemId: String } } }) => Promise<unknown>,
+  mutate: (variables: { params: { path: { itemId: String }, query: { cohortId?: string } } }) => void,
+  mutateAsync: (variables: { params: { path: { itemId: String }, query: { cohortId?: string } } }) => Promise<unknown>,
   data: unknown | undefined,
   error: string | null,
   isPending: boolean,
@@ -1661,10 +1891,10 @@ export function useSkipOptionalItem(): {
   return {
     ...result,
     // error: result.error ? (result.error.message || 'Failed to skip item') : null
-   error: rawError
+    error: rawError
       ? rawError.message
-        ?? rawError.response?.data?.message
-        ?? "Failed to skip item"
+      ?? rawError.response?.data?.message
+      ?? "Failed to skip item"
       : null,
   }
 }
@@ -2224,8 +2454,8 @@ export interface QuestionAnswersBody {
 // --- Question Controller Hooks ---
 // Quiz hooks
 export function useAttemptQuiz(): {
-  mutate: (variables: { params: { path: { quizId: string } } }) => void,
-  mutateAsync: (variables: { params: { path: { quizId: string } } }) => Promise<CreateAttemptResponse>,
+  mutate: (variables: { params: { path: { quizId: string } }, body: { cohortId?: string } }) => void,
+  mutateAsync: (variables: { params: { path: { quizId: string } }, body: { cohortId?: string }} ) => Promise<CreateAttemptResponse>,
   data: CreateAttemptResponse | undefined,
   error: string | null,
   isPending: boolean,
@@ -2276,8 +2506,8 @@ export interface SaveQuizResponse {
 }
 
 export function useSaveQuiz(): {
-  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[] } }) => void,
-  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[] } }) => Promise<SaveQuizResponse>,
+  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[] , cohortId?: string } }) => void,
+  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[] , cohortId?: string } }) => Promise<SaveQuizResponse>,
   data: SaveQuizResponse | undefined,
   error: string | null,
   isPending: boolean,
@@ -2303,8 +2533,8 @@ export function useSaveQuiz(): {
 }
 
 export function useSubmitQuiz(): {
-  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined } }) => void,
-  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined } }) => Promise<SubmitAttemptResponse>,
+  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, cohortId?: string } }) => void,
+  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined , cohortId?: string } }) => Promise<SubmitAttemptResponse>,
   data: SubmitAttemptResponse | undefined,
   error: string | null,
   isPending: boolean,
@@ -3100,6 +3330,7 @@ export interface SubmitProjectBody {
   watchItemId: string;
   submissionURL: string;
   comment?: string;
+  cohortId?: string;
 }
 
 export interface ProjectSubmissionResponse {
@@ -3140,7 +3371,7 @@ export interface ProjectSubmissionsResponse {
   userInfo: ProjectSubmissionUserInfo[];
 }
 
-export function useProjectSubmissions(courseId: string, versionId: string): {
+export function useProjectSubmissions(courseId: string, versionId: string, cohortId?: string): {
   data: ProjectSubmissionsResponse | undefined,
   isLoading: boolean,
   error: string | null,
@@ -3150,7 +3381,10 @@ export function useProjectSubmissions(courseId: string, versionId: string): {
     "get",
     "/project/course/{courseId}/version/{versionId}/submissions",
     {
-      params: { path: { courseId, versionId } }
+      params: { 
+        path: { courseId, versionId },
+        ...(cohortId && { query: { cohortId } })
+      }
     },
     { enabled: !!courseId && !!versionId }
   );
@@ -3311,9 +3545,9 @@ export const useGetCourseRegistrationRequests = (
 
 
 
-export const useUpdateRegistrationStatus = (): {
-  mutate: (registrationId: string, status: RegistrationStatus) => void;
-  mutateAsync: (registrationId: string, status: RegistrationStatus) => Promise<{
+export const useUpdateRegistrationStatus = (): { 
+  mutate: (registrationId: string, status: RegistrationStatus, cohort?: string) => void;
+  mutateAsync: (registrationId: string, status: RegistrationStatus, cohort?: string) => Promise<{
     message: string;
     registrationId: string;
   }>;
@@ -3329,16 +3563,16 @@ export const useUpdateRegistrationStatus = (): {
   const result = api.useMutation('patch', '/course/registration/status/{registrationId}' as any);
 
   return {
-    mutate: (registrationId, status) =>
+    mutate: (registrationId, status, cohort) =>
       result.mutate({
         params: { path: { registrationId } },
-        body: { status },
+        body: { status, cohort },
       }),
 
-    mutateAsync: (registrationId, status) =>
+    mutateAsync: (registrationId, status, cohort) =>
       result.mutateAsync({
         params: { path: { registrationId } },
-        body: { status },
+        body: { status, cohort },
       }),
 
     data: result.data as { message: string; registrationId: string } | undefined,
@@ -3685,7 +3919,7 @@ export const useAutoApprovalSettings = (
       enabled: !!versionId,
     }
   );
-  
+
   return {
     settings: result.data as { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] } | undefined,
     isLoading: result.isLoading,
@@ -4055,7 +4289,8 @@ export const exportQuizSubmissions = async (quizId: string) => {
 
 export function useModuleProgress(
   courseId: string,
-  versionId: string
+  versionId: string,
+  cohortId?: string
 ): {
   data: {
     moduleId: string;
@@ -4072,7 +4307,8 @@ export function useModuleProgress(
     `/users/progress/courses/${courseId}/versions/${versionId}/modules` as any,
     {
       params: {
-        path: { courseId, versionId }
+        path: { courseId, versionId },
+        query: {cohortId}
       }
     },
     {
@@ -4092,7 +4328,8 @@ export function useModuleProgress(
 export function useUserModuleProgress(
   userId: string,
   courseId: string,
-  versionId: string
+  versionId: string,
+  cohortId?: string
 ): {
   data: {
     modules: {
@@ -4111,7 +4348,8 @@ export function useUserModuleProgress(
     `/users/${userId}/enrollments/courses/${courseId}/versions/${versionId}/modules/progress` as any,
     {
       params: {
-        path: { userId, courseId, versionId }
+        path: { userId, courseId, versionId },
+        query: {cohortId}
       }
     },
     {
@@ -4322,6 +4560,7 @@ export function useRecalculateStudentProgress(): {
       courseId: string;
       courseVersionId: string;
       userId?: string;
+      cohortId?: string;
     };
   }) => void;
   mutateAsync: (variables: {
@@ -4329,6 +4568,7 @@ export function useRecalculateStudentProgress(): {
       courseId: string;
       courseVersionId: string;
       userId?: string;
+      cohortId?: string;
     };
   }) => Promise<string>;
   data: string | undefined;
@@ -4339,6 +4579,7 @@ export function useRecalculateStudentProgress(): {
   isIdle: boolean;
   reset: () => void;
   status: 'idle' | 'pending' | 'success' | 'error';
+  cohort?: string;
 } {
   const result = api.useMutation(
     'post',
@@ -4575,17 +4816,19 @@ export function useChooseTimeSlot(): {
 
 // POST /timeslots/teacher/remove-student
 export function useRemoveStudentFromTimeSlot(): {
-  mutateAsync: (variables:{body: {
-    courseId: string;
-    courseVersionId: string;
-    studentId: string;
-    timeSlot: { from: string; to: string };
-  }}) => Promise<any>;
+  mutateAsync: (variables: {
+    body: {
+      courseId: string;
+      courseVersionId: string;
+      studentId: string;
+      timeSlot: { from: string; to: string };
+    }
+  }) => Promise<any>;
   isPending: boolean;
   error: string | null;
 } {
   const result = api.useMutation("post", "/timeslots/teacher/remove-student");
-  
+
   return {
     ...result,
     error: result.error ? (result.error.message || 'Failed to remove student from time slot') : null

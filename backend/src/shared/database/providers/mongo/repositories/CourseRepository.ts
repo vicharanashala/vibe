@@ -2,6 +2,7 @@ import { GLOBAL_TYPES } from '#root/types.js';
 import { ICourseRepository } from '#shared/database/interfaces/ICourseRepository.js';
 import {
   courseVersionStatus,
+  ICohort,
   ICourse,
   ICourseVersion,
   ID,
@@ -56,6 +57,7 @@ export class CourseRepository implements ICourseRepository {
   private enrollmentCollection: Collection<IEnrollment>;
   private inviteCollection: Collection<Invite>;
   private questionBankCollection: Collection<IQuestionBank>;
+  private cohortsCollection: Collection<ICohort>;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -100,6 +102,8 @@ export class CourseRepository implements ICourseRepository {
     this.itemsGroupCollection.createIndex({ 'items._id': 1 });
 
     this.itemsGroupCollection.createIndex({ 'items.type': 1 });
+
+    this.cohortsCollection = await this.db.getCollection<ICohort>('cohorts');
   }
 
   async getDBClient(): Promise<MongoClient> {
@@ -237,6 +241,192 @@ export class CourseRepository implements ICourseRepository {
     }
     return true;
   }
+
+  async getCohortsByIds(
+    cohortIds: ID[],
+    options?: {
+      search?: string
+      sortBy?: "name" | "createdAt" | "updatedAt"
+      sortOrder?: "asc" | "desc"
+      skip?: number
+      limit?: number
+    },
+    session?: ClientSession,
+  ): Promise<ICohort[]> {
+    await this.init();
+    const objectIds = cohortIds.map(id => new ObjectId(id));
+    const {
+      search = "",
+      sortBy = "createdAt",
+      sortOrder = "desc",
+      skip = 0,
+      limit = 10
+    } = options || {}
+
+    // return await this.cohortsCollection
+    //   .find({ _id: { $in: objectIds } }, { session })
+    //   .toArray();
+    const query: any = {
+    _id: { $in: objectIds }
+  }
+
+  if (search && search.trim() !== "") {
+    query.name = { $regex: search, $options: "i" }
+  }
+
+  const sort: any = {
+    [sortBy]: sortOrder === "asc" ? 1 : -1
+  }
+
+  return this.cohortsCollection
+    .find(query, { session })
+    .sort(sort)
+    .skip(skip)
+    .limit(limit)
+    .toArray()
+  }
+
+  async createCohorts(
+    versionId: string,
+    cohorts: string[],
+    session?: ClientSession
+  ): Promise<ObjectId[]> {
+
+    await this.init();
+
+    if (!cohorts?.length) return [];
+
+    const unique = [...new Set(cohorts.map(c => c.trim()))];
+
+    const versionObjectId = new ObjectId(versionId);
+
+    const cohortsToInsert: ICohort[] = unique.map(name => ({
+      courseVersionId: versionObjectId,
+      name,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isPublic: false,
+    }));
+
+    const result = await this.cohortsCollection.insertMany(
+      cohortsToInsert,
+      { session }
+    );
+
+    return Object.values(result.insertedIds) as ObjectId[];
+  }
+
+  async addCohortsToVersion(
+    versionId: string,
+    cohortIds: ObjectId[],
+    session?: ClientSession
+  ):Promise<boolean> {
+    await this.init();
+    try{
+      await this.courseVersionCollection.updateOne(
+        { _id: new ObjectId(versionId) },
+        { $set: { cohorts: cohortIds } },
+        { session }
+      );
+      return true;
+    } catch(err){
+      throw new InternalServerError(
+        'Failed to add Cohorts To Version.\n More Details: ' + err,
+      );
+    }
+  }
+
+  // async pushCohortsToVersion(
+  //   versionId: string,
+  //   cohortIds: ObjectId[],
+  //   session?: ClientSession
+  // ):Promise<boolean> {
+  //   await this.init();
+  //   try{
+  //     await this.courseVersionCollection.updateOne(
+  //       { _id: new ObjectId(versionId) },
+  //       {
+  //         $addToSet: {
+  //           cohorts: { $each: cohortIds }
+  //         }
+  //       },
+  //       { session }
+  //     );
+  //     return true;
+  //   } catch(err){
+  //     throw new InternalServerError(
+  //       'Failed to add Cohorts To Version.\n More Details: ' + err,
+  //     );
+  //   }
+  // }
+
+  async modifyCohortById(
+    cohortId: ObjectId,
+    cohortName?: string,
+    isPublic?: boolean,
+    session?: ClientSession
+  ): Promise<boolean> {
+    try {
+
+      const updateFields: any = {}
+      if (cohortName) {
+        updateFields.name = cohortName
+      }
+      if (!(isPublic === null || isPublic === undefined)) {
+        updateFields.isPublic = isPublic
+      }
+      if (Object.keys(updateFields).length === 0) {
+        return false
+      }
+      const result = await this.cohortsCollection.updateOne(
+        { _id: cohortId },
+        { $set: updateFields },
+        { session }
+      )
+      return result.modifiedCount === 1
+
+    } catch (err) {
+      throw new InternalServerError(
+        "Failed to modify cohort.\nMore Details: " + err
+      )
+    }
+  }
+
+  async deleteCohortById(
+    cohortId: string,
+    session: ClientSession
+  ): Promise<boolean> {
+    try {
+      const result = await this.cohortsCollection.deleteOne(
+        { _id: new ObjectId(cohortId) },
+        { session }
+      );
+
+      return result.deletedCount === 1;
+    } catch (err) {
+      throw new InternalServerError(
+        "Failed to Delete cohort.\nMore Details: " + err
+      );
+    }
+  }
+
+  async removeCohortFromVersion(
+    versionId: string,
+    cohortId: string,
+    session?: ClientSession
+  ): Promise<boolean> {
+    const result = await this.courseVersionCollection.updateOne(
+      { _id: new ObjectId(versionId) },
+      {
+        $pull: {
+          cohorts: new ObjectId(cohortId)
+        }
+      },
+      { session }
+    );
+
+    return result.modifiedCount === 1;
+}
 
   async createVersion(
     courseVersion: CourseVersion,
@@ -560,6 +750,7 @@ export class CourseRepository implements ICourseRepository {
             itemsGroupId: new ObjectId(section.itemsGroupId),
           })),
         })),
+        cohorts: (courseVersion.cohorts||[]).map(cohort=> new ObjectId(cohort))
       }
       const { _id: _, ...fields } = courseVersion;
 
@@ -626,6 +817,22 @@ export class CourseRepository implements ICourseRepository {
           })),
         };
       });
+
+      if (version?.cohorts?.length > 0) {
+        const cohortDeleteResult =  await this.cohortsCollection.updateMany(
+          { courseVersionId: new ObjectId(versionId) },
+          {
+            $set: {
+              isDeleted: true,
+              deletedAt: now
+            }
+          },
+          { session }
+        );
+        if (cohortDeleteResult.modifiedCount !== version?.cohorts?.length) {
+          throw new InternalServerError('Failed to delete cohorts');
+        }
+      }
 
       const versionDeleteResult = await this.courseVersionCollection.updateOne(
         {

@@ -170,14 +170,17 @@ export class EnrollmentController {
   })
   async unenrollUser(
     @Params() params: EnrollmentParams,
-    @Ability(getEnrollmentAbility) { ability, user },
+    @Ability(getEnrollmentAbility) {ability, user},
+    @Body() body: {cohortId?: string},
     @Req() req: Request,
   ): Promise<EnrollUserResponse> {
+
     const { userId, courseId, versionId } = params;
     const enrollmentData = await this.enrollmentService.findActiveEnrollment(
       userId,
       courseId,
       versionId,
+      body.cohortId
     );
     // Create an enrollment resource object for permission checking
     const enrollmentResource = subject('Enrollment', {
@@ -346,7 +349,6 @@ export class EnrollmentController {
     const { page, limit, search = '', role, tab = 'active' } = query;
     const userId = user._id.toString();
     const skip = (page - 1) * limit;
-
     // 🚀 Run DB queries in parallel
     const [enrollments, totalDocuments, activeCount, archivedCount] = await Promise.all([
       this.enrollmentService.getEnrollments(userId, skip, limit, role, search, tab),
@@ -366,7 +368,6 @@ export class EnrollmentController {
         archivedCount: archivedCount,
       };
     }
-
     return {
       totalDocuments,
       totalPages: Math.ceil(totalDocuments / limit),
@@ -398,7 +399,6 @@ export class EnrollmentController {
     @Ability(getEnrollmentAbility) { ability },
   ): Promise<EnrolledUserResponse> {
     const { userId, courseId, versionId } = params;
-
     // Create an enrollment resource object for permission checking
     const enrollmentResource = subject('Enrollment', {
       userId,
@@ -462,6 +462,7 @@ export class EnrollmentController {
       sortOrder = 'desc',
       filter,
       statusTab = 'ACTIVE',
+      cohort,
     } = query;
 
     if (page < 1 || limit < 1) {
@@ -483,12 +484,8 @@ export class EnrollmentController {
         sortOrder,
         filter,
         statusTab,
+        cohort
       );
-
-      // console.log("Enrollments Data:", enrollmentsData)
-      // console.log("Enrollments Data:", enrollmentsData.enrollments.map(e => e.userInfo));
-      console.log("Enrollments Data:", enrollmentsData.enrollments.map(e => e.contentCounts));
-
     if (
       !enrollmentsData ||
       !enrollmentsData.enrollments ||
@@ -523,9 +520,12 @@ export class EnrollmentController {
           user: { ...enrollment.userInfo, _id: enrollment.userId },
           progress: enrollment.percentCompleted,
           completedItemsCount: enrollment.completedItemsCount || 0,
+          assignedTimeSlots: enrollment.assignedTimeSlots || [],
           totalQuizScore: enrollment.totalQuizScore || 0,
           totalQuizMaxScore: enrollment.totalQuizMaxScore || 0,
           contentCounts: enrollment.contentCounts,
+          cohortId: enrollment.cohortId,
+          cohortName: enrollment.cohortName
         }))
         .sort((a, b) => {
           // sort by isDeleted deleted should be at the bottom
@@ -537,6 +537,72 @@ export class EnrollmentController {
       totalPages,
       currentPage: page,
     };
+  }
+
+  @OpenAPI({
+    summary: 'Get student progress detail for the View Progress modal',
+    description: 'Returns content summary (completion %, total items, quiz score, item type counts) for a specific enrolled student. Intended to be called only when the instructor opens the View Progress modal.',
+  })
+  @Authorized()
+  @Get('/:userId/enrollments/courses/:courseId/versions/:versionId/progress-detail')
+  @HttpCode(200)
+  async getStudentProgressDetail(
+    @Params() params: EnrollmentParams,
+    @Ability(getEnrollmentAbility) { ability }: any,
+  ): Promise<any> {
+    const { userId, courseId, versionId } = params;
+
+    const enrollmentResource = subject('Enrollment', { courseId, versionId });
+    if (!ability.can(EnrollmentActions.ViewAll, enrollmentResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to view this student progress',
+      );
+    }
+
+    const detail = await this.enrollmentService.getStudentProgressDetail(
+      userId,
+      courseId,
+      versionId,
+    );
+
+    if (!detail) {
+      return { message: 'Enrollment not found' };
+    }
+
+    return detail;
+  }
+
+  @OpenAPI({
+    summary: 'Get student course structure for the View Course Structure panel',
+    description: 'Returns the full course module/section structure and the current learning position for a specific enrolled student. Intended to be called lazily when the instructor clicks View Course Structure.',
+  })
+  @Authorized()
+  @Get('/:userId/enrollments/courses/:courseId/versions/:versionId/course-structure')
+  @HttpCode(200)
+  async getStudentCourseStructure(
+    @Params() params: EnrollmentParams,
+    @Ability(getEnrollmentAbility) { ability }: any,
+  ): Promise<any> {
+    const { userId, courseId, versionId } = params;
+
+    const enrollmentResource = subject('Enrollment', { courseId, versionId });
+    if (!ability.can(EnrollmentActions.ViewAll, enrollmentResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to view this student course structure',
+      );
+    }
+
+    const structure = await this.enrollmentService.getStudentCourseStructure(
+      userId,
+      courseId,
+      versionId,
+    );
+
+    if (!structure) {
+      return { message: 'Enrollment not found' };
+    }
+
+    return structure;
   }
   @OpenAPI({
     summary: 'Update Enrollment Progress',
@@ -655,7 +721,7 @@ export class EnrollmentController {
   @OpenAPI({
     summary: 'Export quiz scores for all students in a course version',
     description:
-      'Returns quiz scores for all students in the specified course version',
+      'Returns quiz scores for all students in the specified course version. Can be filtered by cohort using the cohortId query parameter.',
   })
   //TODO:  We should update this Param to Params in both frontend and backend
   @ResponseSchema(QuizScoresExportResponseDto, {
@@ -675,6 +741,7 @@ export class EnrollmentController {
     @Param('versionId') versionId: string,
     @QueryParam('statusTab') statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
     @Ability(getEnrollmentAbility) { ability, user },
+    @QueryParam('cohortId') cohortId?: string,
   ): Promise<QuizScoresExportResponseDto> {
     // Check if user has instructor or manager role (can view course-level enrollments)
     const courseResource = subject('Enrollment', { courseId });
@@ -689,11 +756,11 @@ export class EnrollmentController {
         'You do not have permission to view quiz scores for this course',
       );
     }
-
     return this.enrollmentService.getQuizScoresForCourseVersion(
       courseId,
       versionId,
       statusTab,
+      cohortId,
     );
   }
   @OpenAPI({
@@ -814,7 +881,6 @@ export class EnrollmentController {
     const { page, limit, search = '', role, courseVersionId } = query;
     const userId = user._id.toString();
     const skip = (page - 1) * limit;
-
     // 🚀 Run DB queries in parallel
     const [enrollments, totalDocuments] = await Promise.all([
       this.enrollmentService.getDetailedEnrollment(
@@ -865,6 +931,7 @@ export class EnrollmentController {
   async getUserModuleProgress(
     @Params() params: EnrollmentParams,
     @Ability(getEnrollmentAbility) { ability }: any,
+    @QueryParam('cohortId') cohortId?: string,
   ): Promise<{
     modules: Array<{
       moduleId: string;
@@ -874,7 +941,6 @@ export class EnrollmentController {
     }>;
   }> {
     const { userId, courseId, versionId } = params;
-
     // Check permission
     const enrollmentResource = subject('Enrollment', {
       userId,
@@ -892,6 +958,7 @@ export class EnrollmentController {
       userId,
       courseId,
       versionId,
+      cohortId
     );
 
     return { modules: moduleProgress };
