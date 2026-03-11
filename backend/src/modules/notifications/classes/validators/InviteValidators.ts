@@ -1,6 +1,7 @@
 import {Course} from '#root/modules/courses/classes/index.js';
 import {
   EnrollmentRole,
+  ID,
   ObjectIdToString,
   StringToObjectId,
 } from '#root/shared/index.js';
@@ -169,6 +170,13 @@ class InviteBody {
   @ValidateNested({each: true})
   @Type(() => EmailInvite)
   inviteData: EmailInvite[];
+
+  @IsOptional()
+  @JSONSchema({
+    description: 'Cohort to which the users will be invited (if applicable)',
+    example: 'Cohort A', 
+    })
+  cohortId?: ID;
 }
 export type InviteStatus =
   | 'ACCEPTED'

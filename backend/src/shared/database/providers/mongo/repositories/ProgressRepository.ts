@@ -94,6 +94,7 @@ class ProgressRepository {
     userId: string,
     courseId: string,
     courseVersionId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<string[]> {
     await this.init();
@@ -106,6 +107,7 @@ class ProgressRepository {
         courseVersionId: new ObjectId(courseVersionId),
         endTime: { $exists: true, $ne: null },
         isDeleted: { $ne: true },
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       { session },
     );
@@ -139,21 +141,39 @@ class ProgressRepository {
     courseId: string,
     courseVersionId: string,
     itemId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<boolean> {
     await this.init();
 
-    const existing = await this.watchTimeCollection.findOne(
-      {
-        userId: new ObjectId(userId),
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(courseVersionId),
-        itemId: new ObjectId(itemId),
-        endTime: { $exists: true, $ne: null },
-        isDeleted: { $ne: true },
-      },
-      { session, limit: 1 },
-    );
+    // let existing;
+    // if(cohortId){
+    //   existing = await this.watchTimeCollection.findOne(
+    //   {
+    //     userId: new ObjectId(userId),
+    //     courseId: new ObjectId(courseId),
+    //     courseVersionId: new ObjectId(courseVersionId),
+    //     itemId: new ObjectId(itemId),
+    //     ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+    //     endTime: { $exists: true, $ne: null },
+    //     isDeleted: { $ne: true },
+    //   },
+    //   { session, limit: 1 },
+    // );
+    // } else{
+    const  existing = await this.watchTimeCollection.findOne(
+        {
+          userId: new ObjectId(userId),
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+          itemId: new ObjectId(itemId),
+          endTime: { $exists: true, $ne: null },
+          isDeleted: { $ne: true },
+        },
+        { session, limit: 1 },
+      );
+    // }
 
     return existing !== null;
   }
@@ -243,6 +263,7 @@ class ProgressRepository {
     userId: string,
     courseId: string,
     courseVersionId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
@@ -255,6 +276,7 @@ class ProgressRepository {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       { $set: { isDeleted: true, deletedAt: new Date() } },
       { session },
@@ -309,6 +331,7 @@ class ProgressRepository {
     userId: string,
     quizItemIds: string[],
     maxAttemptsMap: Record<string, number>,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<{
     attemptDeletes: Array<{ deleteMany: { filter: any } }>;
@@ -332,6 +355,7 @@ class ProgressRepository {
           {
             userId: { $in: [userIdStr, userIdObj] },
             quizId: { $in: [quizIdStr, quizIdObj] },
+            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
           },
           { session },
         )
@@ -347,6 +371,7 @@ class ProgressRepository {
           filter: {
             userId: { $in: [userIdStr, userIdObj] },
             quizId: { $in: [quizIdStr, quizIdObj] },
+            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
           },
         },
       });
@@ -357,6 +382,7 @@ class ProgressRepository {
           filter: {
             quizId: { $in: [quizIdStr, quizIdObj] },
             userId: { $in: [userIdStr, userIdObj] },
+            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
           },
           update: {
             $set: {
@@ -411,6 +437,7 @@ class ProgressRepository {
     userId: string | ObjectId,
     courseId: string,
     courseVersionId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<IProgress | null> {
     await this.init();
@@ -419,7 +446,8 @@ class ProgressRepository {
         userId: { $in: [new ObjectId(userId), userId] },
         courseId: { $in: [new ObjectId(courseId), courseId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
-        isDeleted: { $ne: true }
+        isDeleted: { $ne: true },
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       {
         session,
@@ -431,6 +459,7 @@ class ProgressRepository {
     userId: string | ObjectId,
     courseId: string,
     courseVersionId: string,
+    cohort?: string,
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
@@ -439,6 +468,7 @@ class ProgressRepository {
         userId: { $in: [new ObjectId(userId), userId] },
         courseId: { $in: [new ObjectId(courseId), courseId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
+        ...(cohort ? { cohort } : {}),
       },
       { $set: { isDeleted: true, deletedAt: new Date() } },
       {
@@ -465,6 +495,7 @@ class ProgressRepository {
     courseId: string,
     courseVersionId: string,
     progress: Partial<CurrentProgress>,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<IProgress | null> {
     await this.init();
@@ -492,6 +523,7 @@ class ProgressRepository {
         userId: { $in: [new ObjectId(userId), userId] },
         courseId: { $in: [new ObjectId(courseId), courseId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       { $set: normalizedProgress },
       { returnDocument: 'after', session },
@@ -521,6 +553,7 @@ class ProgressRepository {
     courseId: string,
     courseVersionId: string,
     itemId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<string | null> {
     await this.init();
@@ -531,6 +564,9 @@ class ProgressRepository {
       itemId: new ObjectId(itemId),
       startTime: new Date(),
     };
+    if(cohortId){
+      watchTime.cohortId = new ObjectId(cohortId);
+    }
     const result = await this.watchTimeCollection.insertOne(watchTime, {
       session,
     });
@@ -541,6 +577,7 @@ class ProgressRepository {
   }
   async stopItemTracking(
     watchTimeId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<IWatchTime | null> {
     await this.init();
@@ -548,6 +585,7 @@ class ProgressRepository {
       {
         _id: new ObjectId(watchTimeId),
         isDeleted: { $ne: true },
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       { $set: { endTime: new Date() } },
       { returnDocument: 'after', session },
@@ -560,6 +598,7 @@ class ProgressRepository {
     itemId: string | string[],
     courseId?: string,
     courseVersionId?: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<IWatchTime[] | null> {
     await this.init();
@@ -580,6 +619,9 @@ class ProgressRepository {
     }
     if (courseVersionId) {
       query.courseVersionId = new ObjectId(courseVersionId);
+    }
+    if(cohortId){
+      query.cohortId = new ObjectId(cohortId);
     }
     query.isDeleted = { $ne: true };
     const result = await this.watchTimeCollection
@@ -618,6 +660,7 @@ class ProgressRepository {
     courseId: string,
     courseVersionId: string,
     progress: Partial<IProgress>,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<IProgress | null> {
     await this.init();
@@ -626,6 +669,7 @@ class ProgressRepository {
         userId: { $in: [new ObjectId(userId), userId] },
         courseId: { $in: [new ObjectId(courseId), courseId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
         isDeleted: { $ne: true },
       },
       { $set: progress },
@@ -757,6 +801,7 @@ class ProgressRepository {
   async getUserProgressByVersionId(
     userId: string,
     courseVersionId: string,
+    cohort?: string,
     session?: ClientSession,
   ): Promise<IProgress | null> {
     await this.init();
@@ -764,6 +809,7 @@ class ProgressRepository {
       {
         userId: { $in: [new ObjectId(userId), userId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
+        ...(cohort ? { cohortId: new ObjectId(cohort) } : {}),
         isDeleted: { $ne: true },
       },
       { session },
@@ -771,7 +817,7 @@ class ProgressRepository {
     return progress;
   }
 
-  async deleteUserWatchTimeByItemIds(
+  async deleteUserWatchTimeByItemIds( // change according to cohort
     userId: string,
 
     itemIds: string[],
@@ -802,6 +848,7 @@ class ProgressRepository {
     courseId: string,
     versionId: string,
     itemIds: string[],
+    cohortId?: string,
     session?: ClientSession,
   ) {
     await this.init();
@@ -818,6 +865,7 @@ class ProgressRepository {
       startTime: now,
       endTime: now,
       isBulk: true,
+      ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
     }));
 
     const result = await this.watchTimeCollection.insertMany(docs, {
@@ -950,6 +998,7 @@ class ProgressRepository {
     courseId: string,
     courseVersionId: string,
     itemId: string,
+    cohort?: string,
     session?: ClientSession,
   ): Promise<boolean> {
     await this.init();

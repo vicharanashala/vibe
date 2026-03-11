@@ -135,12 +135,13 @@ class FeedbackRepository {
   async findByUserAndPreviousItem(
     userId: string,
     previousItemId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<FeedbackSubmissionItem | null> {
     await this.init();
 
     const result = await this.feedbackSubmissionCollection.findOne(
-      {userId, previousItemId},
+      {userId, previousItemId, cohortId},
       {session},
     );
 
