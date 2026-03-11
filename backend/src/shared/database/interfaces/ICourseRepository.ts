@@ -1,6 +1,7 @@
 import { Module } from '#root/modules/courses/classes/index.js';
 import {
   courseVersionStatus,
+  ICohort,
   ICourse,
   ICourseVersion,
   ID,
@@ -29,9 +30,58 @@ export interface ICourseRepository {
 
   createVersion(
     courseVersion: ICourseVersion,
+    // cohorts?: string[],
     session?: ClientSession,
   ): Promise<ICourseVersion | null>;
 
+  getCohortsByIds(
+    cohortIds: ID[],
+    options?: {
+      search?: string
+      sortBy?: "name" | "createdAt" | "updatedAt"
+      sortOrder?: "asc" | "desc"
+      skip?: number
+      limit?: number
+    },
+    session?: ClientSession,
+  ): Promise<ICohort[]>;
+
+  createCohorts(
+    versionId: string,
+    cohorts: string[],
+    session?: ClientSession
+  ): Promise<ObjectId[]>;
+
+  addCohortsToVersion(
+    versionId: string,
+    cohortIds: ObjectId[],
+    session?: ClientSession
+  ):Promise<boolean>;
+
+  // pushCohortsToVersion(
+  //   versionId: string,
+  //   cohortIds: ObjectId[],
+  //   session?: ClientSession
+  // ):Promise<boolean>;
+
+  modifyCohortById(
+    cohortId: ObjectId,
+    cohortName?: string,
+    isPublic?: boolean,
+    session?: ClientSession
+  ): Promise<boolean>;
+
+  deleteCohortById(
+    cohortId: string,
+    session: ClientSession
+  ): Promise<boolean>;
+
+   removeCohortFromVersion(
+    versionId: string,
+    cohortId: string,
+    session?: ClientSession
+  ): Promise<boolean> 
+  
   addModulesToVersion(
     courseVersionId: string,
     newModules: Module[],

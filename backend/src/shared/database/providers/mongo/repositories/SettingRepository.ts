@@ -8,6 +8,7 @@ import {
   ISettings,
   IUserSetting,
   ITimeSlot,
+  ICohort,
 } from '#shared/interfaces/models.js';
 import {
   ISettingRepository,
@@ -34,6 +35,7 @@ export class SettingRepository implements ISettingRepository {
   // Define types for the collections later.
   private courseSettingsCollection: Collection<CourseSetting>;
   private userSettingsCollection: Collection<UserSetting>;
+  private cohortsCollection: Collection<ICohort>;
 
   constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
   private initialized = false;
@@ -45,6 +47,7 @@ export class SettingRepository implements ISettingRepository {
       this.userSettingsCollection = await this.db.getCollection<UserSetting>(
         'userSettings',
       );
+      this.cohortsCollection = await this.db.getCollection<ICohort>('cohorts');
       this.initialized = true;
 
       this.userSettingsCollection.createIndex({
@@ -708,5 +711,176 @@ export class SettingRepository implements ISettingRepository {
     const result = settings?.timeslots || null;
 
     return result;
+  }
+
+
+  async getPublicCatalog(
+    enrolledVersionIds: string[],
+    enrolledCohortIds: string[],
+    skip: number,
+    limit: number,
+    search: string,
+    session?: ClientSession
+  ) {
+    await this.init()
+
+    const pipeline: any[] = [
+
+      /*
+      -------------------------
+      PART 1: PUBLIC COHORTS
+      -------------------------
+      */
+
+      {
+        $match: {
+          isPublic: true,
+          isDeleted: { $ne: true },
+          _id: { $nin: enrolledCohortIds.map(id => new ObjectId(id)) }
+        }
+      },
+
+      {
+        $lookup: {
+          from: "newCourseVersion",
+          localField: "courseVersionId",
+          foreignField: "_id",
+          as: "version"
+        }
+      },
+
+      { $unwind: "$version" },
+
+      {
+        $lookup: {
+          from: "newCourse",
+          localField: "version.courseId",
+          foreignField: "_id",
+          as: "course"
+        }
+      },
+
+      { $unwind: "$course" },
+
+      {
+        $match: {
+          "course.isDeleted": { $ne: true }
+        }
+      },
+
+      {
+        $project: {
+          type: { $literal: "COHORT" },
+
+          cohortId: { $toString: "$_id" },
+          cohortName: "$name",
+
+          courseId: { $toString: "$course._id" },
+          courseName: "$course.name",
+          courseDescription: "$course.description",
+
+          courseVersionId: { $toString: "$version._id" },
+          versionName: "$version.version",
+          versionDescription: "$version.description"
+        }
+      },
+
+      /*
+      -------------------------
+      PART 2: PUBLIC COURSES
+      -------------------------
+      */
+
+      {
+        $unionWith: {
+          coll: "courseSettings",
+          pipeline: [
+
+            {
+              $match: {
+                "settings.isPublic": true,
+                courseVersionId: { $nin: enrolledVersionIds.map(id => new ObjectId(id)) }
+              }
+            },
+
+            {
+              $lookup: {
+                from: "newCourse",
+                localField: "courseId",
+                foreignField: "_id",
+                as: "course"
+              }
+            },
+
+            { $unwind: "$course" },
+
+            {
+              $lookup: {
+                from: "newCourseVersion",
+                localField: "courseVersionId",
+                foreignField: "_id",
+                as: "version"
+              }
+            },
+
+            { $unwind: "$version" },
+
+            {
+              $match: {
+                "course.isDeleted": { $ne: true }
+              }
+            },
+
+            {
+              $project: {
+                type: { $literal: "COURSE" },
+
+                cohortId: null,
+                cohortName: null,
+
+                courseId: { $toString: "$course._id" },
+                courseName: "$course.name",
+                courseDescription: "$course.description",
+
+                courseVersionId: { $toString: "$version._id" },
+                versionName: "$version.version",
+                versionDescription: "$version.description"
+              }
+            }
+          ]
+        }
+      }
+
+    ]
+
+    /*
+    -------------------------
+    SEARCH
+    -------------------------
+    */
+
+    if (search) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { courseName: { $regex: search, $options: "i" } },
+            { versionName: { $regex: search, $options: "i" } },
+            { cohortName: { $regex: search, $options: "i" } }
+          ]
+        }
+      })
+    }
+
+    /*
+    -------------------------
+    PAGINATION
+    -------------------------
+    */
+
+    pipeline.push({ $skip: skip }, { $limit: limit })
+
+    return await this.cohortsCollection
+      .aggregate(pipeline, { session })
+      .toArray()
   }
 }

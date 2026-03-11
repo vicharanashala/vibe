@@ -103,6 +103,12 @@ class Invite {
 
   type:InviteType = InviteType.SINGLE
   usedCount:number
+  
+  @IsOptional()
+  @JSONSchema({
+    description: 'Cohort of the invite',
+  })
+  cohortId?: ID;
   // inviteStatus:InviteStatusType
   // constructor(
   //   email: string,
@@ -136,6 +142,7 @@ class Invite {
       isNewUser?: boolean;
       expiresAt: Date;
       type?: InviteType;
+      cohortId?: ID;
     }
   ) {
     this.email = opts.email;
@@ -150,6 +157,9 @@ class Invite {
 
     if (this.isAlreadyEnrolled) {
       this.inviteStatus = 'ALREADY_ENROLLED';
+    }
+    if(opts.cohortId) {
+      this.cohortId = opts.cohortId;
     }
   }
 }

@@ -1810,134 +1810,134 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
 
     return false;
   };
-  const handleNextSegment = () => {
-    if (currentSegmentIndex < segmentIds.length - 1) {
-      setCurrentSegmentIndex(prev => {
-        const newIndex = prev + 1;
+  // const handleNextSegment = () => {
+  //   if (currentSegmentIndex < segmentIds.length - 1) {
+  //     setCurrentSegmentIndex(prev => {
+  //       const newIndex = prev + 1;
 
-        const nextSegmentQuestions = questions.filter(q => q.segmentId === segmentIds[newIndex]);
-        const firstPendingIndex = nextSegmentQuestions.findIndex((_, idx) => !isQuestionDecidedInSegment(newIndex, idx));
+  //       const nextSegmentQuestions = questions.filter(q => q.segmentId === segmentIds[newIndex]);
+  //       const firstPendingIndex = nextSegmentQuestions.findIndex((_, idx) => !isQuestionDecidedInSegment(newIndex, idx));
 
-        setIsNewQuestionEntering(true);
-        setCurrentQuestionIndexBySegment(prevState => ({
-          ...prevState,
-          [newIndex]: firstPendingIndex >= 0 ? firstPendingIndex : 0
-        }));
-        setTimeout(() => {
-          setIsNewQuestionEntering(false);
-        }, 400);
+  //       setIsNewQuestionEntering(true);
+  //       setCurrentQuestionIndexBySegment(prevState => ({
+  //         ...prevState,
+  //         [newIndex]: firstPendingIndex >= 0 ? firstPendingIndex : 0
+  //       }));
+  //       setTimeout(() => {
+  //         setIsNewQuestionEntering(false);
+  //       }, 400);
 
-        return newIndex;
-      });
-    }
-  };
-        const handleSwipe = (direction: 'left' | 'right') => {
-        setSwipeDirection(direction);
+  //       return newIndex;
+  //     });
+  //   }
+  // };
+      //   const handleSwipe = (direction: 'left' | 'right') => {
+      //   setSwipeDirection(direction);
         
-        const currentQuestion = currentSegmentQuestions[currentQuestionInSegment];
-        const globalIndex = questions.findIndex(q => q === currentQuestion);
+      //   const currentQuestion = currentSegmentQuestions[currentQuestionInSegment];
+      //   const globalIndex = questions.findIndex(q => q === currentQuestion);
       
-      const storedQuestions = sessionStorage.getItem('questions');
-      let allQuestions: any[] = [];
+      // const storedQuestions = sessionStorage.getItem('questions');
+      // let allQuestions: any[] = [];
       
-      if (storedQuestions) {
-        try {
-          allQuestions = JSON.parse(storedQuestions);
-        } catch (error) {
-          console.error('Error parsing stored questions:', error);
-        }
-      }
+      // if (storedQuestions) {
+      //   try {
+      //     allQuestions = JSON.parse(storedQuestions);
+      //   } catch (error) {
+      //     console.error('Error parsing stored questions:', error);
+      //   }
+      // }
   
-        if (direction === 'right') {
-          setAcceptedQuestions(prev => {
-            const newSet = new Set(prev);
-            newSet.add(globalIndex);
-            return newSet;
-          });
+      //   if (direction === 'right') {
+      //     setAcceptedQuestions(prev => {
+      //       const newSet = new Set(prev);
+      //       newSet.add(globalIndex);
+      //       return newSet;
+      //     });
           
-          setRejectedQuestions(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(globalIndex);
-            return newSet;
-          });
+      //     setRejectedQuestions(prev => {
+      //       const newSet = new Set(prev);
+      //       newSet.delete(globalIndex);
+      //       return newSet;
+      //     });
           
-          if (allQuestions[globalIndex]) {
-            allQuestions[globalIndex].isAccept = true;
-            sessionStorage.setItem('questions', JSON.stringify(allQuestions));
-          }
-        } else {
-          setRejectedQuestions(prev => {
-            const newSet = new Set(prev);
-            newSet.add(globalIndex);
-            return newSet;
-          });
+      //     if (allQuestions[globalIndex]) {
+      //       allQuestions[globalIndex].isAccept = true;
+      //       sessionStorage.setItem('questions', JSON.stringify(allQuestions));
+      //     }
+      //   } else {
+      //     setRejectedQuestions(prev => {
+      //       const newSet = new Set(prev);
+      //       newSet.add(globalIndex);
+      //       return newSet;
+      //     });
           
-          setAcceptedQuestions(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(globalIndex);
-            return newSet;
-          });
+      //     setAcceptedQuestions(prev => {
+      //       const newSet = new Set(prev);
+      //       newSet.delete(globalIndex);
+      //       return newSet;
+      //     });
           
-          if (allQuestions[globalIndex]) {
-            allQuestions[globalIndex].isAccept = false;
-            sessionStorage.setItem('questions', JSON.stringify(allQuestions));
-          }
-        }
+      //     if (allQuestions[globalIndex]) {
+      //       allQuestions[globalIndex].isAccept = false;
+      //       sessionStorage.setItem('questions', JSON.stringify(allQuestions));
+      //     }
+      //   }
         
-        setTimeout(() => {
-        const nextPendingIndex = currentSegmentQuestions.findIndex((_, idx) => {
-          const isDecided = isQuestionDecidedInSegment(currentSegmentIndex, idx);
-          const isRejected = isQuestionRejected(idx);
-          return idx > currentQuestionInSegment && !isDecided && !isRejected;
-        });
+      //   setTimeout(() => {
+      //   const nextPendingIndex = currentSegmentQuestions.findIndex((_, idx) => {
+      //     const isDecided = isQuestionDecidedInSegment(currentSegmentIndex, idx);
+      //     const isRejected = isQuestionRejected(idx);
+      //     return idx > currentQuestionInSegment && !isDecided && !isRejected;
+      //   });
           
-          setSwipeDirection(null);
+      //     setSwipeDirection(null);
           
-          if (nextPendingIndex >= 0) {
-          setTimeout(() => {
-            setIsNewQuestionEntering(true);
-            setCurrentQuestionIndexBySegment(prevState => ({
-              ...prevState,
-              [currentSegmentIndex]: nextPendingIndex
-            }));
-            setTimeout(() => {
-              setIsNewQuestionEntering(false);
-            }, 400);
-          }, 100);
-          } else {
-            setCurrentQuestionIndexBySegment(prevState => ({
-              ...prevState,
-              [currentSegmentIndex]: currentQuestionInSegment
-            }));
-          }
-        }, 500);
-      };
-      const isQuestionDecidedInSegment = (segmentIndex: number, questionIndexInSegment: number) => {
-        const segmentId = segmentIds[segmentIndex];
-        const segmentQuestions = questions.filter(q => q.segmentId === segmentId);
-        const question = segmentQuestions[questionIndexInSegment];
+      //     if (nextPendingIndex >= 0) {
+      //     setTimeout(() => {
+      //       setIsNewQuestionEntering(true);
+      //       setCurrentQuestionIndexBySegment(prevState => ({
+      //         ...prevState,
+      //         [currentSegmentIndex]: nextPendingIndex
+      //       }));
+      //       setTimeout(() => {
+      //         setIsNewQuestionEntering(false);
+      //       }, 400);
+      //     }, 100);
+      //     } else {
+      //       setCurrentQuestionIndexBySegment(prevState => ({
+      //         ...prevState,
+      //         [currentSegmentIndex]: currentQuestionInSegment
+      //       }));
+      //     }
+      //   }, 500);
+      // };
+      // const isQuestionDecidedInSegment = (segmentIndex: number, questionIndexInSegment: number) => {
+      //   const segmentId = segmentIds[segmentIndex];
+      //   const segmentQuestions = questions.filter(q => q.segmentId === segmentId);
+      //   const question = segmentQuestions[questionIndexInSegment];
         
-        if (!question) return false;
+      //   if (!question) return false;
         
-        const globalIndex = questions.findIndex(q => q === question);
+      //   const globalIndex = questions.findIndex(q => q === question);
         
-        if (acceptedQuestions.has(globalIndex) || rejectedQuestions.has(globalIndex)) {
-          return true;
-        }
+      //   if (acceptedQuestions.has(globalIndex) || rejectedQuestions.has(globalIndex)) {
+      //     return true;
+      //   }
         
-        const storedQuestions = sessionStorage.getItem('questions');
-        if (storedQuestions) {
-          try {
-            const parsedQuestions = JSON.parse(storedQuestions);
-            const storedQuestion = parsedQuestions[globalIndex];
-            return storedQuestion?.hasOwnProperty('isAccept');
-          } catch (error) {
-            console.error('Error checking question decision:', error);
-          }
-        }
+      //   const storedQuestions = sessionStorage.getItem('questions');
+      //   if (storedQuestions) {
+      //     try {
+      //       const parsedQuestions = JSON.parse(storedQuestions);
+      //       const storedQuestion = parsedQuestions[globalIndex];
+      //       return storedQuestion?.hasOwnProperty('isAccept');
+      //     } catch (error) {
+      //       console.error('Error checking question decision:', error);
+      //     }
+      //   }
         
-        return false;
-      };
+      //   return false;
+      // };
         const handleNextSegment = () => {
         if (currentSegmentIndex < segmentIds.length - 1) {
             setCurrentSegmentIndex(prev => {
