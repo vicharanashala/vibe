@@ -33,13 +33,28 @@ export class LedgerService extends BaseService {
 
     async listByStudentId(
         studentId: string,
+        courseId: string,
+        courseVersionId: string,
         filter: FilterQueryDto
     ): Promise<LedgerListResponseDto> {
 
         const student = await this.userRepo.findById(studentId);
         if (!student)
             throw new BadRequestError("Student not found");
-        const enrollment = await this.cohortRepository()
-        return await this.ledgerRepository.listByStudentId(studentId, filter);
+
+        const enrollment = await this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId);
+        const ledgerData = await this.ledgerRepository.listByStudentId(studentId, filter);
+
+        return {
+            data: ledgerData.data,
+            total: ledgerData.total,
+            page: ledgerData.page,
+            limit: ledgerData.limit,
+            studentDetails: {
+                studentName: `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim(),
+                studentEmail: student.email,
+                hpPoints: enrollment?.hpPoints ?? 0,
+            }
+        };
     }
 }

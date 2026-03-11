@@ -82,7 +82,8 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         studentId: string,
         query: FilterQueryDto,
         courseId?: string,
-        courseVersionId?: string
+        courseVersionId?: string,
+        cohortName?: string
     ): Promise<StudentActivitySubmissionsViewDto[]> {
         await this.init();
 
@@ -121,6 +122,9 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
 
         if (courseVersionId)
             matchStage.courseVersionId = new ObjectId(courseVersionId)
+
+        if (cohortName)
+            matchStage.cohort = cohortName;
 
 
         const pipeline: any[] = [
@@ -351,9 +355,9 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         );
     }
 
-    async getLatestByStudentId(studentId: string): Promise<HpActivitySubmission | null> {
+    async getLatestByStudentId(studentId: string, activityId: string): Promise<HpActivitySubmission | null> {
         await this.init()
-        return await this.hpActivitySubmissionCollection.findOne({ studentId: new ObjectId(studentId) }, { sort: { createdAt: -1 } })
+        return await this.hpActivitySubmissionCollection.findOne({ studentId: new ObjectId(studentId), activityId: new ObjectId(activityId) }, { sort: { createdAt: -1 } })
     }
 
     async getCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number> {
