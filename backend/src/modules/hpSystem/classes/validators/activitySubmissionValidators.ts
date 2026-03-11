@@ -125,6 +125,13 @@ export class ReviewHpActivitySubmissionBodyDto {
     pointsToDeduct: number;
 }
 
+export class SubmissionFeedbackBody {
+    @Expose()
+    @IsString()
+    @MaxLength(1000)
+    feedback: string;
+}
+
 export class ListSubmissionsQueryDto {
     @Expose()
     @IsOptional()

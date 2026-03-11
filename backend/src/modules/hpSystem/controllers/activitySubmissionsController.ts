@@ -20,7 +20,7 @@ import multer from "multer";
 
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivitySubmissionsService } from "../services/activitySubmissionsService.js";
-import { CreateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto } from "../classes/validators/activitySubmissionValidators.js";
+import { CreateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, SubmissionFeedbackBody } from "../classes/validators/activitySubmissionValidators.js";
 
 @OpenAPI({
   tags: ["HP Activity Submissions"],
@@ -131,5 +131,19 @@ export class ActivitySubmissionsController {
     const teacherId = user._id.toString();
     const doc = await this.submissionService.review(id, teacherId, body);
     return { success: true, data: doc };
+  }
+
+  @OpenAPI({ summary: "Review submission (approve/reject/revert)" })
+  @Post("/:id/feedback")
+  @Authorized()
+  @HttpCode(200)
+  async addfeedback(
+    @Param("id") id: string,
+    @CurrentUser() user: IUser,
+    @Body() body: SubmissionFeedbackBody
+  ) {
+    const teacherId = user._id.toString();
+    const { feedback } = body;
+    return await this.submissionService.addfeedback(id, teacherId, feedback);
   }
 }

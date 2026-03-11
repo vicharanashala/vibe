@@ -14,6 +14,8 @@ import { RuleConfigService } from "./ruleConfigsService.js";
 import { HpActivitySubmission, HpLedger, HpLedgerDirection, HpLedgerEventType, HpReasonCode, ReviewDecision, TriggeredBy } from "../models.js";
 import { ObjectId } from "mongodb";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
+import { SubmissionFeedbackItem } from "../classes/transformers/ActivitySubmission.js";
+import { ID } from "../constants.js";
 
 
 @injectable()
@@ -341,7 +343,7 @@ export class ActivitySubmissionsService extends BaseService {
     }
 
     async list(query: ListSubmissionsQueryDto): Promise<any[]> {
-        
+
         const COHORT_OVERRIDES: Record<string, { courseId: string; versionId: string }> = {
             Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
             Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150" },
@@ -615,6 +617,32 @@ export class ActivitySubmissionsService extends BaseService {
             links: refId ? { reversedLedgerId: new ObjectId(refId), relatedLedgerIds: [] } : null,
             meta: { triggeredBy: "TEACHER" as TriggeredBy, triggeredByUserId: new ObjectId(teacherId), note }
         };
+    }
+
+
+    async addfeedback(id: string, teacherId: string, feedback: string): Promise<boolean> {
+        return this._withTransaction(async (session) => {
+
+            if (!id || !ObjectId.isValid(id)) {
+                throw new BadRequestError("Valid submission id is required");
+            }
+
+            if (!teacherId || !ObjectId.isValid(teacherId)) {
+                throw new BadRequestError("Valid teacher id is required");
+            }
+
+            if (!feedback || !feedback.trim()) {
+                throw new BadRequestError("Feedback is required");
+            }
+
+            const feedbackPayload: SubmissionFeedbackItem = {
+                feedback: feedback.trim(),
+                teacherId: teacherId as ID,
+                feedbackAt: new Date(),
+            };
+
+            return await this.activitySubmissionsRepository.updateFeedbackById(id, feedbackPayload, session);
+        })
     }
 }
 
