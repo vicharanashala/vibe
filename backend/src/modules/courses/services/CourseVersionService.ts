@@ -1,22 +1,23 @@
-import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
+import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
 import {
   CourseVersionWatchTimeResponse,
   CreateCourseVersionBody,
   UpdateCourseVersionBody,
 } from '#courses/classes/validators/CourseVersionValidators.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { instanceToPlain } from 'class-transformer';
-import { injectable, inject } from 'inversify';
-import { ClientSession, ObjectId } from 'mongodb';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {instanceToPlain} from 'class-transformer';
+import {injectable, inject} from 'inversify';
+import {ClientSession, ObjectId} from 'mongodb';
 import {
   NotFoundError,
   InternalServerError,
   BadRequestError,
+  ForbiddenError,
 } from 'routing-controllers';
-import { Course, Module } from '../classes/index.js';
+import {Course, Module} from '../classes/index.js';
 import {
   courseVersionStatus,
   ICourse,
@@ -26,20 +27,20 @@ import {
   ProgressRepository,
   SettingRepository,
 } from '#root/shared/index.js';
-import { USERS_TYPES } from '#root/modules/users/types.js';
-import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
-import { COURSES_TYPES } from '../types.js';
-import { ModuleService } from './ModuleService.js';
-import { SectionService } from './SectionService.js';
-import { ItemService } from './ItemService.js';
-import { cloneModules } from '../utils/cloneModules.js';
-import { getCopyCourseName } from '../utils/getCopyCourseName.js';
-import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
+import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
+import {COURSES_TYPES} from '../types.js';
+import {ModuleService} from './ModuleService.js';
+import {SectionService} from './SectionService.js';
+import {ItemService} from './ItemService.js';
+import {cloneModules} from '../utils/cloneModules.js';
+import {getCopyCourseName} from '../utils/getCopyCourseName.js';
+import {SETTING_TYPES} from '#root/modules/setting/types.js';
 import {
   CourseSetting,
   CreateCourseSettingBody,
 } from '#root/modules/setting/index.js';
-import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
+import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
 import {
   QuestionBankRepository,
   QuestionRepository,
@@ -109,7 +110,7 @@ export class CourseVersionService extends BaseService {
           proctors: {
             detectors: Object.values(ProctoringComponent).map(detector => ({
               detectorName: detector,
-              settings: { enabled: false, options: {} },
+              settings: {enabled: false, options: {}},
             })),
           },
           linearProgressionEnabled: false,
@@ -172,7 +173,7 @@ export class CourseVersionService extends BaseService {
             const visibleSections = module.sections.filter(
               section => !section.isHidden,
             );
-            return { ...module, sections: visibleSections };
+            return {...module, sections: visibleSections};
           });
       }
 
@@ -196,11 +197,20 @@ export class CourseVersionService extends BaseService {
       if (!existingVersion) {
         throw new NotFoundError('Course version not found');
       }
+      const versionStatus =
+        await this.courseRepo.getCourseVersionStatus(courseVersionId);
+
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          "This course version is inactive, you can't update version",
+        );
+      }
 
       if (body.version) existingVersion.version = body.version;
       if (body.description) existingVersion.description = body.description;
       // Handle supportLink - allow setting, updating, or clearing
-      if (body.supportLink !== undefined) existingVersion.supportLink = body.supportLink;
+      if (body.supportLink !== undefined)
+        existingVersion.supportLink = body.supportLink;
       existingVersion.updatedAt = new Date();
 
       const updatedVersion = await this.courseRepo.updateVersion(
@@ -233,6 +243,14 @@ export class CourseVersionService extends BaseService {
       if (!readCourseVersion) {
         throw new InternalServerError(
           'Failed to update course with new version.',
+        );
+      }
+      const versionStatus =
+        await this.courseRepo.getCourseVersionStatus(courseVersionId);
+
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'This course version is inactive, you cannot delete',
         );
       }
 
@@ -319,7 +337,8 @@ export class CourseVersionService extends BaseService {
       console.log(`Modules to clone: ${existingVersion.modules.length}`);
 
       if (USE_WORKERS) {
-        const { startCourseCloneProcessing } = await import('#root/workers/clone-course.pool.js');
+        const {startCourseCloneProcessing} =
+          await import('#root/workers/clone-course.pool.js');
 
         [newModules, existingEnrollments] = await Promise.all([
           startCourseCloneProcessing(
@@ -353,9 +372,14 @@ export class CourseVersionService extends BaseService {
       const durationMs = cloneEndTime - cloneStartTime;
       const durationSec = (durationMs / 1000).toFixed(2);
 
-      const totalSections = newModules.reduce((sum, mod) => sum + mod.sections.length, 0);
+      const totalSections = newModules.reduce(
+        (sum, mod) => sum + mod.sections.length,
+        0,
+      );
       const totalItemGroups = newModules.reduce(
-        (sum, mod) => sum + mod.sections.reduce((s, sec) => s + (sec.itemsGroupId ? 1 : 0), 0),
+        (sum, mod) =>
+          sum +
+          mod.sections.reduce((s, sec) => s + (sec.itemsGroupId ? 1 : 0), 0),
         0,
       );
 
@@ -364,12 +388,17 @@ export class CourseVersionService extends BaseService {
         for (const section of module.sections) {
           if (section.itemsGroupId) {
             try {
-              const itemsGroup = await this.itemRepo.readItemsGroup(section.itemsGroupId.toString());
+              const itemsGroup = await this.itemRepo.readItemsGroup(
+                section.itemsGroupId.toString(),
+              );
               if (itemsGroup?.items) {
                 totalItems += itemsGroup.items.length;
               }
             } catch (error) {
-              console.error(`Error reading items group ${section.itemsGroupId}:`, error);
+              console.error(
+                `Error reading items group ${section.itemsGroupId}:`,
+                error,
+              );
             }
           }
         }
@@ -411,7 +440,7 @@ export class CourseVersionService extends BaseService {
           proctors: {
             detectors: Object.values(ProctoringComponent).map(detector => ({
               detectorName: detector,
-              settings: { enabled: false, options: {} },
+              settings: {enabled: false, options: {}},
             })),
           },
           linearProgressionEnabled: false,
@@ -432,7 +461,11 @@ export class CourseVersionService extends BaseService {
     courseId: string,
     versionId: string,
   ): Promise<CourseVersionWatchTimeResponse> {
-    const totalWatchTime = await this.progressRepository.getCourseVersionTotalWatchTime(courseId, versionId);
+    const totalWatchTime =
+      await this.progressRepository.getCourseVersionTotalWatchTime(
+        courseId,
+        versionId,
+      );
     if (totalWatchTime === null) {
       throw new NotFoundError('Course version not found');
     }
@@ -450,12 +483,15 @@ export class CourseVersionService extends BaseService {
     return response;
   }
 
-  async updateCourseVersionStatus(versionId:string,versionStatus:courseVersionStatus):Promise<ICourseVersion|null>{
+  async updateCourseVersionStatus(
+    versionId: string,
+    versionStatus: courseVersionStatus,
+  ): Promise<ICourseVersion | null> {
     return this._withTransaction(async session => {
       const result = await this.courseRepo.updateCourseVersionStatus(
         versionId,
         versionStatus,
-        session
+        session,
       );
       return result;
     });

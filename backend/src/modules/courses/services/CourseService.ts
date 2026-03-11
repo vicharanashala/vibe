@@ -1,22 +1,22 @@
-import { Course } from '#courses/classes/transformers/Course.js';
-import { USERS_TYPES } from '#root/modules/users/types.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {Course} from '#courses/classes/transformers/Course.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   IItemRepository,
   ProctoringComponent,
   ProgressRepository,
   SettingRepository,
 } from '#root/shared/index.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { injectable, inject } from 'inversify';
-import { ObjectId } from 'mongodb';
-import { InternalServerError, NotFoundError } from 'routing-controllers';
-import { CourseVersionService } from './CourseVersionService.js';
-import { ActiveUserDto, CreateCourseVersionBody } from '../classes/index.js';
-import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
-import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {injectable, inject} from 'inversify';
+import {ObjectId} from 'mongodb';
+import {InternalServerError, NotFoundError} from 'routing-controllers';
+import {CourseVersionService} from './CourseVersionService.js';
+import {ActiveUserDto, CreateCourseVersionBody} from '../classes/index.js';
+import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
+import {SETTING_TYPES} from '#root/modules/setting/types.js';
 import {
   CourseSetting,
   CourseSettingService,
@@ -57,7 +57,9 @@ class CourseService extends BaseService {
     return this._withTransaction(async session => {
       const createdCourse = await this.courseRepo.create(course, session);
       if (!createdCourse) {
-        throw new InternalServerError('Failed to create course. Please try again later.');
+        throw new InternalServerError(
+          'Failed to create course. Please try again later.',
+        );
       }
 
       const courseId = createdCourse._id.toString();
@@ -108,7 +110,6 @@ class CourseService extends BaseService {
       return createdCourse;
     });
   }
-
 
   async readCourse(id: string): Promise<Course> {
     return this._withTransaction(async session => {
@@ -193,9 +194,7 @@ class CourseService extends BaseService {
     // 3️⃣ Otherwise process all versions
     else {
       const courses = await this.courseRepo.getAllCourses();
-      versionIds = courses.flatMap(c =>
-        c.versions.map(v => v.toString()),
-      );
+      versionIds = courses.flatMap(c => c.versions.map(v => v.toString()));
     }
 
     const bulkOps = [];
@@ -204,12 +203,12 @@ class CourseService extends BaseService {
 
     for (const versionId of versionIds) {
       try {
-        const { totalItems, itemCounts } =
+        const {totalItems, itemCounts} =
           await this.itemRepo.calculateItemCountsForVersion(versionId);
 
         bulkOps.push({
           updateOne: {
-            filter: { _id: new ObjectId(versionId) },
+            filter: {_id: new ObjectId(versionId)},
             update: {
               $set: {
                 totalItems,
@@ -242,10 +241,15 @@ class CourseService extends BaseService {
     courseVersionId?: string,
     startTimeStamp?: string,
     endTimeStamp?: string,
-  ): Promise<{ activeUsers: ActiveUserDto[] }> {
+  ): Promise<{activeUsers: ActiveUserDto[]}> {
     return this._withTransaction(async session => {
-      const activeUsers = await this.progressRepo.getActiveUsers(courseId, courseVersionId, startTimeStamp, endTimeStamp);
-      return activeUsers
+      const activeUsers = await this.progressRepo.getActiveUsers(
+        courseId,
+        courseVersionId,
+        startTimeStamp,
+        endTimeStamp,
+      );
+      return activeUsers;
     });
   }
 
@@ -262,24 +266,27 @@ class CourseService extends BaseService {
   }> {
     return this._withTransaction(async session => {
       // Get enrolled course IDs by userId through enrollmentService
-      const userEnrollments = await this.enrollmentService.getAllEnrollments(userId);
-      const enrolledCourseIds = userEnrollments.map(enrollment => enrollment.courseId.toString());
+      const userEnrollments =
+        await this.enrollmentService.getAllEnrollments(userId);
+      const enrolledCourseVersionIds = userEnrollments.map(enrollment =>
+        enrollment.courseVersionId.toString(),
+      );
 
       // Query public courses
       const skip = (page - 1) * limit;
 
       const publicCourses = await this.settingsRepo.getPublicCourses(
-        enrolledCourseIds,
+        enrolledCourseVersionIds,
         skip,
         limit,
         search,
-        session
+        session,
       );
 
       const totalDocuments = await this.settingsRepo.countPublicCourses(
-        enrolledCourseIds,
+        enrolledCourseVersionIds,
         search,
-        session
+        session,
       );
 
       const totalPages = Math.ceil(totalDocuments / limit);
@@ -294,4 +301,4 @@ class CourseService extends BaseService {
   }
 }
 
-export { CourseService };
+export {CourseService};

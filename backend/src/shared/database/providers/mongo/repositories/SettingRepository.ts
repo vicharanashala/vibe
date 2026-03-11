@@ -1,7 +1,7 @@
 import 'reflect-metadata';
-import { Collection, ObjectId, UpdateResult, ClientSession } from 'mongodb';
-import { injectable, inject } from 'inversify';
-import { MongoDatabase } from '../MongoDatabase.js';
+import {Collection, ObjectId, UpdateResult, ClientSession} from 'mongodb';
+import {injectable, inject} from 'inversify';
+import {MongoDatabase} from '../MongoDatabase.js';
 import {
   ICourseSetting,
   IRegistrationSettings,
@@ -21,8 +21,8 @@ import {
   ProctoringSettingsDto,
   UserSetting,
 } from '#root/modules/setting/classes/index.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { NotFoundError } from 'routing-controllers';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {NotFoundError} from 'routing-controllers';
 
 /**
  * Implementation of the Settings Repository for MongoDB.
@@ -35,16 +35,15 @@ export class SettingRepository implements ISettingRepository {
   private courseSettingsCollection: Collection<CourseSetting>;
   private userSettingsCollection: Collection<UserSetting>;
 
-  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
   private initialized = false;
 
   private async init() {
     if (!this.initialized) {
       this.courseSettingsCollection =
         await this.db.getCollection<CourseSetting>('courseSettings');
-      this.userSettingsCollection = await this.db.getCollection<UserSetting>(
-        'userSettings',
-      );
+      this.userSettingsCollection =
+        await this.db.getCollection<UserSetting>('userSettings');
       this.initialized = true;
 
       this.userSettingsCollection.createIndex({
@@ -72,8 +71,8 @@ export class SettingRepository implements ISettingRepository {
 
     if (result.acknowledged) {
       const createdSettings = await this.userSettingsCollection.findOne(
-        { _id: result.insertedId },
-        { session },
+        {_id: result.insertedId},
+        {session},
       );
 
       return Object.assign(new UserSetting(), createdSettings) as UserSetting;
@@ -95,7 +94,7 @@ export class SettingRepository implements ISettingRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      { session },
+      {session},
     );
 
     if (!userSettings) {
@@ -210,21 +209,21 @@ export class SettingRepository implements ISettingRepository {
     await this.init();
     const result = await this.courseSettingsCollection.insertOne(
       courseSettings,
-      { session },
+      {session},
     );
     if (result.acknowledged) {
       const createdSettings = await this.courseSettingsCollection.findOne(
         {
           _id: result.insertedId,
         },
-        { session },
+        {session},
       );
 
       // Create a proper CourseSetting instance without Object.assign
       return new CourseSetting({
         courseId: createdSettings.courseId.toString(),
         courseVersionId: createdSettings.courseVersionId.toString(),
-        settings: createdSettings.settings
+        settings: createdSettings.settings,
       });
     } else {
       return null;
@@ -242,7 +241,7 @@ export class SettingRepository implements ISettingRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      { session },
+      {session},
     );
 
     if (!courseSettings) {
@@ -386,7 +385,7 @@ export class SettingRepository implements ISettingRepository {
           'settings.registration_settings': settings,
         },
       },
-      { session },
+      {session},
     );
     return result;
   }
@@ -394,7 +393,13 @@ export class SettingRepository implements ISettingRepository {
   async updateRegistrationSettings(
     courseId: string,
     versionId: string,
-    schemas: { jsonSchema: any; uiSchema: any; isActive: boolean, registrationsAutoApproved?: boolean; autoapproval_emails?: string[] },
+    schemas: {
+      jsonSchema: any;
+      uiSchema: any;
+      isActive: boolean;
+      registrationsAutoApproved?: boolean;
+      autoapproval_emails?: string[];
+    },
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
     await this.init();
@@ -409,11 +414,13 @@ export class SettingRepository implements ISettingRepository {
           'settings.registration.jsonSchema': schemas.jsonSchema,
           'settings.registration.uiSchema': schemas.uiSchema,
           'settings.registration.isActive': schemas.isActive,
-          'settings.registration.registrationsAutoApproved': schemas.registrationsAutoApproved,
-          'settings.registration.autoapproval_emails': schemas.autoapproval_emails,
+          'settings.registration.registrationsAutoApproved':
+            schemas.registrationsAutoApproved,
+          'settings.registration.autoapproval_emails':
+            schemas.autoapproval_emails,
         },
       },
-      { session },
+      {session},
     );
     return result;
   }
@@ -421,7 +428,7 @@ export class SettingRepository implements ISettingRepository {
   async updateRegistrationSchemas(
     courseId: string,
     versionId: string,
-    schemas: { jsonSchema?: any; uiSchema?: any; isActive?: boolean }, // Partial update for schemas only
+    schemas: {jsonSchema?: any; uiSchema?: any; isActive?: boolean}, // Partial update for schemas only
     session?: ClientSession,
   ): Promise<UpdateResult> {
     await this.init();
@@ -445,7 +452,7 @@ export class SettingRepository implements ISettingRepository {
       {
         $set: updateFields,
       },
-      { session },
+      {session},
     );
 
     if (result.matchedCount === 0) {
@@ -460,14 +467,14 @@ export class SettingRepository implements ISettingRepository {
   async readSettingsSchema(versionId: string, session?: ClientSession) {
     await this.init();
     const result = await this.courseSettingsCollection.findOne(
-      { courseVersionId: new ObjectId(versionId) },
-      { session },
+      {courseVersionId: new ObjectId(versionId)},
+      {session},
     );
     const registration = result.settings.registration || {};
     const jsonSchema = registration.jsonSchema;
     const uiSchema = registration.uiSchema;
     const isActive = registration.isActive;
-    return { jsonSchema, uiSchema, isActive };
+    return {jsonSchema, uiSchema, isActive};
   }
 
   async deleteCourseSettingsbyVersionId(
@@ -476,8 +483,8 @@ export class SettingRepository implements ISettingRepository {
   ) {
     await this.init();
     const result = await this.courseSettingsCollection.deleteOne(
-      { courseVersionId: new ObjectId(versionId) },
-      { session },
+      {courseVersionId: new ObjectId(versionId)},
+      {session},
     );
     return result.deletedCount > 0;
   }
@@ -502,7 +509,8 @@ export class SettingRepository implements ISettingRepository {
       },
       {
         projection: {
-          'settings.linearProgressionEnabled': 1, _id: 0
+          'settings.linearProgressionEnabled': 1,
+          _id: 0,
         },
         session,
       },
@@ -516,7 +524,7 @@ export class SettingRepository implements ISettingRepository {
   }
 
   async getPublicCourses(
-    excludeCourseIds: string[],
+    enrolledCourseVersionIds: string[],
     skip: number,
     limit: number,
     search: string,
@@ -524,84 +532,104 @@ export class SettingRepository implements ISettingRepository {
   ): Promise<any[]> {
     await this.init();
 
-    // Build aggregation pipeline
     const pipeline: any[] = [
-      // Filter for public courses
       {
         $match: {
           'settings.isPublic': true,
-        }
+        },
       },
-      // Lookup to join with newCourse collection
+
       {
         $lookup: {
           from: 'newCourse',
           localField: 'courseId',
           foreignField: '_id',
-          as: 'courseData'
-        }
+          as: 'courseData',
+        },
       },
-      // Unwind the courseData array
+
       {
         $unwind: {
           path: '$courseData',
-          preserveNullAndEmptyArrays: false // Skip if no matching course
-        }
+          preserveNullAndEmptyArrays: false,
+        },
       },
-      // Filter out deleted courses
+
       {
         $match: {
-          'courseData.isDeleted': { $ne: true }
-        }
+          'courseData.isDeleted': {$ne: true},
+        },
+      },
+
+      // lookup version
+      {
+        $lookup: {
+          from: 'newCourseVersion',
+          localField: 'courseVersionId',
+          foreignField: '_id',
+          as: 'courseVersionData',
+        },
+      },
+
+      {
+        $unwind: {
+          path: '$courseVersionData',
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+
+      // remove archived versions
+      {
+        $match: {
+          'courseVersionData.versionStatus': {$ne: 'archived'},
+        },
       },
     ];
 
-    // Add filter for excluded courses
-    if (excludeCourseIds.length > 0) {
+    if (enrolledCourseVersionIds.length > 0) {
       pipeline.push({
         $match: {
-          courseId: { $nin: excludeCourseIds.map(id => new ObjectId(id)) }
-        }
+          courseVersionId: {
+            $nin: enrolledCourseVersionIds.map(id => new ObjectId(id)),
+          },
+        },
       });
     }
 
-    // Add search filter if provided
     if (search) {
       pipeline.push({
         $match: {
           $or: [
-            { 'courseData.name': { $regex: search, $options: 'i' } },
-            { 'courseData.description': { $regex: search, $options: 'i' } },
-          ]
-        }
+            {'courseData.name': {$regex: search, $options: 'i'}},
+            {'courseData.description': {$regex: search, $options: 'i'}},
+          ],
+        },
       });
     }
 
-    // Project the fields we need
     pipeline.push({
       $project: {
         _id: 0,
-        courseId: { $toString: '$courseId' },
-        courseVersionId: { $toString: '$courseVersionId' },
+        courseId: {$toString: '$courseId'},
+        courseVersionId: {$toString: '$courseVersionId'},
         courseName: '$courseData.name',
         courseDescription: '$courseData.description',
-        isPublic: '$settings.isPublic'
-      }
+        isPublic: '$settings.isPublic',
+      },
     });
 
-    // Add pagination
-    pipeline.push({ $skip: skip });
-    pipeline.push({ $limit: limit });
+    pipeline.push({$skip: skip});
+    pipeline.push({$limit: limit});
 
     const result = await this.courseSettingsCollection
-      .aggregate(pipeline, { session })
+      .aggregate(pipeline, {session})
       .toArray();
 
     return result;
   }
 
   async countPublicCourses(
-    excludeCourseIds: string[],
+    enrolledCourseVersionIds: string[],
     search: string,
     session?: ClientSession,
   ): Promise<number> {
@@ -613,6 +641,7 @@ export class SettingRepository implements ISettingRepository {
           'settings.isPublic': true,
         },
       },
+
       {
         $lookup: {
           from: 'newCourse',
@@ -621,23 +650,49 @@ export class SettingRepository implements ISettingRepository {
           as: 'courseData',
         },
       },
+
       {
         $unwind: {
           path: '$courseData',
           preserveNullAndEmptyArrays: false,
         },
       },
+
       {
         $match: {
-          'courseData.isDeleted': { $ne: true },
+          'courseData.isDeleted': {$ne: true},
+        },
+      },
+
+      {
+        $lookup: {
+          from: 'newCourseVersion',
+          localField: 'courseVersionId',
+          foreignField: '_id',
+          as: 'courseVersionData',
+        },
+      },
+
+      {
+        $unwind: {
+          path: '$courseVersionData',
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+
+      {
+        $match: {
+          'courseVersionData.versionStatus': {$ne: 'archived'},
         },
       },
     ];
 
-    if (excludeCourseIds.length > 0) {
+    if (enrolledCourseVersionIds.length > 0) {
       pipeline.push({
         $match: {
-          courseId: { $nin: excludeCourseIds.map(id => new ObjectId(id)) },
+          courseVersionId: {
+            $nin: enrolledCourseVersionIds.map(id => new ObjectId(id)),
+          },
         },
       });
     }
@@ -646,8 +701,8 @@ export class SettingRepository implements ISettingRepository {
       pipeline.push({
         $match: {
           $or: [
-            { 'courseData.name': { $regex: search, $options: 'i' } },
-            { 'courseData.description': { $regex: search, $options: 'i' } },
+            {'courseData.name': {$regex: search, $options: 'i'}},
+            {'courseData.description': {$regex: search, $options: 'i'}},
           ],
         },
       });
@@ -658,7 +713,7 @@ export class SettingRepository implements ISettingRepository {
     });
 
     const result = await this.courseSettingsCollection
-      .aggregate(pipeline, { session })
+      .aggregate(pipeline, {session})
       .toArray();
 
     return result.length > 0 ? result[0].total : 0;
@@ -667,7 +722,7 @@ export class SettingRepository implements ISettingRepository {
   async updateTimeslotsSettings(
     courseId: string,
     courseVersionId: string,
-    timeslots: { isActive: boolean; slots: ITimeSlot[] },
+    timeslots: {isActive: boolean; slots: ITimeSlot[]},
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
     await this.init();
@@ -683,7 +738,7 @@ export class SettingRepository implements ISettingRepository {
           'settings.timeslots': timeslots as any,
         },
       },
-      { session },
+      {session},
     );
     return result;
   }
@@ -692,7 +747,7 @@ export class SettingRepository implements ISettingRepository {
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
-  ): Promise<{ isActive: boolean; slots: ITimeSlot[] } | null> {
+  ): Promise<{isActive: boolean; slots: ITimeSlot[]} | null> {
     await this.init();
 
     const courseSettings = await this.courseSettingsCollection.findOne(
@@ -700,7 +755,7 @@ export class SettingRepository implements ISettingRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      { session },
+      {session},
     );
 
     // Use type assertion to access timeslots property
