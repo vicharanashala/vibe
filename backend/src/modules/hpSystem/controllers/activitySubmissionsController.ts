@@ -8,6 +8,7 @@ import {
   JsonController,
   Param,
   Post,
+  QueryParam,
   QueryParams,
   UploadedFiles,
   UseBefore,
@@ -72,11 +73,11 @@ export class ActivitySubmissionsController {
   @HttpCode(200)
   async getMySubmissions(
     @CurrentUser() user: IUser,
-    @QueryParams() query: FilterQueryDto
+    @QueryParams() query: FilterQueryDto,
+    @QueryParam("cohort") cohort?: string
   ): Promise<any> {
     const studentId = user._id.toString();
-    // Using the same repository method the teacher uses but bypassing the teacher check/body
-    const doc = await this.submissionService.listMySubmissions(studentId, query);
+    const doc = await this.submissionService.listMySubmissions(studentId, query, cohort);
     return { success: true, data: doc.data };
   }
 
