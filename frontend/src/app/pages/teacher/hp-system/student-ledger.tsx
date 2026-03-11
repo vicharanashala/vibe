@@ -1,5 +1,7 @@
+import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
-import { useHpStudentLedger, useHpStudents } from "@/hooks/hooks";
+import { useHpStudentLedger, useHpCourseVersions, useHpActivities } from "@/hooks/hooks";
+import { getEffectiveIds } from "@/lib/api/hp-system";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,29 +13,84 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Zap, User, Mail, Clock, MessageSquare } from "lucide-react";
+import { 
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { 
+    ArrowLeft, 
+    Zap, 
+    User, 
+    Mail, 
+    Clock, 
+    MessageSquare, 
+    Eye,
+    Calendar,
+    AlertCircle,
+    CheckCircle2
+} from "lucide-react";
 
 export default function StudentLedgerPage() {
     const { courseVersionId, cohortName, studentId } = useParams({ strict: false });
     const navigate = useNavigate();
+    const [selectedEntry, setSelectedEntry] = useState<any>(null);
 
-    const { data: students } = useHpStudents(courseVersionId || '', cohortName || '');
-    const student = students.find(s => s._id === studentId);
+    // 1. Resolve raw courseId from courseVersionId 
+    const { data: versions = [], isLoading: isLoadingCourses } = useHpCourseVersions();
+    const course = versions.find((c: any) =>
+        c.versions.some((v: any) => v.courseVersionId === courseVersionId)
+    );
+    const rawCourseId = course?.courseId || "000000000000000000000001";
 
-    const { data: ledger, isLoading } = useHpStudentLedger(
-        studentId || '', courseVersionId || '', cohortName || ''
+    // 2. Resolve Effective IDs (Real DB IDs) for the API call
+    const { courseId: effectiveCourseId, courseVersionId: effectiveVersionId } = getEffectiveIds(
+        cohortName || "",
+        rawCourseId,
+        courseVersionId || ""
     );
 
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'SUBMITTED':
-                return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Submitted</Badge>;
-            case 'PENDING':
-                return <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">Pending</Badge>;
-            case 'REVERTED':
-                return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">Reverted</Badge>;
+    // 3. Fetch Ledger Data
+    const { data: ledger = [], studentDetails, isLoading: isLoadingLedger, error } = useHpStudentLedger(
+        studentId || "",
+        cohortName || "",
+        effectiveCourseId,
+        effectiveVersionId
+    );
+
+    // 4. Fetch Activities to map IDs to Titles
+    const { data: activities = [], isLoading: isLoadingActivities } = useHpActivities(
+        effectiveVersionId,
+        cohortName || ""
+    );
+
+    const activityMap = useMemo(() => {
+        const map: Record<string, string> = {};
+        activities.forEach((act: any) => {
+            map[act._id] = act.title;
+        });
+        return map;
+    }, [activities]);
+
+    const totalLoading = isLoadingLedger || isLoadingCourses || isLoadingActivities;
+
+    const getDirectionBadge = (direction: string) => {
+        switch (direction) {
+            case 'CREDIT':
+                return (
+                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Credit
+                    </Badge>
+                );
+            case 'DEBIT':
+                return (
+                    <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 gap-1">
+                        <AlertCircle className="h-3 w-3" /> Debit
+                    </Badge>
+                );
             default:
-                return <Badge variant="secondary">{status}</Badge>;
+                return <Badge variant="secondary">{direction}</Badge>;
         }
     };
 
@@ -45,7 +102,21 @@ export default function StudentLedgerPage() {
         });
     };
 
-    const totalHp = ledger.reduce((sum, e) => sum + e.currentHp, 0);
+    const formatDate = (iso?: string) => {
+        if (!iso) return '—';
+        return new Date(iso).toLocaleDateString('en-IN', {
+            day: 'numeric', month: 'short', year: 'numeric'
+        });
+    };
+
+    if (error) {
+        return (
+            <div className="p-8 text-center">
+                <p className="text-red-500 font-semibold">Error loading ledger: {error}</p>
+                <Button variant="link" onClick={() => window.location.reload()}>Retry</Button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 w-full pb-12">
@@ -73,23 +144,25 @@ export default function StudentLedgerPage() {
                 <CardContent className="flex items-center justify-between p-6">
                     <div className="flex items-center gap-4">
                         <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-primary font-semibold text-lg">
-                            {student ? student.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '??'}
+                            {studentDetails
+                                ? studentDetails.studentName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+                                : '??'}
                         </div>
                         <div>
                             <div className="flex items-center gap-2 text-lg font-semibold">
                                 <User className="h-4 w-4 text-muted-foreground" />
-                                {student?.name || 'Loading...'}
+                                {studentDetails?.studentName || 'Loading...'}
                             </div>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <Mail className="h-3.5 w-3.5" />
-                                {student?.email || '—'}
+                                {studentDetails?.studentEmail || '—'}
                             </div>
                         </div>
                     </div>
                     <div className="text-right">
                         <div className="flex items-center gap-2 text-3xl font-bold">
                             <Zap className="h-7 w-7 text-yellow-500" />
-                            {totalHp}
+                            {studentDetails?.hpPoints ?? 0}
                         </div>
                         <div className="text-sm text-muted-foreground">Current Total HP</div>
                     </div>
@@ -97,7 +170,7 @@ export default function StudentLedgerPage() {
             </Card>
 
             {/* Ledger Table */}
-            {isLoading ? (
+            {totalLoading ? (
                 <div className="flex items-center justify-center py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                 </div>
@@ -114,51 +187,52 @@ export default function StudentLedgerPage() {
                         <Table className="w-full">
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="min-w-[200px]">Activity</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Base HP</TableHead>
-                                    <TableHead className="text-right">Current HP</TableHead>
-                                    <TableHead className="min-w-[160px]">Submitted At</TableHead>
-                                    <TableHead className="min-w-[250px]">Instructor Feedback</TableHead>
+                                    <TableHead>Activity Name</TableHead>
+                                    <TableHead>Event Type</TableHead>
+                                    <TableHead>Direction</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                    <TableHead>Deadline</TableHead>
+                                    <TableHead>Date of Submission</TableHead>
+                                    <TableHead className="text-center">Action</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {ledger.map(entry => (
+                                {ledger.map((entry: any) => (
                                     <TableRow key={entry._id}>
                                         <TableCell>
-                                            <div className="font-medium">{entry.activityTitle}</div>
-                                            <div className="text-xs text-muted-foreground mt-0.5">
-                                                {formatDateTime(entry.createdAt)}
+                                            <div className="font-medium max-w-[200px] truncate">
+                                                {activityMap[entry.activityId] || entry.activityId || 'Manual Adjustment'}
                                             </div>
                                         </TableCell>
-                                        <TableCell>{getStatusBadge(entry.status)}</TableCell>
-                                        <TableCell className="text-right">
-                                            <span className="font-semibold text-muted-foreground">{entry.baseHp}</span>
+                                        <TableCell>
+                                            <Badge variant="outline" className="font-normal uppercase text-[10px]">
+                                                {entry.eventType}
+                                            </Badge>
                                         </TableCell>
+                                        <TableCell>{getDirectionBadge(entry.direction)}</TableCell>
                                         <TableCell className="text-right">
-                                            <span className={`font-semibold ${entry.currentHp > 0 ? 'text-green-600 dark:text-green-400' : entry.currentHp < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
-                                                {entry.currentHp > 0 ? '+' : ''}{entry.currentHp}
+                                            <span className={`font-semibold ${entry.direction === 'CREDIT' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                {entry.direction === 'CREDIT' ? '+' : '-'}{entry.amount}
                                             </span>
                                         </TableCell>
                                         <TableCell>
-                                            {entry.submittedAt ? (
-                                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                                    <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-                                                    <span>{formatDateTime(entry.submittedAt)}</span>
-                                                </div>
-                                            ) : (
-                                                <span className="text-sm text-muted-foreground">—</span>
-                                            )}
+                                            <span className="text-sm text-muted-foreground">
+                                                {formatDate(entry.calc?.deadlineAt)}
+                                            </span>
                                         </TableCell>
                                         <TableCell>
-                                            {entry.instructorFeedback ? (
-                                                <div className="flex items-start gap-1.5 text-sm">
-                                                    <MessageSquare className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-muted-foreground" />
-                                                    <span>{entry.instructorFeedback}</span>
-                                                </div>
-                                            ) : (
-                                                <span className="text-sm text-muted-foreground">—</span>
-                                            )}
+                                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                                <Calendar className="h-3.5 w-3.5" />
+                                                <span>{formatDate(entry.createdAt)}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <Button 
+            
+                                                onClick={() => setSelectedEntry(entry)}
+                                            >
+                                                view more
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -167,6 +241,99 @@ export default function StudentLedgerPage() {
                     </CardContent>
                 </Card>
             )}
+
+            {/* Detail View Modal */}
+            <Dialog open={!!selectedEntry} onOpenChange={(open) => !open && setSelectedEntry(null)}>
+                <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <History className="h-5 w-5" />
+                            Transaction Details
+                        </DialogTitle>
+                    </DialogHeader>
+                    {selectedEntry && (
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Activity</p>
+                                    <p className="text-sm font-semibold">{activityMap[selectedEntry.activityId] || selectedEntry.activityId || 'Manual Adjustment'}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Event Type</p>
+                                    <Badge variant="secondary">{selectedEntry.eventType}</Badge>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Amount</p>
+                                    <div className="flex items-center gap-2">
+                                        {getDirectionBadge(selectedEntry.direction)}
+                                        <span className={`text-lg font-bold ${selectedEntry.direction === 'CREDIT' ? 'text-green-600' : 'text-red-600'}`}>
+                                            {selectedEntry.direction === 'CREDIT' ? '+' : '-'}{selectedEntry.amount}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Date</p>
+                                    <div className="flex items-center gap-1.5 text-sm">
+                                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                                        {formatDateTime(selectedEntry.createdAt)}
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Deadline</p>
+                                    <p className="text-sm">{formatDateTime(selectedEntry.calc?.deadlineAt)}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Reason Code</p>
+                                    <Badge variant="outline">{selectedEntry.calc?.reasonCode || '—'}</Badge>
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-2 pt-2 border-t">
+                                <div className="space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Triggered By</p>
+                                    <div className="flex items-center gap-2 text-sm bg-muted/50 p-2 rounded-md">
+                                        <User className="h-4 w-4 text-muted-foreground" />
+                                        <span className="font-medium">{selectedEntry.meta?.triggeredBy || 'SYSTEM'}</span>
+                                        <span className="text-xs text-muted-foreground">({selectedEntry.meta?.triggeredByUserId || 'Automated'})</span>
+                                    </div>
+                                </div>
+                                
+                                <div className="space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Note</p>
+                                    <div className="flex items-start gap-2 text-sm bg-muted/30 p-3 rounded-md min-h-[60px]">
+                                        <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5" />
+                                        <p className="italic text-muted-foreground">
+                                            {selectedEntry.meta?.note || 'No additional notes provided.'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
+}
+
+// Helper component for transaction icon
+function History(props: any) {
+    return (
+        <svg
+            {...props}
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+            <path d="m12 7 0 5 3 2" />
+        </svg>
+    )
 }
