@@ -5016,20 +5016,20 @@ export function useHpStudents(courseVersionId: string, cohort: string) {
   };
 }
 
-export function useHpStudentLedger(studentId: string, courseVersionId: string, cohort: string, courseId: string) {
+export function useHpStudentLedger(studentId: string, courseVersionId: string, cohort: string) {
   const query = useQuery({
-    queryKey: ['hp-student-ledger', studentId, courseVersionId, cohort, courseId],
+    queryKey: ['hp-student-ledger', studentId, courseVersionId, cohort],
     queryFn: async () => {
-      const res = await hpApi.getStudentLedger(studentId, courseVersionId, cohort, courseId);
-      if (!res.success) throw new Error((res as any).message || 'Failed to load ledger');
+      const res = await hpApi.getStudentLedger(studentId, courseVersionId, cohort);
+      if (!res.success) throw new Error(res.message || 'Failed to load ledger');
       return res.data;
     },
-    enabled: !!studentId && !!courseVersionId && !!cohort && !!courseId,
+    enabled: !!studentId && !!courseVersionId && !!cohort,
     refetchOnWindowFocus: false,
   });
 
   return {
-    data: query.data || null,
+    data: query.data || [],
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,

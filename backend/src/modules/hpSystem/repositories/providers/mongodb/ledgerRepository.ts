@@ -34,7 +34,7 @@ export class LedgerRepository implements ILedgerRepository {
     async listByStudentId(
         studentId: string,
         filter: FilterQueryDto
-    ): Promise<{ data: any[]; total: number; page: number; limit: number }> {
+    ): Promise<LedgerListResponseDto> {
         await this.init();
 
         const {
