@@ -4,7 +4,7 @@ import { inject, injectable } from "inversify";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { LedgerRepository } from "../repositories/index.js";
 import { FilterQueryDto } from "../classes/validators/activitySubmissionValidators.js";
-import { LedgerListResponseDto } from "../classes/validators/ledgerValidators.js";
+import { LedgerListResponseDto, StudentLedgerDetailsDto } from "../classes/validators/ledgerValidators.js";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { BadRequestError } from "routing-controllers";
 
@@ -33,13 +33,26 @@ export class LedgerService extends BaseService {
 
     async listByStudentId(
         studentId: string,
-        filter: FilterQueryDto
+        filter: FilterQueryDto,
+        courseId: string,
+        courseVersionId: string,
+        cohortName: string
     ): Promise<LedgerListResponseDto> {
 
         const student = await this.userRepo.findById(studentId);
         if (!student)
             throw new BadRequestError("Student not found");
-        const enrollment = await this.cohortRepository()
-        return await this.ledgerRepository.listByStudentId(studentId, filter);
+        const enrollment = await this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId)
+        if (!enrollment)
+            throw new BadRequestError("Enrollment not found");
+
+        const studentDetails: StudentLedgerDetailsDto = {
+            hpPoints: enrollment.hpPoints ?? 0,
+            studentEmail: student.email,
+            studentName: `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim(),
+        };
+        const data = await this.ledgerRepository.listByStudentId(studentId, filter);
+
+        return { studentDetails, ...data }
     }
 }
