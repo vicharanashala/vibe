@@ -48,6 +48,13 @@ export class SubmitProjectBody {
   @IsNotEmpty({message: 'projectId is required'})
   @IsString()
   projectId!: string;
+
+  @IsOptional()
+  @JSONSchema({
+    description:'Cohort of the student submitting the project'
+  })
+  @IsString()
+  cohortId?: string;
 }
 export class SuccessResponse {
   @IsString()

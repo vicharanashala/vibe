@@ -44,7 +44,8 @@ class AttemptRepository {
   async getById(
     attemptId: string,
     quizId: string,
-    session: ClientSession,
+    cohortId?: string,
+    session?: ClientSession,
   ): Promise<IAttempt | null> {
     await this.init();
 
@@ -55,6 +56,7 @@ class AttemptRepository {
       {
         _id: new ObjectId(attemptId),
         quizId: {$in: [quizIdStr, quizIdObj]},
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       {session},
     );

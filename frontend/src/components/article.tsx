@@ -99,6 +99,7 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                     itemId: currentCourse.itemId,
                     moduleId: currentCourse.moduleId ?? '',
                     sectionId: currentCourse.sectionId ?? '',
+                    cohortId: currentCourse.cohortId ?? '',
                 }
             });
         }
@@ -121,6 +122,7 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                         itemId: currentCourse.itemId,
                         moduleId: currentCourse.moduleId ?? '',
                         sectionId: currentCourse.sectionId ?? '',
+                        cohortId: currentCourse.cohortId ?? '',
                     }
                 });
             }

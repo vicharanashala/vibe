@@ -164,6 +164,12 @@ export class EnrollmentDataResponse {
   })
   @IsOptional()
   hasNewItemsAfterCompletion?: boolean;
+
+  @IsOptional()
+  cohortId?: ID;
+
+  @IsOptional()
+  cohortName?: string;
 }
 
 class QuizScoresResponse {
