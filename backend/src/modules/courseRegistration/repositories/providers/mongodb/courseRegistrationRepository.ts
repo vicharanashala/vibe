@@ -1,16 +1,19 @@
-import { ICourseRegistration, MongoDatabase } from '#root/shared/index.js';
+import { ICohort, ICourseRegistration, ICourseVersion, ID, MongoDatabase } from '#root/shared/index.js';
 import { inject } from 'inversify';
 import { Collection, ClientSession, ObjectId, SortDirection } from 'mongodb';
 import { IEnrollment } from '#root/shared/index.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { ICourseRegistrationRepository } from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
 import { Course } from '#root/modules/courses/classes/index.js';
+import { re } from 'mathjs';
 
 
 class CourseRegistrationRepository implements ICourseRegistrationRepository {
   private enrollmentCollection!: Collection<IEnrollment>;
   private courseRegistrationCollection: Collection<ICourseRegistration>;
   private courseCollection: Collection<Course>;
+  private cohortsCollection: Collection<ICohort>;
+  
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
@@ -22,6 +25,7 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
     this.enrollmentCollection =
       await this.db.getCollection<IEnrollment>('enrollment');
     this.courseCollection = await this.db.getCollection<Course>('newCourse');
+    this.cohortsCollection = await this.db.getCollection<ICohort>('cohorts');
 
     this.courseRegistrationCollection.createIndex({
       userId: 1,
@@ -87,6 +91,42 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
     };
   }
 
+  async findPendingRequestsByUserIdAndCohort(
+    userId: string,
+    versionId: string,
+    cohort?:string,
+    session?: ClientSession,
+  ): Promise<ICourseRegistration | null> {
+    await this.init();
+
+    const result = await this.courseRegistrationCollection.findOne(
+      { userId: new ObjectId(userId), versionId: new ObjectId(versionId), status: 'PENDING', cohortId: new ObjectId(cohort) },
+      { session },
+    );
+
+    if (!result) return null;
+
+    return {
+      ...result,
+      _id: result._id?.toString(),
+      userId: result.userId?.toString(),
+      courseId: result.courseId?.toString(),
+      versionId: result.versionId?.toString(),
+    };
+  }
+
+  async getCohortsByIds(
+    cohortIds: ID[],
+    session?: ClientSession,
+  ): Promise<ICohort[]> {
+
+    const objectIds = cohortIds.map(id => new ObjectId(id));
+
+    return await this.cohortsCollection
+      .find({ _id: { $in: objectIds } }, { session })
+      .toArray();
+  }
+
   async create(
     data: ICourseRegistration,
     session?: ClientSession,
@@ -121,7 +161,7 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
   }
 
   async findAllregistrations(
-    versionId: string,
+    version: ICourseVersion,
     filter: { status?: string; search?: string },
     skip: number,
     limit: number,
@@ -130,7 +170,7 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
   ): Promise<{ registrations: ICourseRegistration[]; totalDocuments: number }> {
     await this.init();
 
-    const query: any = { versionId: new ObjectId(versionId) };
+    const query: any = { versionId: new ObjectId(version._id.toString()) };
 
     if (filter.status && filter.status !== 'ALL') {
       query.status = filter.status;
@@ -160,11 +200,28 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
       userId: item.userId?.toString(),
       courseId: item.courseId?.toString(),
       versionId: item.versionId?.toString(),
+      cohortId: item.cohortId?.toString(),
     }));
+
+    const cohorts = await this.getCohortsByIds(
+      version.cohorts || [],
+      session
+    );
+
+    if (cohorts.length > 0) {
+      const cohortMap = new Map(
+        cohorts.map(c => [c._id?.toString(), c])
+      );
+      registrations.forEach(registration => {
+        const cohort = cohortMap.get(registration.cohortId?.toString());
+        if (cohort) {
+          registration.cohortName = cohort.name
+        }
+      });
+    }
 
     const totalDocuments =
       await this.courseRegistrationCollection.countDocuments(query, { session });
-
     return { registrations, totalDocuments };
   }
 
