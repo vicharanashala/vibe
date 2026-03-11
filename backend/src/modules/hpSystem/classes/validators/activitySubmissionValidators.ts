@@ -263,6 +263,10 @@ export class SubmissionAttachmentsDto {
 export class StudentSubmissionDto {
     @Expose()
     @IsString()
+    _id!: string;
+
+    @Expose()
+    @IsString()
     status!: string;
 
     @Expose()
