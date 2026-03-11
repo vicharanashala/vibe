@@ -53,6 +53,7 @@ class SubmissionRepository {
     quizId: string,
     userId: string | ObjectId,
     attemptId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<ISubmission> {
     await this.init();
@@ -75,6 +76,7 @@ class SubmissionRepository {
       quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
       userId: {$in: [userIdStr, ...(userIdObj ? [userIdObj] : [])]},
       attemptId: {$in: [attemptIdStr, ...(attemptIdObj ? [attemptIdObj] : [])]},
+      ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
     };
 
     const result = await this.submissionResultCollection.findOne(filter, {

@@ -11,6 +11,7 @@ import {
   IsEmpty,
   IsArray,
   ValidateNested,
+  ArrayUnique,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 import { ObjectId } from 'mongodb';
@@ -83,6 +84,16 @@ class CourseBody implements Partial<ICourse> {
   @IsString()
   @MaxLength(1000)
   versionDescription?: string;
+
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  @IsOptional() // allow the array to be empty
+  @JSONSchema({
+    description: 'Array of cohort names in a version',
+    example: ['cohort1', 'cohort2'],
+  })
+  cohorts?: string[];
 
   // @JSONSchema({
   //   title: 'Course Versions',

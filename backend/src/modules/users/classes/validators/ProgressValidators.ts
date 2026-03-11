@@ -166,6 +166,10 @@ export class StartItemBody {
   @IsString()
   @IsMongoId()
   sectionId: string;
+  
+  @IsOptional()
+  @IsString()
+  cohortId?: string;
 }
 
 export class StartItemParams {
@@ -301,6 +305,15 @@ export class StopItemBody {
     example: "60d5ec49b3f1c8e4a8f8b8c8",
   })
   nextItemId?: string;
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Cohort to which the user belongs',
+    example: 'Cohort A',
+    type: 'string',
+  })
+  cohortId?: string;
 }
 
 export class ItemIdparams {
@@ -475,6 +488,16 @@ export class ResetCourseProgressBody {
     message: 'sectionId is required if itemId is provided',
   })
   invalidFieldsCheck2?: any; // dummy field to trigger validation error
+
+  @Expose()
+  @JSONSchema({
+    description: 'Cohort to which the user belongs',
+    example: 'Cohort A',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  cohortId?: string;
 }
 
 export class ProgressDataResponse implements IProgress {

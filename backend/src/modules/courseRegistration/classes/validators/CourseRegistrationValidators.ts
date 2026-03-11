@@ -104,6 +104,10 @@ export class RegistrationParams {
 export class UpdateStatusBody {
   @IsIn(['PENDING', 'APPROVED', 'REJECTED'])
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+
+  @IsOptional()
+  @IsString()
+  cohort?: string;
 }
 
 export class BulkUpdateStatusBody {
@@ -329,6 +333,10 @@ class CourseVersionDetailsObject {
 
   @IsArray()
   instructors: Array<any>;
+
+  @IsOptional()
+  @IsArray()
+  cohorts: Array<any>;
 }
 
 export class CourseVersionDetailsResponse {

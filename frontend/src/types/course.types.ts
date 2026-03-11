@@ -43,6 +43,8 @@ export interface CourseCardProps {
       to: string;
     };
     _id?: string;
+    cohortId?: string;
+    cohortName?: string;
   };
   isLoading: boolean;
   index: number;
@@ -83,6 +85,8 @@ export interface CourseInfo {
   itemId: string | null;
   watchItemId: string | null;
   questionId?: string | null;
+  cohortId?: string | null;
+  cohortName?: string | null;
 }
 
 export interface CourseState {
@@ -110,6 +114,8 @@ export interface EnrolledUser {
   progress: number
   completedItemsCount?: number
   isDeleted?: boolean
+  cohortId?: string
+  cohortName?: string
 }
 
 export interface EnrollmentDetails {
