@@ -525,8 +525,8 @@ export class ActivitySubmissionsService extends BaseService {
             // 3. Validation
             if (["REVERTED", "REJECTED"].includes(currentStatus)) throw new BadRequestError(`Submission is already ${currentStatus}.`);
 
-            if (isApprovalRequired && !isApprove && currentStatus == "SUBMITTED") {
-                throw new BadRequestError("This activity requires approval. Only APPROVE is allowed.");
+            if (isApprovalRequired && isRevert && currentStatus == "SUBMITTED") {
+                throw new BadRequestError("This activity requires approval. Only APPROVE/REJECT is allowed.");
             }
 
             if (isApprove && (currentStatus === "APPROVED" || (currentStatus === "SUBMITTED" && rewardConfig?.applyWhen !== "ON_APPROVAL"))) {
