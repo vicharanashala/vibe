@@ -4711,7 +4711,9 @@ import {
   HpRuleConfig,
   CreateHpActivityPayload,
   HpStudent,
-  HpLedgerEntry,
+  HpLedgerTransformerEntry,
+  LedgerListResponse,
+  LedgerStudentDetails,
   HpCohortOverviewStats,
   HpStudentSubmission,
 } from '../lib/api/hp-system';
@@ -5016,20 +5018,26 @@ export function useHpStudents(courseVersionId: string, cohort: string) {
   };
 }
 
-export function useHpStudentLedger(studentId: string, courseVersionId: string, cohort: string) {
+export function useHpStudentLedger(
+  studentId: string,
+  cohortName: string,
+  courseId: string,
+  courseVersionId: string
+) {
   const query = useQuery({
-    queryKey: ['hp-student-ledger', studentId, courseVersionId, cohort],
+    queryKey: ['hp-student-ledger', studentId, cohortName, courseId, courseVersionId],
     queryFn: async () => {
-      const res = await hpApi.getStudentLedger(studentId, courseVersionId, cohort);
-      if (!res.success) throw new Error(res.message || 'Failed to load ledger');
-      return res.data;
+      const res = await hpApi.getStudentLedger(studentId, cohortName, courseId, courseVersionId);
+      return res;
     },
-    enabled: !!studentId && !!courseVersionId && !!cohort,
+    enabled: !!studentId && !!courseId && !!courseVersionId && !!cohortName,
     refetchOnWindowFocus: false,
   });
 
   return {
-    data: query.data || [],
+    data: query.data?.data || [],
+    studentDetails: query.data?.studentDetails || null,
+    total: query.data?.total || 0,
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,
