@@ -2024,6 +2024,7 @@ export function useEditProctoringSettings() {
       return await res.json();
     } catch (err: any) {
       setError(err.message || 'Unknown error');
+      throw new Error(err);
     } finally {
       setLoading(false);
     }
