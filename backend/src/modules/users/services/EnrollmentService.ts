@@ -130,6 +130,7 @@ export class EnrollmentService extends BaseService {
         enrollmentDate: new Date(),
         percentCompleted: 0,
         completedItemsCount: 0,
+        hpPoints: 100,
       };
 
       const createdEnrollment = await this.enrollmentRepo.createEnrollment(

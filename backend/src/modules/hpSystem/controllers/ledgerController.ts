@@ -29,7 +29,7 @@ export class LedgerController {
         @Param("cohortName") cohortName: string,
         @QueryParams() query: FilterQueryDto
     ): Promise<LedgerListResponseDto> {
-        return this.ledgerService.listByStudentId(studentId, query);
+        return this.ledgerService.listByStudentId(studentId, courseId, courseVersionId, query);
     }
 
 }
