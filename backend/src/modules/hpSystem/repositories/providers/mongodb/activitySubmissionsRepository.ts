@@ -295,7 +295,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         });
     }
 
-    async list(query: ListSubmissionsQueryDto, opts?: { session?: ClientSession }): Promise<any[]> {
+    async list(query: ListSubmissionsQueryDto, opts?: { session?: ClientSession }): Promise<HpActivitySubmission[]> {
         await this.init();
 
         const page = query.page ?? 1;
@@ -314,11 +314,11 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         };
         const sortStage = SORT_MAP[sortByRaw] ?? { submittedAt: -1 };
 
-        const q: any = { isDeleted: { $ne: true } };
+        const q: any = {};
 
-        if (query.courseVersionId) q.courseVersionId = query.courseVersionId;
+        if (query.courseVersionId) q.courseVersionId = new ObjectId(query.courseVersionId);
         if (query.cohort) q.cohort = query.cohort;
-        if (query.activityId) q.activityId = query.activityId;
+        if (query.activityId) q.activityId = new ObjectId(query.activityId);
         if (query.status) q.status = query.status;
 
         if (query.search?.trim()) {
