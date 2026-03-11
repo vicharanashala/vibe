@@ -101,56 +101,19 @@ export interface HpStudent {
     avatar?: string;
 }
 
-export interface HpLedgerCalc {
-    ruleType: string;
-    percentage: number | null;
-    absolutePoints: number;
-    baseHpAtTime: number;
-    computedAmount: number;
-    deadlineAt: string | null;
-    withinDeadline: boolean;
-    reasonCode: string;
-}
-
-export interface HpLedgerMeta {
-    triggeredBy: string;
-    triggeredByUserId: string;
-    note: string;
-}
-
-export interface HpLedgerLinks {
-    reversedLedgerId: string | null;
-    relatedLedgerIds: string[];
-}
-
 export interface HpLedgerEntry {
     _id: string;
-    courseId: string;
-    courseVersionId: string;
-    cohort: string;
     studentId: string;
-    studentEmail: string;
     activityId: string;
-    submissionId: string;
-    eventType: string;       // CREDIT, REVERSAL, REJECTION
-    direction: string;       // CREDIT or DEBIT
-    amount: number;
-    calc: HpLedgerCalc | null;
-    links: HpLedgerLinks | null;
-    meta: HpLedgerMeta | null;
+    activityTitle: string;
+    status: 'SUBMITTED' | 'PENDING' | 'REVERTED';
+    submissionLink?: string;
+    baseHp: number;
+    currentHp: number;
+    type: 'CREDIT' | 'DEBIT';
+    instructorFeedback?: string;
+    submittedAt?: string;
     createdAt: string;
-}
-
-export interface HpLedgerListResponse {
-    data: HpLedgerEntry[];
-    studentDetails: {
-        studentName: string;
-        studentEmail: string;
-        hpPoints: number;
-    };
-    total: number;
-    page: number;
-    limit: number;
 }
 
 export interface HpCohortOverviewStats {
@@ -493,13 +456,49 @@ export const hpApi = {
     },
 
     getStudentLedger: async (
-        studentId: string,
-        courseVersionId: string,
-        cohort: string,
-        courseId: string,
-    ): Promise<{ success: boolean; data: HpLedgerListResponse }> => {
-        // The real backend endpoint is GET /hp/ledger/student/:studentId/cohort/:cohortName/course/:courseId/courseVersion/:courseVersionId
-        return apiFetch(`${BASE_URL}/ledger/student/${studentId}/cohort/${encodeURIComponent(cohort)}/course/${courseId}/courseVersion/${courseVersionId}`);
+        _studentId: string,
+        _courseVersionId: string,
+        _cohort: string,
+    ): Promise<{ success: boolean; data: HpLedgerEntry[] }> => {
+        const entries: HpLedgerEntry[] = [
+            {
+                _id: 'le1', studentId: _studentId, activityId: 'act1',
+                activityTitle: 'Build REST API Project', status: 'SUBMITTED',
+                submissionLink: 'https://github.com/student/rest-api-project',
+                baseHp: 50, currentHp: 50, type: 'CREDIT',
+                submittedAt: '2026-02-15T09:45:00Z', createdAt: '2026-02-15T10:30:00Z',
+            },
+            {
+                _id: 'le2', studentId: _studentId, activityId: 'act2',
+                activityTitle: 'Week 1 Quiz', status: 'SUBMITTED',
+                submissionLink: 'https://platform.example.com/quiz/submission/123',
+                baseHp: 40, currentHp: 30, type: 'CREDIT',
+                instructorFeedback: 'Good attempt. Review question 5 about normalization.',
+                submittedAt: '2026-02-18T13:50:00Z', createdAt: '2026-02-18T14:00:00Z',
+            },
+            {
+                _id: 'le3', studentId: _studentId, activityId: 'act3',
+                activityTitle: 'Deploy to Cloud', status: 'PENDING',
+                baseHp: 60, currentHp: 0, type: 'CREDIT',
+                createdAt: '2026-02-20T09:00:00Z',
+            },
+            {
+                _id: 'le4', studentId: _studentId, activityId: 'act1',
+                activityTitle: 'Late Submission Penalty', status: 'SUBMITTED',
+                baseHp: 0, currentHp: -10, type: 'DEBIT',
+                instructorFeedback: 'Late by 2 days',
+                submittedAt: '2026-02-22T10:30:00Z', createdAt: '2026-02-22T11:00:00Z',
+            },
+            {
+                _id: 'le5', studentId: _studentId, activityId: 'act4',
+                activityTitle: 'Midterm Project', status: 'REVERTED',
+                submissionLink: 'https://github.com/student/midterm',
+                baseHp: 100, currentHp: 0, type: 'CREDIT',
+                instructorFeedback: 'Reverted due to plagiarism concern',
+                submittedAt: '2026-02-25T15:00:00Z', createdAt: '2026-02-25T16:30:00Z',
+            },
+        ];
+        return { success: true, data: entries };
     },
 
     revertLedgerEntry: async (entryId: string): Promise<{ success: boolean }> => {
