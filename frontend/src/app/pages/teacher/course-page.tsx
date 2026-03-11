@@ -499,6 +499,13 @@ function CourseCard({
   // 3. Choose final course value
   const course = localCourse || fetchedCourse;
 
+  // determine whether the enrollment corresponds to an archived version
+  const enrollmentVersionStatus = enrollment.course?.versionDetails?.find((v: any) =>
+    v.id === bufferToHex(enrollment.courseVersionId as any)
+  )?.versionStatus;
+  const isArchivedEnrollment = enrollmentVersionStatus === 'archived';
+
+
   if (courseLoading) {
     return (
       <div className="relative">
@@ -767,7 +774,8 @@ function CourseCard({
                     startEditing()
                   }}
                   className="h-9 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
-                  disabled={updateCourseMutation.isPending}
+                  disabled={updateCourseMutation.isPending || isArchivedEnrollment}
+                  title={isArchivedEnrollment ? "Cannot edit archived course" : undefined}
                 >
                   {updateCourseMutation.isPending ? (
                     <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -785,6 +793,8 @@ function CourseCard({
                     setShowAnnouncementModal(true)
                   }}
                   className="h-9 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
+                  disabled={isArchivedEnrollment}
+                  title={isArchivedEnrollment ? "Cannot announce on archived course" : undefined}
                 >
                   <Megaphone className="h-3 w-3 mr-1" />
                   Announce
@@ -1500,7 +1510,8 @@ function VersionCard({
                     size="sm"
                     onClick={() => setIsCopyModalOpen(true)}
                     className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-                    disabled={copyVersionIsPending}
+                    disabled={copyVersionIsPending || isArchived}
+                    title={isArchived ? "Cannot clone archived version" : undefined}
                   >
                     {copyVersionIsPending ? (
                       <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -1514,6 +1525,8 @@ function VersionCard({
                     size="sm"
                     onClick={() => setShowAnnouncementModal(true)}
                     className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                    disabled={isArchived}
+                    title={isArchived ? "Cannot announce on archived version" : undefined}
                   >
                     <Megaphone className="h-3 w-3 mr-1" />
                     Announce
@@ -1553,7 +1566,8 @@ function VersionCard({
                     size="sm"
                     onClick={startEditingVersion}
                     className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-                    disabled={updateVersionMutation.isPending}
+                    disabled={updateVersionMutation.isPending || isArchived}
+                    title={isArchived ? "Cannot edit archived version" : undefined}
                   >
                     {updateVersionMutation.isPending ? (
                       <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -1817,6 +1831,7 @@ function VersionCard({
                   size="sm"
                   onClick={viewCourse}
                   className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                  // Manage remains enabled even for archived versions
                 >
                   <BookOpenIcon className="h-3 w-3 mr-1" />
                   Manage
@@ -1826,6 +1841,8 @@ function VersionCard({
                   size="sm"
                   onClick={sendInvites}
                   className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                  disabled={isArchived}
+                  title={isArchived ? "Cannot send invites to archived version" : undefined}
                 >
                   <MailPlus className="h-3 w-3 mr-1" />
                   Send Invites
@@ -1840,6 +1857,8 @@ function VersionCard({
                     setShowProctoringModal(true)
                   }}
                   className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
+                  disabled={isArchived}
+                  title={isArchived ? "Cannot open settings for archived version" : undefined}
                 >
                   <Settings2 className="h-3 w-3 mr-1" />
                   Settings
