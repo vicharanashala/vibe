@@ -18,7 +18,6 @@ interface UserActivityEventRequest {
   userId: string;
   courseId: string;
   versionId: string;
-  cohortId?: string; // Optional cohortId from enrollment
   rewindData: Array<{
     from: string;
     to: string;
@@ -82,7 +81,7 @@ class UserActivityEventService extends BaseService {
       };
 
       // Check if record exists and update or create new
-      const existing = await repository.getUserActivityEvent(userId, data.videoId, data.cohortId, session);
+      const existing = await repository.getUserActivityEvent(userId, data.videoId, session);
       
       if (existing) {
         // Update existing record with latest tracking data, preserve original createdAt
@@ -98,7 +97,6 @@ class UserActivityEventService extends BaseService {
           userId,
           data.videoId,
           updateData,
-          data.cohortId,
           session
         );
         return result;
@@ -109,7 +107,6 @@ class UserActivityEventService extends BaseService {
           data.courseId,
           data.versionId,
           data.videoId,
-          data.cohortId,
           session
         );
         
@@ -126,7 +123,6 @@ class UserActivityEventService extends BaseService {
           userId,
           data.videoId,
           updateData,
-          data.cohortId,
           session
         );
         return updatedResult;

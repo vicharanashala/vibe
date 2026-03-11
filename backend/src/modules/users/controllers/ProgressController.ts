@@ -44,7 +44,6 @@ import {
   CurrentUser,
   Req,
   UseInterceptor,
-  QueryParam,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
@@ -106,7 +105,6 @@ class ProgressController {
   async getUserProgress(
     @Params() params: GetUserProgressParams,
     @Ability(getProgressAbility) { ability, user },
-    @QueryParam('cohortId') cohortId?: string,
   ): Promise<Progress> {
     const { courseId, versionId } = params;
     const userId = user._id.toString();
@@ -120,11 +118,11 @@ class ProgressController {
         'You do not have permission to view this progress',
       );
     }
+
     const progress = await this.progressService.getUserProgress(
       userId,
       courseId,
       versionId,
-      cohortId,
     );
 
     return progress;
@@ -147,7 +145,6 @@ class ProgressController {
 
     // Validate and extract userId with proper error handling
     const queryUserId = request.query?.userId as string;
-    const cohortId = request.query?.cohortId as string | undefined;
     const userId =
       queryUserId && queryUserId.trim() ? queryUserId : user._id.toString();
 
@@ -159,11 +156,11 @@ class ProgressController {
         message: 'Invalid user ID',
       };
     }
+
     const result = await this.progressService.getCurrentProgressPath(
       userId,
       courseId,
       versionId,
-      cohortId
     );
 
     return result;
@@ -230,7 +227,7 @@ class ProgressController {
     @Ability(getProgressAbility) { ability, user },
   ): Promise<StartItemResponse> {
     const { courseId, versionId } = params;
-    const { itemId, moduleId, sectionId, cohortId } = body;
+    const { itemId, moduleId, sectionId } = body;
     const userId = user._id.toString();
 
     // Create a progress resource object for permission checking
@@ -249,7 +246,6 @@ class ProgressController {
       moduleId,
       sectionId,
       itemId,
-      cohortId
     );
 
     return new StartItemResponse({
@@ -293,7 +289,6 @@ class ProgressController {
       isSkipped,
       seekForwardEnabled,
       nextItemId,
-      cohortId,
     } = body;
 
     const userId = String(user._id);
@@ -309,6 +304,7 @@ class ProgressController {
         'You do not have permission to modify this progress',
       );
     }
+
     await this.progressService.stopItem(
       userId,
       courseId,
@@ -321,7 +317,6 @@ class ProgressController {
       isSkipped,
       seekForwardEnabled,
       nextItemId,
-      cohortId
     );
   }
 
@@ -357,7 +352,8 @@ It returns an empty body with a 200 status code.
     console.log('Params:', params);
     console.log('Body:', body);
     const { userId, courseId, versionId } = params;
-    const { moduleId, sectionId, itemId, cohortId } = body;
+    const { moduleId, sectionId, itemId } = body;
+
     // Create a progress resource object for permission checking
     const progressResource = subject('Progress', { userId, courseId, versionId });
 
@@ -373,18 +369,17 @@ It returns an empty body with a 200 status code.
     if (moduleId && !sectionId && !itemId) {
       console.log('Reset the course progress to the beginning of the module');
       const getmoduleProgress =
-        await this.progressService.getUserProgressPercentage( //
+        await this.progressService.getUserProgressPercentage(
           userId,
           courseId,
           versionId,
-          cohortId
         );
-      await this.progressService.resetCourseProgressToModule( //
+      console.log('Module Progress before reset:', getmoduleProgress);
+      await this.progressService.resetCourseProgressToModule(
         userId,
         courseId,
         versionId,
         moduleId,
-        cohortId
       );
 
       const afterUpdateModuleProgress =
@@ -392,7 +387,6 @@ It returns an empty body with a 200 status code.
           userId,
           courseId,
           versionId,
-          cohortId
         );
       console.log('Module Progress after reset:', afterUpdateModuleProgress);
       setAuditTrail(req, {
@@ -438,17 +432,15 @@ It returns an empty body with a 200 status code.
         userId,
         courseId,
         versionId,
-        cohortId
       );
       console.log('Section Progress before reset:', getProgress);
 
-      await this.progressService.resetCourseProgressToSection( //
+      await this.progressService.resetCourseProgressToSection(
         userId,
         courseId,
         versionId,
         moduleId,
         sectionId,
-        cohortId
       );
 
       const afterUpdateProgress =
@@ -456,7 +448,6 @@ It returns an empty body with a 200 status code.
           userId,
           courseId,
           versionId,
-          cohortId
         );
       console.log('Section Progress after reset:', afterUpdateProgress);
       setAuditTrail(req, {
@@ -504,24 +495,21 @@ It returns an empty body with a 200 status code.
         userId,
         courseId,
         versionId,
-        cohortId
       );
       console.log('Item Progress before reset:', getProgress);
-      await this.progressService.resetCourseProgressToItem( //
+      await this.progressService.resetCourseProgressToItem(
         userId,
         courseId,
         versionId,
         moduleId,
         sectionId,
         itemId,
-        cohortId
       );
       const afterUpdateProgress =
         await this.progressService.getUserProgressPercentage(
           userId,
           courseId,
           versionId,
-          cohortId
         );
 
       console.log('Item Progress after reset:', afterUpdateProgress);
@@ -569,14 +557,12 @@ It returns an empty body with a 200 status code.
         userId,
         courseId,
         versionId,
-        cohortId
       );
       console.log('Course Progress before reset:', getProgress);
       await this.progressService.resetCourseProgress(
         userId,
         courseId,
         versionId,
-        cohortId
       );
       setAuditTrail(req, {
         category: AuditCategory.PROGRESS,
@@ -714,7 +700,6 @@ It returns an empty body with a 200 status code.
   async skipOptionalItem(
     @Params() params: ItemIdparams,
     @Ability(getProgressAbility) { user, ability },
-    @QueryParam('cohortId') cohortId?: string,
   ): Promise<void> {
     const { itemId } = params;
 
@@ -726,7 +711,7 @@ It returns an empty body with a 200 status code.
     const { courseId, versionId } =
       await this.itemService.getCourseAndVersionByItemId(itemId);
 
-    await this.progressService.skipItem(userId, courseId, versionId, itemId, cohortId);
+    await this.progressService.skipItem(userId, courseId, versionId, itemId);
   }
   @Get('/progress/courses/:courseId/versions/:versionId/leaderboard')
   @HttpCode(200)
@@ -786,13 +771,13 @@ It returns an empty body with a 200 status code.
     statusCode: 500,
   })
   async recalculateStudentProgress(
-    @Body() body: CourseVersionQuery & { userId?: string, cohortId?: string },
+    @Body() body: CourseVersionQuery & { userId?: string },
     @CurrentUser() currentUser: IUser,
     @Ability(getProgressAbility) { ability, user: actorUser },
     @Req() req: Request,
   ): Promise<string> {
-    const { courseId, courseVersionId, userId: requestedUserId , cohortId } = body;
-console.log('Recalculate Progress API hit with body:', body);
+    const { courseId, courseVersionId, userId: requestedUserId } = body;
+
     // Determine target user
     const targetUserId = requestedUserId ?? currentUser._id?.toString();
 
@@ -820,7 +805,6 @@ console.log('Recalculate Progress API hit with body:', body);
         targetUserId,
         courseId,
         courseVersionId,
-        cohortId
       );
 
     // Recalculate
@@ -828,7 +812,6 @@ console.log('Recalculate Progress API hit with body:', body);
       targetUserId,
       courseId,
       courseVersionId,
-      cohortId
     );
 
     // Get progress AFTER recalculation
@@ -837,7 +820,6 @@ console.log('Recalculate Progress API hit with body:', body);
         targetUserId,
         courseId,
         courseVersionId,
-        cohortId
       );
 
     // Audit log
@@ -889,7 +871,6 @@ console.log('Recalculate Progress API hit with body:', body);
   async getModuleWiseProgress(
     @Params() params: GetUserProgressParams,
     @Ability(getProgressAbility) { ability, user },
-    @QueryParam('cohortId') cohortId?: string,
   ): Promise<
     Array<{
       moduleId: string;
@@ -918,7 +899,6 @@ console.log('Recalculate Progress API hit with body:', body);
       userId,
       courseId,
       versionId,
-      cohortId
     );
   }
 

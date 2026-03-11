@@ -11,14 +11,12 @@ export interface IProjectSubmissionRepository {
     userId: string,
     versionId: string,
     courseId: string,
-    cohort?: string,
     session?: ClientSession,
   ): Promise<IProjectSubmission | null>;
 
   getAllSubmissions(
     courseId: string,
     courseVersionId: string,
-    cohortId?: string,
     session?: ClientSession,
   ): Promise<IProjectSubmissionWithUser>;
 
@@ -29,7 +27,6 @@ export interface IProjectSubmissionRepository {
     userId: string,
     submissionURL: string,
     comment: string,
-    cohort?: string,
     session?: ClientSession,
   ): Promise<ID>;
 
@@ -44,7 +41,6 @@ export interface IProjectSubmissionRepository {
   deleteByUserAndVersion(
     userId: string,
     courseVersionId: string,
-    cohortId?: string,
     session?: ClientSession,
   ): Promise<boolean>;
 

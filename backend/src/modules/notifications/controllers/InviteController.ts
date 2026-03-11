@@ -83,7 +83,7 @@ export class InviteController {
     @Req() req: Request,
   ) {
     const { courseId, versionId } = params;
-    const { inviteData, cohortId } = body;
+    const { inviteData } = body;
 
     // Validate that the user can invite to each specific role
     // This ensures students can only invite students, TAs can invite students/TAs, etc.
@@ -105,7 +105,6 @@ export class InviteController {
       inviteData,
       courseId,
       versionId,
-      cohortId?.toString()
     );
 
     setAuditTrail(req, {
@@ -160,12 +159,13 @@ export class InviteController {
   })
   async generateInviteLink(
     @Params() params: CourseAndVersionId,
-    @Body() body: { role: EnrollmentRole , cohortId: string},
+    @Body() body: { role: EnrollmentRole },
     @Ability(getInviteAbility) { ability, user },
     @Req() req: Request,
   ) {
     const { courseId, versionId } = params;
-    const { role, cohortId } = body;
+    const { role } = body;
+
     const roleSpecificSubject = subject('Invite', {
       courseId,
       versionId,
@@ -182,7 +182,6 @@ export class InviteController {
       courseId,
       versionId,
       role,
-      cohortId
     );
 
     setAuditTrail(req, {

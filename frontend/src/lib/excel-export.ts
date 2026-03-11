@@ -21,7 +21,6 @@ export interface StudentData {
   studentId: string;
   name: string;
   email: string;
-  cohortName:string;
   quizScores: QuizScore[];
 }
 
@@ -215,7 +214,7 @@ export function transformDataForExcel(data: StudentData[]): TransformedData[] {
   data.forEach((student, rowIndex) => {
     const rowData: TransformedData = {
       'S.No.': rowIndex + 1,
-      'Name': student.name + (student.cohortName ? ` (${student.cohortName})` : ''),
+      'Name': student.name || 'Unknown',
       'Email': student.email || ''
     };
     

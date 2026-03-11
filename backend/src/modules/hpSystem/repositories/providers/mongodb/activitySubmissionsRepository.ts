@@ -71,31 +71,6 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         return res.insertedId.toString();
     }
 
-    async updateById(
-        submissionId: string,
-        input: Partial<HpActivitySubmission>,
-        opts?: { session?: ClientSession }
-    ): Promise<void> {
-        await this.init();
-
-        const now = new Date();
-
-        const updateDoc: any = {
-            ...input,
-            updatedAt: now,
-        };
-
-        await this.hpActivitySubmissionCollection.updateOne(
-            { _id: new ObjectId(submissionId) },
-            {
-                $set: updateDoc,
-            },
-            {
-                session: opts?.session,
-            }
-        );
-    }
-
     async findById(id: string, opts?: { session?: ClientSession }): Promise<HpActivitySubmission | null> {
         await this.init();
         if (!ObjectId.isValid(id)) return null;

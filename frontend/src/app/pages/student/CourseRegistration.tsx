@@ -1,4 +1,4 @@
-import {  router, studentCourseInviteRegistration } from '@/app/routes/router';
+import { studentCourseInviteRegistration } from '@/app/routes/router';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
@@ -52,7 +52,6 @@ interface ICourse {
 export interface VersionWithCourse extends ICourseVersion {
   course: ICourse;
   instructors: { name: string, profileImage: string }[];
-  cohorts: {cohortId: string, cohortName: string}[];
 }
 
 // Copied from FormBuilder for typing
@@ -136,8 +135,8 @@ export const normalizeSchemaOptions = (schema: any): any => {
 
 
 const CourseRegistration: React.FC = () => {
-  const { cohort, versionId } = studentCourseInviteRegistration.useParams();
-  const { user } = useAuthStore();
+  const { versionId } = useParams({ from: studentCourseInviteRegistration.id });
+   const { user } = useAuthStore();
 
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isRegistering, setIsRegistering] = useState(false);
@@ -148,9 +147,11 @@ const CourseRegistration: React.FC = () => {
 
   const isRecaptchaEnabled: boolean = import.meta.env.VITE_IS_RECAPTCHA_ENABLED === "true";
   // const [showModules, setShowModules] = useState(false);
+
   const { data: versionData, isLoading: isLoadingVersionData } = useGetCourseRegistration(versionId);
   const { mutateAsync: submitRegistration, isPending: isSubmitting } = useSubmitCourseRegistration();
   const { data: formFieldData, isLoading: isFormFieldsLoading } = useGetDynamicFields(versionId);
+
   const jsonSchema = formFieldData?.jsonSchema as RJSFSchema | undefined;
   const uiSchema = formFieldData?.uiSchema as Record<string, any> | undefined;
 
@@ -161,13 +162,11 @@ const CourseRegistration: React.FC = () => {
     return d.toLocaleDateString();
   };
 
+
   const onSubmit = async (data: IChangeEvent<any>) => {
     try {
 
       let body: any = { ...data.formData, recaptchaToken: isRecaptchaEnabled ? recaptchaToken : "NO_CAPTCHA" };
-      if (cohort) {
-        body.cohort = cohort;
-      }
 
       const hasFiles = Object.values(data.formData).some(v => v instanceof File);
       if (hasFiles) {
@@ -204,12 +203,6 @@ const CourseRegistration: React.FC = () => {
 
     } catch (err: any) {
       toast.error(err?.message || 'Something went wrong, please try again.');
-      if(err?.message.includes("You are already enrolled")){
-        console.log("err?.message----",err?.message);
-        setTimeout(() => {
-          router.navigate({ to: '/student' });
-        }, 1000);
-      }
     }
   };
 
@@ -340,10 +333,6 @@ const computedUiSchema = React.useMemo(() => {
                   <CardTitle className="text-xl font-bold">
                     Course Version {versionData?.version}
                   </CardTitle>
-                  {cohort && 
-                  <CardTitle className="text-xl font-bold">
-                    Cohort {versionData?.cohorts?.find(c => c.cohortId === cohort)?.cohortName}
-                  </CardTitle>}
                 </div>
                 <CardDescription className="text-pretty">
                   {versionData?.description}

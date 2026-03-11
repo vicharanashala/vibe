@@ -16,7 +16,6 @@ export enum AuditCategory {
   COURSE_SETTINGS = "COURSE_SETTINGS",
   PROGRESS = "PROGRESS",
   ANNOUNCEMENT = "ANNOUNCEMENT",
-  COHORT = "COHORT",
 }
 
 export enum AuditAction {
@@ -103,9 +102,7 @@ export enum AuditAction {
   // DOWNLOAD_QUIZ_SUBMISSIONS = "DOWNLOAD_QUIZ_SUBMISSIONS",
   // DOWNLOAD_QUIZ_REPORT = "DOWNLOAD_QUIZ_REPORT",
 
-  COHORT_ADD = "COHORT_ADD",
-  COHORT_UPDATE = "COHORT_UPDATE",
-  COHORT_DELETE = "COHORT_DELETE",
+
 }
 
 export enum OutComeStatus {
@@ -146,7 +143,6 @@ export interface InstructorAuditTrail {
     announcementId?: string | ObjectId;
     relatedIds?: Record<string, ObjectId | string>;
     userId?: string | ObjectId;
-    cohortId?: string | ObjectId;
   };
 
   changes?: {

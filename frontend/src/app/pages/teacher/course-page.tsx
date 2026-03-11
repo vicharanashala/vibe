@@ -36,7 +36,6 @@ import {
   CheckCheckIcon,
   Archive,
   ArchiveRestore,
-  Layers,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -1168,38 +1167,9 @@ function VersionCard({
 
 
   const selectedVersionId = version?.id || versionId;
+
   const isArchived = (version as any)?.versionStatus === 'archived';
   const { mutateAsync: archiveMutateAsync, isPending: isArchivePending } = useCourseVersionArchive();
-  // const [cohorts, setCohorts] = useState<string[]>([]);
-  const [cohortInput, setCohortInput] = useState("");
-  const [existingCohorts, setExistingCohorts] = useState<[]>([])
-  const [newCohorts, setNewCohorts] = useState<string[]>([])
-  useEffect(() => {
-    if (fetchedVersion?.cohortDetails) {
-      setExistingCohorts(fetchedVersion.cohortDetails);
-    }
-  }, [fetchedVersion]);
-  const MAX_COHORTS = 10;
-  const addCohort = (value: string) => {
-    const trimmed = value.trim().toLowerCase()
-    if (!trimmed) return
-    if (
-      existingCohorts.includes(trimmed) ||
-      newCohorts.includes(trimmed)
-    ) return
-    if (existingCohorts.length + newCohorts.length >= MAX_COHORTS) return
-    setNewCohorts(prev => [...prev, trimmed])
-    setCohortInput("")
-  }
-  const removeNewCohort = (cohort: string) => {
-    setNewCohorts(prev => prev.filter(c => c !== cohort))
-  }
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      addCohort(cohortInput);
-    }
-  };
   const handleArchive = async () => {
     try {
       await archiveMutateAsync({
@@ -1274,7 +1244,6 @@ function VersionCard({
           version: editingValues.version,
           description: editingValues.description,
           supportLink: supportLinkValue || "",
-          cohorts: [...newCohorts],
         } as any,
       })
 
@@ -1290,7 +1259,6 @@ function VersionCard({
       setEditingVersion(false)
       setEditingValues({ version: "", description: "", supportLink: "" })
       setEditingErrors({ version: "", description: "", supportLink: "" })
-      setNewCohorts([]);
       onInvalidate()
     } catch (err: any) {
       let errorMsg = "Failed to update version";
@@ -1409,19 +1377,6 @@ function VersionCard({
       watchItemId: null,
     })
     storePageAndNavigate("/teacher/courses/invite")
-  }
-
-  const configureCohorts = () => {
-    // Set course info in store and navigate to invite page
-    setCurrentCourse({
-      courseId: courseId,
-      versionId: selectedVersionId ? selectedVersionId : null,
-      moduleId: null,
-      sectionId: null,
-      itemId: null,
-      watchItemId: null,
-    })
-    storePageAndNavigate("/teacher/courses/cohorts")
   }
 
   const viewCourse = () => {
@@ -1549,11 +1504,7 @@ function VersionCard({
                   </div>
                 </div>
                 <div className="flex items-center lg:justify-end gap-2 shrink-0 mt-3 md:mt-0 flex-wrap">
-                  <ProjectSubmissionsDownloadButton 
-                    courseId={courseId || ""} 
-                    versionId={versionId || ""} 
-                    cohorts={existingCohorts}
-                  />
+                  <ProjectSubmissionsDownloadButton courseId={courseId || ""} versionId={versionId || ""} />
                   <Button
                     variant="outline"
                     size="sm"
@@ -1787,47 +1738,6 @@ function VersionCard({
                         <p className="text-xs text-muted-foreground mt-1">
                           Students can use this link to get help or support
                         </p>
-                        {/* <div className="mt-4">
-                          <label className="block text-sm font-medium mb-2">
-                            Version Cohorts
-                          </label>
-                          <div className="flex flex-wrap items-center gap-2 border border-border rounded-md px-3 py-2 focus-within:ring-2 focus-within:ring-primary/20">
-                          {existingCohorts.map(cohort => (
-                            <span
-                              key={cohort.id}
-                              className="flex items-center gap-1 bg-muted text-muted-foreground px-2 py-1 rounded-full text-sm"
-                            >
-                              {cohort.name}
-                            </span>
-                          ))}
-                          {newCohorts.map(cohort => (
-                            <span
-                              key={cohort}
-                              className="flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded-full text-sm"
-                            >
-                              {cohort}
-                              <button
-                                type="button"
-                                onClick={() => removeNewCohort(cohort)}
-                                className="text-xs hover:text-destructive"
-                              >
-                                ✕
-                              </button>
-                            </span>
-                          ))}
-                            <input
-                              type="text"
-                              value={cohortInput}
-                              onChange={e => setCohortInput(e.target.value)}
-                              onKeyDown={handleKeyDown}
-                              placeholder="Add a cohort name and press Enter"
-                              className="flex-1 bg-transparent outline-none text-sm min-w-[120px]"
-                            />
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Press Enter or comma to add cohorts (max {MAX_COHORTS})
-                          </p>
-                      </div> */}
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -1952,16 +1862,6 @@ function VersionCard({
                 >
                   <Settings2 className="h-3 w-3 mr-1" />
                   Settings
-                </Button>
-
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={configureCohorts}
-                    className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-                  >
-                    <Layers className="h-3 w-3 mr-1" />
-                    Configure Cohorts
                 </Button>
               </div>
             </div>

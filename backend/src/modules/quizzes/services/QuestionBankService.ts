@@ -1,7 +1,7 @@
 import {QuestionBank} from '#quizzes/classes/transformers/QuestionBank.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
-import {ForbiddenError, NotFoundError} from 'routing-controllers';
+import {NotFoundError} from 'routing-controllers';
 import {QUIZZES_TYPES} from '../types.js';
 import {COURSES_TYPES} from '#courses/types.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
@@ -54,15 +54,6 @@ class QuestionBankService extends BaseService {
             `Course version with ID ${questionBank.courseVersionId.toString()} not found`,
           );
         }
-        const versionStatus =
-          await this.courseRepository.getCourseVersionStatus(
-            questionBank.courseVersionId.toString(),
-          );
-        if (versionStatus === 'archived') {
-          throw new ForbiddenError(
-            'Course version is archived. You can not create question bank',
-          );
-        }
       }
       if (questionBank.questions && questionBank.questions.length > 0) {
         const questions = await this.questionRepository.getByIds(
@@ -106,14 +97,6 @@ class QuestionBankService extends BaseService {
           `Question bank with ID ${questionBankId} not found`,
         );
       }
-      const versionStatus = await this.courseRepository.getCourseVersionStatus(
-        questionBank.courseVersionId.toString(),
-      );
-      if (versionStatus === 'archived') {
-        throw new ForbiddenError(
-          'Course version is archived. You can not delete question bank',
-        );
-      }
 
       const result = await this.questionBankRepository.delete(
         questionBankId,
@@ -136,14 +119,6 @@ class QuestionBankService extends BaseService {
       if (!questionBank) {
         throw new NotFoundError(
           `Question bank with ID ${questionBankId} not found`,
-        );
-      }
-      const versionStatus = await this.courseRepository.getCourseVersionStatus(
-        questionBank.courseVersionId.toString(),
-      );
-      if (versionStatus === 'archived') {
-        throw new ForbiddenError(
-          'Course version is archived. You can not add questions',
         );
       }
       const question = await this.questionRepository.getById(
@@ -177,14 +152,6 @@ class QuestionBankService extends BaseService {
       if (!questionBank) {
         throw new NotFoundError(
           `Question bank with ID ${questionBankId} not found`,
-        );
-      }
-      const versionStatus = await this.courseRepository.getCourseVersionStatus(
-        questionBank.courseVersionId.toString(),
-      );
-      if (versionStatus === 'archived') {
-        throw new ForbiddenError(
-          'Course version is archived. You can not remove questions',
         );
       }
       const questionIndex = questionBank.questions.indexOf(questionId);
@@ -252,14 +219,6 @@ class QuestionBankService extends BaseService {
       );
       if (!questionBank) {
         throw new NotFoundError(`Question bank with ID ${bankId} not found`);
-      }
-      const versionStatus = await this.courseRepository.getCourseVersionStatus(
-        questionBank.courseVersionId.toString(),
-      );
-      if (versionStatus === 'archived') {
-        throw new ForbiddenError(
-          'Course version is archived. You can not replace questions',
-        );
       }
 
       const originalQuestion = await this.questionRepository.getById(

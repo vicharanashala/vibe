@@ -74,7 +74,7 @@ export class SubmissionPayloadDto {
     links?: SubmissionLinkDto[];
 }
 
-export class CreateOrUpdateHpActivitySubmissionBodyDto {
+export class CreateHpActivitySubmissionBodyDto {
     @Expose()
     @IsString()
     @IsNotEmpty()

@@ -37,7 +37,6 @@ import {
   IGradingResult,
   ISubmission,
 } from '#root/modules/quizzes/interfaces/index.js';
-import { Cohort } from '#root/modules/courses/classes/index.js';
 
 @injectable()
 export class EnrollmentService extends BaseService {
@@ -68,7 +67,6 @@ export class EnrollmentService extends BaseService {
     courseVersionId: string,
     role: EnrollmentRole,
     throughInvite: boolean = false,
-    cohort?:string,
     session?: ClientSession,
   ) {
     // const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId,session);
@@ -104,9 +102,9 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
-        cohort,
         session,
       );
+
       // if (existingEnrollment && !throughInvite) {
       //   throw new BadRequestError(
       //     'User is already enrolled in this course version',
@@ -122,6 +120,7 @@ export class EnrollmentService extends BaseService {
           'User is already enrolled in this course version',
         );
       }
+
       const enrollmentData = {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
@@ -131,8 +130,7 @@ export class EnrollmentService extends BaseService {
         enrollmentDate: new Date(),
         percentCompleted: 0,
         completedItemsCount: 0,
-        ...(cohort ? {cohortId: new ObjectId(cohort) } : {}),
-      }
+      };
 
       const createdEnrollment = await this.enrollmentRepo.createEnrollment(
         enrollmentData,
@@ -145,7 +143,6 @@ export class EnrollmentService extends BaseService {
           courseId,
           courseVersionId,
           courseVersion,
-          cohort,
         );
 
         if (progressData) {
@@ -162,7 +159,6 @@ export class EnrollmentService extends BaseService {
               ),
               currentItem: new ObjectId(progressData.currentItem.toString()),
               completed: false,
-              ...(cohort ? {cohortId: new ObjectId( cohort) } : {}),
             },
             session,
           );
@@ -186,7 +182,6 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-    cohort?: string
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const user = await this.userRepo.findById(userId);
@@ -208,7 +203,6 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
-        cohort,
       );
       // if (!existingEnrollment) {
       //   throw new Error('User is not enrolled in this course version');
@@ -222,7 +216,6 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-    cohort?: string
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const user = await this.userRepo.findById(userId);
@@ -244,7 +237,6 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
-        cohort,
       );
 
       return existingEnrollment;
@@ -277,7 +269,6 @@ export class EnrollmentService extends BaseService {
         courseId,
         courseVersionId,
         enrollment?._id.toString(),
-        enrollment?.cohortId.toString(),
         session,
       );
 
@@ -393,6 +384,7 @@ export class EnrollmentService extends BaseService {
         search,
       );
     }
+
     if (!enrollments.length) return [];
 
     const enrolledVersionIds: Set<string> = new Set(
@@ -442,7 +434,6 @@ export class EnrollmentService extends BaseService {
         userId: new ObjectId(userId),
         courseId: new ObjectId(e.courseId),
         courseVersionId: new ObjectId(e.courseVersionId),
-        cohortId: e.cohortId,
       }));
 
       const [
@@ -470,7 +461,7 @@ export class EnrollmentService extends BaseService {
 
       return activeEnrollments.map(enr => {
         const versionIdStr = enr.courseVersionId.toString();
-        const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}-${enr.cohortId?.toString() || ''}`;
+        const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
 
         const versionItemGroups = versionToItemGroups.get(versionIdStr) || [];
         const versionQuizIds = quizInfo.filter(quiz =>
@@ -490,6 +481,7 @@ export class EnrollmentService extends BaseService {
         //   projects: 0,
         // };
         const itemCounts = enr.courseVersion?.itemCounts || {};
+
         const ratio = completedCount / (enr.totalItems || 1);
         const calculatedPercent = Number((ratio * 100).toFixed(2));
 
@@ -497,8 +489,8 @@ export class EnrollmentService extends BaseService {
           void this.enrollmentRepo.updateProgressPercentById(
             enr._id.toString(),
             calculatedPercent,
+            undefined,
             completedCount,
-            enr.cohortId?.toString(),
           );
           enr.percentCompleted = calculatedPercent;
           enr.completedItemsCount = completedCount;
@@ -520,9 +512,7 @@ export class EnrollmentService extends BaseService {
             itemType: enr.itemType,
             contentCounts: {
               totalItems: enr.totalItems ?? 0,
-            },            
-            cohortId: enr.cohortId?.toString(),
-            cohortName: enr.cohortName,
+            },
             completedItems: watchedItemsMap.get(watchedKey) || 0,
             hasNewItemsAfterCompletion: enr.hasNewItemsAfterCompletion || false,
           };
@@ -666,8 +656,8 @@ export class EnrollmentService extends BaseService {
           void this.enrollmentRepo.updateProgressPercentById(
             enr._id.toString(),
             calculatedPercent,
+            undefined,
             completedCount,
-            enr.cohort,
           );
 
           enr.percentCompleted = calculatedPercent;
@@ -764,7 +754,6 @@ export class EnrollmentService extends BaseService {
     sortOrder: 'asc' | 'desc',
     filter: string,
     statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
-    cohort?: string,
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const courseVersion = await this.courseRepo.readVersion(
@@ -780,6 +769,7 @@ export class EnrollmentService extends BaseService {
           currentPage: 0,
         };
       }
+
       const enrollmentsData =
         await this.enrollmentRepo.getCourseVersionEnrollments(
           courseId,
@@ -791,94 +781,61 @@ export class EnrollmentService extends BaseService {
           sortOrder,
           filter,
           statusTab,
-          cohort,
-          (courseVersion.cohorts || []).map(cohort=> new ObjectId(cohort)),
           session,
         );
+        // console.log("Enrollment Data from service is ", enrollmentsData.enrollments[0].contentCounts)
 
-      return enrollmentsData;
-    });
-  }
+      // if (enrollmentsData.enrollments.length > 0 && filter === 'STUDENT') {
+      //   await this.enrichEnrollmentsWithQuizScores(
+      //     enrollmentsData.enrollments,
+      //     courseVersionId,
+      //   );
+      //   // Log sample enrollment to verify mutation
+      //   console.log(
+      //     '🔍 Sample enriched enrollment:',
+      //     JSON.stringify(enrollmentsData.enrollments[0], null, 2),
+      //   );
+      // }
 
-  /**
-   * API 2: Get detailed progress summary for a single student.
-   * Called when instructor opens the "View Progress" modal.
-   */
-  async getStudentProgressDetail(
-    userId: string,
-    courseId: string,
-    courseVersionId: string,
-  ) {
-    return this._withTransaction(async (session: ClientSession) => {
-      const detail = await this.enrollmentRepo.getStudentProgressDetail(
-        userId,
-        courseId,
-        courseVersionId,
-        session,
-      );
-      if (!detail) return null;
+      if (enrollmentsData.enrollments.length > 0 && filter === 'STUDENT') {
+        // existing quiz score enrichment
+        await this.enrichEnrollmentsWithQuizScores(
+          enrollmentsData.enrollments,
+          courseVersionId,
+        );
 
-      // Enrich with quiz scores for this student only
-      const courseVersion = await this.courseRepo.readVersion(courseVersionId);
-      let totalQuizScore = 0;
-      let totalQuizMaxScore = 0;
+        // NEW: reuse getEnrollments()
+        const studentUserIds = enrollmentsData.enrollments.map(e =>
+          e.userId?.toString(),
+        );
 
-      if (courseVersion) {
-        const itemGroupIds: string[] = [];
-        courseVersion.modules.forEach((module: any) => {
-          module.sections.forEach((section: any) => {
-            if (section.itemsGroupId) {
-              itemGroupIds.push(section.itemsGroupId.toString());
-            }
-          });
+        // call getEnrollments for each student (parallel)
+        const allStudentEnrollments = await Promise.all(
+          studentUserIds.map(uid =>
+            this.getEnrollments(uid, 0, 100, 'STUDENT', ''),
+          ),
+        );
+
+        // flatten
+        const flattened = allStudentEnrollments.flat();
+        // console.log("Fetched detailed enrollments for students:", flattened);
+        // build lookup map
+        const contentCountsMap = new Map<string, any>();
+
+        flattened.forEach(enr => {
+          const key = `${enr.courseVersionId}-${enr._id}`;
+          contentCountsMap.set(key, enr.contentCounts);
         });
 
-        if (itemGroupIds.length > 0) {
-          const quizInfo = await this.itemRepo.getQuizInfo(itemGroupIds);
-          const allQuizIds = quizInfo
-            .filter((quiz: any) => quiz.items?._id)
-            .map((quiz: any) => quiz.items._id.toString());
-
-          if (allQuizIds.length > 0) {
-            const quizSubmissions =
-              await this.enrollmentRepo.getBatchQuizSubmissionGrades(
-                [userId],
-                allQuizIds,
-              );
-
-            quizSubmissions.forEach((submission: any) => {
-              const gradingResult = submission.gradingResult;
-              totalQuizScore += gradingResult.totalScore || 0;
-              totalQuizMaxScore += gradingResult.totalMaxScore || 0;
-            });
-          }
-        }
+        // attach to instructor enrollments
+        // enrollmentsData.enrollments.forEach(enr => {
+        //   const key = `${enr.courseVersionId.toString()}-${enr._id.toString()}`;
+        //   enr.contentCounts = contentCountsMap.get(key);
+        // });
       }
-
-      return {
-        ...detail,
-        totalQuizScore,
-        totalQuizMaxScore,
-      };
-    });
-  }
-
-  /**
-   * API 3: Get the current learning position and course structure for a student.
-   * Called when instructor clicks "View Course Structure" (lazy load).
-   */
-  async getStudentCourseStructure(
-    userId: string,
-    courseId: string,
-    courseVersionId: string,
-  ) {
-    return this._withTransaction(async (session: ClientSession) => {
-      return this.enrollmentRepo.getStudentCourseStructure(
-        userId,
-        courseId,
-        courseVersionId,
-        session,
-      );
+      // console.log("Enrollment data before return from service, " , enrollmentsData)
+      //       console.log("Enrollment data before return from service of enrollments, " , enrollmentsData.enrollments)
+      return enrollmentsData;
     });
   }
 
@@ -951,28 +908,25 @@ export class EnrollmentService extends BaseService {
       await this.enrollmentRepo.getBatchQuizSubmissionGrades(
         userIds,
         allQuizIds,
-        enrollments.filter(e => e.cohortId).map(e => e.cohortId.toString())
       );
+
     // 5. Create a map: userId -> quiz grades
     const userQuizGradesMap = new Map<string, IGradingResult[]>();
 
     quizSubmissions.forEach(submission => {
-      const key = `${submission.userId}-${submission.cohortId}`;
+      const userId = submission.userId.toString();
       const gradingResult = submission.gradingResult;
 
-      if (!userQuizGradesMap.has(key)) {
-        userQuizGradesMap.set(key, []);
+      if (!userQuizGradesMap.has(userId)) {
+        userQuizGradesMap.set(userId, []);
       }
-
-      userQuizGradesMap.get(key)!.push(gradingResult);
+      userQuizGradesMap.get(userId)!.push(gradingResult);
     });
 
     // 6. Enrich each enrollment with scores
     enrollments.forEach(enr => {
-      // const userId = enr.userId;
-      // const userGrades = userQuizGradesMap.get(userId) || [];
-      const key = `${enr.userId}-${enr.cohortId}`;
-      const userGrades = userQuizGradesMap.get(key) || [];
+      const userId = enr.userId;
+      const userGrades = userQuizGradesMap.get(userId) || [];
 
       enr.totalQuizScore = userGrades.reduce(
         (sum, grade) => sum + (grade.totalScore || 0),
@@ -997,7 +951,6 @@ export class EnrollmentService extends BaseService {
     courseId: string,
     versionId: string,
     statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
-    cohortId?: string,
   ): Promise<QuizScoresExportResponseDto> {
     try {
       // Verify course and version exist in a single transaction
@@ -1013,37 +966,12 @@ export class EnrollmentService extends BaseService {
         throw new NotFoundError('Course version not found');
       }
 
-      let cohorts;
-      let cohortMap;
-      let cohortIds: string[] = [];
-
-      if(version.cohorts && version.cohorts.length > 0){
-        // If a specific cohort is provided, only get that cohort
-        if (cohortId) {
-          // Validate that the cohort exists in this version
-          if (!version.cohorts.some(id => id.toString() === cohortId)) {
-            throw new NotFoundError('Cohort not found in this course version');
-          }
-          cohortIds = [cohortId];
-          cohorts = await this.courseRepo.getCohortsByIds(cohortIds);
-        } else {
-          // Get all cohorts for the version
-          cohortIds = version.cohorts.map(id => id.toString());
-          cohorts = await this.courseRepo.getCohortsByIds(cohortIds);
-        }
-        cohortMap = new Map(cohorts.map(c => [c._id.toString(), c.name]));
-      }
-
       // Get quiz scores from repository with batching
       return await this.enrollmentRepo.getQuizScoresForCourseVersion(
         courseId,
         versionId,
-        cohortIds,
-        cohortMap,
         statusTab,
       );
-      // console.log("----retruning from getQuizScoresForCourseVersion service--", result);
-      // return result;
     } catch (error) {
       console.error(
         `Error in getQuizScoresForCourseVersion for course ${courseId}, version ${versionId}:`,
@@ -1384,7 +1312,6 @@ export class EnrollmentService extends BaseService {
             userId,
             courseId,
             courseVersionId,
-            null,
             session,
           );
 
@@ -1407,7 +1334,6 @@ export class EnrollmentService extends BaseService {
           enrollmentDate: new Date(),
           percentCompleted: 0,
           completedItemsCount: 0,
-          cohort:""
         });
       }
 
@@ -1447,7 +1373,6 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
-        undefined,
         session,
       );
     });
@@ -1510,19 +1435,19 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     versionId: string,
-    cohort?: string
-  ): Promise<Array<{
-    moduleId: string;
-    moduleName: string;
-    totalItems: number;
-    completedItems: number;
-  }>> {
+  ): Promise<
+    Array<{
+      moduleId: string;
+      moduleName: string;
+      totalItems: number;
+      completedItems: number;
+    }>
+  > {
     // Delegate to ProgressService which already has working module progress logic
     return await this.progressService.getModuleWiseProgress(
       userId,
       courseId,
       versionId,
-      cohort
     );
   }
 
@@ -1551,7 +1476,6 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
-        null,
         session,
       );
 
@@ -1590,7 +1514,6 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
-        undefined,
         session,
       );
 
@@ -1634,7 +1557,6 @@ export class EnrollmentService extends BaseService {
               userId,
               courseId,
               courseVersionId,
-              undefined,
               session,
             );
 
@@ -1771,7 +1693,6 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
-              null,
         session,
       );
 
@@ -1814,7 +1735,6 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
-        undefined,
         session,
       );
 
@@ -1860,7 +1780,6 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
-        undefined,
         session,
       );
 
@@ -1907,9 +1826,5 @@ export class EnrollmentService extends BaseService {
       courseVersionId,
       session,
     );
-  }
-
-  async enrollmentExists(versionId : string, cohortId: string, session: ClientSession): Promise<boolean>{
-   return await this.enrollmentRepo.enrollmentExistsByCohortId(versionId, cohortId, session);
   }
 }

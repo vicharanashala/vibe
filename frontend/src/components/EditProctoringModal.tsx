@@ -6,13 +6,13 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useCourseVersionById, useEditProctoringSettings, useGetProcotoringSettings } from "@/hooks/hooks"
+import { useEditProctoringSettings, useGetProcotoringSettings } from "@/hooks/hooks"
 import { useEffect, useState } from "react"
 import { Label } from "./ui/label"
 import { Separator } from "./ui/separator"
 import { Switch } from "./ui/switch"
 import { toast } from "sonner"
-import { ChevronDown, Loader2 } from "lucide-react"
+import { ChevronDown } from "lucide-react"
 
 enum ProctoringComponent {
   CAMERAMICRO = 'cameraMic',
@@ -60,7 +60,6 @@ export function ProctoringModal({
   const [seekForwardEnabled, setSeekForwardEnabled] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
   const [isAdditionalSettingsExpanded, setIsAdditionalSettingsExpanded] = useState(false);
-  const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(courseVersionId || "")
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -106,16 +105,7 @@ export function ProctoringModal({
     return <div>Loading...</div>
   }
 
-  if ( versionLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-96">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
-    )
-  }
-
   return (
-    
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="bg-background text-foreground md:max-w-md max-w-sm max-[425px]:w-[90vw]">
         <DialogHeader>
@@ -196,15 +186,13 @@ export function ProctoringModal({
                     <Switch checked={seekForwardEnabled} onCheckedChange={()=>setSeekForwardEnabled(prev=>!prev)} />
                   </div>
 
-                  {!(courseVersion?.cohortDetails?.length > 0) && (
-                    <div className="flex items-center justify-between space-x-3">
-                      <div className="space-y-1">
-                        <Label className="text-sm font-medium">Make Public</Label>
-                        <p className="text-xs text-muted-foreground">Make this course available to all students</p>
-                      </div>
-                      <Switch checked={isPublic} onCheckedChange={() => setIsPublic(prev => !prev)} />
+                  <div className="flex items-center justify-between space-x-3">
+                    <div className="space-y-1">
+                      <Label className="text-sm font-medium">Make Public</Label>
+                      <p className="text-xs text-muted-foreground">Make this course available to all students</p>
                     </div>
-                  )}
+                    <Switch checked={isPublic} onCheckedChange={() => setIsPublic(prev => !prev)} />
+                  </div>
                 </div>
               )}
             </div>

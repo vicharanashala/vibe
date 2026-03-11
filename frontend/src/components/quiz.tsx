@@ -104,7 +104,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     if (!currentCourse?.itemId) return;
     try {
 
-      await skipItemAsync({ params: { path: { itemId: currentCourse?.itemId }, query: { cohortId: currentCourse?.cohortId } } });
+      await skipItemAsync({ params: { path: { itemId: currentCourse?.itemId } } }); // check for empty quiz.
 
     } catch (error) {
       console.error('Error skipping item:', error);
@@ -413,7 +413,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             itemId: currentCourse.itemId,
             moduleId: currentCourse.moduleId ?? '',
             sectionId: currentCourse.sectionId ?? '',
-            cohortId: currentCourse.cohortId ?? '',
           }
         });
 
@@ -458,7 +457,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         attemptId,
         isSkipped,
         nextItemId,
-        cohortId: currentCourse.cohortId ?? '',
       }
     });
     completedItemIdsRef.current.add(currentCourse.itemId);
@@ -492,7 +490,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           attemptId,
           isSkipped,
           nextItemId,
-          cohortId: currentCourse.cohortId ?? '',
         },
       });
 
@@ -564,10 +561,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       // if (itemStartedRef.current) {
       //   handleStopItem();
       // }
+
       // Create new quiz attempt
       const response = await attemptQuiz({
-        params: { path: { quizId: processedQuizId } },
-        body: { cohortId: currentCourse?.cohortId ?? '' }
+        params: { path: { quizId: processedQuizId } }
       }) as CreateAttemptResponse | { message: string };
 
       // Check if we got a message about no attempts left 
@@ -660,7 +657,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           const answersForSaving = convertAnswersToSaveFormat();
           await saveQuiz({
             params: { path: { quizId: processedQuizId, attemptId: attemptId } },
-            body: { answers: answersForSaving, cohortId: currentCourse?.cohortId??'' }
+            body: { answers: answersForSaving }
           });
         } catch (saveErr) {
           console.warn('Failed to save answers before submission:', saveErr);
@@ -674,8 +671,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         params: { path: { quizId: processedQuizId, attemptId: attemptId } },
         body: {
           answers: answersForSubmission, isSkipped, courseId: currentCourse?.courseId,
-          courseVersionId: currentCourse?.versionId,
-          cohortId: currentCourse?.cohortId??''
+          courseVersionId: currentCourse?.versionId
         }
       });
 
@@ -1032,7 +1028,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             attemptId,
             isSkipped: false,
             nextItemId,
-            cohortId: currentCourse.cohortId ?? '',
           }
         });
         itemStartedRef.current = false;

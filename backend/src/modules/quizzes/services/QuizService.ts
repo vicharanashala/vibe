@@ -1,10 +1,6 @@
 import {injectable, inject} from 'inversify';
 import {ObjectId} from 'mongodb';
-import {
-  NotFoundError,
-  InternalServerError,
-  ForbiddenError,
-} from 'routing-controllers';
+import {NotFoundError, InternalServerError} from 'routing-controllers';
 import {QUIZZES_TYPES} from '../types.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
@@ -68,14 +64,6 @@ class QuizService extends BaseService {
       if (!questionBank) {
         throw new NotFoundError('Question bank does not exist.');
       }
-      const versionStatus = await this.courseRepo.getCourseVersionStatus(
-        questionBank.courseVersionId.toString(),
-      );
-      if (versionStatus === 'archived') {
-        throw new ForbiddenError(
-          'Course version is archived. You can not add question bank',
-        );
-      }
       const quiz = await this.quizRepo.getById(quizId, session);
       if (!quiz) {
         throw new NotFoundError('Quiz does not exist.');
@@ -104,21 +92,6 @@ class QuizService extends BaseService {
       const quiz = await this.quizRepo.getById(quizId, session);
       if (!quiz) {
         throw new NotFoundError('Quiz does not exist.');
-      }
-      const questionBank = await this.questionBankRepo.getById(
-        questionBankId,
-        session,
-      );
-      if (!questionBank) {
-        throw new NotFoundError('Question bank does not exist.');
-      }
-      const versionStatus = await this.courseRepo.getCourseVersionStatus(
-        questionBank.courseVersionId.toString(),
-      );
-      if (versionStatus === 'archived') {
-        throw new ForbiddenError(
-          'Course version is archived. You can not create question bank',
-        );
       }
       const questionBankIndex = quiz.details.questionBankRefs.findIndex(
         qb => qb.bankId.toString() === questionBankId.toString(),
@@ -155,21 +128,6 @@ class QuizService extends BaseService {
       const quiz = await this.quizRepo.getById(quizId, session);
       if (!quiz) {
         throw new NotFoundError('Quiz does not exist.');
-      }
-      const questionBank = await this.questionBankRepo.getById(
-        updatedQuestionBankRef.bankId.toString(),
-        session,
-      );
-      if (!questionBank) {
-        throw new NotFoundError('Question bank does not exist.');
-      }
-      const versionStatus = await this.courseRepo.getCourseVersionStatus(
-        questionBank.courseVersionId.toString(),
-      );
-      if (versionStatus === 'archived') {
-        throw new ForbiddenError(
-          'Course version is archived. You can not edit question bank configuration',
-        );
       }
       const questionBankIndex = quiz.details.questionBankRefs.findIndex(
         qb => qb.bankId.toString() === updatedQuestionBankRef.bankId.toString(),
@@ -234,7 +192,6 @@ class QuizService extends BaseService {
       const metrics = await this.userQuizMetricsRepo.get(
         userId,
         quizId,
-        undefined,
         session,
       );
       if (!metrics) {
@@ -251,12 +208,11 @@ class QuizService extends BaseService {
       return metrics;
     });
   }
-  getAttemptDetails(attemptId: string, quizId: string, cohort?: string) {
+  getAttemptDetails(attemptId: string, quizId: string) {
     return this._withTransaction(async session => {
       const attempt = await this.attemptRepo.getById(
         attemptId,
         quizId,
-        cohort,
         session,
       );
       if (!attempt) {
@@ -591,7 +547,6 @@ class QuizService extends BaseService {
       const metrics = await this.userQuizMetricsRepo.get(
         userId,
         quizId,
-        undefined,
         session,
       );
       if (!metrics) {

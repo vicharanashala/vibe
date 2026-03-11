@@ -8,7 +8,6 @@ import {
   ObjectIdToString,
   StringToObjectId,
 } from '#root/shared/constants/transformerConstants.js';
-import { ID } from '#root/shared/index.js';
 import {Expose, Transform} from 'class-transformer';
 import {ObjectId} from 'mongodb';
 
@@ -19,16 +18,12 @@ class Submission implements ISubmission {
   attemptId: string | ObjectId;
   submittedAt: Date;
   gradingResult?: IGradingResult;
-  cohortId?: ID;
 
-  constructor(quizId: string | ObjectId, userId: string | ObjectId, attemptId: string | ObjectId, cohortId?: ID) {
+  constructor(quizId: string | ObjectId, userId: string | ObjectId, attemptId: string | ObjectId) {
     this.quizId = quizId;
     this.userId = userId;
     this.attemptId = attemptId;
     this.submittedAt = new Date();
-    if (cohortId) {
-      this.cohortId = cohortId;
-    }
   }
 }
 

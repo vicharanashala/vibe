@@ -174,7 +174,6 @@ export class InviteRepository {
     email: string,
     courseId: string,
     courseVersionId: string,
-    cohortId?:string,
     session?: ClientSession,
   ): Promise<Invite | null> {
     await this.init();
@@ -184,7 +183,6 @@ export class InviteRepository {
         email: email.toLowerCase(),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
         inviteStatus: 'PENDING',
       },
       {session},
@@ -292,39 +290,6 @@ export class InviteRepository {
     await this.init();
     await this.inviteCollection.deleteMany(
       {courseVersionId: new ObjectId(versionId)},
-      {session},
-    );
-  }
-
-  // async cancelPendingInvitesByCourseId(
-  //   courseId: string,
-  //   session?: ClientSession,
-  // ): Promise<void> {
-  //   await this.inviteCollection.updateMany(
-  //     {
-  //       courseId: new ObjectId(courseId),
-  //       inviteStatus: {$in: ['PENDING', 'EMAIL_FAILED']},
-  //     },
-  //     {$set: {inviteStatus: 'CANCELLED'}},
-  //     {session},
-  //   );
-  // }
-
-  async cancelPendingInvites(
-    filter: {courseId?: string; courseVersionId?: string},
-    session?: ClientSession,
-  ): Promise<void> {
-    const query: Record<string, any> = {
-      inviteStatus: {$in: ['PENDING', 'EMAIL_FAILED']},
-    };
-
-    if (filter.courseId) query.courseId = new ObjectId(filter.courseId);
-    if (filter.courseVersionId)
-      query.courseVersionId = new ObjectId(filter.courseVersionId);
-
-    await this.inviteCollection.updateMany(
-      query,
-      {$set: {inviteStatus: 'CANCELLED'}},
       {session},
     );
   }

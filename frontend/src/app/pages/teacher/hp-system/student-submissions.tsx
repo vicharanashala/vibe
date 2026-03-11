@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
-import { useHpStudentSubmissions, useHpStudents, useRevertHpEntry, useRestoreHpEntry, useReviewSubmission, useAddFeedback } from "@/hooks/hooks";
+import { useHpStudentSubmissions, useHpStudents, useRevertHpEntry, useRestoreHpEntry, useReviewSubmission } from "@/hooks/hooks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,6 @@ import {
     Timer, Send, Zap, Undo2, ThumbsUp, ThumbsDown
 } from "lucide-react";
 import type { SubmissionAttachment, HpStudentSubmission } from "@/lib/api/hp-system";
-import { toast } from "sonner";
 
 const statusConfig = {
     SUBMITTED: { label: "Submitted", variant: "default" as const, icon: CheckCircle, color: "text-green-600" },
@@ -74,22 +73,16 @@ function AttachmentPreview({ attachment }: { attachment: SubmissionAttachment })
 
 function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
     const [feedbackText, setFeedbackText] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [showInput, setShowInput] = useState(false);
-    const { mutateAsync: addFeedback, isPending } = useAddFeedback();
 
     const handleSubmitFeedback = async () => {
-        setShowInput(true);
-        if (!feedbackText.trim() || feedbackText.trim().length < 10) {
-            toast.error('Feedback must be at least 10 characters long');
-            return;
-        }
-        try {
-            await addFeedback({ submissionId: sub.submission?._id || '', feedback: feedbackText.trim() });
-            setFeedbackText("");
-            setShowInput(false);
-        } catch (error) {
-            // Error is handled by the hook
-        }
+        if (!feedbackText.trim()) return;
+        setIsSubmitting(true);
+        await new Promise(r => setTimeout(r, 500));
+        setIsSubmitting(false);
+        setFeedbackText("");
+        setShowInput(false);
     };
 
     return (
@@ -104,17 +97,7 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
                 </div>
             )}
 
-            {!showInput ? (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowInput(true)}
-                    className="w-full"
-                >
-                    <MessageSquare className="h-3.5 w-3.5 mr-2" />
-                    Add Feedback
-                </Button>
-            ) : (
+            {showInput ? (
                 <div className="space-y-2">
                     <Textarea
                         placeholder="Write feedback for this submission..."
@@ -133,18 +116,28 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
                         </Button>
                         <Button
                             size="sm"
-                            disabled={!feedbackText.trim() || feedbackText.trim().length < 10 || showInput}
+                            disabled={!feedbackText.trim() || isSubmitting}
                             onClick={handleSubmitFeedback}
                         >
-                            {isPending ? (
+                            {isSubmitting ? (
                                 <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white mr-2" />
                             ) : (
                                 <Send className="h-3.5 w-3.5 mr-2" />
                             )}
-                            {isPending ? "Sending..." : "Send Feedback"}
+                            {isSubmitting ? "Sending..." : "Send Feedback"}
                         </Button>
                     </div>
                 </div>
+            ) : (
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowInput(true)}
+                    className="w-full"
+                >
+                    <MessageSquare className="h-3.5 w-3.5 mr-2" />
+                    {sub.instructorFeedback ? "Update Feedback" : "Add Feedback"}
+                </Button>
             )}
         </div>
     );
@@ -169,24 +162,15 @@ export default function StudentSubmissionsPage() {
         subId: string;
         action: 'revert' | 'restore' | 'approve' | 'reject';
         activityTitle: string;
-        baseHp: number;
         note: string;
-        pointsToDeduct: number;
-    }>({ open: false, subId: '', action: 'revert', activityTitle: '', baseHp: 0, note: '', pointsToDeduct: 0 });
+    }>({ open: false, subId: '', action: 'revert', activityTitle: '', note: '' });
 
-    const openReasonDialog = (subId: string, action: 'revert' | 'restore' | 'approve' | 'reject', activityTitle: string, baseHp: number = 0) => {
-        setReasonDialog({ open: true, subId, action, activityTitle, baseHp, note: '', pointsToDeduct: baseHp });
+    const openReasonDialog = (subId: string, action: 'revert' | 'restore' | 'approve' | 'reject', activityTitle: string) => {
+        setReasonDialog({ open: true, subId, action, activityTitle, note: '' });
     };
 
     const handleConfirmAction = async () => {
-        const { subId, action, note, pointsToDeduct } = reasonDialog;
-        
-        // Validation for required notes
-        if ((action === 'reject' || action === 'revert') && (!note || note.trim().length < 10)) {
-            toast.error('Note must be at least 10 characters long for this action');
-            return;
-        }
-        
+        const { subId, action, note } = reasonDialog;
         setReasonDialog({ ...reasonDialog, open: false });
         setActionSubId(subId);
         try {
@@ -198,8 +182,7 @@ export default function StudentSubmissionsPage() {
                 await reviewSubmission({ 
                     submissionId: subId, 
                     decision: action === 'approve' ? 'APPROVED' : 'REJECTED', 
-                    note: note.trim() || undefined,
-                    pointsToDeduct: action === 'reject' ? pointsToDeduct : undefined
+                    note: note.trim() || undefined 
                 });
             }
         } finally {
@@ -364,23 +347,14 @@ export default function StudentSubmissionsPage() {
                                         </CardDescription>
                                     </div>
                                     <div className="flex items-center gap-2 flex-shrink-0">
-                                        {/* HP badges - show waiting for review for unapproved submissions */}
-                                        {status === 'SUBMITTED' ? (
-                                            <Badge variant="outline" className="text-sm font-semibold text-yellow-600">
-                                                <Clock className="h-3 w-3 mr-1" />
-                                                In Review
-                                            </Badge>
-                                        ) : (
-                                            <>
-                                                <Badge variant="outline" className="text-sm font-semibold text-green-600">
-                                                    <Zap className="h-3 w-3 mr-1 text-yellow-500" />
-                                                    {sub.hp?.currentHp || 0} HP
-                                                </Badge>
-                                                <Badge variant="outline" className="text-sm text-muted-foreground">
-                                                    Base: {sub.hp?.baseHp || 0}
-                                                </Badge>
-                                            </>
-                                        )}
+                                        {/* HP badges */}
+                                        <Badge variant="outline" className="text-sm font-semibold text-green-600">
+                                            <Zap className="h-3 w-3 mr-1 text-yellow-500" />
+                                            {sub.hp?.currentHp || 0} HP
+                                        </Badge>
+                                        <Badge variant="outline" className="text-sm text-muted-foreground">
+                                            Base: {sub.hp?.baseHp || 0}
+                                        </Badge>
                                         {sub.submission?.isLate && (
                                             <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950/20">
                                                 <Timer className="h-3 w-3 mr-1" />
@@ -463,7 +437,7 @@ export default function StudentSubmissionsPage() {
                                                             size="sm"
                                                             className="text-green-600 hover:text-green-700 hover:bg-green-50"
                                                             disabled={isReviewing && actionSubId === sub.submission?._id}
-                                                            onClick={() => openReasonDialog(sub.submission?._id || '', 'approve', sub.activity?.title || '', sub.hp?.baseHp || 0)}
+                                                            onClick={() => openReasonDialog(sub.submission?._id || '', 'approve', sub.activity?.title)}
                                                         >
                                                             <ThumbsUp className="h-3.5 w-3.5 mr-1.5" />
                                                             {isReviewing && actionSubId === sub.submission?._id ? 'Approving...' : 'Approve'}
@@ -473,7 +447,7 @@ export default function StudentSubmissionsPage() {
                                                             size="sm"
                                                             className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                                             disabled={isReviewing && actionSubId === sub.submission?._id}
-                                                            onClick={() => openReasonDialog(sub.submission?._id || '', 'reject', sub.activity?.title || '', sub.hp?.baseHp || 0)}
+                                                            onClick={() => openReasonDialog(sub.submission?._id || '', 'reject', sub.activity?.title)}
                                                         >
                                                             <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
                                                             {isReviewing && actionSubId === sub.submission?._id ? 'Rejecting...' : 'Reject'}
@@ -483,7 +457,7 @@ export default function StudentSubmissionsPage() {
                                                             size="sm"
                                                             className="text-destructive hover:text-destructive"
                                                             disabled={isReverting && actionSubId === sub.submission?._id}
-                                                            onClick={() => openReasonDialog(sub.submission?._id || '', 'revert', sub.activity?.title || '', sub.hp?.baseHp || 0)}
+                                                            onClick={() => openReasonDialog(sub.submission?._id || '', 'revert', sub.activity?.title)}
                                                         >
                                                             <Undo2 className="h-3.5 w-3.5 mr-1.5" />
                                                             {isReverting && actionSubId === sub.submission?._id ? 'Reverting...' : 'Revert'}
@@ -539,43 +513,18 @@ export default function StudentSubmissionsPage() {
                         </DialogDescription>
                     </DialogHeader>
                     
-                    {(reasonDialog.action === 'reject' || reasonDialog.action === 'revert') && (
-                        <div className="py-4 space-y-4">
-                            <div>
-                                <label htmlFor="note" className="text-sm font-medium mb-2 block">
-                                    Note <span className="text-red-500 ml-1">*</span>
-                                </label>
-                                <Textarea
-                                    id="note"
-                                    placeholder={`Add any feedback or notes... (minimum 10 characters)`}
-                                    value={reasonDialog.note}
-                                    onChange={(e) => setReasonDialog({ ...reasonDialog, note: e.target.value })}
-                                    className="min-h-[80px]"
-                                />
-                                {reasonDialog.note && reasonDialog.note.length < 10 && (
-                                    <p className="text-xs text-red-500 mt-1">Note must be at least 10 characters</p>
-                                )}
-                            </div>
-                            
-                            {reasonDialog.action === 'reject' && (
-                                <div>
-                                    <label htmlFor="points" className="text-sm font-medium mb-2 block">
-                                        Points to Deduct
-                                    </label>
-                                    <div className="flex items-center gap-3">
-                                        <input
-                                            type="number"
-                                            id="points"
-                                            min="0"
-                                            max={reasonDialog.baseHp}
-                                            value={reasonDialog.pointsToDeduct}
-                                            onChange={(e) => setReasonDialog({ ...reasonDialog, pointsToDeduct: Math.max(0, Math.min(reasonDialog.baseHp, parseInt(e.target.value) || 0)) })}
-                                            className="w-24 px-3 py-2 border border-input rounded-md text-sm"
-                                        />
-                                        <span className="text-sm text-muted-foreground">/ {reasonDialog.baseHp} (base HP)</span>
-                                    </div>
-                                </div>
-                            )}
+                    {(reasonDialog.action === 'approve' || reasonDialog.action === 'reject') && (
+                        <div className="py-4">
+                            <label htmlFor="note" className="text-sm font-medium mb-2 block">
+                                Note (optional)
+                            </label>
+                            <Textarea
+                                id="note"
+                                placeholder="Add any feedback or notes..."
+                                value={reasonDialog.note}
+                                onChange={(e) => setReasonDialog({ ...reasonDialog, note: e.target.value })}
+                                className="min-h-[80px]"
+                            />
                         </div>
                     )}
                     

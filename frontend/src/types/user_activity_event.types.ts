@@ -6,7 +6,6 @@ export interface WatchTimeTrackData {
   userId: string;
   courseId: string;
   versionId: string;
-  cohortId?: string; // Optional cohortId from enrollment
   rewindData: Array<{
     from: string;
     to: string;

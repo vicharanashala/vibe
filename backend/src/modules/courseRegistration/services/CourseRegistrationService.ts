@@ -60,11 +60,10 @@ export class CourseRegistrationService extends BaseService {
     registration: ICourseRegistration,
     course: ICourse,
     status: 'PENDING' | 'APPROVED' | 'REJECTED',
-    cohort?: string,
   ): Promise<Omit<nodemailer.SendMailOptions, 'from'>> {
     const userDetails = await this.userRepo.findById(registration.userId);
     const statusText = status.toLowerCase();
-    let subject = `Your registration request for ${course.name} ${cohort ? `in cohort ${cohort}` : ''} is ${statusText}`;
+    let subject = `Your registration request for ${course.name} is ${statusText}`;
     let greeting = '';
     let bodyText = '';
     let buttonText = '';
@@ -259,15 +258,6 @@ export class CourseRegistrationService extends BaseService {
         instructorIds as string[],
         session,
       );
-      let cohorts;
-      if(courseVersion.cohorts && courseVersion.cohorts.length > 0){
-        const cohortsDetails = await this.courseRepo.getCohortsByIds(courseVersion.cohorts)
-        cohorts = cohortsDetails.map(c => ({
-          cohortId: c._id.toString(),
-          cohortName: c.name
-        }));
-      }
-
       // Construct the final output (match your sample structure)
       return {
         id: 'v1', // Hardcode or generate dynamically, e.g., based on version string
@@ -280,7 +270,6 @@ export class CourseRegistrationService extends BaseService {
         createdAt: courseVersion.createdAt,
         updatedAt: courseVersion.updatedAt,
         instructors: instructorDetails,
-        cohorts: cohorts 
       };
     });
   }
@@ -302,27 +291,6 @@ export class CourseRegistrationService extends BaseService {
       throw new ForbiddenError("The course version you are trying to register is inactive");
     }
 
-      if (courseVersion.cohorts && courseVersion.cohorts.length > 0) {
-
-        // If cohorts exist, cohort must be provided
-        if (!registrationData.detail.cohort) {
-          throw new Error(
-            "Cohorts exist for this version. Please select at least one cohort."
-          );
-        }
-
-        // Validate that cohort matches one of the available cohorts
-        const isValidCohort = courseVersion.cohorts.some(
-          (cohort: any) => cohort.toString() === registrationData.detail.cohort
-        );
-
-        if (!isValidCohort) {
-          throw new Error(
-            "Cohort name must match one of the available cohorts for this version."
-          );
-        }
-      }
-
       const courseSettings = await this.settingsRepo.readCourseSettings(
         courseVersion.courseId.toString(),
         registrationData.versionId.toString(),
@@ -335,33 +303,19 @@ export class CourseRegistrationService extends BaseService {
         throw new Error('Course registration is not active');
       }
 
-      if (courseVersion.cohorts && courseVersion.cohorts.length > 0) {
-        const requestExisits = await this.courseRegistrationRepo.findPendingRequestsByUserIdAndCohort(
-          registrationData.userId.toString(),
-          registrationData.versionId.toString(),
-          registrationData.detail.cohort,
-          session,
-        );
-        if (requestExisits) {
-          throw new Error('You are already registered for this cohort of the course');
-        }
-      }
-      else{
-        const requestExisits = await this.courseRegistrationRepo.findPendingRequestsByUserId(
-          registrationData.userId.toString(),
-          registrationData.versionId.toString(),
-          session,
-        );
-        if (requestExisits) {
-          throw new Error('You are already registered for this course');
-        }
+      const requestExisits = await this.courseRegistrationRepo.findPendingRequestsByUserId(
+        registrationData.userId.toString(),
+        registrationData.versionId.toString(),
+        session,
+      );
+      if (requestExisits) {
+        throw new Error('You are already registered for this course');
       }
 
       const enrollmentExists = await this.enrollmentService.findEnrollment(
         registrationData.userId.toString(),
         courseVersion.courseId.toString(),
         registrationData.versionId.toString(),
-        registrationData.detail.cohort
       );
 
       if (enrollmentExists) {
@@ -372,13 +326,9 @@ export class CourseRegistrationService extends BaseService {
         userId: new ObjectId(registrationData.userId),
         versionId: new ObjectId(registrationData.versionId),
         courseId: new ObjectId(courseVersion.courseId.toString()),
-        cohortId: registrationData.detail.cohort ? new ObjectId(String(registrationData.detail.cohort)) : undefined,
         createdAt: new Date(),
         updatedAt: null,
       };
-      if (registrationData.detail?.cohort) {
-        delete registrationData.detail.cohort;
-      }
       return await this.courseRegistrationRepo.create(data, session);
     });
   }
@@ -393,6 +343,15 @@ export class CourseRegistrationService extends BaseService {
   ) {
     return this._withTransaction(async session => {
       const skip = (page - 1) * limit;
+      const { registrations, totalDocuments } =
+        await this.courseRegistrationRepo.findAllregistrations(
+          versionId,
+          { status, search },
+          skip,
+          limit,
+          sort,
+          session,
+        );
 
       const version = await this.courseRepo.readVersion(versionId, session);
       if (!version) {
@@ -400,15 +359,6 @@ export class CourseRegistrationService extends BaseService {
           `Course version with id ${versionId} not found`,
         );
       }
-      const { registrations, totalDocuments } =
-        await this.courseRegistrationRepo.findAllregistrations(
-          version,
-          { status, search },
-          skip,
-          limit,
-          sort,
-          session,
-        );
 
       const courseId = version.courseId.toString();
       let courseSettings = await this.settingsRepo.readCourseSettings(
@@ -480,7 +430,6 @@ export class CourseRegistrationService extends BaseService {
   async updateStatus(
     registrationId: string,
     status: 'PENDING' | 'APPROVED' | 'REJECTED',
-    cohort?: string
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       try {
@@ -498,8 +447,6 @@ export class CourseRegistrationService extends BaseService {
         if(versionStatus==="archived"){
           throw new ForbiddenError("Can't process registrations. Because course version is archived.");
         }
-
-        const fetchedCohort = await this.courseRepo.getCohortsByIds([new ObjectId(cohort)])
 
         await this.inviteService.courseContentLength(
           data.courseId.toString(),
@@ -532,7 +479,6 @@ export class CourseRegistrationService extends BaseService {
             data.versionId.toString(),
             'STUDENT',
             THROUGH_INVITE,
-            cohort,
             session,
           );
         }
@@ -540,7 +486,6 @@ export class CourseRegistrationService extends BaseService {
           data,
           course,
           status,
-          fetchedCohort[0]?.name,
         );
         try {
           await this.mailService.sendMail(emailMessage);
@@ -593,7 +538,6 @@ export class CourseRegistrationService extends BaseService {
             item.userId.toString(),
             item.courseId.toString(),
             item.versionId.toString(),
-            item.cohortId?.toString(),
             session,
           );
           if (existingEnrollment) continue;
@@ -612,14 +556,12 @@ export class CourseRegistrationService extends BaseService {
             item.versionId.toString(),
             'STUDENT',
             THROUGH_INVITE,
-            item.cohortId?.toString(),
             session,
           );
           const emailMessage = await this.createStatusEmailMessage(
             item,
             course,
             'APPROVED',
-            item?.cohortId?.toString(),
           );
           try {
             await this.mailService.sendMail(emailMessage);

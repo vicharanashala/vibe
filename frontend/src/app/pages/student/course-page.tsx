@@ -97,8 +97,6 @@ export default function CoursePage() {
   const router = useRouter();
   const COURSE_ID = useCourseStore.getState().currentCourse?.courseId || "";
   const VERSION_ID = useCourseStore.getState().currentCourse?.versionId || "";
-  const COHORT_ID = useCourseStore.getState().currentCourse?.cohortId || "";
-  const COHORT_NAME = useCourseStore.getState().currentCourse?.cohortName || "";
   const { getSettings, settingLoading: proctoringLoading } = useGetProcotoringSettings();
 
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
@@ -112,6 +110,7 @@ export default function CoursePage() {
   const streamRef = useRef<MediaStream | null>(null);
 
   const isMobile = useIsMobile();
+
 
 
   // Check for microphone and camera access, otherwise redirect to dashboard
@@ -165,9 +164,7 @@ export default function CoursePage() {
         ...currentCourse,
         moduleId,
         sectionId,
-        itemId,
-        cohortId: COHORT_ID,
-        cohortName: COHORT_NAME
+        itemId
       });
     }
   }, [setCurrentCourse]);
@@ -224,9 +221,9 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
   // Fetch user progress
   const { data: progressData, isLoading: progressLoading, error: progressError } =
-    useUserProgress(COURSE_ID, VERSION_ID, COHORT_ID);
+    useUserProgress(COURSE_ID, VERSION_ID);
   const { data: moduleProgressData, isLoading: moduleProgressLoading } =
-    useModuleProgress(COURSE_ID, VERSION_ID, COHORT_ID);
+    useModuleProgress(COURSE_ID, VERSION_ID);
 
 
   // Fetch proctoring settings for the course (fetched once when component loads)
@@ -254,8 +251,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   } = useItemsBySectionId(
     shouldFetchItems ? VERSION_ID : '',
     shouldFetchItems ? activeSectionInfo!.moduleId : '',
-    shouldFetchItems ? activeSectionInfo!.sectionId : '',
-    shouldFetchItems ? COHORT_ID : ''
+    shouldFetchItems ? activeSectionInfo!.sectionId : ''
   );
 
 
@@ -273,7 +269,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     shouldFetchItem ? selectedItemId! : '',
     shouldFetchItem ? activeSectionInfo!.moduleId : '',
     shouldFetchItem ? activeSectionInfo!.sectionId : '',
-    shouldFetchItem ? COHORT_ID : ''
   );
   // State to track previous valid item for reverting
   const [previousValidItem, setPreviousValidItem] = useState<{
@@ -1153,7 +1148,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
             body: {
               courseId: COURSE_ID,
               courseVersionId: VERSION_ID,
-              cohort: COHORT_ID
             },
           });
           return;
@@ -2147,8 +2141,6 @@ useEffect(() => {
                         sectionId={sectionId}
                         completedItemIdsRef={completedItemIdsRef}
                         nextItem={findNextItem()}
-                        cohortId={COHORT_ID}
-                        cohortName={COHORT_NAME}
                       />
                     )}
 

@@ -19,7 +19,6 @@ export interface VideoProps {
   isAlreadyWatched?: boolean;
   completedItemIdsRef: React.RefObject<Set<string>>;
   nextItemId: string;
-  cohortId?:string;
 }
 
 

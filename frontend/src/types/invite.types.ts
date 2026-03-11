@@ -10,7 +10,6 @@ export interface EmailInvite {
 
 export interface InviteBody {
   inviteData: EmailInvite[];
-  cohortId?: string;
 }
 export interface InviteResult {
   inviteId: string;

@@ -83,6 +83,7 @@ function DashboardContent() {
     isLoading: enrollmentsLoading,
   } = useUserEnrollments(1, 100, !!token); // Fetching 100 to get a good list for client-side filtering safely for now
 
+
   // Cast to CourseCardProps['enrollment'][] to satisfy type checker if needed, 
   // but simpler to let TS infer from usage if types match. 
   // Explicitly casting here to be safe given previous type errors.
@@ -202,9 +203,7 @@ function DashboardContent() {
                     name: course.courseName,
                     description: course.courseDescription,
                     instructors: course.instructors
-                  },
-                  cohortId: course.cohortId,
-                  cohortName: course.cohortName,
+                  }
                 })) || []}
                 isLoading={publicCoursesLoading}
                 showViewAll

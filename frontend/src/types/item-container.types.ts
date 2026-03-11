@@ -68,8 +68,6 @@ export interface ItemContainerProps {
   versionId: string;
   completedItemIdsRef: React.RefObject<Set<string>>;
   nextItem: {itemId:string};
-  cohortId?: string;
-  cohortname?: string;
 }
 
 export interface ItemContainerRef {

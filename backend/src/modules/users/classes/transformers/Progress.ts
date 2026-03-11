@@ -46,9 +46,6 @@ export class Progress implements IProgress {
   @Expose()
   completed: boolean;
 
-  @Expose()
-  cohort?: string;
-
   constructor(
     userId?: string,
     courseId?: string,
@@ -57,7 +54,6 @@ export class Progress implements IProgress {
     currentSection?: string,
     currentItem?: string,
     completed = false,
-    cohort?: string,
   ) {
     if (
       userId &&
@@ -74,9 +70,6 @@ export class Progress implements IProgress {
       this.currentSection = new ObjectId(currentSection);
       this.currentItem = new ObjectId(currentItem);
       this.completed = completed;
-    }
-    if (cohort) {
-      this.cohort = cohort;
     }
   }
 }

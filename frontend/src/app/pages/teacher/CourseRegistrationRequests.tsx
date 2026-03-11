@@ -20,27 +20,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, Share, RefreshCw, ListChecks, Hash, Calendar, Settings, FileText, Search, X, FilterIcon, Lock, Unlock, Layers } from "lucide-react";
+import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, Share, RefreshCw, ListChecks, Hash, Calendar, Settings, FileText, Search, X, FilterIcon, Lock, Unlock } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCourseStore } from "@/store/course-store";
 import { toast } from "sonner";
-import { useBulkUpdateRegistrationStatus, useGetCourseRegistrationRequests, useUpdateRegistrationStatus, useGetRegistrationStatus, useToggleRegistrationStatus, useAutoApprovalSettings, useCourseVersionById } from "@/hooks/hooks";
+import { useBulkUpdateRegistrationStatus, useGetCourseRegistrationRequests, useUpdateRegistrationStatus, useGetRegistrationStatus, useToggleRegistrationStatus, useAutoApprovalSettings } from "@/hooks/hooks";
 import { Pagination } from "@/components/ui/Pagination";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import ConfirmationModal from "./components/confirmation-modal";
 import { FormBuilder } from "./components/course-registration-modal";
 import AutoApprovalModal from "./components/auto-approval-modal";
 import CourseBackButton from "./CourseBackButton";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-} from "@/components/ui/dropdown-menu";
 
 export interface Registration {
   _id: string;
@@ -68,7 +61,6 @@ export default function CourseRegistrationRequests() {
   const [isBulkApproveOpen, setIsBulkApproveOpen] = useState(false);
   const [isSingleRejectOpen, setIsSingleRejectOpen] = useState(false);
   const [singleRegistrationId, setSingleRegistrationId] = useState<string | null>(null);
-  const [singleCohort,setSingleCohort] = useState<string | null>(null);
   const [isUnsavedChanges, setIsUnsavedChanges] = useState(false);
   const [isRefresh, setIsRefresh] = useState(false);
   const [isActive, setIsActive] = useState<boolean>(true);
@@ -78,10 +70,7 @@ export default function CourseRegistrationRequests() {
   const [initialFetchDone, setInitialFetchDone] = useState(false);
   const [hasAnyRegistrations, setHasAnyRegistrations] = useState(true);
   const shouldFetch = !initialFetchDone || hasAnyRegistrations;
-  const [cohort, setCohort] = useState<string | null>(null);
-  const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(versionId || "")
 
-// console.log("courseVersion in registration page", courseVersion);
   const PAGE_LIMIT = 15;
 
   const params = useMemo(() => ({
@@ -93,7 +82,7 @@ export default function CourseRegistrationRequests() {
   }), [filterStatus, searchTerm, sortOrder, currentPage]);
 
  const { data: registrationsData, isLoading, refetch: registrationsRefetch,} = useGetCourseRegistrationRequests(versionId as string, params, shouldFetch);
-// console.log("registrationsData---", registrationsData);
+
   const { data: statusData, refetch: statusRefetch } = useGetRegistrationStatus(versionId as string);
   const { mutateAsync: toggleStatus, isPending: isTogglingStatus } = useToggleRegistrationStatus(versionId as string);
   const { settings: autoApprovalSettings, isLoading: isLoadingAutoApproval } = useAutoApprovalSettings(versionId as string);
@@ -104,7 +93,6 @@ export default function CourseRegistrationRequests() {
 
   const FRONTEND_URL = window.location.origin;
   const registrationUrl = `${FRONTEND_URL}/student/course-registration/${versionId}`;
-  const registrationUrlWithCohort = `${FRONTEND_URL}/student/course-registration/${versionId}/${cohort}`;
 
   const registrationMessage = `🎓 Course Registration - ViBe Platform
 
@@ -113,14 +101,6 @@ Hello,
 Register for the course using the link below:
 
 ${registrationUrl}`;
-
-  const registrationMessageWithCohort = `🎓 Course Registration - ViBe Platform
-
-Hello,
-
-Register for the course using the link below:
-
-${registrationUrlWithCohort}`;
 
 useEffect(() => {
   const t = setTimeout(() => {
@@ -191,11 +171,10 @@ useEffect(() => {
   };
 
 
-  const handleApprove = async (registrationId: string | null, cohort: string) => {
+  const handleApprove = async (registrationId: string | null) => {
     if (isUpdatingBulkStatus || isUpdatingStatus || !registrationId) return;
     try {
-      // console.log("-----in handleapprove----", cohort);
-      await updateStatus(registrationId, 'APPROVED', cohort);
+      await updateStatus(registrationId, 'APPROVED');
       toast.success('Registration approved successfully');
       registrationsRefetch();
       setIsSingleApproveOpen(false);
@@ -204,10 +183,10 @@ useEffect(() => {
     } 
   }
 
-  const handleReject = async (registrationId: string | null, cohort: string) => {
+  const handleReject = async (registrationId: string | null) => {
     if (isUpdatingBulkStatus || isUpdatingStatus || !registrationId) return;
     try {
-      await updateStatus(registrationId, 'REJECTED', cohort);
+      await updateStatus(registrationId, 'REJECTED');
       toast.success('Registration rejected successfully');
       registrationsRefetch();
       setIsSingleRejectOpen(false);
@@ -219,24 +198,6 @@ useEffect(() => {
   const copyRegistrationUrl = async () => {
     try {
       await navigator.clipboard.writeText(registrationUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      // Fallback if failed
-      const textArea = document.createElement('textarea');
-      textArea.value = registrationUrl;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-    const copyRegistrationUrlWithCohort = async () => {
-    try {
-      await navigator.clipboard.writeText(registrationUrlWithCohort);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -313,10 +274,9 @@ useEffect(() => {
         isOpen={isSingleApproveOpen}
         onClose={() => {
           setIsSingleApproveOpen(false);
-          setSingleRegistrationId(null);
-          setSingleCohort(null);
+          setSingleRegistrationId(null)
         }}
-        onConfirm={() => handleApprove(singleRegistrationId, singleCohort)}
+        onConfirm={() => handleApprove(singleRegistrationId)}
         title="Approve Registration"
         description="Are you sure you want to approve this registration? This action cannot be undone."
         confirmText="Approve"
@@ -329,7 +289,7 @@ useEffect(() => {
       <ConfirmationModal
         isOpen={isSingleRejectOpen}
         onClose={() => setIsSingleRejectOpen(false)}
-        onConfirm={() => handleReject(singleRegistrationId, singleCohort)}
+        onConfirm={() => handleReject(singleRegistrationId)}
         title="Reject Registration"
         description="Are you sure you want to reject this registration? This action cannot be undone."
         confirmText="Reject"
@@ -489,9 +449,6 @@ useEffect(() => {
             registrationUrl={registrationUrl}
             registrationMessage={registrationMessage}
             copyRegistrationUrl={copyRegistrationUrl}
-            registrationUrlWithCohort={registrationUrlWithCohort}
-            registrationMessageWithCohort={registrationMessageWithCohort}
-            copyRegistrationUrlWithCohort={copyRegistrationUrlWithCohort}
             copied={copied}
             selectedIds={selectedIds}
             isUpdatingBulkStatus={isUpdatingBulkStatus}
@@ -503,9 +460,6 @@ useEffect(() => {
             isActive={isActive}
             handleToggleRegistration={handleToggleRegistration}
             isTogglingStatus={isTogglingStatus}
-            courseVersion = {courseVersion}
-            cohort ={cohort}
-            setCohort = {setCohort}
           />
         </div>
           <Dialog open={isAutoApprovalModalOpen} onOpenChange={setIsAutoApprovalModalOpen}>
@@ -653,14 +607,6 @@ useEffect(() => {
                         Registered At
                       </span>
                     </TableHead>
-                    
-                    {courseVersion?.cohortDetails?.length > 0 &&
-                    <TableHead className="font-bold text-foreground w-[250px]">
-                      <span className="inline-flex items-center gap-2">
-                        <Layers className="h-4 w-4 text-muted-foreground" />
-                        Cohort Name
-                      </span>
-                    </TableHead>}
 
                     <TableHead className="font-bold text-foreground w-[150px]">
                       <span className="inline-flex items-center gap-2">
@@ -786,10 +732,6 @@ useEffect(() => {
                           )}
                         </TableCell>
 
-                        {courseVersion?.cohorts?.length > 0 &&
-                        <TableCell className="py-4">
-                            {reg.cohortName}
-                        </TableCell>}
 
 
                         <TableCell className="py-4">
@@ -824,7 +766,6 @@ useEffect(() => {
                                   size="sm"
                                   onClick={() => {
                                     setSingleRegistrationId(reg._id);
-                                    setSingleCohort(reg.cohortId)
                                     setIsSingleApproveOpen(true);
                                   }}
                                   className="bg-green-500 dark:bg-green-300 hover:dark:bg-green-500 hover:bg-green-700 text-white dark:text-black"
@@ -993,11 +934,8 @@ export function RegistrationDetailsDialog({
 
 interface RegistrationActionsProps {
   registrationUrl: string;
-  registrationUrlWithCohort: string;
   registrationMessage: string;
-  registrationMessageWithCohort: string;
   copyRegistrationUrl: () => void;
-  copyRegistrationUrlWithCohort:()=>void;
   copied: boolean;
   selectedIds: string[] | undefined;
   isUpdatingBulkStatus: boolean;
@@ -1009,18 +947,12 @@ interface RegistrationActionsProps {
   isActive: boolean;
   handleToggleRegistration: () => void;
   isTogglingStatus: boolean;
-  courseVersion: any;
-  cohort: string;
-  setCohort : React.Dispatch<React.SetStateAction<string>>;
 }
 
 export const RegistrationActions = ({
   registrationUrl,
-  registrationUrlWithCohort,
   registrationMessage,
-  registrationMessageWithCohort,
   copyRegistrationUrl,
-  copyRegistrationUrlWithCohort,
   copied,
   selectedIds,
   isUpdatingBulkStatus,
@@ -1032,9 +964,6 @@ export const RegistrationActions = ({
   isActive,
   handleToggleRegistration,
   isTogglingStatus,
-  courseVersion,
-  cohort,
-  setCohort,
 }: RegistrationActionsProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isRefresh, setIsRefresh] = useState(false);
@@ -1059,103 +988,62 @@ export const RegistrationActions = ({
             </p>
           </DialogHeader>
 
-          {/* // if we have cohorts in version then we should not allow registration without cohort */}
-          {courseVersion?.cohorts?.length > 0 && (
-            
-            <DropdownMenu>
-              <span className="mr-4">Cohort Name:</span>
-              <DropdownMenuTrigger asChild>
+          <div className="space-y-4 mt-6">
+            <div className="relative">
+              <label className="text-sm font-medium text-foreground mb-2 block">
+                Registration URL
+              </label>
+              <div className="flex items-center gap-2 p-3 bg-muted/50 border border-border rounded-lg">
+                <code className="flex-1 text-sm font-mono text-foreground break-all">
+                  {registrationUrl}
+                </code>
                 <Button
-                  variant="outline"
-                  className="mt-2 px-3 py-2 text-sm w-[30%]"
-                >
-                   {cohort ? courseVersion.cohortDetails.find(c => c.id === cohort)?.name : "Select Cohort"}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuRadioGroup
-                  value={cohort ?? ""}
-                  onValueChange={(value) => {
-                    setCohort(value);
-                  }}
-                >
-                  {courseVersion?.cohortDetails?.map((cohort) => (
-                    <DropdownMenuRadioItem
-                      key={cohort.id}
-                      value={cohort.id}
-                    >
-                      {cohort.name}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-
-          {(
-            !courseVersion?.cohortDetails?.length ||
-            cohort
-          ) && (
-              <div className="space-y-4 mt-6">
-                <div className="relative">
-                  <label className="text-sm font-medium text-foreground mb-2 block">
-                    Registration URL
-                  </label>
-                  <div className="flex items-center gap-2 p-3 bg-muted/50 border border-border rounded-lg">
-                    <code className="flex-1 text-sm font-mono text-foreground break-all">
-                      {courseVersion?.cohortDetails?.length > 0 ? registrationUrlWithCohort : registrationUrl}
-                    </code>
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={courseVersion?.cohortDetails?.length > 0 ? copyRegistrationUrlWithCohort: copyRegistrationUrl}
-                      className="h-8 w-8 p-0 flex-shrink-0"
-                    >
-                      {copied ? (
-                        <Check className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-                {copied && (
-                  <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
-                    <Check className="h-4 w-4" />
-                    URL copied to clipboard successfully!
-                  </div>
-                )}
-              </div>
-          )}
-
-          {(!courseVersion?.cohortDetails?.length || cohort
-          ) && (
-            <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-6">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  onClick={() => {
-                    if (navigator.share) {
-                      navigator
-                        .share({
-                          title: "Course Registration - Vibe Platform",
-                          text: courseVersion?.cohortDetails?.length > 0 ? registrationMessageWithCohort :registrationMessage,
-                        })
-                        .catch((err) => console.error("Error sharing:", err));
-                    } else {
-                      toast.error("Web Share API not supported. Please copy the URL manually.");
-                    }
-                  }}
-                  className="flex items-center gap-2 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 dark:hover:bg-blue-950 dark:hover:text-blue-300 dark:hover:border-blue-700 transition-colors"
+                  onClick={copyRegistrationUrl}
+                  className="h-8 w-8 p-0 flex-shrink-0"
                 >
-                  <Share className="h-4 w-4" />
-                  <span>Share Link</span>
+                  {copied ? (
+                    <Check className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
-            </DialogFooter>
-          )}
+            </div>
+
+            {copied && (
+              <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                <Check className="h-4 w-4" />
+                URL copied to clipboard successfully!
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-6">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (navigator.share) {
+                    navigator
+                      .share({
+                        title: "Course Registration - Vibe Platform",
+                        text: registrationMessage,
+                      })
+                      .catch((err) => console.error("Error sharing:", err));
+                  } else {
+                    toast.error("Web Share API not supported. Please copy the URL manually.");
+                  }
+                }}
+                className="flex items-center gap-2 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 dark:hover:bg-blue-950 dark:hover:text-blue-300 dark:hover:border-blue-700 transition-colors"
+              >
+                <Share className="h-4 w-4" />
+                <span>Share Link</span>
+              </Button>
+            </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

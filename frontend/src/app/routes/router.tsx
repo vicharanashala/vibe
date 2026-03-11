@@ -50,7 +50,6 @@ import StudentLogin from '../pages/student/StudentLogin'
 import TeacherLogin from '../pages/teacher/TeacherLogin'
 import SelectRolePage from '../pages/SelectRolePage'
 import AuditPage from '../pages/teacher/AuditPage'
-import ConfigureCohorts from '../pages/teacher/configure-cohorts'
 
 import HpSystemVersions from '../pages/teacher/hp-system/HpSystemPage'
 import HpSystemCohorts from '../pages/teacher/hp-system/CohortsList'
@@ -317,13 +316,6 @@ const teacherCourseInstructorsRoute = new Route({
   component: CourseInstructors,
 });
 
-// Teacher Course Instructors route
-const teacherConfigureCohortsRoute = new Route({
-  getParentRoute: () => teacherLayoutRoute,
-  path: '/courses/cohorts',
-  component: ConfigureCohorts,
-});
-
 // Teacher Course Regstration requests
 const teacherCourseRegistrationRequests = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -509,8 +501,7 @@ const studentHpSystemSubmissionsRoute = new Route({
 
 export const studentCourseInviteRegistration = new Route({
   getParentRoute: () => rootRoute, // 👈 IMPORTANT: NOT studentLayoutRoute
-  // path: "/student/course-registration/$versionId",
-  path: "/student/course-registration/$versionId/{-$cohort}",
+  path: "/student/course-registration/$versionId",
   component: CourseRegistration,
   beforeLoad: () => {
     const { isAuthenticated, user } = useAuthStore.getState();
@@ -636,7 +627,6 @@ const routeTree = rootRoute.addChildren([
     teacherCreateHpActivityRoute,
     teacherStudentLedgerRoute,
     teacherStudentSubmissionsRoute
-    teacherConfigureCohortsRoute
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,

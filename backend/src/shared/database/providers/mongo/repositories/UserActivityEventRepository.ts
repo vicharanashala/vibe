@@ -32,7 +32,6 @@ class UserActivityEventRepository {
           courseId: 1,
           courseVersionId: 1,
           videoId: 1,
-          cohortId: 1,
           isDeleted: 1,
         },
         { background: true },
@@ -60,7 +59,6 @@ class UserActivityEventRepository {
     courseId: string,
     courseVersionId: string,
     videoId: string,
-    cohortId?: string,
     session?: ClientSession,
   ): Promise<IUserActivityEvent> {
     await this.init();
@@ -70,7 +68,6 @@ class UserActivityEventRepository {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
       videoId: new ObjectId(videoId), // itemId from system, stored as ObjectId
-      cohortId: cohortId ? new ObjectId(cohortId) : undefined,
       rewinds: 0,
       fastForwards: 0,
       rewindData: [],
@@ -102,24 +99,16 @@ class UserActivityEventRepository {
   async getUserActivityEvent(
     userId: string,
     videoId: string,
-    cohortId?: string,
     session?: ClientSession,
   ): Promise<IUserActivityEvent | null> {
     await this.init();
 
-    const query: any = {
-      userId: new ObjectId(userId),
-      videoId: new ObjectId(videoId), // Convert to ObjectId for query
-      isDeleted: { $ne: true },
-    };
-
-    // Include cohortId in query if provided
-    if (cohortId) {
-      query.cohortId = new ObjectId(cohortId);
-    }
-
     const result = await this.userActivityEventCollection.findOne(
-      query,
+      {
+        userId: new ObjectId(userId),
+        videoId: new ObjectId(videoId), // Convert to ObjectId for query
+        isDeleted: { $ne: true },
+      },
       { session },
     );
 
@@ -130,24 +119,16 @@ class UserActivityEventRepository {
     userId: string,
     videoId: string,
     data: Partial<IUserActivityEvent>,
-    cohortId?: string,
     session?: ClientSession,
   ): Promise<IUserActivityEvent | null> {
     await this.init();
 
-    const query: any = {
-      userId: new ObjectId(userId),
-      videoId: new ObjectId(videoId), // Convert to ObjectId for query
-      isDeleted: { $ne: true },
-    };
-
-    // Include cohortId in query if provided
-    if (cohortId) {
-      query.cohortId = new ObjectId(cohortId);
-    }
-
     const result = await this.userActivityEventCollection.findOneAndUpdate(
-      query,
+      {
+        userId: new ObjectId(userId),
+        videoId: new ObjectId(videoId), // Convert to ObjectId for query
+        isDeleted: { $ne: true },
+      },
       {
         $set: {
           ...data,

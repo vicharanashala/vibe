@@ -21,11 +21,6 @@ export class StudentQuizScoreDto {
   email: string;
 
   @Expose()
-  @IsString()
-  cohortName: string;
-
-
-  @Expose()
   @IsArray()
   quizScores: Array<{
     moduleId: string;

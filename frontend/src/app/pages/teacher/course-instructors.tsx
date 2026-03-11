@@ -126,6 +126,7 @@ export default function CourseInstructors() {
   );
 
   const instructorEnrollments = enrollmentsData?.enrollments || [];
+
   // Handle errors
   useEffect(() => {
     if (enrollmentsError) {

@@ -34,7 +34,6 @@ export class ProjectService extends BaseService {
     versionId: string,
     submissionURL: string,
     comment: string,
-    cohortId?: string,
   ): Promise<ID> {
     try {
       return this._withTransaction(async session => {
@@ -54,7 +53,6 @@ export class ProjectService extends BaseService {
           userId,
           versionId,
           courseId,
-          cohortId,
           session,
         );
 
@@ -81,7 +79,6 @@ export class ProjectService extends BaseService {
             userId,
             submissionURL,
             comment,
-            cohortId,
             session,
           );
           if (!insertedId)
@@ -99,7 +96,6 @@ export class ProjectService extends BaseService {
   getSubmissions(
     courseId: string,
     versionId: string,
-    cohortId?: string,
   ): Promise<SubmissionResponse> {
     try {
       return this._withTransaction(async session => {
@@ -114,7 +110,6 @@ export class ProjectService extends BaseService {
           await this._projectSubmissionRepository.getAllSubmissions(
             courseId,
             versionId,
-            cohortId,
           );
         return submissions;
       });

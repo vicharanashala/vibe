@@ -1,5 +1,5 @@
-import {injectable, inject} from 'inversify';
-import {GLOBAL_TYPES} from '#root/types.js';
+import { injectable, inject } from 'inversify';
+import { GLOBAL_TYPES } from '#root/types.js';
 import {
   AuditingDto,
   CourseSetting,
@@ -10,7 +10,6 @@ import {
 } from '#root/modules/setting/classes/index.js';
 import {
   BadRequestError,
-  ForbiddenError,
   InternalServerError,
   NotFoundError,
 } from 'routing-controllers';
@@ -20,8 +19,9 @@ import {
   ISettingRepository,
   ICourseRepository,
 } from '#shared/index.js';
-import {getISTFormattedTimestamp} from '#root/utils/toISOFormat.js';
-import {ObjectId} from 'mongodb';
+import { getISTFormattedTimestamp } from '#root/utils/toISOFormat.js';
+import { ObjectId } from 'mongodb';
+
 
 /**
  * Service responsible for course settings operations.
@@ -119,6 +119,7 @@ class CourseSettingService extends BaseService {
         session,
       );
 
+
       if (!courseSettings) {
         // Create new settings as in updateCourseSettings
         const settings = new SettingsDto();
@@ -127,15 +128,15 @@ class CourseSettingService extends BaseService {
         settings.linearProgressionEnabled = true;
         settings.seekForwardEnabled = false;
         settings.isPublic = false;
-        settings.registration = {isActive: true};
-        settings.timeslots = {isActive: false, slots: []};
+        settings.registration = { isActive: true };
+        settings.timeslots = { isActive: false, slots: [] };
 
         const created = await this.createCourseSettings(
           new CourseSetting({
             courseVersionId,
             courseId,
             settings,
-          }),
+          })
         );
 
         if (!created) {
@@ -160,14 +161,6 @@ class CourseSettingService extends BaseService {
     userId: string,
   ): Promise<boolean> {
     return this._withTransaction(async session => {
-      const versionStatus =
-        await this.courseRepo.getCourseVersionStatus(courseVersionId);
-
-      if (versionStatus === 'archived') {
-        throw new ForbiddenError(
-          "This course version is inactive, you can't update settings",
-        );
-      }
       // Check if the course settings exist
       const courseSettings = await this.settingsRepo.readCourseSettings(
         courseId,
@@ -202,13 +195,11 @@ class CourseSettingService extends BaseService {
         // for linear progression
         settings.linearProgressionEnabled = linearProgressionEnabled;
 
-        const result = await this.createCourseSettings(
-          new CourseSetting({
-            courseVersionId,
-            courseId,
-            settings,
-          }),
-        );
+        const result = await this.createCourseSettings(new CourseSetting({
+          courseVersionId,
+          courseId,
+          settings,
+        }))
 
         if (!result) {
           throw new InternalServerError(
@@ -222,8 +213,10 @@ class CourseSettingService extends BaseService {
         detectors: courseSettings.settings?.proctors?.detectors,
         linearProgressionEnabled:
           courseSettings.settings?.linearProgressionEnabled,
-        seekForwardEnabled: courseSettings.settings?.seekForwardEnabled,
-        isPublic: courseSettings.settings?.isPublic,
+        seekForwardEnabled:
+          courseSettings.settings?.seekForwardEnabled,
+        isPublic:
+          courseSettings.settings?.isPublic,
       };
 
       const afterState = {
@@ -303,7 +296,8 @@ class CourseSettingService extends BaseService {
   }
     */
 
-  /**
+
+  /**   
    * Checks if linear progression is enabled for a specific course and version.
    * @param courseId - The ID of the course
    * @param courseVersionId - The ID of the course version
@@ -314,15 +308,14 @@ class CourseSettingService extends BaseService {
     courseVersionId: string,
   ): Promise<boolean> {
     return this._withTransaction(async session => {
-      const isCourseEnabled =
-        await this.settingsRepo.isLinearProgressionEnabled(
-          courseId,
-          courseVersionId,
-          session,
-        );
+      const isCourseEnabled = await this.settingsRepo.isLinearProgressionEnabled(
+        courseId,
+        courseVersionId,
+        session,
+      );
       return isCourseEnabled;
     });
   }
 }
 
-export {CourseSettingService};
+export { CourseSettingService };

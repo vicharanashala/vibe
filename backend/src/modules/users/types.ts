@@ -17,5 +17,4 @@ export interface EnrollmentStats {
   totalEnrollments: number;
   completedCount: number;
   averageProgressPercent: number;
-  averageWatchHoursPerUser: number; // average hours watched per enrolled user
 }
