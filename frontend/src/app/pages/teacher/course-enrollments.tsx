@@ -1015,78 +1015,6 @@ export default function CourseEnrollments() {
               </Card>
             ))}
           </div>
-          {/* Active Tab */}
-          <TabsContent value="ACTIVE" className="mt-4">
-            <EnrollmentsTable
-              totalDocuments={totalDocuments}
-              studentEnrollments={filteredStudentEnrollments}
-              enrollmentsLoading={enrollmentsLoading}
-              isSearching={isSearching}
-              enrollmentTab={enrollmentTab}
-              searchQuery={searchQuery}
-              limit={limit}
-              handleLimitChange={handleLimitChange}
-              handleSort={handleSort}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              isLoadingQuizScores={isLoadingQuizScores}
-              setIsExporting={setIsExporting}
-              unenrollMutation={unenrollMutation}
-              user={user}
-              handleViewProgress={handleViewProgress}
-              handleRemoveStudent={handleRemoveStudent}
-              getRoleBadge={getRoleBadge}
-              isSelectionMode={isSelectionMode}
-              selectedUsers={selectedUsers}
-              onSelectUser={handleSelectUser}
-              onSelectAll={handleSelectAll}
-              toggleSelectionMode={toggleSelectionMode}
-              handleBulkUnenroll={handleBulkUnenroll}
-              setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
-              timeSlotsData={timeSlotsData}
-              getStudentTimeSlot={getStudentTimeSlot}
-              version={version}
-              cohort={cohort}
-              setCohort={setCohort}
-            />
-          </TabsContent>
-
-          {/* Inactive Tab */}
-          <TabsContent value="INACTIVE" className="mt-4">
-            <EnrollmentsTable
-              totalDocuments={totalDocuments}
-              studentEnrollments={studentEnrollments}
-              enrollmentsLoading={enrollmentsLoading}
-              isSearching={isSearching}
-              enrollmentTab={enrollmentTab}
-              searchQuery={searchQuery}
-              limit={limit}
-              handleLimitChange={handleLimitChange}
-              handleSort={handleSort}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              isLoadingQuizScores={isLoadingQuizScores}
-              setIsExporting={setIsExporting}
-              unenrollMutation={unenrollMutation}
-              user={user}
-              handleViewProgress={handleViewProgress}
-              handleRemoveStudent={handleRemoveStudent}
-              getRoleBadge={getRoleBadge}
-              isSelectionMode={false}
-              selectedUsers={new Set()}
-              onSelectUser={handleSelectUser}
-              onSelectAll={handleSelectAll}
-              toggleSelectionMode={toggleSelectionMode}
-              handleBulkUnenroll={handleBulkUnenroll}
-              setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
-              timeSlotsData={timeSlotsData}
-              getStudentTimeSlot={getStudentTimeSlot}
-              version={version}
-              cohort={cohort}
-              setCohort={setCohort}
-            />
-          </TabsContent>
-        </Tabs>
 
           {/* Search */}
           <div className="flex flex-col sm:flex-row gap-4">
@@ -1191,6 +1119,9 @@ export default function CourseEnrollments() {
                 handleBulkUnenroll={handleBulkUnenroll}
                 setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
                 getStudentTimeSlot={getStudentTimeSlot}
+                version={version}
+                cohort={cohort}
+                setCohort={setCohort}
               />
             </TabsContent>
 
@@ -1221,6 +1152,9 @@ export default function CourseEnrollments() {
                 handleBulkUnenroll={handleBulkUnenroll}
                 setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
                 getStudentTimeSlot={getStudentTimeSlot}
+                version={version}
+                cohort={cohort}
+                setCohort={setCohort}
               />
             </TabsContent>
           </Tabs>
@@ -1248,23 +1182,6 @@ export default function CourseEnrollments() {
                   >
                     <X className="h-4 w-4" />
                   </Button>
-              {/* Enhanced Student Info */}
-              <div className="flex flex-wrap items-center gap-4 p-6 bg-gradient-to-r from-muted/30 to-muted/10 rounded-xl border border-border">
-                <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md">
-                  <AvatarImage src={selectedUser.avatar || "/placeholder.svg"} alt={selectedUser.name} />
-                  <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold">
-                    {selectedUser.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <p className="font-medium text-card-foreground truncate text-base md:text-lg">{selectedUser.name}</p>
-                  <p className="text-muted-foreground truncate">{selectedUser.email}</p>
-                  {selectedUser.cohortName && (
-                    <p className="text-muted-foreground truncate">(Cohort-{selectedUser.cohortName})</p>
-                  )}
                 </div>
 
                 {/* Enhanced Student Info & Content Summary */}
@@ -1366,96 +1283,20 @@ export default function CourseEnrollments() {
                           <span className="px-2 py-1 rounded bg-blue-100 text-blue-700">
                             {currentPath.module.name}
                           </span>
-
                           <ChevronRight className="h-4 w-4 text-muted-foreground" />
-
                           <span className="px-2 py-1 rounded bg-emerald-100 text-emerald-700">
                             {currentPath.section.name}
                           </span>
-
                           <ChevronRight className="h-4 w-4 text-muted-foreground" />
-
                           <span className="px-2 py-1 rounded bg-purple-100 text-purple-700">
                             {currentPath.item.name}
                           </span>
-              {/* Course Structure */}
-              <div className="space-y-4">
-                {enrollmentTab === "ACTIVE" && (
-                  <div className="flex justify-between">
-                    <TooltipProvider delayDuration={300}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              handleResetProgress({
-                                id: selectedUser.id,
-                                name: `${selectedUser.name || ""}`.trim() || "Unknown User",
-                                email: selectedUser.email,
-                                enrolledDate: selectedUser.enrolledDate,
-                                progress: 0,
-                                cohortId: selectedUser.cohortId,
-                                cohortName: selectedUser.cohortName,
-                              })
-                            }
-                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
-                            disabled={resetProgressMutation.isPending || selectedUser.isDeleted}
-                          >
-                            {resetProgressMutation.isPending ? (
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                              <RotateCcw className="h-4 w-4 mr-2" />
-                            )}
-                            Reset
-                          </Button>
-                        </TooltipTrigger>
-
-                        <TooltipContent>
-                          <p>Reset student progress</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              handleRecalculateProgress({
-                                id: selectedUser.id,
-                                name: `${selectedUser.name || ""}`.trim() || "Unknown User",
-                                email: selectedUser.email,
-                                enrolledDate: selectedUser.enrolledDate,
-                                progress: 0,
-                                cohortId: selectedUser.cohortId,
-                                cohortName: selectedUser.cohortName,
-                              })
-                            }
-                            className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
-                            disabled={
-                              unenrollMutation.isPending ||
-                              user?.email == selectedUser.email ||
-                              selectedUser.isDeleted
-                            }
-                          >
-                            {unenrollMutation.isPending ? (
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                              <RotateCcw className="h-4 w-4 mr-2" />
-                            )}
-                            Recalculate
-                          </Button>
-                        </TooltipTrigger>
-
                           <span className="ml-2 text-xs px-2 py-0.5 rounded border">
                             {currentPath.item.type}
                           </span>
                         </div>
                       )}
                     </div>
-
 
                     {/* Course Structure */}
                     <div className="space-y-4">
@@ -1474,6 +1315,8 @@ export default function CourseEnrollments() {
                                       email: selectedUser.email,
                                       enrolledDate: selectedUser.enrolledDate,
                                       progress: 0,
+                                      cohortId: selectedUser.cohortId,
+                                      cohortName: selectedUser.cohortName,
                                     })
                                   }
                                   className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
@@ -1487,7 +1330,6 @@ export default function CourseEnrollments() {
                                   Reset
                                 </Button>
                               </TooltipTrigger>
-
                               <TooltipContent>
                                 <p>Reset student progress</p>
                               </TooltipContent>
@@ -1506,6 +1348,8 @@ export default function CourseEnrollments() {
                                       email: selectedUser.email,
                                       enrolledDate: selectedUser.enrolledDate,
                                       progress: 0,
+                                      cohortId: selectedUser.cohortId,
+                                      cohortName: selectedUser.cohortName,
                                     })
                                   }
                                   className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
@@ -1523,7 +1367,6 @@ export default function CourseEnrollments() {
                                   Recalculate
                                 </Button>
                               </TooltipTrigger>
-
                               <TooltipContent>Recalculate student progress</TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -1774,7 +1617,7 @@ export default function CourseEnrollments() {
                     disabled={recalculateMutation.isPending}
                     className="min-w-[100px] shadow-lg cursor-pointer"
                   >
-                    {unenrollMutation.isPending ? (
+                    {recalculateStudentMutation.isPending ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Recalculating...
@@ -1786,47 +1629,8 @@ export default function CourseEnrollments() {
                 </div>
               </div>
             </div>
-          </div>
         )}
 
-        {/* Enhanced Reset Progress Modal */}
-        {isResetDialogOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
-            <div
-              className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
-              onClick={() => setIsResetDialogOpen(false)}
-            />
-            <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-3xl w-full mx-4 sm:p-8 p-4 space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Reset Student Progress</h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsResetDialogOpen(false)}
-                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {selectedUser && (
-                <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-muted/30 to-muted/10 rounded-xl border border-border">
-                  <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md">
-                    <AvatarImage src={selectedUser.avatar || "/placeholder.svg"} alt={selectedUser.name} />
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold">
-                      {selectedUser.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-card-foreground truncate text-lg">{selectedUser.name}</p>
-                    <p className="text-muted-foreground truncate">{selectedUser.email}</p>
-                    <p className="text-muted-foreground truncate">Cohort: {selectedUser.cohortName}</p>
-                  </div>
-                </div>
-              )}
 
           {/* Enhanced Reset Progress Modal */}
           {isResetDialogOpen && (
@@ -2264,6 +2068,9 @@ interface EnrollmentsTableProps {
   handleBulkUnenroll: () => void;
   setIsTimeSlotsModalOpen: (open: boolean) => void;
   getStudentTimeSlot: (userId: string) => any;
+  version: any;
+  cohort: string | null;
+  setCohort: (cohort: string | null) => void;
 }
 
 function EnrollmentsTable({
@@ -2294,7 +2101,7 @@ function EnrollmentsTable({
   version,
   cohort,
   setCohort,
-}: any) {
+}: EnrollmentsTableProps) {
   const isInactiveTab = enrollmentTab === "INACTIVE"
 
   return (
@@ -2377,7 +2184,7 @@ function EnrollmentsTable({
                 >
             <DropdownMenuRadioItem
               value={""}
-              onClick={() => setCohort(undefined)}>
+              onClick={() => setCohort(null)}>
               All Cohorts
             </DropdownMenuRadioItem>
                   {(version as any)?.cohortDetails?.map((cohort: any) => (

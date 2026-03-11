@@ -122,7 +122,7 @@ export class EnrollmentRepository {
         courseVersionId: { $in: [courseVersionObjectId, courseVersionId] },
         status: 'ACTIVE',
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId :new ObjectId(cohortId) } : {}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       { session },
     );
@@ -518,7 +518,7 @@ export class EnrollmentRepository {
     }
   }
 
-  async getBasicEnrollments( 
+  async getBasicEnrollments(
     userId: string,
     skip: number,
     limit: number,
@@ -1246,7 +1246,7 @@ export class EnrollmentRepository {
       const key = `${doc._id.userId.toString()}-${doc._id.courseId.toString()}-${doc._id.courseVersionId.toString()}-${doc._id.cohortId.toString() || ''}`;
       map.set(key, doc.count);
     }
-// console.log("Watched item counts batch map:", map);
+    // console.log("Watched item counts batch map:", map);
     return map;
   }
 
@@ -1630,12 +1630,66 @@ export class EnrollmentRepository {
           },
         },
       },
+      // include watch hours for the student within this course/version
+      {
+        $lookup: {
+          from: 'watchTime',
+          let: { uid: '$userId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$userId', { $toObjectId: '$$uid' }] },
+                    { $in: ['$courseId', [courseId, courseIdObj]] },
+                    { $in: ['$courseVersionId', [courseVersionId, versionIdObj]] },
+                    { $ne: ['$isDeleted', true] },
+                    { $ne: ['$endTime', null] },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                duration: {
+                  $divide: [
+                    { $subtract: ['$endTime', '$startTime'] },
+                    3600000,
+                  ],
+                },
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                totalHours: { $sum: '$duration' },
+              },
+            },
+          ],
+          as: 'watchInfo',
+        },
+      },
+      {
+        $addFields: {
+          watchHours: {
+            $round: [
+              { $ifNull: [{ $arrayElemAt: ['$watchInfo.totalHours', 0] }, 0] },
+              2,
+            ],
+          },
+        },
+      },
+      { $project: { watchInfo: 0 } },
       { $limit: 1 },
     ];
 
     const result = await this.enrollmentCollection
       .aggregate(pipeline, { session })
       .toArray();
+
+    if (result[0]) {
+      console.debug('Student progress detail for user', userId, 'course', courseId, 'version', courseVersionId, 'watchHours=', result[0].watchHours);
+    }
 
     return result[0] || null;
   }
@@ -1705,6 +1759,9 @@ export class EnrollmentRepository {
     courseVersionId: string,
     session?: ClientSession,
   ): Promise<EnrollmentStats> {
+    await this.init();
+
+    // first run the existing aggregation to calculate enrollments and progress
     const [result] = await this.enrollmentCollection
       .aggregate<{
         totalEnrollments: number;
@@ -1765,13 +1822,74 @@ export class EnrollmentRepository {
       )
       .toArray();
 
-    return (
+    const baseStats =
       result || {
         totalEnrollments: 0,
         completedCount: 0,
         averageProgressPercent: 0,
-      }
-    );
+      };
+
+    // second aggregation to compute average watch hours per user for this course version
+    const watchAgg = await this.watchTimeCollection
+      .aggregate<{
+        averageWatchHoursPerUser: number;
+      }>(
+        [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $in: ['$courseId', [courseId, new ObjectId(courseId)]] },
+                  { $in: ['$courseVersionId', [courseVersionId, new ObjectId(courseVersionId)]] },
+                  { $ne: ['$isDeleted', true] },
+                  { $ne: ['$endTime', null] },
+                ],
+              },
+            },
+          },
+          {
+            $project: {
+              userId: 1,
+              duration: {
+                $divide: [
+                  { $subtract: ['$endTime', '$startTime'] },
+                  3600000, // convert ms to hours
+                ],
+              },
+            },
+          },
+          {
+            $group: {
+              _id: '$userId',
+              totalHours: { $sum: '$duration' },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              averageWatchHoursPerUser: { $avg: '$totalHours' },
+            },
+          },
+          {
+            $project: { _id: 0, averageWatchHoursPerUser: 1 },
+          },
+        ],
+        { session },
+      )
+      .toArray();
+
+    const watchStats = watchAgg[0] || { averageWatchHoursPerUser: 0 };
+    // debug log
+    console.debug('Computed averageWatchHoursPerUser for course', courseId, courseVersionId, watchStats.averageWatchHoursPerUser);
+
+    return {
+      totalEnrollments: baseStats.totalEnrollments,
+      completedCount: baseStats.completedCount,
+      averageProgressPercent: baseStats.averageProgressPercent,
+      averageWatchHoursPerUser: Number(
+        (watchStats.averageWatchHoursPerUser || 0).toFixed(2),
+      ),
+    };
   }
 
   /**
@@ -2035,7 +2153,7 @@ export class EnrollmentRepository {
     return this.enrollmentCollection.find(query).toArray();
   }
 
-  async addEnrollmentIndexes(session?: ClientSession): Promise<void> { 
+  async addEnrollmentIndexes(session?: ClientSession): Promise<void> {
     try {
       await this.enrollmentCollection.dropIndex('courseVersionId_1');
       await this.enrollmentCollection.dropIndex('courseId_1');
@@ -2868,7 +2986,7 @@ export class EnrollmentRepository {
   ): Promise<QuizScoresExportResponseDto> {
     const startTime = Date.now();
     await this.init();
-// console.log("cohortIds-------",cohortIds);
+    // console.log("cohortIds-------",cohortIds);
     if (!this.enrollmentCollection || !this.submissionCollection) {
       throw new Error('Database collections not properly initialized');
     }
@@ -2882,7 +3000,7 @@ export class EnrollmentRepository {
     const cohortObjectIds = Array.isArray(cohortIds)
       ? cohortIds.map(id => new ObjectId(id))
       : [];
-// console.log("cohortObjectIds-------",cohortObjectIds);
+    // console.log("cohortObjectIds-------",cohortObjectIds);
     const studentFilter: any = {
       courseId: courseIdObj,
       courseVersionId: versionIdObj,
@@ -2993,8 +3111,8 @@ export class EnrollmentRepository {
             quizId: { $in: quizIdsObj },
             // Only filter by cohort when specific cohort is selected
             ...(cohortObjectIds?.length && cohortObjectIds.length > 0
-            ? { cohortId: { $in: cohortObjectIds } }
-            : {}),
+              ? { cohortId: { $in: cohortObjectIds } }
+              : {}),
           },
         },
         {
@@ -3020,8 +3138,8 @@ export class EnrollmentRepository {
             quizId: { $in: quizIdsObj },
             // Only filter by cohort when specific cohort is selected
             ...(cohortObjectIds?.length && cohortObjectIds.length > 0
-            ? { cohortId: { $in: cohortObjectIds } }
-            : {}),
+              ? { cohortId: { $in: cohortObjectIds } }
+              : {}),
           },
         },
         {
@@ -3119,18 +3237,18 @@ export class EnrollmentRepository {
         }
 
       }
-        // Get cohort name for this specific enrollment
-        const cohortName = cohortMap?.get(enrollment.cohortId?.toString()) ?? null;
-        
-        return {
-          studentId: userId,
-          cohortName: cohortName,
-          name:
-            `${enrollment.user.firstName ?? ''} ${enrollment.user.lastName ?? ''
-              }`.trim() || 'Unknown',
-          email: enrollment.user.email ?? '',
-          quizScores,
-        };
+      // Get cohort name for this specific enrollment
+      const cohortName = cohortMap?.get(enrollment.cohortId?.toString()) ?? null;
+
+      return {
+        studentId: userId,
+        cohortName: cohortName,
+        name:
+          `${enrollment.user.firstName ?? ''} ${enrollment.user.lastName ?? ''
+            }`.trim() || 'Unknown',
+        email: enrollment.user.email ?? '',
+        quizScores,
+      };
     });
 
     return {
@@ -3325,8 +3443,8 @@ export class EnrollmentRepository {
               userId: { $in: userObjectIds },
               quizId: { $in: quizObjectIds },
               ...(cohortObjectIds?.length
-              ? { cohortId: { $in: cohortObjectIds } }
-              : {}),
+                ? { cohortId: { $in: cohortObjectIds } }
+                : {}),
               'gradingResult.totalScore': { $exists: true },
             },
           },
@@ -3928,8 +4046,8 @@ export class EnrollmentRepository {
       { session },
     );
   }
-  
-  public async enrollmentExistsByCohortId(versionId: string, cohortId:string, session?: ClientSession): Promise<boolean>{
+
+  public async enrollmentExistsByCohortId(versionId: string, cohortId: string, session?: ClientSession): Promise<boolean> {
     const enrollment = await this.enrollmentCollection.findOne(
       {
         courseVersionId: new ObjectId(versionId),
