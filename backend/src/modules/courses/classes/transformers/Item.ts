@@ -232,6 +232,9 @@ class FeedbackSubmissionItem {
   @Expose()
   updatedAt: Date;
 
+  @Expose()
+  cohortId?: ID;
+
   constructor(
     userId: string,
     courseId: string,
@@ -241,6 +244,7 @@ class FeedbackSubmissionItem {
     feedbackFormId: string,
     details: Record<string, any>,
     _id?: ID,
+    cohortId?: ID,
   ) {
     this._id = _id;
     this.userId = userId;
@@ -253,6 +257,9 @@ class FeedbackSubmissionItem {
     // this.isSkipped = isSkipped;
     this.createdAt = new Date();
     this.updatedAt = new Date();
+    if(cohortId){
+      this.cohortId = cohortId
+    }
   }
 }
 

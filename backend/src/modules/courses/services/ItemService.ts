@@ -308,6 +308,7 @@ export class ItemService extends BaseService {
     moduleId: string,
     sectionId: string,
     userId: string,
+    cohortId?: string
   ): Promise<ItemRef[]> {
     const { itemsGroup } = await this._getVersionModuleSectionAndItemsGroup(
       versionId,
@@ -324,6 +325,7 @@ export class ItemService extends BaseService {
       userId,
       course.courseId.toString(),
       versionId,
+      cohortId
     );
 
     // Only filter hidden items for students
@@ -333,6 +335,7 @@ export class ItemService extends BaseService {
       const progress = await this.progressRepo.getUserProgressByVersionId(
         userId,
         versionId,
+        cohortId
       );
 
       // If no progress yet, nothing is completed
@@ -363,7 +366,8 @@ export class ItemService extends BaseService {
             userId,
             course.courseId.toString(),
             versionId,
-            item._id.toString()
+            item._id.toString(),
+            cohortId
           );
 
           return [item._id.toString(), isCompleted] as const;
@@ -476,7 +480,8 @@ export class ItemService extends BaseService {
     itemId: string,
     courseId?: string,
     moduleId?: string,
-    sectionId?: string
+    sectionId?: string,
+    cohortId?: string
   ) {
 
     // Fetch enrollment early
@@ -484,6 +489,7 @@ export class ItemService extends BaseService {
       userId,
       courseId,
       versionId,
+      cohortId
     );
 
     if (!enrollment) {
@@ -522,9 +528,9 @@ export class ItemService extends BaseService {
       linearProgressionEnabled,
       courseVersion
     ] = await Promise.all([
-      this.progressRepo.isItemCompleted(userId, courseId, versionId, itemId),
-      this.progressRepo.isItemAttempted(userId, courseId, versionId, itemId),
-      this.progressRepo.findProgress(userId, courseId, versionId),
+      this.progressRepo.isItemCompleted(userId, courseId, versionId, itemId, cohortId),
+      this.progressRepo.isItemAttempted(userId, courseId, versionId, itemId, cohortId),
+      this.progressRepo.findProgress(userId, courseId, versionId, cohortId),
       this.courseSettingService.isLinearProgressionEnabled(courseId, versionId),
       this.courseRepo.readVersion(versionId),
     ]);
@@ -588,8 +594,10 @@ export class ItemService extends BaseService {
             currentItem: itemId,
             currentModule: moduleId,
             currentSection: sectionId,
-            completed: false
-          }
+            completed: false,
+            ...(cohortId ? { cohortId } : {}),
+          },
+          cohortId
         );
       }
       return response();
