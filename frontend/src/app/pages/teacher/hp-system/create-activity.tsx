@@ -424,7 +424,7 @@ export default function CreateHpActivityPage() {
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="ABSOLUTE">Absolute Points (+XP)</SelectItem>
+                                                <SelectItem value="ABSOLUTE">Absolute Points</SelectItem>
                                                 <SelectItem value="PERCENTAGE">Percentage (%)</SelectItem>
                                             </SelectContent>
                                         </Select>
