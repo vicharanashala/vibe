@@ -510,4 +510,11 @@ export const hpApi = {
         console.log('Mock restore for entry:', entryId);
         return { success: true };
     },
+
+    reviewSubmission: async (submissionId: string, decision: "APPROVED" | "REJECTED" | "REVERTED", note?: string): Promise<{ success: boolean; data: any }> => {
+        return apiFetch(`${BASE_URL}/activity-submissions/${submissionId}/review`, {
+            method: 'POST',
+            body: JSON.stringify({ decision, note }),
+        });
+    },
 };

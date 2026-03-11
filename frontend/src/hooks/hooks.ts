@@ -5039,15 +5039,17 @@ export function useHpStudentLedger(studentId: string, courseVersionId: string, c
 export function useRevertHpEntry() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: async (entryId: string) => {
-      const res = await hpApi.revertLedgerEntry(entryId);
-      if (!res.success) throw new Error(res.message || 'Failed to revert entry');
+    mutationFn: async (submissionId: string) => {
+      const res = await hpApi.reviewSubmission(submissionId, 'REVERTED');
+      if (!res.success) throw new Error(res.message || 'Failed to revert submission');
+      return res.data;
     },
     onSuccess: () => {
+queryClient.invalidateQueries({ queryKey: ['hpStudentSubmissions'] });
       queryClient.invalidateQueries({ queryKey: ['hp-student-ledger'] });
       queryClient.invalidateQueries({ queryKey: ['hp-students'] });
       queryClient.invalidateQueries({ queryKey: ['hp-cohort-overview'] });
-      toast.success('Entry reverted successfully');
+      toast.success('Submission reverted successfully');
     },
   });
 
@@ -5069,6 +5071,35 @@ export function useRestoreHpEntry() {
       queryClient.invalidateQueries({ queryKey: ['hp-students'] });
       queryClient.invalidateQueries({ queryKey: ['hp-cohort-overview'] });
       toast.success('Entry restored successfully');
+    },
+  });
+
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+  };
+}
+
+export function useReviewSubmission() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: async ({ submissionId, decision, note }: { submissionId: string; decision: "APPROVED" | "REJECTED" | "REVERTED"; note?: string }) => {
+      const res = await hpApi.reviewSubmission(submissionId, decision, note);
+      if (!res.success) throw new Error(res.message || 'Failed to review submission');
+      return res.data;
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['hpStudentSubmissions'] });
+      queryClient.invalidateQueries({ queryKey: ['hp-student-ledger'] });
+      queryClient.invalidateQueries({ queryKey: ['hp-students'] });
+      queryClient.invalidateQueries({ queryKey: ['hp-cohort-overview'] });
+      
+      const decisionMessages = {
+        APPROVED: 'Submission approved successfully',
+        REJECTED: 'Submission rejected successfully',
+        REVERTED: 'Submission reverted successfully'
+      };
+      toast.success(decisionMessages[variables.decision]);
     },
   });
 
