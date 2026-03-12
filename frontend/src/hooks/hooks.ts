@@ -615,7 +615,8 @@ export function useStudentProgressDetail(
   userId?: string,
   courseId?: string,
   versionId?: string,
-  enabled?: boolean
+  enabled?: boolean,
+  cohortId?: string
 ) {
   const result = api.useQuery(
     'get',
@@ -623,6 +624,7 @@ export function useStudentProgressDetail(
     {
       params: {
         path: { userId: userId!, courseId: courseId!, versionId: versionId! },
+        query: { cohortId },
       },
     },
     {
@@ -666,7 +668,8 @@ export function useStudentCourseStructure(
   userId?: string,
   courseId?: string,
   versionId?: string,
-  enabled?: boolean
+  enabled?: boolean,
+  cohortId?: string
 ) {
   const result = api.useQuery(
     'get',
@@ -674,6 +677,7 @@ export function useStudentCourseStructure(
     {
       params: {
         path: { userId: userId!, courseId: courseId!, versionId: versionId! },
+        query: { cohortId },
       },
     },
     {
