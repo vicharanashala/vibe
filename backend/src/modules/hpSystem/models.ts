@@ -171,7 +171,7 @@ export interface HpRuleConfig {
 
     // Mandatory/Optional
     isMandatory: boolean;
-
+    // vibe_percent: 25%,
 
     deadlineAt: Date;
     allowLateSubmission: boolean;
@@ -188,6 +188,10 @@ export interface HpRuleConfig {
         lateBehavior: LateBehavior;
         minHpFloor: number;
     };
+    
+    // students => hpPOints = 50 (shouldn't be -ve)
+
+    // penalty type = % => 10 => 10% of 50 => 5 => 50 -5 
 
     // Penalty rule
     penalty: {
