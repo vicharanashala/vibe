@@ -4,7 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { EditActivityDialog } from "./EditActivityDialog";
 import { RuleSettingsDialog } from "./RuleSettingsDialog";
 import { useHpActivities, useUpdateHpActivity, usePublishHpActivity, useArchiveHpActivity, useHpCourseVersions } from "@/hooks/hooks";
-import { Plus, Search, Trash2, Paperclip, Edit, Link as LinkIcon, FileText, Send, Settings } from "lucide-react";
+import { Plus, Search, Trash2, Paperclip, Edit, Link as LinkIcon, FileText, Send, Settings, LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ interface ActivitiesTabProps {
 
 export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProps) {
     const [search, setSearch] = useState("");
+    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -100,6 +101,28 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                             <SelectItem value="ARCHIVED">Archived</SelectItem>
                         </SelectContent>
                     </Select>
+
+                    {/* View Toggle */}
+                    <div className="flex items-center border rounded-md overflow-hidden">
+                        <Button
+                            variant={viewMode === "grid" ? "default" : "ghost"}
+                            size="sm"
+                            className="rounded-none h-9 px-3"
+                            onClick={() => setViewMode("grid")}
+                            title="Grid View"
+                        >
+                            <LayoutGrid className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant={viewMode === "list" ? "default" : "ghost"}
+                            size="sm"
+                            className="rounded-none h-9 px-3"
+                            onClick={() => setViewMode("list")}
+                            title="List View"
+                        >
+                            <List className="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
                 <Button onClick={() => navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName)}/activities/create` })}>
                     <Plus className="mr-2 h-4 w-4" /> Add Activity
@@ -114,7 +137,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                 <div className="w-full h-32 flex items-center justify-center text-muted-foreground border rounded-md">
                     No activities found.
                 </div>
-            ) : (
+            ) : viewMode === "grid" ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
                     {activities.map((activity) => (
                         <Card
@@ -292,6 +315,51 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
 
                                 </div>
                             </CardFooter>
+                        </Card>
+                    ))}
+                </div>
+            ) : (
+                // ─── LIST VIEW ───
+                <div className="flex flex-col gap-3">
+                    {activities.map((activity) => (
+                        <Card key={activity._id} className="relative overflow-hidden rounded-xl border bg-card shadow-sm hover:shadow-md transition-all">
+                            <div className={`w-1 h-full absolute top-0 left-0 ${activity.status === 'PUBLISHED' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-6 py-4 pl-8">
+                                <div className="flex-1 min-w-0 space-y-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-semibold text-base truncate">{activity.title}</span>
+                                        <Badge variant="outline" className="bg-muted/50 text-muted-foreground text-xs">{activity.activityType}</Badge>
+                                        <Badge variant={activity.status === "PUBLISHED" ? "default" : "secondary"} className="text-[10px] uppercase tracking-wide font-medium">
+                                            {activity.status}
+                                        </Badge>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground line-clamp-1">{activity.description || "No description provided."}</p>
+                                    <div className="flex flex-wrap gap-4 text-xs text-muted-foreground mt-1">
+                                        <span><span className="font-medium text-foreground">By:</span> {activity.instructorName || "Unknown"}</span>
+                                        {activity.rules?.deadlineAt && (
+                                            <span><span className="font-medium text-foreground">Deadline:</span> {new Date(activity.rules.deadlineAt).toLocaleDateString()}</span>
+                                        )}
+                                        <span><span className="font-medium text-foreground">Submission:</span> {(activity.submissionMode || "").replace('_', ' ')}</span>
+                                        <span><span className="font-medium text-foreground">Submitted:</span> {activity.stats?.submittedCount ?? 0}/{activity.stats?.totalStudents ?? 0}</span>
+                                        <span><span className="font-medium text-foreground">Overdue:</span> {activity.stats?.overdueCount ?? 0}</span>
+                                        <span className="text-green-600"><span className="font-medium">Completed:</span> {activity.stats?.completedCount ?? 0}</span>
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap sm:flex-nowrap justify-end gap-2">
+                                    <Button variant="outline" size="sm" className="h-9 px-4" onClick={() => handleOpenEdit(activity)}>
+                                        <Edit className="mr-2 h-3.5 w-3.5" /> Edit
+                                    </Button>
+                                    <Button variant="destructive" size="sm" className="h-9 px-4" onClick={() => handleDelete(activity._id)}>
+                                        <Trash2 className="mr-2 h-3.5 w-3.5" /> Archive
+                                    </Button>
+                                    <Button size="sm" variant="secondary" className="h-9 px-4" disabled={activity.status === 'PUBLISHED'} onClick={() => handlePublish(activity._id)}>
+                                        <Send className="mr-2 h-3.5 w-3.5" /> Publish
+                                    </Button>
+                                    <Button variant="outline" size="sm" className="h-9 px-4" onClick={() => { setSelectedActivityId(activity._id); setIsRulesOpen(true); }}>
+                                        <Settings className="mr-2 h-3.5 w-3.5" /> Rules
+                                    </Button>
+                                </div>
+                            </div>
                         </Card>
                     ))}
                 </div>
