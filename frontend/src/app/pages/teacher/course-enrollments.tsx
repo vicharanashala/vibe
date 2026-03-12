@@ -341,7 +341,7 @@ export default function CourseEnrollments() {
     try {
       const userIds = Array.from(selectedUsers)
 
-      await bulkUnenrollMutation.mutateAsync({// need to be changed for cohort support
+      await bulkUnenrollMutation.mutateAsync({
         params: {
           path: {
             courseId,
@@ -573,7 +573,6 @@ export default function CourseEnrollments() {
     statusTab,
     cohort,
   );
-
   // Active / Inactive tab
   useEffect(() => {
     setCurrentPage(1)
@@ -887,7 +886,8 @@ export default function CourseEnrollments() {
     selectedUser?.id,
     courseId,
     versionId,
-    isViewProgressDialogOpen && showCourseStructure
+    isViewProgressDialogOpen && showCourseStructure,
+    selectedUser?.cohortId
   )
 
 
@@ -902,7 +902,6 @@ export default function CourseEnrollments() {
     isViewProgressDialogOpen,
     selectedUser?.cohortId
   )
-
   // API 3: Course structure — fetched lazily when View Course Structure is clicked
   const {
     data: courseStructureData,
@@ -911,7 +910,8 @@ export default function CourseEnrollments() {
     selectedUser?.id,
     courseId,
     versionId,
-    isViewProgressDialogOpen && showCourseStructure
+    isViewProgressDialogOpen && showCourseStructure,
+    selectedUser?.cohortId
   )
 
   // ===== Derived progress helpers =====
@@ -1195,6 +1195,9 @@ export default function CourseEnrollments() {
                   <div className="flex-1">
                     <p className="font-medium text-card-foreground truncate text-base md:text-lg">{selectedUser.name}</p>
                     <p className="text-muted-foreground truncate">{selectedUser.email}</p>
+                    {selectedUser.cohortName && (
+                      <p className="text-muted-foreground truncate">Cohort: {selectedUser.cohortName}</p>
+                    )}
                   </div>
 
                   {/* Content Summary — loaded from API 2 */}
@@ -1666,6 +1669,9 @@ export default function CourseEnrollments() {
                     <div className="min-w-0 flex-1">
                       <p className="font-bold text-card-foreground truncate text-lg">{selectedUser.name}</p>
                       <p className="text-muted-foreground truncate">{selectedUser.email}</p>
+                      {selectedUser.cohortName && (
+                        <p className="text-muted-foreground truncate">Cohort: {selectedUser.cohortName}</p>
+                      )}
                     </div>
                   </div>
                 )}
