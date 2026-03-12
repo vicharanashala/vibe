@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
-import { useHpStudentSubmissions, useHpStudents, useRevertHpEntry, useRestoreHpEntry, useReviewSubmission } from "@/hooks/hooks";
+import { useHpStudentSubmissions, useHpStudents, useRevertHpEntry, useRestoreHpEntry, useReviewSubmission, useAddFeedback } from "@/hooks/hooks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,9 +17,11 @@ import {
 import {
     ArrowLeft, ExternalLink, Clock, FileText, CheckCircle, AlertCircle, XCircle,
     Image as ImageIcon, File, Link2, MessageSquare, CalendarClock, RotateCcw,
-    Timer, Send, Zap, Undo2, ThumbsUp, ThumbsDown
+    Timer, Send, Zap, Undo2, ThumbsUp, ThumbsDown, ChevronDown,
+    ChevronUp
 } from "lucide-react";
 import type { SubmissionAttachment, HpStudentSubmission } from "@/lib/api/hp-system";
+import { toast } from "sonner";
 
 const statusConfig = {
     SUBMITTED: { label: "Submitted", variant: "default" as const, icon: CheckCircle, color: "text-green-600" },
@@ -73,22 +75,28 @@ function AttachmentPreview({ attachment }: { attachment: SubmissionAttachment })
 
 function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
     const [feedbackText, setFeedbackText] = useState("");
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [showInput, setShowInput] = useState(false);
+    const { mutateAsync: addFeedback, isPending } = useAddFeedback();
 
     const handleSubmitFeedback = async () => {
-        if (!feedbackText.trim()) return;
-        setIsSubmitting(true);
-        await new Promise(r => setTimeout(r, 500));
-        setIsSubmitting(false);
-        setFeedbackText("");
-        setShowInput(false);
+        if (!feedbackText.trim() || feedbackText.trim().length < 10) {
+            toast.error('Feedback must be at least 10 characters long');
+            return;
+        }
+        try {
+            await addFeedback({ submissionId: sub.submission?._id || '', feedback: feedbackText.trim() });
+            setFeedbackText("");
+            setShowInput(false);
+        } catch (error) {
+            // Error is handled by the hook
+        }
     };
 
     return (
         <div className="space-y-3">
+            {/* Instructor Feedback */}
             {sub.instructorFeedback && (
-                <div className="rounded-lg bg-muted/50 p-3">
+                <div className="rounded-lg bg-muted/50 p-3 border">
                     <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5">
                         <MessageSquare className="h-3.5 w-3.5" />
                         Instructor Feedback: {String(sub.instructorFeedback?.decision || 'Reviewed')}
@@ -97,14 +105,70 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
                 </div>
             )}
 
-            {showInput ? (
-                <div className="space-y-2">
+            {/* Feedback Controls */}
+            <div className="flex items-center gap-2">
+                {/* Add Feedback Button */}
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowInput(true)}
+                    className="flex items-center gap-2"
+                >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    <span className="text-xs">{sub.instructorFeedback ? "Update Feedback" : "Add Feedback"}</span>
+                </Button>
+
+                {/* View All Feedbacks */}
+                {sub.feedbacks && sub.feedbacks.length > 0 && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                            const panel = document.getElementById(`feedback-panel-${sub.submission?._id}`);
+                            panel?.classList.toggle('hidden');
+                        }}
+                        className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded border"
+                    >
+                        {sub.feedbacks && sub.feedbacks.length > 0 && (
+                            <div className="">
+                                {sub.feedbacks.length} Feedback{sub.feedbacks.length !== 1 ? 's' : ''}
+                            </div>
+                        )}
+                        <ChevronDown className={`h-3 w-3 transition-transform ${document.getElementById(`feedback-panel-${sub.submission?._id}`)?.classList.contains('hidden') ? '' : 'rotate-180'}`} />
+                    </Button>
+                )}
+            </div>
+
+            {/* Feedback Panel */}
+            {sub.feedbacks && sub.feedbacks.length > 0 && (
+                <div
+                    id={`feedback-panel-${sub.submission?._id}`}
+                    className="hidden bg-muted/20 rounded-lg border p-2"
+                >
+                    <div className="space-y-2">
+                        {sub.feedbacks.map((feedback: any, idx: number) => (
+                            <div key={idx} className="bg-background rounded border p-2">
+                                <p className="text-sm leading-relaxed">{feedback.feedback}</p>
+                                {feedback.feedbackAt && (
+                                    <div className="text-xs text-muted-foreground mt-2">
+                                        {new Date(feedback.feedbackAt).toLocaleDateString()}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Add Feedback Input */}
+            {showInput && (
+                <div className="space-y-3 bg-muted/20 rounded-lg border p-4">
                     <Textarea
                         placeholder="Write feedback for this submission..."
                         value={feedbackText}
                         onChange={e => setFeedbackText(e.target.value)}
                         rows={3}
-                        className="resize-none"
+                        className="resize-none bg-background"
                     />
                     <div className="flex items-center gap-2 justify-end">
                         <Button
@@ -116,28 +180,19 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
                         </Button>
                         <Button
                             size="sm"
-                            disabled={!feedbackText.trim() || isSubmitting}
+                            disabled={!feedbackText.trim() || feedbackText.trim().length < 10 || isPending}
                             onClick={handleSubmitFeedback}
+                            className="flex items-center gap-2"
                         >
-                            {isSubmitting ? (
-                                <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white mr-2" />
+                            {isPending ? (
+                                <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white" />
                             ) : (
-                                <Send className="h-3.5 w-3.5 mr-2" />
+                                <Send className="h-3.5 w-3.5" />
                             )}
-                            {isSubmitting ? "Sending..." : "Send Feedback"}
+                            {isPending ? "Sending..." : "Send Feedback"}
                         </Button>
                     </div>
                 </div>
-            ) : (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowInput(true)}
-                    className="w-full"
-                >
-                    <MessageSquare className="h-3.5 w-3.5 mr-2" />
-                    {sub.instructorFeedback ? "Update Feedback" : "Add Feedback"}
-                </Button>
             )}
         </div>
     );
@@ -162,15 +217,20 @@ export default function StudentSubmissionsPage() {
         subId: string;
         action: 'revert' | 'restore' | 'approve' | 'reject';
         activityTitle: string;
+        baseHp: number;
         note: string;
-    }>({ open: false, subId: '', action: 'revert', activityTitle: '', note: '' });
+        pointsToDeduct: number;
+    }>({ open: false, subId: '', action: 'revert', activityTitle: '', baseHp: 0, note: '', pointsToDeduct: 0 });
 
-    const openReasonDialog = (subId: string, action: 'revert' | 'restore' | 'approve' | 'reject', activityTitle: string) => {
-        setReasonDialog({ open: true, subId, action, activityTitle, note: '' });
+    const openReasonDialog = (subId: string, action: 'revert' | 'restore' | 'approve' | 'reject', activityTitle: string, baseHp: number = 0) => {
+        const displayTitle = activityTitle && !isNaN(Number(activityTitle))
+            ? `Activity ${activityTitle}`
+            : activityTitle || 'Activity';
+        setReasonDialog({ open: true, subId, action, activityTitle: displayTitle, baseHp, note: '', pointsToDeduct: baseHp });
     };
 
     const handleConfirmAction = async () => {
-        const { subId, action, note } = reasonDialog;
+        const { subId, action, note, pointsToDeduct } = reasonDialog;
         setReasonDialog({ ...reasonDialog, open: false });
         setActionSubId(subId);
         try {
@@ -179,10 +239,11 @@ export default function StudentSubmissionsPage() {
             } else if (action === 'restore') {
                 await restoreEntry(subId);
             } else if (action === 'approve' || action === 'reject') {
-                await reviewSubmission({ 
-                    submissionId: subId, 
-                    decision: action === 'approve' ? 'APPROVED' : 'REJECTED', 
-                    note: note.trim() || undefined 
+                await reviewSubmission({
+                    submissionId: subId,
+                    decision: action === 'approve' ? 'APPROVED' : 'REJECTED',
+                    note: note.trim() || undefined,
+                    pointsToDeduct: action === 'reject' ? pointsToDeduct : undefined
                 });
             }
         } finally {
@@ -497,22 +558,22 @@ export default function StudentSubmissionsPage() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>
-                            {reasonDialog.action === 'revert' ? 'Revert Submission' : 
-                             reasonDialog.action === 'restore' ? 'Restore Submission' :
-                             reasonDialog.action === 'approve' ? 'Approve Submission' : 
-                             'Reject Submission'}
+                            {reasonDialog.action === 'revert' ? 'Revert Submission' :
+                                reasonDialog.action === 'restore' ? 'Restore Submission' :
+                                    reasonDialog.action === 'approve' ? 'Approve Submission' :
+                                        'Reject Submission'}
                         </DialogTitle>
                         <DialogDescription>
                             {reasonDialog.action === 'revert'
                                 ? `This will revert the submission for "${reasonDialog.activityTitle}" and set the current HP to 0.`
                                 : reasonDialog.action === 'restore'
-                                ? `This will restore the submission for "${reasonDialog.activityTitle}" and reinstate the original HP.`
-                                : reasonDialog.action === 'approve'
-                                ? `This will approve the submission for "${reasonDialog.activityTitle}" and award HP points.`
-                                : `This will reject the submission for "${reasonDialog.activityTitle}" and may deduct HP points.`}
+                                    ? `This will restore the submission for "${reasonDialog.activityTitle}" and reinstate the original HP.`
+                                    : reasonDialog.action === 'approve'
+                                        ? `This will approve the submission for "${reasonDialog.activityTitle}" and award HP points.`
+                                        : `This will reject the submission for "${reasonDialog.activityTitle}" and may deduct HP points.`}
                         </DialogDescription>
                     </DialogHeader>
-                    
+
                     {(reasonDialog.action === 'approve' || reasonDialog.action === 'reject') && (
                         <div className="py-4">
                             <label htmlFor="note" className="text-sm font-medium mb-2 block">
@@ -527,7 +588,7 @@ export default function StudentSubmissionsPage() {
                             />
                         </div>
                     )}
-                    
+
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setReasonDialog({ ...reasonDialog, open: false })}>Cancel</Button>
                         <Button
@@ -535,10 +596,10 @@ export default function StudentSubmissionsPage() {
                             onClick={handleConfirmAction}
                             disabled={(reasonDialog.action === 'approve' || reasonDialog.action === 'reject') && isReviewing && actionSubId === reasonDialog.subId}
                         >
-                            {reasonDialog.action === 'revert' ? 'Confirm Revert' : 
-                             reasonDialog.action === 'restore' ? 'Confirm Restore' :
-                             reasonDialog.action === 'approve' ? 'Confirm Approve' : 
-                             'Confirm Reject'}
+                            {reasonDialog.action === 'revert' ? 'Confirm Revert' :
+                                reasonDialog.action === 'restore' ? 'Confirm Restore' :
+                                    reasonDialog.action === 'approve' ? 'Confirm Approve' :
+                                        'Confirm Reject'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

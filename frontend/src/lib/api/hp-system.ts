@@ -199,7 +199,7 @@ export interface HpStudentSubmission {
     activityId: string;
     activityTitle: string;
     activityDescription?: string;
-    status: 'SUBMITTED' | 'PENDING' | 'REVERTED';
+    status: 'SUBMITTED' | 'PENDING' | 'REVERTED' | 'APPROVED' | 'REJECTED';
     attachments: SubmissionAttachment[];
     submissionLink?: string;
     dueDate?: string;
@@ -209,7 +209,22 @@ export interface HpStudentSubmission {
     isLate: boolean;
     baseHp: number;
     currentHp: number;
-    instructorFeedback?: string;
+    instructorFeedback?: {
+        decision: string;
+        note: string;
+        reviewedAt: string;
+        reviewedBy: string;
+    };
+    feedbacks?: Array<{
+        feedback: string;
+        teacherId?: string;
+        feedbackAt?: string;
+    }>;
+    submission?: {
+        _id: string;
+        status: string;
+        submittedAt: string;
+    };
     safetyStatus?: 'safe' | 'unsafe';
 }
 
@@ -537,10 +552,17 @@ export const hpApi = {
         return { success: true };
     },
 
-    reviewSubmission: async (submissionId: string, decision: "APPROVED" | "REJECTED" | "REVERTED", note?: string): Promise<{ success: boolean; data: any }> => {
+    reviewSubmission: async (submissionId: string, decision: "APPROVED" | "REJECTED" | "REVERTED", note?: string, pointsToDeduct?: number): Promise<{ success: boolean; data: any }> => {
         return apiFetch(`${BASE_URL}/activity-submissions/${submissionId}/review`, {
             method: 'POST',
-            body: JSON.stringify({ decision, note }),
+            body: JSON.stringify({ decision, note, pointsToDeduct }),
+        });
+    },
+
+    addFeedback: async (submissionId: string, feedback: string): Promise<{ success: boolean; data: any }> => {
+        return apiFetch(`${BASE_URL}/activity-submissions/${submissionId}/feedback`, {
+            method: 'POST',
+            body: JSON.stringify({ feedback }),
         });
     },
 };

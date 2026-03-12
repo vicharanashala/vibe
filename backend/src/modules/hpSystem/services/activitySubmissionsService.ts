@@ -638,7 +638,7 @@ export class ActivitySubmissionsService extends BaseService {
     }
 
 
-    async addfeedback(id: string, teacherId: string, feedback: string): Promise<boolean> {
+    async addfeedback(id: string, teacherId: string, feedback: string): Promise<{ success: boolean; message: string }> {
         return this._withTransaction(async (session) => {
 
             if (!id || !ObjectId.isValid(id)) {
@@ -659,7 +659,12 @@ export class ActivitySubmissionsService extends BaseService {
                 feedbackAt: new Date(),
             };
 
-            return await this.activitySubmissionsRepository.updateFeedbackById(id, feedbackPayload, session);
+            const result = await this.activitySubmissionsRepository.updateFeedbackById(id, feedbackPayload, session);
+            
+            return {
+                success: result,
+                message: result ? "Feedback added successfully" : "Failed to add feedback"
+            };
         })
     }
 }

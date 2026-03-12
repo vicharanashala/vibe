@@ -5091,8 +5091,8 @@ export function useRestoreHpEntry() {
 export function useReviewSubmission() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: async ({ submissionId, decision, note }: { submissionId: string; decision: "APPROVED" | "REJECTED" | "REVERTED"; note?: string }) => {
-      const res = await hpApi.reviewSubmission(submissionId, decision, note);
+    mutationFn: async ({ submissionId, decision, note, pointsToDeduct }: { submissionId: string; decision: "APPROVED" | "REJECTED" | "REVERTED"; note?: string; pointsToDeduct?: number }) => {
+      const res = await hpApi.reviewSubmission(submissionId, decision, note, pointsToDeduct);
       if (!res.success) throw new Error(res.message || 'Failed to review submission');
       return res.data;
     },
@@ -5108,6 +5108,35 @@ export function useReviewSubmission() {
         REVERTED: 'Submission reverted successfully'
       };
       toast.success(decisionMessages[variables.decision]);
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to review submission');
+    },
+  });
+
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+  };
+}
+
+export function useAddFeedback() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: async ({ submissionId, feedback }: { submissionId: string; feedback: string }) => {
+      const res = await hpApi.addFeedback(submissionId, feedback);
+      if (!res.success) throw new Error(res.message || 'Failed to add feedback');
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hpStudentSubmissions'] });
+      queryClient.invalidateQueries({ queryKey: ['hp-student-ledger'] });
+      queryClient.invalidateQueries({ queryKey: ['hp-students'] });
+      queryClient.invalidateQueries({ queryKey: ['hp-cohort-overview'] });
+      toast.success('Feedback added successfully');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to add feedback');
     },
   });
 

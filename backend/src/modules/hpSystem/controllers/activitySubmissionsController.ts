@@ -144,6 +144,7 @@ export class ActivitySubmissionsController {
   ) {
     const teacherId = user._id.toString();
     const { feedback } = body;
-    return await this.submissionService.addfeedback(id, teacherId, feedback);
+    const result = await this.submissionService.addfeedback(id, teacherId, feedback);
+    return { success: true, data: result };
   }
 }

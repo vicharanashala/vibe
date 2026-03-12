@@ -125,6 +125,12 @@ export class ReviewHpActivitySubmissionBodyDto {
     pointsToDeduct: number;
 }
 
+export class SubmissionFeedbackDto {
+    @Expose()
+    @IsString()
+    feedback!: string;
+}
+
 export class SubmissionFeedbackBody {
     @Expose()
     @IsString()
@@ -333,6 +339,12 @@ export class StudentActivitySubmissionsViewDto {
     @IsOptional()
     @Type(() => InstructorFeedbackDto)
     instructorFeedback!: InstructorFeedbackDto | null;
+
+    @Expose()
+    @IsOptional()
+    @Type(() => SubmissionFeedbackDto)
+    @IsArray()
+    feedbacks!: SubmissionFeedbackDto[];
 
     @Expose()
     @IsString()
