@@ -199,7 +199,7 @@ export interface HpStudentSubmission {
     activityId: string;
     activityTitle: string;
     activityDescription?: string;
-    status: 'SUBMITTED' | 'PENDING' | 'REVERTED';
+    status: 'SUBMITTED' | 'PENDING' | 'REVERTED' | 'APPROVED' | 'REJECTED';
     attachments: SubmissionAttachment[];
     submissionLink?: string;
     dueDate?: string;
@@ -210,11 +210,21 @@ export interface HpStudentSubmission {
     baseHp: number;
     currentHp: number;
     instructorFeedback?: {
-        reviewedBy: string;
-        reviewedAt: string;
         decision: string;
         note: string;
-    } | null;
+        reviewedAt: string;
+        reviewedBy: string;
+    };
+    feedbacks?: Array<{
+        feedback: string;
+        teacherId?: string;
+        feedbackAt?: string;
+    }>;
+    submission?: {
+        _id: string;
+        status: string;
+        submittedAt: string;
+    };
     safetyStatus?: 'safe' | 'unsafe';
     isRequiredInstructorApproval?: boolean;
 }
