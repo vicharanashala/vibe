@@ -23,6 +23,13 @@ export interface IActivitySubmissionRepository {
         isLate: boolean;
     }, opts?: { session?: ClientSession }): Promise<string>;
 
+    updateById(
+        submissionId: string,
+        input: Partial<HpActivitySubmission>,
+        opts?: { session?: ClientSession }
+    ): Promise<void>
+
+
     findById(id: string, opts?: { session?: ClientSession }): Promise<HpActivitySubmission | null>;
 
     list(query: ListSubmissionsQueryDto, opts?: { session?: ClientSession }): Promise<any[]>;

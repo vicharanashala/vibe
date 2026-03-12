@@ -13,6 +13,7 @@ import {
   UploadedFiles,
   UseBefore,
   Req,
+  Put,
 } from "routing-controllers";
 import { OpenAPI, ResponseSchema } from "routing-controllers-openapi";
 import { IUser, BadRequestErrorResponse } from "#root/shared/index.js";
@@ -20,7 +21,7 @@ import multer from "multer";
 
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivitySubmissionsService } from "../services/activitySubmissionsService.js";
-import { CreateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, SubmissionFeedbackBody } from "../classes/validators/activitySubmissionValidators.js";
+import { CreateOrUpdateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, SubmissionFeedbackBody } from "../classes/validators/activitySubmissionValidators.js";
 
 @OpenAPI({
   tags: ["HP Activity Submissions"],
@@ -42,7 +43,7 @@ export class ActivitySubmissionsController {
   @ResponseSchema(BadRequestErrorResponse, { description: "Bad Request Error", statusCode: 400 })
   async submit(
     @CurrentUser() user: IUser,
-    @Body({ required: true }) body: CreateHpActivitySubmissionBodyDto,
+    @Body({ required: true }) body: CreateOrUpdateHpActivitySubmissionBodyDto,
     @Req() req: any,
   ) {
     const allFiles = req.files as Express.Multer.File[];
@@ -55,6 +56,33 @@ export class ActivitySubmissionsController {
     };
 
     const doc = await this.submissionService.submit(student, body, { files, images });
+    return { success: true, data: doc };
+  }
+
+  @OpenAPI({ summary: "Edit an activity submission" })
+  @Put("/:submissionId")
+  @Authorized()
+  @HttpCode(200)
+  @UseBefore(multer().any())
+  @ResponseSchema(BadRequestErrorResponse, { description: "Bad Request Error", statusCode: 400 })
+  async updateSubmission(
+    @CurrentUser() user: IUser,
+    @Param("submissionId") submissionId: string,
+    @Body({ required: true }) body: CreateOrUpdateHpActivitySubmissionBodyDto,
+    @Req() req: any,
+  ) {
+    const allFiles = req.files as Express.Multer.File[];
+    const files = allFiles?.filter(f => f.fieldname === "files");
+    const images = allFiles?.filter(f => f.fieldname === "images");
+
+    const student = {
+      id: user._id.toString(),
+      email: user.email,
+      name: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
+    };
+
+    const doc = await this.submissionService.updateSubmission(submissionId, student, body, { files, images });
+
     return { success: true, data: doc };
   }
 
@@ -146,4 +174,6 @@ export class ActivitySubmissionsController {
     const { feedback } = body;
     return await this.submissionService.addfeedback(id, teacherId, feedback);
   }
+
+
 }

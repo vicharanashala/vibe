@@ -3,7 +3,7 @@ import { GLOBAL_TYPES } from "#root/types.js";
 import { inject, injectable } from "inversify";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivityRepository, ActivitySubmissionsRepository, LedgerRepository } from "../repositories/index.js";
-import { CreateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, StudentActivitySubmissionStatsViewDto, StudentActivitySubmissionsViewDto } from "../classes/validators/activitySubmissionValidators.js";
+import { CreateOrUpdateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, StudentActivitySubmissionStatsViewDto, StudentActivitySubmissionsViewDto } from "../classes/validators/activitySubmissionValidators.js";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { appConfig } from "#root/config/app.js";
 import { Bucket, Storage } from '@google-cloud/storage';
@@ -55,9 +55,89 @@ export class ActivitySubmissionsService extends BaseService {
     }
 
 
+    private getActivitySubmissionBucket() {
+        const storage = new Storage({
+            keyFilename: appConfig.GOOGLE_APPLICATION_CREDENTIALS,
+        });
+
+        return storage.bucket(appConfig.GCP_BACKUP_ACTIVITY_BUCKET);
+    }
+
+    private async uploadSubmissionFileToGcp(
+        bucket: Bucket,
+        studentId: string,
+        file: Express.Multer.File,
+        folder: string
+    ) {
+        const ext = path.extname(file.originalname) || "";
+        const baseName = path.basename(file.originalname, ext);
+        const safeBase = baseName.replace(/[^\w\-]+/g, "_");
+        const unique = randomBytes(8).toString("hex");
+        const timestamp = Date.now();
+
+        const fileName = `${studentId}_${safeBase}_${timestamp}_${unique}${ext}`;
+        const objectPath = `${folder}/${fileName}`;
+        const gcpFile = bucket.file(objectPath);
+
+        await gcpFile.save(file.buffer, {
+            resumable: false,
+            contentType: file.mimetype,
+            metadata: {
+                contentDisposition: `inline; filename="${file.originalname}"`,
+            },
+        });
+
+        const [signedUrl] = await gcpFile.getSignedUrl({
+            action: "read",
+            expires: Date.now() + 1000 * 60 * 60 * 24 * 7,
+        });
+
+        return {
+            fileId: objectPath,
+            url: signedUrl,
+            name: fileName,
+            mimeType: file.mimetype,
+            sizeBytes: file.size,
+        };
+    }
+
+    private async uploadSubmissionAssets(
+        studentId: string,
+        cohort: string,
+        activityId: string,
+        files: Express.Multer.File[],
+        images: Express.Multer.File[]
+    ) {
+        const bucket = this.getActivitySubmissionBucket();
+
+        const [uploadedPdfs, uploadedImages] = await Promise.all([
+            Promise.all(
+                files.map((file) =>
+                    this.uploadSubmissionFileToGcp(
+                        bucket,
+                        studentId,
+                        file,
+                        `hp-activity-submissions/${cohort}/${activityId}/${studentId}/files`
+                    )
+                )
+            ),
+            Promise.all(
+                images.map((image) =>
+                    this.uploadSubmissionFileToGcp(
+                        bucket,
+                        studentId,
+                        image,
+                        `hp-activity-submissions/${cohort}/${activityId}/${studentId}/images`
+                    )
+                )
+            ),
+        ]);
+
+        return { uploadedPdfs, uploadedImages };
+    }
 
 
-    async submit(student: { id: string; email: string; name: string }, body: CreateHpActivitySubmissionBodyDto, upload?: { files?: Express.Multer.File[]; images?: Express.Multer.File[] }
+    async submit(student: { id: string; email: string; name: string }, body: CreateOrUpdateHpActivitySubmissionBodyDto, upload?: { files?: Express.Multer.File[]; images?: Express.Multer.File[] }
     ) {
         return this._withTransaction(async (session) => {
             if (!body.courseId || !body.courseVersionId || !body.activityId || !body.cohort) {
@@ -142,73 +222,81 @@ export class ActivitySubmissionsService extends BaseService {
                 }
             }
 
-            // GCP Storage setup
-            const storage = new Storage({
-                keyFilename: appConfig.GOOGLE_APPLICATION_CREDENTIALS,
-            });
+            // // GCP Storage setup
+            // const storage = new Storage({
+            //     keyFilename: appConfig.GOOGLE_APPLICATION_CREDENTIALS,
+            // });
 
-            const bucketName = appConfig.GCP_BACKUP_ACTIVITY_BUCKET;
-            const bucket = storage.bucket(bucketName);
+            // const bucketName = appConfig.GCP_BACKUP_ACTIVITY_BUCKET;
+            // const bucket = storage.bucket(bucketName);
 
 
-            const uploadToGcp = async (f: Express.Multer.File, folder: string) => {
-                const ext = path.extname(f.originalname) || "";
-                const baseName = path.basename(f.originalname, ext);
+            // const uploadToGcp = async (f: Express.Multer.File, folder: string) => {
+            //     const ext = path.extname(f.originalname) || "";
+            //     const baseName = path.basename(f.originalname, ext);
 
-                const safeBase = baseName.replace(/[^\w\-]+/g, "_");
+            //     const safeBase = baseName.replace(/[^\w\-]+/g, "_");
 
-                const unique = randomBytes(8).toString("hex");
-                const timestamp = Date.now();
+            //     const unique = randomBytes(8).toString("hex");
+            //     const timestamp = Date.now();
 
-                const fileName = `${student.id}_${safeBase}_${timestamp}_${unique}${ext}`;
+            //     const fileName = `${student.id}_${safeBase}_${timestamp}_${unique}${ext}`;
 
-                const objectPath = `${folder}/${fileName}`;
+            //     const objectPath = `${folder}/${fileName}`;
 
-                const file = bucket.file(objectPath);
+            //     const file = bucket.file(objectPath);
 
-                await file.save(f.buffer, {
-                    resumable: false,
-                    contentType: f.mimetype,
-                    metadata: {
-                        contentDisposition: `inline; filename="${f.originalname}"`,
-                    },
-                });
+            //     await file.save(f.buffer, {
+            //         resumable: false,
+            //         contentType: f.mimetype,
+            //         metadata: {
+            //             contentDisposition: `inline; filename="${f.originalname}"`,
+            //         },
+            //     });
 
-                const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectPath}`;
+            //     const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectPath}`;
 
-                const [signedUrl] = await file.getSignedUrl({
-                    action: "read",
-                    expires: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 days
-                });
+            //     const [signedUrl] = await file.getSignedUrl({
+            //         action: "read",
+            //         expires: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 days
+            //     });
 
-                return {
-                    fileId: objectPath,
-                    url: signedUrl,
-                    name: fileName,
-                    mimeType: f.mimetype,
-                    sizeBytes: f.size,
-                };
-            };
+            //     return {
+            //         fileId: objectPath,
+            //         url: signedUrl,
+            //         name: fileName,
+            //         mimeType: f.mimetype,
+            //         sizeBytes: f.size,
+            //     };
+            // };
 
-            // Upload concurrently
-            const [uploadedPdfs, uploadedImages] = await Promise.all([
-                Promise.all(
-                    files.map((f) =>
-                        uploadToGcp(
-                            f,
-                            `hp-activity-submissions/${body.cohort}/${body.activityId}/${student.id}/files`
-                        )
-                    )
-                ),
-                Promise.all(
-                    images.map((img) =>
-                        uploadToGcp(
-                            img,
-                            `hp-activity-submissions/${body.cohort}/${body.activityId}/${student.id}/images`
-                        )
-                    )
-                ),
-            ]);
+            // // Upload concurrently
+            // const [uploadedPdfs, uploadedImages] = await Promise.all([
+            //     Promise.all(
+            //         files.map((f) =>
+            //             uploadToGcp(
+            //                 f,
+            //                 `hp-activity-submissions/${body.cohort}/${body.activityId}/${student.id}/files`
+            //             )
+            //         )
+            //     ),
+            //     Promise.all(
+            //         images.map((img) =>
+            //             uploadToGcp(
+            //                 img,
+            //                 `hp-activity-submissions/${body.cohort}/${body.activityId}/${student.id}/images`
+            //             )
+            //         )
+            //     ),
+            // ]);
+
+            const { uploadedPdfs, uploadedImages } = await this.uploadSubmissionAssets(
+                student.id,
+                body.cohort,
+                body.activityId,
+                files,
+                images
+            );
 
             const payload = {
                 ...basePayload,
@@ -348,6 +436,93 @@ export class ActivitySubmissionsService extends BaseService {
         });
     }
 
+
+
+    async updateSubmission(
+        submissionId: string,
+        student: { id: string; email: string; name: string },
+        body: CreateOrUpdateHpActivitySubmissionBodyDto,
+        upload?: { files?: Express.Multer.File[]; images?: Express.Multer.File[] }
+    ) {
+        return this._withTransaction(async (session) => {
+            if (!body.courseId || !body.courseVersionId || !body.activityId || !body.cohort) {
+                throw new BadRequestError("Missing required fields");
+            }
+
+            const submission = await this.activitySubmissionsRepository.findById(submissionId, { session });
+            if (!submission) {
+                throw new NotFoundError(`Submission ${submissionId} not found.`);
+            }
+
+            const ledger = await this.ledgerRepository.findByStudentAndSubmissionId(submissionId, student.id);
+            if (ledger) {
+                throw new BadRequestError(
+                    "This submission cannot be updated because it has already been reviewed or approved by the instructor."
+                );
+            }
+            const basePayload = {
+                textResponse: body.payload?.textResponse ?? "",
+                links: body.payload?.links ?? [],
+            };
+
+            const files = upload?.files ?? [];
+            const images = upload?.images ?? [];
+
+            // Validate uploads
+            for (const f of files) {
+                if (f.mimetype !== "application/pdf") {
+                    throw new BadRequestError(`Only PDF allowed in files. Invalid: ${f.originalname}`);
+                }
+            }
+
+            for (const img of images) {
+                if (!img.mimetype.startsWith("image/")) {
+                    throw new BadRequestError(`Only images allowed in images. Invalid: ${img.originalname}`);
+                }
+            }
+
+            const { uploadedPdfs, uploadedImages } = await this.uploadSubmissionAssets(
+                student.id,
+                body.cohort,
+                body.activityId,
+                files,
+                images
+            );
+
+            const payload = {
+                ...basePayload,
+                files: uploadedPdfs.map((x) => ({
+                    fileId: x.fileId,
+                    url: x.url,
+                    name: x.name,
+                    mimeType: x.mimeType,
+                    sizeBytes: x.sizeBytes,
+                })),
+                images: uploadedImages.map((x) => ({
+                    fileId: x.fileId,
+                    url: x.url,
+                    name: x.name,
+                })),
+            };
+
+            await this.activitySubmissionsRepository.updateById(
+                submissionId,
+                {
+                    payload,
+                },
+                { session }
+            );
+
+            const updatedSubmission = await this.activitySubmissionsRepository.findById(submissionId, { session });
+            if (!updatedSubmission) {
+                throw new Error("Failed to update submission");
+            }
+
+            return updatedSubmission;
+        });
+    }
+
+
     async getById(id: string): Promise<any> {
         const doc = await this.activitySubmissionsRepository.findById(id);
         if (!doc) throw new NotFoundError("Submission not found");
@@ -359,8 +534,6 @@ export class ActivitySubmissionsService extends BaseService {
             createdAt: doc.createdAt?.toISOString?.() ?? doc.createdAt,
             updatedAt: doc.updatedAt?.toISOString?.() ?? doc.updatedAt,
         };
-
-
     }
 
     async list(query: ListSubmissionsQueryDto): Promise<any[]> {
