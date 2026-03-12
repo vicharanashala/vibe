@@ -107,7 +107,7 @@ class ProgressRepository {
         courseVersionId: new ObjectId(courseVersionId),
         endTime: { $exists: true, $ne: null },
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false } }),
       },
       { session },
     );
@@ -166,7 +166,7 @@ class ProgressRepository {
           userId: new ObjectId(userId),
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
-          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false } }),
           itemId: new ObjectId(itemId),
           endTime: { $exists: true, $ne: null },
           isDeleted: { $ne: true },
@@ -276,7 +276,7 @@ class ProgressRepository {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false } }),
       },
       { $set: { isDeleted: true, deletedAt: new Date() } },
       { session },
@@ -355,7 +355,7 @@ class ProgressRepository {
           {
             userId: { $in: [userIdStr, userIdObj] },
             quizId: { $in: [quizIdStr, quizIdObj] },
-            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false }}),
           },
           { session },
         )
@@ -371,7 +371,7 @@ class ProgressRepository {
           filter: {
             userId: { $in: [userIdStr, userIdObj] },
             quizId: { $in: [quizIdStr, quizIdObj] },
-            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false } }),
           },
         },
       });
@@ -382,7 +382,7 @@ class ProgressRepository {
           filter: {
             quizId: { $in: [quizIdStr, quizIdObj] },
             userId: { $in: [userIdStr, userIdObj] },
-            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false }}),
           },
           update: {
             $set: {
@@ -447,7 +447,7 @@ class ProgressRepository {
         courseId: { $in: [new ObjectId(courseId), courseId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false }}),
       },
       {
         session,
@@ -523,7 +523,7 @@ class ProgressRepository {
         userId: { $in: [new ObjectId(userId), userId] },
         courseId: { $in: [new ObjectId(courseId), courseId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false }}),
       },
       { $set: normalizedProgress },
       { returnDocument: 'after', session },
@@ -585,7 +585,7 @@ class ProgressRepository {
       {
         _id: new ObjectId(watchTimeId),
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false }}),
       },
       { $set: { endTime: new Date() } },
       { returnDocument: 'after', session },
@@ -669,7 +669,7 @@ class ProgressRepository {
         userId: { $in: [new ObjectId(userId), userId] },
         courseId: { $in: [new ObjectId(courseId), courseId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false }}),
         isDeleted: { $ne: true },
       },
       { $set: progress },

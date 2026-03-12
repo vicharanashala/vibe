@@ -1153,7 +1153,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
             body: {
               courseId: COURSE_ID,
               courseVersionId: VERSION_ID,
-              cohort: COHORT_ID
+              cohortId: COHORT_ID
             },
           });
           return;
