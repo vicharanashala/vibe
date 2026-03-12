@@ -53,9 +53,9 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(100);
+  // const [volume, setVolume] = useState(100);
   // Use the stored playback rate from the player store
-  const { playbackRate, setPlaybackRate } = usePlayerStore();
+  const { playbackRate, setPlaybackRate,volume, setVolume } = usePlayerStore();
   const [maxTime, setMaxTime] = useState(0);
   const [, setIsHovering] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
@@ -641,7 +641,8 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
             const dur = event.target.getDuration();
             setPlayerReady(true);
             setDuration(dur);
-            setVolume(event.target.getVolume());
+            // setVolume(event.target.getVolume());
+            event.target.setVolume(volume); 
             setMaxTime(startTimeSeconds);
             event.target.seekTo(startTimeSeconds, true);
             onDurationChange?.(dur);
@@ -785,7 +786,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
           const time = player.getCurrentTime();
           setCurrentTime(time);
           setDuration(player.getDuration());
-          setVolume(player.getVolume());
+          // setVolume(player.getVolume());
 
           // Enforce startTime constraint
           if (time < startTimeSeconds) {

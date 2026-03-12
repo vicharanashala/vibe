@@ -783,6 +783,7 @@ export class EnrollmentService extends BaseService {
           statusTab,
           session,
         );
+<<<<<<< HEAD
         // console.log("Enrollment Data from service is ", enrollmentsData.enrollments[0].contentCounts)
 
       // if (enrollmentsData.enrollments.length > 0 && filter === 'STUDENT') {
@@ -803,6 +804,31 @@ export class EnrollmentService extends BaseService {
           enrollmentsData.enrollments,
           courseVersionId,
         );
+=======
+      return enrollmentsData;
+    });
+  }
+
+  /**
+   * API 2: Get detailed progress summary for a single student.
+   * Called when instructor opens the "View Progress" modal.
+   */
+  async getStudentProgressDetail(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string
+  ) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const detail = await this.enrollmentRepo.getStudentProgressDetail(
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId,
+        session,
+      );
+      if (!detail) return null;
+>>>>>>> 341287fb49d43113ee07304fb7ebc7c40fa6c9fc
 
         // NEW: reuse getEnrollments()
         const studentUserIds = enrollmentsData.enrollments.map(e =>
@@ -827,15 +853,55 @@ export class EnrollmentService extends BaseService {
           contentCountsMap.set(key, enr.contentCounts);
         });
 
-        // attach to instructor enrollments
-        // enrollmentsData.enrollments.forEach(enr => {
-        //   const key = `${enr.courseVersionId.toString()}-${enr._id.toString()}`;
-        //   enr.contentCounts = contentCountsMap.get(key);
-        // });
+        if (itemGroupIds.length > 0) {
+          const quizInfo = await this.itemRepo.getQuizInfo(itemGroupIds);
+          const allQuizIds = quizInfo
+            .filter((quiz: any) => quiz.items?._id)
+            .map((quiz: any) => quiz.items._id.toString());
+
+          if (allQuizIds.length > 0) {
+            const quizSubmissions =
+              await this.enrollmentRepo.getBatchQuizSubmissionGrades(
+                [userId],
+                allQuizIds,
+                [cohortId]
+              );
+
+            quizSubmissions.forEach((submission: any) => {
+              const gradingResult = submission.gradingResult;
+              totalQuizScore += gradingResult.totalScore || 0;
+              totalQuizMaxScore += gradingResult.totalMaxScore || 0;
+            });
+          }
+        }
       }
-      // console.log("Enrollment data before return from service, " , enrollmentsData)
-      //       console.log("Enrollment data before return from service of enrollments, " , enrollmentsData.enrollments)
-      return enrollmentsData;
+
+      return {
+        ...detail,
+        totalQuizScore,
+        totalQuizMaxScore,
+      };
+    });
+  }
+
+  /**
+   * API 3: Get the current learning position and course structure for a student.
+   * Called when instructor clicks "View Course Structure" (lazy load).
+   */
+  async getStudentCourseStructure(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string
+  ) {
+    return this._withTransaction(async (session: ClientSession) => {
+      return this.enrollmentRepo.getStudentCourseStructure(
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId,
+        session,
+      );
     });
   }
 

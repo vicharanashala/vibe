@@ -1,4 +1,4 @@
-import { Clock, FileText, CheckCircle2, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play } from "lucide-react";
+import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCourseById, useUserProgressPercentage, useLeaderboard, useCourseVersionById, useGetTimeSlots } from "@/hooks/hooks";
+import {  useLeaderboard, useCourseVersionById } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -17,7 +17,7 @@ import { bufferToHex } from "@/utils/helpers";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { Pagination } from "../ui/Pagination";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { lazy, Suspense } from "react";
 
 const EnrollmentDetailsDialog = lazy(() =>
@@ -344,130 +344,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 <Button onClick={() => setIsDetailsOpen(true)} variant="outline" className="w-full sm:w-auto">View Details</Button>
               </>
             )}
-            {/* {enrollment.courseVersionId!=="6981df886e100cfe04f9c4ae"&& <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
-              </DialogTrigger>
-              <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 max-h-full flex flex-col">
-                <DialogHeader className="mb-3 text-left">
-                  <DialogTitle>Course Details</DialogTitle>
-                </DialogHeader>
-                <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[700px] overflow-y-auto">
-                  <div className="space-y-6 py-2">
-                    <div>
-                      <div className="grid grid-cols-2 gap-4 mt-2">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Course Name</p>
-                          <p>{enrollment?.course?.name || 'N/A'}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Version</p>
-                          <p>{enrollment?.courseVersion?.name || 'N/A'}</p>
-                        </div>
-                        <div className="space-y-1 col-span-2">
-                          <p className="text-sm font-medium text-muted-foreground">Description</p>
-                          <p className="text-sm">{enrollment?.course?.description || 'No description available'}</p>
-                        </div>
-                        <div className="space-y-1 col-span-2">
-                          <p className="text-sm font-medium text-muted-foreground">Version Description</p>
-                          <p className="text-sm">{enrollment?.courseVersion?.description || 'No version description available'}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div>
-                      <h3 className="text-lg font-semibold">Content Summary</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Contents</p>
-                          <p className="text-xl font-semibold">{totalLessons}</p>
-                        </div>
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Videos</p>
-                          <p className="text-xl font-semibold">{videoCount}</p>
-                        </div>
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Quizzes</p>
-                          <p className="text-xl font-semibold">{quizCount}</p>
-                        </div>
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Articles</p>
-                          <p className="text-xl font-semibold">{articleCount}</p>
-                        </div>
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Project</p>
-                          <p className="text-xl font-semibold">{projectCount}</p>
-                        </div>
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Quiz Scores</p>
-                          <p className="text-xl font-semibold">{totalQuizScore} / {totalQuizMaxScore}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div>
-                      <h3 className="text-lg font-semibold">Completion Details</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2">
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Total Completed</p>
-                          <p className="text-xl font-semibold">{completedLessons} / {totalLessons}</p>
-                        </div>
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Videos Watched</p>
-                          <p className="text-xl font-semibold">{completedVideos} / {videoCount}</p>
-                        </div>
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Quizzes Completed</p>
-                          <p className="text-xl font-semibold">{completedQuizzes} / {quizCount}</p>
-                        </div>
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Articles Read</p>
-                          <p className="text-xl font-semibold">{completedArticles} / {articleCount}</p>
-                        </div>
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Projects Done</p>
-                          <p className="text-xl font-semibold">{completedProjects} / {projectCount}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div>
-                      <h3 className="text-lg font-semibold">Enrollment Details</h3>
-                      <div className="grid grid-cols-2 gap-4 mt-2">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Enrolled On</p>
-                          <p>{enrollment?.enrollmentDate ? formatDate(enrollment.enrollmentDate as string) : 'N/A'}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Status</p>
-                          <div className="flex items-center gap-1">
-                            {isCompleted ? (
-                              <>
-                                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                <span>Completed</span>
-                              </>
-                            ) : (
-                              <>
-                                <Clock className="h-4 w-4 text-yellow-500" />
-                                <span>In Progress</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-
-                  </div>
-                </ScrollArea>
-              </DialogContent>
-            </Dialog>} */}
             
 
             {variant !== 'available' && supportLink && (() => {

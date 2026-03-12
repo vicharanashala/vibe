@@ -131,7 +131,9 @@ export interface EnrollmentDetails {
     completedProjects?: number;
     totalQuizScore?: number;
     totalQuizMaxScore?: number;
-  }
+  },
+  cohortId?: string
+  cohortName?: string
 }
 
 export interface ResetProgressData {

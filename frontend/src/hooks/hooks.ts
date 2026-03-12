@@ -610,6 +610,95 @@ export function useStudentCurrentProgressPath(
   };
 }
 
+// GET /:userId/enrollments/courses/:courseId/versions/:versionId/progress-detail (API 2)
+export function useStudentProgressDetail(
+  userId?: string,
+  courseId?: string,
+  versionId?: string,
+  enabled?: boolean,
+  cohortId?: string
+) {
+  const result = api.useQuery(
+    'get',
+    `/users/${userId}/enrollments/courses/${courseId}/versions/${versionId}/progress-detail` as any,
+    {
+      params: {
+        path: { userId: userId!, courseId: courseId!, versionId: versionId! },
+        query: { cohortId },
+      },
+    },
+    {
+      enabled: Boolean(enabled && userId && courseId && versionId),
+    }
+  );
+
+  return {
+    data: result.data as {
+      _id: string;
+      userId: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      avatar?: string;
+      enrollmentDate: string;
+      percentCompleted: number;
+      completedItemsCount: number;
+      assignedTimeSlots?: any[];
+      contentCounts: {
+        totalItems: number;
+        itemCounts: {
+          VIDEO?: number;
+          QUIZ?: number;
+          BLOG?: number;
+          PROJECT?: number;
+        };
+      };
+      totalQuizScore: number;
+      totalQuizMaxScore: number;
+      watchHours?: number; // total watch hours for this student in the course
+    } | undefined,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to load student progress') : null,
+    refetch: result.refetch
+  };
+}
+
+// GET /:userId/enrollments/courses/:courseId/versions/:versionId/course-structure (API 3)
+export function useStudentCourseStructure(
+  userId?: string,
+  courseId?: string,
+  versionId?: string,
+  enabled?: boolean,
+  cohortId?: string
+) {
+  const result = api.useQuery(
+    'get',
+    `/users/${userId}/enrollments/courses/${courseId}/versions/${versionId}/course-structure` as any,
+    {
+      params: {
+        path: { userId: userId!, courseId: courseId!, versionId: versionId! },
+        query: { cohortId },
+      },
+    },
+    {
+      enabled: Boolean(enabled && userId && courseId && versionId),
+    }
+  );
+
+  return {
+    data: result.data as {
+      _id: string;
+      userId: string;
+      courseStructure: any[];
+      totalItems: number;
+      itemCounts: any;
+    } | undefined,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to load course structure') : null,
+    refetch: result.refetch
+  };
+}
+
 // PATCH /courses/{id}
 export function useUpdateCourse(): {
   mutate: (variables: { params: { path: { id: string } }, body: components['schemas']['UpdateCourseBody'] }) => void,

@@ -1377,6 +1377,13 @@ export class EnrollmentRepository {
       },
     };
 
+    if (cohort) {
+      baseMatch.cohortId = new ObjectId(cohort);
+    }
+    // else if (cohorts && cohorts.length > 0 && filter === 'STUDENT') {
+    //   // baseMatch.cohortId = { $in: cohorts };
+    // }
+
     let matchStage: any = { ...baseMatch };
 
     //  ACTIVE tab
@@ -1588,11 +1595,19 @@ export class EnrollmentRepository {
           lastName: '$userInfo.lastName',
           email: '$userInfo.email',
           completedItemsCount: { $ifNull: ['$completedItemsCount', 0] },
-          contentCounts: {
-            total: { $ifNull: ['$courseVersionInfo.totalItems', 0] },
-            completed: { $ifNull: ['$completedItemsCount', 0] },
-            itemCounts: { $ifNull: ['$courseVersionInfo.itemCounts', {}] },
-            completedItemCounts: { $ifNull: ['$completedItemCounts', {}] },
+          cohortId: {
+            $cond: [
+              { $ifNull: ["$cohort._id", false] },
+              { $toString: "$cohort._id" },
+              null
+            ]
+          },
+          cohortName: {
+            $cond: [
+              { $ifNull: ["$cohort.name", false] },
+              "$cohort.name",
+              null
+            ]
           },
         },
       },
@@ -1609,6 +1624,215 @@ export class EnrollmentRepository {
       currentPage: limit > 0 ? Math.floor(skip / limit) + 1 : 1,
       enrollments,
     };
+  }
+
+  /**
+   * API 2: Get basic content summary for a specific student's enrollment.
+   * Used by the "View Progress" modal. Only fetches enrollment + courseVersion content counts.
+   */
+  async getStudentProgressDetail(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ) {
+    await this.init();
+
+    const userIdObj = ObjectId.isValid(userId) ? new ObjectId(userId) : null;
+    const courseIdObj = ObjectId.isValid(courseId) ? new ObjectId(courseId) : null;
+    const versionIdObj = ObjectId.isValid(courseVersionId) ? new ObjectId(courseVersionId) : null;
+    const cohortIdObj = cohortId && ObjectId.isValid(cohortId) ? new ObjectId(cohortId) : null;
+
+    if (!userIdObj || !courseIdObj || !versionIdObj) return null;
+
+    const pipeline: any[] = [
+      {
+        $match: {
+          userId: { $in: [userId, userIdObj] },
+          courseId: { $in: [courseId, courseIdObj] },
+          courseVersionId: { $in: [courseVersionId, versionIdObj] },
+          ...(cohortIdObj ? { cohortId: cohortIdObj } : {}),
+          role: 'STUDENT',
+        },
+      },
+      // Join user info
+      {
+        $lookup: {
+          from: 'users',
+          let: { uid: { $toObjectId: '$userId' } },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$_id', '$$uid'] } } },
+            { $project: { firstName: 1, lastName: 1, email: 1, avatar: 1 } },
+          ],
+          as: 'userInfo',
+        },
+      },
+      { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
+      // Join course version for content counts (totalItems, itemCounts)
+      {
+        $lookup: {
+          from: 'newCourseVersion',
+          let: { vid: { $toObjectId: '$courseVersionId' } },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$_id', '$$vid'] } } },
+            { $project: { totalItems: 1, itemCounts: 1 } },
+          ],
+          as: 'courseVersionInfo',
+        },
+      },
+      { $unwind: { path: '$courseVersionInfo', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: { $toString: '$_id' },
+          userId: { $toString: '$userInfo._id' },
+          firstName: '$userInfo.firstName',
+          lastName: '$userInfo.lastName',
+          email: '$userInfo.email',
+          avatar: '$userInfo.avatar',
+          enrollmentDate: 1,
+          percentCompleted: { $ifNull: ['$percentCompleted', 0] },
+          completedItemsCount: { $ifNull: ['$completedItemsCount', 0] },
+          assignedTimeSlots: 1,
+          cohortId: {
+            $cond: [
+              { $ifNull: ["$cohort._id", false] },
+              { $toString: "$cohort._id" },
+              null
+            ]
+          },
+          cohortName: "$cohort.name",
+          contentCounts: {
+            totalItems: { $ifNull: ['$courseVersionInfo.totalItems', 0] },
+            itemCounts: { $ifNull: ['$courseVersionInfo.itemCounts', {}] },
+          },
+        },
+      },
+      // include watch hours for the student within this course/version
+      {
+        $lookup: {
+          from: 'watchTime',
+          let: { uid: '$userId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$userId', { $toObjectId: '$$uid' }] },
+                    { $in: ['$courseId', [courseId, courseIdObj]] },
+                    { $in: ['$courseVersionId', [courseVersionId, versionIdObj]] },
+                    { $ne: ['$isDeleted', true] },
+                    { $ne: ['$endTime', null] },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                duration: {
+                  $divide: [
+                    { $subtract: ['$endTime', '$startTime'] },
+                    3600000,
+                  ],
+                },
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                totalHours: { $sum: '$duration' },
+              },
+            },
+          ],
+          as: 'watchInfo',
+        },
+      },
+      {
+        $addFields: {
+          watchHours: {
+            $round: [
+              { $ifNull: [{ $arrayElemAt: ['$watchInfo.totalHours', 0] }, 0] },
+              2,
+            ],
+          },
+        },
+      },
+      { $project: { watchInfo: 0 } },
+      { $limit: 1 },
+    ];
+
+    const result = await this.enrollmentCollection
+      .aggregate(pipeline, { session })
+      .toArray();
+
+    if (result[0]) {
+      console.debug('Student progress detail for user', userId, 'course', courseId, 'version', courseVersionId, 'watchHours=', result[0].watchHours);
+    }
+
+    return result[0] || null;
+  }
+
+  /**
+   * API 3: Get current learning position and course structure for a student.
+   * Used when instructor clicks "View Course Structure" (lazy load on demand).
+   */
+  async getStudentCourseStructure(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ) {
+    await this.init();
+
+    const userIdObj = ObjectId.isValid(userId) ? new ObjectId(userId) : null;
+    const courseIdObj = ObjectId.isValid(courseId) ? new ObjectId(courseId) : null;
+    const versionIdObj = ObjectId.isValid(courseVersionId) ? new ObjectId(courseVersionId) : null;
+    const cohortIdObj = cohortId && ObjectId.isValid(cohortId) ? new ObjectId(cohortId) : null;
+
+    if (!userIdObj || !courseIdObj || !versionIdObj) return null;
+
+    // Get course structure (modules/sections) from courseVersion
+    const pipeline: any[] = [
+      {
+        $match: {
+          userId: { $in: [userId, userIdObj] },
+          courseId: { $in: [courseId, courseIdObj] },
+          courseVersionId: { $in: [courseVersionId, versionIdObj] },
+          ...(cohortIdObj ? { cohortId: cohortIdObj } : {}),
+          role: 'STUDENT',
+        },
+      },
+      // Join course version for full module/section structure
+      {
+        $lookup: {
+          from: 'newCourseVersion',
+          let: { vid: { $toObjectId: '$courseVersionId' } },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$_id', '$$vid'] } } },
+            { $project: { modules: 1, totalItems: 1, itemCounts: 1 } },
+          ],
+          as: 'courseVersionInfo',
+        },
+      },
+      { $unwind: { path: '$courseVersionInfo', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: { $toString: '$_id' },
+          userId: { $toString: '$userId' },
+          courseStructure: '$courseVersionInfo.modules',
+          totalItems: { $ifNull: ['$courseVersionInfo.totalItems', 0] },
+          itemCounts: { $ifNull: ['$courseVersionInfo.itemCounts', {}] },
+        },
+      },
+      { $limit: 1 },
+    ];
+
+    const result = await this.enrollmentCollection
+      .aggregate(pipeline, { session })
+      .toArray();
+
+    return result[0] || null;
   }
 
   async getVersionEnrollmentStats(
