@@ -181,7 +181,7 @@ export default function StudentSubmissions() {
                                 {/* Feedback Section */}
                                 {sub.instructorFeedback && (
                                     <div className="mt-6 pt-4 border-t">
-                                        <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-2">Instructor Feedback</h4>
+                                        <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-2">Instructor Note</h4>
                                         <div className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-md text-sm border border-blue-100 dark:border-blue-900/50">
                                             <div className="flex justify-between items-center mb-1">
                                                 <span className="font-semibold">{sub.instructorFeedback.decision}</span>
