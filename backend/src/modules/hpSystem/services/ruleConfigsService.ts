@@ -59,7 +59,7 @@ export class RuleConfigService extends BaseService {
             reward: {
                 enabled: body.reward.enabled,
                 type: body.reward.type as any,
-                value: body.reward.value,
+                value: body.reward.value, 
                 applyWhen: body.reward.applyWhen as any,
                 onlyWithinDeadline: body.reward.onlyWithinDeadline,
                 allowLate: body.reward.allowLate,
@@ -73,7 +73,7 @@ export class RuleConfigService extends BaseService {
                 value: body.penalty.value,
                 applyWhen: body.penalty.applyWhen as any,
                 graceMinutes: body.penalty.graceMinutes,
-                runOnce: body.penalty.runOnce,
+                // runOnce: body.penalty.runOnce,
             },
 
             limits: {

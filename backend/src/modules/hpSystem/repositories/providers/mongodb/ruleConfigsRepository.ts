@@ -115,4 +115,8 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
 
         return { modifiedCount: res.modifiedCount ?? 0 };
     }
+
+    async getAllLateActivities() {
+        
+    }
 }

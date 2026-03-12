@@ -196,7 +196,7 @@ export interface HpRuleConfig {
         value: number;
         applyWhen: PenaltyApplyWhen;
         graceMinutes: number;
-        runOnce: boolean;
+        // runOnce: boolean;
     };
 
     // Safety guards
