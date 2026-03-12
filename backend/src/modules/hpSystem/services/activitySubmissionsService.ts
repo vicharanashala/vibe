@@ -414,8 +414,8 @@ export class ActivitySubmissionsService extends BaseService {
                     this.ledgerRepository.create(ledgerEntry, session),
                     this.cohortRepository.setHPForEnrollment(
                         student.id,
-                        body.courseId,
-                        body.courseVersionId,
+                        finalCourseId,
+                        finalVersionId,
                         totalStudentHpPoints + incrementAmount,
                         session
                     )
