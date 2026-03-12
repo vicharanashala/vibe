@@ -783,28 +783,6 @@ export class EnrollmentService extends BaseService {
           statusTab,
           session,
         );
-<<<<<<< HEAD
-        // console.log("Enrollment Data from service is ", enrollmentsData.enrollments[0].contentCounts)
-
-      // if (enrollmentsData.enrollments.length > 0 && filter === 'STUDENT') {
-      //   await this.enrichEnrollmentsWithQuizScores(
-      //     enrollmentsData.enrollments,
-      //     courseVersionId,
-      //   );
-      //   // Log sample enrollment to verify mutation
-      //   console.log(
-      //     '🔍 Sample enriched enrollment:',
-      //     JSON.stringify(enrollmentsData.enrollments[0], null, 2),
-      //   );
-      // }
-
-      if (enrollmentsData.enrollments.length > 0 && filter === 'STUDENT') {
-        // existing quiz score enrichment
-        await this.enrichEnrollmentsWithQuizScores(
-          enrollmentsData.enrollments,
-          courseVersionId,
-        );
-=======
       return enrollmentsData;
     });
   }
@@ -828,7 +806,6 @@ export class EnrollmentService extends BaseService {
         session,
       );
       if (!detail) return null;
->>>>>>> 341287fb49d43113ee07304fb7ebc7c40fa6c9fc
 
         // NEW: reuse getEnrollments()
         const studentUserIds = enrollmentsData.enrollments.map(e =>

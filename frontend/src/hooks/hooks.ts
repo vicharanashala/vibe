@@ -5283,22 +5283,3 @@ export function useStudentMySubmissions(courseVersionId: string, cohort: string)
 
 
 }
-export function useAddFeedback() {
-  const queryClient = useQueryClient();
-  const mutation = useMutation({
-    mutationFn: async ({ submissionId, feedback }: { submissionId: string; feedback: string }) => {
-      const res = await hpApi.addFeedback(submissionId, feedback);
-      if (!res.success) throw new Error(res.message || 'Failed to add feedback');
-      return res.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['hpStudentSubmissions'] });
-      toast.success('Feedback added successfully');
-    },
-  });
-
-  return {
-    mutateAsync: mutation.mutateAsync,
-    isPending: mutation.isPending,
-  };
-}
