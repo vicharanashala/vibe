@@ -179,17 +179,31 @@ export default function StudentSubmissions() {
                                     )}
 
                                 {/* Feedback Section */}
-                                {sub.instructorFeedback && (
+                                {(sub.instructorFeedback || sub.review) && (
                                     <div className="mt-6 pt-4 border-t">
                                         <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-2">Instructor Note</h4>
                                         <div className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-md text-sm border border-blue-100 dark:border-blue-900/50">
                                             <div className="flex justify-between items-center mb-1">
-                                                <span className="font-semibold">{sub.instructorFeedback.decision}</span>
+                                                <span className="font-semibold">{sub.instructorFeedback?.decision || sub.review?.decision}</span>
                                                 <span className="text-xs text-muted-foreground">
-                                                    {formatDateTime(sub.instructorFeedback.reviewedAt)}
+                                                    {formatDateTime(sub.instructorFeedback?.reviewedAt || sub.review?.reviewedAt)}
                                                 </span>
                                             </div>
-                                            <p>{sub.instructorFeedback.note}</p>
+                                            <p>{sub.instructorFeedback?.note || sub.review?.note}</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Additional Feedback */}
+                                {sub.feedbacks && sub.feedbacks.length > 0 && (
+                                    <div className="mt-6 pt-4 border-t">
+                                        <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">Additional Feedback</h4>
+                                        <div className="space-y-3">
+                                            {sub.feedbacks.map((feedback: any, idx: number) => (
+                                                <div key={idx} className="bg-green-50/50 dark:bg-green-900/10 p-4 rounded-md text-sm border border-green-100 dark:border-green-900/50">
+                                                    <p>{feedback.feedback}</p>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 )}

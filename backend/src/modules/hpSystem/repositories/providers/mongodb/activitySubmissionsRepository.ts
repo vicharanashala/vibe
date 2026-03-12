@@ -196,6 +196,13 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             },
             { $unwind: { path: "$rule", preserveNullAndEmptyArrays: true } },
 
+            // 5) Include all feedbacks from feedbacks array
+            {
+                $addFields: {
+                    feedbacks: { $ifNull: ["$feedbacks", []] }
+                }
+            },
+
             // 5) Search (activity title/description)
             ...(searchRegex
                 ? [
@@ -300,7 +307,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
 
                     instructorFeedback: {
                         $cond: [
-                            { $ifNull: ["$review", false] },
+                            { $ne: ["$review", null] },
                             {
                                 reviewedBy: { $toString: "$review.reviewedByTeacherId" },
                                 reviewedAt: "$review.reviewedAt",
@@ -309,6 +316,18 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                             },
                             null,
                         ],
+                    },
+
+                    feedbacks: {
+                        $map: {
+                            input: { $ifNull: ["$feedbacks", []] },
+                            as: "fb",
+                            in: {
+                                feedback: "$$fb.feedback",
+                                teacherId: { $toString: "$$fb.teacherId" },
+                                feedbackAt: "$$fb.feedbackAt"
+                            }
+                        }
                     },
                 },
             },

@@ -17,7 +17,8 @@ import {
 import {
     ArrowLeft, ExternalLink, Clock, FileText, CheckCircle, AlertCircle, XCircle,
     Image as ImageIcon, File, Link2, MessageSquare, CalendarClock, RotateCcw,
-    Timer, Send, Zap, Undo2, ThumbsUp, ThumbsDown
+    Timer, Send, Zap, Undo2, ThumbsUp, ThumbsDown, ChevronDown,
+    ChevronUp
 } from "lucide-react";
 import type { SubmissionAttachment, HpStudentSubmission } from "@/lib/api/hp-system";
 import { toast } from "sonner";
@@ -78,8 +79,6 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
     const { mutateAsync: addFeedback, isPending } = useAddFeedback();
 
     const handleSubmitFeedback = async () => {
-        alert("hello")
-        setShowInput(true);
         if (!feedbackText.trim() || feedbackText.trim().length < 10) {
             toast.error('Feedback must be at least 10 characters long');
             return;
@@ -95,8 +94,9 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
 
     return (
         <div className="space-y-3">
+            {/* Instructor Feedback */}
             {sub.instructorFeedback && (
-                <div className="rounded-lg bg-muted/50 p-3">
+                <div className="rounded-lg bg-muted/50 p-3 border">
                     <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5">
                         <MessageSquare className="h-3.5 w-3.5" />
                         Instructor Feedback: {String((sub.instructorFeedback as any)?.decision || 'Reviewed')}
@@ -105,24 +105,70 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
                 </div>
             )}
 
-            {!showInput ? (
+            {/* Feedback Controls */}
+            <div className="flex items-center gap-2">
+                {/* Add Feedback Button */}
                 <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setShowInput(true)}
-                    className="w-full"
+                    className="flex items-center gap-2"
                 >
-                    <MessageSquare className="h-3.5 w-3.5 mr-2" />
-                    Add Feedback
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    <span className="text-xs">{sub.instructorFeedback ? "Update Feedback" : "Add Feedback"}</span>
                 </Button>
-            ) : (
-                <div className="space-y-2">
+
+                {/* View All Feedbacks */}
+                {sub.feedbacks && sub.feedbacks.length > 0 && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                            const panel = document.getElementById(`feedback-panel-${sub.submission?._id}`);
+                            panel?.classList.toggle('hidden');
+                        }}
+                        className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded border"
+                    >
+                        {sub.feedbacks && sub.feedbacks.length > 0 && (
+                            <div className="">
+                                {sub.feedbacks.length} Feedback{sub.feedbacks.length !== 1 ? 's' : ''}
+                            </div>
+                        )}
+                        <ChevronDown className={`h-3 w-3 transition-transform ${document.getElementById(`feedback-panel-${sub.submission?._id}`)?.classList.contains('hidden') ? '' : 'rotate-180'}`} />
+                    </Button>
+                )}
+            </div>
+
+            {/* Feedback Panel */}
+            {sub.feedbacks && sub.feedbacks.length > 0 && (
+                <div
+                    id={`feedback-panel-${sub.submission?._id}`}
+                    className="hidden bg-muted/20 rounded-lg border p-2"
+                >
+                    <div className="space-y-2">
+                        {sub.feedbacks.map((feedback: any, idx: number) => (
+                            <div key={idx} className="bg-background rounded border p-2">
+                                <p className="text-sm leading-relaxed">{feedback.feedback}</p>
+                                {feedback.feedbackAt && (
+                                    <div className="text-xs text-muted-foreground mt-2">
+                                        {new Date(feedback.feedbackAt).toLocaleDateString()}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Add Feedback Input */}
+            {showInput && (
+                <div className="space-y-3 bg-muted/20 rounded-lg border p-4">
                     <Textarea
                         placeholder="Write feedback for this submission..."
                         value={feedbackText}
                         onChange={e => setFeedbackText(e.target.value)}
                         rows={3}
-                        className="resize-none"
+                        className="resize-none bg-background"
                     />
                     <div className="flex items-center gap-2 justify-end">
                         <Button
@@ -134,15 +180,16 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
                         </Button>
                         <Button
                             size="sm"
-                            disabled={!feedbackText.trim() || feedbackText.trim().length < 10 || showInput}
+                            disabled={!feedbackText.trim() || feedbackText.trim().length < 10 || isPending}
                             onClick={handleSubmitFeedback}
+                            className="flex items-center gap-2"
                         >
                             {isPending ? (
-                                <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white mr-2" />
+                                <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white" />
                             ) : (
-                                <Send className="h-3.5 w-3.5 mr-2" />
+                                <Send className="h-3.5 w-3.5" />
                             )}
-                            {isPending  ? "Sending..." : "Send Feedback"}
+                            {isPending ? "Sending..." : "Send Feedback"}
                         </Button>
                     </div>
                 </div>
@@ -176,16 +223,14 @@ export default function StudentSubmissionsPage() {
     }>({ open: false, subId: '', action: 'revert', activityTitle: '', baseHp: 0, note: '', pointsToDeduct: 0 });
 
     const openReasonDialog = (subId: string, action: 'revert' | 'restore' | 'approve' | 'reject', activityTitle: string, baseHp: number = 0) => {
-        setReasonDialog({ open: true, subId, action, activityTitle, baseHp, note: '', pointsToDeduct: baseHp });
+        const displayTitle = activityTitle && !isNaN(Number(activityTitle))
+            ? `Activity ${activityTitle}`
+            : activityTitle || 'Activity';
+        setReasonDialog({ open: true, subId, action, activityTitle: displayTitle, baseHp, note: '', pointsToDeduct: baseHp });
     };
 
     const handleConfirmAction = async () => {
         const { subId, action, note, pointsToDeduct } = reasonDialog;
-        // Validation for required notes
-        if ((action === 'reject' || action === 'revert') && (!note || note.trim().length < 10)) {
-            toast.error('Note must be at least 10 characters long for this action');
-            return;
-        }
         setReasonDialog({ ...reasonDialog, open: false });
         setActionSubId(subId);
         try {
@@ -542,42 +587,19 @@ export default function StudentSubmissionsPage() {
                                         : `This will reject the submission for "${reasonDialog.activityTitle}" and may deduct HP points.`}
                         </DialogDescription>
                     </DialogHeader>
-                    {(reasonDialog.action === 'reject' || reasonDialog.action === 'revert') && (
-                        <div className="py-4 space-y-4">
-                            <div>
-                                <label htmlFor="note" className="text-sm font-medium mb-2 block">
-                                    Note <span className="text-red-500 ml-1">*</span>
-                                </label>
-                                <Textarea
-                                    id="note"
-                                    placeholder={`Add any feedback or notes... (minimum 10 characters)`}
-                                    value={reasonDialog.note}
-                                    onChange={(e) => setReasonDialog({ ...reasonDialog, note: e.target.value })}
-                                    className="min-h-[80px]"
-                                />
-                                {reasonDialog.note && reasonDialog.note.length < 10 && (
-                                    <p className="text-xs text-red-500 mt-1">Note must be at least 10 characters</p>
-                                )}
-                            </div>
-                            {reasonDialog.action === 'reject' && (
-                                <div>
-                                    <label htmlFor="points" className="text-sm font-medium mb-2 block">
-                                        Points to Deduct
-                                    </label>
-                                    <div className="flex items-center gap-3">
-                                        <input
-                                            type="number"
-                                            id="points"
-                                            min="0"
-                                            max={reasonDialog.baseHp}
-                                            value={reasonDialog.pointsToDeduct}
-                                            onChange={(e) => setReasonDialog({ ...reasonDialog, pointsToDeduct: Math.max(0, Math.min(reasonDialog.baseHp, parseInt(e.target.value) || 0)) })}
-                                            className="w-24 px-3 py-2 border border-input rounded-md text-sm"
-                                        />
-                                        <span className="text-sm text-muted-foreground">/ {reasonDialog.baseHp} (base HP)</span>
-                                    </div>
-                                </div>
-                            )}
+
+                    {(reasonDialog.action === 'approve' || reasonDialog.action === 'reject') && (
+                        <div className="py-4">
+                            <label htmlFor="note" className="text-sm font-medium mb-2 block">
+                                Note (optional)
+                            </label>
+                            <Textarea
+                                id="note"
+                                placeholder="Add any feedback or notes..."
+                                value={reasonDialog.note}
+                                onChange={(e) => setReasonDialog({ ...reasonDialog, note: e.target.value })}
+                                className="min-h-[80px]"
+                            />
                         </div>
                     )}
 
