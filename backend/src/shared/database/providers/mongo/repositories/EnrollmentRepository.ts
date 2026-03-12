@@ -1242,7 +1242,7 @@ export class EnrollmentRepository {
 
     const map = new Map<string, number>();
     for (const doc of results) {
-      const key = `${doc._id.userId.toString()}-${doc._id.courseId.toString()}-${doc._id.courseVersionId.toString()}-${doc._id.cohortId.toString() || ''}`;
+      const key = `${doc._id.userId.toString()}-${doc._id.courseId.toString()}-${doc._id.courseVersionId.toString()}-${doc._id.cohortId?.toString() || ''}`;
       map.set(key, doc.count);
     }
     // console.log("Watched item counts batch map:", map);

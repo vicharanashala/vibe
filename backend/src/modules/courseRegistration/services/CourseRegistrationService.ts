@@ -313,7 +313,7 @@ export class CourseRegistrationService extends BaseService {
 
         // Validate that cohort matches one of the available cohorts
         const isValidCohort = courseVersion.cohorts.some(
-          (cohort: any) => cohort.toString() === registrationData.detail.cohort
+          (cohort: any) => cohort?.toString() === registrationData.detail.cohort
         );
 
         if (!isValidCohort) {
@@ -674,7 +674,7 @@ export class CourseRegistrationService extends BaseService {
               cohortSetting.toString(),
               session
             );
-            cohortSettingDetails.push({...detail, cohortId: detail.cohortId.toString(), courseVersionId: detail.courseVersionId.toString()});
+            cohortSettingDetails.push({...detail, cohortId: detail?.cohortId?.toString(), courseVersionId: detail.courseVersionId.toString()});
           }
         }
         let { jsonSchema, uiSchema, isActive, registrationsAutoApproved, autoapproval_emails, cohortSettings } =
