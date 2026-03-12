@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -419,7 +419,13 @@ export default function CreateHpActivityPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
                                     <div className="space-y-2">
                                         <Label>Rule Type</Label>
-                                        <Select defaultValue="ABSOLUTE">
+                                        <Select
+                                            value={ruleConfig.reward?.type || "ABSOLUTE"}
+                                            onValueChange={(v: any) => setRuleConfig(prev => ({
+                                                ...prev,
+                                                reward: { ...(prev.reward || {}), type: v } as any
+                                            }))}
+                                        >
                                             <SelectTrigger>
                                                 <SelectValue />
                                             </SelectTrigger>
@@ -431,11 +437,24 @@ export default function CreateHpActivityPage() {
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Reward Value</Label>
-                                        <Input type="number" defaultValue={10} />
+                                        <Input
+                                            type="number"
+                                            value={ruleConfig.reward?.value || 0}
+                                            onChange={(e) => setRuleConfig(prev => ({
+                                                ...prev,
+                                                reward: { ...(prev.reward || {}), value: parseInt(e.target.value) || 0 } as any
+                                            }))}
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Apply Policy</Label>
-                                        <Select defaultValue="ON_APPROVAL">
+                                        <Select
+                                            value={ruleConfig.reward?.applyWhen || "ON_APPROVAL"}
+                                            onValueChange={(v: any) => setRuleConfig(prev => ({
+                                                ...prev,
+                                                reward: { ...(prev.reward || {}), applyWhen: v } as any
+                                            }))}
+                                        >
                                             <SelectTrigger>
                                                 <SelectValue />
                                             </SelectTrigger>
@@ -501,7 +520,13 @@ export default function CreateHpActivityPage() {
 
                                     <div className="space-y-2">
                                         <Label>Penalty Type</Label>
-                                        <Select defaultValue="PERCENTAGE">
+                                        <Select
+                                            value={ruleConfig.penalty?.type || "PERCENTAGE"}
+                                            onValueChange={(v: any) => setRuleConfig(prev => ({
+                                                ...prev,
+                                                penalty: { ...(prev.penalty || {}), type: v } as any
+                                            }))}
+                                        >
                                             <SelectTrigger>
                                                 <SelectValue />
                                             </SelectTrigger>
@@ -514,12 +539,26 @@ export default function CreateHpActivityPage() {
 
                                     <div className="space-y-2">
                                         <Label>Penalty Value</Label>
-                                        <Input type="number" defaultValue={5} />
+                                        <Input
+                                            type="number"
+                                            value={ruleConfig.penalty?.value || 0}
+                                            onChange={(e) => setRuleConfig(prev => ({
+                                                ...prev,
+                                                penalty: { ...(prev.penalty || {}), value: parseInt(e.target.value) || 0 } as any
+                                            }))}
+                                        />
                                     </div>
 
                                     <div className="space-y-2">
                                         <Label>Grace Period (Minutes)</Label>
-                                        <Input type="number" defaultValue={0} />
+                                        <Input
+                                            type="number"
+                                            value={ruleConfig.penalty?.graceMinutes || 0}
+                                            onChange={(e) => setRuleConfig(prev => ({
+                                                ...prev,
+                                                penalty: { ...(prev.penalty || {}), graceMinutes: parseInt(e.target.value) || 0 } as any
+                                            }))}
+                                        />
                                     </div>
 
                                 </div>
