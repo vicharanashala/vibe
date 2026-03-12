@@ -98,7 +98,7 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
                 <div className="rounded-lg bg-muted/50 p-3">
                     <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5">
                         <MessageSquare className="h-3.5 w-3.5" />
-                        Instructor Feedback: {String(sub.instructorFeedback?.decision || 'Reviewed')}
+                        Instructor Note: {String(sub.instructorFeedback?.decision || 'Reviewed')}
                     </div>
                     <p className="text-sm">{String(sub.instructorFeedback?.note || 'No note provided')}</p>
                 </div>
@@ -458,16 +458,18 @@ export default function StudentSubmissionsPage() {
                                             <div className="flex-shrink-0 pt-1">
                                                 {status === 'SUBMITTED' && (
                                                     <div className="flex gap-2">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                                            disabled={isReviewing && actionSubId === sub.submission?._id}
-                                                            onClick={() => openReasonDialog(sub.submission?._id || '', 'approve', sub.activity?.title || '', sub.hp?.baseHp || 0)}
-                                                        >
-                                                            <ThumbsUp className="h-3.5 w-3.5 mr-1.5" />
-                                                            {isReviewing && actionSubId === sub.submission?._id ? 'Approving...' : 'Approve'}
-                                                        </Button>
+                                                        {sub.isRequiredInstructorApproval && (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                                disabled={isReviewing && actionSubId === sub.submission?._id}
+                                                                onClick={() => openReasonDialog(sub.submission?._id || '', 'approve', sub.activity?.title)}
+                                                            >
+                                                                <ThumbsUp className="h-3.5 w-3.5 mr-1.5" />
+                                                                {isReviewing && actionSubId === sub.submission?._id ? 'Approving...' : 'Approve'}
+                                                            </Button>
+                                                        )}
                                                         <Button
                                                             variant="outline"
                                                             size="sm"

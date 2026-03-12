@@ -209,8 +209,14 @@ export interface HpStudentSubmission {
     isLate: boolean;
     baseHp: number;
     currentHp: number;
-    instructorFeedback?: string;
+    instructorFeedback?: {
+        reviewedBy: string;
+        reviewedAt: string;
+        decision: string;
+        note: string;
+    } | null;
     safetyStatus?: 'safe' | 'unsafe';
+    isRequiredInstructorApproval?: boolean;
 }
 
 export interface HpRuleConfig {
