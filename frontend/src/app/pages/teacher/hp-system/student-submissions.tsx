@@ -98,9 +98,9 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
                 <div className="rounded-lg bg-muted/50 p-3">
                     <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5">
                         <MessageSquare className="h-3.5 w-3.5" />
-                        Instructor Note: {String(sub.instructorFeedback?.decision || 'Reviewed')}
+                        Instructor Feedback: {String((sub.instructorFeedback as any)?.decision || 'Reviewed')}
                     </div>
-                    <p className="text-sm">{String(sub.instructorFeedback?.note || 'No note provided')}</p>
+                    <p className="text-sm">{String((sub.instructorFeedback as any)?.note || 'No note provided')}</p>
                 </div>
             )}
 
@@ -153,10 +153,10 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
 export default function StudentSubmissionsPage() {
     const { courseVersionId, cohortName, studentId } = useParams({ strict: false });
     const navigate = useNavigate();
-    const { data: submissions, isLoading, error } = useHpStudentSubmissions(
-        studentId || "", courseVersionId || "", cohortName || ""
+    const { data: submissions, isLoading: submissionsLoading, error } = useHpStudentSubmissions(
+    studentId || "", courseVersionId || "", cohortName || ""
     );
-    const { data: students } = useHpStudents(courseVersionId || "", cohortName || "");
+    const { data: students, isLoading: studentsLoading } = useHpStudents(courseVersionId || "", cohortName || "");
     const student = students.find(s => s._id === studentId);
 
     const { mutateAsync: revertEntry, isPending: isReverting } = useRevertHpEntry();
@@ -207,13 +207,7 @@ export default function StudentSubmissionsPage() {
         }
     };
 
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center py-24">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-            </div>
-        );
-    }
+
 
     if (error) {
         return (
@@ -224,21 +218,15 @@ export default function StudentSubmissionsPage() {
         );
     }
 
-    if (!submissions || submissions.length === 0) {
-        return (
-            <div className="text-center py-12">
-                <div className="text-muted-foreground">No submissions found for this student.</div>
-            </div>
-        );
-    }
 
-    const totalActivities = submissions?.length || 0;
-    const submitted = submissions?.filter((s: any) => s.submission?.status === "SUBMITTED").length || 0;
-    const pending = submissions?.filter((s: any) => s.submission?.status === "PENDING").length || 0;
-    const late = submissions?.filter((s: any) => s.submission?.isLate).length || 0;
-    const totalCurrentHp = submissions?.reduce((sum: number, s: any) => sum + (s.hp?.currentHp || 0), 0) || 0;
-    const totalBaseHp = submissions?.reduce((sum: number, s: any) => sum + (s.hp?.baseHp || 0), 0) || 0;
 
+    const safeSubmissions = submissions ?? [];
+    const totalActivities = safeSubmissions.length;
+    const submitted = safeSubmissions.filter((s: any) => s.submission?.status === "SUBMITTED").length;
+    const pending = safeSubmissions.filter((s: any) => s.submission?.status === "PENDING").length;
+    const late = safeSubmissions.filter((s: any) => s.submission?.isLate).length;
+    const totalCurrentHp = safeSubmissions.reduce((sum: number, s: any) => sum + (s.hp?.currentHp || 0), 0);
+    const totalBaseHp = safeSubmissions.reduce((sum: number, s: any) => sum + (s.hp?.baseHp || 0), 0);
     return (
         <div className="space-y-6 w-full pb-12">
             {/* Header */}
@@ -263,6 +251,11 @@ export default function StudentSubmissionsPage() {
             </div>
 
             {/* Summary Cards */}
+            {studentsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                </div>
+            ) : (
             <div className="grid gap-4 md:grid-cols-6">
                 <Card>
                     <CardHeader className="pb-2">
@@ -331,11 +324,20 @@ export default function StudentSubmissionsPage() {
                     </CardContent>
                 </Card>
             </div>
+            )}
 
             {/* Submission Cards */}
             <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Activity Submissions</h3>
-                {submissions.map((sub: any) => {
+                {submissionsLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                    </div>
+                ) : safeSubmissions.length === 0 ? (
+                    <div className="text-center py-12 border border-dashed rounded-lg">
+                        <div className="text-muted-foreground">No submissions found for this student.</div>
+                    </div>
+                ) : safeSubmissions.map((sub: any) => {
                     const status = sub.submission?.status || 'PENDING';
                     const cfg = statusConfig[status as keyof typeof statusConfig] || statusConfig.PENDING;
                     const StatusIcon = cfg.icon;
