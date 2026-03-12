@@ -5309,7 +5309,7 @@ export function useRevertHpEntry() {
       return res.data;
     },
     onSuccess: () => {
-queryClient.invalidateQueries({ queryKey: ['hpStudentSubmissions'] });
+      queryClient.invalidateQueries({ queryKey: ['hpStudentSubmissions'] });
       queryClient.invalidateQueries({ queryKey: ['hp-student-ledger'] });
       queryClient.invalidateQueries({ queryKey: ['hp-students'] });
       queryClient.invalidateQueries({ queryKey: ['hp-cohort-overview'] });
@@ -5377,7 +5377,7 @@ export function useReviewSubmission() {
       queryClient.invalidateQueries({ queryKey: ['hp-student-ledger'] });
       queryClient.invalidateQueries({ queryKey: ['hp-students'] });
       queryClient.invalidateQueries({ queryKey: ['hp-cohort-overview'] });
-      
+
       const decisionMessages = {
         APPROVED: 'Submission approved successfully',
         REJECTED: 'Submission rejected successfully',
@@ -5436,4 +5436,6 @@ export function useStudentMySubmissions(courseVersionId: string, cohort: string)
     },
     enabled: !!courseVersionId && !!cohort,
   });
+
+
 }
