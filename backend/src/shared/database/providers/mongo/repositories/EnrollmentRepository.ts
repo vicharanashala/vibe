@@ -1411,9 +1411,10 @@ export class EnrollmentRepository {
 
     if (cohort) {
       baseMatch.cohortId = new ObjectId(cohort);
-    } else if (cohorts && cohorts.length > 0 && filter === 'STUDENT') {
-      baseMatch.cohortId = { $in: cohorts };
     }
+    // else if (cohorts && cohorts.length > 0 && filter === 'STUDENT') {
+    //   // baseMatch.cohortId = { $in: cohorts };
+    // }
 
     let matchStage: any = { ...baseMatch };
 
@@ -1534,6 +1535,20 @@ export class EnrollmentRepository {
           lastName: '$userInfo.lastName',
           email: '$userInfo.email',
           completedItemsCount: { $ifNull: ['$completedItemsCount', 0] },
+          cohortId: {
+            $cond: [
+              { $ifNull: ["$cohort._id", false] },
+              { $toString: "$cohort._id" },
+              null
+            ]
+          },
+          cohortName: {
+            $cond: [
+              { $ifNull: ["$cohort.name", false] },
+              "$cohort.name",
+              null
+            ]
+          },
         },
       },
     );
@@ -1559,6 +1574,7 @@ export class EnrollmentRepository {
     userId: string,
     courseId: string,
     courseVersionId: string,
+    cohortId?: string,
     session?: ClientSession,
   ) {
     await this.init();
@@ -1566,6 +1582,7 @@ export class EnrollmentRepository {
     const userIdObj = ObjectId.isValid(userId) ? new ObjectId(userId) : null;
     const courseIdObj = ObjectId.isValid(courseId) ? new ObjectId(courseId) : null;
     const versionIdObj = ObjectId.isValid(courseVersionId) ? new ObjectId(courseVersionId) : null;
+    const cohortIdObj = cohortId && ObjectId.isValid(cohortId) ? new ObjectId(cohortId) : null;
 
     if (!userIdObj || !courseIdObj || !versionIdObj) return null;
 
@@ -1575,6 +1592,7 @@ export class EnrollmentRepository {
           userId: { $in: [userId, userIdObj] },
           courseId: { $in: [courseId, courseIdObj] },
           courseVersionId: { $in: [courseVersionId, versionIdObj] },
+          ...(cohortIdObj ? { cohortId: cohortIdObj } : {}),
           role: 'STUDENT',
         },
       },
@@ -1702,6 +1720,7 @@ export class EnrollmentRepository {
     userId: string,
     courseId: string,
     courseVersionId: string,
+    cohortId?: string,
     session?: ClientSession,
   ) {
     await this.init();
@@ -1709,6 +1728,7 @@ export class EnrollmentRepository {
     const userIdObj = ObjectId.isValid(userId) ? new ObjectId(userId) : null;
     const courseIdObj = ObjectId.isValid(courseId) ? new ObjectId(courseId) : null;
     const versionIdObj = ObjectId.isValid(courseVersionId) ? new ObjectId(courseVersionId) : null;
+    const cohortIdObj = cohortId && ObjectId.isValid(cohortId) ? new ObjectId(cohortId) : null;
 
     if (!userIdObj || !courseIdObj || !versionIdObj) return null;
 
@@ -1719,6 +1739,7 @@ export class EnrollmentRepository {
           userId: { $in: [userId, userIdObj] },
           courseId: { $in: [courseId, courseIdObj] },
           courseVersionId: { $in: [courseVersionId, versionIdObj] },
+          ...(cohortIdObj ? { cohortId: cohortIdObj } : {}),
           role: 'STUDENT',
         },
       },

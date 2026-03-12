@@ -549,9 +549,9 @@ export class EnrollmentController {
   async getStudentProgressDetail(
     @Params() params: EnrollmentParams,
     @Ability(getEnrollmentAbility) { ability }: any,
+    @QueryParam('cohortId') cohortId?: string,
   ): Promise<any> {
     const { userId, courseId, versionId } = params;
-
     const enrollmentResource = subject('Enrollment', { courseId, versionId });
     if (!ability.can(EnrollmentActions.ViewAll, enrollmentResource)) {
       throw new ForbiddenError(
@@ -563,6 +563,7 @@ export class EnrollmentController {
       userId,
       courseId,
       versionId,
+      cohortId
     );
 
     if (!detail) {
@@ -582,6 +583,7 @@ export class EnrollmentController {
   async getStudentCourseStructure(
     @Params() params: EnrollmentParams,
     @Ability(getEnrollmentAbility) { ability }: any,
+    @QueryParam('cohortId') cohortId?: string,
   ): Promise<any> {
     const { userId, courseId, versionId } = params;
 
@@ -596,8 +598,8 @@ export class EnrollmentController {
       userId,
       courseId,
       versionId,
+      cohortId
     );
-
     if (!structure) {
       return { message: 'Enrollment not found' };
     }
