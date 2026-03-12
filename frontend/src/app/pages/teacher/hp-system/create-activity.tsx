@@ -173,7 +173,7 @@ export default function CreateHpActivityPage() {
     }
 
     return (
-        <div className="space-y-6 max-w-4xl mx-auto pb-12">
+        <div className="space-y-6  mx-4 pb-12">
             {/* Header */}
             <div className="flex items-center gap-4 border-b pb-4">
                 <Button variant="outline" size="icon" onClick={() => step === 1 ? navigate({ to: backUrl }) : setStep(1)}>
