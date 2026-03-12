@@ -15,7 +15,7 @@ import { HpActivitySubmission, HpLedger, HpLedgerDirection, HpLedgerEventType, H
 import { ObjectId } from "mongodb";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { SubmissionFeedbackItem } from "../classes/transformers/ActivitySubmission.js";
-import { ID } from "../constants.js";
+import { COHORT_OVERRIDES, ID } from "../constants.js";
 
 
 @injectable()
@@ -161,15 +161,6 @@ export class ActivitySubmissionsService extends BaseService {
                 throw new BadRequestError("You have already attended this activity.")
 
             const cohort = body.cohort;
-
-            // 1. Define the Cohort Override Map
-            const COHORT_OVERRIDES: Record<string, { courseId: string; versionId: string }> = {
-                Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
-                Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150" },
-                Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57" },
-                RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719" },
-                AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
-            };
 
             // 2. Apply Overrides (Fall back to body values if cohort isn't in the map)
             const finalCourseId = COHORT_OVERRIDES[cohort]?.courseId ?? body.courseId;
@@ -538,14 +529,6 @@ export class ActivitySubmissionsService extends BaseService {
 
     async list(query: ListSubmissionsQueryDto): Promise<any[]> {
 
-        const COHORT_OVERRIDES: Record<string, { courseId: string; versionId: string }> = {
-            Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
-            Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150" },
-            Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57" },
-            RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719" },
-            AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
-        };
-
         const effectiveQuery: ListSubmissionsQueryDto = { ...query };
 
         if (query.cohort && COHORT_OVERRIDES[query.cohort])
@@ -591,14 +574,6 @@ export class ActivitySubmissionsService extends BaseService {
         if (!student) {
             throw new BadRequestError("Student not found");
         }
-
-        const COHORT_OVERRIDES: Record<string, { courseId: string; versionId: string }> = {
-            Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
-            Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150" },
-            Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57" },
-            RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719" },
-            AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
-        };
 
         let courseId: string;
         let courseVersionId: string;
@@ -672,6 +647,21 @@ export class ActivitySubmissionsService extends BaseService {
 
     async review(submissionId: string, teacherId: string, body: ReviewHpActivitySubmissionBodyDto) {
         return this._withTransaction(async (session) => {
+
+            // Custom validation for required notes - only for REJECT and REVERTED
+            if (body.decision === "REJECTED" && (!body.note || body.note.trim().length < 10)) {
+                throw new BadRequestError("Note must be at least 10 characters long for reject action");
+            }
+
+            if (body.decision === "REVERTED" && (!body.note || body.note.trim().length < 10)) {
+                throw new BadRequestError("Note must be at least 10 characters long for revert action");
+            }
+
+            // Points deduction validation for reject action
+            if (body.decision === "REJECTED" && body.pointsToDeduct !== undefined && body.pointsToDeduct < 0) {
+                throw new BadRequestError("Points to deduct cannot be negative");
+            }
+
             // 1. Initial Data Fetching
             const submission = await this.activitySubmissionsRepository.findById(submissionId, { session });
             if (!submission) throw new NotFoundError(`Submission ${submissionId} not found.`);
@@ -680,13 +670,6 @@ export class ActivitySubmissionsService extends BaseService {
             let courseId = submission.courseId.toString()
             let courseVersionId = submission.courseVersionId.toString()
 
-            const COHORT_OVERRIDES: Record<string, { courseId: string; versionId: string }> = {
-                Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
-                Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150" },
-                Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57" },
-                RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719" },
-                AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
-            };
 
             const override = COHORT_OVERRIDES[cohort];
             if (override) {
@@ -708,6 +691,7 @@ export class ActivitySubmissionsService extends BaseService {
             const totalStudentHpPoints = enrollment.hpPoints ?? 0;
             const ruleType = rewardConfig?.type ?? "ABSOLUTE";
             const isApprovalRequired = rewardConfig?.enabled && rewardConfig.applyWhen === "ON_APPROVAL";
+            const baseHp = rewardConfig?.value ?? 0;
 
             const isApprove = body.decision === "APPROVED";
             const isRevert = body.decision === "REVERTED";
@@ -719,12 +703,16 @@ export class ActivitySubmissionsService extends BaseService {
             // 3. Validation
             if (["REVERTED", "REJECTED"].includes(currentStatus)) throw new BadRequestError(`Submission is already ${currentStatus}.`);
 
-            if (isApprovalRequired && !isApprove && currentStatus == "SUBMITTED") {
-                throw new BadRequestError("This activity requires approval. Only APPROVE is allowed.");
+            if (isApprovalRequired && isRevert && currentStatus == "SUBMITTED") {
+                throw new BadRequestError("This activity requires approval. Only APPROVE/REJECT is allowed.");
             }
 
             if (isApprove && (currentStatus === "APPROVED" || (currentStatus === "SUBMITTED" && rewardConfig?.applyWhen !== "ON_APPROVAL"))) {
                 throw new BadRequestError("Conflict: Points already granted. Use REVERT or REJECT.");
+            }
+
+            if (isReject && body.pointsToDeduct !== undefined && body.pointsToDeduct > baseHp) {
+                throw new BadRequestError(`Points to deduct cannot exceed base HP of ${baseHp}`);
             }
 
 

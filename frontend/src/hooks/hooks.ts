@@ -1312,7 +1312,7 @@ export function useUnenrollUser(): {
 }
 
 // GET /users/enrollments
-export function useUserEnrollments(page?: number, limit?: number, enabled: boolean = true, search?: string, role = "STUDENT", tab: 'active'|'archived' = "active" ): {
+export function useUserEnrollments(page?: number, limit?: number, enabled: boolean = true, search?: string, role = "STUDENT", tab: 'active' | 'archived' = "active"): {
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -4576,17 +4576,19 @@ export function useChooseTimeSlot(): {
 
 // POST /timeslots/teacher/remove-student
 export function useRemoveStudentFromTimeSlot(): {
-  mutateAsync: (variables:{body: {
-    courseId: string;
-    courseVersionId: string;
-    studentId: string;
-    timeSlot: { from: string; to: string };
-  }}) => Promise<any>;
+  mutateAsync: (variables: {
+    body: {
+      courseId: string;
+      courseVersionId: string;
+      studentId: string;
+      timeSlot: { from: string; to: string };
+    }
+  }) => Promise<any>;
   isPending: boolean;
   error: string | null;
 } {
   const result = api.useMutation("post", "/timeslots/teacher/remove-student");
-  
+
   return {
     ...result,
     error: result.error ? (result.error.message || 'Failed to remove student from time slot') : null
@@ -5053,7 +5055,7 @@ export function useRevertHpEntry() {
       return res.data;
     },
     onSuccess: () => {
-queryClient.invalidateQueries({ queryKey: ['hpStudentSubmissions'] });
+      queryClient.invalidateQueries({ queryKey: ['hpStudentSubmissions'] });
       queryClient.invalidateQueries({ queryKey: ['hp-student-ledger'] });
       queryClient.invalidateQueries({ queryKey: ['hp-students'] });
       queryClient.invalidateQueries({ queryKey: ['hp-cohort-overview'] });
@@ -5091,8 +5093,8 @@ export function useRestoreHpEntry() {
 export function useReviewSubmission() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: async ({ submissionId, decision, note }: { submissionId: string; decision: "APPROVED" | "REJECTED" | "REVERTED"; note?: string }) => {
-      const res = await hpApi.reviewSubmission(submissionId, decision, note);
+    mutationFn: async ({ submissionId, decision, note, pointsToDeduct }: { submissionId: string; decision: "APPROVED" | "REJECTED" | "REVERTED"; note?: string; pointsToDeduct?: number }) => {
+      const res = await hpApi.reviewSubmission(submissionId, decision, note, pointsToDeduct);
       if (!res.success) throw new Error(res.message || 'Failed to review submission');
       return res.data;
     },
@@ -5101,7 +5103,7 @@ export function useReviewSubmission() {
       queryClient.invalidateQueries({ queryKey: ['hp-student-ledger'] });
       queryClient.invalidateQueries({ queryKey: ['hp-students'] });
       queryClient.invalidateQueries({ queryKey: ['hp-cohort-overview'] });
-      
+
       const decisionMessages = {
         APPROVED: 'Submission approved successfully',
         REJECTED: 'Submission rejected successfully',
@@ -5160,4 +5162,25 @@ export function useStudentMySubmissions(courseVersionId: string, cohort: string)
     },
     enabled: !!courseVersionId && !!cohort,
   });
+
+
+}
+export function useAddFeedback() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: async ({ submissionId, feedback }: { submissionId: string; feedback: string }) => {
+      const res = await hpApi.addFeedback(submissionId, feedback);
+      if (!res.success) throw new Error(res.message || 'Failed to add feedback');
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hpStudentSubmissions'] });
+      toast.success('Feedback added successfully');
+    },
+  });
+
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+  };
 }

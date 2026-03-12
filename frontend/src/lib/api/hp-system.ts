@@ -543,10 +543,16 @@ export const hpApi = {
         return { success: true };
     },
 
-    reviewSubmission: async (submissionId: string, decision: "APPROVED" | "REJECTED" | "REVERTED", note?: string): Promise<{ success: boolean; data: any }> => {
+    reviewSubmission: async (submissionId: string, decision: "APPROVED" | "REJECTED" | "REVERTED", note?: string, pointsToDeduct?: number): Promise<{ success: boolean; data: any }> => {
         return apiFetch(`${BASE_URL}/activity-submissions/${submissionId}/review`, {
             method: 'POST',
-            body: JSON.stringify({ decision, note }),
+            body: JSON.stringify({ decision, note, pointsToDeduct }),
+        });
+    },
+    addFeedback: async (submissionId: string, feedback: string): Promise<{ success: boolean; data: any }> => {
+        return apiFetch(`${BASE_URL}/activity-submissions/${submissionId}/feedback`, {
+            method: 'POST',
+            body: JSON.stringify({ feedback }),
         });
     },
 };
