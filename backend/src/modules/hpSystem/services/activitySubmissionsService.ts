@@ -242,8 +242,6 @@ export class ActivitySubmissionsService extends BaseService {
 
             const cohort = body.cohort;
 
-            // 1. Define the Cohort Override Map
-
             // 2. Apply Overrides (Fall back to body values if cohort isn't in the map)
             const finalCourseId = COHORT_OVERRIDES[cohort]?.courseId ?? body.courseId;
             const finalVersionId = COHORT_OVERRIDES[cohort]?.versionId ?? body.courseVersionId;
@@ -657,7 +655,6 @@ export class ActivitySubmissionsService extends BaseService {
             throw new BadRequestError("Student not found");
         }
 
-
         let courseId: string;
         let courseVersionId: string;
 
@@ -734,7 +731,6 @@ export class ActivitySubmissionsService extends BaseService {
             if (body.decision === "REJECTED" && (!body.note || body.note.trim().length < 10)) {
                 throw new BadRequestError("Note must be at least 10 characters long for reject action");
             }
-            
             if (body.decision === "REVERTED" && (!body.note || body.note.trim().length < 10)) {
                 throw new BadRequestError("Note must be at least 10 characters long for revert action");
             }
@@ -792,7 +788,6 @@ export class ActivitySubmissionsService extends BaseService {
                 throw new BadRequestError("Conflict: Points already granted. Use REVERT or REJECT.");
             }
 
-            // Points deduction limit validation for reject action
             if (isReject && body.pointsToDeduct !== undefined && body.pointsToDeduct > baseHp) {
                 throw new BadRequestError(`Points to deduct cannot exceed base HP of ${baseHp}`);
             }
