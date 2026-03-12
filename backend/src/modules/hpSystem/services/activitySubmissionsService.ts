@@ -135,7 +135,86 @@ export class ActivitySubmissionsService extends BaseService {
         return { uploadedPdfs, uploadedImages };
     }
 
+    // private getActivitySubmissionBucket() {
+    //     const storage = new Storage({
+    //         keyFilename: appConfig.GOOGLE_APPLICATION_CREDENTIALS,
+    //     });
 
+    //     return storage.bucket(appConfig.GCP_BACKUP_ACTIVITY_BUCKET);
+    // }
+
+    // private async uploadSubmissionFileToGcp(
+    //     bucket: Bucket,
+    //     studentId: string,
+    //     file: Express.Multer.File,
+    //     folder: string
+    // ) {
+    //     const ext = path.extname(file.originalname) || "";
+    //     const baseName = path.basename(file.originalname, ext);
+    //     const safeBase = baseName.replace(/[^\w\-]+/g, "_");
+    //     const unique = randomBytes(8).toString("hex");
+    //     const timestamp = Date.now();
+
+    //     const fileName = `${studentId}_${safeBase}_${timestamp}_${unique}${ext}`;
+    //     const objectPath = `${folder}/${fileName}`;
+    //     const gcpFile = bucket.file(objectPath);
+
+    //     await gcpFile.save(file.buffer, {
+    //         resumable: false,
+    //         contentType: file.mimetype,
+    //         metadata: {
+    //             contentDisposition: `inline; filename="${file.originalname}"`,
+    //         },
+    //     });
+
+    //     const [signedUrl] = await gcpFile.getSignedUrl({
+    //         action: "read",
+    //         expires: Date.now() + 1000 * 60 * 60 * 24 * 7,
+    //     });
+
+    //     return {
+    //         fileId: objectPath,
+    //         url: signedUrl,
+    //         name: fileName,
+    //         mimeType: file.mimetype,
+    //         sizeBytes: file.size,
+    //     };
+    // }
+
+    // private async uploadSubmissionAssets(
+    //     studentId: string,
+    //     cohort: string,
+    //     activityId: string,
+    //     files: Express.Multer.File[],
+    //     images: Express.Multer.File[]
+    // ) {
+    //     const bucket = this.getActivitySubmissionBucket();
+
+    //     const [uploadedPdfs, uploadedImages] = await Promise.all([
+    //         Promise.all(
+    //             files.map((file) =>
+    //                 this.uploadSubmissionFileToGcp(
+    //                     bucket,
+    //                     studentId,
+    //                     file,
+    //                     `hp-activity-submissions/${cohort}/${activityId}/${studentId}/files`
+    //                 )
+    //             )
+    //         ),
+    //         Promise.all(
+    //             images.map((image) =>
+    //                 this.uploadSubmissionFileToGcp(
+    //                     bucket,
+    //                     studentId,
+    //                     image,
+    //                     `hp-activity-submissions/${cohort}/${activityId}/${studentId}/images`
+    //                 )
+    //             )
+    //         ),
+    //     ]);
+
+    //     return { uploadedPdfs, uploadedImages };
+    // }
 
 
     async submit(student: { id: string; email: string; name: string }, body: CreateOrUpdateHpActivitySubmissionBodyDto, upload?: { files?: Express.Multer.File[]; images?: Express.Multer.File[] }
@@ -216,7 +295,7 @@ export class ActivitySubmissionsService extends BaseService {
                 }
             }
 
-            // GCP Storage setup
+            // // GCP Storage setup
             // const storage = new Storage({
             //     keyFilename: appConfig.GOOGLE_APPLICATION_CREDENTIALS,
             // });
@@ -430,6 +509,8 @@ export class ActivitySubmissionsService extends BaseService {
         });
     }
 
+
+
     async updateSubmission(
         submissionId: string,
         student: { id: string; email: string; name: string },
@@ -472,65 +553,6 @@ export class ActivitySubmissionsService extends BaseService {
                     throw new BadRequestError(`Only images allowed in images. Invalid: ${img.originalname}`);
                 }
             }
-
-            // const storage = new Storage({
-            //     keyFilename: appConfig.GOOGLE_APPLICATION_CREDENTIALS,
-            // });
-
-            // const bucketName = appConfig.GCP_BACKUP_ACTIVITY_BUCKET;
-            // const bucket = storage.bucket(bucketName);
-
-            // const uploadToGcp = async (f: Express.Multer.File, folder: string) => {
-            //     const ext = path.extname(f.originalname) || "";
-            //     const baseName = path.basename(f.originalname, ext);
-            //     const safeBase = baseName.replace(/[^\w\-]+/g, "_");
-            //     const unique = randomBytes(8).toString("hex");
-            //     const timestamp = Date.now();
-
-            //     const fileName = `${student.id}_${safeBase}_${timestamp}_${unique}${ext}`;
-            //     const objectPath = `${folder}/${fileName}`;
-            //     const file = bucket.file(objectPath);
-
-            //     await file.save(f.buffer, {
-            //         resumable: false,
-            //         contentType: f.mimetype,
-            //         metadata: {
-            //             contentDisposition: `inline; filename="${f.originalname}"`,
-            //         },
-            //     });
-
-            //     const [signedUrl] = await file.getSignedUrl({
-            //         action: "read",
-            //         expires: Date.now() + 1000 * 60 * 60 * 24 * 7,
-            //     });
-
-            //     return {
-            //         fileId: objectPath,
-            //         url: signedUrl,
-            //         name: fileName,
-            //         mimeType: f.mimetype,
-            //         sizeBytes: f.size,
-            //     };
-            // };
-
-            // const [uploadedPdfs, uploadedImages] = await Promise.all([
-            //     Promise.all(
-            //         files.map((f) =>
-            //             uploadToGcp(
-            //                 f,
-            //                 `hp-activity-submissions/${body.cohort}/${body.activityId}/${student.id}/files`
-            //             )
-            //         )
-            //     ),
-            //     Promise.all(
-            //         images.map((img) =>
-            //             uploadToGcp(
-            //                 img,
-            //                 `hp-activity-submissions/${body.cohort}/${body.activityId}/${student.id}/images`
-            //             )
-            //         )
-            //     ),
-            // ]);
 
             const { uploadedPdfs, uploadedImages } = await this.uploadSubmissionAssets(
                 student.id,
@@ -585,8 +607,6 @@ export class ActivitySubmissionsService extends BaseService {
             createdAt: doc.createdAt?.toISOString?.() ?? doc.createdAt,
             updatedAt: doc.updatedAt?.toISOString?.() ?? doc.updatedAt,
         };
-
-
     }
 
     async list(query: ListSubmissionsQueryDto): Promise<any[]> {

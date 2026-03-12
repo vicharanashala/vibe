@@ -59,7 +59,6 @@ export class ActivitySubmissionsController {
     return { success: true, data: doc };
   }
 
-
   @OpenAPI({ summary: "Edit an activity submission" })
   @Put("/:submissionId")
   @Authorized()
@@ -175,4 +174,6 @@ export class ActivitySubmissionsController {
     const { feedback } = body;
     return await this.submissionService.addfeedback(id, teacherId, feedback);
   }
+
+
 }
