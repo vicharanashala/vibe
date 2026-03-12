@@ -257,6 +257,19 @@ export class ActivitySubmissionsService extends BaseService {
             const activityReward = activityRuleConfig.reward;
 
             if (activityReward?.enabled && activityReward.applyWhen === "ON_SUBMISSION") {
+
+                // Reward allocation conditions
+                const shouldSkipReward =
+                    isLate && (
+                        activityReward.lateBehavior === "NO_REWARD" ||
+                        activityReward.onlyWithinDeadline === true
+                    ) || activityRuleConfig?.lateRewardPolicy == "REWARD_DENIED"
+
+                if (shouldSkipReward) {
+                    return;
+                }
+
+
                 const totalStudentHpPoints = enrollment?.hpPoints ?? 0;
                 const ruleType = activityReward.type;
                 const rewardValue = activityReward.value ?? 0;
@@ -267,8 +280,16 @@ export class ActivitySubmissionsService extends BaseService {
                 if (ruleType === "ABSOLUTE") {
                     incrementAmount = rewardValue;
                 } else if (ruleType === "PERCENTAGE") {
-                    // Percentage based on current total
-                    incrementAmount = Math.round((totalStudentHpPoints * rewardValue) / 100);
+                    const rewardMaxLimit = activityRuleConfig.limits?.maxHp ?? 0;
+
+                    // Calculate percentage reward
+                    const calculatedReward = Math.round((totalStudentHpPoints * rewardValue) / 100);
+
+                    // Apply max limit if defined
+                    incrementAmount =
+                        rewardMaxLimit > 0
+                            ? Math.min(calculatedReward, rewardMaxLimit)
+                            : calculatedReward;
                 }
 
                 // For transparency in the audit trail, we create a human-readable note about how the reward was calculated
@@ -535,17 +556,52 @@ export class ActivitySubmissionsService extends BaseService {
 
 
             // 3. Deadline Checks for Approval
-            if (body.decision === "APPROVED") {
-                // const deadline = activityRuleConfig?.deadlineAt ? new Date(activityRuleConfig.deadlineAt) : null;
-                // const isLate = deadline && new Date() > deadline;
+            if (isApprove) {
+                // 1. Identify if the submission is late
+                const deadline = activityRuleConfig?.deadlineAt ? new Date(activityRuleConfig.deadlineAt) : null;
+                const isLate = deadline && new Date() > deadline;
 
-                if (isLate && rewardConfig?.lateBehavior === "NO_REWARD") {
-                    throw new BadRequestError("Cannot approve: Late submissions receive no reward.");
+                // 2. Define the "Hard Block" conditions
+                const isLatePolicyViolated = isLate && (
+                    rewardConfig?.lateBehavior === "NO_REWARD" ||
+                    rewardConfig?.onlyWithinDeadline === true
+                );
+
+                const isGlobalPolicyViolated = activityRuleConfig?.lateRewardPolicy === "REWARD_DENIED";
+
+                // 3. Throw Detailed Errors
+                if (isLatePolicyViolated) {
+                    throw new BadRequestError(`Approval Denied: This submission is late, and the activity policy is set to 'No Reward' for late work.`);
                 }
-                if (isLate && rewardConfig?.onlyWithinDeadline) {
-                    throw new BadRequestError("Cannot approve: Submission is past the deadline.");
+
+                if (isGlobalPolicyViolated) {
+                    throw new BadRequestError("Approval Denied: The global course policy for this activity currently denies all late rewards.");
                 }
+
+                // If we reach here, the instructor is allowed to proceed with the approval.
             }
+            // if (isApprove) {
+            //     // const deadline = activityRuleConfig?.deadlineAt ? new Date(activityRuleConfig.deadlineAt) : null;
+            //     // const isLate = deadline && new Date() > deadline;
+
+            //     if (isLate && rewardConfig?.lateBehavior === "NO_REWARD") {
+            //         throw new BadRequestError("Cannot approve: Late submissions receive no reward.");
+            //     }
+            //     if (isLate && rewardConfig?.onlyWithinDeadline) {
+            //         throw new BadRequestError("Cannot approve: Submission is past the deadline.");
+            //     }
+
+            //      // Reward allocation conditions
+            //     const shouldSkipReward =
+            //         isLate && (
+            //             rewardConfig.lateBehavior === "NO_REWARD" ||
+            //             rewardConfig.onlyWithinDeadline === true
+            //         ) || activityRuleConfig?.lateRewardPolicy == "REWARD_DENIED"
+
+            //     if (shouldSkipReward) {
+            //         return;
+            //     }
+            // }
 
 
             // 4. Calculate Changes
