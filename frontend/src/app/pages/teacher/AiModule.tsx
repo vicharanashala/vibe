@@ -126,7 +126,6 @@ const AiModule = () => {
     }
     const id = extractIdFromUrl(youtubeUrl.trim());
     setVideoId(id);
-    console.log("Extracted YouTube ID:", id);
     clearStoredQuestions();
     setIsLoading(true)
 
@@ -199,7 +198,6 @@ const AiModule = () => {
 
       // 6. Create AI Job
       const { jobId } = await aiSectionAPI.createJob(jobParams);
-      console.log("JobId is ", jobId);
       setAiJobId(jobId);
       setIsAiJobStarted(true);
       // 7. Set current job status
@@ -304,7 +302,6 @@ const AiModule = () => {
       setIsWaitingServer(false) // set to false, because now we are going to hit server again!
       // 2. Fetch status to get current job
       const status = await aiSectionAPI.getJobStatus(aiJobId);
-      console.log("Status of the job is ", status)
 
       if (!status || !status.jobStatus) {
         toast.error("Failed to fetch job status, Try again!");
@@ -312,7 +309,6 @@ const AiModule = () => {
       }
 
       const currentTaskData = getCurrentTask(status.jobStatus);
-      console.log("Current Task is going on to be ", currentTaskData)
 
       if (!currentTaskData) {
         toast.error("Current task is missing");
@@ -390,7 +386,6 @@ const AiModule = () => {
     } catch (error) {
       if (!isWaitingServer) {
         toast.error("Failed to approve task");
-        console.log("Error approving task: ", error);
       } else {
         toast.error("Failed to retry task");
       }
@@ -408,7 +403,6 @@ const AiModule = () => {
     function createPlayer() {
 
       if (!isURLValidated || !iframeRef.current || !videoId) {
-        console.log("YT Player not ready yet");
         return;
       }
 
@@ -423,22 +417,22 @@ const AiModule = () => {
         },
         events: {
           onReady: (event: any) => {
-            console.log("Player is ready");
+
             const duration = event.target.getDuration();
-            console.log("Video duration is ", duration)
+
             setVideoDuration(duration);
             setVideoPlayer(true);
           },
           onStateChange(event: any) {
             if (event.data === window.YT?.PlayerState.PLAYING) {
               lastStartTimeRef.current = playerRef.current.getCurrentTime();
-              console.log("Video started at:", lastStartTimeRef.current);
+
               setIsPaused(false);
               setStartTime(lastStartTimeRef.current);
             }
             if (event.data === window.YT?.PlayerState.PAUSED) {
               pauseTimeRef.current = playerRef.current.getCurrentTime();
-              console.log("Video paused at:", pauseTimeRef.current);
+
               setIsPaused(true);
               setEndTime(pauseTimeRef.current);
             }
@@ -448,7 +442,7 @@ const AiModule = () => {
               if (Math.abs(duration - endTimeRef.current) < 1) {
                 endTimeRef.current = duration
               }
-              console.log("Video ended at:", endTimeRef.current);
+
               setIsPaused(true);
               setEndTime(endTimeRef.current);
             }
@@ -480,7 +474,6 @@ const AiModule = () => {
 
     const callHandleApproveTask = async () => {
       if (!aiJobId) {
-        console.log("No job Id found :(")
         return
       }
       await handleApproveTask()
@@ -599,13 +592,11 @@ const AiModule = () => {
               chunk.timestamp[0] < segEnd
           );
           grouped.push(segChunks);
-          console.log("Grouped data is here, " ,grouped)
           segStart = segEnd;
         }
         setSegmentationChunks(grouped);
       } else if (segData?.transcriptFileUrl) {
         const segs = await fetchSegmentationFromUrl(segData.transcriptFileUrl);
-        console.log("Segments from url, ", segs)
         setSegments(segs);
         setSegmentationMap(null);
         setSegmentationChunks(null);
@@ -728,7 +719,6 @@ const AiModule = () => {
 
     const interval = setInterval(async () => {
       const res = await getJobStatus(aiJobId);
-      console.log("Polled job status: ", res);
 
       const incoming = mapJobStatusToIncoming(res.jobStatus);
       if (!incoming) return;
@@ -806,7 +796,6 @@ const AiModule = () => {
       const token = localStorage.getItem('firebase-auth-token');
       const url = getApiUrl(`/genai/jobs/${jobId}/edit/segment-map`);
       const body = JSON.stringify({ segmentMap, index });
-      console.log("Editing segment map with payload:", { segmentMap, index });
       const res = await fetch(url, {
         method: 'PATCH',
         headers: {
@@ -816,7 +805,6 @@ const AiModule = () => {
         body,
       });
       if (res.status === 200) {
-        console.log("Segment map edited successfully");
         return;
       }
       let errMsg = 'Unknown error';
@@ -829,7 +817,6 @@ const AiModule = () => {
 
   const handleGenerateQuestions = async ()=>{
     const stringEndTimeArray = chunkTranscription.map((chunk: any) => chunk.endTime);
-        console.log("Before the segmentent map is called the segmentation chunk is ", segmentationChunks)
    
     await editSegmentMap(aiJobId!, stringEndTimeArray);
        const sortedSegments = [...stringEndTimeArray].sort((a, b) => a - b);
@@ -847,7 +834,6 @@ const AiModule = () => {
           return chunkMid > start && chunkMid <= end;
         });
       });
-      console.log("Updated chunks after mapping to sorted segments is ", updatedChunks)
 
        setSegmentationMap(stringEndTimeArray);
        setSegmentationChunks(updatedChunks);
