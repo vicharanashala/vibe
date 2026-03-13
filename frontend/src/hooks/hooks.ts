@@ -3869,8 +3869,8 @@ export const useToggleRegistrationStatus = (versionId: string): {
 export const useUpdateAutoApprovalsettings = (
   versionId: string,
 ): {
-  mutate: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] }) => void;
-  mutateAsync: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] }) => Promise<any>;
+  mutate: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[], cohortId?: string }) => void;
+  mutateAsync: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[], cohortId?: string }) => Promise<any>;
   data: any;
   error: string | null;
   isPending: boolean;
@@ -3883,7 +3883,7 @@ export const useUpdateAutoApprovalsettings = (
   const result = api.useMutation('put', '/course/registration/auto-approval/version/{versionId}' as any);
 
   return {
-    mutate: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] }) =>
+    mutate: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[], cohortId?: string }) =>
       result.mutate({
         params: {
           path: { versionId },
@@ -3891,7 +3891,7 @@ export const useUpdateAutoApprovalsettings = (
         body: params,
       }),
 
-    mutateAsync: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] }) =>
+    mutateAsync: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[], cohortId?: string }) =>
       result.mutateAsync({
         params: {
           path: { versionId },

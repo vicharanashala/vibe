@@ -8,6 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Settings, Mail, Plus, X } from "lucide-react";
 import { useUpdateAutoApprovalsettings } from "@/hooks/hooks";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@/components/ui/dropdown-menu";
 
 interface AutoApprovalModalProps {
   isOpen: boolean;
@@ -16,27 +23,46 @@ interface AutoApprovalModalProps {
   currentSettings?: {
     registrationsAutoApproved?: boolean;
     autoapproval_emails?: string[];
+    cohortSettingDetails?: any[];
   };
+  courseVersion: any;
 }
 
 export default function AutoApprovalModal({ 
   isOpen, 
   onOpenChange, 
   versionId,
-  currentSettings 
+  currentSettings,
+  courseVersion,
 }: AutoApprovalModalProps) {
   const [isAutoApproved, setIsAutoApproved] = useState(false);
   const [emailPatterns, setEmailPatterns] = useState<string[]>([]);
   const [newEmailPattern, setNewEmailPattern] = useState("");
   const [isUpdating,setIsUpdating]=useState(false);
   const { mutateAsync:updateAutoApprovalSettings } = useUpdateAutoApprovalsettings(versionId);
+  const [cohort, setCohort] = useState<string | null>(null);
 
   useEffect(() => {
-    if (currentSettings) {
-      setIsAutoApproved(currentSettings.registrationsAutoApproved || false);
-      setEmailPatterns(currentSettings.autoapproval_emails || []);
+    if (!currentSettings) return;
+
+    if (cohort && currentSettings?.cohortSettingDetails?.length) {
+      const setting = currentSettings?.cohortSettingDetails?.find(
+        (c) => c.cohortId === cohort
+      );
+
+      setIsAutoApproved(setting?.registrationsAutoApproved ?? false);
+      setEmailPatterns(setting?.autoapproval_emails ?? []);
+    } else {
+      setIsAutoApproved(currentSettings.registrationsAutoApproved ?? false);
+      setEmailPatterns(currentSettings.autoapproval_emails ?? []);
     }
-  }, [currentSettings]);
+  }, [cohort, currentSettings]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setCohort(null);    }
+  }, [isOpen]);
+
 
   const addEmailPattern = () => {
     if (newEmailPattern.trim() && !emailPatterns.includes(newEmailPattern.trim())) {
@@ -57,16 +83,22 @@ export default function AutoApprovalModal({
   };
 
   const handleSave = async () => {
+    if(courseVersion?.cohorts?.length > 0 && !cohort){
+      toast.error("Please select a cohort before saving settings.");
+      return;
+    }
     setIsUpdating(true);
     try {
       await updateAutoApprovalSettings({
         registrationsAutoApproved: isAutoApproved,
         autoapproval_emails: emailPatterns,
+        cohortId: cohort || undefined,
       });
       toast.success('Auto-approval settings updated successfully');
       setIsUpdating(false);
       onOpenChange(false);
     } catch (error) {
+      setIsUpdating(false);
       console.error('Error updating auto-approval settings:', error);
       toast.error('Failed to update auto-approval settings');
     }
@@ -82,6 +114,42 @@ export default function AutoApprovalModal({
           </DialogTitle>
         </DialogHeader>
 
+        {courseVersion?.cohorts?.length > 0 && (
+          <div>
+            <DropdownMenu>
+              <span className="mr-4">Cohort Name:</span>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="mt-2 px-3 py-2 text-sm w-[30%]"
+                >
+                   {cohort ? courseVersion.cohortDetails.find(c => c.id === cohort)?.name : "Select Cohort"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuRadioGroup
+                  value={cohort ?? ""}
+                  onValueChange={(value) => {
+                    setCohort(value);
+                  }}
+                >
+                  {courseVersion?.cohortDetails?.map((cohort) => (
+                    <DropdownMenuRadioItem
+                      key={cohort.id}
+                      value={cohort.id}
+                    >
+                      {cohort.name}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          )}
+      {(
+        !courseVersion?.cohortDetails?.length ||
+        cohort
+      ) && (
         <div className="space-y-6 mt-6">
           {/* Auto-approval toggle */}
           <div className="flex items-center justify-between">
@@ -166,7 +234,7 @@ export default function AutoApprovalModal({
             </div>
           )}
         </div>
-
+      )}
         <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-6">
           <Button
             variant="outline"
