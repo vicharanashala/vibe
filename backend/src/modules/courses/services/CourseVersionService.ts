@@ -16,6 +16,7 @@ import {
   NotFoundError,
   InternalServerError,
   BadRequestError,
+  ForbiddenError,
 } from 'routing-controllers';
 import {Course, Module} from '../classes/index.js';
 import {
@@ -289,6 +290,14 @@ export class CourseVersionService extends BaseService {
       if (!existingVersion) {
         throw new NotFoundError('Course version not found');
       }
+      const versionStatus =
+        await this.courseRepo.getCourseVersionStatus(courseVersionId);
+
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          "This course version is inactive, you can't update version",
+        );
+      }
 
       if (body.version) existingVersion.version = body.version;
       if (body.description) existingVersion.description = body.description;
@@ -344,6 +353,14 @@ export class CourseVersionService extends BaseService {
       if (!readCourseVersion) {
         throw new InternalServerError(
           'Failed to update course with new version.',
+        );
+      }
+      const versionStatus =
+        await this.courseRepo.getCourseVersionStatus(courseVersionId);
+
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'This course version is inactive, you cannot delete',
         );
       }
 
@@ -433,9 +450,8 @@ export class CourseVersionService extends BaseService {
       console.log(`Modules to clone: ${existingVersion.modules.length}`);
 
       if (USE_WORKERS) {
-        const {startCourseCloneProcessing} = await import(
-          '#root/workers/clone-course.pool.js'
-        );
+        const {startCourseCloneProcessing} =
+          await import('#root/workers/clone-course.pool.js');
 
         [newModules, existingEnrollments] = await Promise.all([
           startCourseCloneProcessing(
@@ -597,6 +613,45 @@ export class CourseVersionService extends BaseService {
         session,
       );
       return result;
+    });
+  }
+
+  public async getVersionDetails(versionId: string): Promise<CourseVersion> {
+    return this._withTransaction(async session => {
+      const readVersion = await this.courseRepo.getActiveVersion(
+        versionId,
+        session,
+      );
+      if (!readVersion) {
+        throw new InternalServerError('Failed to read course version.');
+      }
+      if (readVersion.cohorts?.length) {
+        const cohorts = await this.courseRepo.getCohortsByIds(
+          readVersion.cohorts,
+          undefined,
+          session,
+        );
+
+        for (const cohort of cohorts) {
+          if (!readVersion.cohorts.some(id => id.toString() === cohort._id.toString())) {
+            throw new InternalServerError(
+              `Cohort ID ${cohort._id} not referenced in course version ${versionId}`
+            );
+          }
+        }
+        (readVersion as any).cohortDetails  = cohorts.map(cohort => ({
+          id: cohort._id.toString(),
+          name: cohort.name,
+          createdAt: cohort.createdAt,
+          updatedAt: cohort.updatedAt
+        }));
+      }
+
+      const version = instanceToPlain(
+        Object.assign(new CourseVersion(), readVersion),
+      ) as CourseVersion;
+
+      return version;
     });
   }
 }

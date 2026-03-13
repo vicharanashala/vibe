@@ -1,5 +1,4 @@
 import { test, expect, Locator, Page } from '@playwright/test';
-import fs from 'fs';
 
 const COURSE_NAME =
   process.env.COURSE_NAME ?? 'MERN Developer Sprint: For MERN developer team testing';
@@ -156,6 +155,59 @@ test('Test course video playback and quiz', async ({ page }) => {
     throw new Error(`Invalid time format: ${time}`);
   }
 
+  async function fastForwardIfAvailable(page, timeDisplay) {
+    const forwardButton = page.getByRole('button', { name: /forward 10 seconds/i });
+
+    // Check if button exists
+    if ((await forwardButton.count()) === 0) {
+      console.log('⏩ Forward button not present');
+      return;
+    }
+
+    console.log('⏩ Forward button detected');
+
+    // Wait until first 10 seconds have played
+    await expect
+      .poll(
+        async () => {
+          const text = await timeDisplay.textContent();
+          if (!text) return 0;
+
+          const [currentText] = text.split('/').map((t) => t.trim());
+          return parseTimeToSeconds(currentText);
+        },
+        {
+          timeout: 20000, // allow enough time for 10s playback
+          message: 'Waiting for first 10 seconds of playback',
+        },
+      )
+      .toBeGreaterThanOrEqual(10);
+
+    console.log('⏩ First 10 seconds played');
+
+    // Keep forwarding until near the end
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const text = await timeDisplay.textContent();
+      if (!text) break;
+
+      const [currentText, totalText] = text.split('/').map((t) => t.trim());
+
+      const current = parseTimeToSeconds(currentText);
+      const total = parseTimeToSeconds(totalText);
+
+      if (current >= total - 10) {
+        console.log('⏩ Reached last 10 seconds');
+        break;
+      }
+
+      await forwardButton.click();
+      console.log('⏩ Forwarded 10 seconds');
+
+      await page.waitForTimeout(500);
+    }
+  }
+
   async function playAndWaitForCompletion(page) {
     // Play button
     const playButton = page.getByRole('button', { name: /^play$/i });
@@ -209,6 +261,8 @@ test('Test course video playback and quiz', async ({ page }) => {
 
     console.log('⏳ Playback started');
 
+    await fastForwardIfAvailable(page, timeDisplay);
+
     // Wait for completion (1s tolerance)
     await expect
       .poll(
@@ -233,32 +287,32 @@ test('Test course video playback and quiz', async ({ page }) => {
     console.log('✅ Video completed');
   }
 
-async function waitForItemlist(section: Locator) {
-  const page = section.page();
+  async function waitForItemlist(section: Locator) {
+    const page = section.page();
 
-  const items = section.getByTestId('course-item');
+    const items = section.getByTestId('course-item');
 
-  await expect(items.first()).toBeVisible({ timeout: 30000 });
+    await expect(items.first()).toBeVisible({ timeout: 30000 });
 
-  let previousCount = 0;
-  let stableIterations = 0;
-  const MAX_STABLE_ITERATIONS = 3;
+    let previousCount = 0;
+    let stableIterations = 0;
+    const MAX_STABLE_ITERATIONS = 3;
 
-  while (stableIterations < MAX_STABLE_ITERATIONS) {
-    const currentCount = await items.count();
+    while (stableIterations < MAX_STABLE_ITERATIONS) {
+      const currentCount = await items.count();
 
-    if (currentCount === previousCount) {
-      stableIterations++;
-    } else {
-      stableIterations = 0;
-      previousCount = currentCount;
+      if (currentCount === previousCount) {
+        stableIterations++;
+      } else {
+        stableIterations = 0;
+        previousCount = currentCount;
+      }
+
+      await page.waitForTimeout(200);
     }
 
-    await page.waitForTimeout(200);
+    console.log(`✅ All items loaded. Total: ${previousCount}`);
   }
-
-  console.log(`✅ All items loaded. Total: ${previousCount}`);
-}
 
   async function handleStopVideoError(page: Page) {
     // Anchor on the error text
@@ -285,39 +339,39 @@ async function waitForItemlist(section: Locator) {
     }
   }
 
-async function scrollToLoadAllModules(page: Page) {
-  const modules = page.getByTestId('course-module');
+  async function scrollToLoadAllModules(page: Page) {
+    const modules = page.getByTestId('course-module');
 
-  // 1️⃣ Wait for at least one module
-  await modules.first().waitFor({ state: 'visible', timeout: 30_000 });
+    // 1️⃣ Wait for at least one module
+    await modules.first().waitFor({ state: 'visible', timeout: 30_000 });
 
-  let previousCount = await modules.count();
-  let stableIterations = 0;
-  const MAX_STABLE_ITERATIONS = 3;
+    let previousCount = await modules.count();
+    let stableIterations = 0;
+    const MAX_STABLE_ITERATIONS = 3;
 
-  console.log(`🔎 Initial modules visible: ${previousCount}`);
+    console.log(`🔎 Initial modules visible: ${previousCount}`);
 
-  while (stableIterations < MAX_STABLE_ITERATIONS) {
-    // Scroll the last module into view
-    await modules.nth(previousCount - 1).scrollIntoViewIfNeeded();
+    while (stableIterations < MAX_STABLE_ITERATIONS) {
+      // Scroll the last module into view
+      await modules.nth(previousCount - 1).scrollIntoViewIfNeeded();
 
-    // Give React time to render lazy content
-    await page.waitForTimeout(300); 
+      // Give React time to render lazy content
+      await page.waitForTimeout(300);
 
-    const currentCount = await modules.count();
-    console.log(`🔎 Modules visible so far: ${currentCount}`);
+      const currentCount = await modules.count();
+      console.log(`🔎 Modules visible so far: ${currentCount}`);
 
-    if (currentCount === previousCount) {
-      stableIterations++;
-      console.log(`⏳ No new modules detected (${stableIterations}/${MAX_STABLE_ITERATIONS})`);
-    } else {
-      stableIterations = 0;
-      previousCount = currentCount;
+      if (currentCount === previousCount) {
+        stableIterations++;
+        console.log(`⏳ No new modules detected (${stableIterations}/${MAX_STABLE_ITERATIONS})`);
+      } else {
+        stableIterations = 0;
+        previousCount = currentCount;
+      }
     }
-  }
 
-  console.log('✅ All modules loaded');
-}
+    console.log('✅ All modules loaded');
+  }
 
   async function attemptQuiz(page: Page) {
     // Loop until quiz is completed
@@ -391,106 +445,100 @@ async function scrollToLoadAllModules(page: Page) {
 
   await scrollToLoadAllModules(page);
 
-// Get all module containers
-const modules = page.getByTestId('course-module');
+  // Get all module containers
+  const modules = page.getByTestId('course-module');
 
-const moduleCount = await modules.count();
-console.log(`📦 Found ${moduleCount} modules`);
+  const moduleCount = await modules.count();
+  console.log(`📦 Found ${moduleCount} modules`);
 
+  for (let m = 0; m < moduleCount; m++) {
+    const module = modules.nth(m);
 
-for (let m = 0; m < moduleCount; m++) {
+    await module.scrollIntoViewIfNeeded();
+    await expect(module).toBeVisible();
 
-  const module = modules.nth(m);
+    const moduleName = (await module.getByTestId('course-module-toggle').textContent())?.trim();
 
-  await module.scrollIntoViewIfNeeded();
-  await expect(module).toBeVisible();
+    console.log(`📦 Module [${m}] | Name: ${moduleName}`);
 
-  const moduleName = (await module
-    .getByTestId('course-module-toggle')
-    .textContent())?.trim();
+    // Expand module
+    const moduleToggle = module.getByTestId('course-module-toggle');
+    await moduleToggle.click();
+    await expandIfCollapsed(moduleToggle);
 
-  console.log(`📦 Module [${m}] | Name: ${moduleName}`);
-
-  // Expand module 
-  const moduleToggle = module.getByTestId('course-module-toggle');
-  await moduleToggle.click();
-  await expandIfCollapsed(moduleToggle);
-
-  /* ----------------------------------------------------------------
+    /* ----------------------------------------------------------------
      🔹 Detect SECTIONS
   ---------------------------------------------------------------- */
 
-  const sections = module.getByTestId('course-section');
-  const sectionCount = await sections.count();
+    const sections = module.getByTestId('course-section');
+    const sectionCount = await sections.count();
 
-  console.log(`📂 Found ${sectionCount} sections in module`);
+    console.log(`📂 Found ${sectionCount} sections in module`);
 
-  for (let i = 0; i < sectionCount; i++) {
+    for (let i = 0; i < sectionCount; i++) {
+      const section = sections.nth(i);
 
-    const section = sections.nth(i);
+      const sectionName = (
+        await section.getByTestId('course-section-toggle').textContent()
+      )?.trim();
 
-    const sectionName = (await section
-      .getByTestId('course-section-toggle')
-      .textContent())?.trim();
+      console.log(`📂 Section [${i}]  | Name: ${sectionName}`);
 
-    console.log(`📂 Section [${i}]  | Name: ${sectionName}`);
+      const sectionToggle = section.getByTestId('course-section-toggle');
 
-    const sectionToggle = section.getByTestId('course-section-toggle');
+      await sectionToggle.click();
+      await expandIfCollapsed(sectionToggle);
 
-    await sectionToggle.click();
-    await expandIfCollapsed(sectionToggle);
+      await waitForItemlist(section);
 
-    await waitForItemlist(section);
+      const items = section.getByTestId('course-item');
+      const itemCount = await items.count();
 
-    const items = section.getByTestId('course-item');
-    const itemCount = await items.count();
+      console.log(` ▶ Found ${itemCount} items`);
 
-    console.log(` ▶ Found ${itemCount} items`);
+      for (let j = 0; j < itemCount; j++) {
+        const item = items.nth(j);
 
+        // Get item ID
+        const itemId = await item.getAttribute('data-item-id');
+        if (!itemId) continue;
+        // Click item
+        await item.click();
 
-    for (let j = 0; j < itemCount; j++) {
-      const item = items.nth(j);
+        // Wait for main header to reflect same ID, indicates item is loaded
+        await expect(page.locator('[data-testid="current-item-title"]')).toHaveAttribute(
+          'data-item-id',
+          itemId,
+          { timeout: 30000 },
+        );
 
-      // Get item ID
-      const itemId = await item.getAttribute('data-item-id');
-      if (!itemId) continue;
-      // Click item
-      await item.click();
+        console.log(`   ✅ Item ${j} loaded successfully`);
+        const lessonType = await item.getAttribute('data-item-type');
+        const rawText = (await item.textContent())?.trim() || '';
+        const itemName = rawText.replace(/completed/i, '').trim();
 
-      // Wait for main header to reflect same ID, indicates item is loaded
-      await expect(
-        page.locator('[data-testid="current-item-title"]')
-      ).toHaveAttribute('data-item-id', itemId, { timeout: 30000 });
+        console.log(`\n➡ Selecting item [${j}]`);
+        console.log(`   Type: ${lessonType}`);
+        console.log(`   Name: ${itemName}`);
 
-      console.log(`   ✅ Item ${j} loaded successfully`);
-      const lessonType = await item.getAttribute('data-item-type');
-      const rawText = (await item.textContent())?.trim() || '';
-      const itemName = rawText.replace(/completed/i, '').trim();
+        // Act based on lesson type
+        if (lessonType === 'video') {
+          console.log('   🎬 Video detected');
 
-      console.log(`\n➡ Selecting item [${j}]`);
-      console.log(`   Type: ${lessonType}`);
-      console.log(`   Name: ${itemName}`);      
+          await playAndWaitForCompletion(page);
+          await handleStopVideoError(page);
 
-      // Act based on lesson type
-      if (lessonType === 'video') {
-        console.log('   🎬 Video detected');
+          console.log(`item [${j}] 🎬 Video completed`);
+        } else if (lessonType === 'quiz') {
+          console.log('   📝 Quiz detected');
 
-        await playAndWaitForCompletion(page); 
-        await handleStopVideoError(page);
+          await attemptQuiz(page);
 
-        console.log(`item [${j}] 🎬 Video completed`);
-      } 
-      else if (lessonType === 'quiz') {
-        console.log('   📝 Quiz detected');
-
-        await attemptQuiz(page);
-
-        console.log(` item [${j}] 📝 Quiz completed`);
-      } 
-      else {
-        console.log(`   ℹ️ Unsupported lesson type: ${lessonType}`);
+          console.log(` item [${j}] 📝 Quiz completed`);
+        } else {
+          console.log(`   ℹ️ Unsupported lesson type: ${lessonType}`);
+        }
       }
-    } 
     }
   }
   console.log('✅ Course video playback verified');

@@ -341,7 +341,7 @@ export default function CourseEnrollments() {
     try {
       const userIds = Array.from(selectedUsers)
 
-      await bulkUnenrollMutation.mutateAsync({// need to be changed for cohort support
+      await bulkUnenrollMutation.mutateAsync({
         params: {
           path: {
             courseId,
@@ -573,7 +573,6 @@ export default function CourseEnrollments() {
     statusTab,
     cohort,
   );
-
   // Active / Inactive tab
   useEffect(() => {
     setCurrentPage(1)
@@ -887,7 +886,8 @@ export default function CourseEnrollments() {
     selectedUser?.id,
     courseId,
     versionId,
-    isViewProgressDialogOpen && showCourseStructure
+    isViewProgressDialogOpen && showCourseStructure,
+    selectedUser?.cohortId
   )
 
 
@@ -902,7 +902,6 @@ export default function CourseEnrollments() {
     isViewProgressDialogOpen,
     selectedUser?.cohortId
   )
-
   // API 3: Course structure — fetched lazily when View Course Structure is clicked
   const {
     data: courseStructureData,
@@ -911,7 +910,8 @@ export default function CourseEnrollments() {
     selectedUser?.id,
     courseId,
     versionId,
-    isViewProgressDialogOpen && showCourseStructure
+    isViewProgressDialogOpen && showCourseStructure,
+    selectedUser?.cohortId
   )
 
   // ===== Derived progress helpers =====
@@ -1015,82 +1015,6 @@ export default function CourseEnrollments() {
               </Card>
             ))}
           </div>
-          {/* Active Tab */}
-          <Tabs>
-            <TabsContent value="ACTIVE" className="mt-4">
-              <EnrollmentsTable
-                totalDocuments={totalDocuments}
-                studentEnrollments={filteredStudentEnrollments}
-                enrollmentsLoading={enrollmentsLoading}
-                isSearching={isSearching}
-                enrollmentTab={enrollmentTab}
-                searchQuery={searchQuery}
-                limit={limit}
-                handleLimitChange={handleLimitChange}
-                handleSort={handleSort}
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                isLoadingQuizScores={isLoadingQuizScores}
-                setIsExporting={setIsExporting}
-                unenrollMutation={unenrollMutation}
-                user={user}
-                handleViewProgress={handleViewProgress}
-                handleRemoveStudent={handleRemoveStudent}
-                getRoleBadge={getRoleBadge}
-                isSelectionMode={isSelectionMode}
-                selectedUsers={selectedUsers}
-                onSelectUser={handleSelectUser}
-                onSelectAll={handleSelectAll}
-                toggleSelectionMode={toggleSelectionMode}
-                handleBulkUnenroll={handleBulkUnenroll}
-                setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
-                timeSlotsData={timeSlotsData}
-                getStudentTimeSlot={getStudentTimeSlot}
-                version={version}
-                cohort={cohort}
-                setCohort={setCohort}
-              />
-            </TabsContent>
-
-
-            {/* Inactive Tab */}
-            <TabsContent value="INACTIVE" className="mt-4">
-              <EnrollmentsTable
-                totalDocuments={totalDocuments}
-                studentEnrollments={studentEnrollments}
-                enrollmentsLoading={enrollmentsLoading}
-                isSearching={isSearching}
-                enrollmentTab={enrollmentTab}
-                searchQuery={searchQuery}
-                limit={limit}
-                handleLimitChange={handleLimitChange}
-                handleSort={handleSort}
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                isLoadingQuizScores={isLoadingQuizScores}
-                setIsExporting={setIsExporting}
-                unenrollMutation={unenrollMutation}
-                user={user}
-                handleViewProgress={handleViewProgress}
-                handleRemoveStudent={handleRemoveStudent}
-                getRoleBadge={getRoleBadge}
-                isSelectionMode={false}
-                selectedUsers={new Set()}
-                onSelectUser={handleSelectUser}
-                onSelectAll={handleSelectAll}
-                toggleSelectionMode={toggleSelectionMode}
-                handleBulkUnenroll={handleBulkUnenroll}
-                setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
-                timeSlotsData={timeSlotsData}
-                getStudentTimeSlot={getStudentTimeSlot}
-                version={version}
-                cohort={cohort}
-                setCohort={setCohort}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
-
 
         {/* Search */}
         <div className="flex flex-col sm:flex-row gap-4">
@@ -1160,129 +1084,121 @@ export default function CourseEnrollments() {
                 Active Students({activeCount})
               </TabsTrigger>
 
-              <TabsTrigger
-                value="INACTIVE"
-                className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
-              >
-                Inactive Students({inactiveCount})
-              </TabsTrigger>
-            </TabsList>
-          </div>
-          {/* Active Tab */}
-          <TabsContent value="ACTIVE" className="mt-4">
-            <EnrollmentsTable
-              studentEnrollments={filteredStudentEnrollments}
-              enrollmentsLoading={enrollmentsLoading}
-              isSearching={isSearching}
-              enrollmentTab={enrollmentTab}
-              searchQuery={searchQuery}
-              limit={limit}
-              handleLimitChange={handleLimitChange}
-              handleSort={handleSort}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              isLoadingQuizScores={isLoadingQuizScores}
-              setIsExporting={setIsExporting}
-              unenrollMutation={unenrollMutation}
-              user={user}
-              handleViewProgress={handleViewProgress}
-              handleRemoveStudent={handleRemoveStudent}
-              isSelectionMode={isSelectionMode}
-              selectedUsers={selectedUsers}
-              onSelectUser={handleSelectUser}
-              onSelectAll={handleSelectAll}
-              toggleSelectionMode={toggleSelectionMode}
-              handleBulkUnenroll={handleBulkUnenroll}
-              setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
-              getStudentTimeSlot={getStudentTimeSlot}
-            />
-          </TabsContent>
+                <TabsTrigger
+                  value="INACTIVE"
+                  className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
+                >
+                  Inactive Students({inactiveCount})
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            {/* Active Tab */}
+            <TabsContent value="ACTIVE" className="mt-4">
+              <EnrollmentsTable
+                studentEnrollments={filteredStudentEnrollments}
+                enrollmentsLoading={enrollmentsLoading}
+                isSearching={isSearching}
+                enrollmentTab={enrollmentTab}
+                searchQuery={searchQuery}
+                limit={limit}
+                handleLimitChange={handleLimitChange}
+                handleSort={handleSort}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                isLoadingQuizScores={isLoadingQuizScores}
+                setIsExporting={setIsExporting}
+                unenrollMutation={unenrollMutation}
+                user={user}
+                handleViewProgress={handleViewProgress}
+                handleRemoveStudent={handleRemoveStudent}
+                isSelectionMode={isSelectionMode}
+                selectedUsers={selectedUsers}
+                onSelectUser={handleSelectUser}
+                onSelectAll={handleSelectAll}
+                toggleSelectionMode={toggleSelectionMode}
+                handleBulkUnenroll={handleBulkUnenroll}
+                setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
+                getStudentTimeSlot={getStudentTimeSlot}
+                version={version}
+                cohort={cohort}
+                setCohort={setCohort}
+              />
+            </TabsContent>
 
-          {/* Inactive Tab */}
-          <TabsContent value="INACTIVE" className="mt-4">
-            <EnrollmentsTable
-              studentEnrollments={studentEnrollments}
-              enrollmentsLoading={enrollmentsLoading}
-              isSearching={isSearching}
-              enrollmentTab={enrollmentTab}
-              searchQuery={searchQuery}
-              limit={limit}
-              handleLimitChange={handleLimitChange}
-              handleSort={handleSort}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              isLoadingQuizScores={isLoadingQuizScores}
-              setIsExporting={setIsExporting}
-              unenrollMutation={unenrollMutation}
-              user={user}
-              handleViewProgress={handleViewProgress}
-              handleRemoveStudent={handleRemoveStudent}
-              isSelectionMode={false}
-              selectedUsers={new Set()}
-              onSelectUser={handleSelectUser}
-              onSelectAll={handleSelectAll}
-              toggleSelectionMode={toggleSelectionMode}
-              handleBulkUnenroll={handleBulkUnenroll}
-              setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
-              getStudentTimeSlot={getStudentTimeSlot}
-            />
-          </TabsContent>
-        </Tabs>
+            {/* Inactive Tab */}
+            <TabsContent value="INACTIVE" className="mt-4">
+              <EnrollmentsTable
+                studentEnrollments={studentEnrollments}
+                enrollmentsLoading={enrollmentsLoading}
+                isSearching={isSearching}
+                enrollmentTab={enrollmentTab}
+                searchQuery={searchQuery}
+                limit={limit}
+                handleLimitChange={handleLimitChange}
+                handleSort={handleSort}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                isLoadingQuizScores={isLoadingQuizScores}
+                setIsExporting={setIsExporting}
+                unenrollMutation={unenrollMutation}
+                user={user}
+                handleViewProgress={handleViewProgress}
+                handleRemoveStudent={handleRemoveStudent}
+                isSelectionMode={false}
+                selectedUsers={new Set()}
+                onSelectUser={handleSelectUser}
+                onSelectAll={handleSelectAll}
+                toggleSelectionMode={toggleSelectionMode}
+                handleBulkUnenroll={handleBulkUnenroll}
+                setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
+                getStudentTimeSlot={getStudentTimeSlot}
+                version={version}
+                cohort={cohort}
+                setCohort={setCohort}
+              />
+            </TabsContent>
+          </Tabs>
 
 
         {/* Enhanced View Progress Modal */}
 
-        {isViewProgressDialogOpen && selectedUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
-            {/* Enhanced Backdrop */}
-            <div
-              className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
-              onClick={() => setIsViewProgressDialogOpen(false)}
-            />
-            {/* Enhanced Modal */}
-            <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-4xl w-full mx-4 p-8 space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
-              {/* Header */}
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl md:text-2xl font-semibold text-card-foreground">Student Progress Details</h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsViewProgressDialogOpen(false)}
-                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-                {/* Enhanced Student Info */}
+          {isViewProgressDialogOpen && selectedUser && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+              {/* Enhanced Backdrop */}
+              <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+                onClick={() => setIsViewProgressDialogOpen(false)}
+              />
+              {/* Enhanced Modal */}
+              <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-4xl w-full mx-4 p-8 space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl md:text-2xl font-semibold text-card-foreground">Student Progress Details</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsViewProgressDialogOpen(false)}
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Enhanced Student Info & Content Summary */}
                 <div className="flex flex-wrap items-center gap-4 p-6 bg-gradient-to-r from-muted/30 to-muted/10 rounded-xl border border-border">
                   <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md">
                     <AvatarImage src={selectedUser.avatar || "/placeholder.svg"} alt={selectedUser.name} />
                     <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold">
-                      {selectedUser.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
+                      {selectedUser.name.split(" ").map((n) => n[0]).join("")}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <p className="font-medium text-card-foreground truncate text-base md:text-lg">{selectedUser.name}</p>
                     <p className="text-muted-foreground truncate">{selectedUser.email}</p>
                     {selectedUser.cohortName && (
-                      <p className="text-muted-foreground truncate">(Cohort-{selectedUser.cohortName})</p>
+                      <p className="text-muted-foreground truncate">Cohort: {selectedUser.cohortName}</p>
                     )}
                   </div>
-
-                  {/* Enhanced Student Info & Content Summary */}
-                  <div className="flex flex-wrap items-center gap-4 p-6 bg-gradient-to-r from-muted/30 to-muted/10 rounded-xl border border-border">
-                    <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md">
-                      <AvatarImage src={selectedUser.avatar || "/placeholder.svg"} alt={selectedUser.name} />
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold">
-                        {selectedUser.name.split(" ").map((n) => n[0]).join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="font-medium text-card-foreground truncate text-base md:text-lg">{selectedUser.name}</p>
-                      <p className="text-muted-foreground truncate">{selectedUser.email}</p>
-                    </div>
 
                     {/* Content Summary — loaded from API 2 */}
                     <div className="border border-border rounded-lg ml-auto p-3 min-w-[240px]">
@@ -1365,190 +1281,117 @@ export default function CourseEnrollments() {
                           </div>
                         )}
 
-                        {currentPath && currentPath.module && (
-                          <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                            <span className="px-2 py-1 rounded bg-blue-100 text-blue-700">
-                              {currentPath.module.name}
-                            </span>
+                      {currentPath && currentPath.module && (
+                        <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                          <span className="px-2 py-1 rounded bg-blue-100 text-blue-700">
+                            {currentPath.module.name}
+                          </span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          <span className="px-2 py-1 rounded bg-emerald-100 text-emerald-700">
+                            {currentPath.section.name}
+                          </span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          <span className="px-2 py-1 rounded bg-purple-100 text-purple-700">
+                            {currentPath.item.name}
+                          </span>
+                          <span className="ml-2 text-xs px-2 py-0.5 rounded border">
+                            {currentPath.item.type}
+                          </span>
+                        </div>
+                      )}
+                    </div>
 
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-
-                            <span className="px-2 py-1 rounded bg-emerald-100 text-emerald-700">
-                              {currentPath.section.name}
-                            </span>
-
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-
-                            <span className="px-2 py-1 rounded bg-purple-100 text-purple-700">
-                              {currentPath.item.name}
-                            </span>
-                            {/* Course Structure */}
-                            <div className="space-y-4">
-                              {enrollmentTab === "ACTIVE" && (
-                                <div className="flex justify-between">
-                                  <TooltipProvider delayDuration={300}>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={() =>
-                                            handleResetProgress({
-                                              id: selectedUser.id,
-                                              name: `${selectedUser.name || ""}`.trim() || "Unknown User",
-                                              email: selectedUser.email,
-                                              enrolledDate: selectedUser.enrolledDate,
-                                              progress: 0,
-                                              cohortId: selectedUser.cohortId,
-                                              cohortName: selectedUser.cohortName,
-                                            })
-                                          }
-                                          className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
-                                          disabled={resetProgressMutation.isPending || selectedUser.isDeleted}
-                                        >
-                                          {resetProgressMutation.isPending ? (
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                          ) : (
-                                            <RotateCcw className="h-4 w-4 mr-2" />
-                                          )}
-                                          Reset
-                                        </Button>
-                                      </TooltipTrigger>
-
-                                      <TooltipContent>
-                                        <p>Reset student progress</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={() =>
-                                            handleRecalculateProgress({
-                                              id: selectedUser.id,
-                                              name: `${selectedUser.name || ""}`.trim() || "Unknown User",
-                                              email: selectedUser.email,
-                                              enrolledDate: selectedUser.enrolledDate,
-                                              progress: 0,
-                                              cohortId: selectedUser.cohortId,
-                                              cohortName: selectedUser.cohortName,
-                                            })
-                                          }
-                                          className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
-                                          disabled={
-                                            unenrollMutation.isPending ||
-                                            user?.email == selectedUser.email ||
-                                            selectedUser.isDeleted
-                                          }
-                                        >
-                                          {unenrollMutation.isPending ? (
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                          ) : (
-                                            <RotateCcw className="h-4 w-4 mr-2" />
-                                          )}
-                                          Recalculate
-                                        </Button>
-                                      </TooltipTrigger>
-
-                                      <span className="ml-2 text-xs px-2 py-0.5 rounded border">
-                                        {currentPath.item.type}
-                                      </span>
-                                    </Tooltip>
-                                  </TooltipProvider>
-
-
-                                  {/* Course Structure */}
-                                  <div className="space-y-4">
-                                    {enrollmentTab === "ACTIVE" && (
-                                      <div className="flex justify-between">
-                                        <TooltipProvider delayDuration={300}>
-                                          <Tooltip>
-                                            <TooltipTrigger asChild>
-                                              <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() =>
-                                                  handleResetProgress({
-                                                    id: selectedUser.id,
-                                                    name: `${selectedUser.name || ""}`.trim() || "Unknown User",
-                                                    email: selectedUser.email,
-                                                    enrolledDate: selectedUser.enrolledDate,
-                                                    progress: 0,
-                                                  })
-                                                }
-                                                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
-                                                disabled={resetProgressMutation.isPending || selectedUser.isDeleted}
-                                              >
-                                                {resetProgressMutation.isPending ? (
-                                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                ) : (
-                                                  <RotateCcw className="h-4 w-4 mr-2" />
-                                                )}
-                                                Reset
-                                              </Button>
-                                            </TooltipTrigger>
-
-                                            <TooltipContent>
-                                              <p>Reset student progress</p>
-                                            </TooltipContent>
-                                          </Tooltip>
-                                        </TooltipProvider>
-                                        <TooltipProvider>
-                                          <Tooltip>
-                                            <TooltipTrigger asChild>
-                                              <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() =>
-                                                  handleRecalculateProgress({
-                                                    id: selectedUser.id,
-                                                    name: `${selectedUser.name || ""}`.trim() || "Unknown User",
-                                                    email: selectedUser.email,
-                                                    enrolledDate: selectedUser.enrolledDate,
-                                                    progress: 0,
-                                                  })
-                                                }
-                                                className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
-                                                disabled={
-                                                  unenrollMutation.isPending ||
-                                                  user?.email == selectedUser.email ||
-                                                  selectedUser.isDeleted
-                                                }
-                                              >
-                                                {unenrollMutation.isPending ? (
-                                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                ) : (
-                                                  <RotateCcw className="h-4 w-4 mr-2" />
-                                                )}
-                                                Recalculate
-                                              </Button>
-                                            </TooltipTrigger>
-
-                                            <TooltipContent>Recalculate student progress</TooltipContent>
-                                          </Tooltip>
-                                        </TooltipProvider>
-                                      </div>
-                                    )}
-                                    {/* add the code here */}
-                                    <h3 className="text-lg font-semibold text-foreground">Course Structure</h3>
-                                    <div className="space-y-2 max-h-96 overflow-y-auto border border-border rounded-lg p-4">
-                                      {getAvailableModules().map((module: any) => (
-                                        <div key={module.moduleId} className="space-y-2">
-                                          {/* Module */}
-                                          <div
-                                            className="flex items-center gap-2 p-3 bg-muted/20 rounded-lg cursor-pointer hover:bg-muted/30 transition-colors"
-                                            onClick={() => toggleModule(module.moduleId)}
-                                          >
-                                            {expandedModules.has(module.moduleId) ? (
-                                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                            ) : (
-                                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                            )}
-                                            <BookOpen className="h-5 w-5 text-blue-600" />
-                                            <span className="font-semibold text-foreground flex-1">{module.name}</span>
+                    {/* Course Structure */}
+                    <div className="space-y-4">
+                      {enrollmentTab === "ACTIVE" && (
+                        <div className="flex justify-between">
+                          <TooltipProvider delayDuration={300}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleResetProgress({
+                                      id: selectedUser.id,
+                                      name: `${selectedUser.name || ""}`.trim() || "Unknown User",
+                                      email: selectedUser.email,
+                                      enrolledDate: selectedUser.enrolledDate,
+                                      progress: 0,
+                                      cohortId: selectedUser.cohortId,
+                                      cohortName: selectedUser.cohortName,
+                                    })
+                                  }
+                                  className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
+                                  disabled={resetProgressMutation.isPending || selectedUser.isDeleted}
+                                >
+                                  {resetProgressMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <RotateCcw className="h-4 w-4 mr-2" />
+                                  )}
+                                  Reset
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Reset student progress</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleRecalculateProgress({
+                                      id: selectedUser.id,
+                                      name: `${selectedUser.name || ""}`.trim() || "Unknown User",
+                                      email: selectedUser.email,
+                                      enrolledDate: selectedUser.enrolledDate,
+                                      progress: 0,
+                                      cohortId: selectedUser.cohortId,
+                                      cohortName: selectedUser.cohortName,
+                                    })
+                                  }
+                                  className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+                                  disabled={
+                                    unenrollMutation.isPending ||
+                                    user?.email == selectedUser.email ||
+                                    selectedUser.isDeleted
+                                  }
+                                >
+                                  {unenrollMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <RotateCcw className="h-4 w-4 mr-2" />
+                                  )}
+                                  Recalculate
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Recalculate student progress</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      )}
+                      {/* add the code here */}
+                      <h3 className="text-lg font-semibold text-foreground">Course Structure</h3>
+                      <div className="space-y-2 max-h-96 overflow-y-auto border border-border rounded-lg p-4">
+                        {getAvailableModules().map((module: any) => (
+                          <div key={module.moduleId} className="space-y-2">
+                            {/* Module */}
+                            <div
+                              className="flex items-center gap-2 p-3 bg-muted/20 rounded-lg cursor-pointer hover:bg-muted/30 transition-colors"
+                              onClick={() => toggleModule(module.moduleId)}
+                            >
+                              {expandedModules.has(module.moduleId) ? (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              )}
+                              <BookOpen className="h-5 w-5 text-blue-600" />
+                              <span className="font-semibold text-foreground flex-1">{module.name}</span>
 
                                             {/* Module completion count */}
                                             {(() => {
@@ -1757,110 +1600,75 @@ export default function CourseEnrollments() {
 
                               </div>
 
-                              <div className="flex justify-end gap-3 pt-4">
-                                <Button
-                                  variant="outline"
-                                  onClick={() => setIsRecalculateProgressOpen(false)}
-                                  className="min-w-[100px] cursor-pointer"
-                                >
-                                  No, Cancel
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  onClick={confirmReCalculateProgress}
-                                  disabled={recalculateMutation.isPending}
-                                  className="min-w-[100px] shadow-lg cursor-pointer"
-                                >
-                                  {unenrollMutation.isPending ? (
-                                    <>
-                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                      Recalculating...
-                                    </>
-                                  ) : (
-                                    "Yes, Recalculate"
-                                  )}
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsRecalculateProgressOpen(false)}
+                    className="min-w-[100px] cursor-pointer"
+                  >
+                    No, Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={confirmReCalculateProgress}
+                    disabled={recalculateMutation.isPending}
+                    className="min-w-[100px] shadow-lg cursor-pointer"
+                  >
+                    {recalculateStudentMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Recalculating...
+                      </>
+                    ) : (
+                      "Yes, Recalculate"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+        )}
 
-                        {/* Enhanced Reset Progress Modal */}
-                        {isResetDialogOpen && (
-                          <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
-                            <div
-                              className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
-                              onClick={() => setIsResetDialogOpen(false)}
-                            />
-                            <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-3xl w-full mx-4 sm:p-8 p-4 space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
-                              <div className="flex items-center justify-between">
-                                <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Reset Student Progress</h2>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setIsResetDialogOpen(false)}
-                                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
 
-                              {selectedUser && (
-                                <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-muted/30 to-muted/10 rounded-xl border border-border">
-                                  <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md">
-                                    <AvatarImage src={selectedUser.avatar || "/placeholder.svg"} alt={selectedUser.name} />
-                                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold">
-                                      {selectedUser.name
-                                        .split(" ")
-                                        .map((n) => n[0])
-                                        .join("")}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="font-bold text-card-foreground truncate text-lg">{selectedUser.name}</p>
-                                    <p className="text-muted-foreground truncate">{selectedUser.email}</p>
-                                    <p className="text-muted-foreground truncate">Cohort: {selectedUser.cohortName}</p>
-                                  </div>
-                                </div>
-                              )}
+          {/* Enhanced Reset Progress Modal */}
+          {isResetDialogOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+              <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+                onClick={() => setIsResetDialogOpen(false)}
+              />
+              <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-3xl w-full mx-4 sm:p-8 p-4 space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Reset Student Progress</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsResetDialogOpen(false)}
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
 
-                              {/* Enhanced Reset Progress Modal */}
-                              {isResetDialogOpen && (
-                                <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
-                                  <div
-                                    className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
-                                    onClick={() => setIsResetDialogOpen(false)}
-                                  />
-                                  <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-3xl w-full mx-4 sm:p-8 p-4 space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
-                                    <div className="flex items-center justify-between">
-                                      <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Reset Student Progress</h2>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setIsResetDialogOpen(false)}
-                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-
-                                    {selectedUser && (
-                                      <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-muted/30 to-muted/10 rounded-xl border border-border">
-                                        <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md">
-                                          <AvatarImage src={selectedUser.avatar || "/placeholder.svg"} alt={selectedUser.name} />
-                                          <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold">
-                                            {selectedUser.name
-                                              .split(" ")
-                                              .map((n) => n[0])
-                                              .join("")}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                        <div className="min-w-0 flex-1">
-                                          <p className="font-bold text-card-foreground truncate text-lg">{selectedUser.name}</p>
-                                          <p className="text-muted-foreground truncate">{selectedUser.email}</p>
-                                        </div>
-                                      </div>
-                                    )}
+                {selectedUser && (
+                  <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-muted/30 to-muted/10 rounded-xl border border-border">
+                    <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md">
+                      <AvatarImage src={selectedUser.avatar || "/placeholder.svg"} alt={selectedUser.name} />
+                      <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold">
+                        {selectedUser.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-card-foreground truncate text-lg">{selectedUser.name}</p>
+                      <p className="text-muted-foreground truncate">{selectedUser.email}</p>
+                      {selectedUser.cohortName && (
+                        <p className="text-muted-foreground truncate">Cohort: {selectedUser.cohortName}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                                     <p className="text-muted-foreground">
                                       Choose the scope of progress reset for this student in{" "}
@@ -2271,6 +2079,9 @@ interface EnrollmentsTableProps {
   handleBulkUnenroll: () => void;
   setIsTimeSlotsModalOpen: (open: boolean) => void;
   getStudentTimeSlot: (userId: string) => any;
+  version: any;
+  cohort: string | null;
+  setCohort: (cohort: string | null) => void;
 }
 
 function EnrollmentsTable({
@@ -2301,7 +2112,7 @@ function EnrollmentsTable({
   version,
   cohort,
   setCohort,
-}: any) {
+}: EnrollmentsTableProps) {
   const isInactiveTab = enrollmentTab === "INACTIVE"
 
   return (
@@ -2382,11 +2193,11 @@ function EnrollmentsTable({
                     setCohort(id);
                   }}
                 >
-                  <DropdownMenuRadioItem
-                    value={""}
-                    onClick={() => setCohort(undefined)}>
-                    All Cohorts
-                  </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem
+              value={""}
+              onClick={() => setCohort(null)}>
+              All Cohorts
+            </DropdownMenuRadioItem>
                   {(version as any)?.cohortDetails?.map((cohort: any) => (
                     <DropdownMenuRadioItem
                       key={cohort.id}
