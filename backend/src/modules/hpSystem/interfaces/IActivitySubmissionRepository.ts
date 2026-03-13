@@ -55,4 +55,12 @@ export interface IActivitySubmissionRepository {
     getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number>
 
     updateFeedbackById(id: string, feedback: SubmissionFeedbackItem, session?: ClientSession): Promise<boolean>
+
+    findByStudentAndActivity(
+        studentId: string,
+        activityId: string,
+        options?: { session?: ClientSession }
+    ): Promise<HpActivitySubmission | null>
+
+    findAllByActivityId(activityId: string): Promise<HpActivitySubmission[]>
 }

@@ -261,5 +261,26 @@ export class CohortRepository implements ICohortRepository {
         return updateResult.modifiedCount > 0;
     }
 
+    async getCurrentHpPoints(
+        userId: ID,
+        courseId: ID,
+        courseVersionId: ID,
+        session?: ClientSession,
+    ): Promise<number> {
+        await this.init();
+
+        const enrollment = await this.enrollmentCollection.findOne(
+            {
+                userId: { $in: [userId, new ObjectId(userId)] },
+                courseId: { $in: [courseId, new ObjectId(courseId)] },
+                courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+                isDeleted: { $ne: true },
+            },
+            { session }
+        );
+
+        return enrollment?.hpPoints ?? 0;
+    }
+
 
 }

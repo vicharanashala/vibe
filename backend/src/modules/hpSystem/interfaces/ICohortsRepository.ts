@@ -44,4 +44,11 @@ export interface ICohortRepository {
         amount: number,
         session?: ClientSession,
     ): Promise<boolean>
+
+    getCurrentHpPoints(
+        userId: ID,
+        courseId: ID,
+        courseVersionId: ID,
+        session?: ClientSession,
+    ): Promise<number>
 }

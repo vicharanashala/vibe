@@ -1,13 +1,10 @@
-import { getContainer } from "../loadModules.js";
-
-
-import { appConfig } from '#root/config/app.js';
+import { allocatePenality } from "#root/modules/hpSystem/utils/allocatePenality.js";
 import { dbConfig } from '#root/config/db.js';
-import { createLocalBackup } from '#root/utils/backup-cron.js';
 import cron from 'node-cron';
+import { appConfig } from "#root/config/app.js";
 
 cron.schedule(
-    '2 * * * *',
+    '*/5 * * * *',  // every 5 minutes
     async () => {
         console.log('Cron job started for hp system checks...');
 
@@ -15,13 +12,14 @@ cron.schedule(
         const DB = dbConfig.dbName;
         try {
             const ENABLE_HP_JOB = appConfig.ENABLE_HP_JOB;
+            
             if (ENABLE_HP_JOB) {
-
-            } else {
-                console.log('Skipped backup ENABLE_DB_BACKUP==', ENABLE_HP_JOB);
-            }
+                console.log('⚡ Running penalty allocation job...');
+                await allocatePenality();
+                console.log('✅ Penalty allocation job completed');
+            } 
         } catch (err) {
-            console.error('❌ Backup Failed:', err);
+            console.error('❌ Penalty allocation job failed:', err);
         }
     },
     {

@@ -450,4 +450,28 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         return true;
     }
 
+    async findByStudentAndActivity(
+        studentId: string,
+        activityId: string,
+        options?: { session?: ClientSession }
+    ): Promise<HpActivitySubmission | null> {
+        await this.init();
+
+        return await this.hpActivitySubmissionCollection.findOne(
+            {
+                studentId: new ObjectId(studentId),
+                activityId: new ObjectId(activityId),
+            },
+            options?.session ? { session: options.session } : undefined
+        );
+    }
+
+    async findAllByActivityId(activityId: string): Promise<HpActivitySubmission[]> {
+        await this.init();
+
+        return await this.hpActivitySubmissionCollection.find({
+            activityId: new ObjectId(activityId),
+        }).toArray();
+    }
+
 }
