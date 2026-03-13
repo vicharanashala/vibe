@@ -635,7 +635,7 @@ const routeTree = rootRoute.addChildren([
     teacherHpSystemDashboardRoute,
     teacherCreateHpActivityRoute,
     teacherStudentLedgerRoute,
-    teacherStudentSubmissionsRoute
+    teacherStudentSubmissionsRoute,
     teacherConfigureCohortsRoute
   ]),
   studentLayoutRoute.addChildren([
