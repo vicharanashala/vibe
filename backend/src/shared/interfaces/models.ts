@@ -451,6 +451,14 @@ export interface ICohort {
   isPublic: boolean;
 }
 
+export interface ICohortSettings{
+  _id?: string | ObjectId | null;
+  courseVersionId: string | ObjectId;
+  cohortId: string | ObjectId;
+  registrationsAutoApproved: boolean,
+  autoapproval_emails: string[]
+}
+
 export interface IUserActivityEvent {
   _id?: string | ObjectId | null;
   userId: string | ObjectId;
@@ -560,6 +568,7 @@ export interface ISettings {
     isActive?: boolean;
     registrationsAutoApproved?: boolean;
     autoapproval_emails?: string[];
+    cohortSettings?: ObjectId[];
   };
   timeslots?: {
     isActive: boolean;

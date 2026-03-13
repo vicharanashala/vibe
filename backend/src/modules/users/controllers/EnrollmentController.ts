@@ -170,8 +170,8 @@ export class EnrollmentController {
   })
   async unenrollUser(
     @Params() params: EnrollmentParams,
-    @Ability(getEnrollmentAbility) {ability, user},
-    @Body() body: {cohortId?: string},
+    @Ability(getEnrollmentAbility) { ability, user },
+    @Body() body: { cohortId?: string },
     @Req() req: Request,
   ): Promise<EnrollUserResponse> {
 
@@ -549,9 +549,9 @@ export class EnrollmentController {
   async getStudentProgressDetail(
     @Params() params: EnrollmentParams,
     @Ability(getEnrollmentAbility) { ability }: any,
+    @QueryParam('cohortId') cohortId?: string,
   ): Promise<any> {
     const { userId, courseId, versionId } = params;
-
     const enrollmentResource = subject('Enrollment', { courseId, versionId });
     if (!ability.can(EnrollmentActions.ViewAll, enrollmentResource)) {
       throw new ForbiddenError(
@@ -563,6 +563,7 @@ export class EnrollmentController {
       userId,
       courseId,
       versionId,
+      cohortId
     );
 
     if (!detail) {
@@ -582,6 +583,7 @@ export class EnrollmentController {
   async getStudentCourseStructure(
     @Params() params: EnrollmentParams,
     @Ability(getEnrollmentAbility) { ability }: any,
+    @QueryParam('cohortId') cohortId?: string,
   ): Promise<any> {
     const { userId, courseId, versionId } = params;
 
@@ -596,8 +598,8 @@ export class EnrollmentController {
       userId,
       courseId,
       versionId,
+      cohortId
     );
-
     if (!structure) {
       return { message: 'Enrollment not found' };
     }
@@ -659,7 +661,7 @@ export class EnrollmentController {
   @OpenAPI({
     summary: 'Get enrollment statistics for a course version',
     description:
-      'Provides total enrollments, completed enrollments count, and average progress percentage for a specific course version.',
+      'Provides total enrollments, completed enrollments count, average progress percentage, and average watch hours per user for a specific course version.',
   })
   @Authorized()
   @Get('/enrollments/courses/:courseId/versions/:versionId/statistics')
@@ -689,12 +691,14 @@ export class EnrollmentController {
         courseId,
         versionId,
       );
+    // stats now includes averageWatchHoursPerUser
 
     if (!stats || stats.totalEnrollments === 0) {
       return {
         totalEnrollments: 0,
         completedCount: 0,
         averageProgressPercent: 0,
+        averageWatchHoursPerUser: 0,
       };
     }
 

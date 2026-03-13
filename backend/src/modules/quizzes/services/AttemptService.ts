@@ -168,7 +168,7 @@ class AttemptService extends BaseService {
     attemptId: string,
     quizId: string,
     answers: IQuestionAnswer[],
-      cohort?: string,
+    cohort?: string,
     session?: ClientSession,
   ): Promise<IGradingResult> {
     //1. Fetch the attempt by ID
@@ -194,7 +194,6 @@ class AttemptService extends BaseService {
       );
       totalMaxScore += question.points;
     }
-
 
 
     // Now grade only the answered questions
@@ -522,7 +521,7 @@ class AttemptService extends BaseService {
           : attempt,
       );
 
-      await this.userQuizMetricsRepository.update(
+      const result = await this.userQuizMetricsRepository.update(
         metrics._id.toString(),
         metrics,
         session,

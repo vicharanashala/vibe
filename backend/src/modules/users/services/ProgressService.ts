@@ -1297,7 +1297,7 @@ class ProgressService extends BaseService {
         courseVersionId,
         cohortId
       );
-// console.log("---getUserProgress----", progress, cohortId);
+
       if (progress?.completed === true) {
         const courseVersion =
           await this.courseRepo.readVersion(courseVersionId);
@@ -1556,6 +1556,7 @@ class ProgressService extends BaseService {
           moduleId,
           sectionId,
           itemId,
+          cohortId,
         ),
       ]);
 
@@ -1886,7 +1887,7 @@ class ProgressService extends BaseService {
       this.progressRepository.findProgress(userId, courseId, courseVersionId, cohortId),
       this.itemRepo.readItemById(itemId)
     ]);
-// console.log("in stopitem ----", cohortId, "progress:", progress)
+
     // Validate existence of course, progress, and item
     if (!courseVersion || courseVersion.courseId.toString() !== courseId)
       throw new NotFoundError('Invalid course version');
@@ -1940,6 +1941,7 @@ class ProgressService extends BaseService {
           attemptId,
           isSkipped,
           stoppedWatchTime,
+          cohortId,
         );
       }
 
@@ -2122,6 +2124,7 @@ class ProgressService extends BaseService {
     attemptId?: string,
     isSkipped?: boolean,
     stoppedWatchTime?: IWatchTime,
+    cohortId?: string,
   ): Promise<void> {
     const WATCH_TIME_REQUIRED_ITEMS = new Set<string>(['VIDEO', 'BLOG']);
 
@@ -2140,7 +2143,7 @@ class ProgressService extends BaseService {
 
     // 3 Project validation
     if (item.type === 'PROJECT') {
-      await this.validateProjectStop(itemId, userId, courseId, courseVersionId);
+      await this.validateProjectStop(itemId, userId, courseId, courseVersionId, cohortId);
       return;
     }
   }
@@ -2186,11 +2189,13 @@ class ProgressService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
+    cohortId?: string,
   ): Promise<void> {
     const projectSubmission = await this.projectSubmissionRepo.getByUser(
       userId,
       courseVersionId,
       courseId,
+      cohortId,
     );
 
     if (

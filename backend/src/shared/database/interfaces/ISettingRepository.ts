@@ -1,10 +1,11 @@
-import { ClientSession, UpdateResult } from 'mongodb';
+import { ClientSession, ObjectId, UpdateResult } from 'mongodb';
 import {
   ICourseSetting,
   IRegistrationSettings,
   ISettings,
   IUserSetting,
   ITimeSlot,
+  ICohortSettings,
 } from '../../interfaces/models.js';
 import {
   AuditingDto,
@@ -99,10 +100,17 @@ export interface ISettingRepository {
   updateRegistrationSettings(
     courseId: string,
     versionId: string,
-    schemas: { jsonSchema: any; uiSchema: any; isActive: boolean, registrationsAutoApproved?: boolean, autoapproval_emails?: string[] },
+    schemas: { jsonSchema: any; uiSchema: any; isActive: boolean, registrationsAutoApproved?: boolean, autoapproval_emails?: string[], cohortSettings?: ObjectId[] },
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
 
+  updateCohortSettings(
+    courseId: string,
+    versionId: string,
+    schemas: { cohortSettings: ObjectId[] },
+    session?: ClientSession,
+  ): Promise<UpdateResult | null>;
+  
   /**
    * Creates new user settings.
    * @param userSettings - The user settings to create
