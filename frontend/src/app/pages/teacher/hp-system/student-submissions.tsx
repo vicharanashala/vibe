@@ -522,7 +522,7 @@ export default function StudentSubmissionsPage() {
                                                             size="sm"
                                                             className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                                             disabled={isReviewing && actionSubId === sub.submission?._id}
-                                                            onClick={() => openReasonDialog(sub.submission?._id || '', 'approve', sub.activity?.title || '', sub.hp?.baseHp || 0)}
+                                                            onClick={() => openReasonDialog(sub.submission?._id || '', 'reject', sub.activity?.title || '', sub.hp?.baseHp || 0)}
                                                         >
                                                             <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
                                                             {isReviewing && actionSubId === sub.submission?._id ? 'Rejecting...' : 'Reject'}
