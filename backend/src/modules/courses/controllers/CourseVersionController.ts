@@ -748,7 +748,7 @@ Accessible to:
     if(!existingVersion.cohorts || existingVersion.cohorts.length <= 0){
       throw new BadRequestError("This courseversion does not have any cohorts to update");
     }
-    const cohortExists = existingVersion.cohorts.some(cohort=> cohort.toString() === cohortId);
+    const cohortExists = existingVersion.cohorts.some(cohort=> cohort?.toString() === cohortId);
 
     if(!cohortExists){
       throw new BadRequestError("The requested cohort does not exists in the course version");
@@ -833,7 +833,7 @@ Accessible to:
     if(!existingVersion.cohorts || existingVersion.cohorts.length <= 0){
       throw new BadRequestError("This courseversion does not have any cohorts to delete");
     }
-    const cohortExists = existingVersion.cohorts.some(cohort=> cohort.toString() === cohortId);
+    const cohortExists = existingVersion.cohorts.some(cohort=> cohort?.toString() === cohortId);
 
     if(!cohortExists){
       throw new BadRequestError("The requested cohort does not exists in the course version");
@@ -857,7 +857,7 @@ Accessible to:
       },
       changes:{
         before:{
-          cohort: existingVersion.cohorts.find(cohort=> cohort.toString() === cohortId),
+          cohort: existingVersion.cohorts.find(cohort=> cohort?.toString() === cohortId),
         }
       },
       outcome:{

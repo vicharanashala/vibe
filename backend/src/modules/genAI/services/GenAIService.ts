@@ -1,11 +1,11 @@
-import {injectable, inject} from 'inversify';
-import {WebhookService} from './WebhookService.js';
-import {GENAI_TYPES} from '../types.js';
-import {JobBody} from '../classes/validators/GenAIValidators.js';
-import {GenAIRepository} from '../repositories/providers/mongodb/GenAIRepository.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ItemType, MongoDatabase} from '#root/shared/index.js';
-import {GLOBAL_TYPES} from '#root/types.js';
+import { injectable, inject } from 'inversify';
+import { WebhookService } from './WebhookService.js';
+import { GENAI_TYPES } from '../types.js';
+import { JobBody } from '../classes/validators/GenAIValidators.js';
+import { GenAIRepository } from '../repositories/providers/mongodb/GenAIRepository.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ItemType, MongoDatabase } from '#root/shared/index.js';
+import { GLOBAL_TYPES } from '#root/types.js';
 import {
   BadRequestError,
   InternalServerError,
@@ -28,26 +28,26 @@ import {
   trascriptGenerationData,
   UploadParameters,
 } from '../classes/transformers/GenAI.js';
-import {QuestionFactory} from '#root/modules/quizzes/classes/index.js';
-import {CreateItemBody} from '#root/modules/courses/classes/index.js';
-import {COURSES_TYPES} from '#root/modules/courses/types.js';
-import {ItemService} from '#root/modules/courses/services/ItemService.js';
-import {QuestionBank} from '#root/modules/quizzes/classes/transformers/QuestionBank.js';
-import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
+import { QuestionFactory } from '#root/modules/quizzes/classes/index.js';
+import { CreateItemBody } from '#root/modules/courses/classes/index.js';
+import { COURSES_TYPES } from '#root/modules/courses/types.js';
+import { ItemService } from '#root/modules/courses/services/ItemService.js';
+import { QuestionBank } from '#root/modules/quizzes/classes/transformers/QuestionBank.js';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import {
   QuestionBankService,
   QuizService,
 } from '#root/modules/quizzes/services/index.js';
-import {QuestionService} from '#root/modules/quizzes/services/QuestionService.js';
-import {Storage} from '@google-cloud/storage';
+import { QuestionService } from '#root/modules/quizzes/services/QuestionService.js';
+import { Storage } from '@google-cloud/storage';
 import axios from 'axios';
-import {SocksProxyAgent} from 'socks-proxy-agent';
-import {aiConfig} from '#root/config/ai.js';
-import {appConfig} from '#root/config/app.js';
-import {ANOMALIES_TYPES} from '#root/modules/anomalies/types.js';
-import {CloudStorageService} from '#root/modules/anomalies/index.js';
-import {storageConfig} from '#root/config/storage.js';
-import {ObjectId} from 'mongodb';
+import { SocksProxyAgent } from 'socks-proxy-agent';
+import { aiConfig } from '#root/config/ai.js';
+import { appConfig } from '#root/config/app.js';
+import { ANOMALIES_TYPES } from '#root/modules/anomalies/types.js';
+import { CloudStorageService } from '#root/modules/anomalies/index.js';
+import { storageConfig } from '#root/config/storage.js';
+import { ObjectId } from 'mongodb';
 
 @injectable()
 export class GenAIService extends BaseService {
@@ -92,7 +92,7 @@ export class GenAIService extends BaseService {
     userId: string,
     jobData: JobBody,
     audio?: Express.Multer.File,
-  ): Promise<{jobId: string}> {
+  ): Promise<{ jobId: string }> {
     return this._withTransaction(async session => {
       // Prepare job data and send to AI server]
       const result = await this.webhookService.AIServerCheck();
@@ -139,7 +139,7 @@ export class GenAIService extends BaseService {
         await this.genAIRepository.createTaskData(jobId, session);
       }
 
-      return {jobId};
+      return { jobId };
     });
   }
 
@@ -218,6 +218,15 @@ export class GenAIService extends BaseService {
         );
       }
       if (jobState.currentTask === TaskType.UPLOAD_CONTENT) {
+        // Persist upload parameters to DB before content upload
+        if (parameters) {
+          await this.genAIRepository.update(jobId, {
+            uploadParameters: {
+              ...job.uploadParameters,
+              ...this.removeUndefined(parameters as Partial<UploadParameters>),
+            },
+          }, session);
+        }
         const result = await this.uploadContent(jobId, jobState);
         return result;
       }
@@ -259,6 +268,15 @@ export class GenAIService extends BaseService {
         ...this.removeUndefined(parameters),
       };
       if (jobState.currentTask === TaskType.UPLOAD_CONTENT) {
+        // Persist upload parameters to DB before content upload
+        if (parameters) {
+          await this.genAIRepository.update(jobId, {
+            uploadParameters: {
+              ...job.uploadParameters,
+              ...this.removeUndefined(parameters as Partial<UploadParameters>),
+            },
+          }, session);
+        }
         const result = await this.uploadContent(jobId, jobState);
         return result;
       }
@@ -434,7 +452,7 @@ export class GenAIService extends BaseService {
       await this.storage
         .bucket(appConfig.firebase.storageBucket)
         .file(newFileName)
-        .save(Buffer.from(data), {contentType: 'application/json'});
+        .save(Buffer.from(data), { contentType: 'application/json' });
 
       task.questionGeneration[resolvedIndex].fileName = newFileName;
       task.questionGeneration[
@@ -475,7 +493,7 @@ export class GenAIService extends BaseService {
       await this.storage
         .bucket(appConfig.firebase.storageBucket)
         .file(newFileName)
-        .save(Buffer.from(data), {contentType: 'application/json'});
+        .save(Buffer.from(data), { contentType: 'application/json' });
       task.transcriptGeneration[index].fileName = newFileName;
       task.transcriptGeneration[
         index
@@ -546,9 +564,9 @@ export class GenAIService extends BaseService {
           case TaskType.AUDIO_EXTRACTION:
             job.jobStatus.audioExtraction = jobData.status;
             if (taskData.audioExtraction) {
-              taskData.audioExtraction.push({...(jobData as audioData)});
+              taskData.audioExtraction.push({ ...(jobData as audioData) });
             } else {
-              taskData.audioExtraction = [{...(jobData as audioData)}];
+              taskData.audioExtraction = [{ ...(jobData as audioData) }];
             }
             break;
           case TaskType.TRANSCRIPT_GENERATION:
@@ -559,16 +577,16 @@ export class GenAIService extends BaseService {
               });
             } else {
               taskData.transcriptGeneration = [
-                {...(jobData as trascriptGenerationData)},
+                { ...(jobData as trascriptGenerationData) },
               ];
             }
             break;
           case TaskType.SEGMENTATION:
             job.jobStatus.segmentation = jobData.status;
             if (taskData.segmentation) {
-              taskData.segmentation.push({...(jobData as segmentationData)});
+              taskData.segmentation.push({ ...(jobData as segmentationData) });
             } else {
-              taskData.segmentation = [{...(jobData as segmentationData)}];
+              taskData.segmentation = [{ ...(jobData as segmentationData) }];
             }
             break;
           case TaskType.QUESTION_GENERATION:
@@ -579,7 +597,7 @@ export class GenAIService extends BaseService {
               });
             } else {
               taskData.questionGeneration = [
-                {...(jobData as questionGenerationData)},
+                { ...(jobData as questionGenerationData) },
               ];
             }
             break;
@@ -983,7 +1001,7 @@ export class GenAIService extends BaseService {
           session,
         );
         if (!taskDAta.uploadContent) {
-          taskDAta.uploadContent = [{status: TaskStatus.COMPLETED}];
+          taskDAta.uploadContent = [{ status: TaskStatus.COMPLETED }];
         }
         taskDAta.uploadContent.push({
           status: TaskStatus.COMPLETED,
@@ -1020,7 +1038,7 @@ export class GenAIService extends BaseService {
         }
         if (!taskDAta.uploadContent) {
           taskDAta.uploadContent = [
-            {status: TaskStatus.FAILED, error: error.message},
+            { status: TaskStatus.FAILED, error: error.message },
           ];
         }
         taskDAta.uploadContent.push({
