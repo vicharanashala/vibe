@@ -8,7 +8,6 @@ import { Button } from "../ui/button";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle2, Clock } from "lucide-react";
 
-
 const formatDate = (dateString: string) => {
   try {
     return new Date(dateString).toLocaleDateString('en-GB', {
@@ -46,13 +45,8 @@ export function EnrollmentDetailsDialog({
   const { data: versionDetails } = useCourseVersionById(courseVersionId);
 
 
-
-
-
   // Use the fetched enrollment details if available, otherwise fall back to the passed enrollment prop
   const enroll1 = enrollmentDetails?.enrollments?.[0] || enrollment;
-
-
   // Extract data from enrollment prop
   const contentCounts = enroll1?.contentCounts || {};
 
@@ -75,6 +69,9 @@ export function EnrollmentDetailsDialog({
   const completedProjects = contentCounts.completedProjects || 0;
 
   // Debug: Check if contentCounts is empty
+  // Version name — use the already-fetched hook data
+const versionName = versionDetails?.version || 'N/A';
+const versionDescription = versionDetails?.description || 'No version description available';
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -99,7 +96,7 @@ export function EnrollmentDetailsDialog({
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">Version</p>
-                  <p>{enroll1?.course?.versionDetails?.[0]?.version || 'N/A'}</p>
+                  <p>{versionName}</p>
                 </div>
                 <div className="space-y-1 col-span-2">
                   <p className="text-sm font-medium text-muted-foreground">Assigned Timeslot</p>
@@ -116,7 +113,7 @@ export function EnrollmentDetailsDialog({
                 </div>
                 <div className="space-y-1 col-span-2">
                   <p className="text-sm font-medium text-muted-foreground">Version Description</p>
-                  <p className="text-sm">{enroll1?.course?.versionDetails?.[0]?.description || 'No version description available'}</p>
+                  <p className="text-sm">{versionDescription}</p>
                 </div>
               </div>
 

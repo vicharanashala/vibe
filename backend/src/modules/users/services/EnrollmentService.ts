@@ -277,7 +277,7 @@ export class EnrollmentService extends BaseService {
         courseId,
         courseVersionId,
         enrollment?._id.toString(),
-        enrollment?.cohortId.toString(),
+        enrollment?.cohortId?.toString(),
         session,
       );
 
@@ -795,7 +795,6 @@ export class EnrollmentService extends BaseService {
           (courseVersion.cohorts || []).map(cohort=> new ObjectId(cohort)),
           session,
         );
-
       return enrollmentsData;
     });
   }
@@ -808,12 +807,14 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
+    cohortId?: string
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const detail = await this.enrollmentRepo.getStudentProgressDetail(
         userId,
         courseId,
         courseVersionId,
+        cohortId,
         session,
       );
       if (!detail) return null;
@@ -844,6 +845,7 @@ export class EnrollmentService extends BaseService {
               await this.enrollmentRepo.getBatchQuizSubmissionGrades(
                 [userId],
                 allQuizIds,
+                [cohortId]
               );
 
             quizSubmissions.forEach((submission: any) => {
@@ -871,12 +873,14 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
+    cohortId?: string
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       return this.enrollmentRepo.getStudentCourseStructure(
         userId,
         courseId,
         courseVersionId,
+        cohortId,
         session,
       );
     });
@@ -951,7 +955,7 @@ export class EnrollmentService extends BaseService {
       await this.enrollmentRepo.getBatchQuizSubmissionGrades(
         userIds,
         allQuizIds,
-        enrollments.filter(e => e.cohortId).map(e => e.cohortId.toString())
+        enrollments.filter(e => e.cohortId).map(e => e.cohortId?.toString())
       );
     // 5. Create a map: userId -> quiz grades
     const userQuizGradesMap = new Map<string, IGradingResult[]>();
