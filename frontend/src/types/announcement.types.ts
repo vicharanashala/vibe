@@ -2,6 +2,7 @@ export enum AnnouncementType {
     GENERAL = 'GENERAL',
     VERSION_SPECIFIC = 'VERSION_SPECIFIC',
     COURSE_SPECIFIC = 'COURSE_SPECIFIC',
+    COHORT_SPECIFIC = 'COHORT_SPECIFIC',
 }
 
 export interface Attachment {
@@ -28,6 +29,8 @@ export interface Announcement {
     deletedAt?: string; // Date string
     createdAt: string; // Date string
     updatedAt: string; // Date string
+    cohortId?: string;
+    cohortName?: string;
 }
 
 export interface CreateAnnouncementBody {
@@ -37,6 +40,8 @@ export interface CreateAnnouncementBody {
     courseId?: string;
     courseVersionId?: string;
     attachments?: Attachment[];
+    cohortId?: string;
+    cohortName?: string;
 }
 
 export interface UpdateAnnouncementBody extends Partial<CreateAnnouncementBody> {
