@@ -527,6 +527,9 @@ export default function StudentSubmissionsPage() {
                                                             <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
                                                             {isReviewing && actionSubId === sub.submission?._id ? 'Rejecting...' : 'Reject'}
                                                         </Button>
+                                                    </div>
+                                                )}
+                                                {(status === 'APPROVED' || status === 'REJECTED') && (
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
@@ -537,7 +540,6 @@ export default function StudentSubmissionsPage() {
                                                             <Undo2 className="h-3.5 w-3.5 mr-1.5" />
                                                             {isReverting && actionSubId === sub.submission?._id ? 'Reverting...' : 'Revert'}
                                                         </Button>
-                                                    </div>
                                                 )}
                                                 {status === 'REVERTED' && (
                                                     <Button
