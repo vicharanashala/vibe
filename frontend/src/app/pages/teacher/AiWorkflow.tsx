@@ -410,8 +410,6 @@ const AiWorkflow = () => {
               chunk.timestamp[0] < segEnd
           );
           grouped.push(segChunks);
-
-          console.log("Group of segments is ", grouped)
           segStart = segEnd;
         }
         setSegmentationChunks(grouped);
@@ -3083,8 +3081,6 @@ export const SegmentationView = ({
       if (!res.ok) throw new Error("Failed to fetch segmentation status");
 
       const arr = await res.json();
-      console.log("Segmentation status response:", arr);
-      console.log("Segmentation status last item:", arr[arr.length - 1]);
 
       if (
         Array.isArray(arr) &&
@@ -3143,16 +3139,13 @@ export const SegmentationView = ({
     setEditError("");
     try {
       // Use index 0 for the backend (fixes 500 error)
-      console.log("Saving segmentation map:", editSegMap);
       const payload = editSegMap.map((s) => formatTimePadded(s));
       await editSegmentMap(aiJobId, payload);
 
       const sortedSegments = [...editSegMap].sort((a, b) => a - b);
-      console.log("Sorted segments:", sortedSegments);
 
       const updatedChunks = sortedSegments.map((end, idx) => {
         const start = idx === 0 ? 0 : sortedSegments[idx - 1];
-        console.log("Edited Transcript Chunks is this: ", editTranscriptChunks);
         return editTranscriptChunks.filter(chunk => {
           if (!chunk?.timestamp || !Array.isArray(chunk.timestamp) || chunk.timestamp.length < 2) {
             return false;
@@ -3352,7 +3345,6 @@ export const SegmentationView = ({
     const token = localStorage.getItem('firebase-auth-token');
     const url = getApiUrl(`/genai/jobs/${jobId}/edit/segment-map`);
     const body = JSON.stringify({ segmentMap, index });
-    console.log("Editing segment map with payload:", { segmentMap, index });
     const res = await fetch(url, {
       method: 'PATCH',
       headers: {
