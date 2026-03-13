@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Pagination } from "@/components/ui/Pagination";
 
 interface ActivitiesTabProps {
     courseVersionId: string;
@@ -20,6 +21,8 @@ interface ActivitiesTabProps {
 export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProps) {
     const [search, setSearch] = useState("");
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 6;
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -43,6 +46,11 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
         courseVersionId, cohortName, statusFilter, debouncedSearch
     );
     const { mutateAsync: updateActivity } = useUpdateHpActivity();
+    const totalPages = Math.ceil((activities?.length ||0)/itemsPerPage);
+    const paginatedActivities = (activities || []).slice(
+        (currentPage -1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
     const { mutateAsync: publishActivity } = usePublishHpActivity();
     const { mutateAsync: archiveActivity } = useArchiveHpActivity();
 
@@ -87,7 +95,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                             placeholder="Search activities..."
                             className="pl-8"
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
                         />
                     </div>
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -139,7 +147,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                 </div>
             ) : viewMode === "grid" ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-                    {activities.map((activity) => (
+                    {paginatedActivities.map((activity) => (
                         <Card
                             key={activity._id}
                             className="flex flex-col relative overflow-hidden rounded-xl border bg-card shadow-sm hover:shadow-md transition-all"
@@ -321,7 +329,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
             ) : (
                 // ─── LIST VIEW ───
                 <div className="flex flex-col gap-3">
-                    {activities.map((activity) => (
+                    {paginatedActivities.map((activity) => (
                         <Card key={activity._id} className="relative overflow-hidden rounded-xl border bg-card shadow-sm hover:shadow-md transition-all">
                             <div className={`w-1 h-full absolute top-0 left-0 ${activity.status === 'PUBLISHED' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-6 py-4 pl-8">
@@ -364,6 +372,19 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                     ))}
                 </div>
             )}
+            
+        {activities && activities.length > 0 && (
+            <Card>
+                <CardContent className="p-3">
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalDocuments={activities?.length || 0}
+                        onPageChange={setCurrentPage}
+                    />
+                </CardContent>
+            </Card>
+        )}
 
             <EditActivityDialog
                 isOpen={isEditOpen}
