@@ -122,7 +122,7 @@ const AiWorkflow = () => {
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editQuestion, setEditQuestion] = useState<any>(null);
-
+  const [showUploadContent, setShowUploadContent] = useState(false);
   const [isWaitingServer, setIsWaitingServer] = useState(false);// to track live status state
   const [isApprovingTask, setIsApprovingTask] = useState(false); // to track approve task 
   const [isOpenEndJobModal, setIsOpenEndJobModal] = useState(false);
@@ -503,11 +503,15 @@ useEffect(() => {
               chunk.timestamp[0] < segEnd
           );
           grouped.push(segChunks);
+
+          console.log("Group of segments is ", grouped)
           segStart = segEnd;
         }
         setSegmentationChunks(grouped);
       } else if (segData?.transcriptFileUrl) {
         const segs = await fetchSegmentationFromUrl(segData.transcriptFileUrl);
+
+
         setSegments(segs);
         setSegmentationMap(null);
         setSegmentationChunks(null);
@@ -965,6 +969,7 @@ useEffect(() => {
                     handleShowHandleResult={handleShowHandleResult}
                     isWaitingServer={isWaitingServer}
                     isApprovingTask={isApprovingTask}
+                    setShowUploadContent={setShowUploadContent}
                   />
                 ) : currentJob?.task === "UPLOAD_CONTENT" ? (
                   <UploadContentView
@@ -1459,6 +1464,7 @@ interface QuestionGenerationResultProps {
   updateCurrentJob: (task: "segmentation" | "questionGeneration" | "uploadContent", status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING") => void
   handleShowHandleResult: (task: string) => void
   isWaitingServer: boolean
+  setShowUploadContent: (show: boolean) => void
 }
 
 interface ProgressiveProgressBarProps {
@@ -1605,7 +1611,8 @@ export const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = (
   updateCurrentJob,
   handleShowHandleResult,
   isWaitingServer,
-  isApprovingTask
+  isApprovingTask,
+  setShowUploadContent
 }) => {
   useEffect(() => {
     if (questions && questions.length > 0) {
@@ -2047,6 +2054,7 @@ const clearStoredQuestions = () => {
   const handleNext = () => {
     const acceptedQuestions = getAcceptedQuestionsFromStorage();
     updateCurrentJob("uploadContent", "WAITING");
+    setShowUploadContent(true);
   }
 
     const handleAddParams = async() => {
@@ -2964,7 +2972,7 @@ const QuestionEditForm = ({ question, onSave, onCancel }: {
   );
 };
 
-const SegmentationView = ({
+export const SegmentationView = ({
   isLoading,
   isTaskResultLoading,
   error,
@@ -2981,7 +2989,8 @@ const SegmentationView = ({
   isWaitingServer,
   isApprovingTask,
   setSegmentationMap,
-  setSegmentationChunks
+  setSegmentationChunks,
+  showSegments,
 }: any) => {
 
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -3166,6 +3175,8 @@ const SegmentationView = ({
       if (!res.ok) throw new Error("Failed to fetch segmentation status");
 
       const arr = await res.json();
+      console.log("Segmentation status response:", arr);
+      console.log("Segmentation status last item:", arr[arr.length - 1]);
 
       if (
         Array.isArray(arr) &&
@@ -3224,14 +3235,16 @@ const SegmentationView = ({
     setEditError("");
     try {
       // Use index 0 for the backend (fixes 500 error)
+      console.log("Saving segmentation map:", editSegMap);
       const payload = editSegMap.map((s) => formatTimePadded(s));
       await editSegmentMap(aiJobId, payload);
 
       const sortedSegments = [...editSegMap].sort((a, b) => a - b);
+      console.log("Sorted segments:", sortedSegments);
 
       const updatedChunks = sortedSegments.map((end, idx) => {
         const start = idx === 0 ? 0 : sortedSegments[idx - 1];
-
+        console.log("Edited Transcript Chunks is this: ", editTranscriptChunks);
         return editTranscriptChunks.filter(chunk => {
           if (!chunk?.timestamp || !Array.isArray(chunk.timestamp) || chunk.timestamp.length < 2) {
             return false;
@@ -3431,6 +3444,7 @@ const SegmentationView = ({
     const token = localStorage.getItem('firebase-auth-token');
     const url = getApiUrl(`/genai/jobs/${jobId}/edit/segment-map`);
     const body = JSON.stringify({ segmentMap, index });
+    console.log("Editing segment map with payload:", { segmentMap, index });
     const res = await fetch(url, {
       method: 'PATCH',
       headers: {
@@ -3545,16 +3559,16 @@ const SegmentationView = ({
       ) : hasSegmentationData ? (
         <>
           <div className="flex justify-end mb-4">
-            <Button
+            { showSegments ? null : <Button
               size="icon"
               variant="outline"
               onClick={handleOpenEditModal}
               className={`p-2 hover:scale-105 transition-transform duration-200 shadow-sm `}
             >
               <Pencil className="h-4 w-4 dark:text-white text-black" />
-            </Button>
+            </Button>}
 
-            <Button
+            { showSegments ? null : <Button
               variant="outline"
               size="icon"
               className={`ms-4 hover:scale-105 transition-transform duration-200 shadow-sm ${isSettingsOpen && "bg-primary "}`}
@@ -3562,7 +3576,7 @@ const SegmentationView = ({
               aria-pressed={isSettingsOpen}
             >
               <Settings className="w-7 h-7 dark:text-white text-black" />
-            </Button>
+            </Button>}
 
           </div>
           <div className="space-y-3">
@@ -3796,7 +3810,7 @@ const SegmentationView = ({
       <div className="flex items-center justify-between mt-8">
         <div className="flex-1"></div>
         <div className="flex-1 flex justify-center">
-          <Button
+          {showSegments ? null : <Button
             onClick={handleConfirm}
             // onClick={()=> handleApproveTask()}
             disabled={isLoading || isWaitingServer || isApprovingTask}
@@ -3820,10 +3834,10 @@ const SegmentationView = ({
                 <CheckCircle className="w-5 h-5" />
               </>
             )}
-          </Button>
+          </Button>}
         </div>
         <div className="flex-1 flex justify-end">
-          {currentJobStatus == "COMPLETED" &&
+          {showSegments === false && currentJobStatus == "COMPLETED" &&
             <Button
               variant="secondary"
               onClick={handleNext}
@@ -3850,7 +3864,7 @@ interface UploadContentProps {
   aiJobId: string | null;
 }
 
-const UploadContentView: React.FC<UploadContentProps> = ({
+export const UploadContentView: React.FC<UploadContentProps> = ({
   currentJobStatus,
   uploadParams,
   setUploadParams,

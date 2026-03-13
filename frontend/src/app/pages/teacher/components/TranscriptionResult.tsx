@@ -8,7 +8,6 @@ interface TranscriptionResultProps {
   transcription: string;
   isProcessing?: boolean;
   isRunningAiJob?: boolean;
-  onTranscriptionUpdate: (text: string) => void;
   className?: string;
   audioUrl?: string;
   language?: string;
@@ -18,13 +17,14 @@ interface TranscriptionResultProps {
   startTime?: number | null;
   endTime?: number | null;
   isAIModulePage?: boolean;
+  chunkTranscription?: object[];
+  setChunkTranscription?: (chunks: object[]) => void;
 }
 
 export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
   transcription,
   isProcessing = false,
   isRunningAiJob = false,
-  onTranscriptionUpdate,
   className = '',
   audioUrl,
   tooltipContent,
@@ -33,10 +33,13 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
   startTime,
   endTime,
   isAIModulePage,
+  chunkTranscription,
+  setChunkTranscription
+
 }) => {
   // const [isEditing, setIsEditing] = useState(false);
   const [editedText, setEditedText] = useState(transcription);
-  const [chunkTranscription, setChunkTranscription] = useState<object[]>([]);
+
   const [error, setError] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,7 +49,7 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
   const [copySuccess, setCopySuccess] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [isChunkEditing, setIsChunkEditing] = useState(false);
+  // const [isChunkEditing, setIsChunkEditing] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -69,51 +72,12 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
     }
   }, [searchTerm, transcription]);
 
-  useEffect(() => {
-    const stored = sessionStorage.getItem('transcriptedChunks');
-    if (stored) {
-      setChunkTranscription(JSON.parse(stored));
-    }
-  }, []);
-
-  useEffect(() => {
-    sessionStorage.setItem('transcriptedChunks', JSON.stringify(chunkTranscription));
-  }, [chunkTranscription]);
-
-
-
-  useEffect(() => {
-    const clearStorage = () => {
-      sessionStorage.removeItem('transcriptedChunks');
-    };
-
-    window.addEventListener('beforeunload', clearStorage);
-
-    return () => {
-      window.removeEventListener('beforeunload', clearStorage);
-    };
-  }, []);
-
-
-  useEffect(() => {
-  return () => {
-    sessionStorage.removeItem('transcriptedChunks');
-  };
-}, []);
-
-
   const handleSave = () => {
-    if (isChunkEditing) {
-      handleSaveScript();
-      return;
-    }
 
     if (editedText.trim().length === 0) {
       setError('Transcription cannot be empty');
       return;
     }
-
-    onTranscriptionUpdate(editedText);
     setIsEditing(false);
   };
 
@@ -133,48 +97,6 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
     }
   };
 
-  const handleSaveScript = () => {
-    const stored = JSON.parse(
-      sessionStorage.getItem("transcriptedChunks") || "[]"
-    );
-
-    // 🔁 Editing existing chunk
-    if (isChunkEditing && editingIndex !== null) {
-      stored[editingIndex] = {
-        ...stored[editingIndex],
-        text: editedText,
-      };
-
-      sessionStorage.setItem(
-        "transcriptedChunks",
-        JSON.stringify(stored)
-      );
-
-      setChunkTranscription(stored);
-
-      setEditingIndex(null);
-      setIsChunkEditing(false);
-      setIsEditing(false);
-      return;
-    }
-
-    // ➕ Adding new chunk
-    const newChunk = {
-      text: editedText,
-      startTime,
-      endTime,
-    };
-
-    const updated = [...stored, newChunk];
-
-    sessionStorage.setItem(
-      "transcriptedChunks",
-      JSON.stringify(updated)
-    );
-
-    setChunkTranscription(updated);
-  };
-
   const handleDownload = () => {
     const blob = new Blob([transcription], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -189,15 +111,15 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
     setTimeout(() => setDownloadSuccess(false), 2000);
   };
 
-  function handleQuestionGenration() {
-    const arrayOfTranscriptedChunks = JSON.parse(sessionStorage.getItem('transcriptedChunks') || '[]');
-    if (arrayOfTranscriptedChunks.length === 0) {
-      alert('Please save at least one chunk before generating questions.');
-      return;
-    }
-    setChunkTranscription(arrayOfTranscriptedChunks);
-    sessionStorage.removeItem('transcriptedChunks');
-  }
+  // function handleQuestionGenration() {
+  //   const arrayOfTranscriptedChunks = JSON.parse(sessionStorage.getItem('transcriptedChunks') || '[]');
+  //   if (arrayOfTranscriptedChunks.length === 0) {
+  //     alert('Please save at least one chunk before generating questions.');
+  //     return;
+  //   }
+  //   setChunkTranscription(arrayOfTranscriptedChunks);
+  //   sessionStorage.removeItem('transcriptedChunks');
+  // }
 
   const toggleAudio = () => {
     if (audioRef.current) {
@@ -238,36 +160,10 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
       .padStart(2, "0")}`;
   }
 
-  const handleEdit = (chunk: any, index: number) => {
-    setEditedText(chunk.text);
-    setEditingIndex(index);
-    setIsEditing(true);
-    setIsChunkEditing(true);
-    textareaRef.current?.focus();
-  };
 
-  const handleDeleteChunk = (index: number) => {
-    const stored = JSON.parse(
-      sessionStorage.getItem("transcriptedChunks") || "[]"
-    );
 
-    const updated = stored.filter((_: any, i: number) => i !== index);
 
-    sessionStorage.setItem(
-      "transcriptedChunks",
-      JSON.stringify(updated)
-    );
 
-    setChunkTranscription(updated);
-
-    // 🧠 If the deleted chunk was being edited → reset editing state
-    if (editingIndex === index) {
-      setEditingIndex(null);
-      setIsChunkEditing(false);
-      setIsEditing(false);
-      setEditedText("");
-    }
-  };
 
   return (
     <>
@@ -281,11 +177,6 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
             <div>
               <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Transcription Result</h3>
               {/* <p className="text-sm text-gray-500 dark:text-gray-400">{timestamp}</p> */}
-              {startTime !== null && endTime !== null && isAIModulePage && (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {`Segment: ${formatTime(startTime)} - ${formatTime(endTime)}`}
-                </p>
-              )}
             </div>
             <TooltipProvider>
               <Tooltip>
@@ -353,9 +244,9 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
                   <Download className="w-4 h-4" />
                 </Button>
 
-                <Button onClick={handleSaveScript}>
+                {/* <Button onClick={handleSaveScript}>
                   <Save className='w-4 h-4' />
-                </Button>
+                </Button> */}
                 {audioUrl && (
                   <>
                     <Button
@@ -517,26 +408,26 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
       </div>
 
 
-      {chunkTranscription.length > 0 && (
+      {chunkTranscription?.length > 0 && (
         <div className='p-4 mt-4'>
-          {chunkTranscription.map((chunk, index) => {
+          {chunkTranscription?.map((chunk, index) => {
             return (
               <Accordion type="single" collapsible className="w-full mt-2" key={index}>
                 <AccordionItem value={`item-${index}`} className="border-b">
                   <AccordionTrigger className="flex justify-between items-center w-full px-4 py-2 text-left text-sm font-medium text-gray-800 dark:text-gray-100 bg-card hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg">
                     <span>{`Segment ${index + 1}: ${formatTime(chunk.startTime)} - ${formatTime(chunk.endTime)}`}</span> 
                     <span className='flex justify-end gap-2 items-center w-[50%]'>
-                    <Button variant="ghost" size="sm" onClick={() => handleDeleteChunk(index)}>
+                    {/* <Button variant="ghost" size="sm" onClick={() => handleDeleteChunk(index)}>
                       <Delete className="w-4 h-4 text-red-500" />
                     </Button> 
                     <Button variant="ghost" size="sm" onClick={() => handleEdit(chunk, index)}>
                       <Pencil className="w-4 h-4" />
-                    </Button>
+                    </Button> */}
                     </span>
                   </AccordionTrigger>
-                  <AccordionContent className="px-4 py-2 bg-card text-gray-800 dark:text-gray-100">
+                  {/* <AccordionContent className="px-4 py-2 bg-card text-gray-800 dark:text-gray-100">
                     <p>{chunk.text}</p>
-                  </AccordionContent>
+                  </AccordionContent> */}
                 </AccordionItem>
               </Accordion>
             )
@@ -544,10 +435,10 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
         </div>
       )}
 
-      {
+      {/* {
         isAIModulePage && chunkTranscription.length > 0 &&
         <Button className='w-full mt-5' onClick={handleQuestionGenration}><Sparkle /> Generate AI questions</Button>
-      }
+      } */}
     </>
   );
 };

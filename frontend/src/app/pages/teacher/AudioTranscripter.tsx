@@ -1,7 +1,7 @@
 import { AudioManager } from "@/components/ai/WhisperManager";
 import { Button } from "@/components/ui/button";
 import { TranscriberData, useTranscriber } from "@/hooks/useTranscriber";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TranscriptionResult } from "./components/TranscriptionResult";
 
 
@@ -21,6 +21,8 @@ interface IAudioTranscripter {
     startTime?: number | null;
     endTime?: number | null;
     isPaused?: boolean;
+    chunkTranscription?: object[];
+    setChunkTranscription?: (chunks: object[]) => void;
 }
 
 // Validation
@@ -43,13 +45,22 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
     const [prevTranscript, setPrevTranscript] = useState("");
     const [error, setError] = useState("");
 
+        const isBackgroundTranscribing = useRef<boolean>(true);
+
 
     useEffect(() => {
 
         transcriber.isBusy ?  props.setIsTranscribing(true): props.setIsTranscribing(false);
         transcriber.isModelLoading ?  props.setIsAudioExtracting(true): props.setIsAudioExtracting(false);
 
-        if (transcriber.output?.text) {
+        if(!props.isAIModulePage && transcriber.output?.text){
+            props.setTranscribedData(transcriber.output);
+            const transcribedText = transcriber.output?.text
+            setTranscriptText(transcribedText);
+            setPrevTranscript(transcribedText);
+        }else{
+
+        if (transcriber.output?.text && !isBackgroundTranscribing.current) {
             props.setTranscribedData(transcriber.output);
 
             const transcribedText = transcriber.output?.text
@@ -57,46 +68,63 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
             setPrevTranscript(transcribedText);
         }
 
-    }, [transcriber.output, transcriber.isBusy, transcriber.isModelLoading]);
-
-    const handleSave = (editedText?: string) => {
-        const currentText = editedText || transcriptText;
-        const errorMsg = validateTranscript(currentText);
-
-        if (errorMsg) {
-            setTranscriptText(prevTranscript);
-            setError(errorMsg);
-            return;
         }
 
-        setError("");
-        setPrevTranscript(currentText);
+    }, [transcriber.output, transcriber.isBusy, transcriber.isModelLoading]);
 
-        const originalChunks = props.transcribedData?.chunks ?? [];
-        const totalLength = originalChunks.reduce((sum, c) => sum + c.text.length, 0);
+    useEffect(() => {
+        if(!props.isAIModulePage) return
+  if (!transcriber.isBusy && transcriber.output?.text) {
+    console.log("Transcription completed");
 
-        const newChunks = originalChunks.map((chunk) => {
-            const proportion = chunk.text.length / totalLength;
-            const newChunkLength = Math.round(currentText.length * proportion);
-            const startIndex = originalChunks
-                .slice(0, originalChunks.indexOf(chunk))
-                .reduce((sum, c) => sum + Math.round(currentText.length * (c.text.length / totalLength)), 0);
+    props.createAiJob();
+  }
+}, [transcriber.isBusy]);
 
-            const newChunkText = currentText.slice(startIndex, startIndex + newChunkLength);
-            return {
-                ...chunk,
-                text: newChunkText
-            };
-        });
+    // const handleSave = (editedText?: string) => {
+    //     const currentText = editedText || transcriptText;
+    //     const errorMsg = validateTranscript(currentText);
 
-        props.setTranscribedData({
-            text: currentText,
-            isBusy: props.transcribedData?.isBusy ?? false,
-            chunks: newChunks,
-        });
+    //     if (errorMsg) {
+    //         setTranscriptText(prevTranscript);
+    //         setError(errorMsg);
+    //         return;
+    //     }
 
-        setIsEditing(false);
-    };
+    //     setError("");
+    //     setPrevTranscript(currentText);
+
+    //     const originalChunks = props.transcribedData?.chunks ?? [];
+    //     const totalLength = originalChunks.reduce((sum, c) => sum + c.text.length, 0);
+
+    //     const newChunks = originalChunks.map((chunk) => {
+    //         const proportion = chunk.text.length / totalLength;
+    //         const newChunkLength = Math.round(currentText.length * proportion);
+    //         const startIndex = originalChunks
+    //             .slice(0, originalChunks.indexOf(chunk))
+    //             .reduce((sum, c) => sum + Math.round(currentText.length * (c.text.length / totalLength)), 0);
+
+    //         const newChunkText = currentText.slice(startIndex, startIndex + newChunkLength);
+    //         return {
+    //             ...chunk,
+    //             text: newChunkText
+    //         };
+    //     });
+
+    //     props.setTranscribedData({
+    //         text: currentText,
+    //         isBusy: props.transcribedData?.isBusy ?? false,
+    //         chunks: newChunks,
+    //     });
+
+    //     setIsEditing(false);
+    // };
+
+//     useEffect(() => {
+//     if (transcriber.output) {
+//         console.log("Whisper Result:", transcriber.output);
+//     }
+// }, [transcriber.output]);
 
 
       return (
@@ -107,13 +135,15 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
                         transcription={transcriptText} 
                         isEditing={isEditing} 
                         setIsEditing={setIsEditing}  
-                        onTranscriptionUpdate={handleSave} 
                         isProcessing={transcriber.isBusy}
                         isRunningAiJob={props.isRunningAiJob}
                         tooltipContent={"Converts extracted audio into accurate text transcripts."}
                         startTime={props.startTime}
                         endTime={props.endTime}
                         isAIModulePage={props.isAIModulePage}
+                        chunkTranscription={props.chunkTranscription}
+                        setChunkTranscription={props.setChunkTranscription}
+
                       />
                     </div>)}
                 <AudioManager 
@@ -133,6 +163,7 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
                     pauseTimeRef={props.pauseTimeRef}
                     endTimeRef={props.endTimeRef}
                     isPaused={props.isPaused}
+                    isBackgroundTranscribing={isBackgroundTranscribing}
                 />
                  
             </div>
