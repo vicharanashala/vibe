@@ -356,7 +356,7 @@ export default function AudioPlayer(props: {
     lastStartTimeRef?: React.MutableRefObject<number>;
     pauseTimeRef?: React.MutableRefObject<number>;
     endTimeRef?: React.MutableRefObject<number>;
-    handleSegmentedTranscription?: () => void;
+    // handleSegmentedTranscription?: () => void;
     isProcessing?: boolean;
 }) {
     const audioPlayer = useRef<HTMLAudioElement>(null);
@@ -679,7 +679,7 @@ const FileTile: React.FC<FileTileProps> = ({
 
 
 
-export function AudioManager(props: { transcriber: Transcriber, isEditingTranscription: boolean, jobError: string, createAiJob: () => void, isCreatingAiJob: boolean, isRunningAiJob: boolean, isAIModulePage?: boolean, isProcessing?: boolean, startTimeRef?: React.MutableRefObject<number | null>, pauseTimeRef?: React.MutableRefObject<number | null>, endTimeRef?: React.MutableRefObject<number | null>,  isPaused?: boolean },) {
+export function AudioManager(props: { transcriber: Transcriber, isEditingTranscription: boolean, jobError: string, createAiJob: () => void, isCreatingAiJob: boolean, isRunningAiJob: boolean, isAIModulePage?: boolean, isProcessing?: boolean, startTimeRef?: React.MutableRefObject<number | null>, pauseTimeRef?: React.MutableRefObject<number | null>, endTimeRef?: React.MutableRefObject<number | null>,  isPaused?: boolean, isBackgroundTranscribing?: React.MutableRefObject<boolean> },) {
     const [progress, setProgress] = useState<number | undefined>(undefined);
     const [audioData, setAudioData] = useState<
         | {
@@ -821,6 +821,24 @@ export function AudioManager(props: { transcriber: Transcriber, isEditingTranscr
     }, [audioDownloadUrl]);
 
     useEffect(() => {
+    if (!audioData) return;
+    if(!props.isAIModulePage) return;
+
+    // Run full transcription silently
+    const runBackgroundTranscription = async () => {
+        try {
+            await props.transcriber.start(audioData.buffer);
+            props.isBackgroundTranscribing.current = false;
+        } catch (err) {
+            console.error("Background transcription failed", err);
+        }
+    };
+
+    runBackgroundTranscription();
+
+}, [audioData, props.isAIModulePage]);
+
+    useEffect(() => {
         if (props.isAIModulePage) {
             props.transcriber.setMode("SEGMENTED")
         } else {
@@ -828,68 +846,70 @@ export function AudioManager(props: { transcriber: Transcriber, isEditingTranscr
         }
     }, [props.isAIModulePage]);
 
-    const sliceAudioBuffer = (
-        audioBuffer: AudioBuffer,
-        startSample: number,
-        endSample: number
-    ) => {
-        const frameCount = endSample - startSample;
-        const sampleRate = audioBuffer.sampleRate;
+    // const sliceAudioBuffer = (
+    //     audioBuffer: AudioBuffer,
+    //     startSample: number,
+    //     endSample: number
+    // ) => {
+    //     const frameCount = endSample - startSample;
+    //     const sampleRate = audioBuffer.sampleRate;
 
-        const audioCtx = new AudioContext({ sampleRate });
+    //     const audioCtx = new AudioContext({ sampleRate });
 
-        const slicedBuffer = audioCtx.createBuffer(
-            audioBuffer.numberOfChannels,
-            frameCount,
-            sampleRate
-        );
+    //     const slicedBuffer = audioCtx.createBuffer(
+    //         audioBuffer.numberOfChannels,
+    //         frameCount,
+    //         sampleRate
+    //     );
 
-        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
-            const channelData = audioBuffer.getChannelData(channel);
-            slicedBuffer.copyToChannel(
-                channelData.slice(startSample, endSample),
-                channel
-            );
-        }
+    //     for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+    //         const channelData = audioBuffer.getChannelData(channel);
+    //         slicedBuffer.copyToChannel(
+    //             channelData.slice(startSample, endSample),
+    //             channel
+    //         );
+    //     }
 
-        return slicedBuffer;
-    };
+    //     return slicedBuffer;
+    // };
 
-            const handleSegmentedTranscription = () => {
-        if (!audioData) return;
-        if (!props.isAIModulePage) return;
-        const startTime = props.startTimeRef?.current || 0;
+    //         const handleSegmentedTranscription = () => {
+    //     if (!audioData) return;
+    //     if (!props.isAIModulePage) return;
+    //     const startTime = props.startTimeRef?.current || 0;
         
-        const endTime = props.pauseTimeRef?.current || audioData.buffer.duration;
+    //     const endTime = props.pauseTimeRef?.current || audioData.buffer.duration;
        
-        if (endTime - startTime < 1.5) {
-            console.log("Segment too short, skipping transcription");
-            return
-        }
-        const sampleRate = audioData.buffer.sampleRate;
-        const startSample = Math.floor(startTime * sampleRate);
-        const endSample = Math.floor(endTime * sampleRate);
-        if (endSample <= startSample) {
-            console.log("Invalid segment, skipping transcription");
-            return;
-        }
-        const segmentBuffer = sliceAudioBuffer(
-            audioData.buffer,
-            startSample,
-            endSample
-        );
-        props.transcriber.start(segmentBuffer);
-        lastProccessedTimeRef.current = endTime;
-    }
+    //     if (endTime - startTime < 1.5) {
+    //         console.log("Segment too short, skipping transcription");
+    //         return
+    //     }
+    //     const sampleRate = audioData.buffer.sampleRate;
+    //     const startSample = Math.floor(startTime * sampleRate);
+    //     const endSample = Math.floor(endTime * sampleRate);
+    //     if (endSample <= startSample) {
+    //         console.log("Invalid segment, skipping transcription");
+    //         return;
+    //     }
+    //     const segmentBuffer = sliceAudioBuffer(
+    //         audioData.buffer,
+    //         startSample,
+    //         endSample
+    //     );
+    //     props.transcriber.start(segmentBuffer);
+    //     lastProccessedTimeRef.current = endTime;
+    // }
 
 
-    useEffect (()=>{
-        if(props.isPaused === false){
-            console.log("AudioManager detected isPaused false, early exiting");
-            return;
-        }
-    handleSegmentedTranscription();
-    }, [props.isPaused])
+    // useEffect (()=>{
+    //     if(props.isPaused === false){
+    //         console.log("AudioManager detected isPaused false, early exiting");
+    //         return;
+    //     }
+    // handleSegmentedTranscription();
+    // }, [props.isPaused])
+
+
 
     return (
         <>
@@ -959,7 +979,7 @@ export function AudioManager(props: { transcriber: Transcriber, isEditingTranscr
                         audioUrl={audioData.url}
                         mimeType={audioData.mimeType}
                         isAIModulePage={props.isAIModulePage}
-                        handleSegmentedTranscription={handleSegmentedTranscription}
+                        // handleSegmentedTranscription={handleSegmentedTranscription}
                         isProcessing={props.isProcessing}
                     />
 
@@ -1003,15 +1023,7 @@ export function AudioManager(props: { transcriber: Transcriber, isEditingTranscr
                             </Button>
 
                         }
-
-
-                        {/* <SettingsTile
-                                className='absolute right-4'
-                                transcriber={props.transcriber}
-                                icon={<SettingsIcon />}
-                                /> */}
                     </div>
-                    {/* } */}
                 </>
             )}
         </>
