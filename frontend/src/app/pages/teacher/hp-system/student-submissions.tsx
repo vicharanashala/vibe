@@ -234,14 +234,12 @@ export default function StudentSubmissionsPage() {
         setReasonDialog({ ...reasonDialog, open: false });
         setActionSubId(subId);
         try {
-            if (action === 'revert') {
-                await revertEntry(subId);
-            } else if (action === 'restore') {
+            if (action === 'restore') {
                 await restoreEntry(subId);
-            } else if (action === 'approve' || action === 'reject') {
+            } else if (action === 'approve' || action === 'reject' || action === 'revert') {
                 await reviewSubmission({
                     submissionId: subId,
-                    decision: action === 'approve' ? 'APPROVED' : 'REJECTED',
+                    decision: action === 'approve' ? 'APPROVED' : action === 'reject' ? 'REJECTED' : 'REVERTED',
                     note: note.trim() || undefined,
                     pointsToDeduct: action === 'reject' ? pointsToDeduct : undefined
                 });
@@ -534,11 +532,11 @@ export default function StudentSubmissionsPage() {
                                                             variant="outline"
                                                             size="sm"
                                                             className="text-destructive hover:text-destructive"
-                                                            disabled={isReverting && actionSubId === sub.submission?._id}
+                                                            disabled={isReviewing && actionSubId === sub.submission?._id}
                                                             onClick={() => openReasonDialog(sub.submission?._id || '', 'revert', sub.activity?.title || '', sub.hp?.baseHp || 0)}
                                                         >
                                                             <Undo2 className="h-3.5 w-3.5 mr-1.5" />
-                                                            {isReverting && actionSubId === sub.submission?._id ? 'Reverting...' : 'Revert'}
+                                                            {isReviewing && actionSubId === sub.submission?._id ? 'Reverting...' : 'Revert'}
                                                         </Button>
                                                 )}
                                                 {status === 'REVERTED' && (
@@ -590,7 +588,7 @@ export default function StudentSubmissionsPage() {
                         </DialogDescription>
                     </DialogHeader>
 
-                    {(reasonDialog.action === 'approve' || reasonDialog.action === 'reject') && (
+                    {(reasonDialog.action === 'approve' || reasonDialog.action === 'reject' || reasonDialog.action === 'revert') && (
                         <div className="py-4">
                             <label htmlFor="note" className="text-sm font-medium mb-2 block">
                                 Note (optional)
@@ -610,7 +608,7 @@ export default function StudentSubmissionsPage() {
                         <Button
                             variant={reasonDialog.action === 'revert' || reasonDialog.action === 'reject' ? 'destructive' : 'default'}
                             onClick={handleConfirmAction}
-                            disabled={(reasonDialog.action === 'approve' || reasonDialog.action === 'reject') && isReviewing && actionSubId === reasonDialog.subId}
+                            disabled={(reasonDialog.action === 'approve' || reasonDialog.action === 'reject' || reasonDialog.action === 'revert') && isReviewing && actionSubId === reasonDialog.subId}
                         >
                             {reasonDialog.action === 'revert' ? 'Confirm Revert' :
                                 reasonDialog.action === 'restore' ? 'Confirm Restore' :
