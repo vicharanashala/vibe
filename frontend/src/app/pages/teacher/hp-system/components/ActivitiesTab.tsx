@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Pagination } from "@/components/ui/Pagination";
 
 interface ActivitiesTabProps {
@@ -86,6 +87,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
     };
 
     return (
+        <TooltipProvider>
         <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex flex-col sm:flex-row justify-between gap-4 items-center">
                 <div className="flex items-center gap-2 flex-1 w-full sm:w-auto">
@@ -278,47 +280,66 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
 
                             <CardFooter className="pt-4 pb-4 border-t">
                                 <div className="flex flex-wrap sm:flex-nowrap justify-end gap-2 w-full">
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-9 px-4"
+                                                onClick={() => handleOpenEdit(activity)}
+                                            >
+                                                <Edit className="mr-2 h-3.5 w-3.5" /> Edit
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Edit this activity's details</TooltipContent>
+                                    </Tooltip>
 
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-9 px-4"
-                                        onClick={() => handleOpenEdit(activity)}
-                                    >
-                                        <Edit className="mr-2 h-3.5 w-3.5" /> Edit
-                                    </Button>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                className="h-9 px-4"
+                                                onClick={() => handleDelete(activity._id)}
+                                            >
+                                                <Trash2 className="mr-2 h-3.5 w-3.5" /> Archive
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Archive this activity — it will be hidden from students</TooltipContent>
+                                    </Tooltip>
 
-                                    <Button
-                                        variant="destructive"
-                                        size="sm"
-                                        className="h-9 px-4"
-                                        onClick={() => handleDelete(activity._id)}
-                                    >
-                                        <Trash2 className="mr-2 h-3.5 w-3.5" /> Archive
-                                    </Button>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                size="sm"
+                                                variant="secondary"
+                                                className="h-9 px-4"
+                                                disabled={activity.status === 'PUBLISHED'}
+                                                onClick={() => handlePublish(activity._id)}
+                                            >
+                                                <Send className="mr-2 h-3.5 w-3.5" />
+                                                Publish
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Publish this activity to make it visible to students</TooltipContent>
+                                    </Tooltip>
 
-                                    <Button
-                                        size="sm"
-                                        variant="secondary"
-                                        className="h-9 px-4"
-                                        disabled={activity.status === 'PUBLISHED'}
-                                        onClick={() => handlePublish(activity._id)}
-                                    >
-                                        <Send className="mr-2 h-3.5 w-3.5" />
-                                        Publish
-                                    </Button>
-
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-9 px-4"
-                                        onClick={() => {
-                                            setSelectedActivityId(activity._id);
-                                            setIsRulesOpen(true);
-                                        }}
-                                    >
-                                        <Settings className="mr-2 h-3.5 w-3.5" /> Rules
-                                    </Button>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-9 px-4"
+                                                onClick={() => {
+                                                    setSelectedActivityId(activity._id);
+                                                    setIsRulesOpen(true);
+                                                }}
+                                            >
+                                                <Settings className="mr-2 h-3.5 w-3.5" /> Rules
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Configure HP reward and penalty rules for this activity</TooltipContent>
+                                    </Tooltip>
 
 
                                 </div>
@@ -401,5 +422,6 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                 activityId={selectedActivityId}
             />
         </div>
+        </TooltipProvider>
     );
 }

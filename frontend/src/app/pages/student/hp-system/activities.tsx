@@ -20,6 +20,7 @@ import {
     Image as ImageIcon
 } from "lucide-react";
 import { HpActivity } from "@/lib/api/hp-system";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function StudentActivities() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
@@ -142,6 +143,7 @@ export default function StudentActivities() {
     }
 
     return (
+        <TooltipProvider>
         <div className="container mx-auto p-6 max-w-5xl space-y-6">
             <div className="flex items-center gap-4 mb-6">
                 <Button variant="ghost" size="icon" onClick={() => navigate({ to: '/student/hp-system/cohorts' })}>
@@ -153,12 +155,17 @@ export default function StudentActivities() {
                         {decodeURIComponent(cohortName as string)}
                     </p>
                 </div>
-                <Button
-                    variant="outline"
-                    onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/submissions` })}
-                >
-                    View My Submissions
-                </Button>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="outline"
+                            onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/submissions` })}
+                        >
+                            View My Submissions
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>View all your submitted activities and their status</TooltipContent>
+                </Tooltip>
             </div>
 
             {(!activities || activities.length === 0) ? (
@@ -267,12 +274,22 @@ export default function StudentActivities() {
                             </CardContent>
                             <CardFooter className="bg-muted/10 border-t justify-center gap-2  px-6 py-4">
 
-                                <Button>edit</Button>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button>edit</Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Edit your previously submitted work</TooltipContent>
+                                </Tooltip>
 
-                                <Button onClick={() => openSubmitDialog(activity)}>
-                                    <Send className="h-4 w-4 mr-2" />
-                                    Submit
-                                </Button>
+                                <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button onClick={() => openSubmitDialog(activity)}>
+                                        <Send className="h-4 w-4 mr-2" />
+                                        Submit
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Submit your work for this activity to earn HP points</TooltipContent>
+                            </Tooltip>
 
                             </CardFooter>
                         </Card>
@@ -444,5 +461,6 @@ export default function StudentActivities() {
                 </DialogContent>
             </Dialog>
         </div>
+        </TooltipProvider>
     );
 }
