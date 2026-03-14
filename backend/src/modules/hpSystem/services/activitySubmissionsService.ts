@@ -136,6 +136,87 @@ export class ActivitySubmissionsService extends BaseService {
         return { uploadedPdfs, uploadedImages };
     }
 
+    // private getActivitySubmissionBucket() {
+    //     const storage = new Storage({
+    //         keyFilename: appConfig.GOOGLE_APPLICATION_CREDENTIALS,
+    //     });
+
+    //     return storage.bucket(appConfig.GCP_BACKUP_ACTIVITY_BUCKET);
+    // }
+
+    // private async uploadSubmissionFileToGcp(
+    //     bucket: Bucket,
+    //     studentId: string,
+    //     file: Express.Multer.File,
+    //     folder: string
+    // ) {
+    //     const ext = path.extname(file.originalname) || "";
+    //     const baseName = path.basename(file.originalname, ext);
+    //     const safeBase = baseName.replace(/[^\w\-]+/g, "_");
+    //     const unique = randomBytes(8).toString("hex");
+    //     const timestamp = Date.now();
+
+    //     const fileName = `${studentId}_${safeBase}_${timestamp}_${unique}${ext}`;
+    //     const objectPath = `${folder}/${fileName}`;
+    //     const gcpFile = bucket.file(objectPath);
+
+    //     await gcpFile.save(file.buffer, {
+    //         resumable: false,
+    //         contentType: file.mimetype,
+    //         metadata: {
+    //             contentDisposition: `inline; filename="${file.originalname}"`,
+    //         },
+    //     });
+
+    //     const [signedUrl] = await gcpFile.getSignedUrl({
+    //         action: "read",
+    //         expires: Date.now() + 1000 * 60 * 60 * 24 * 7,
+    //     });
+
+    //     return {
+    //         fileId: objectPath,
+    //         url: signedUrl,
+    //         name: fileName,
+    //         mimeType: file.mimetype,
+    //         sizeBytes: file.size,
+    //     };
+    // }
+
+    // private async uploadSubmissionAssets(
+    //     studentId: string,
+    //     cohort: string,
+    //     activityId: string,
+    //     files: Express.Multer.File[],
+    //     images: Express.Multer.File[]
+    // ) {
+    //     const bucket = this.getActivitySubmissionBucket();
+
+    //     const [uploadedPdfs, uploadedImages] = await Promise.all([
+    //         Promise.all(
+    //             files.map((file) =>
+    //                 this.uploadSubmissionFileToGcp(
+    //                     bucket,
+    //                     studentId,
+    //                     file,
+    //                     `hp-activity-submissions/${cohort}/${activityId}/${studentId}/files`
+    //                 )
+    //             )
+    //         ),
+    //         Promise.all(
+    //             images.map((image) =>
+    //                 this.uploadSubmissionFileToGcp(
+    //                     bucket,
+    //                     studentId,
+    //                     image,
+    //                     `hp-activity-submissions/${cohort}/${activityId}/${studentId}/images`
+    //                 )
+    //             )
+    //         ),
+    //     ]);
+
+    //     return { uploadedPdfs, uploadedImages };
+    // }
+
 
     async submit(student: { id: string; email: string; name: string }, body: CreateOrUpdateHpActivitySubmissionBodyDto, upload?: { files?: Express.Multer.File[]; images?: Express.Multer.File[] }
     ) {
@@ -652,7 +733,7 @@ export class ActivitySubmissionsService extends BaseService {
             if (body.decision === "REJECTED" && (!body.note || body.note.trim().length < 10)) {
                 throw new BadRequestError("Note must be at least 10 characters long for reject action");
             }
-
+            
             if (body.decision === "REVERTED" && (!body.note || body.note.trim().length < 10)) {
                 throw new BadRequestError("Note must be at least 10 characters long for revert action");
             }
@@ -772,11 +853,38 @@ export class ActivitySubmissionsService extends BaseService {
 
             // CASE A: APPROVE
             if (isApprove) {
-                const rewardAmount = rewardConfig?.value ?? 0;
-                finalHpBalance += rewardAmount;
+                const rewardValue = rewardConfig?.value ?? 0;
+                let rewardDetailsNote = "";
+
+                let incrementAmount = 0;
+                if (ruleType === "ABSOLUTE") {
+                    incrementAmount = rewardValue;
+                    rewardDetailsNote = `Reward Type: ABSOLUTE, Reward HP: ${rewardValue}`;
+
+                } else if (ruleType === "PERCENTAGE") {
+                    const rewardMaxLimit = activityRuleConfig.limits?.maxHp ?? 0;
+
+                    // Calculate percentage reward
+                    const calculatedReward = Math.round((totalStudentHpPoints * rewardValue) / 100);
+
+                    // Apply max limit if defined
+                    incrementAmount =
+                        rewardMaxLimit > 0
+                            ? Math.min(calculatedReward, rewardMaxLimit)
+                            : calculatedReward;
+
+                    rewardDetailsNote = `Reward Type: PERCENTAGE, Base HP: ${totalStudentHpPoints}, Percentage: ${rewardValue}%`;
+
+                }
+
+                const finalTeacherNote = teacherNote
+                    ? `${teacherNote} | ${rewardDetailsNote}`
+                    : rewardDetailsNote;
+
+                finalHpBalance += incrementAmount;
 
                 ledgerPromises.push(this.ledgerRepository.create(
-                    this._buildLedgerData(submission, user, "CREDIT", "CREDIT", rewardAmount, totalStudentHpPoints, finalHpBalance, "SUBMISSION_REWARD", teacherNote || "Activity approved.", null, teacherId, activityRuleConfig, isLate),
+                    this._buildLedgerData(submission, user, "CREDIT", "CREDIT", incrementAmount, totalStudentHpPoints, finalHpBalance, "SUBMISSION_REWARD", finalTeacherNote || "Activity approved.", null, teacherId, activityRuleConfig, isLate),
                     session
                 ));
             }
@@ -784,23 +892,27 @@ export class ActivitySubmissionsService extends BaseService {
             // CASE B: REVERT OR REJECT (Common Step: Undo Original Reward)
             if (isRevert || isReject) {
                 const originalLedger = await this.ledgerRepository.findByStudentAndSubmissionId(submissionId, submission.studentId.toString());
-                if (!originalLedger) throw new BadRequestError("Original reward ledger not found to reverse.");
+                if (isRevert && !originalLedger) {
+                    throw new BadRequestError("Original reward ledger not found to reverse.");
+                }
+                // If ledger is there to revert then only revert
+                let rewardToUndo = 0;
+                if (originalLedger && originalLedger.direction == "CREDIT") {
+                    rewardToUndo = originalLedger.amount ?? 0;
+                    const hpBeforeReversal = finalHpBalance;
+                    finalHpBalance -= rewardToUndo;
 
-                const rewardToUndo = originalLedger.amount ?? 0;
-                const hpBeforeReversal = finalHpBalance;
-                finalHpBalance -= rewardToUndo;
-
-                // First Ledger: The Reversal
-                ledgerPromises.push(this.ledgerRepository.create(
-                    this._buildLedgerData(submission, user, "REVERSAL", "DEBIT", rewardToUndo, hpBeforeReversal, finalHpBalance, "REWARD_REVERSAL", `Reversed original reward of ${rewardToUndo} HP.`, originalLedger._id.toString(), teacherId, activityRuleConfig),
-                    session
-                ));
-
+                    // First Ledger: The Reversal
+                    ledgerPromises.push(this.ledgerRepository.create(
+                        this._buildLedgerData(submission, user, "REVERSAL", "DEBIT", rewardToUndo, hpBeforeReversal, finalHpBalance, isRevert ? "REWARD_REVERSAL" : "REJECTION_PENALTY", `Reversed original reward of ${rewardToUndo} HP.`, originalLedger._id.toString(), teacherId, activityRuleConfig),
+                        session
+                    ));
+                }
                 // CASE C: ADDITIONAL REJECTION PENALTY
                 if (isReject) {
                     const penaltyAmount = Number(body.pointsToDeduct) ?? 0;
                     if (penaltyAmount > 0) {
-                        const hpBeforePenalty = finalHpBalance - rewardToUndo; // consider first we reverted so need to -rewardtoUndo value after revert entry we are storing rejected ledger
+                        const hpBeforePenalty = finalHpBalance ;
                         finalHpBalance -= penaltyAmount;
 
                         // Second Ledger: The Penalty

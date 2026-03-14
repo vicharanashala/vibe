@@ -269,6 +269,7 @@ export class EnrollmentService extends BaseService {
         courseId,
         courseVersionId,
         enrollment?._id.toString(),
+        enrollment?.cohortId?.toString(),
         session,
       );
 
@@ -951,6 +952,7 @@ export class EnrollmentService extends BaseService {
       await this.enrollmentRepo.getBatchQuizSubmissionGrades(
         userIds,
         allQuizIds,
+        enrollments.filter(e => e.cohortId).map(e => e.cohortId?.toString())
       );
 
     // 5. Create a map: userId -> quiz grades

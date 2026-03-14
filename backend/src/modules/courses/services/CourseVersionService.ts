@@ -460,4 +460,43 @@ export class CourseVersionService extends BaseService {
       return result;
     });
   }
+
+  public async getVersionDetails(versionId: string): Promise<CourseVersion> {
+    return this._withTransaction(async session => {
+      const readVersion = await this.courseRepo.getActiveVersion(
+        versionId,
+        session,
+      );
+      if (!readVersion) {
+        throw new InternalServerError('Failed to read course version.');
+      }
+      if (readVersion.cohorts?.length) {
+        const cohorts = await this.courseRepo.getCohortsByIds(
+          readVersion.cohorts,
+          undefined,
+          session,
+        );
+
+        for (const cohort of cohorts) {
+          if (!readVersion.cohorts.some(id => id.toString() === cohort._id.toString())) {
+            throw new InternalServerError(
+              `Cohort ID ${cohort._id} not referenced in course version ${versionId}`
+            );
+          }
+        }
+        (readVersion as any).cohortDetails  = cohorts.map(cohort => ({
+          id: cohort._id.toString(),
+          name: cohort.name,
+          createdAt: cohort.createdAt,
+          updatedAt: cohort.updatedAt
+        }));
+      }
+
+      const version = instanceToPlain(
+        Object.assign(new CourseVersion(), readVersion),
+      ) as CourseVersion;
+
+      return version;
+    });
+  }
 }

@@ -88,17 +88,12 @@ export class EnrollmentRepository {
   ): Promise<IEnrollment | null> {
     await this.init();
 
-    const courseObjectId = new ObjectId(courseId);
-    const courseVersionObjectId = new ObjectId(courseVersionId);
-    const userObjectid = new ObjectId(userId);
-
     return await this.enrollmentCollection.findOne(
       {
         userId: { $in: [userId, new ObjectId(userId)] },
         courseId: { $in: [courseId, new ObjectId(courseId)] },
-        courseVersionId: {
-          $in: [courseVersionId, new ObjectId(courseVersionId)],
-        },
+        courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false } }),
         isDeleted: { $ne: true },
       },
       { session },
@@ -124,6 +119,7 @@ export class EnrollmentRepository {
         courseVersionId: { $in: [courseVersionObjectId, courseVersionId] },
         status: 'ACTIVE',
         isDeleted: { $ne: true },
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false } }),
       },
       { session },
     );
@@ -254,6 +250,7 @@ export class EnrollmentRepository {
         userId: { $in: userFilter },
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false } }),
       },
       {
         $set: {
@@ -1211,7 +1208,7 @@ export class EnrollmentRepository {
 
     const map = new Map<string, number>();
     for (const doc of results) {
-      const key = `${doc._id.userId.toString()}-${doc._id.courseId.toString()}-${doc._id.courseVersionId.toString()}`;
+      const key = `${doc._id.userId.toString()}-${doc._id.courseId.toString()}-${doc._id.courseVersionId.toString()}-${doc._id.cohortId?.toString() || ''}`;
       map.set(key, doc.count);
     }
 
@@ -1652,7 +1649,7 @@ export class EnrollmentRepository {
           userId: { $in: [userId, userIdObj] },
           courseId: { $in: [courseId, courseIdObj] },
           courseVersionId: { $in: [courseVersionId, versionIdObj] },
-          ...(cohortIdObj ? { cohortId: cohortIdObj } : {}),
+          ...(cohortIdObj ? { cohortId: cohortIdObj } : {cohortId: { $exists: false }}),
           role: 'STUDENT',
         },
       },

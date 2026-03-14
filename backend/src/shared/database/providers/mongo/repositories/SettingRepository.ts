@@ -418,6 +418,29 @@ export class SettingRepository implements ISettingRepository {
     return result;
   }
 
+  async updateCohortSettings(
+    courseId: string,
+    versionId: string,
+    schemas: {cohortSettings: ObjectId[] },
+    session?: ClientSession,
+  ): Promise<UpdateResult | null> {
+    await this.init();
+
+    const result = await this.courseSettingsCollection.updateOne(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(versionId),
+      },
+      {
+        $set: {
+          'settings.registration.cohortSettings': schemas.cohortSettings,
+        },
+      },
+      { session },
+    );
+    return result;
+  }
+
   async updateRegistrationSchemas(
     courseId: string,
     versionId: string,

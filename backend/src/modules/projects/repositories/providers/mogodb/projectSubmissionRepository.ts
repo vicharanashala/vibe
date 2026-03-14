@@ -29,6 +29,7 @@ export class ProjectSubmissionRepository
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(versionId),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false } }),
       },
       { session },
     );
@@ -189,6 +190,7 @@ export class ProjectSubmissionRepository
       {
         userId: new ObjectId(userId),
         courseVersionId: new ObjectId(courseVersionId),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false } }),
       },
       { session },
     );

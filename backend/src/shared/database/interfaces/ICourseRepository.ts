@@ -106,4 +106,29 @@ export interface ICourseRepository {
   //cascadeDeleteSection(session?: ClientSession): Promise<void>;
   //cascadeDeleteItemGroup(session?: ClientSession): Promise<void>;
   //cascadeDeleteItem(session?: ClientSession): Promise<void>;
+  createCohortSettings(
+    versionId: string,
+    cohortId: string,
+    registrationsAutoApproved: boolean,
+    autoapproval_emails: string[],
+    session?: ClientSession
+  ): Promise<string>;
+
+  getCohortSetting(
+    versionId: string,
+    cohortId: string,
+    session?: ClientSession
+  ): Promise<string>;
+
+  updateCohortSettings(
+    settingId: string,
+    registrationsAutoApproved: boolean,
+    autoapproval_emails: string[],
+    session?: ClientSession
+  ): Promise<boolean>;
+
+ getCohortSettingById(
+    id: string,
+    session?: ClientSession
+  ): Promise<any>;
 }

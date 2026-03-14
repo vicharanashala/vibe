@@ -1521,6 +1521,7 @@ class ProgressService extends BaseService {
           moduleId,
           sectionId,
           itemId,
+          cohortId,
         ),
       ]);
 
@@ -1903,6 +1904,7 @@ class ProgressService extends BaseService {
           attemptId,
           isSkipped,
           stoppedWatchTime,
+          cohortId,
         );
       }
 
@@ -2083,6 +2085,7 @@ class ProgressService extends BaseService {
     attemptId?: string,
     isSkipped?: boolean,
     stoppedWatchTime?: IWatchTime,
+    cohortId?: string,
   ): Promise<void> {
     const WATCH_TIME_REQUIRED_ITEMS = new Set<string>(['VIDEO', 'BLOG']);
 
@@ -2101,7 +2104,7 @@ class ProgressService extends BaseService {
 
     // 3 Project validation
     if (item.type === 'PROJECT') {
-      await this.validateProjectStop(itemId, userId, courseId, courseVersionId);
+      await this.validateProjectStop(itemId, userId, courseId, courseVersionId, cohortId);
       return;
     }
   }
@@ -2147,11 +2150,13 @@ class ProgressService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
+    cohortId?: string,
   ): Promise<void> {
     const projectSubmission = await this.projectSubmissionRepo.getByUser(
       userId,
       courseVersionId,
       courseId,
+      cohortId,
     );
 
     if (

@@ -556,4 +556,308 @@ Accessible to:
     });
     return updatedVersion;
   }
+
+  @OpenAPI({
+    summary: 'Get all cohorts for a course version',
+    description:
+      'Retrieves a paginated list of all cohorts in a specific course version.',
+  })
+  @Authorized()
+  @Get('/:courseId/versions/:versionId/cohorts')
+  @HttpCode(200)
+  @ResponseSchema(CohortsResponse, {
+    description: 'Paginated list of cohorts for the course version',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid page or limit parameters',
+    statusCode: 400,
+  })
+  async getCourseVersionCohorts(
+    @Params() params: ReadCourseVersionCohortsParams,
+    @QueryParams() query: CohortsQuery,
+    @Ability(getCourseVersionAbility) {ability, user},
+  ): Promise<CohortsResponse> {
+    const { courseId, versionId } = params;
+
+    const courseVersionSubject = subject('CourseVersion', {
+      courseId,
+      versionId,
+    });
+
+    if (!ability.can(CourseVersionActions.View, courseVersionSubject)) {
+      throw new ForbiddenError(
+        'You do not have permission to update this course version',
+      );
+    }
+
+    const {
+      page,
+      limit,
+      search,
+      sortBy,
+      sortOrder,
+      // filter,
+    } = query;
+    if (page < 1 || limit < 1) {
+      throw new BadRequestError('Page and limit must be positive integers.');
+    }
+
+    const skip = (page - 1) * limit;
+    return await this.courseVersionService.getCohortsByVersion(
+      versionId,
+      skip,
+      limit,
+      search,
+      sortBy,
+      sortOrder
+    );
+  }
+
+
+  @OpenAPI({
+    summary: 'Add a cohort in a course version',
+    description:
+      'Add a new cohort in a specific course version.',
+  })
+  @Authorized()
+  @Post('/:courseId/versions/:versionId/cohorts')
+  @HttpCode(200)
+  @UseInterceptor(AuditTrailsHandler)
+  @ResponseSchema(CohortCreatedMessage, {
+    description: 'Cohort created successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid page or limit parameters',
+    statusCode: 400,
+  })
+  async AddCohortInCourseVersion(
+    @Params() params: ReadCourseVersionCohortsParams,
+    @Body() body: NewCohortBody,
+    @Ability(getCourseVersionAbility) {ability, user},
+    @Req() req: Request,
+  ): Promise<CohortCreatedMessage> {
+    const { courseId, versionId } = params;
+
+    const courseVersionSubject = subject('CourseVersion', {
+      courseId,
+      versionId,
+    });
+
+    if (!ability.can(CourseVersionActions.Modify, courseVersionSubject)) {
+      throw new ForbiddenError(
+        'You do not have permission to update this course version',
+      );
+    }
+
+    if(!body.newCohortName){
+      throw new BadRequestError("Cohort name required for creating a cohort");
+    }
+
+    const existingVersion = await this.courseVersionService.readCourseVersion(versionId, user._id);
+    if(existingVersion.cohortDetails && existingVersion.cohortDetails?.some(cohort=> cohort.name === body.newCohortName)){
+      throw new BadRequestError("The requested cohort name already exists in the course version");
+    }
+    const newVersionBody = {
+      version : existingVersion.version,
+      description: existingVersion.description,
+      cohorts: Array.of(body.newCohortName.toLowerCase())
+    }
+    await this.courseVersionService.updateCourseVersion(versionId, newVersionBody);
+
+    setAuditTrail(req, {
+      category: AuditCategory.COHORT,
+      action: AuditAction.COHORT_ADD,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context:{
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+      },
+      changes:{
+        after:{
+          cohort: body.newCohortName,
+        }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS, 
+      }
+    })
+    return {
+      message: `Cohort created successfully.`,
+    };
+  }
+
+
+
+  @OpenAPI({
+    summary: 'Update a cohort in a course version',
+    description:
+      'Update a cohort in a specific course version.',
+  })
+  @Authorized()
+  @Patch('/:courseId/versions/:versionId/cohorts/:cohortId')
+  @HttpCode(200)
+  @UseInterceptor(AuditTrailsHandler)
+  @ResponseSchema(CohortUpdatedMessage, {
+    description: 'Cohort updated for the course version',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid page or limit parameters',
+    statusCode: 400,
+  })
+  async UpdateCohortInCourseVersion(
+    @Params() params: ReadCourseVersionCohortsParams,
+    @Body() body: NewCohortBody,
+    @Ability(getCourseVersionAbility) {ability, user},
+    @Req() req: Request,
+  ): Promise<CohortUpdatedMessage> {
+    const { courseId, versionId, cohortId } = params;
+
+    if(!cohortId){
+      throw new BadRequestError("cohortId required for updating a cohort")
+    }
+
+    const courseVersionSubject = subject('CourseVersion', {
+      courseId,
+      versionId,
+    });
+
+    if (!ability.can(CourseVersionActions.Modify, courseVersionSubject)) {
+      throw new ForbiddenError(
+        'You do not have permission to update this course version',
+      );
+    }
+
+    if (!body.newCohortName && (body.isPublic === null || body.isPublic === undefined)) {
+        throw new BadRequestError("No information provided in request body");
+    }
+    const existingVersion = await this.courseVersionService.readCourseVersion(versionId, user._id);
+
+    if(!existingVersion.cohorts || existingVersion.cohorts.length <= 0){
+      throw new BadRequestError("This courseversion does not have any cohorts to update");
+    }
+    const cohortExists = existingVersion.cohorts.some(cohort=> cohort?.toString() === cohortId);
+
+    if(!cohortExists){
+      throw new BadRequestError("The requested cohort does not exists in the course version");
+    }
+    if(body.newCohortName){
+        if(existingVersion.cohortDetails && existingVersion.cohortDetails.some(cohort=> cohort.name === body.newCohortName)){
+          throw new BadRequestError("The requested cohort name already exists in the course version");
+        }
+    }
+    await this.courseVersionService.updateCohortInCourseVersion(cohortId, body?.newCohortName?.toLowerCase(), body?.isPublic );
+
+    setAuditTrail(req, {
+      category: AuditCategory.COHORT,
+      action: AuditAction.COHORT_UPDATE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context:{
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        cohortId: ObjectId.createFromHexString(cohortId),
+      },
+      changes:{
+        after:{
+          cohort: body.newCohortName,
+        }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS, 
+      }
+    })
+
+    return {
+      message: `Cohort updated successfully.`,
+    };
+  }
+
+
+  @OpenAPI({
+    summary: 'Delete a cohort in a course version',
+    description:
+      'Delete a cohort in a specific course version.',
+  })
+  @Authorized()
+  @Delete('/:courseId/versions/:versionId/cohorts/:cohortId')
+  @HttpCode(200)
+  @UseInterceptor(AuditTrailsHandler)
+  @ResponseSchema(CohortDeletedMessage, {
+    description: 'Cohort deleted for the course version',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid page or limit parameters',
+    statusCode: 400,
+  })
+  async DeleteCohortInCourseVersion(
+    @Params() params: ReadCourseVersionCohortsParams,
+    @Ability(getCourseVersionAbility) {ability, user},
+    @Req() req: Request,
+  ): Promise<CohortDeletedMessage> {
+    const { courseId, versionId, cohortId } = params;
+
+    if(!cohortId){
+      throw new BadRequestError("cohortId required for updating a cohort")
+    }
+
+    const courseVersionSubject = subject('CourseVersion', {
+      courseId,
+      versionId,
+    });
+
+    if (!ability.can(CourseVersionActions.Modify, courseVersionSubject)) {
+      throw new ForbiddenError(
+        'You do not have permission to update this course version',
+      );
+    }
+
+    const existingVersion = await this.courseVersionService.readCourseVersion(versionId, user._id);
+
+    if(!existingVersion.cohorts || existingVersion.cohorts.length <= 0){
+      throw new BadRequestError("This courseversion does not have any cohorts to delete");
+    }
+    const cohortExists = existingVersion.cohorts.some(cohort=> cohort?.toString() === cohortId);
+
+    if(!cohortExists){
+      throw new BadRequestError("The requested cohort does not exists in the course version");
+    }
+    
+    await this.courseVersionService.deleteCohortInCourseVersion(versionId, cohortId);
+
+    setAuditTrail(req, {
+      category: AuditCategory.COHORT,
+      action: AuditAction.COHORT_DELETE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context:{
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        cohortId: ObjectId.createFromHexString(cohortId),
+      },
+      changes:{
+        before:{
+          cohort: existingVersion.cohorts.find(cohort=> cohort?.toString() === cohortId),
+        }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS, 
+      }
+    })
+    return {
+      message: `Cohort deleted successfully.`,
+    };
+  }
 }

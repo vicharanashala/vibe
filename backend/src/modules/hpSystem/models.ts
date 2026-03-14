@@ -171,7 +171,7 @@ export interface HpRuleConfig {
 
     // Mandatory/Optional
     isMandatory: boolean;
-    // vibe_percent: 25%,
+    // vibe_percent: 25%,    // vibe_percent: 25%,
 
     deadlineAt: Date;
     allowLateSubmission: boolean;
@@ -195,7 +195,7 @@ export interface HpRuleConfig {
 
     // penalty type = absolute => 10 => 50 - 10 => 40
 
-    // Penalty rule
+    // Penalty rule 
     penalty: {
         enabled: boolean;
         type: RuleType;

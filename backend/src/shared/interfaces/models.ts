@@ -435,6 +435,14 @@ export interface IWatchTime {
   endTime?: Date;
 }
 
+export interface ICohortSettings{
+  _id?: string | ObjectId | null;
+  courseVersionId: string | ObjectId;
+  cohortId: string | ObjectId;
+  registrationsAutoApproved: boolean,
+  autoapproval_emails: string[]
+}
+
 export interface IUserActivityEvent {
   _id?: string | ObjectId | null;
   userId: string | ObjectId;
@@ -543,6 +551,7 @@ export interface ISettings {
     isActive?: boolean;
     registrationsAutoApproved?: boolean;
     autoapproval_emails?: string[];
+    cohortSettings?: ObjectId[];
   };
   timeslots?: {
     isActive: boolean;
@@ -769,6 +778,7 @@ export enum AnnouncementType {
   GENERAL = 'GENERAL',
   VERSION_SPECIFIC = 'VERSION_SPECIFIC',
   COURSE_SPECIFIC = 'COURSE_SPECIFIC',
+  COHORT_SPECIFIC = 'COHORT_SPECIFIC',
 }
 
 export interface IAnnouncementAttachment {
@@ -795,6 +805,8 @@ export interface IAnnouncement {
   deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
+  cohortId?: ID;
+  cohortName?: string;
 }
 
 // export type AuditCategory =

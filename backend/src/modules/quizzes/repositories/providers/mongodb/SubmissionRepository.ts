@@ -75,6 +75,7 @@ class SubmissionRepository {
       quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
       userId: {$in: [userIdStr, ...(userIdObj ? [userIdObj] : [])]},
       attemptId: {$in: [attemptIdStr, ...(attemptIdObj ? [attemptIdObj] : [])]},
+      ...(cohortId ? { cohortId: new ObjectId(cohortId) } : { }),
     };
 
     const result = await this.submissionResultCollection.findOne(filter, {

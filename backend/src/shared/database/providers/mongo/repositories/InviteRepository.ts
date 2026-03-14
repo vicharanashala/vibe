@@ -183,6 +183,7 @@ export class InviteRepository {
         email: email.toLowerCase(),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false } }),
         inviteStatus: 'PENDING',
       },
       {session},

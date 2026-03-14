@@ -25,6 +25,7 @@ export class AnnouncementService {
             courseId?: string;
             courseVersionId?: string;
             attachments?: IAnnouncementAttachment[];
+            cohortId?: string;
         },
         instructorId: string,
         instructorName: string,
@@ -57,6 +58,7 @@ export class AnnouncementService {
                 data.type === AnnouncementType.VERSION_SPECIFIC && data.courseVersionId
                     ? new ObjectId(data.courseVersionId)
                     : undefined,
+            cohortId: data.type === AnnouncementType.COHORT_SPECIFIC && data.cohortId ? new ObjectId(data.cohortId) : undefined,
             instructorId: new ObjectId(instructorId),
             instructorName,
             instructorFirebaseUid,
@@ -140,6 +142,7 @@ export class AnnouncementService {
             courseId?: string;
             courseVersionId?: string;
             instructorId?: string;
+            cohortId?: string;
         },
         page: number = 1,
         limit: number = 10,
@@ -148,7 +151,7 @@ export class AnnouncementService {
     }
 
     async getAnnouncementsForStudent(
-        enrollments: { courseId: string; versionId: string }[],
+        enrollments: { courseId: string; versionId: string, cohortId?: string }[],
         page: number = 1,
         limit: number = 10,
     ) {

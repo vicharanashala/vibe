@@ -71,6 +71,7 @@ export default function CourseRegistrationRequests() {
   const [hasAnyRegistrations, setHasAnyRegistrations] = useState(true);
   const shouldFetch = !initialFetchDone || hasAnyRegistrations;
 
+
   const PAGE_LIMIT = 15;
 
   const params = useMemo(() => ({
@@ -85,11 +86,17 @@ export default function CourseRegistrationRequests() {
 
   const { data: statusData, refetch: statusRefetch } = useGetRegistrationStatus(versionId as string);
   const { mutateAsync: toggleStatus, isPending: isTogglingStatus } = useToggleRegistrationStatus(versionId as string);
-  const { settings: autoApprovalSettings, isLoading: isLoadingAutoApproval } = useAutoApprovalSettings(versionId as string);
+  const { settings: autoApprovalSettings, isLoading: isLoadingAutoApproval, refetch: autoApprovalRefetch } = useAutoApprovalSettings(versionId as string);
 
   const { mutateAsync: updateStatus, isPending: isUpdatingStatus } = useUpdateRegistrationStatus();
   const { mutateAsync: updateBulkStatus, isPending: isUpdatingBulkStatus } = useBulkUpdateRegistrationStatus();
   const registrations = registrationsData?.registrations || []
+
+  useEffect(() => {
+    if (!isAutoApprovalModalOpen) {
+      autoApprovalRefetch();
+    }
+  }, [isAutoApprovalModalOpen, autoApprovalRefetch]);
 
   const FRONTEND_URL = window.location.origin;
   const registrationUrl = `${FRONTEND_URL}/student/course-registration/${versionId}`;
@@ -474,6 +481,7 @@ useEffect(() => {
               onOpenChange={setIsAutoApprovalModalOpen}
               versionId={versionId!}
               currentSettings={autoApprovalSettings}
+              courseVersion = {courseVersion}
             />
           </Dialog>
         {/* <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">

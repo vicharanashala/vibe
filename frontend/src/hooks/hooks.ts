@@ -3712,8 +3712,8 @@ export const useToggleRegistrationStatus = (versionId: string): {
 export const useUpdateAutoApprovalsettings = (
   versionId: string,
 ): {
-  mutate: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] }) => void;
-  mutateAsync: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] }) => Promise<any>;
+  mutate: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[], cohortId?: string }) => void;
+  mutateAsync: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[], cohortId?: string }) => Promise<any>;
   data: any;
   error: string | null;
   isPending: boolean;
@@ -3726,7 +3726,7 @@ export const useUpdateAutoApprovalsettings = (
   const result = api.useMutation('put', '/course/registration/auto-approval/version/{versionId}' as any);
 
   return {
-    mutate: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] }) =>
+    mutate: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[], cohortId?: string }) =>
       result.mutate({
         params: {
           path: { versionId },
@@ -3734,7 +3734,7 @@ export const useUpdateAutoApprovalsettings = (
         body: params,
       }),
 
-    mutateAsync: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] }) =>
+    mutateAsync: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[], cohortId?: string }) =>
       result.mutateAsync({
         params: {
           path: { versionId },
@@ -5204,12 +5204,18 @@ export function useReviewSubmission() {
       toast.error(error.message || 'Failed to review submission');
     },
   });
-
-  return {
-    mutateAsync: mutation.mutateAsync,
-    isPending: mutation.isPending,
-  };
 }
+
+//   return {
+//     mutateAsync: mutation.mutateAsync,
+//     isPending: mutation.isPending,
+//   };
+// }
+
+
+
+ 
+
 
 export function useAddFeedback() {
   const queryClient = useQueryClient();
@@ -5224,10 +5230,13 @@ export function useAddFeedback() {
       queryClient.invalidateQueries({ queryKey: ['hp-student-ledger'] });
       queryClient.invalidateQueries({ queryKey: ['hp-students'] });
       queryClient.invalidateQueries({ queryKey: ['hp-cohort-overview'] });
-      toast.success('Feedback added successfully');
-    },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to add feedback');
+      
+      const decisionMessages = {
+        APPROVED: 'Submission approved successfully',
+        REJECTED: 'Submission rejected successfully',
+        REVERTED: 'Submission reverted successfully'
+      };
+      toast.success(decisionMessages[variables.decision]);
     },
   });
 
