@@ -92,18 +92,34 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
         }
     };
 
-    return (
-        <div className="space-y-3">
-            {/* Instructor Feedback */}
-            {sub.instructorFeedback && (
-                <div className="rounded-lg bg-muted/50 p-3 border">
-                    <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5">
-                        <MessageSquare className="h-3.5 w-3.5" />
-                        Instructor Feedback: {String((sub.instructorFeedback as any)?.decision || 'Reviewed')}
-                    </div>
-                    <p className="text-sm">{String((sub.instructorFeedback as any)?.note || 'No note provided')}</p>
-                </div>
-            )}
+    return(
+    <div className="space-y-3">
+  {/* Instructor Feedback */}
+  {sub.instructorFeedback && (
+    <div className="rounded-lg bg-muted/50 p-3 border">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5">
+        <MessageSquare className="h-3.5 w-3.5" />
+        Instructor Feedback: {String((sub.instructorFeedback as any)?.decision || "Reviewed")}
+      </div>
+
+      {(sub.instructorFeedback as any)?.reviewerName && (
+        <div className="text-xs text-muted-foreground mb-1">
+          <div>Instructor Name: {(sub.instructorFeedback as any).reviewerName}</div>
+          <div>Email: {(sub.instructorFeedback as any).reviewerEmail}</div>
+        </div>
+      )}
+
+      {(sub.instructorFeedback as any)?.reviewedAt && (
+        <div className="text-xs text-muted-foreground mb-1">
+          {new Date((sub.instructorFeedback as any).reviewedAt).toLocaleString("en-IN")}
+        </div>
+      )}
+
+      <p className="text-sm">
+        {String((sub.instructorFeedback as any)?.note || "No note provided")}
+      </p>
+    </div>
+  )}
 
             {/* Feedback Controls */}
             <div className="flex items-center gap-2">
@@ -234,14 +250,12 @@ export default function StudentSubmissionsPage() {
         setReasonDialog({ ...reasonDialog, open: false });
         setActionSubId(subId);
         try {
-            if (action === 'revert') {
-                await revertEntry(subId);
-            } else if (action === 'restore') {
+            if (action === 'restore') {
                 await restoreEntry(subId);
-            } else if (action === 'approve' || action === 'reject') {
+            } else if (action === 'approve' || action === 'reject' || action === 'revert') {
                 await reviewSubmission({
                     submissionId: subId,
-                    decision: action === 'approve' ? 'APPROVED' : 'REJECTED',
+                    decision: action === 'approve' ? 'APPROVED' : action === 'reject' ? 'REJECTED' : 'REVERTED',
                     note: note.trim() || undefined,
                     pointsToDeduct: action === 'reject' ? pointsToDeduct : undefined
                 });
@@ -522,22 +536,24 @@ export default function StudentSubmissionsPage() {
                                                             size="sm"
                                                             className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                                             disabled={isReviewing && actionSubId === sub.submission?._id}
-                                                            onClick={() => openReasonDialog(sub.submission?._id || '', 'approve', sub.activity?.title || '', sub.hp?.baseHp || 0)}
+                                                            onClick={() => openReasonDialog(sub.submission?._id || '', 'reject', sub.activity?.title || '', sub.hp?.baseHp || 0)}
                                                         >
                                                             <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
                                                             {isReviewing && actionSubId === sub.submission?._id ? 'Rejecting...' : 'Reject'}
                                                         </Button>
+                                                    </div>
+                                                )}
+                                                {(status === 'APPROVED' || status === 'REJECTED') && (
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
                                                             className="text-destructive hover:text-destructive"
-                                                            disabled={isReverting && actionSubId === sub.submission?._id}
+                                                            disabled={isReviewing && actionSubId === sub.submission?._id}
                                                             onClick={() => openReasonDialog(sub.submission?._id || '', 'revert', sub.activity?.title || '', sub.hp?.baseHp || 0)}
                                                         >
                                                             <Undo2 className="h-3.5 w-3.5 mr-1.5" />
-                                                            {isReverting && actionSubId === sub.submission?._id ? 'Reverting...' : 'Revert'}
+                                                            {isReviewing && actionSubId === sub.submission?._id ? 'Reverting...' : 'Revert'}
                                                         </Button>
-                                                    </div>
                                                 )}
                                                 {status === 'REVERTED' && (
                                                     <Button
@@ -588,7 +604,7 @@ export default function StudentSubmissionsPage() {
                         </DialogDescription>
                     </DialogHeader>
 
-                    {(reasonDialog.action === 'approve' || reasonDialog.action === 'reject') && (
+                    {(reasonDialog.action === 'approve' || reasonDialog.action === 'reject' || reasonDialog.action === 'revert') && (
                         <div className="py-4">
                             <label htmlFor="note" className="text-sm font-medium mb-2 block">
                                 Note (optional)
@@ -608,7 +624,7 @@ export default function StudentSubmissionsPage() {
                         <Button
                             variant={reasonDialog.action === 'revert' || reasonDialog.action === 'reject' ? 'destructive' : 'default'}
                             onClick={handleConfirmAction}
-                            disabled={(reasonDialog.action === 'approve' || reasonDialog.action === 'reject') && isReviewing && actionSubId === reasonDialog.subId}
+                            disabled={(reasonDialog.action === 'approve' || reasonDialog.action === 'reject' || reasonDialog.action === 'revert') && isReviewing && actionSubId === reasonDialog.subId}
                         >
                             {reasonDialog.action === 'revert' ? 'Confirm Revert' :
                                 reasonDialog.action === 'restore' ? 'Confirm Restore' :
