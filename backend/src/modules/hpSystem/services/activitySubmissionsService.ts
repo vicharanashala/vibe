@@ -868,7 +868,7 @@ export class ActivitySubmissionsService extends BaseService {
                 }
                 // If ledger is there to revert then only revert
                 let rewardToUndo = 0;
-                if (originalLedger) {
+                if (originalLedger && originalLedger.direction == "CREDIT") {
                     rewardToUndo = originalLedger.amount ?? 0;
                     const hpBeforeReversal = finalHpBalance;
                     finalHpBalance -= rewardToUndo;
