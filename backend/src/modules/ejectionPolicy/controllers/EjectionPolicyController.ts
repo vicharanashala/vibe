@@ -70,10 +70,10 @@ export class EjectionPolicyController {
   })
   async createPolicy(
     @Body() body: CreateEjectionPolicyBody,
-    @Ability(getEjectionPolicyAbility) {ability, user, authenticatedUser},
+    @Ability(getEjectionPolicyAbility) {ability, user},
   ): Promise<EjectionPolicyResponse> {
     // Only admins can create platform-wide policies
-    if (body.scope === 'platform' && authenticatedUser.globalRole !== 'admin') {
+    if (body.scope === 'platform' && user.roles !== 'admin') {
       throw new ForbiddenError(
         'Only administrators can create platform-wide policies',
       );
@@ -117,75 +117,49 @@ export class EjectionPolicyController {
   @OpenAPI({
     summary: 'Get all ejection policies',
     description:
-      'Retrieves ejection policies with optional filters. Admins see all policies. Managers/Instructors see policies for their courses.',
+      'Retrieves ejection policies with optional filters. Admins see all policies. Managers/Instructors must specify courseId.',
   })
   async getPolicies(
     @QueryParams() query: GetPoliciesQuery,
-    @Ability(getEjectionPolicyAbility) {ability, user, authenticatedUser},
+    @Ability(getEjectionPolicyAbility) {ability, user},
   ): Promise<PoliciesListResponse> {
     let policies;
-    // ✅ ADD DEBUGGING
-    console.log('🔍 getPolicies Debug:');
-    console.log(
-      '  authenticatedUser.globalRole:',
-      authenticatedUser.globalRole,
-    );
-    console.log('  user.roles:', user.roles);
-    console.log('  query:', query);
 
-    if (authenticatedUser.globalRole === 'admin') {
-      console.log('  ✅ Admin branch reached');
-      // Admins can see all policies
+    if (user.roles === 'admin') {
+      //  Admins can see all policies
       const filters: any = {
         scope: query.scope,
         isActive: query.active,
       };
-      console.log('  filters being sent to service:', filters);
+
       if (query.courseId) {
         filters.courseId = query.courseId;
       }
+
       policies = await this.policyService.getPolicies(filters);
-      console.log('  policies returned from service:', policies.length);
     } else {
-      // Non-admins: filter by courses they have access to
-      console.log('  ❌ Non-admin branch reached');
-      if (query.courseId) {
-        // Check if they can view this course's policies
-        const policyContext = {courseId: query.courseId};
-        const policySubject = subject('EjectionPolicy', policyContext);
-
-        if (!ability.can(EjectionPolicyActions.View, policySubject)) {
-          throw new ForbiddenError(
-            'You do not have permission to view policies for this course',
-          );
-        }
-
-        policies = await this.policyService.getPolicies({
-          scope: query.scope,
-          courseId: query.courseId,
-          isActive: query.active,
-        });
-      } else {
-        // Get policies for all courses they have access to
-        const accessibleCourseIds = (authenticatedUser.enrollments || [])
-          .filter(e => ['MANAGER', 'INSTRUCTOR', 'TA'].includes(e.role))
-          .map(e => e.courseId);
-
-        if (accessibleCourseIds.length === 0) {
-          return {
-            policies: [],
-            total: 0,
-          };
-        }
-
-        // Get policies for their first accessible course (simplified)
-        // In production, you'd enhance the service to support multiple courseIds
-        policies = await this.policyService.getPolicies({
-          scope: query.scope,
-          courseId: accessibleCourseIds[0],
-          isActive: query.active,
-        });
+      // Non-admins MUST specify courseId
+      if (!query.courseId) {
+        throw new ForbiddenError(
+          'courseId is required. Please specify a course to view its policies.',
+        );
       }
+
+      // Check if they can view this course's policies
+      const policyContext = {courseId: query.courseId};
+      const policySubject = subject('EjectionPolicy', policyContext);
+
+      if (!ability.can(EjectionPolicyActions.View, policySubject)) {
+        throw new ForbiddenError(
+          'You do not have permission to view policies for this course',
+        );
+      }
+
+      policies = await this.policyService.getPolicies({
+        scope: query.scope,
+        courseId: query.courseId,
+        isActive: query.active,
+      });
     }
 
     const responsePolicies = policies.map(p =>
@@ -193,7 +167,6 @@ export class EjectionPolicyController {
         enableImplicitConversion: true,
       }),
     );
-    console.log('Final response policies:', responsePolicies.length);
 
     return {
       policies: responsePolicies,
@@ -218,12 +191,12 @@ export class EjectionPolicyController {
   })
   async getPolicy(
     @Param('policyId') policyId: string,
-    @Ability(getEjectionPolicyAbility) {ability, user, authenticatedUser},
+    @Ability(getEjectionPolicyAbility) {ability, user},
   ): Promise<EjectionPolicyResponse> {
     const policy = await this.policyService.getPolicyById(policyId);
 
     // Admins can view any policy
-    if (authenticatedUser.globalRole !== 'admin') {
+    if (user.roles !== 'admin') {
       // For course-specific policies, check permissions
       if (policy.scope === 'course' && policy.courseId) {
         const policyContext = {courseId: policy.courseId.toString()};
@@ -261,10 +234,10 @@ export class EjectionPolicyController {
   })
   async getActivePoliciesForCourse(
     @Param('courseId') courseId: string,
-    @Ability(getEjectionPolicyAbility) {ability, user, authenticatedUser},
+    @Ability(getEjectionPolicyAbility) {ability, user},
   ): Promise<PoliciesListResponse> {
     // Check if user has access to this course
-    if (authenticatedUser.globalRole !== 'admin') {
+    if (user.roles !== 'admin') {
       const courseContext = {courseId};
       const policySubject = subject('EjectionPolicy', courseContext);
 
@@ -309,15 +282,12 @@ export class EjectionPolicyController {
   async updatePolicy(
     @Param('policyId') policyId: string,
     @Body() body: UpdateEjectionPolicyBody,
-    @Ability(getEjectionPolicyAbility) {ability, user, authenticatedUser},
+    @Ability(getEjectionPolicyAbility) {ability, user},
   ): Promise<EjectionPolicyResponse> {
     const existingPolicy = await this.policyService.getPolicyById(policyId);
 
     // Only admins can update platform-wide policies
-    if (
-      existingPolicy.scope === 'platform' &&
-      authenticatedUser.globalRole !== 'admin'
-    ) {
+    if (existingPolicy.scope === 'platform' && user.roles !== 'admin') {
       throw new ForbiddenError(
         'Only administrators can update platform-wide policies',
       );
@@ -355,15 +325,12 @@ export class EjectionPolicyController {
   })
   async togglePolicyStatus(
     @Param('policyId') policyId: string,
-    @Ability(getEjectionPolicyAbility) {ability, user, authenticatedUser},
+    @Ability(getEjectionPolicyAbility) {ability, user},
   ): Promise<EjectionPolicyResponse> {
     const existingPolicy = await this.policyService.getPolicyById(policyId);
 
     // Check permissions (same as update)
-    if (
-      existingPolicy.scope === 'platform' &&
-      authenticatedUser.globalRole !== 'admin'
-    ) {
+    if (existingPolicy.scope === 'platform' && user.roles !== 'admin') {
       throw new ForbiddenError(
         'Only administrators can modify platform-wide policies',
       );
@@ -405,15 +372,12 @@ export class EjectionPolicyController {
   })
   async deletePolicy(
     @Param('policyId') policyId: string,
-    @Ability(getEjectionPolicyAbility) {ability, user, authenticatedUser},
+    @Ability(getEjectionPolicyAbility) {ability, user},
   ): Promise<DeletePolicyResponse> {
     const existingPolicy = await this.policyService.getPolicyById(policyId);
 
     // Only admins can delete platform-wide policies
-    if (
-      existingPolicy.scope === 'platform' &&
-      authenticatedUser.globalRole !== 'admin'
-    ) {
+    if (existingPolicy.scope === 'platform' && user.roles !== 'admin') {
       throw new ForbiddenError(
         'Only administrators can delete platform-wide policies',
       );
