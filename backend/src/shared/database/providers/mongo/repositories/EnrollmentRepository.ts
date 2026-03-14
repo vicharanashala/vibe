@@ -1408,9 +1408,9 @@ export class EnrollmentRepository {
       courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
     };
 
-    if (cohort) {
-      baseMatch.cohortId = new ObjectId(cohort);
-    }
+    // if (cohort) {
+    //   baseMatch.cohortId = new ObjectId(cohort);
+    // }
     // else if (cohorts && cohorts.length > 0 && filter === 'STUDENT') {
     //   // baseMatch.cohortId = { $in: cohorts };
     // }

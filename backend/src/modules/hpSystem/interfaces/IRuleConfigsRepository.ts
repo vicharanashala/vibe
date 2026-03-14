@@ -16,5 +16,7 @@ export interface IRuleConfigsRepository {
         activityId: string,
         deletedByTeacherId?: string,
         session?: ClientSession,
-    ): Promise<{ modifiedCount: number }>
+    ): Promise<{ modifiedCount: number }>;
+    getAllLateActivities(): Promise<HpRuleConfigTransformer[]>;
+    getAllMilestoneActivities(): Promise<HpRuleConfigTransformer[]>;
 }
