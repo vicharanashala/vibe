@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { SubmissionStatusBadge } from "@/components/hp-system/SubmissionStatusBadge";
 import {
     Dialog,
     DialogContent,
@@ -15,21 +16,13 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import {
-    ArrowLeft, ExternalLink, Clock, FileText, CheckCircle, AlertCircle, XCircle,
+    ArrowLeft, ExternalLink, Clock, FileText, CheckCircle, AlertCircle,
     Image as ImageIcon, File, Link2, MessageSquare, CalendarClock, RotateCcw,
     Timer, Send, Zap, Undo2, ThumbsUp, ThumbsDown, ChevronDown,
     ChevronUp
 } from "lucide-react";
 import type { SubmissionAttachment, HpStudentSubmission } from "@/lib/api/hp-system";
 import { toast } from "sonner";
-
-const statusConfig = {
-    SUBMITTED: { label: "Submitted", variant: "default" as const, icon: CheckCircle, color: "text-green-600" },
-    PENDING: { label: "Pending", variant: "secondary" as const, icon: Clock, color: "text-yellow-600" },
-    REVERTED: { label: "Reverted", variant: "destructive" as const, icon: XCircle, color: "text-red-600" },
-    APPROVED: { label: "Approved", variant: "default" as const, icon: CheckCircle, color: "text-green-600" },
-    REJECTED: { label: "Rejected", variant: "destructive" as const, icon: XCircle, color: "text-red-600" },
-};
 
 function formatDate(iso?: string): string {
     if (!iso) return '—';
@@ -383,8 +376,6 @@ export default function StudentSubmissionsPage() {
                     </div>
                 ) : safeSubmissions.map((sub: any) => {
                     const status = sub.submission?.status || 'PENDING';
-                    const cfg = statusConfig[status as keyof typeof statusConfig] || statusConfig.PENDING;
-                    const StatusIcon = cfg.icon;
                     const attachments = [
                         ...(sub.submission?.attachments?.files || []).map((f: any) => ({ ...f, type: 'document' })),
                         ...(sub.submission?.attachments?.images || []).map((i: any) => ({ ...i, type: 'image' }))
@@ -434,10 +425,7 @@ export default function StudentSubmissionsPage() {
                                                 Late
                                             </Badge>
                                         )}
-                                        <Badge variant={cfg.variant} className="flex items-center gap-1">
-                                            <StatusIcon className="h-3 w-3" />
-                                            {cfg.label}
-                                        </Badge>
+                                        <SubmissionStatusBadge status={status} />
                                     </div>
                                 </div>
                             </CardHeader>
