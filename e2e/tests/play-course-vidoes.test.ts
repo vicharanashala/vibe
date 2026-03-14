@@ -438,6 +438,20 @@ test('Test course video playback and quiz', async ({ page }) => {
     await nextLessonButton.click();
   }
 
+async function submitProject(page: Page) {
+  // Fill the Work Link textbox
+  const workLinkTextbox = page.getByRole('textbox', { name: /work link/i });
+  await workLinkTextbox.fill('https://vibe.vicharanashala.ai/student');
+
+  // Click Submit button
+  const submitButton = page.getByRole('button', { name: /submit form/i });
+  await submitButton.click();
+
+  // Wait for success popup
+  await expect(page.getByText(/form submitted successfully/i).first()).toBeVisible();
+
+  console.log('✅ Project submitted successfully');
+}
   /* ----------------------------------------------------------------------
    //  Load all modules and loop through all of them ---
 ---------------------------------------------------------------------- */
@@ -535,7 +549,14 @@ test('Test course video playback and quiz', async ({ page }) => {
           await attemptQuiz(page);
 
           console.log(` item [${j}] 📝 Quiz completed`);
-        } else {
+        } else if (lessonType === 'project') {
+          console.log('   📝 Project detected');
+
+          await submitProject(page);
+
+          console.log(` item [${j}] 📝 project completed`);
+        }
+        else {
           console.log(`   ℹ️ Unsupported lesson type: ${lessonType}`);
         }
       }
