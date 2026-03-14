@@ -1,3 +1,5 @@
+import { allocatePenality } from "#root/modules/hpSystem/utils/allocatePenality.js";
+import { allocateReward } from "#root/modules/hpSystem/utils/allocateReward.js";
 import { getContainer } from "../loadModules.js";
 
 
@@ -16,10 +18,18 @@ cron.schedule(
         try {
             const ENABLE_HP_JOB = appConfig.ENABLE_HP_JOB;
             if (ENABLE_HP_JOB) {
-
-            } else {
-                console.log('Skipped backup ENABLE_DB_BACKUP==', ENABLE_HP_JOB);
-            }
+                try {
+                    console.log('⚡ Running penalty allocation job...');
+                    await allocatePenality();
+                    console.log('✅ Penalty allocation job completed');
+                    
+                    console.log('🎯 About to run milestone reward allocation job...');
+                    await allocateReward();
+                    console.log('✅ Milestone reward allocation job completed');
+                } catch (error) {
+                    console.error('❌ HP allocation job failed:', error);
+                }
+            } 
         } catch (err) {
             console.error('❌ Backup Failed:', err);
         }

@@ -119,4 +119,36 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
     async getAllLateActivities() {
         
     }
+
+    async getAllMilestoneActivities(): Promise<HpRuleConfigTransformer[]> {
+        await this.init();
+        
+        const docs = await this.hpRuleConfigsCollection.aggregate([
+            {
+                $match: {
+                    isMandatory: true,
+                    "reward.enabled": true,
+                    isDeleted: { $ne: true }
+                }
+            },
+            {
+                $lookup: {
+                    from: "hp_activities",
+                    localField: "activityId",
+                    foreignField: "_id",
+                    as: "activity"
+                }
+            },
+            {
+                $match: {
+                    "activity.activityType": { $in: ["MILESTONE", "VIBE_MILESTONE"] }
+                }
+            }
+        ]).toArray();
+
+        return docs.map(doc => plainToInstance(HpRuleConfigTransformer, doc as HpRuleConfig, {
+            excludeExtraneousValues: true,
+            exposeDefaultValues: true,
+        }));
+    }
 }
