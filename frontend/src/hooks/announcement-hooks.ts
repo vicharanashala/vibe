@@ -26,7 +26,8 @@ export function useAnnouncements(
     type?: AnnouncementType,
     courseId?: string,
     versionId?: string,
-    studentMode: boolean = false
+    studentMode: boolean = false,
+    cohortId?: string,
 ) {
     const [data, setData] = useState<Announcement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -50,6 +51,7 @@ export function useAnnouncements(
                 if (type) params.set('type', type);
                 if (courseId) params.set('courseId', courseId);
                 if (versionId) params.set('courseVersionId', versionId);
+                if (cohortId) params.set('cohortId', cohortId);
                 url = `${BASE_URL}/instructor?${params.toString()}`;
             }
 
@@ -81,7 +83,7 @@ export function useAnnouncements(
         } finally {
             setIsLoading(false);
         }
-    }, [type, courseId, versionId, studentMode]);
+    }, [type, courseId, versionId, studentMode, cohortId]);
 
     useEffect(() => {
         fetchAnnouncements();

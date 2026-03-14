@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Loader2, ArrowUp, ArrowDown, Plus, Pencil, Trash } from "lucide-react"
+import { Loader2, ArrowUp, ArrowDown, Plus, Pencil, Trash, Megaphone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -18,6 +18,8 @@ import {
 import { toast } from "sonner"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { AnnouncementType } from "@/types/announcement.types"
+import { AnnouncementModal } from "@/components/announcements/AnnouncementModal"
 
 export default function ConfigureCohorts() {
 
@@ -44,6 +46,8 @@ export default function ConfigureCohorts() {
   const [isPublicDialogOpen, setIsPublicDialogOpen] = useState(false)
   const [targetCohort, setTargetCohort] = useState<any>(null)
   const [nextPublicState, setNextPublicState] = useState(false)
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false)
+  const [selectedCohortForAnnouncement, setSelectedCohortForAnnouncement] = useState<any>(null)
 
   useEffect(() => {
     setIsSearching(true);
@@ -308,6 +312,27 @@ export default function ConfigureCohorts() {
                       >
                         <Trash className="w-4 h-4"/>
                       </Button>
+                    <AnnouncementModal
+                        isOpen={showAnnouncementModal}
+                        onClose={() => setShowAnnouncementModal(false)}
+                        defaultType={AnnouncementType.COHORT_SPECIFIC}
+                        courseId={courseId}
+                        versionId={versionId}
+                        cohortId={selectedCohortForAnnouncement?.id}
+                      />
+                      <Button
+                            variant="outline"
+                            size="sm"
+  
+                            onClick={() => {
+                              setSelectedCohortForAnnouncement(cohort)
+                              setShowAnnouncementModal(true)
+                            }}
+                            className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                          >
+                        <Megaphone className="h-3 w-3 mr-1" />
+                        Announce
+                      </Button>
                     <span className="flex items-center space-x-2 ml-4">
                       <div className="space-y-1">
                         <Label className="text-sm font-medium">Is Public</Label>
@@ -397,7 +422,7 @@ export default function ConfigureCohorts() {
               onOpenChange={setIsEditOpen}>
         <DialogContent className="p-10">
           <DialogHeader className="mb-4">
-            <DialogTitle>Edit Cohort</DialogTitle>
+            <DialogTitle>Edit Cohort Name</DialogTitle>
           </DialogHeader>
           <Input
             value={cohortName}
