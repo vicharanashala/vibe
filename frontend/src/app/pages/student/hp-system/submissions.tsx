@@ -1,8 +1,8 @@
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { useStudentMySubmissions } from "@/hooks/hooks";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SubmissionStatusBadge } from "@/components/hp-system/SubmissionStatusBadge";
 import { ArrowLeft, Loader2, Link as LinkIcon, FileText, Clock } from "lucide-react";
 
 export default function StudentSubmissions() {
@@ -45,21 +45,6 @@ export default function StudentSubmissions() {
             </div>
         );
     }
-
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'SUBMITTED':
-                return <Badge className="bg-blue-500">Submitted</Badge>;
-            case 'APPROVED':
-            case 'GRADED':
-                return <Badge className="bg-green-500">Approved</Badge>;
-            case 'REJECTED':
-            case 'REVERTED':
-                return <Badge variant="destructive">Reverted</Badge>;
-            default:
-                return <Badge variant="secondary">{status}</Badge>;
-        }
-    };
 
     return (
         <div className="container mx-auto p-6 max-w-5xl space-y-6">
@@ -109,7 +94,7 @@ export default function StudentSubmissions() {
                                             <span>Submitted: {formatDateTime(sub.submission.submittedAt)}</span>
                                         </div>
                                     </div>
-                                    {getStatusBadge(sub.submission.status)}
+                                    <SubmissionStatusBadge status={sub.submission.status} />
                                 </div>
                             </CardHeader>
                             <CardContent className="pt-6 space-y-6">
