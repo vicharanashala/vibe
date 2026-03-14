@@ -193,7 +193,7 @@ export interface HpRuleConfig {
 
     // penalty type = % => 10 => 10% of 50 => 5 => 50 -5 
 
-    // Penalty rule
+    // Penalty rule 
     penalty: {
         enabled: boolean;
         type: RuleType;
