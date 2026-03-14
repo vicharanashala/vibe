@@ -1,5 +1,8 @@
 export const EJECTION_POLICY_TYPES = {
+  // Services
   EjectionPolicyService: Symbol.for('EjectionPolicyService'),
+
+  // Repositories
   EjectionPolicyRepo: Symbol.for('EjectionPolicyRepo'),
 };
 
