@@ -1895,17 +1895,6 @@ export default function CourseEnrollments() {
                               )
                             }
                           </div >
-
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
     </>
   )
 
