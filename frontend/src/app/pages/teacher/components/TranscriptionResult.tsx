@@ -369,10 +369,9 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
             ) : (
               <div className={`w-full p-4 text-base leading-relaxed bg-card text-gray-800 dark:text-gray-100 bg-gradient-to-br   border border-gray-200 dark:border-gray-600 rounded-xl overflow-y-auto shadow-inner ${isExpanded ? 'h-[350px]' : 'h-[200px]'}`}>
                 {transcription ? (
-                  <div
-                    className="whitespace-pre-wrap"
-                    dangerouslySetInnerHTML={{ __html: highlightedText }}
-                  />
+                 <div className="whitespace-pre-wrap">
+                    {highlightedText}
+                  </div>
                 ) : (
                   <div className="h-full flex items-center justify-center text-gray-400 dark:text-gray-500 bg-card">
                     <div className="text-center space-y-4">
