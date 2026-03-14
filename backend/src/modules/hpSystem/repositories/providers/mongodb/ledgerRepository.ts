@@ -145,27 +145,21 @@ export class LedgerRepository implements ILedgerRepository {
         );
     }
 
-    async checkPenaltyExists(
-        studentId: string,
-        activityId: string
-    ): Promise<boolean> {
-        await this.init();
-
-        const existingPenalty = await this.hpLedgerCollection.findOne({
-            studentId: new ObjectId(studentId),
-            activityId: new ObjectId(activityId),
-            "calc.reasonCode": "MISSED_DEADLINE_PENALTY"
-        });
-
-        return !!existingPenalty;
-    }
-
     async findPenaltiesByActivityId(activityId: string): Promise<HpLedger[]> {
         await this.init();
 
         return await this.hpLedgerCollection.find({
             activityId: new ObjectId(activityId),
             "calc.reasonCode": "MISSED_DEADLINE_PENALTY"
+        }).toArray();
+    }
+
+    async findRewardsByActivityId(activityId: string): Promise<HpLedger[]> {
+        await this.init();
+
+        return await this.hpLedgerCollection.find({
+            activityId: new ObjectId(activityId),
+            "calc.reasonCode": "SUBMISSION_REWARD"
         }).toArray();
     }
 }

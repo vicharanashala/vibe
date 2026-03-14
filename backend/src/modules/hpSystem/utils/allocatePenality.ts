@@ -5,11 +5,34 @@ import { HpLedger, RuleType } from "../models.js";
 import { 
     HpReasonCode, 
     HpLedgerEventType, 
-    HpLedgerDirection 
+    HpLedgerDirection,
+    COHORT_OVERRIDES
 } from "../constants.js";
 import { ObjectId, ClientSession } from "mongodb";
 import { MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
+
+// Helper function to resolve course IDs (handle legacy vs new cohort system)
+function getActualCourseIds(activity: any) {
+    const isLegacyCourse = activity.courseId === "0000000000000001" && 
+                          activity.courseVersionId === "00000000000002";
+    
+    if (isLegacyCourse) {
+        const override = COHORT_OVERRIDES[activity.cohort];
+        if (!override) {
+            throw new Error(`No cohort override found for: ${activity.cohort}`);
+        }
+        return {
+            courseId: override.courseId,
+            courseVersionId: override.versionId
+        };
+    }
+    
+    return {
+        courseId: activity.courseId,
+        courseVersionId: activity.courseVersionId
+    };
+}
 
 export const allocatePenality = async () => {
     const container = getContainer();
@@ -73,9 +96,13 @@ async function processActivityPenalties(
         return;
     }
 
+    // Get actual course IDs (handle legacy vs new cohort system)
+    const { courseId, courseVersionId } = getActualCourseIds(activity);
+    console.log(`🎯 Processing activity: ${activity._id} (Course: ${courseId}, Version: ${courseVersionId})`);
+
     // Get enrolled students for this course/cohort
     const enrolledStudents = await cohortRepo.getStudentsForCohortByVersionAndCohortName(
-        activity.courseVersionId.toString(),
+        courseVersionId.toString(),
         activity.cohort
     );
 

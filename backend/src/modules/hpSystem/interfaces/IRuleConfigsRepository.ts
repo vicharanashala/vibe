@@ -18,4 +18,5 @@ export interface IRuleConfigsRepository {
         session?: ClientSession,
     ): Promise<{ modifiedCount: number }>;
     getAllLateActivities(): Promise<HpRuleConfigTransformer[]>;
+    getAllMilestoneActivities(): Promise<HpRuleConfigTransformer[]>;
 }
