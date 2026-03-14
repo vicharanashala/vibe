@@ -47,10 +47,10 @@ const AiModule = () => {
   const [showSegments, setShowSegments] = useState(false);
   const [showQuestions, setShowQuestions] = useState(false);
   const [showUploadContent, setShowUploadContent] = useState(false);
-
-    const [editingIdx, setEditingIdx] = useState<number | null>(null);
-    const [editModalOpen, setEditModalOpen] = useState(false);
-    const [editQuestion, setEditQuestion] = useState<any>(null);
+  const [showContinueButton, setShowContinueButton] = useState(false);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editQuestion, setEditQuestion] = useState<any>(null);
 
   const STEP_ORDER = {
     AUDIO_EXTRACTION: 0,
@@ -722,7 +722,6 @@ const AiModule = () => {
 
       const incoming = mapJobStatusToIncoming(res.jobStatus);
       if (!incoming) return;
-
       setCurrentJob((prev) => {
         if (!prev) return incoming;
 
@@ -741,7 +740,6 @@ const AiModule = () => {
         handleShowHandleResult(incoming.task);
 
         setTimeout(() => setIsLoading(false), 500);
-
         // ⛔ stop polling when completed
         setShouldPoll(false);
 
@@ -757,13 +755,11 @@ const AiModule = () => {
       else if (incoming.status === "RUNNING") {
         setIsWaitingServer(false);
         setIsLoading(true);
-
         // keep polling
         setShouldPoll(true);
       }
       else if (incoming.status === "FAILED") {
         setIsLoading(false);
-
         // stop polling
         setShouldPoll(false);
       }
@@ -776,75 +772,77 @@ const AiModule = () => {
 
   }, [aiJobId, shouldPoll]);
 
-   const lastSegmentRef = useRef<number | null>(null)
-  
+  const lastSegmentRef = useRef<number | null>(null)
+
   useEffect(() => {
-    if(startTime == null || endTime == null) return
-  
-    if(lastSegmentRef.current === endTime) return
-  
+    if (startTime == null || endTime == null) return
+
+    if (lastSegmentRef.current === endTime) return
+
     lastSegmentRef.current = endTime
-  
+
     setChunkTranscription(prev => [
       ...prev,
       { startTime, endTime }
     ])
-  
+
   }, [endTime])
 
-    async function editSegmentMap(jobId: string, segmentMap: (number | string)[] | null, index?: number): Promise<void> {
-      const token = localStorage.getItem('firebase-auth-token');
-      const url = getApiUrl(`/genai/jobs/${jobId}/edit/segment-map`);
-      const body = JSON.stringify({ segmentMap, index });
-      const res = await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body,
-      });
-      if (res.status === 200) {
-        return;
-      }
-      let errMsg = 'Unknown error';
-      try { errMsg = (await res.json()).message || errMsg; } catch { console.error("Failed to parse error message from response") }
-      if (res.status === 400) throw new Error('Bad request: ' + errMsg);
-      if (res.status === 403) throw new Error('Forbidden: ' + errMsg);
-      if (res.status === 404) throw new Error('Job not found: ' + errMsg);
-      throw new Error(errMsg);
+  async function editSegmentMap(jobId: string, segmentMap: (number | string)[] | null, index?: number): Promise<void> {
+    const token = localStorage.getItem('firebase-auth-token');
+    const url = getApiUrl(`/genai/jobs/${jobId}/edit/segment-map`);
+    const body = JSON.stringify({ segmentMap, index });
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body,
+    });
+    if (res.status === 200) {
+      return;
     }
+    let errMsg = 'Unknown error';
+    try { errMsg = (await res.json()).message || errMsg; } catch { console.error("Failed to parse error message from response") }
+    if (res.status === 400) throw new Error('Bad request: ' + errMsg);
+    if (res.status === 403) throw new Error('Forbidden: ' + errMsg);
+    if (res.status === 404) throw new Error('Job not found: ' + errMsg);
+    throw new Error(errMsg);
+  }
 
-  const handleGenerateQuestions = async ()=>{
+  const handleGenerateQuestions = async () => {
     const stringEndTimeArray = chunkTranscription.map((chunk: any) => chunk.endTime);
-   
+
     await editSegmentMap(aiJobId!, stringEndTimeArray);
-       const sortedSegments = [...stringEndTimeArray].sort((a, b) => a - b);
-             const updatedChunks = sortedSegments.map((end, idx) => {
-        const start = idx === 0 ? 0 : sortedSegments[idx - 1];
-        return segmentationChunks.filter(chunk => {
-          if (!chunk?.timestamp || !Array.isArray(chunk.timestamp) || chunk.timestamp.length < 2) {
-            return false;
-          }
+    const sortedSegments = [...stringEndTimeArray].sort((a, b) => a - b);
+    const updatedChunks = sortedSegments.map((end, idx) => {
+      const start = idx === 0 ? 0 : sortedSegments[idx - 1];
+      return segmentationChunks.filter(chunk => {
+        if (!chunk?.timestamp || !Array.isArray(chunk.timestamp) || chunk.timestamp.length < 2) {
+          return false;
+        }
 
-          const chunkStart = chunk.timestamp[0];
-          const chunkEnd = chunk.timestamp[1];
-          const chunkMid = (chunkStart + chunkEnd) / 2;
+        const chunkStart = chunk.timestamp[0];
+        const chunkEnd = chunk.timestamp[1];
+        const chunkMid = (chunkStart + chunkEnd) / 2;
 
-          return chunkMid > start && chunkMid <= end;
-        });
+        return chunkMid > start && chunkMid <= end;
       });
+    });
 
-       setSegmentationMap(stringEndTimeArray);
-       setSegmentationChunks(updatedChunks);
-       handleShowHandleResult("SEGMENTATION");
+    setSegmentationMap(stringEndTimeArray);
+    setSegmentationChunks(updatedChunks);
+    handleShowHandleResult("SEGMENTATION");
     setShowSegments(true);
+    setShowContinueButton(true)
   }
 
 
-  const handleContinueClick = async ()=>{
+  const handleContinueClick = () => {
     updateCurrentJob("questionGeneration", "WAITING");
     setShowQuestions(true);
+    setShowContinueButton(false);
   }
 
 
@@ -887,26 +885,26 @@ const AiModule = () => {
               aiJobId={aiJobId}
             />
           </CardContent>) :
-            (showUploadContent ? <UploadContentView                     
-                    currentJobStatus={currentJob.status}
-                    setUploadParams={setUploadParams}
-                    uploadParams={uploadParams}
-                    handleApproveTask={handleApproveTask}
-                    isLoading={isLoading}
-                    isApprovingTask={isApprovingTask}
-                    aiJobId={aiJobId}/> : <div className=" bg-linear-to-br from-background to-muted/20">
+            (showUploadContent ? <UploadContentView
+              currentJobStatus={currentJob.status}
+              setUploadParams={setUploadParams}
+              uploadParams={uploadParams}
+              handleApproveTask={handleApproveTask}
+              isLoading={isLoading}
+              isApprovingTask={isApprovingTask}
+              aiJobId={aiJobId} /> : <div className=" bg-linear-to-br from-background to-muted/20">
               {isURLValidated && videoId && (
                 <>
 
                   <div>
-                    <div className="flex items-center gap-3 p-4">
+                    {showSegments ? null : (<div className="flex items-center gap-3 p-4">
                       <Upload className="w-6 h-6 dark:text-white" />
                       <h2 className="text-xl font-bold">Upload Audio</h2>
-                    </div>
+                    </div>)}
 
-                    <p className="text-md text-gray-600 dark:text-gray-200 p-4">
+                    {showSegments ? null : <p className="text-md text-gray-600 dark:text-gray-200 p-4">
                       Upload your audio file to generate a high-quality transcription of the spoken content.
-                    </p>
+                    </p>}
 
                     {showSegments === false ? <AudioTranscripter
                       setIsAudioExtracting={setIsAudioExtracting}
@@ -927,32 +925,31 @@ const AiModule = () => {
                       chunkTranscription={chunkTranscription}
                       setChunkTranscription={setChunkTranscription}
                     /> : showQuestions ? null : <SegmentationView
-                    isLoading={isLoading}
-                    isTaskResultLoading={isTaskResultLoading}
-                    error={error}
-                    aiJobId={aiJobId}
-                    segmentationMap={segmentationMap}
-                    segmentationChunks={segmentationChunks}
-                    segments={segments}
-                    handleApproveTask={handleApproveTask}
-                    currentJobStatus={currentJob.status}
-                    setCustomSegmentationParams={setCustomSegmentationParams}
-                    customSegmentationParams={customSegmentationParams}
-                    updateCurrentJob={updateCurrentJob}
-                    handleShowHandleResult={handleShowHandleResult}
-                    isWaitingServer={isWaitingServer}
-                    isApprovingTask={isApprovingTask}
-                    setSegmentationMap={setSegmentationMap}
-                    setSegmentationChunks={setSegmentationChunks}
-                    showSegments = {showSegments}
-                    setShowQuestions={setShowQuestions}
+                      isLoading={isLoading}
+                      isTaskResultLoading={isTaskResultLoading}
+                      error={error}
+                      aiJobId={aiJobId}
+                      segmentationMap={segmentationMap}
+                      segmentationChunks={segmentationChunks}
+                      segments={segments}
+                      handleApproveTask={handleApproveTask}
+                      currentJobStatus={currentJob.status}
+                      setCustomSegmentationParams={setCustomSegmentationParams}
+                      customSegmentationParams={customSegmentationParams}
+                      updateCurrentJob={updateCurrentJob}
+                      handleShowHandleResult={handleShowHandleResult}
+                      isWaitingServer={isWaitingServer}
+                      isApprovingTask={isApprovingTask}
+                      setSegmentationMap={setSegmentationMap}
+                      setSegmentationChunks={setSegmentationChunks}
+                      showSegments={showSegments}
                     />}
                   </div>
 
 
-                  {showSegments && <Button onClick={handleContinueClick}>Continue</Button>}
+                  {showSegments && showContinueButton && <Button onClick={handleContinueClick}>Continue</Button>}
 
-                  {endTime === videoDuration && showSegments === false &&  (
+                  {endTime === videoDuration && showSegments === false && (
                     <Button onClick={handleGenerateQuestions}>
                       Generate Questions
                     </Button>
@@ -981,20 +978,19 @@ const AiModule = () => {
                     isWaitingServer={isWaitingServer}
                     isApprovingTask={isApprovingTask}
                     setShowUploadContent={setShowUploadContent}
-                        /> : 
+                  /> :
                     <div style={{ width: "100%", aspectRatio: "16/9", background: "#000" }}>
                       <div
                         ref={iframeRef}
                         style={{
                           width: "100%",
                           height: "100%",
-                        background: "#000",
-                        borderRadius: "12px 12px 0 0",
-                        overflow: "hidden",
-                      }}
-                    />
-                  </div>}
-
+                          background: "#000",
+                          borderRadius: "12px 12px 0 0",
+                          overflow: "hidden",
+                        }}
+                      />
+                    </div>}
                 </>
               )}
             </div>)}

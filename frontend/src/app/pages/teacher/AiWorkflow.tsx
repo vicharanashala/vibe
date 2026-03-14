@@ -6,7 +6,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, editQuestionData, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
 import { ArrowLeft, ArrowRight, ChevronRight, ChevronLeft, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors, Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap, Info, Power, Check } from 'lucide-react';
-import { ArrowLeft, ArrowRight, ChevronRight, ChevronLeft, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors, Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap, Info, Power, Check } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner';
 import { AudioTranscripter } from './AudioTranscripter';
@@ -20,14 +19,14 @@ import { Progress } from '@/components/ui/progress';
 
 
 
-export interface UploadParams {
+interface UploadParams {
   videoItemBaseName: string;
   quizItemBaseName: string;
   questionsPerQuiz: number | null;
   audioProvided: boolean;
 }
 
-export interface CurrentJob {
+interface CurrentJob {
   status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING",
   task: string
 }
@@ -63,6 +62,7 @@ const AiWorkflow = () => {
   const [urlError, setUrlError] = useState<string | null>(null); // yt url error
   const [aiJobId, setAiJobId] = useState<string | null>(null);
   const [shouldPoll, setShouldPoll] = useState(false);
+  const [showUploadContent, setShowUploadContent] = useState(false);
   const clearStoredQuestions = () => {
     sessionStorage.removeItem('questions');
   };
@@ -123,14 +123,17 @@ const AiWorkflow = () => {
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editQuestion, setEditQuestion] = useState<any>(null);
-  const [showUploadContent, setShowUploadContent] = useState(false);
+
   const [isWaitingServer, setIsWaitingServer] = useState(false);// to track live status state
   const [isApprovingTask, setIsApprovingTask] = useState(false); // to track approve task 
   const [isOpenEndJobModal, setIsOpenEndJobModal] = useState(false);
 
   // <<<<<<<<<< Ref >>>>>>>>>>
   const optimisticFailedTaskRef = useRef<string | null>(null);
-  const errorRef = useRef<HTMLDivElement | null>(null);
+  const currentJobRef = useRef<CurrentJob>(currentJob);
+  useEffect(() => {
+    currentJobRef.current = currentJob;
+  }, [currentJob]);
 
 
   const navigate = useNavigate();
@@ -225,13 +228,13 @@ const AiWorkflow = () => {
 
             slowInterval = setInterval(() => {
               setProgress((p: number) => {
-                if (p >= 99.99) {
+                if (p >= 95) {
                   if (slowInterval) clearInterval(slowInterval);
-                  return 99.99;
+                  return 95; // Cap at 95% to leave room for the final 100% jump
                 }
                 return p + 0.1;
               });
-            }, 30000);
+            }, 5000); // Changed from 30000ms
 
             return 90;
           } else {
@@ -299,6 +302,7 @@ const AiWorkflow = () => {
     // Check running task
     const runningTask = TASK_ORDER.find((key) => jobStatus[key] === "RUNNING");
     if (runningTask) return { task: runningTask, status: "RUNNING" }
+
     // Check for failed task 
     const failedTask = TASK_ORDER.find((key) => jobStatus[key] === "FAILED");
     if (failedTask) return { task: failedTask, status: "FAILED" };
@@ -309,7 +313,7 @@ const AiWorkflow = () => {
     );
     if (pendingTask) return { task: pendingTask, status: "PENDING" };
 
-    // Return last completed task
+    // Check for completed task
     const completedTasks = TASK_ORDER.filter((key) => jobStatus[key] === "COMPLETED");
     if (completedTasks.length > 0) {
       const lastTask = completedTasks[completedTasks.length - 1];
@@ -320,19 +324,20 @@ const AiWorkflow = () => {
   };
 
   const updateCurrentJob = (
-    task: "segmentation" | "questionGeneration" | "uploadContent" | "audioExtraction",
+    task: "segmentation" | "questionGeneration" | "uploadContent" | "audioExtraction" | "transcriptGeneration" | string,
     status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING",
   ) => {
     const taskMap: Record<string, string> = {
       segmentation: "SEGMENTATION",
       questionGeneration: "QUESTION_GENERATION",
       uploadContent: "UPLOAD_CONTENT",
-      audioExtraction: "AUDIO_EXTRACTION"
+      audioExtraction: "AUDIO_EXTRACTION",
+      transcriptGeneration: "TRANSCRIPT_GENERATION"
     };
 
     setCurrentJob({
       status,
-      task: taskMap[task],
+      task: taskMap[task] || task,
     });
   };
 
@@ -415,8 +420,6 @@ const AiWorkflow = () => {
         setSegmentationChunks(grouped);
       } else if (segData?.transcriptFileUrl) {
         const segs = await fetchSegmentationFromUrl(segData.transcriptFileUrl);
-
-
         setSegments(segs);
         setSegmentationMap(null);
         setSegmentationChunks(null);
@@ -563,31 +566,89 @@ const AiWorkflow = () => {
     }, 500);
   }
 
-  const handleRefreshStatus = async () => {
+  const handleRefreshStatus = async (isPolling: boolean = false) => {
     if (!aiJobId) return;
     try {
-      setProgress(0);
+      if (!isPolling) {
+        setProgress(0);
+      }
       const status = await aiSectionAPI.getJobStatus(aiJobId);
-      const currentTaskData = getCurrentTask(status.jobStatus);
+      const jobStatusKey = (currentJobRef.current.task === "AUDIO_EXTRACTION" ? "audioExtraction"
+        : currentJobRef.current.task === "TRANSCRIPT_GENERATION" ? "transcriptGeneration"
+          : currentJobRef.current.task === "SEGMENTATION" ? "segmentation"
+            : currentJobRef.current.task === "QUESTION_GENERATION" ? "questionGeneration"
+              : currentJobRef.current.task === "UPLOAD_CONTENT" ? "uploadContent" : null) as keyof typeof status.jobStatus;
 
+      // Special case: Detect if the CURRENTLY DISPLAYED task just completed
+      if (isPolling && jobStatusKey && status.jobStatus?.[jobStatusKey] === "COMPLETED" && currentJobRef.current.status === "RUNNING") {
+        const upperTask = currentJobRef.current.task;
+        handleShowHandleResult(upperTask);
+        setProgress(100);
+        setTimeout(() => setIsLoading(false), 500);
+        setShouldPoll(false);
+        setAiJobStatus({ ...status, task: upperTask, status: "COMPLETED" });
+        updateCurrentJob(upperTask, "COMPLETED");
+
+        if (upperTask === "SEGMENTATION") toast.success("Segmentation completed!");
+        if (upperTask === "QUESTION_GENERATION") toast.success("Question generation completed!");
+        return;
+      }
+
+      const currentTaskData = getCurrentTask(status.jobStatus);
       if (!currentTaskData) {
-        toast.error("Current task is missing");
+        if (!isPolling) toast.error("Current task is missing");
         return;
       }
 
       const currentTask = currentTaskData.task;
       const currentStatus = currentTaskData.status;
-      // const current
+
+      // Handle transitions for polling (generic)
+      if (isPolling) {
+        if (currentStatus === "COMPLETED") {
+          // This block is for cases where we didn't catch it with the special case above
+          const upperTask = currentTask === "transcriptGeneration" ? "TRANSCRIPT_GENERATION"
+            : currentTask === "segmentation" ? "SEGMENTATION"
+              : currentTask === "questionGeneration" ? "QUESTION_GENERATION" : currentTask;
+          handleShowHandleResult(upperTask);
+          setProgress(100);
+          setTimeout(() => setIsLoading(false), 500);
+          setShouldPoll(false);
+
+          if (upperTask === "SEGMENTATION") toast.success("Segmentation completed!");
+          if (upperTask === "QUESTION_GENERATION") toast.success("Question generation completed!");
+        } else if (currentStatus === "RUNNING") {
+          setIsWaitingServer(false);
+          setIsLoading(true);
+        } else if (currentStatus === "FAILED") {
+          setProgress(0);
+          setIsLoading(false);
+          setShouldPoll(false);
+        }
+      }
+
+      // Logic to prevent auto-progression to the next stage if current is completed
+      const incomingStep = STEP_ORDER[currentTask.toUpperCase() as keyof typeof STEP_ORDER];
+      const jobStep = STEP_ORDER[currentJobRef.current.task as keyof typeof STEP_ORDER];
+
+      if (incomingStep > jobStep && currentJobRef.current.status === "COMPLETED") {
+        setAiJobStatus({ ...status, task: currentTask, status: currentStatus });
+        return;
+      }
+
       setAiJobStatus({ ...status, task: currentTask, status: currentStatus });
       updateCurrentJob(currentTask, currentStatus);
 
       if (currentTask == "uploadContent" && currentStatus == "COMPLETED") {
         setProgress(100);
         setTimeout(() => setIsLoading(false), 500);
+        setShouldPoll(false);
       }
 
     } catch (error) {
-      toast.error('Failed to refresh status.');
+      if (!isPolling) {
+        toast.error('Failed to refresh status.');
+      }
     }
   };
 
@@ -663,14 +724,22 @@ const AiWorkflow = () => {
           params = { parameters: customSegmentationParams, usePrevious: 0, type: "SEGMENTATION" };
           break;
         case 'questionGeneration':
+          clearStoredQuestions();
           params = { parameters: customQuestionGenParams, type: "QUESTION_GENERATION" };
           break;
         case 'uploadContent':
+          if (customUploadParams.questions && customUploadParams.questions.length > 0) {
+            try {
+              await aiSectionAPI.editQuestionData(aiJobId, customUploadParams.questions);
+            } catch (error) {
+              console.error("Failed to update questions before upload:", error);
+            }
+          }
           params = { parameters: customUploadParams, type: "UPLOAD_CONTENT", usePrevious: 0 };
           break;
         default:
           console.error("Invalid current task", currentTask);
-          toast.error("Invalida current task");
+          toast.error("Invalid current task");
           return;
       }
       // 4. Trigger continue and start task
@@ -1369,7 +1438,7 @@ interface QuestionGenerationResultProps {
   updateCurrentJob: (task: "segmentation" | "questionGeneration" | "uploadContent", status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING") => void
   handleShowHandleResult: (task: string) => void
   isWaitingServer: boolean
-  setShowUploadContent: (show: boolean) => void
+  setShowUploadContent: React.Dispatch<React.SetStateAction<boolean>>
 }
 
 interface ProgressiveProgressBarProps {
@@ -1521,7 +1590,7 @@ export const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = (
 }) => {
   useEffect(() => {
     if (questions && questions.length > 0) {
-      const storedQuestions = localStorage.getItem('questions');
+      const storedQuestions = sessionStorage.getItem('questions');
       let existingQuestions: any[] = [];
 
       if (storedQuestions) {
@@ -1609,12 +1678,19 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
   const currentSegmentQuestions = questions.filter(q => q.segmentId === currentSegmentId);
   const currentQuestionIndex = currentQuestionIndexBySegment[currentSegmentIndex] || 0;
   const currentQuestionInSegment = Math.min(currentQuestionIndex, currentSegmentQuestions.length - 1);
-  const currentSegmentId = segmentIds[currentSegmentIndex];
-  const currentSegmentQuestions = questions.filter(q => q.segmentId === currentSegmentId);
-  const currentQuestionIndex = currentQuestionIndexBySegment[currentSegmentIndex] || 0;
-  const currentQuestionInSegment = Math.min(currentQuestionIndex, currentSegmentQuestions.length - 1);
 
   const hasNextSegment = currentSegmentIndex < segmentIds.length - 1;
+
+  const canProceed = segmentIds.every((segId) => {
+    const segQuestions = questions.filter(q => q.segmentId === segId);
+    if (segQuestions.length === 0) return true;
+
+    const hasAccepted = segQuestions.some(q => {
+      const globalIdx = questions.findIndex(globalQ => globalQ === q);
+      return acceptedQuestions.has(globalIdx);
+    });
+    return hasAccepted;
+  });
 
   const handleSwipe = (direction: 'left' | 'right') => {
     setSwipeDirection(direction);
@@ -1622,7 +1698,7 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
     const currentQuestion = currentSegmentQuestions[currentQuestionInSegment];
     const globalIndex = questions.findIndex(q => q === currentQuestion);
 
-    const storedQuestions = localStorage.getItem('questions');
+    const storedQuestions = sessionStorage.getItem('questions');
     let allQuestions: any[] = [];
 
     if (storedQuestions) {
@@ -1648,7 +1724,7 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
 
       if (allQuestions[globalIndex]) {
         allQuestions[globalIndex].isAccept = true;
-        localStorage.setItem('questions', JSON.stringify(allQuestions));
+        sessionStorage.setItem('questions', JSON.stringify(allQuestions));
       }
     } else {
       setRejectedQuestions(prev => {
@@ -1665,7 +1741,7 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
 
       if (allQuestions[globalIndex]) {
         allQuestions[globalIndex].isAccept = false;
-        localStorage.setItem('questions', JSON.stringify(allQuestions));
+        sessionStorage.setItem('questions', JSON.stringify(allQuestions));
       }
     }
 
@@ -1710,7 +1786,7 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
       return true;
     }
 
-    const storedQuestions = localStorage.getItem('questions');
+    const storedQuestions = sessionStorage.getItem('questions');
     if (storedQuestions) {
       try {
         const parsedQuestions = JSON.parse(storedQuestions);
@@ -1723,155 +1799,27 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
 
     return false;
   };
-  // const handleNextSegment = () => {
-  //   if (currentSegmentIndex < segmentIds.length - 1) {
-  //     setCurrentSegmentIndex(prev => {
-  //       const newIndex = prev + 1;
+  const handleNextSegment = () => {
+    if (currentSegmentIndex < segmentIds.length - 1) {
+      setCurrentSegmentIndex(prev => {
+        const newIndex = prev + 1;
 
-  //       const nextSegmentQuestions = questions.filter(q => q.segmentId === segmentIds[newIndex]);
-  //       const firstPendingIndex = nextSegmentQuestions.findIndex((_, idx) => !isQuestionDecidedInSegment(newIndex, idx));
+        const nextSegmentQuestions = questions.filter(q => q.segmentId === segmentIds[newIndex]);
+        const firstPendingIndex = nextSegmentQuestions.findIndex((_, idx) => !isQuestionDecidedInSegment(newIndex, idx));
 
-  //       setIsNewQuestionEntering(true);
-  //       setCurrentQuestionIndexBySegment(prevState => ({
-  //         ...prevState,
-  //         [newIndex]: firstPendingIndex >= 0 ? firstPendingIndex : 0
-  //       }));
-  //       setTimeout(() => {
-  //         setIsNewQuestionEntering(false);
-  //       }, 400);
+        setIsNewQuestionEntering(true);
+        setCurrentQuestionIndexBySegment(prevState => ({
+          ...prevState,
+          [newIndex]: firstPendingIndex >= 0 ? firstPendingIndex : 0
+        }));
+        setTimeout(() => {
+          setIsNewQuestionEntering(false);
+        }, 400);
 
-  //       return newIndex;
-  //     });
-  //   }
-  // };
-      //   const handleSwipe = (direction: 'left' | 'right') => {
-      //   setSwipeDirection(direction);
-        
-      //   const currentQuestion = currentSegmentQuestions[currentQuestionInSegment];
-      //   const globalIndex = questions.findIndex(q => q === currentQuestion);
-      
-      // const storedQuestions = sessionStorage.getItem('questions');
-      // let allQuestions: any[] = [];
-      
-      // if (storedQuestions) {
-      //   try {
-      //     allQuestions = JSON.parse(storedQuestions);
-      //   } catch (error) {
-      //     console.error('Error parsing stored questions:', error);
-      //   }
-      // }
-  
-      //   if (direction === 'right') {
-      //     setAcceptedQuestions(prev => {
-      //       const newSet = new Set(prev);
-      //       newSet.add(globalIndex);
-      //       return newSet;
-      //     });
-          
-      //     setRejectedQuestions(prev => {
-      //       const newSet = new Set(prev);
-      //       newSet.delete(globalIndex);
-      //       return newSet;
-      //     });
-          
-      //     if (allQuestions[globalIndex]) {
-      //       allQuestions[globalIndex].isAccept = true;
-      //       sessionStorage.setItem('questions', JSON.stringify(allQuestions));
-      //     }
-      //   } else {
-      //     setRejectedQuestions(prev => {
-      //       const newSet = new Set(prev);
-      //       newSet.add(globalIndex);
-      //       return newSet;
-      //     });
-          
-      //     setAcceptedQuestions(prev => {
-      //       const newSet = new Set(prev);
-      //       newSet.delete(globalIndex);
-      //       return newSet;
-      //     });
-          
-      //     if (allQuestions[globalIndex]) {
-      //       allQuestions[globalIndex].isAccept = false;
-      //       sessionStorage.setItem('questions', JSON.stringify(allQuestions));
-      //     }
-      //   }
-        
-      //   setTimeout(() => {
-      //   const nextPendingIndex = currentSegmentQuestions.findIndex((_, idx) => {
-      //     const isDecided = isQuestionDecidedInSegment(currentSegmentIndex, idx);
-      //     const isRejected = isQuestionRejected(idx);
-      //     return idx > currentQuestionInSegment && !isDecided && !isRejected;
-      //   });
-          
-      //     setSwipeDirection(null);
-          
-      //     if (nextPendingIndex >= 0) {
-      //     setTimeout(() => {
-      //       setIsNewQuestionEntering(true);
-      //       setCurrentQuestionIndexBySegment(prevState => ({
-      //         ...prevState,
-      //         [currentSegmentIndex]: nextPendingIndex
-      //       }));
-      //       setTimeout(() => {
-      //         setIsNewQuestionEntering(false);
-      //       }, 400);
-      //     }, 100);
-      //     } else {
-      //       setCurrentQuestionIndexBySegment(prevState => ({
-      //         ...prevState,
-      //         [currentSegmentIndex]: currentQuestionInSegment
-      //       }));
-      //     }
-      //   }, 500);
-      // };
-      // const isQuestionDecidedInSegment = (segmentIndex: number, questionIndexInSegment: number) => {
-      //   const segmentId = segmentIds[segmentIndex];
-      //   const segmentQuestions = questions.filter(q => q.segmentId === segmentId);
-      //   const question = segmentQuestions[questionIndexInSegment];
-        
-      //   if (!question) return false;
-        
-      //   const globalIndex = questions.findIndex(q => q === question);
-        
-      //   if (acceptedQuestions.has(globalIndex) || rejectedQuestions.has(globalIndex)) {
-      //     return true;
-      //   }
-        
-      //   const storedQuestions = sessionStorage.getItem('questions');
-      //   if (storedQuestions) {
-      //     try {
-      //       const parsedQuestions = JSON.parse(storedQuestions);
-      //       const storedQuestion = parsedQuestions[globalIndex];
-      //       return storedQuestion?.hasOwnProperty('isAccept');
-      //     } catch (error) {
-      //       console.error('Error checking question decision:', error);
-      //     }
-      //   }
-        
-      //   return false;
-      // };
-        const handleNextSegment = () => {
-        if (currentSegmentIndex < segmentIds.length - 1) {
-            setCurrentSegmentIndex(prev => {
-                const newIndex = prev + 1;
-            
-            const nextSegmentQuestions = questions.filter(q => q.segmentId === segmentIds[newIndex]);
-            const firstPendingIndex = nextSegmentQuestions.findIndex((_, idx) => !isQuestionDecidedInSegment(newIndex, idx));
-            
-            setIsNewQuestionEntering(true);
-            setCurrentQuestionIndexBySegment(prevState => ({
-              ...prevState,
-              [newIndex]: firstPendingIndex >= 0 ? firstPendingIndex : 0
-            }));
-            setTimeout(() => {
-              setIsNewQuestionEntering(false);
-            }, 400);
-            
-                return newIndex;
-            });
-        }
-    };
+        return newIndex;
+      });
+    }
+  };
 
   const handlePreviousSegment = () => {
     if (currentSegmentIndex > 0) {
@@ -2315,12 +2263,12 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
                       <div
                         key={q.question?.text || idx}
                         className={`bg-card/90 border rounded-lg p-4 transition-all duration-500 ease-in-out transform relative ${swipeDirection === 'right'
-                            ? 'translate-x-full opacity-0'
-                            : swipeDirection === 'left'
-                              ? '-translate-x-full opacity-0'
-                              : isNewQuestionEntering
-                                ? 'opacity-0 scale-0 animate-[zoomOutFromCenter_0.4s_ease-out_forwards]'
-                                : 'translate-x-0 opacity-100 scale-100'
+                          ? 'translate-x-full opacity-0'
+                          : swipeDirection === 'left'
+                            ? '-translate-x-full opacity-0'
+                            : isNewQuestionEntering
+                              ? 'opacity-0 scale-0 animate-[zoomOutFromCenter_0.4s_ease-out_forwards]'
+                              : 'translate-x-0 opacity-100 scale-100'
                           } ${isAccepted
                             ? 'border-green-500 dark:border-green-700 bg-green-50/50 dark:bg-green-900/20'
                             : isRejected
@@ -2422,8 +2370,8 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
                           onClick={() => handleSwipe('left')}
                           disabled={isQuestionDecided(currentQuestionInSegment)}
                           className={`absolute top-[100px] bg-red-50 dark:bg-red-900/20 -left-4 p-2 rounded-full transition-colors border border-solid border-red-200 dark:border-red-800 ${isQuestionDecided(currentQuestionInSegment)
-                              ? 'opacity-30 cursor-not-allowed'
-                              : 'hover:bg-red-100 dark:hover:bg-red-900/30 cursor-pointer text-red-500'
+                            ? 'opacity-30 cursor-not-allowed'
+                            : 'hover:bg-red-100 dark:hover:bg-red-900/30 cursor-pointer text-red-500'
                             }`}
                           aria-label="Reject question"
                         >
@@ -2433,8 +2381,8 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
                           onClick={() => handleSwipe('right')}
                           disabled={isQuestionDecided(currentQuestionInSegment)}
                           className={`absolute top-[100px] bg-green-50 dark:bg-green-900/20 -right-4 p-2 rounded-full transition-colors border border-solid border-green-200 dark:border-green-800 ${isQuestionDecided(currentQuestionInSegment)
-                              ? 'opacity-30 cursor-not-allowed'
-                              : 'hover:bg-green-100 dark:hover:bg-green-900/30 cursor-pointer text-green-500'
+                            ? 'opacity-30 cursor-not-allowed'
+                            : 'hover:bg-green-100 dark:hover:bg-green-900/30 cursor-pointer text-green-500'
                             }`}
                           aria-label="Accept question"
                         >
@@ -2535,7 +2483,8 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
             <Button
               variant="secondary"
               onClick={handleNext}
-              disabled={isTaskResultLoading || isLoading}
+              disabled={isTaskResultLoading || isLoading || !canProceed}
+              title={!canProceed ? "Please accept at least one question per segment" : ""}
               className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary 
                               text-primary-foreground font-semibold px-8 py-5 rounded-xl shadow-lg 
                               hover:shadow-xl transition-all duration-300 transform hover:scale-105 
@@ -2590,7 +2539,9 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
                 const updatedQuestions = questions.map((q, idx) =>
                   idx !== editingIdx ? q : { ...q, question: { ...q.question, text: edited.text }, solution: edited.solution }
                 );
-                await aiSectionAPI.editQuestionData(aiJobId, updatedQuestions, editingIdx);
+                if (aiSectionAPI.editQuestionData) {
+                  await aiSectionAPI.editQuestionData(aiJobId, updatedQuestions);
+                }
                 setQuestions(prev =>
                   prev.map((q, idx) =>
                     idx !== editingIdx
@@ -2896,7 +2847,7 @@ export const SegmentationView = ({
   isApprovingTask,
   setSegmentationMap,
   setSegmentationChunks,
-  showSegments,
+  showSegments
 }: any) => {
 
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -3146,6 +3097,7 @@ export const SegmentationView = ({
 
       const updatedChunks = sortedSegments.map((end, idx) => {
         const start = idx === 0 ? 0 : sortedSegments[idx - 1];
+
         return editTranscriptChunks.filter(chunk => {
           if (!chunk?.timestamp || !Array.isArray(chunk.timestamp) || chunk.timestamp.length < 2) {
             return false;
@@ -3459,7 +3411,7 @@ export const SegmentationView = ({
       ) : hasSegmentationData ? (
         <>
           <div className="flex justify-end mb-4">
-            { showSegments ? null : <Button
+            {!showSegments && <Button
               size="icon"
               variant="outline"
               onClick={handleOpenEditModal}
@@ -3468,7 +3420,7 @@ export const SegmentationView = ({
               <Pencil className="h-4 w-4 dark:text-white text-black" />
             </Button>}
 
-            { showSegments ? null : <Button
+            {!showSegments && <Button
               variant="outline"
               size="icon"
               className={`ms-4 hover:scale-105 transition-transform duration-200 shadow-sm ${isSettingsOpen && "bg-primary "}`}
@@ -3710,7 +3662,7 @@ export const SegmentationView = ({
       <div className="flex items-center justify-between mt-8">
         <div className="flex-1"></div>
         <div className="flex-1 flex justify-center">
-          {showSegments ? null : <Button
+          {!showSegments  && <Button
             onClick={handleConfirm}
             // onClick={()=> handleApproveTask()}
             disabled={isLoading || isWaitingServer || isApprovingTask}
@@ -3734,10 +3686,10 @@ export const SegmentationView = ({
                 <CheckCircle className="w-5 h-5" />
               </>
             )}
-          </Button>}
+          </Button> }
         </div>
         <div className="flex-1 flex justify-end">
-          {showSegments === false && currentJobStatus == "COMPLETED" &&
+          {currentJobStatus == "COMPLETED" && !showSegments &&
             <Button
               variant="secondary"
               onClick={handleNext}
