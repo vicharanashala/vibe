@@ -806,6 +806,7 @@ export enum AnnouncementType {
   GENERAL = 'GENERAL',
   VERSION_SPECIFIC = 'VERSION_SPECIFIC',
   COURSE_SPECIFIC = 'COURSE_SPECIFIC',
+  COHORT_SPECIFIC = 'COHORT_SPECIFIC',
 }
 
 export interface IAnnouncementAttachment {
@@ -832,6 +833,8 @@ export interface IAnnouncement {
   deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
+  cohortId?: ID;
+  cohortName?: string;
 }
 
 // export type AuditCategory =
