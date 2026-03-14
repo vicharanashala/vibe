@@ -25,6 +25,7 @@ import {
   GetPoliciesQuery,
   EjectionPolicyResponse,
   PoliciesListResponse,
+  DeletePolicyResponse,
 } from '../classes/validators/EjectionPolicyValidators.js';
 import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
 import {EJECTION_POLICY_TYPES} from '../types.js';
@@ -69,10 +70,10 @@ export class EjectionPolicyController {
   })
   async createPolicy(
     @Body() body: CreateEjectionPolicyBody,
-    @Ability(getEjectionPolicyAbility) {ability, user},
+    @Ability(getEjectionPolicyAbility) {ability, user, authenticatedUser},
   ): Promise<EjectionPolicyResponse> {
     // Only admins can create platform-wide policies
-    if (body.scope === 'platform' && user.globalRole !== 'admin') {
+    if (body.scope === 'platform' && authenticatedUser.globalRole !== 'admin') {
       throw new ForbiddenError(
         'Only administrators can create platform-wide policies',
       );
@@ -102,7 +103,7 @@ export class EjectionPolicyController {
     );
 
     return plainToClass(EjectionPolicyResponse, policy, {
-      excludeExtraneousValues: true,
+      enableImplicitConversion: true,
     });
   }
 
@@ -120,22 +121,34 @@ export class EjectionPolicyController {
   })
   async getPolicies(
     @QueryParams() query: GetPoliciesQuery,
-    @Ability(getEjectionPolicyAbility) {ability, user},
+    @Ability(getEjectionPolicyAbility) {ability, user, authenticatedUser},
   ): Promise<PoliciesListResponse> {
     let policies;
+    // ✅ ADD DEBUGGING
+    console.log('🔍 getPolicies Debug:');
+    console.log(
+      '  authenticatedUser.globalRole:',
+      authenticatedUser.globalRole,
+    );
+    console.log('  user.roles:', user.roles);
+    console.log('  query:', query);
 
-    if (user.globalRole === 'admin') {
+    if (authenticatedUser.globalRole === 'admin') {
+      console.log('  ✅ Admin branch reached');
       // Admins can see all policies
       const filters: any = {
         scope: query.scope,
         isActive: query.active,
       };
+      console.log('  filters being sent to service:', filters);
       if (query.courseId) {
         filters.courseId = query.courseId;
       }
       policies = await this.policyService.getPolicies(filters);
+      console.log('  policies returned from service:', policies.length);
     } else {
       // Non-admins: filter by courses they have access to
+      console.log('  ❌ Non-admin branch reached');
       if (query.courseId) {
         // Check if they can view this course's policies
         const policyContext = {courseId: query.courseId};
@@ -154,7 +167,7 @@ export class EjectionPolicyController {
         });
       } else {
         // Get policies for all courses they have access to
-        const accessibleCourseIds = user.enrollments
+        const accessibleCourseIds = (authenticatedUser.enrollments || [])
           .filter(e => ['MANAGER', 'INSTRUCTOR', 'TA'].includes(e.role))
           .map(e => e.courseId);
 
@@ -177,9 +190,10 @@ export class EjectionPolicyController {
 
     const responsePolicies = policies.map(p =>
       plainToClass(EjectionPolicyResponse, p, {
-        excludeExtraneousValues: true,
+        enableImplicitConversion: true,
       }),
     );
+    console.log('Final response policies:', responsePolicies.length);
 
     return {
       policies: responsePolicies,
@@ -204,12 +218,12 @@ export class EjectionPolicyController {
   })
   async getPolicy(
     @Param('policyId') policyId: string,
-    @Ability(getEjectionPolicyAbility) {ability, user},
+    @Ability(getEjectionPolicyAbility) {ability, user, authenticatedUser},
   ): Promise<EjectionPolicyResponse> {
     const policy = await this.policyService.getPolicyById(policyId);
 
     // Admins can view any policy
-    if (user.globalRole !== 'admin') {
+    if (authenticatedUser.globalRole !== 'admin') {
       // For course-specific policies, check permissions
       if (policy.scope === 'course' && policy.courseId) {
         const policyContext = {courseId: policy.courseId.toString()};
@@ -229,7 +243,7 @@ export class EjectionPolicyController {
     }
 
     return plainToClass(EjectionPolicyResponse, policy, {
-      excludeExtraneousValues: true,
+      enableImplicitConversion: true,
     });
   }
 
@@ -247,10 +261,10 @@ export class EjectionPolicyController {
   })
   async getActivePoliciesForCourse(
     @Param('courseId') courseId: string,
-    @Ability(getEjectionPolicyAbility) {ability, user},
+    @Ability(getEjectionPolicyAbility) {ability, user, authenticatedUser},
   ): Promise<PoliciesListResponse> {
     // Check if user has access to this course
-    if (user.globalRole !== 'admin') {
+    if (authenticatedUser.globalRole !== 'admin') {
       const courseContext = {courseId};
       const policySubject = subject('EjectionPolicy', courseContext);
 
@@ -266,7 +280,7 @@ export class EjectionPolicyController {
 
     const responsePolicies = policies.map(p =>
       plainToClass(EjectionPolicyResponse, p, {
-        excludeExtraneousValues: true,
+        enableImplicitConversion: true,
       }),
     );
 
@@ -295,12 +309,15 @@ export class EjectionPolicyController {
   async updatePolicy(
     @Param('policyId') policyId: string,
     @Body() body: UpdateEjectionPolicyBody,
-    @Ability(getEjectionPolicyAbility) {ability, user},
+    @Ability(getEjectionPolicyAbility) {ability, user, authenticatedUser},
   ): Promise<EjectionPolicyResponse> {
     const existingPolicy = await this.policyService.getPolicyById(policyId);
 
     // Only admins can update platform-wide policies
-    if (existingPolicy.scope === 'platform' && user.globalRole !== 'admin') {
+    if (
+      existingPolicy.scope === 'platform' &&
+      authenticatedUser.globalRole !== 'admin'
+    ) {
       throw new ForbiddenError(
         'Only administrators can update platform-wide policies',
       );
@@ -321,7 +338,7 @@ export class EjectionPolicyController {
     const updatedPolicy = await this.policyService.updatePolicy(policyId, body);
 
     return plainToClass(EjectionPolicyResponse, updatedPolicy, {
-      excludeExtraneousValues: true,
+      enableImplicitConversion: true,
     });
   }
 
@@ -338,12 +355,15 @@ export class EjectionPolicyController {
   })
   async togglePolicyStatus(
     @Param('policyId') policyId: string,
-    @Ability(getEjectionPolicyAbility) {ability, user},
+    @Ability(getEjectionPolicyAbility) {ability, user, authenticatedUser},
   ): Promise<EjectionPolicyResponse> {
     const existingPolicy = await this.policyService.getPolicyById(policyId);
 
     // Check permissions (same as update)
-    if (existingPolicy.scope === 'platform' && user.globalRole !== 'admin') {
+    if (
+      existingPolicy.scope === 'platform' &&
+      authenticatedUser.globalRole !== 'admin'
+    ) {
       throw new ForbiddenError(
         'Only administrators can modify platform-wide policies',
       );
@@ -363,13 +383,17 @@ export class EjectionPolicyController {
     const updatedPolicy = await this.policyService.togglePolicyStatus(policyId);
 
     return plainToClass(EjectionPolicyResponse, updatedPolicy, {
-      excludeExtraneousValues: true,
+      enableImplicitConversion: true,
     });
   }
 
   @Authorized()
   @Delete('/:policyId')
-  @HttpCode(204)
+  @HttpCode(200)
+  @ResponseSchema(DeletePolicyResponse, {
+    description: 'Policy deleted successfully',
+    statusCode: 200,
+  })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Policy not found',
     statusCode: 404,
@@ -381,12 +405,15 @@ export class EjectionPolicyController {
   })
   async deletePolicy(
     @Param('policyId') policyId: string,
-    @Ability(getEjectionPolicyAbility) {ability, user},
-  ): Promise<void> {
+    @Ability(getEjectionPolicyAbility) {ability, user, authenticatedUser},
+  ): Promise<DeletePolicyResponse> {
     const existingPolicy = await this.policyService.getPolicyById(policyId);
 
     // Only admins can delete platform-wide policies
-    if (existingPolicy.scope === 'platform' && user.globalRole !== 'admin') {
+    if (
+      existingPolicy.scope === 'platform' &&
+      authenticatedUser.globalRole !== 'admin'
+    ) {
       throw new ForbiddenError(
         'Only administrators can delete platform-wide policies',
       );
@@ -405,5 +432,9 @@ export class EjectionPolicyController {
     }
 
     await this.policyService.deletePolicy(policyId);
+    return {
+      message: 'Policy deleted successfully',
+      policyId: policyId,
+    };
   }
 }

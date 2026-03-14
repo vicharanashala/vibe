@@ -11,7 +11,7 @@ import {EJECTION_POLICY_TYPES, PolicyScope} from '../types.js';
 import {BaseService} from '#shared/classes/BaseService.js';
 import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
 import {GLOBAL_TYPES} from '#root/types.js';
-import {ClientSession} from 'mongodb';
+import {ClientSession, ObjectId} from 'mongodb';
 
 @injectable()
 export class EjectionPolicyService extends BaseService {
@@ -59,16 +59,34 @@ export class EjectionPolicyService extends BaseService {
   /**
    * Get policy by ID
    */
-  async getPolicyById(policyId: string): Promise<EjectionPolicy> {
+  /**
+   * Get policy by ID
+   */
+  async getPolicyById(
+    policyId: string,
+    includeDeleted: boolean = false,
+  ): Promise<EjectionPolicy> {
     const policy = await this.policyRepo.findById(policyId);
 
     if (!policy) {
+      // Check if policy exists but is deleted
+      const collection = await this.database.getCollection('ejectionPolicies');
+      const deletedPolicy = await collection.findOne({
+        _id: new ObjectId(policyId),
+        isDeleted: true,
+      });
+
+      if (deletedPolicy) {
+        throw new NotFoundError(
+          'This policy has been deleted and is no longer accessible',
+        );
+      }
+
       throw new NotFoundError('Policy not found');
     }
 
     return policy;
   }
-
   /**
    * Get all policies with optional filters
    */
@@ -93,6 +111,9 @@ export class EjectionPolicyService extends BaseService {
   /**
    * Update an existing policy
    */
+  /**
+   * Update an existing policy
+   */
   async updatePolicy(
     policyId: string,
     updates: Partial<EjectionPolicy>,
@@ -100,7 +121,20 @@ export class EjectionPolicyService extends BaseService {
     return this._withTransaction(async session => {
       // Check if policy exists
       const existingPolicy = await this.policyRepo.findById(policyId, session);
+
       if (!existingPolicy) {
+        // Check if deleted
+        const collection =
+          await this.database.getCollection('ejectionPolicies');
+        const deletedPolicy = await collection.findOne({
+          _id: new ObjectId(policyId),
+          isDeleted: true,
+        });
+
+        if (deletedPolicy) {
+          throw new BadRequestError('Cannot update a deleted policy');
+        }
+
         throw new NotFoundError('Policy not found');
       }
 
@@ -136,11 +170,26 @@ export class EjectionPolicyService extends BaseService {
   /**
    * Delete (soft delete) a policy
    */
+  /**
+   * Delete (soft delete) a policy
+   */
   async deletePolicy(policyId: string): Promise<void> {
+    // First check if the policy exists (even if deleted)
+    const collection = await this.database.getCollection('ejectionPolicies');
+    const policy = await collection.findOne({_id: new ObjectId(policyId)});
+
+    if (!policy) {
+      throw new NotFoundError('Policy not found');
+    }
+
+    if (policy.isDeleted) {
+      throw new BadRequestError('This policy has already been deleted');
+    }
+
     const deleted = await this.policyRepo.delete(policyId);
 
     if (!deleted) {
-      throw new NotFoundError('Policy not found or already deleted');
+      throw new Error('Failed to delete policy');
     }
   }
 

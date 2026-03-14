@@ -64,13 +64,18 @@ export class EjectionPolicyRepository {
     await this.init();
 
     const doc = {
-      ...policy,
-      _id: new ObjectId(),
+      name: policy.name,
+      description: policy.description,
+      scope: policy.scope,
       courseId: policy.courseId ? new ObjectId(policy.courseId) : null,
+      isActive: policy.isActive,
+      priority: policy.priority,
+      triggers: policy.triggers,
+      actions: policy.actions,
       createdBy: new ObjectId(policy.createdBy),
-      isDeleted: false, // Following your pattern
       createdAt: new Date(),
       updatedAt: new Date(),
+      isDeleted: false,
     };
 
     const result = await this.collection.insertOne(doc, {session});
