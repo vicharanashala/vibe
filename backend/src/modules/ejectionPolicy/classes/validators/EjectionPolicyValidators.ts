@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import {Expose, Type} from 'class-transformer';
+import {Expose, Transform, Type} from 'class-transformer';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {
   IsNotEmpty,
@@ -13,6 +13,7 @@ import {
   IsObject,
   Min,
   IsArray,
+  IsDate,
 } from 'class-validator';
 import {
   PolicyScope,
@@ -25,13 +26,16 @@ import {
 // ============ Trigger Classes ============
 
 export class InactivityTriggerDto implements InactivityTrigger {
+  @Expose()
   @IsBoolean()
   enabled: boolean;
 
+  @Expose()
   @IsNumber()
   @Min(1)
   thresholdDays: number;
 
+  @Expose()
   @IsNumber()
   @Min(0)
   warningDays: number;
@@ -39,38 +43,47 @@ export class InactivityTriggerDto implements InactivityTrigger {
 
 export class MissedDeadlinesTriggerDto implements MissedDeadlinesTrigger {
   @IsBoolean()
+  @Expose()
   enabled: boolean;
 
   @IsNumber()
+  @Expose()
   @Min(1)
   consecutiveMisses: number;
 
   @IsNumber()
+  @Expose()
   @Min(0)
   warningAfterMisses: number;
 }
 
 export class PolicyViolationsTriggerDto implements PolicyViolationsTrigger {
   @IsBoolean()
+  @Expose()
   enabled: boolean;
 
   @IsArray()
+  @Expose()
   @IsString({each: true})
   violationTypes: string[];
 
   @IsNumber()
+  @Expose()
   @Min(1)
   thresholdCount: number;
 }
 
 export class CustomTriggerDto implements CustomTrigger {
   @IsString()
+  @Expose()
   type: string;
 
   @IsObject()
+  @Expose()
   condition: Record<string, any>;
 
   @IsNumber()
+  @Expose()
   threshold: number;
 }
 
@@ -78,47 +91,57 @@ export class PolicyTriggersDto {
   @IsOptional()
   @ValidateNested()
   @Type(() => InactivityTriggerDto)
+  @Expose()
   inactivity?: InactivityTriggerDto;
 
   @IsOptional()
   @ValidateNested()
   @Type(() => MissedDeadlinesTriggerDto)
+  @Expose()
   missedDeadlines?: MissedDeadlinesTriggerDto;
 
   @IsOptional()
   @ValidateNested()
   @Type(() => PolicyViolationsTriggerDto)
+  @Expose()
   policyViolations?: PolicyViolationsTriggerDto;
 
   @IsOptional()
   @IsArray()
   @ValidateNested({each: true})
   @Type(() => CustomTriggerDto)
+  @Expose()
   customTriggers?: CustomTriggerDto[];
 }
 
 export class PolicyActionsDto {
   @IsBoolean()
+  @Expose()
   sendWarning: boolean;
 
   @IsOptional()
   @IsString()
+  @Expose()
   warningTemplate?: string;
 
   @IsOptional()
   @IsString()
+  @Expose()
   ejectionTemplate?: string;
 
   @IsBoolean()
+  @Expose()
   allowAppeal: boolean;
 
   @IsOptional()
   @IsNumber()
   @Min(1)
+  @Expose()
   appealDeadlineDays?: number;
 
   @IsOptional()
   @IsObject()
+  @Expose()
   autoReinstatementRules?: Record<string, any>;
 }
 
@@ -249,57 +272,172 @@ export class GetPoliciesQuery {
 
 // ============ Response DTOs ============
 
+// @Expose()
+// export class EjectionPolicyResponse {
+//   @IsString()
+//   @Expose()
+//   _id: string;
+
+//   @IsString()
+//   @Expose()
+//   name: string;
+
+//   @IsOptional()
+//   @IsString()
+//   @Expose()
+//   description?: string;
+
+//   @IsString()
+//   @Expose()
+//   scope: PolicyScope;
+
+//   @IsOptional()
+//   @IsString()
+//   @Expose()
+//   courseId?: string;
+
+//   @IsBoolean()
+//   @Expose()
+//   isActive: boolean;
+
+//   @IsNumber()
+//   @Expose()
+//   priority: number;
+
+//   @IsObject()
+//   @Expose()
+//   triggers: any;
+
+//   @IsObject()
+//   @Expose()
+//   actions: any;
+
+//   @IsString()
+//   @Expose()
+//   createdBy: string;
+
+//   @Type(() => Date)
+//   @Expose()
+//   createdAt: Date;
+
+//   @Type(() => Date)
+//   @Expose()
+//   updatedAt: Date;
+// }
 @Expose()
 export class EjectionPolicyResponse {
   @IsString()
   @Expose()
+  @Transform(({value}) => value?.toString())
+  @JSONSchema({
+    description: 'Policy ID',
+    example: '507f1f77bcf86cd799439011',
+  })
   _id: string;
 
   @IsString()
   @Expose()
+  @JSONSchema({
+    description: 'Policy name',
+    example: 'Platform Inactivity Policy',
+  })
   name: string;
 
-  @IsOptional()
   @IsString()
+  @IsOptional()
   @Expose()
+  @JSONSchema({
+    description: 'Policy description',
+    example: 'Removes inactive users after 30 days',
+  })
   description?: string;
 
   @IsString()
   @Expose()
+  @JSONSchema({
+    description: 'Policy scope',
+    enum: ['platform', 'course'],
+    example: 'platform',
+  })
   scope: PolicyScope;
 
-  @IsOptional()
   @IsString()
+  @IsOptional()
   @Expose()
+  @Transform(({value}) => value?.toString())
+  @JSONSchema({
+    description: 'Course ID (for course-specific policies)',
+    example: '507f1f77bcf86cd799439011',
+  })
   courseId?: string;
 
   @IsBoolean()
   @Expose()
+  @JSONSchema({
+    description: 'Whether the policy is active',
+    example: true,
+  })
   isActive: boolean;
 
   @IsNumber()
   @Expose()
+  @JSONSchema({
+    description: 'Policy priority (higher = executed first)',
+    example: 100,
+  })
   priority: number;
 
-  @IsObject()
+  @ValidateNested()
+  @Type(() => PolicyTriggersDto)
   @Expose()
-  triggers: any;
+  @JSONSchema({
+    description: 'Policy triggers',
+  })
+  triggers: PolicyTriggersDto;
 
-  @IsObject()
+  @ValidateNested()
+  @Type(() => PolicyActionsDto)
   @Expose()
-  actions: any;
+  @JSONSchema({
+    description: 'Policy actions',
+  })
+  actions: PolicyActionsDto;
 
   @IsString()
   @Expose()
+  @Transform(({value}) => value?.toString())
+  @JSONSchema({
+    description: 'User ID who created the policy',
+    example: '507f1f77bcf86cd799439011',
+  })
   createdBy: string;
 
+  @IsDate()
   @Type(() => Date)
   @Expose()
+  @JSONSchema({
+    description: 'Creation timestamp',
+    example: '2026-03-14T08:00:00.000Z',
+  })
   createdAt: Date;
 
+  @IsDate()
   @Type(() => Date)
   @Expose()
+  @JSONSchema({
+    description: 'Last update timestamp',
+    example: '2026-03-14T08:00:00.000Z',
+  })
   updatedAt: Date;
+
+  @IsDate()
+  @IsOptional()
+  @Type(() => Date)
+  @Expose()
+  @JSONSchema({
+    description: 'Deletion timestamp (if soft deleted)',
+  })
+  deletedAt?: Date;
 }
 
 @Expose()
@@ -319,4 +457,23 @@ export class PoliciesListResponse {
     description: 'Total number of policies',
   })
   total: number;
+}
+
+@Expose()
+export class DeletePolicyResponse {
+  @IsString()
+  @Expose()
+  @JSONSchema({
+    description: 'Success message',
+    example: 'Policy deleted successfully',
+  })
+  message: string;
+
+  @IsString()
+  @Expose()
+  @JSONSchema({
+    description: 'ID of the deleted policy',
+    example: '507f1f77bcf86cd799439011',
+  })
+  policyId: string;
 }
