@@ -9,6 +9,7 @@ import CourseIssueReports from "../pages/student/FlagResponse";
 import Leaderboard from "../pages/student/leaderboard";
 import StudentAnnouncements from "../pages/student/announcements/StudentAnnouncements";
 import StudentCohorts from "@/app/pages/student/hp-system/cohorts";
+import StudentLedgerPage from "@/app/pages/student/hp-system/student-ledger";
 
 const studentRoutes: RouteObject = {
   path: "/student",
@@ -45,6 +46,10 @@ const studentRoutes: RouteObject = {
     {
       path: "hp-system/cohorts",
       element: <StudentCohorts />
+    },
+    {
+      path: "hp-system/ledger",
+      element: <StudentLedgerPage />
     },
     {
       index: true,

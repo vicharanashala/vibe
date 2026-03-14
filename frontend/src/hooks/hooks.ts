@@ -5300,6 +5300,31 @@ export function useHpStudentLedger(
   };
 }
 
+export function useMyHpLedger(
+  courseId: string,
+  courseVersionId: string,
+  cohort: string
+) {
+  const query = useQuery({
+    queryKey: ['hp-my-ledger', courseId, courseVersionId, cohort],
+    queryFn: async () => {
+      const res = await hpApi.getMyLedger(courseId, courseVersionId, cohort);
+      return res;
+    },
+    enabled: !!courseId && !!courseVersionId && !!cohort,
+    refetchOnWindowFocus: false,
+  });
+
+  return {
+    data: query.data?.data || [],
+    studentDetails: query.data?.studentDetails || null,
+    total: query.data?.total || 0,
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
+}
+
 export function useRevertHpEntry() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
