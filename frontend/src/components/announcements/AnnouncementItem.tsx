@@ -83,6 +83,11 @@ export function AnnouncementItem({ announcement, isInstructor, isAdmin, onEdit, 
                                         v: {announcement.courseVersionName}
                                     </Badge>
                                 )}
+                                {announcement.cohortName && (
+                                    <Badge variant="outline" className="text-[10px] h-5 px-1.5">
+                                        Cohort: {announcement.cohortName}
+                                    </Badge>
+                                )}
                             </div>
                         </div>
                     </div>
