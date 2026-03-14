@@ -883,7 +883,7 @@ export class ActivitySubmissionsService extends BaseService {
                 if (isReject) {
                     const penaltyAmount = Number(body.pointsToDeduct) ?? 0;
                     if (penaltyAmount > 0) {
-                        const hpBeforePenalty = finalHpBalance - rewardToUndo; // consider first we reverted so need to -rewardtoUndo value after revert entry we are storing rejected ledger
+                        const hpBeforePenalty = finalHpBalance ;
                         finalHpBalance -= penaltyAmount;
 
                         // Second Ledger: The Penalty
