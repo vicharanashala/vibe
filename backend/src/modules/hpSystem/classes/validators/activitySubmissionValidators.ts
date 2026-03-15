@@ -305,6 +305,16 @@ export class InstructorFeedbackDto {
     reviewedBy!: string;
 
     @Expose()
+    @IsOptional()
+    @IsEmail()
+    reviewerEmail?: string | null;
+
+    @Expose()
+    @IsOptional()
+    @IsString()
+    reviewerName?: string | null;
+
+    @Expose()
     @IsDateString()
     reviewedAt!: Date;
 

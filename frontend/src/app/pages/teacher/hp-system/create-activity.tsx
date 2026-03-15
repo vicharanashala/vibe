@@ -302,54 +302,57 @@ export default function CreateHpActivityPage() {
                             </Button>
                         </div>
                         <div className="space-y-4">
-                            {fields.length === 0 ? (
-                                <div className="text-center py-6 text-muted-foreground border-2 border-dashed rounded-lg">
-                                    No attachments added. Click "Add Link" to provide resources for students.
-                                </div>
-                            ) : (
-                                fields.map((field, index) => (
-                                    <div key={field.id} className="grid grid-cols-1 md:grid-cols-[1fr_2fr_120px_auto] gap-4 items-end bg-muted/30 p-4 rounded-lg border border-border/50">
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-medium uppercase text-muted-foreground">Link Name</label>
-                                            <Input
-                                                placeholder="e.g. Project Specs"
-                                                {...register(`attachments.${index}.name` as const, { required: "Name is required" })}
-                                                className={errors.attachments?.[index]?.name ? "border-red-500" : ""}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-medium uppercase text-muted-foreground">URL</label>
-                                            <Input
-                                                placeholder="https://..."
-                                                {...register(`attachments.${index}.url` as const, { required: "URL is required" })}
-                                                className={errors.attachments?.[index]?.url ? "border-red-500" : ""}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-medium uppercase text-muted-foreground">Type</label>
-                                            <Controller
-                                                name={`attachments.${index}.kind` as const}
-                                                control={control}
-                                                render={({ field }) => (
-                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                        <SelectTrigger>
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="LINK">Link</SelectItem>
-                                                            <SelectItem value="PDF">PDF</SelectItem>
-                                                            <SelectItem value="OTHER">Other</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                )}
-                                            />
-                                        </div>
-                                        <Button type="button" variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => remove(index)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                ))
+                            {fields.length === 0 && (
+                                <p className="text-sm text-muted-foreground">
+                                    No links added. Click <span className="font-medium">"Add Link"</span> to provide optional resources for students.
+                                </p>
                             )}
+                            {fields.map((field, index) => (
+                                <div key={field.id} className="grid grid-cols-1 md:grid-cols-[1fr_2fr_120px_auto] gap-4 items-end bg-muted/30 p-4 rounded-lg border border-border/50">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium uppercase text-muted-foreground">
+                                            Link Name <span className="text-muted-foreground normal-case font-normal">(optional)</span>
+                                        </label>
+                                        <Input
+                                            placeholder="e.g. Project Specs"
+                                            {...register(`attachments.${index}.name` as const, { required: "Name is required" })}
+                                            className={errors.attachments?.[index]?.name ? "border-red-500" : ""}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium uppercase text-muted-foreground">
+                                            URL <span className="text-muted-foreground normal-case font-normal">(optional)</span>
+                                        </label>
+                                        <Input
+                                            placeholder="https://... (optional)"
+                                            {...register(`attachments.${index}.url` as const, { required: "URL is required" })}
+                                            className={errors.attachments?.[index]?.url ? "border-red-500" : ""}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium uppercase text-muted-foreground">Type</label>
+                                        <Controller
+                                            name={`attachments.${index}.kind` as const}
+                                            control={control}
+                                            render={({ field }) => (
+                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                    <SelectTrigger>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="LINK">Link</SelectItem>
+                                                        <SelectItem value="PDF">PDF</SelectItem>
+                                                        <SelectItem value="OTHER">Other</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
+                                        />
+                                    </div>
+                                    <Button type="button" variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => remove(index)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ))}
                         </div>
                     </div>
 

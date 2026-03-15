@@ -543,6 +543,19 @@ export const hpApi = {
         );
     },
 
+    getMyLedger: async (
+        courseId: string,
+        courseVersionId: string,
+        cohort: string,
+        page: number = 1,
+        limit: number = 50,
+    ): Promise<LedgerListResponse> => {
+        const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+        return apiFetch(
+            `${BASE_URL}/ledger/student/my-ledger/course/${courseId}/courseVersion/${courseVersionId}/cohort/${encodeURIComponent(cohort)}?${params.toString()}`
+        );
+    },
+
     revertLedgerEntry: async (entryId: string): Promise<{ success: boolean }> => {
         console.log('Mock revert for entry:', entryId);
         return { success: true };

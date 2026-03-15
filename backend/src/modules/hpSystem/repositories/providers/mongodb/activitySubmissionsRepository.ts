@@ -246,6 +246,29 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                 },
             },
 
+            // 7) Lookup reviewer details (teacher/admin user)
+            {
+                $addFields: {
+                    reviewedByTeacherObjectId: {
+                        $convert: {
+                            input: "$review.reviewedByTeacherId",
+                            to: "objectId",
+                            onError: null,
+                            onNull: null,
+                        },
+                    },
+                },
+            },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "reviewedByTeacherObjectId",
+                    foreignField: "_id",
+                    as: "reviewerUser",
+                },
+            },
+            { $unwind: { path: "$reviewerUser", preserveNullAndEmptyArrays: true } },
+
             // 7) Shape into your response DTO
             {
                 $project: {
@@ -310,6 +333,24 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                             { $ne: ["$review", null] },
                             {
                                 reviewedBy: { $toString: "$review.reviewedByTeacherId" },
+                                reviewerEmail: { $ifNull: ["$reviewerUser.email", null] },
+                                reviewerName: {
+                                    $cond: [
+                                        { $ifNull: ["$reviewerUser._id", false] },
+                                        {
+                                            $trim: {
+                                                input: {
+                                                    $concat: [
+                                                        { $ifNull: ["$reviewerUser.firstName", ""] },
+                                                        " ",
+                                                        { $ifNull: ["$reviewerUser.lastName", ""] },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                        null,
+                                    ],
+                                },
                                 reviewedAt: "$review.reviewedAt",
                                 decision: "$review.decision",
                                 note: "$review.note",

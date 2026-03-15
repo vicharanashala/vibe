@@ -815,32 +815,7 @@ export class ActivitySubmissionsService extends BaseService {
                 if (isGlobalPolicyViolated) {
                     throw new BadRequestError("Approval Denied: The global course policy for this activity currently denies all late rewards.");
                 }
-
-                // If we reach here, the instructor is allowed to proceed with the approval.
             }
-            // if (isApprove) {
-            //     // const deadline = activityRuleConfig?.deadlineAt ? new Date(activityRuleConfig.deadlineAt) : null;
-            //     // const isLate = deadline && new Date() > deadline;
-
-            //     if (isLate && rewardConfig?.lateBehavior === "NO_REWARD") {
-            //         throw new BadRequestError("Cannot approve: Late submissions receive no reward.");
-            //     }
-            //     if (isLate && rewardConfig?.onlyWithinDeadline) {
-            //         throw new BadRequestError("Cannot approve: Submission is past the deadline.");
-            //     }
-
-            //      // Reward allocation conditions
-            //     const shouldSkipReward =
-            //         isLate && (
-            //             rewardConfig.lateBehavior === "NO_REWARD" ||
-            //             rewardConfig.onlyWithinDeadline === true
-            //         ) || activityRuleConfig?.lateRewardPolicy == "REWARD_DENIED"
-
-            //     if (shouldSkipReward) {
-            //         return;
-            //     }
-            // }
-
 
             // 4. Calculate Changes
             const ledgerPromises: Promise<any>[] = [];
@@ -849,11 +824,38 @@ export class ActivitySubmissionsService extends BaseService {
 
             // CASE A: APPROVE
             if (isApprove) {
-                const rewardAmount = rewardConfig?.value ?? 0;
-                finalHpBalance += rewardAmount;
+                const rewardValue = rewardConfig?.value ?? 0;
+                let rewardDetailsNote = "";
+
+                let incrementAmount = 0;
+                if (ruleType === "ABSOLUTE") {
+                    incrementAmount = rewardValue;
+                    rewardDetailsNote = `Reward Type: ABSOLUTE, Reward HP: ${rewardValue}`;
+
+                } else if (ruleType === "PERCENTAGE") {
+                    const rewardMaxLimit = activityRuleConfig.limits?.maxHp ?? 0;
+
+                    // Calculate percentage reward
+                    const calculatedReward = Math.round((totalStudentHpPoints * rewardValue) / 100);
+
+                    // Apply max limit if defined
+                    incrementAmount =
+                        rewardMaxLimit > 0
+                            ? Math.min(calculatedReward, rewardMaxLimit)
+                            : calculatedReward;
+
+                    rewardDetailsNote = `Reward Type: PERCENTAGE, Base HP: ${totalStudentHpPoints}, Percentage: ${rewardValue}%`;
+
+                }
+
+                const finalTeacherNote = teacherNote
+                    ? `${teacherNote} | ${rewardDetailsNote}`
+                    : rewardDetailsNote;
+
+                finalHpBalance += incrementAmount;
 
                 ledgerPromises.push(this.ledgerRepository.create(
-                    this._buildLedgerData(submission, user, "CREDIT", "CREDIT", rewardAmount, totalStudentHpPoints, finalHpBalance, "SUBMISSION_REWARD", teacherNote || "Activity approved.", null, teacherId, activityRuleConfig, isLate),
+                    this._buildLedgerData(submission, user, "CREDIT", "CREDIT", incrementAmount, totalStudentHpPoints, finalHpBalance, "SUBMISSION_REWARD", finalTeacherNote || "Activity approved.", null, teacherId, activityRuleConfig, isLate),
                     session
                 ));
             }
@@ -861,23 +863,27 @@ export class ActivitySubmissionsService extends BaseService {
             // CASE B: REVERT OR REJECT (Common Step: Undo Original Reward)
             if (isRevert || isReject) {
                 const originalLedger = await this.ledgerRepository.findByStudentAndSubmissionId(submissionId, submission.studentId.toString());
-                if (!originalLedger) throw new BadRequestError("Original reward ledger not found to reverse.");
+                if (isRevert && !originalLedger) {
+                    throw new BadRequestError("Original reward ledger not found to reverse.");
+                }
+                // If ledger is there to revert then only revert
+                let rewardToUndo = 0;
+                if (originalLedger && originalLedger.direction == "CREDIT") {
+                    rewardToUndo = originalLedger.amount ?? 0;
+                    const hpBeforeReversal = finalHpBalance;
+                    finalHpBalance -= rewardToUndo;
 
-                const rewardToUndo = originalLedger.amount ?? 0;
-                const hpBeforeReversal = finalHpBalance;
-                finalHpBalance -= rewardToUndo;
-
-                // First Ledger: The Reversal
-                ledgerPromises.push(this.ledgerRepository.create(
-                    this._buildLedgerData(submission, user, "REVERSAL", "DEBIT", rewardToUndo, hpBeforeReversal, finalHpBalance, "REWARD_REVERSAL", `Reversed original reward of ${rewardToUndo} HP.`, originalLedger._id.toString(), teacherId, activityRuleConfig),
-                    session
-                ));
-
+                    // First Ledger: The Reversal
+                    ledgerPromises.push(this.ledgerRepository.create(
+                        this._buildLedgerData(submission, user, "REVERSAL", "DEBIT", rewardToUndo, hpBeforeReversal, finalHpBalance, isRevert ? "REWARD_REVERSAL" : "REJECTION_PENALTY", `Reversed original reward of ${rewardToUndo} HP.`, originalLedger._id.toString(), teacherId, activityRuleConfig),
+                        session
+                    ));
+                }
                 // CASE C: ADDITIONAL REJECTION PENALTY
                 if (isReject) {
                     const penaltyAmount = Number(body.pointsToDeduct) ?? 0;
                     if (penaltyAmount > 0) {
-                        const hpBeforePenalty = finalHpBalance - rewardToUndo; // consider first we reverted so need to -rewardtoUndo value after revert entry we are storing rejected ledger
+                        const hpBeforePenalty = finalHpBalance ;
                         finalHpBalance -= penaltyAmount;
 
                         // Second Ledger: The Penalty
@@ -954,7 +960,7 @@ export class ActivitySubmissionsService extends BaseService {
             };
 
             const result = await this.activitySubmissionsRepository.updateFeedbackById(id, feedbackPayload, session);
-            
+
             return {
                 success: result,
                 message: result ? "Feedback added successfully" : "Failed to add feedback"
@@ -964,178 +970,3 @@ export class ActivitySubmissionsService extends BaseService {
 }
 
 
-
-
-
-// async review(submissionId: string, teacherId: string, body: ReviewHpActivitySubmissionBodyDto) {
-//     return this._withTransaction(async (session) => {
-//         // 1. Initial Data Fetching
-//         const submission = await this.activitySubmissionsRepository.findById(submissionId, { session });
-//         if (!submission) throw new NotFoundError("Submission not found");
-
-//         const [activityRuleConfig, user, enrollment] = await Promise.all([
-//             this.ruleConfigService.getByActivityId(submission.activityId.toString()),
-//             this.userRepo.findById(submission.studentId.toString()),
-//             this.cohortRepository.findEnrollment(submission.studentId.toString(), submission.courseId.toString(), submission.courseVersionId.toString())
-//         ]);
-
-//         if (!user) throw new BadRequestError("Student not found");
-//         if (!enrollment) throw new BadRequestError("Enrollment not found");
-
-//         // 2. Validation Logic
-//         const rewardConfig = activityRuleConfig?.reward;
-//         const isApprovalRequired = rewardConfig?.enabled && rewardConfig.applyWhen === "ON_APPROVAL";
-//         const currentStatus = submission.status;
-
-//         if (["REVERTED", "REJECTED"].includes(currentStatus)) {
-//             throw new BadRequestError("This submission has already been processed.");
-//         }
-
-//         if (isApprovalRequired && body.decision !== "APPROVED" && currentStatus == "SUBMITTED") {
-//             throw new BadRequestError("This activity requires approval. Only APPROVE is allowed.");
-//         }
-
-//         if ((currentStatus === "APPROVED" || (currentStatus === "SUBMITTED" && !isApprovalRequired)) && body.decision == "APPROVED") {
-//             throw new BadRequestError("This submission is already rewarded. Only REVERT is allowed.");
-//         }
-
-//         // 3. Deadline Checks for Approval
-//         if (body.decision === "APPROVED") {
-//             const deadline = activityRuleConfig?.deadlineAt ? new Date(activityRuleConfig.deadlineAt) : null;
-//             const isLate = deadline && new Date() > deadline;
-
-//             if (isLate && rewardConfig?.lateBehavior === "NO_REWARD") {
-//                 throw new BadRequestError("Cannot approve: Late submissions receive no reward.");
-//             }
-//             if (isLate && rewardConfig?.onlyWithinDeadline) {
-//                 throw new BadRequestError("Cannot approve: Submission is past the deadline.");
-//             }
-//         }
-
-//         // 4. Decision Parameters (Amount & Type)
-//         let deltaAmount = 0;
-//         let revertedLedgerId = null;
-//         const isReverting = body.decision === "REVERTED";
-
-//         const isRejecting = body.decision == "REJECTED";
-//         const pointsToDeduct = Number(body.pointsToDeduct) ?? 0;
-
-//         if (body.decision === "APPROVED") {
-//             deltaAmount = rewardConfig?.value ?? 0;
-//         } else if (isReverting || isRejecting) {
-//             const ledgerToRevert = await this.ledgerRepository.findByStudentAndSubmissionId(submissionId, submission.studentId.toString());
-//             if (!ledgerToRevert) throw new BadRequestError("No existing reward found to revert.");
-
-//             revertedLedgerId = ledgerToRevert._id.toString();
-//             deltaAmount = -(ledgerToRevert.amount ?? 0); // Negative to decrease HP
-//         }
-
-//         if (isRejecting) {
-
-
-//             const totalStudentHpPoints = enrollment.hpPoints ?? 0;
-//             const ruleType = rewardConfig?.type ?? "ABSOLUTE";
-
-//             const rejectLedgerEntry: Omit<HpLedger, "_id" | "createdAt"> = {
-//                 courseId: new ObjectId(submission.courseId),
-//                 courseVersionId: new ObjectId(submission.courseVersionId),
-//                 cohort: submission.cohort,
-//                 studentId: new ObjectId(submission.studentId.toString()),
-//                 studentEmail: user.email,
-//                 activityId: new ObjectId(submission.activityId),
-//                 submissionId: new ObjectId(submissionId),
-//                 eventType: "REJECTION",
-//                 direction: "DEBIT",
-//                 amount: Math.abs(pointsToDeduct),
-//                 calc: {
-//                     ruleType,
-//                     percentage: ruleType === "PERCENTAGE" ? (rewardConfig?.value ?? 0) : null,
-//                     absolutePoints: ruleType === "ABSOLUTE" ? (rewardConfig?.value ?? 0) : null,
-//                     baseHpAtTime: totalStudentHpPoints - deltaAmount,
-//                     computedAmount: (totalStudentHpPoints + deltaAmount) - pointsToDeduct,
-//                     deadlineAt: activityRuleConfig?.deadlineAt ? new Date(activityRuleConfig.deadlineAt) : null,
-//                     withinDeadline: null,
-//                     reasonCode: "REJECTION_PENALTY"
-//                 },
-//                 links: revertedLedgerId ? { reversedLedgerId: new ObjectId(revertedLedgerId), relatedLedgerIds: [] } : null,
-//                 meta: {
-//                     triggeredBy: "TEACHER",
-//                     triggeredByUserId: new ObjectId(teacherId),
-//                     note: body.note
-//                 }
-//             };
-
-//             await Promise.all([
-//                 this.ledgerRepository.create(rejectLedgerEntry, session),
-//                 this.cohortRepository.setHPForEnrollment(
-//                     submission.studentId.toString(),
-//                     submission.courseId.toString(),
-//                     submission.courseVersionId.toString(),
-//                     (totalStudentHpPoints + deltaAmount) - pointsToDeduct,
-//                     session
-//                 )
-//             ]);
-//         }
-
-
-//         const review = {
-//             reviewedByTeacherId: teacherId,
-//             reviewedAt: new Date(),
-//             decision: body.decision,
-//             note: body.note ?? (isReverting ? "Reward Reverted" : "Approved by Instructor")
-//         };
-
-//         await this.activitySubmissionsRepository.updateStatusAndReview(
-//             submissionId,
-//             { status: body.decision, review },
-//             { session }
-//         );
-
-//         // 6. Ledger Entry Construction
-//         const totalStudentHpPoints = enrollment.hpPoints ?? 0;
-//         const ruleType = rewardConfig?.type ?? "ABSOLUTE";
-
-//         const ledgerEntry: Omit<HpLedger, "_id" | "createdAt"> = {
-//             courseId: new ObjectId(submission.courseId),
-//             courseVersionId: new ObjectId(submission.courseVersionId),
-//             cohort: submission.cohort,
-//             studentId: new ObjectId(submission.studentId.toString()),
-//             studentEmail: user.email,
-//             activityId: new ObjectId(submission.activityId),
-//             submissionId: new ObjectId(submissionId),
-//             eventType: isReverting ? "REVERSAL" : "CREDIT",
-//             direction: isReverting ? "DEBIT" : "CREDIT",
-//             amount: Math.abs(deltaAmount),
-//             calc: {
-//                 ruleType,
-//                 percentage: ruleType === "PERCENTAGE" ? (rewardConfig?.value ?? 0) : null,
-//                 absolutePoints: ruleType === "ABSOLUTE" ? (rewardConfig?.value ?? 0) : null,
-//                 baseHpAtTime: totalStudentHpPoints,
-//                 computedAmount: totalStudentHpPoints + deltaAmount,
-//                 deadlineAt: activityRuleConfig?.deadlineAt ? new Date(activityRuleConfig.deadlineAt) : null,
-//                 withinDeadline: null,
-//                 reasonCode: isReverting ? "REWARD_REVERSAL" : "REWARD_REVERSAL"
-//             },
-//             links: revertedLedgerId ? { reversedLedgerId: new ObjectId(revertedLedgerId), relatedLedgerIds: [] } : null,
-//             meta: {
-//                 triggeredBy: "TEACHER",
-//                 triggeredByUserId: new ObjectId(teacherId),
-//                 note: review.note
-//             }
-//         };
-
-//         // 7. Atomic Updates
-//         await Promise.all([
-//             this.ledgerRepository.create(ledgerEntry, session),
-//             this.cohortRepository.setHPForEnrollment(
-//                 submission.studentId.toString(),
-//                 submission.courseId.toString(),
-//                 submission.courseVersionId.toString(),
-//                 totalStudentHpPoints + deltaAmount,
-//                 session
-//             )
-//         ]);
-
-//         return { success: true };
-//     });
-// }

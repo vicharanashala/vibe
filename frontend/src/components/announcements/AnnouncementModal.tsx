@@ -24,6 +24,7 @@ interface AnnouncementModalProps {
     courseId?: string;
     versionId?: string;
     isAdmin?: boolean;
+    cohortId?: string;
 }
 
 export function AnnouncementModal({
@@ -34,6 +35,7 @@ export function AnnouncementModal({
     courseId,
     versionId,
     isAdmin,
+    cohortId,
 }: AnnouncementModalProps) {
     const isEditing = !!initialData;
     const createMutation = useCreateAnnouncement();
@@ -132,7 +134,8 @@ export function AnnouncementModal({
             type,
             attachments,
             courseId: type === AnnouncementType.GENERAL ? undefined : courseId,
-            courseVersionId: type === AnnouncementType.VERSION_SPECIFIC ? versionId : undefined
+            courseVersionId: type === AnnouncementType.VERSION_SPECIFIC ? versionId : undefined,
+            cohortId: type === AnnouncementType.COHORT_SPECIFIC ? cohortId : undefined,
         };
 
         try {
@@ -164,6 +167,7 @@ export function AnnouncementModal({
                                 {type === AnnouncementType.GENERAL && "General — visible to all users"}
                                 {type === AnnouncementType.COURSE_SPECIFIC && "Course Specific — visible to enrolled students"}
                                 {type === AnnouncementType.VERSION_SPECIFIC && "Version Specific — visible to this version's students"}
+                                {type === AnnouncementType.COHORT_SPECIFIC && "Cohort Specific — visible to this cohort's students"}
                             </Badge>
                         </div>
                     </div>
