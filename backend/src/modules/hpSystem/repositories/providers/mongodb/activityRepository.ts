@@ -1,4 +1,5 @@
 import { HpActivityTransformer } from "#root/modules/hpSystem/classes/transformers/Activity.js";
+import { ListActivitiesQuery } from "#root/modules/hpSystem/classes/validators/activityValidators.js";
 import { IActivityRepository } from "#root/modules/hpSystem/interfaces/IActivityRepository.js";
 import { HpActivity } from "#root/modules/hpSystem/models.js";
 // import { HpActivity, HpActivitySubmission } from "#root/modules/hpSystem/models.js";
@@ -73,13 +74,7 @@ export class ActivityRepository implements IActivityRepository {
         return plainToInstance(HpActivityTransformer, doc);
     }
 
-    async listActivities(filters: {
-        courseId?: string;
-        courseVersionId?: string;
-        cohort?: string;
-        status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
-        createdByTeacherId?: string;
-    }): Promise<HpActivityTransformer[]> {
+    async listActivities(filters: ListActivitiesQuery): Promise<HpActivityTransformer[]> {
         await this.init();
         const q: any = { isDeleted: { $ne: true } };
 
@@ -87,7 +82,15 @@ export class ActivityRepository implements IActivityRepository {
         if (filters.courseVersionId) q.courseVersionId = new ObjectId(filters.courseVersionId);
         if (filters.cohort) q.cohort = filters.cohort;
         if (filters.status) q.status = filters.status;
+        if(filters.activity) q.activityType = filters.activity;
         if (filters.createdByTeacherId) q.createdByTeacherId = new ObjectId(filters.createdByTeacherId);
+        if (filters.search) {
+    q.$or = [
+        { title: { $regex: filters.search, $options: "i" } },
+        { description: { $regex: filters.search, $options: "i" } },
+        { activityType: { $regex: filters.search, $options: "i" } }
+    ];
+}
 
         const docs = await this.hpActivityCollection.aggregate([
 
