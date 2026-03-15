@@ -2,7 +2,7 @@ import { useHpStudentCohorts } from "@/hooks/hooks";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { BookOpen, ArrowRight, Trophy, CheckCircle2, LayoutDashboard } from "lucide-react";
+import { BookOpen, ArrowRight, Trophy, CheckCircle2, LayoutDashboard, History } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 
 export default function StudentCohorts() {
@@ -24,11 +24,21 @@ export default function StudentCohorts() {
 
     return (
         <div className="container mx-auto p-6 max-w-6xl space-y-6">
-            <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold tracking-tight">My Cohorts</h1>
-                <p className="text-muted-foreground">
-                    Select a cohort to view your activities, submissions, and current House Points (HP) standing.
-                </p>
+            <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col gap-2">
+                    <h1 className="text-3xl font-bold tracking-tight">My Cohorts</h1>
+                    <p className="text-muted-foreground">
+                        Select a cohort to view your activities, submissions, and current House Points (HP) standing.
+                    </p>
+                </div>
+                <Button
+                    variant="outline"
+                    className="gap-2 shrink-0"
+                    onClick={() => navigate({ to: '/student/hp-system/ledger' as any })}
+                >
+                    <History className="h-4 w-4" />
+                    HP History
+                </Button>
             </div>
 
             {/* Mock Analytics Summary */}

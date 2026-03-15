@@ -25,14 +25,16 @@ interface AnnouncementListProps {
     courseId?: string;
     versionId?: string;
     isInstructor?: boolean;
+    cohortId?: string;
 }
 
-export function AnnouncementList({ courseId, versionId, isInstructor }: AnnouncementListProps) {
+export function AnnouncementList({ courseId, versionId, isInstructor, cohortId }: AnnouncementListProps) {
     const { data, isLoading, isAdmin, refetch } = useAnnouncements(
         undefined, // fetch all initially, filter locally or let hook handle
         courseId,
         versionId,
-        !isInstructor // student mode if not instructor
+        !isInstructor, // student mode if not instructor
+        cohortId,
     );
 
     const [search, setSearch] = useState("");
@@ -42,7 +44,7 @@ export function AnnouncementList({ courseId, versionId, isInstructor }: Announce
     const [deleteId, setDeleteId] = useState<string | null>(null);
 
     // Decide default type for creation based on context
-    const defaultCreateType = versionId ? AnnouncementType.VERSION_SPECIFIC : courseId ? AnnouncementType.COURSE_SPECIFIC : AnnouncementType.GENERAL;
+    const defaultCreateType = cohortId ? AnnouncementType.COHORT_SPECIFIC : versionId ? AnnouncementType.VERSION_SPECIFIC : courseId ? AnnouncementType.COURSE_SPECIFIC : AnnouncementType.GENERAL;
 
     const filteredData = data.filter(item => {
         const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -104,6 +106,9 @@ export function AnnouncementList({ courseId, versionId, isInstructor }: Announce
                             <DropdownMenuCheckboxItem checked={filterType === AnnouncementType.VERSION_SPECIFIC} onCheckedChange={() => setFilterType(AnnouncementType.VERSION_SPECIFIC)}>
                                 Version Specific
                             </DropdownMenuCheckboxItem>
+                            <DropdownMenuCheckboxItem checked={filterType === AnnouncementType.COHORT_SPECIFIC} onCheckedChange={() => setFilterType(AnnouncementType.COHORT_SPECIFIC)}>
+                                Cohort Specific
+                            </DropdownMenuCheckboxItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
 
@@ -155,6 +160,7 @@ export function AnnouncementList({ courseId, versionId, isInstructor }: Announce
                     courseId={courseId}
                     versionId={versionId}
                     isAdmin={isAdmin}
+                    cohortId={cohortId}
                 />
             )}
 
