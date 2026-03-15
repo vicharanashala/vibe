@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SubmissionStatusBadge } from "@/components/hp-system/SubmissionStatusBadge";
 import { ArrowLeft, Loader2, Link as LinkIcon, FileText, Clock } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function StudentSubmissions() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
@@ -47,6 +48,7 @@ export default function StudentSubmissions() {
     }
 
     return (
+        <TooltipProvider>
         <div className="container mx-auto p-6 max-w-5xl space-y-6">
             <div className="flex items-center gap-4 mb-6">
                 <Button
@@ -71,13 +73,18 @@ export default function StudentSubmissions() {
                     <p className="text-sm text-muted-foreground mt-2 max-w-sm">
                         You have not made any activity submissions for this cohort yet.
                     </p>
-                    <Button
-                        variant="outline"
-                        className="mt-6"
-                        onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/activities` })}
-                    >
-                        View Activities
-                    </Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="outline"
+                                className="mt-6"
+                                onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/activities` })}
+                            >
+                                View Activities
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Go back to activities and submit your work</TooltipContent>
+                    </Tooltip>
                 </Card>
             ) : (
                 <div className="space-y-4">
@@ -198,5 +205,6 @@ export default function StudentSubmissions() {
                 </div>
             )}
         </div>
+        </TooltipProvider>
     );
 }
