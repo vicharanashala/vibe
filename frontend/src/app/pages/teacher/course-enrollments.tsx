@@ -1212,7 +1212,7 @@ export default function CourseEnrollments() {
                       <>
                         <div className="flex justify-between items-center mb-3">
                           <p className="text-sm text-muted-foreground">Completion</p>
-                          <EnrollmentProgress progress={progressDetail.percentCompleted || 0} />
+                          <EnrollmentProgress progress={Math.min(progressDetail?.percentCompleted ?? 0, 100)} /> 
                         </div>
                         <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                           <SummaryRow label="Total Items" value={progressDetail.contentCounts?.totalItems ?? 0} />
@@ -1226,7 +1226,7 @@ export default function CourseEnrollments() {
                           />
                           <SummaryRow
                             label="Items Completed"
-                            value={`${progressDetail.completedItemsCount ?? 0} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
+                            value={`${Math.min(progressDetail.completedItemsCount ?? 0, progressDetail.contentCounts?.totalItems ?? 0)} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
                           />
                         </div>
                       </>
