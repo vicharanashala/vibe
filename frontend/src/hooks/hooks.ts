@@ -5089,13 +5089,15 @@ export function useHpActivities(
   courseVersionId: string,
   cohort: string,
   status?: string,
-  search?: string
+  search?: string,
+  activity?: string
 ) {
   const query = useQuery({
-    queryKey: ['hp-activities', courseVersionId, cohort, status, search],
+    queryKey: ['hp-activities', courseVersionId, cohort, status, search, activity],
     queryFn: async () => {
-      const res = await hpApi.getActivities(courseVersionId, cohort, status, search);
+      const res = await hpApi.getActivities(courseVersionId, cohort, status, search, activity);
       if (!res.success) throw new Error(res.message || 'Failed to load activities');
+      console.log("Fetched activities:", res.data);
       return res.data;
     },
     enabled: !!courseVersionId && !!cohort,
@@ -5188,6 +5190,24 @@ export function useArchiveHpActivity() {
     mutateAsync: mutation.mutateAsync,
     isPending: mutation.isPending,
   };
+}
+
+export function useDeleteHpActivity(){
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: async (activityId: string) => {
+      const res = await hpApi.deleteActivity(activityId);
+      if (!res.success) throw new Error(res.message || 'Failed to delete activity');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hp-activities'] });
+      toast.success("Activity deleted successfully");
+    },
+  })
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+  }
 }
 
 export function useHpRuleConfig(activityId: string | undefined) {

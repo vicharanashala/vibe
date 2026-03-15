@@ -403,12 +403,13 @@ export const hpApi = {
         courseVersionId: string,
         cohort: string,
         status?: string,
-        search?: string
+        search?: string,
+        activity?: string
     ): Promise<{ success: boolean; data: HpActivity[] }> => {
         const params = new URLSearchParams({ courseVersionId, cohort });
         if (status && status !== 'ALL') params.append('status', status);
         if (search) params.append('search', search);
-
+        if (activity && activity !== 'ALL') params.append('activity', activity);
         return apiFetch(`${BASE_URL}/activities?${params.toString()}`);
     },
 
@@ -455,7 +456,7 @@ export const hpApi = {
 
     deleteActivity: async (activityId: string): Promise<{ success: boolean }> => {
         // Backend does not have a DELETE endpoint; archive instead
-        return apiFetch(`${BASE_URL}/activities/${activityId}/archive`, {
+        return apiFetch(`${BASE_URL}/activities/${activityId}/delete`, {
             method: 'POST',
         });
     },

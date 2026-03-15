@@ -41,29 +41,52 @@ export default function HpSystemCohorts() {
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {cohorts.map((c) => (
-                    <Card key={c.cohortName} className="cursor-pointer hover:border-primary transition-colors" onClick={() => navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(c.cohortName)}/activities` })}>
+                    <Card
+                        key={c.cohortName}
+                        className="relative group overflow-hidden cursor-pointer hover:border-primary transition-all hover:shadow-lg"
+                        onClick={() =>
+                            navigate({
+                                to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(
+                                    c.cohortName
+                                )}/activities`,
+                            })
+                        }
+                    >
+
+                        {/* Overlay */}
+                        <div className="absolute inset-0 opacity-0 group-hover:opacity-95 transition-all duration-200 bg-black/30 backdrop-blur-sm flex items-center justify-center rounded-lg z-10">
+                            <div className="flex items-center gap-2 text-white">
+                                <Users className="h-4 w-4" />
+                                Manage Cohort
+                            </div>
+                        </div>
+
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">
                                 {c.cohortName}
                             </CardTitle>
                             <Users className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
+
                         <CardContent>
                             <div className="mt-2 space-y-2 text-sm text-muted-foreground">
                                 <div className="flex justify-between">
                                     <span>Students:</span>
                                     <span className="font-medium text-foreground">{c.stats.totalStudents}</span>
                                 </div>
+
                                 <div className="flex justify-between">
                                     <span>Published Activities:</span>
                                     <span className="font-medium text-foreground">{c.stats.publishedActivities}</span>
                                 </div>
+
                                 <div className="flex justify-between">
                                     <span>HP Distributed:</span>
                                     <span className="font-medium text-foreground">{c.stats.totalHpDistributed}</span>
                                 </div>
                             </div>
                         </CardContent>
+
                     </Card>
                 ))}
             </div>

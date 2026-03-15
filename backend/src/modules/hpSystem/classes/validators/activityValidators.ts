@@ -139,4 +139,12 @@ export class ListActivitiesQuery {
     @IsOptional()
     @IsMongoId({ message: "createdByTeacherId must be a valid MongoDB ObjectId" })
     createdByTeacherId?: string;
+
+    @IsOptional()
+    @IsString({ message: "search must be a string" })
+    search?: string;
+
+    @IsOptional()
+    @IsString({ message: "activity must be a string" })
+    activity?: string;
 }
