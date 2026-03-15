@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { useHpStudentActivities, useSubmitActivity } from "@/hooks/hooks";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
@@ -17,9 +17,68 @@ import {
     Trash2,
     Loader2,
     Send,
-    Image as ImageIcon
+    Image as ImageIcon,
+    User
 } from "lucide-react";
 import { HpActivity } from "@/lib/api/hp-system";
+
+// Countdown timer component for deadline display
+const DeadlineCountdown = ({ deadline, allowLate }: { deadline: string; allowLate: boolean }) => {
+    const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; isExpired: boolean }>(() => {
+        const now = new Date().getTime();
+        const deadlineTime = new Date(deadline).getTime();
+        const diff = deadlineTime - now;
+        
+        if (diff <= 0) {
+            return { days: 0, hours: 0, minutes: 0, isExpired: true };
+        }
+        
+        return {
+            days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+            hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+            minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+            isExpired: false
+        };
+    });
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            const now = new Date().getTime();
+            const deadlineTime = new Date(deadline).getTime();
+            const diff = deadlineTime - now;
+
+            if (diff <= 0) {
+                setTimeLeft({ days: 0, hours: 0, minutes: 0, isExpired: true });
+                clearInterval(timer);
+            } else {
+                setTimeLeft({
+                    days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+                    hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+                    minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+                    isExpired: false
+                });
+            }
+        }, 60000); // Update every minute
+
+        return () => clearInterval(timer);
+    }, [deadline]);
+
+    if (timeLeft.isExpired) {
+        return (
+            <span className={`font-medium ${allowLate ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>
+                {allowLate ? 'Deadline passed (late submission allowed)' : 'Deadline passed'}
+            </span>
+        );
+    }
+
+    return (
+        <span className="font-medium text-orange-600 dark:text-orange-400">
+            {timeLeft.days > 0 && `${timeLeft.days}d `}
+            {timeLeft.hours > 0 && `${timeLeft.hours}h `}
+            {timeLeft.minutes}m left
+        </span>
+    );
+};
 
 export default function StudentActivities() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
@@ -172,53 +231,69 @@ export default function StudentActivities() {
             ) : (
                 <div className="grid grid-cols-1 gap-6">
                     {activities.map((activity: HpActivity) => (
-                        <Card key={activity._id} className="overflow-hidden">
-                            <CardHeader className="bg-muted/30 pb-4">
-                                <div className="flex justify-between items-start gap-4">
-                                    <div className="space-y-1.5 flex-grow">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <Badge variant="outline" className="bg-background">
+                        <Card key={activity._id} className="group relative overflow-hidden border-border/60 bg-card/80 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg">
+                            <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-400/60 via-rose-400/60 to-sky-400/60" />
+                            <CardHeader className="relative pb-3 pt-4">
+                                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                    <div className="space-y-1.5">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Badge variant="secondary" className="bg-secondary/60 text-secondary-foreground shadow-none">
                                                 {getActivityTypeLabel(activity.activityType)}
                                             </Badge>
-                                            <Badge variant="secondary" className="bg-secondary/50 text-secondary-foreground shadow-none">
+                                            <Badge variant="outline" className="bg-background/80">
                                                 {activity.submissionMode === 'EXTERNAL_LINK' ? 'External Link' : 'In Platform'}
                                             </Badge>
+                                            {activity.rules && (
+                                                activity.rules.isMandatory ? (
+                                                    <Badge className="border-red-600/70 bg-red-600 text-white">
+                                                        Mandatory
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="outline" className="bg-background/80">
+                                                        Optional
+                                                    </Badge>
+                                                )
+                                            )}
                                         </div>
-                                        <CardTitle className="text-xl">{activity.title}</CardTitle>
-                                        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
+                                        <CardTitle className="text-xl tracking-tight">{activity.title}</CardTitle>
+                                        <div className="space-y-1.5 text-xs text-muted-foreground">
                                             {activity.createdAt && (
                                                 <div className="flex items-center gap-1.5">
                                                     <Clock className="h-4 w-4" />
-                                                    <span>Created: {formatDate(activity.createdAt)}</span>
+                                                    <span>Created {formatDate(activity.createdAt)}</span>
                                                 </div>
                                             )}
                                             {activity.instructorName && (
                                                 <div className="flex items-center gap-1.5">
+                                                    <User className="h-4 w-4" />
                                                     <span className="font-medium">Instructor:</span>
                                                     <span>{activity.instructorName}</span>
                                                 </div>
                                             )}
-                                            {activity.rules && (
-                                                <>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="font-medium">Mandatory:</span>
-                                                        <span>{activity.rules.isMandatory ? 'Yes' : 'No'}</span>
-                                                    </div>
-                                                    {activity.rules.deadlineAt && (
-                                                        <div className="flex items-center gap-1.5 text-orange-600/90 dark:text-orange-400">
-                                                            <span className="font-medium">Deadline:</span>
-                                                            <span>{formatDate(activity.rules.deadlineAt.toString())}</span>
-                                                        </div>
-                                                    )}
-                                                </>
-                                            )}
                                         </div>
                                     </div>
+                                    {activity.rules?.deadlineAt && (
+                                        <div className="rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground shadow-sm">
+                                            <div className="flex items-center gap-1.5 text-orange-600/90 dark:text-orange-400">
+                                                <Clock className="h-4 w-4" />
+                                                <span className="font-medium text-foreground">Deadline</span>
+                                            </div>
+                                            <div className="mt-1 text-sm font-medium text-foreground">
+                                                {formatDate(activity.rules.deadlineAt.toString())}
+                                            </div>
+                                            <div className="mt-1 text-[11px]">
+                                                <DeadlineCountdown
+                                                    deadline={activity.rules.deadlineAt.toString()}
+                                                    allowLate={activity.rules.allowLateSubmission ?? true}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </CardHeader>
-                            <CardContent className="pt-6 space-y-6">
+                            <CardContent className="space-y-4 pt-3">
                                 <div>
-                                    <h4 className="text-sm font-semibold mb-2">Description</h4>
+                                    <h4 className="text-sm font-semibold mb-1">Description</h4>
                                     <p className="text-muted-foreground text-sm whitespace-pre-wrap">
                                         {activity.description}
                                     </p>
@@ -230,14 +305,14 @@ export default function StudentActivities() {
                                             <Paperclip className="h-4 w-4" />
                                             Attachments
                                         </h4>
-                                        <div className="flex flex-wrap gap-2">
+                                        <div className="grid gap-2 sm:grid-cols-2">
                                             {activity.attachments.map((att, idx) => (
                                                 <a
                                                     key={idx}
                                                     href={att.url}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/50 hover:bg-muted text-sm border transition-colors"
+                                                    className="flex items-center gap-2 rounded-lg border bg-background/70 px-3 py-2 text-sm transition-colors hover:bg-muted/60"
                                                 >
                                                     {att.kind === 'LINK' ? <LinkIcon className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
                                                     {att.name}
@@ -257,7 +332,7 @@ export default function StudentActivities() {
                                             href={activity.externalLink}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 text-sm border border-blue-200 dark:border-blue-800 transition-colors"
+                                            className="inline-flex items-center gap-2 rounded-lg border border-blue-200/60 bg-blue-50/70 px-3 py-2 text-sm text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-800/60 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
                                         >
                                             <LinkIcon className="h-4 w-4" />
                                             {activity.externalLink}
@@ -265,15 +340,31 @@ export default function StudentActivities() {
                                     </div>
                                 )}
                             </CardContent>
-                            <CardFooter className="bg-muted/10 border-t justify-center gap-2  px-6 py-4">
+                            <CardFooter className="border-t bg-muted/10 px-6 py-1">
+                                {(() => {
+                                    const now = new Date().getTime();
+                                    const deadlineTime = activity.rules?.deadlineAt ? new Date(activity.rules.deadlineAt.toString()).getTime() : null;
+                                    const isExpired = deadlineTime ? now > deadlineTime : false;
+                                    const allowLate = activity.rules?.allowLateSubmission ?? true;
+                                    const canSubmit = !isExpired || allowLate;
 
-                                <Button>edit</Button>
-
-                                <Button onClick={() => openSubmitDialog(activity)}>
-                                    <Send className="h-4 w-4 mr-2" />
-                                    Submit
-                                </Button>
-
+                                    return (
+                                         <div className="flex w-full items-center justify-between gap-2">
+                                            <div className="text-xs text-muted-foreground">
+                                                {isExpired && !allowLate ? "Submission closed" : "Ready to submit"}
+                                            </div>
+                                            <Button
+                                                size="sm"
+                                                onClick={() => openSubmitDialog(activity)}
+                                                disabled={!canSubmit}
+                                                title={!canSubmit ? "Submission deadline has passed" : undefined}
+                                            >
+                                                <Send className="h-4 w-4 mr-2" />
+                                                {isExpired && !allowLate ? 'Deadline Passed' : 'Submit'}
+                                            </Button>
+                                        </div>
+                                    );
+                                })()}
                             </CardFooter>
                         </Card>
                     ))}
@@ -426,12 +517,17 @@ export default function StudentActivities() {
                         </Button>
                         <Button
                             onClick={handleSubmit}
-                            disabled={isSubmitting || !textResponse.trim() || (files.length === 0 && images.length === 0 && links.every(l => !l.url.trim()))}
+                            disabled={isSubmitting || !textResponse.trim() || (files.length === 0 && images.length === 0 && links.every(l => !l.url.trim())) || (selectedActivity?.rules?.deadlineAt && new Date().getTime() > new Date(selectedActivity.rules.deadlineAt.toString()).getTime() && !(selectedActivity?.rules?.allowLateSubmission ?? true))}
                         >
                             {isSubmitting ? (
                                 <>
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                                     Submitting...
+                                </>
+                            ) : (selectedActivity?.rules?.deadlineAt && new Date().getTime() > new Date(selectedActivity.rules.deadlineAt.toString()).getTime() && !(selectedActivity?.rules?.allowLateSubmission ?? true)) ? (
+                                <>
+                                    <Clock className="h-4 w-4 mr-2" />
+                                    Deadline Passed
                                 </>
                             ) : (
                                 <>
