@@ -114,6 +114,7 @@ export class ActivityController {
     @QueryParams() query: ListActivitiesQuery
   ) {
     const userId = user._id.toString()
+    console.log("Activity search with query:", query, "by user:", userId);
     const doc = await this.activityService.list(query, userId);
     return { success: true, data: doc };
   }

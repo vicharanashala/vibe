@@ -3,8 +3,8 @@ import { HpActivity } from "@/lib/api/hp-system";
 import { useNavigate } from "@tanstack/react-router";
 import { EditActivityDialog } from "./EditActivityDialog";
 import { RuleSettingsDialog } from "./RuleSettingsDialog";
-import { useHpActivities, useUpdateHpActivity, usePublishHpActivity, useArchiveHpActivity, useHpCourseVersions } from "@/hooks/hooks";
-import { Plus, Search, Trash2, Paperclip, Edit, Link as LinkIcon, FileText, Send, Settings, LayoutGrid, List } from "lucide-react";
+import { useHpActivities, useUpdateHpActivity, usePublishHpActivity, useArchiveHpActivity, useHpCourseVersions, useDeleteHpActivity } from "@/hooks/hooks";
+import { Plus, Search, Trash2, Paperclip, Edit, Link as LinkIcon, FileText, Send, Settings, LayoutGrid, List, Archive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Pagination } from "@/components/ui/Pagination";
+
 
 interface ActivitiesTabProps {
     courseVersionId: string;
@@ -21,10 +22,11 @@ interface ActivitiesTabProps {
 
 export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProps) {
     const [search, setSearch] = useState("");
-    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+    const [viewMode, setViewMode] = useState<"grid" | "list">("list");
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 6;
     const [statusFilter, setStatusFilter] = useState("ALL");
+    const [activityFilter, setActivityFilter] = useState("ALL");
     const [debouncedSearch, setDebouncedSearch] = useState("");
 
 
@@ -44,16 +46,17 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
         c.versions.some(v => v.courseVersionId === courseVersionId)
     )?.courseId || "000000000000000000000001";
     const { data: activities, isLoading: loading, refetch } = useHpActivities(
-        courseVersionId, cohortName, statusFilter, debouncedSearch
+        courseVersionId, cohortName, statusFilter, debouncedSearch, activityFilter
     );
     const { mutateAsync: updateActivity } = useUpdateHpActivity();
-    const totalPages = Math.ceil((activities?.length ||0)/itemsPerPage);
+    const totalPages = Math.ceil((activities?.length || 0) / itemsPerPage);
     const paginatedActivities = (activities || []).slice(
-        (currentPage -1) * itemsPerPage,
+        (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
     const { mutateAsync: publishActivity } = usePublishHpActivity();
     const { mutateAsync: archiveActivity } = useArchiveHpActivity();
+    const {mutateAsync: deleteActivity} = useDeleteHpActivity();
 
     // Handle Search Debounce
     useEffect(() => {
@@ -63,8 +66,8 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
         return () => clearTimeout(timer);
     }, [search]);
 
-    const handleDelete = async (id: string) => {
-        if (confirm("Are you sure you want to delete this activity?")) {
+    const handleArchive = async (id: string) => {
+        if (confirm("Are you sure you want to archive this activity?")) {
             await archiveActivity(id);
             refetch();
         }
@@ -83,6 +86,12 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
 
     const handlePublish = async (id: string) => {
         await publishActivity(id);
+        refetch();
+    };
+
+    const handleDelete = async (id: string) => {
+        console.log("Delete activity with id:", id);
+        await deleteActivity(id)
         refetch();
     };
 
@@ -112,17 +121,23 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                         </SelectContent>
                     </Select>
 
+                    <Select value={activityFilter} onValueChange={setActivityFilter}>
+                        <SelectTrigger className="w-[150px]">
+                            <SelectValue placeholder="Activity" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">All Activities</SelectItem>
+                            <SelectItem value="ASSIGNMENT">Assignment</SelectItem>
+                            <SelectItem value="MILESTONE">Milestone</SelectItem>
+                            <SelectItem value="EXTERNAL_IMPORT">External Import</SelectItem>
+                            <SelectItem value="VIBE_MILESTONE">Vibe Platform Milestone</SelectItem>
+                            <SelectItem value="OTHER">Other</SelectItem>
+                        </SelectContent>
+                    </Select>
+
                     {/* View Toggle */}
                     <div className="flex items-center border rounded-md overflow-hidden">
-                        <Button
-                            variant={viewMode === "grid" ? "default" : "ghost"}
-                            size="sm"
-                            className="rounded-none h-9 px-3"
-                            onClick={() => setViewMode("grid")}
-                            title="Grid View"
-                        >
-                            <LayoutGrid className="h-4 w-4" />
-                        </Button>
+
                         <Button
                             variant={viewMode === "list" ? "default" : "ghost"}
                             size="sm"
@@ -132,6 +147,17 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                         >
                             <List className="h-4 w-4" />
                         </Button>
+
+                        <Button
+                            variant={viewMode === "grid" ? "default" : "ghost"}
+                            size="sm"
+                            className="rounded-none h-9 px-3"
+                            onClick={() => setViewMode("grid")}
+                            title="Grid View"
+                        >
+                            <LayoutGrid className="h-4 w-4" />
+                        </Button>
+
                     </div>
                 </div>
                 <Button onClick={() => navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName)}/activities/create` })}>
@@ -160,35 +186,110 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                 : 'bg-amber-400'
                                 }`} />
 
-                            <CardHeader className="pb-4 pt-6">
-                                <div className="flex justify-between items-start">
-                                    <div className="space-y-1">
+                            <CardHeader className="pb-4 pt-4">
+                                <div className="flex flex-col justify-between items-start gap-2">
+                                    <div className="flex items-center justify-between gap-4 w-full">
                                         <CardTitle
-                                            className="text-lg line-clamp-1"
+                                            className="text-lg truncate w-[60%]"
                                             title={activity.title}
                                         >
                                             {activity.title}
                                         </CardTitle>
 
-                                        <div className="flex gap-2 text-xs">
-                                            <Badge
-                                                variant="outline"
-                                                className="bg-muted/50 text-muted-foreground"
-                                            >
-                                                {activity.activityType}
-                                            </Badge>
+                                        <div className="flex flex-wrap sm:flex-nowrap gap-2">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button variant="outline" size="sm" onClick={() => handleOpenEdit(activity)}>
+                                                            <Edit className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Edit</TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
 
-                                            <Badge
-                                                variant={
-                                                    activity.status === "PUBLISHED"
-                                                        ? "default"
-                                                        : "secondary"
-                                                }
-                                                className="text-[10px] uppercase tracking-wide font-medium"
-                                            >
-                                                {activity.status}
-                                            </Badge>
+                                            {activity.status !== "ARCHIVED" && <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button variant="outline" size="sm" onClick={() => handleArchive(activity._id)}>
+                                                            <Archive className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Archive</TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>}
+
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="secondary"
+                                                            disabled={activity.status === "PUBLISHED"}
+                                                            onClick={() => handlePublish(activity._id)}
+                                                        >
+                                                            <Send className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Publish</TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setSelectedActivityId(activity._id);
+                                                                setIsRulesOpen(true);
+                                                            }}
+                                                        >
+                                                            <Settings className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Settings</TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+
+                                            {activity.status === "ARCHIVED" &&<TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                handleDelete(activity._id);
+                                                            }}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Delete</TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>}
                                         </div>
+                                    </div>
+
+                                    <div className="flex gap-2 text-xs">
+                                        <Badge
+                                            variant="outline"
+                                            className="bg-muted/50 text-muted-foreground"
+                                        >
+                                            {activity.activityType}
+                                        </Badge>
+
+                                        <Badge
+                                            variant={
+                                                activity.status === "PUBLISHED"
+                                                    ? "default"
+                                                    : "secondary"
+                                            }
+                                            className="text-[10px] uppercase tracking-wide font-medium"
+                                        >
+                                            {activity.status}
+                                        </Badge>
                                     </div>
                                 </div>
                             </CardHeader>
@@ -223,7 +324,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                     </div>
                                     <div className="flex items-start text-muted-foreground">
                                         <span className="w-24 font-medium text-foreground whitespace-nowrap mt-0.5">Attachments:</span>
-                                        <div className="flex flex-col gap-1 w-full">
+                                        
                                             {(!activity.attachments || activity.attachments.length === 0) ? (
                                                 <span className="flex items-center gap-1 text-xs">
                                                     <Paperclip className="h-3 w-3" /> None
@@ -242,7 +343,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                                     </a>
                                                 ))
                                             )}
-                                        </div>
+                                        
                                     </div>
                                     {activity.submissionMode === 'EXTERNAL_LINK' && activity.externalLink && (
                                         <div className="flex items-start text-muted-foreground">
@@ -277,73 +378,6 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                     </div>
                                 </div>
                             </CardContent>
-
-                            <CardFooter className="pt-4 pb-4 border-t">
-                                <div className="flex flex-wrap sm:flex-nowrap justify-end gap-2 w-full">
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-9 px-4"
-                                                onClick={() => handleOpenEdit(activity)}
-                                            >
-                                                <Edit className="mr-2 h-3.5 w-3.5" /> Edit
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Edit this activity's details</TooltipContent>
-                                    </Tooltip>
-
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button
-                                                variant="destructive"
-                                                size="sm"
-                                                className="h-9 px-4"
-                                                onClick={() => handleDelete(activity._id)}
-                                            >
-                                                <Trash2 className="mr-2 h-3.5 w-3.5" /> Archive
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Archive this activity — it will be hidden from students</TooltipContent>
-                                    </Tooltip>
-
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button
-                                                size="sm"
-                                                variant="secondary"
-                                                className="h-9 px-4"
-                                                disabled={activity.status === 'PUBLISHED'}
-                                                onClick={() => handlePublish(activity._id)}
-                                            >
-                                                <Send className="mr-2 h-3.5 w-3.5" />
-                                                Publish
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Publish this activity to make it visible to students</TooltipContent>
-                                    </Tooltip>
-
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-9 px-4"
-                                                onClick={() => {
-                                                    setSelectedActivityId(activity._id);
-                                                    setIsRulesOpen(true);
-                                                }}
-                                            >
-                                                <Settings className="mr-2 h-3.5 w-3.5" /> Rules
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Configure HP reward and penalty rules for this activity</TooltipContent>
-                                    </Tooltip>
-
-
-                                </div>
-                            </CardFooter>
                         </Card>
                     ))}
                 </div>
@@ -378,34 +412,42 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                     <Button variant="outline" size="sm" className="h-9 px-4" onClick={() => handleOpenEdit(activity)}>
                                         <Edit className="mr-2 h-3.5 w-3.5" /> Edit
                                     </Button>
-                                    <Button variant="destructive" size="sm" className="h-9 px-4" onClick={() => handleDelete(activity._id)}>
-                                        <Trash2 className="mr-2 h-3.5 w-3.5" /> Archive
-                                    </Button>
-                                    <Button size="sm" variant="secondary" className="h-9 px-4" disabled={activity.status === 'PUBLISHED'} onClick={() => handlePublish(activity._id)}>
+                                    {activity.status !== "ARCHIVED" && (
+                                        <Button variant="outline" size="sm" className="h-9 px-4" onClick={() => handleArchive(activity._id)}>
+                                            <Archive className="mr-2 h-3.5 w-3.5" /> Archive
+                                        </Button>
+                                    )}
+
+                                    <Button size="sm" variant="outline" className="h-9 px-4" disabled={activity.status === 'PUBLISHED'} onClick={() => handlePublish(activity._id)}>
                                         <Send className="mr-2 h-3.5 w-3.5" /> Publish
                                     </Button>
                                     <Button variant="outline" size="sm" className="h-9 px-4" onClick={() => { setSelectedActivityId(activity._id); setIsRulesOpen(true); }}>
                                         <Settings className="mr-2 h-3.5 w-3.5" /> Rules
                                     </Button>
+                                    {activity.status === "ARCHIVED" && (
+                                        <Button variant="outline" size="sm" className="h-9 px-4" onClick={() => { handleDelete(activity._id); }}>
+                                            <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         </Card>
                     ))}
                 </div>
             )}
-            
-        {activities && activities.length > 0 && (
-            <Card>
-                <CardContent className="p-3">
-                    <Pagination
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        totalDocuments={activities?.length || 0}
-                        onPageChange={setCurrentPage}
-                    />
-                </CardContent>
-            </Card>
-        )}
+
+            {activities && activities.length > 0 && (
+                <Card>
+                    <CardContent className="p-3">
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            totalDocuments={activities?.length || 0}
+                            onPageChange={setCurrentPage}
+                        />
+                    </CardContent>
+                </Card>
+            )}
 
             <EditActivityDialog
                 isOpen={isEditOpen}
