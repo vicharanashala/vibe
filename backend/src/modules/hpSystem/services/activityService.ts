@@ -4,7 +4,7 @@ import { inject, injectable } from "inversify";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivityRepository, RuleConfigsRepository } from "../repositories/index.js";
 import { BadRequestError, ForbiddenError, NotFoundError } from "routing-controllers";
-import { CreateActivityBody, UpdateActivityBody } from "../classes/validators/activityValidators.js";
+import { CreateActivityBody, ListActivitiesQuery, UpdateActivityBody } from "../classes/validators/activityValidators.js";
 import { ObjectId } from "mongodb";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 
@@ -202,17 +202,12 @@ export class ActivityService extends BaseService {
         return doc;
     }
 
-    async list(filters: {
-        courseId?: string;
-        courseVersionId?: string;
-        cohort?: string;
-        status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
-        createdByTeacherId?: string;
-    }, userId: string) {
+    async list(filters: ListActivitiesQuery, userId: string) {
         // const enrollment = await this.cohortRepository.findEnrollment(userId, filters.courseId, filters.courseVersionId)
         // if (!enrollment) throw new BadRequestError("Enrollment not found!")
         // const role = enrollment.role;
 
+        console.log("Listing activities with filters:", filters, "by user:", userId);
         return this.activityRepository.listActivities(filters);
     }
 }
