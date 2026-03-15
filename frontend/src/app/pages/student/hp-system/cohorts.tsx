@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { BookOpen, ArrowRight, Trophy, CheckCircle2, LayoutDashboard, History } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function StudentCohorts() {
     const { data: cohorts, isLoading, error } = useHpStudentCohorts();
@@ -23,6 +24,7 @@ export default function StudentCohorts() {
     }
 
     return (
+        <TooltipProvider>
         <div className="container mx-auto p-6 max-w-6xl space-y-6">
             <div className="flex items-start justify-between gap-4">
                 <div className="flex flex-col gap-2">
@@ -117,18 +119,24 @@ export default function StudentCohorts() {
                             </CardContent>
 
                             <CardFooter>
-                                <Button
-                                    className="w-full group"
-                                    onClick={() => navigate({ to: `/student/hp-system/${cohort.courseVersionId}/${cohort.cohortName}/activities` })}
-                                >
-                                    View activities
-                                    <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                                </Button>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            className="w-full group"
+                                            onClick={() => navigate({ to: `/student/hp-system/${cohort.courseVersionId}/${cohort.cohortName}/activities` })}
+                                        >
+                                            View activities
+                                            <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>View all HP activities and submit your work for this cohort</TooltipContent>
+                                </Tooltip>
                             </CardFooter>
                         </Card>
                     ))}
                 </div>
             )}
         </div>
+        </TooltipProvider>
     );
 }

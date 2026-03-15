@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import type { SubmissionAttachment, HpStudentSubmission } from "@/lib/api/hp-system";
 import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const statusConfig = {
     SUBMITTED: { label: "Submitted", variant: "default" as const, icon: CheckCircle, color: "text-green-600" },
@@ -92,7 +93,8 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
         }
     };
 
-    return(
+    return (
+        <TooltipProvider>
     <div className="space-y-3">
   {/* Instructor Feedback */}
   {sub.instructorFeedback && (
@@ -124,34 +126,44 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
             {/* Feedback Controls */}
             <div className="flex items-center gap-2">
                 {/* Add Feedback Button */}
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowInput(true)}
-                    className="flex items-center gap-2"
-                >
-                    <MessageSquare className="h-3.5 w-3.5" />
-                    <span className="text-xs">{sub.instructorFeedback ? "Update Feedback" : "Add Feedback"}</span>
-                </Button>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowInput(true)}
+                            className="flex items-center gap-2"
+                        >
+                            <MessageSquare className="h-3.5 w-3.5" />
+                            <span className="text-xs">{sub.instructorFeedback ? "Update Feedback" : "Add Feedback"}</span>
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Add or update feedback for this student's submission</TooltipContent>
+                </Tooltip>
 
                 {/* View All Feedbacks */}
                 {sub.feedbacks && sub.feedbacks.length > 0 && (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                            const panel = document.getElementById(`feedback-panel-${sub.submission?._id}`);
-                            panel?.classList.toggle('hidden');
-                        }}
-                        className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded border"
-                    >
-                        {sub.feedbacks && sub.feedbacks.length > 0 && (
-                            <div className="">
-                                {sub.feedbacks.length} Feedback{sub.feedbacks.length !== 1 ? 's' : ''}
-                            </div>
-                        )}
-                        <ChevronDown className={`h-3 w-3 transition-transform ${document.getElementById(`feedback-panel-${sub.submission?._id}`)?.classList.contains('hidden') ? '' : 'rotate-180'}`} />
-                    </Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                    const panel = document.getElementById(`feedback-panel-${sub.submission?._id}`);
+                                    panel?.classList.toggle('hidden');
+                                }}
+                                className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded border"
+                            >
+                                {sub.feedbacks && sub.feedbacks.length > 0 && (
+                                    <div className="">
+                                        {sub.feedbacks.length} Feedback{sub.feedbacks.length !== 1 ? 's' : ''}
+                                    </div>
+                                )}
+                                <ChevronDown className={`h-3 w-3 transition-transform ${document.getElementById(`feedback-panel-${sub.submission?._id}`)?.classList.contains('hidden') ? '' : 'rotate-180'}`} />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>View all feedback given for this submission</TooltipContent>
+                    </Tooltip>
                 )}
             </div>
 
@@ -211,6 +223,7 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
                 </div>
             )}
         </div>
+        </TooltipProvider>
     );
 }
 
@@ -286,6 +299,7 @@ export default function StudentSubmissionsPage() {
     const totalCurrentHp = safeSubmissions.reduce((sum: number, s: any) => sum + (s.hp?.currentHp || 0), 0);
     const totalBaseHp = safeSubmissions.reduce((sum: number, s: any) => sum + (s.hp?.baseHp || 0), 0);
     return (
+        <TooltipProvider>
         <div className="space-y-6 w-full pb-12">
             {/* Header */}
             <div className="flex items-center gap-4">
@@ -443,10 +457,15 @@ export default function StudentSubmissionsPage() {
                                             </>
                                         )}
                                         {sub.submission?.isLate && (
-                                            <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950/20">
-                                                <Timer className="h-3 w-3 mr-1" />
-                                                Late
-                                            </Badge>
+                                           <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950/20 cursor-default">
+                                                        <Timer className="h-3 w-3 mr-1" />
+                                                        Late
+                                                    </Badge>
+                                                </TooltipTrigger>
+                                                <TooltipContent>This submission was submitted after the deadline</TooltipContent>
+                                            </Tooltip>
                                         )}
                                         <Badge variant={cfg.variant} className="flex items-center gap-1">
                                             <StatusIcon className="h-3 w-3" />
@@ -676,5 +695,6 @@ export default function StudentSubmissionsPage() {
                 </DialogContent>
             </Dialog>
         </div>
-    );
+        </TooltipProvider>
+    );  
 }

@@ -1,8 +1,9 @@
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid,Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from "recharts";
 import { useHpCohortOverviewStats } from "@/hooks/hooks";
 import { AlertCircle, Loader2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface CohortOverviewTabProps {
     courseVersionId: string;
@@ -30,6 +31,7 @@ export function CohortOverviewTab({ courseVersionId, cohortName }: CohortOvervie
     }
 
     return (
+        <TooltipProvider>
         <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
@@ -43,7 +45,12 @@ export function CohortOverviewTab({ courseVersionId, cohortName }: CohortOvervie
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Overdue Submissions</CardTitle>
-                        <AlertCircle className="h-4 w-4 text-destructive" />
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <AlertCircle className="h-4 w-4 text-destructive cursor-default" />
+                            </TooltipTrigger>
+                            <TooltipContent>Number of students who missed the deadline across all activities in this cohort</TooltipContent>
+                        </Tooltip>
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-destructive">{stats.totalOverdue}</div>
@@ -74,7 +81,7 @@ export function CohortOverviewTab({ courseVersionId, cohortName }: CohortOvervie
                                     tick={{ fontSize: 12 }}
                                 />
                                 <YAxis />
-                                <Tooltip
+                                <RechartsTooltip
                                     cursor={{ fill: 'var(--muted)', opacity: 0.2 }}
                                     contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)' }}
                                 />
@@ -88,5 +95,6 @@ export function CohortOverviewTab({ courseVersionId, cohortName }: CohortOvervie
                 </CardContent>
             </Card>
         </div>
+        </TooltipProvider>
     );
 }

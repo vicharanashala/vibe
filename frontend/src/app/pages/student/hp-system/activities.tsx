@@ -21,6 +21,7 @@ import {
     User
 } from "lucide-react";
 import { HpActivity } from "@/lib/api/hp-system";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Countdown timer component for deadline display
 const DeadlineCountdown = ({ deadline, allowLate }: { deadline: string; allowLate: boolean }) => {
@@ -201,6 +202,7 @@ export default function StudentActivities() {
     }
 
     return (
+        <TooltipProvider>
         <div className="container mx-auto p-6 max-w-5xl space-y-6">
             <div className="flex items-center gap-4 mb-6">
                 <Button variant="ghost" size="icon" onClick={() => navigate({ to: '/student/hp-system/cohorts' })}>
@@ -212,12 +214,17 @@ export default function StudentActivities() {
                         {decodeURIComponent(cohortName as string)}
                     </p>
                 </div>
-                <Button
-                    variant="outline"
-                    onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/submissions` })}
-                >
-                    View My Submissions
-                </Button>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="outline"
+                            onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/submissions` })}
+                        >
+                            View My Submissions
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>View all your submitted activities and their status</TooltipContent>
+                </Tooltip>
             </div>
 
             {(!activities || activities.length === 0) ? (
@@ -341,6 +348,9 @@ export default function StudentActivities() {
                                 )}
                             </CardContent>
                             <CardFooter className="border-t bg-muted/10 px-6 py-1">
+                                
+
+                                
                                 {(() => {
                                     const now = new Date().getTime();
                                     const deadlineTime = activity.rules?.deadlineAt ? new Date(activity.rules.deadlineAt.toString()).getTime() : null;
@@ -353,15 +363,21 @@ export default function StudentActivities() {
                                             <div className="text-xs text-muted-foreground">
                                                 {isExpired && !allowLate ? "Submission closed" : "Ready to submit"}
                                             </div>
-                                            <Button
-                                                size="sm"
-                                                onClick={() => openSubmitDialog(activity)}
-                                                disabled={!canSubmit}
-                                                title={!canSubmit ? "Submission deadline has passed" : undefined}
-                                            >
-                                                <Send className="h-4 w-4 mr-2" />
-                                                {isExpired && !allowLate ? 'Deadline Passed' : 'Submit'}
-                                            </Button>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => openSubmitDialog(activity)}
+                                                        disabled={!canSubmit}
+                                                        title={!canSubmit ? "Submission deadline has passed" : undefined}
+                                                    >
+                                                        <Send className="h-4 w-4 mr-2" />
+                                                        {isExpired && !allowLate ? 'Deadline Passed' : 'Submit'}
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Submit your work for this activity to earn HP points</TooltipContent>
+                                            </Tooltip>
+                                            
                                         </div>
                                     );
                                 })()}
@@ -540,5 +556,6 @@ export default function StudentActivities() {
                 </DialogContent>
             </Dialog>
         </div>
+        </TooltipProvider>
     );
 }
