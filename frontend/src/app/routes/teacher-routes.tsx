@@ -18,7 +18,7 @@ import RegisteredUsers from "../pages/teacher/CourseRegistrationRequests";
 import FeedbackFormEditor from "../pages/teacher/FeedbackFormEditor";
 import TeacherAnnouncements from "../pages/teacher/announcements";
 import AuditPage from "../pages/teacher/AuditPage";
-
+import EjectionPoliciesPage from "../pages/teacher/ejection-policies";
 const teacherRoutes: RouteObject = {
   path: "/teacher",
   element: <TeacherLayout />,
@@ -27,6 +27,7 @@ const teacherRoutes: RouteObject = {
     //   path: "dashboard",
     //   element: <Dashboard />,
     // },
+    {path:"ejection-policies",element: <EjectionPoliciesPage />,},
     {
       path: "profile",
       element: <TeacherProfile />,

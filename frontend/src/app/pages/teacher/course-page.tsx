@@ -37,6 +37,7 @@ import {
   Archive,
   ArchiveRestore,
   Layers,
+  Shield,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -1902,6 +1903,15 @@ function VersionCard({
                   <UserCheck className="h-3 w-3 mr-1" />
                   Registrations
                 </Button>
+                <Button
+  variant="outline"
+  size="sm"
+  onClick={() => navigate({ to: `/teacher/ejection-policies?courseId=${courseId}` })}
+  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+>
+  <Shield className="h-3 w-3 mr-1" />
+  Ejection Policies
+</Button>
                 {/* <Button
           variant="outline"
           size="sm"
