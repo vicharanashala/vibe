@@ -262,4 +262,338 @@ export class CohortRepository implements ICohortRepository {
     }
 
 
+    async tempRes() {
+        await this.init();
+
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // TO GET SINGLE COURSE ENROLLMENT AND WATCHHOURS RELATED DATA
+
+
+        return await this.courseVersionCollection.aggregate([
+            { $match: { _id: new ObjectId("6981df886e100cfe04f9c4ae") } },
+
+            {
+                $lookup: {
+                    from: "newCourse",
+                    let: { cid: new ObjectId("6981df886e100cfe04f9c4ad") },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ["$_id", "$$cid"] } } },
+                        { $project: { _id: 0, name: 1 } }
+                    ],
+                    as: "courseDoc"
+                }
+            },
+
+            { $unwind: "$modules" },
+            { $unwind: "$modules.sections" },
+            {
+                $project: {
+                    version: 1,
+                    itemsGroupId: {
+                        $cond: [
+                            { $eq: [{ $type: "$modules.sections.itemsGroupId" }, "string"] },
+                            {
+                                $convert: {
+                                    input: "$modules.sections.itemsGroupId",
+                                    to: "objectId",
+                                    onError: null,
+                                    onNull: null
+                                }
+                            },
+                            "$modules.sections.itemsGroupId"
+                        ]
+                    },
+                    courseName: { $arrayElemAt: ["$courseDoc.name", 0] }
+                }
+            },
+            {
+                $group: {
+                    _id: "$_id",
+                    version: { $first: "$version" },
+                    courseName: { $first: "$courseName" },
+                    groupIds: { $addToSet: "$itemsGroupId" }
+                }
+            },
+
+            {
+                $lookup: {
+                    from: "itemsGroup",
+                    localField: "groupIds",
+                    foreignField: "_id",
+                    as: "groups"
+                }
+            },
+
+            {
+                $unwind: {
+                    path: "$groups",
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $unwind: {
+                    path: "$groups.items",
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+
+            {
+                $group: {
+                    _id: "$_id",
+                    courseName: { $first: "$courseName" },
+                    version: { $first: "$version" },
+                    quizIds: {
+                        $addToSet: {
+                            $cond: [
+                                { $eq: ["$groups.items.type", "QUIZ"] },
+                                {
+                                    $cond: [
+                                        { $eq: [{ $type: "$groups.items._id" }, "string"] },
+                                        {
+                                            $convert: {
+                                                input: "$groups.items._id",
+                                                to: "objectId",
+                                                onError: null,
+                                                onNull: null
+                                            }
+                                        },
+                                        "$groups.items._id"
+                                    ]
+                                },
+                                null
+                            ]
+                        }
+                    }
+                }
+            },
+
+            {
+                $addFields: {
+                    quizIds: {
+                        $filter: {
+                            input: { $ifNull: ["$quizIds", []] },
+                            as: "q",
+                            cond: { $ne: ["$$q", null] }
+                        }
+                    }
+                }
+            },
+
+            {
+                $lookup: {
+                    from: "enrollment",
+                    let: {
+                        cid: new ObjectId("6981df886e100cfe04f9c4ad"),
+                        vid: "$_id",
+                        qids: "$quizIds"
+                    },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ["$courseId", "$$cid"] },
+                                        { $eq: ["$courseVersionId", "$$vid"] }
+                                    ]
+                                }
+                            }
+                        },
+
+                        {
+                            $lookup: {
+                                from: "users",
+                                let: { uid: "$userId" },
+                                pipeline: [
+                                    { $match: { $expr: { $eq: ["$_id", "$$uid"] } } },
+                                    { $project: { _id: 0, firstName: 1, lastName: 1 } }
+                                ],
+                                as: "userDoc"
+                            }
+                        },
+                        {
+                            $addFields: {
+                                userName: {
+                                    $trim: {
+                                        input: {
+                                            $concat: [
+                                                { $ifNull: [{ $arrayElemAt: ["$userDoc.firstName", 0] }, ""] },
+                                                " ",
+                                                { $ifNull: [{ $arrayElemAt: ["$userDoc.lastName", 0] }, ""] }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        },
+
+                        {
+                            $lookup: {
+                                from: "quiz_attempts",
+                                let: { qids: "$$qids", uid: "$userId" },
+                                pipeline: [
+                                    {
+                                        $addFields: {
+                                            quizObjId: {
+                                                $cond: [
+                                                    { $eq: [{ $type: "$quizId" }, "string"] },
+                                                    {
+                                                        $convert: {
+                                                            input: "$quizId",
+                                                            to: "objectId",
+                                                            onError: null,
+                                                            onNull: null
+                                                        }
+                                                    },
+                                                    "$quizId"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    { $eq: ["$userId", "$$uid"] },
+                                                    { $in: ["$quizObjId", "$$qids"] }
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    { $count: "cnt" }
+                                ],
+                                as: "quizAttemptsAgg"
+                            }
+                        },
+
+                        {
+                            $lookup: {
+                                from: "watchTime",
+                                let: { uid: "$userId", cid: "$courseId", vid: "$courseVersionId" },
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    { $eq: ["$userId", "$$uid"] },
+                                                    { $eq: ["$courseId", "$$cid"] },
+                                                    { $eq: ["$courseVersionId", "$$vid"] },
+                                                    { $ne: ["$endTime", null] },
+                                                    { $ne: ["$isNotPure", true] }
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    {
+                                        $group: {
+                                            _id: null,
+                                            totalMs: { $sum: { $subtract: ["$endTime", "$startTime"] } }
+                                        }
+                                    },
+                                    {
+                                        $project: {
+                                            _id: 0,
+                                            totalWatchHours: {
+                                                $round: [{ $divide: ["$totalMs", 1000 * 60 * 60] }, 2]
+                                            }
+                                        }
+                                    }
+                                ],
+                                as: "watchAgg"
+                            }
+                        },
+
+                        {
+                            $project: {
+                                _id: 0,
+                                userId: { $toString: "$userId" },
+                                userName: 1,
+                                enrolledAt: {
+                                    $dateToString: {
+                                        date: "$enrollmentDate",
+                                        format: "%d-%m-%Y %H:%M",
+                                        timezone: "Asia/Kolkata"
+                                    }
+                                },
+                                percentCompleted: 1,
+                                completedItemsCount: 1,
+                                status: 1,
+                                isDeleted: 1,
+                                isInactiveUser: {
+                                    $cond: [
+                                        {
+                                            $or: [
+                                                { $eq: ["$isDeleted", true] },
+                                                { $eq: ["$status", "INACTIVE"] }
+                                            ]
+                                        },
+                                        true,
+                                        false
+                                    ]
+                                },
+                                totalQuizAttempts: {
+                                    $ifNull: [{ $arrayElemAt: ["$quizAttemptsAgg.cnt", 0] }, 0]
+                                },
+                                totalWatchHours: {
+                                    $ifNull: [{ $arrayElemAt: ["$watchAgg.totalWatchHours", 0] }, 0]
+                                }
+                            }
+                        }
+                    ],
+                    as: "enrollments"
+                }
+            },
+
+            {
+                $addFields: {
+                    totalEnrollments: { $size: { $ifNull: ["$enrollments", []] } },
+                    totalWatchTimeHours: {
+                        $round: [
+                            {
+                                $sum: {
+                                    $map: {
+                                        input: { $ifNull: ["$enrollments", []] },
+                                        as: "e",
+                                        in: { $ifNull: ["$$e.totalWatchHours", 0] }
+                                    }
+                                }
+                            },
+                            2
+                        ]
+                    }
+                }
+            },
+
+            {
+                $unwind: {
+                    path: "$enrollments",
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+
+            {
+                $project: {
+                    _id: 0,
+                    // course: "$courseName",
+                    // courseName: "$courseName",
+                    // version: "$version.version",
+                    // totalEnrollments: 1,
+                    // totalWatchTimeHours: 1,
+                    // quizIds: 1,
+
+                    userId: "$enrollments.userId",
+                    userName: "$enrollments.userName",
+                    enrolledAt: "$enrollments.enrolledAt",
+                    percentCompleted: "$enrollments.percentCompleted",
+                    completedItemsCount: "$enrollments.completedItemsCount",
+                    status: "$enrollments.status",
+                    isDeleted: "$enrollments.isDeleted",
+                    isInactiveUser: "$enrollments.isInactiveUser",
+                    totalQuizAttempts: "$enrollments.totalQuizAttempts",
+                    totalWatchHours: "$enrollments.totalWatchHours"
+                }
+            }
+        ]).toArray();
+    }
+
 }

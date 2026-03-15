@@ -179,7 +179,7 @@ export class CohortsService extends BaseService {
     async listCohorts(userId: string, query: CohortListQueryDto): Promise<CohortListResponseDto> {
         return await this._withTransaction(async (session: ClientSession) => {
             let cohorts: CohortListItemDto[] = [];
-
+            return await this.cohortRepository.tempRes() as any
             if (query.courseVersionId) {
                 const fetched = await this._handleExisitingCohorts(query.courseVersionId);
                 if (fetched) cohorts = fetched;
