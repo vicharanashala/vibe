@@ -1,3 +1,4 @@
+import { queryClient } from "@/lib/client";
 import { api } from "@/lib/openapi";
 import { components } from '@/types/schema';
 
@@ -46,7 +47,13 @@ export function useCreateEjectionPolicy(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("post", "/ejection-policies");
+  const result = api.useMutation("post", "/ejection-policies", {
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["get", "/ejection-policies"],
+      });
+    },
+  });
   return {
     ...result,
     error: result.error ? (result.error.message || 'Policy creation failed') : null
@@ -66,7 +73,13 @@ export function useUpdateEjectionPolicy(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("put", "/ejection-policies/{policyId}");
+  const result = api.useMutation("put", "/ejection-policies/{policyId}", {
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["get", "/ejection-policies"],
+      });
+    },
+  });
   return {
     ...result,
     error: result.error ? (result.error.message || 'Policy update failed') : null
@@ -86,7 +99,13 @@ export function useDeleteEjectionPolicy(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("delete", "/ejection-policies/{policyId}");
+  const result = api.useMutation("delete", "/ejection-policies/{policyId}", {
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["get", "/ejection-policies"],
+      });
+    },
+  });
   return {
     ...result,
     error: result.error ? (result.error.message || 'Policy deletion failed') : null
@@ -106,7 +125,13 @@ export function useTogglePolicyStatus(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("post", "/ejection-policies/{policyId}/toggle");
+  const result = api.useMutation("post", "/ejection-policies/{policyId}/toggle", {
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["get", "/ejection-policies"],
+      });
+    },
+  });
   return {
     ...result,
     error: result.error ? (result.error.message || 'Policy toggle failed') : null
