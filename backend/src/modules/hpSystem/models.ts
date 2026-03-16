@@ -187,7 +187,7 @@ export interface HpRuleConfig {
         allowLate: boolean;
         lateBehavior: LateBehavior;
         minHpFloor: number;
-        required_percentage: number;
+        required_percentage?: number;
     };
     
     // students => hpPOints = 50 (shouldn't be -ve)

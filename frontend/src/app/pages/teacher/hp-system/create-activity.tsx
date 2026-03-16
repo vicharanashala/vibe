@@ -66,6 +66,7 @@ export default function CreateHpActivityPage() {
             allowLate: false,
             lateBehavior: "NO_REWARD",
             minHpFloor: 0,
+            required_percentage: undefined,
         },
         penalty: {
             enabled: false,
@@ -449,6 +450,25 @@ export default function CreateHpActivityPage() {
                                             }))}
                                         />
                                     </div>
+                                    {(watch("activityType") === "MILESTONE" || watch("activityType") === "VIBE_MILESTONE") && (
+                                        <div className="space-y-2">
+                                            <Label>Required Progress Percentage</Label>
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                placeholder="e.g., 75"
+                                                value={ruleConfig.reward?.required_percentage || ""}
+                                                onChange={(e) => setRuleConfig(prev => ({
+                                                    ...prev,
+                                                    reward: { ...(prev.reward || {}), required_percentage: parseInt(e.target.value) || undefined } as any
+                                                }))}
+                                            />
+                                            <p className="text-[10px] text-muted-foreground">
+                                                Minimum progress percentage required to earn this milestone reward
+                                            </p>
+                                        </div>
+                                    )}
                                     <div className="space-y-2">
                                         <Label>Apply Policy</Label>
                                         <Select
