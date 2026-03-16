@@ -5092,6 +5092,40 @@ export function useSubmitActivity() {
   };
 }
 
+export function useUpdateActivitySubmission() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: async (payload: {
+      submissionId: string;
+      courseId: string;
+      courseVersionId: string;
+      cohort: string;
+      activityId: string;
+      payload: {
+        textResponse?: string;
+        links?: { url: string; label: string }[];
+      };
+      submissionSource?: string;
+      files?: File[];
+      images?: File[];
+    }) => {
+      const { submissionId, ...rest } = payload;
+      const res = await hpApi.updateActivitySubmission(submissionId, rest);
+      if (!res.success) throw new Error(res.message || 'Failed to update submission');
+      return res.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['studentMySubmissions', variables.courseVersionId, variables.cohort] });
+      toast.success("Submission updated successfully");
+    },
+  });
+
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+  };
+}
+
 export function useHpActivities(
   courseVersionId: string,
   cohort: string,
