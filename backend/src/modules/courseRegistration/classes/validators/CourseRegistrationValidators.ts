@@ -295,6 +295,16 @@ export class GetUnreadApprovedRegistrationsParams {
   studentId: string;
 }
 
+export class GetPendingStudentRegistrationsParams {
+  @IsString()
+  studentId: string;
+}
+
+export class GetRejectedStudentRegistrationsParams {
+  @IsString()
+  studentId: string;
+}
+
 export class markNotificationAsReadResponse {
   @IsString()
   message: string;
