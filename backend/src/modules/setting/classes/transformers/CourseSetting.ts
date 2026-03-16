@@ -97,12 +97,11 @@
 // //     proctors: {
 // //       detectors: IDetectorSettings[];
 // //     };
-   
+
 // //   linearProgressionEnabled: boolean;
 // //   jsonSchema?: any; // Optional
 // //   uiSchema?: any;
 // //   };
-
 
 // //   constructor(courseSettingsBody?: CreateCourseSettingBody) {
 // //     if (courseSettingsBody) {
@@ -133,7 +132,6 @@
 
 // // export {CourseSetting};
 
-
 // import 'reflect-metadata';
 // import { Expose, Transform } from 'class-transformer';
 // import {
@@ -155,7 +153,7 @@
 //  * The settings include proctoring detectors, which can be enabled or disabled.
 //  * Each detector has a name that must be a valid ProctoringComponent enum value,
 //  * and a settings object that contains an enabled boolean.
-//  * 
+//  *
 //  * Updated to include jsonSchema and uiSchema for registration form configuration.
 //  */
 
@@ -300,18 +298,18 @@
 // export { CourseSetting };
 
 import 'reflect-metadata';
-import { Expose, Transform } from 'class-transformer';
+import {Expose, Transform} from 'class-transformer';
 import {
   ObjectIdToString,
   StringToObjectId,
 } from '#shared/constants/transformerConstants.js';
-import { ID } from '#shared/index.js';
-import { ProctoringComponent } from '#shared/database/index.js';
-import { ICourseSetting, IDetectorSettings } from '#shared/interfaces/models.js';
-import { JSONSchema } from 'class-validator-jsonschema';
-import { CreateCourseSettingBody } from '../index.js';
-import { ObjectId } from 'mongodb';
-import { IsNotEmpty, IsOptional } from 'class-validator';
+import {ID} from '#shared/index.js';
+import {ProctoringComponent} from '#shared/database/index.js';
+import {ICourseSetting, IDetectorSettings} from '#shared/interfaces/models.js';
+import {JSONSchema} from 'class-validator-jsonschema';
+import {CreateCourseSettingBody} from '../index.js';
+import {ObjectId} from 'mongodb';
+import {IsNotEmpty, IsOptional} from 'class-validator';
 
 /**
  * Updated CourseSetting class
@@ -325,8 +323,8 @@ class CourseSetting implements ICourseSetting {
     example: '60d5ec49b3f1c8e4a8f8b8c1',
     type: 'string',
   })
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   @IsOptional()
   _id?: ID;
 
@@ -337,8 +335,8 @@ class CourseSetting implements ICourseSetting {
     example: '60d5ec49b3f1c8e4a8f8b8c1',
     type: 'string',
   })
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   @IsNotEmpty()
   courseVersionId: ID;
 
@@ -349,8 +347,8 @@ class CourseSetting implements ICourseSetting {
     example: '60d5ec49b3f1c8e4a8f8b8c3',
     type: 'string',
   })
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   @IsNotEmpty()
   courseId: ID;
 
@@ -375,7 +373,7 @@ class CourseSetting implements ICourseSetting {
                 settings: {
                   type: 'object',
                   properties: {
-                    enabled: { type: 'boolean' },
+                    enabled: {type: 'boolean'},
                   },
                 },
               },
@@ -383,8 +381,8 @@ class CourseSetting implements ICourseSetting {
           },
         },
       },
-      linearProgressionEnabled: { type: 'boolean' },
-      seekForwardEnabled: { type: 'boolean' },
+      linearProgressionEnabled: {type: 'boolean'},
+      seekForwardEnabled: {type: 'boolean'},
       registration: {
         type: 'object',
         description: 'Registration configuration schemas',
@@ -395,8 +393,8 @@ class CourseSetting implements ICourseSetting {
             example: {
               type: 'object',
               properties: {
-                name: { type: 'string', title: 'Full Name' },
-                email: { type: 'string', format: 'email', title: 'Email' },
+                name: {type: 'string', title: 'Full Name'},
+                email: {type: 'string', format: 'email', title: 'Email'},
               },
               required: ['name', 'email'],
             },
@@ -407,8 +405,8 @@ class CourseSetting implements ICourseSetting {
             example: {
               type: 'VerticalLayout',
               elements: [
-                { type: 'Control', scope: '#/properties/name' },
-                { type: 'Control', scope: '#/properties/email' },
+                {type: 'Control', scope: '#/properties/name'},
+                {type: 'Control', scope: '#/properties/email'},
               ],
             },
           },
@@ -423,6 +421,7 @@ class CourseSetting implements ICourseSetting {
     };
     linearProgressionEnabled: boolean;
     seekForwardEnabled: boolean;
+    hpSystem?: boolean;
     isPublic?: boolean;
     registration?: {
       jsonSchema?: any;
@@ -442,7 +441,7 @@ class CourseSetting implements ICourseSetting {
     if (!Array.isArray(existingDetectors) || existingDetectors.length === 0) {
       existingDetectors = Object.values(ProctoringComponent).map(component => ({
         detectorName: component,
-        settings: { enabled: true },
+        settings: {enabled: true},
       }));
     }
 
@@ -454,6 +453,7 @@ class CourseSetting implements ICourseSetting {
         courseSettingsBody?.settings?.linearProgressionEnabled ?? false,
       seekForwardEnabled:
         courseSettingsBody?.settings?.seekForwardEnabled ?? false,
+      hpSystem: courseSettingsBody?.settings?.hpSystem ?? false,
       isPublic: courseSettingsBody?.settings?.isPublic ?? false,
       registration: {
         jsonSchema: courseSettingsBody?.settings?.registration?.jsonSchema,
@@ -464,4 +464,4 @@ class CourseSetting implements ICourseSetting {
   }
 }
 
-export { CourseSetting };
+export {CourseSetting};
