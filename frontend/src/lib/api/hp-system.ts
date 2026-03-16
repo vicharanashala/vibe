@@ -397,6 +397,70 @@ export const hpApi = {
         });
     },
 
+    updateActivitySubmission: async (submissionId: string, options: {
+        courseId: string;
+        courseVersionId: string;
+        cohort: string;
+        activityId: string;
+        payload: {
+            textResponse?: string;
+            links?: { url: string; label: string }[];
+        };
+        submissionSource?: string;
+        files?: File[];
+        images?: File[];
+    }): Promise<{ success: boolean; data: any }> => {
+        const { files, images, ...rest } = options;
+        const hasFiles = (files && files.length > 0) || (images && images.length > 0);
+
+        if (hasFiles) {
+            const formData = new FormData();
+            formData.append('courseId', rest.courseId);
+            formData.append('courseVersionId', rest.courseVersionId);
+            formData.append('cohort', rest.cohort);
+            formData.append('activityId', rest.activityId);
+            if (rest.submissionSource) {
+                formData.append('submissionSource', rest.submissionSource);
+            }
+            if (rest.payload.textResponse) {
+                formData.append('payload[textResponse]', rest.payload.textResponse);
+            }
+            if (rest.payload.links) {
+                rest.payload.links.forEach((link, idx) => {
+                    formData.append(`payload[links][${idx}][url]`, link.url);
+                    formData.append(`payload[links][${idx}][label]`, link.label);
+                });
+            }
+
+            if (files) {
+                files.forEach(f => formData.append('files', f));
+            }
+            if (images) {
+                images.forEach(img => formData.append('images', img));
+            }
+
+            const token = localStorage.getItem('firebase-auth-token');
+            const res = await fetch(`${BASE_URL}/activity-submissions/${submissionId}`, {
+                method: 'PUT',
+                body: formData,
+                headers: {
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                credentials: 'include',
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.message || `Request failed (${res.status})`);
+            }
+            return res.json();
+        }
+
+        return apiFetch(`${BASE_URL}/activity-submissions/${submissionId}`, {
+            method: 'PUT',
+            body: JSON.stringify(rest),
+        });
+    },
+
     // ── Activities (real backend) ────────────────────────────
 
     getActivities: async (
