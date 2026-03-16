@@ -23,24 +23,38 @@ export default function EjectionPoliciesPage() {
   );
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
-  // Check if user is admin
-  const isAdmin = user?.role === 'admin';
+
 
   // Fetch policies based on active tab and filters
   const isActiveFilter = activeFilter === 'all' ? undefined : activeFilter === 'active';
   
-  const { data: platformPolicies, isLoading: platformLoading } = useEjectionPolicies(
-    PolicyScope.PLATFORM,
-    undefined,
-    isActiveFilter
-  );
+  const {
+  policies: platformPolicies,
+  isLoading: platformLoading,
+  isAdmin: platformIsAdmin
+} = useEjectionPolicies(
+  PolicyScope.PLATFORM,
+  undefined,
+  isActiveFilter
+);
+console.log('platformIsAdmin', platformIsAdmin);
 
-  const { data: coursePolicies, isLoading: courseLoading } = useEjectionPolicies(
-    PolicyScope.COURSE,
-    courseIdFromUrl,
-    isActiveFilter,
-    !!courseIdFromUrl
-  );
+
+const {
+  policies: coursePolicies,
+  isLoading: courseLoading,
+  isAdmin: courseIsAdmin
+} = useEjectionPolicies(
+  PolicyScope.COURSE,
+  courseIdFromUrl,
+  isActiveFilter,
+  !!courseIdFromUrl
+
+);
+console.log('courseIsAdmin', courseIsAdmin);
+
+  // Check if user is admin
+  const isAdmin = platformIsAdmin;
 
   const handleCreateClick = () => {
     setEditingPolicy(null);
@@ -83,7 +97,7 @@ export default function EjectionPoliciesPage() {
                   </div>
                 </div>
               </div>
-
+{isAdmin &&(
               <Button
                 onClick={handleCreateClick}
                 disabled={!isAdmin && activeTab === 'platform'}
@@ -94,7 +108,7 @@ export default function EjectionPoliciesPage() {
                   <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
                   <span className="font-semibold">Create Policy</span>
                 </div>
-              </Button>
+              </Button>)}
             </div>
           </div>
         </div>
@@ -155,15 +169,13 @@ export default function EjectionPoliciesPage() {
               </Card>
             )}
             
-            { (
-              <EjectionPolicyList
-                policies={platformPolicies?.policies || []}
-                isLoading={platformLoading}
-                onEdit={handleEditClick}
-                canEdit={isAdmin}
-                canDelete={isAdmin}
-              />
-            )}
+            <EjectionPolicyList
+              policies={platformPolicies}
+              isLoading={platformLoading}
+              onEdit={handleEditClick}
+              canEdit={platformIsAdmin}
+              canDelete={platformIsAdmin}
+            />
           </TabsContent>
 
           <TabsContent value="course" className="mt-0">
@@ -183,7 +195,7 @@ export default function EjectionPoliciesPage() {
             )}
 
             <EjectionPolicyList
-              policies={coursePolicies?.policies || []}
+              policies={coursePolicies}
               isLoading={courseLoading}
               onEdit={handleEditClick}
               canEdit={true}

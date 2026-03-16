@@ -41,7 +41,7 @@ export const EjectionPolicyModal = ({
     name: "",
     description: "",
     scope: defaultScope,
-    courseId: courseId || "",
+    courseId: defaultScope === PolicyScope.COURSE ? courseId || "" : "",
     priority: 100,
     isActive: true,
     
@@ -253,7 +253,11 @@ export const EjectionPolicyModal = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
-            {editPolicy ? 'Edit Ejection Policy' : 'Create Ejection Policy'}
+            {editPolicy
+  ? "Edit Policy"
+  : formData.scope === PolicyScope.PLATFORM
+  ? "Create Platform Policy"
+  : "Create Course Policy"}
           </DialogTitle>
         </DialogHeader>
 
@@ -289,26 +293,8 @@ export const EjectionPolicyModal = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="scope">Scope *</Label>
-                  <Select
-                    value={formData.scope}
-                    onValueChange={(value: PolicyScope) => setFormData({ ...formData, scope: value })}
-                    disabled={!isAdmin || !!editPolicy}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={PolicyScope.PLATFORM}>Platform-wide</SelectItem>
-                      <SelectItem value={PolicyScope.COURSE}>Course-specific</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {formData.scope === PolicyScope.COURSE && courseName && (
-                    <p className="text-xs text-muted-foreground mt-1">Course: {courseName}</p>
-                  )}
-                </div>
+              <div className="">
+                
 
                 <div>
                   <Label htmlFor="priority">Priority</Label>

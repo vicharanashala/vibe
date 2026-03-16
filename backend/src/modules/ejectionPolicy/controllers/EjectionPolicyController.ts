@@ -178,6 +178,7 @@ export class EjectionPolicyController {
     return {
       policies: responsePolicies,
       total: responsePolicies.length,
+      isAdmin: user.roles === 'admin',
     };
   }
 
@@ -267,6 +268,7 @@ export class EjectionPolicyController {
     return {
       policies: responsePolicies,
       total: responsePolicies.length,
+      isAdmin: user.roles === 'admin',
     };
   }
 

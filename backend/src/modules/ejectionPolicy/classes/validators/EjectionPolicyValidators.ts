@@ -457,6 +457,13 @@ export class PoliciesListResponse {
     description: 'Total number of policies',
   })
   total: number;
+
+  @IsBoolean()
+  @Expose()
+  @JSONSchema({
+    description: 'Tells if user is an admin',
+  })
+  isAdmin: boolean;
 }
 
 @Expose()
