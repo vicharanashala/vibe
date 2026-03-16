@@ -135,12 +135,12 @@ export const EjectionPolicyCard = ({ policy, onEdit, canEdit, canDelete }: Eject
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-muted-foreground">Warning:</span>
-                <span className="ml-2 font-medium">{policy.actions.sendWarning ? 'Yes' : 'No'}</span>
+                <span className="ml-2 font-medium">{policy.actions?.sendWarning ? 'Yes' : 'No'}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">Appeals:</span>
                 <span className="ml-2 font-medium">
-                  {policy.actions.allowAppeal ? `${policy.actions.appealDeadlineDays} days` : 'Not allowed'}
+                  {policy.actions?.allowAppeal ? `${policy.actions?.appealDeadlineDays} days` : 'Not allowed'}
                 </span>
               </div>
             </div>

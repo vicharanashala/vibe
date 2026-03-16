@@ -138,28 +138,35 @@ export class EjectionPolicyController {
 
       policies = await this.policyService.getPolicies(filters);
     } else {
-      // Non-admins MUST specify courseId
-      if (!query.courseId) {
-        throw new ForbiddenError(
-          'courseId is required. Please specify a course to view its policies.',
-        );
-      }
-
-      // Check if they can view this course's policies
-      const policyContext = {courseId: query.courseId};
-      const policySubject = subject('EjectionPolicy', policyContext);
-
-      if (!ability.can(EjectionPolicyActions.View, policySubject)) {
-        throw new ForbiddenError(
-          'You do not have permission to view policies for this course',
-        );
-      }
-
-      policies = await this.policyService.getPolicies({
+      const filters: any = {
         scope: query.scope,
-        courseId: query.courseId,
         isActive: query.active,
-      });
+      };
+
+      // Platform policies are visible to everyone
+      if (query.scope === 'platform') {
+        policies = await this.policyService.getPolicies(filters);
+      } else {
+        // Course policies require courseId
+        if (!query.courseId) {
+          throw new ForbiddenError(
+            'courseId is required for course-specific policies.',
+          );
+        }
+
+        const policyContext = {courseId: query.courseId};
+        const policySubject = subject('EjectionPolicy', policyContext);
+
+        if (!ability.can(EjectionPolicyActions.View, policySubject)) {
+          throw new ForbiddenError(
+            'You do not have permission to view policies for this course',
+          );
+        }
+
+        filters.courseId = query.courseId;
+
+        policies = await this.policyService.getPolicies(filters);
+      }
     }
 
     const responsePolicies = policies.map(p =>
@@ -208,10 +215,10 @@ export class EjectionPolicyController {
           );
         }
       } else if (policy.scope === 'platform') {
-        // Only admins can view platform-wide policies
-        throw new ForbiddenError(
-          'You do not have permission to view platform-wide policies',
-        );
+        // Everyone can view platform-wide policies
+        return plainToClass(EjectionPolicyResponse, policy, {
+          enableImplicitConversion: true,
+        });
       }
     }
 

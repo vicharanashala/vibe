@@ -33,7 +33,7 @@ export type EjectionPolicyAbility = [
  * - MANAGER: Can manage policies for their courses
  * - INSTRUCTOR: Can view policies for their courses
  * - TA: Can view policies for their course versions
- * - STUDENT: No access to policy management
+ * - STUDENT: Can view policies affecting their course but cannot modify them
  */
 export function setupEjectionPolicyAbilities(
   builder: AbilityBuilder<any>,
@@ -59,16 +59,21 @@ export function setupEjectionPolicyAbilities(
 
     switch (enrollment.role) {
       case 'STUDENT':
-        // Students cannot access ejection policies
+        //  Can view policies affecting their course but cannot modify them
+        can(EjectionPolicyActions.View, 'EjectionPolicy', courseBounded);
+        can(EjectionPolicyActions.View, 'EjectionPolicy', {scope: 'platform'});
         break;
 
       case 'INSTRUCTOR':
         // Instructors can view policies for their courses
         can(EjectionPolicyActions.View, 'EjectionPolicy', courseBounded);
+        // can('manage', 'EjectionPolicy', courseBounded);
+
         break;
 
       case 'MANAGER':
         // Managers have full control over policies for their courses
+        can(EjectionPolicyActions.View, 'EjectionPolicy', courseBounded);
         can('manage', 'EjectionPolicy', courseBounded);
         break;
 

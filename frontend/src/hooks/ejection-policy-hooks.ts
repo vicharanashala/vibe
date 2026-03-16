@@ -13,8 +13,11 @@ export function useEjectionPolicies(
   if (isActive !== undefined) params.active = isActive;
 
   const result = api.useQuery("get", "/ejection-policies", { params: { query: params } });
+   const policies =
+    (result.data as any)?.content?.["application/json"]?.policies ?? [];
   return {
     ...result,
+     policies,
     error: result.error ? (result.error.message || 'Failed to load policies') : null
   };
 }
@@ -117,6 +120,7 @@ export function useActivePoliciesForCourse(courseId: string) {
   });
   return {
     ...result,
+    policies: (result.data as any)?.policies ?? [],
     error: result.error ? (result.error.message || 'Failed to load active policies') : null
   };
 }
