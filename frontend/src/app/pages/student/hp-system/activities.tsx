@@ -347,40 +347,18 @@ export default function StudentActivities() {
                                     </div>
                                 )}
                             </CardContent>
-                            <CardFooter className="border-t bg-muted/10 px-6 py-1">
-                                
-
-                                
-                                {(() => {
-                                    const now = new Date().getTime();
-                                    const deadlineTime = activity.rules?.deadlineAt ? new Date(activity.rules.deadlineAt.toString()).getTime() : null;
-                                    const isExpired = deadlineTime ? now > deadlineTime : false;
-                                    const allowLate = activity.rules?.allowLateSubmission ?? true;
-                                    const canSubmit = !isExpired || allowLate;
-
-                                    return (
-                                         <div className="flex w-full items-center justify-between gap-2">
-                                            <div className="text-xs text-muted-foreground">
-                                                {isExpired && !allowLate ? "Submission closed" : "Ready to submit"}
-                                            </div>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={() => openSubmitDialog(activity)}
-                                                        disabled={!canSubmit}
-                                                        title={!canSubmit ? "Submission deadline has passed" : undefined}
-                                                    >
-                                                        <Send className="h-4 w-4 mr-2" />
-                                                        {isExpired && !allowLate ? 'Deadline Passed' : 'Submit'}
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>Submit your work for this activity to earn HP points</TooltipContent>
-                                            </Tooltip>
-                                            
-                                        </div>
-                                    );
-                                })()}
+                                <CardFooter className="border-t bg-muted/10 px-6 py-1">
+                                    <div className="flex w-full items-center justify-end gap-2">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => navigate({
+                                                to: `/student/hp-system/${courseVersionId}/${cohortName}/activities/${activity._id}`
+                                            })}
+                                        >
+                                            View
+                                        </Button>
+                                    </div>
                             </CardFooter>
                         </Card>
                     ))}
