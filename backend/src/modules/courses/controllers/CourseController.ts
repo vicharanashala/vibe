@@ -1,6 +1,6 @@
-import { CourseService } from '#courses/services/CourseService.js';
-import { validationMetadatasToSchemas } from 'class-validator-jsonschema';
-import { injectable, inject } from 'inversify';
+import {CourseService} from '#courses/services/CourseService.js';
+import {validationMetadatasToSchemas} from 'class-validator-jsonschema';
+import {injectable, inject} from 'inversify';
 import {
   JsonController,
   Post,
@@ -14,16 +14,17 @@ import {
   ForbiddenError,
   Authorized,
   Patch,
-  BadRequestError, QueryParams,
+  BadRequestError,
+  QueryParams,
   UseBefore,
   UseAfter,
   UseInterceptor,
-  Req
+  Req,
 } from 'routing-controllers';
-import { OpenAPI, ResponseSchema, } from 'routing-controllers-openapi';
-import { COURSES_TYPES } from '#courses/types.js';
-import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
-import { Course } from '#courses/classes/transformers/Course.js';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {COURSES_TYPES} from '#courses/types.js';
+import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
+import {Course} from '#courses/classes/transformers/Course.js';
 import {
   CourseDataResponse,
   CourseBody,
@@ -35,15 +36,19 @@ import {
   ActiveUsersResponseDto,
   PublicCoursesQuery,
 } from '#courses/classes/validators/CourseValidators.js';
-import { CourseActions, getCourseAbility } from '../abilities/courseAbilities.js';
-import { Ability } from '#root/shared/functions/AbilityDecorator.js';
-import { subject } from '@casl/ability';
-import { USERS_TYPES } from '#root/modules/users/types.js';
-import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
-import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
-import { setAuditTrail } from '#root/utils/setAuditTrail.js';
-import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
-import { ObjectId } from 'mongodb';
+import {CourseActions, getCourseAbility} from '../abilities/courseAbilities.js';
+import {Ability} from '#root/shared/functions/AbilityDecorator.js';
+import {subject} from '@casl/ability';
+import {USERS_TYPES} from '#root/modules/users/types.js';
+import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
+import {AuditTrailsHandler} from '#root/shared/middleware/auditTrails.js';
+import {setAuditTrail} from '#root/utils/setAuditTrail.js';
+import {
+  AuditAction,
+  AuditCategory,
+  OutComeStatus,
+} from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
+import {ObjectId} from 'mongodb';
 
 @OpenAPI({
   tags: ['Courses'],
@@ -57,10 +62,7 @@ export class CourseController {
     private readonly courseService: CourseService,
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
-  ) { }
-
-
-
+  ) {}
 
   @OpenAPI({
     summary: 'Get Active Users by Course',
@@ -68,7 +70,7 @@ export class CourseController {
       'Fetches the list of active users enrolled in a specific course by course ID.',
   })
   // @Authorized()
-  @Get('/active-users', { transformResponse: true })
+  @Get('/active-users', {transformResponse: true})
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
@@ -80,9 +82,14 @@ export class CourseController {
   async getActiveUsersByCourse(
     @QueryParams() query: CourseVersionQueryWithTime,
   ) {
-    const { courseId, courseVersionId, startTimeStamp, endTimeStamp } = query;
+    const {courseId, courseVersionId, startTimeStamp, endTimeStamp} = query;
 
-    const activeUsers = await this.courseService.getActiveUsersByCourse(courseId, courseVersionId, startTimeStamp, endTimeStamp);
+    const activeUsers = await this.courseService.getActiveUsersByCourse(
+      courseId,
+      courseVersionId,
+      startTimeStamp,
+      endTimeStamp,
+    );
 
     return activeUsers;
   }
@@ -92,7 +99,7 @@ export class CourseController {
     description: 'Fetches the list of public courses available for enrollment.',
   })
   @Authorized()
-  @Get('/public', { transformResponse: true })
+  @Get('/public', {transformResponse: true})
   @HttpCode(200)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -100,34 +107,27 @@ export class CourseController {
   })
   async getPublicCourses(
     @QueryParams() query: PublicCoursesQuery,
-    @Ability(getCourseAbility) { user },
+    @Ability(getCourseAbility) {user},
   ) {
-    const { page = 1, limit = 10, search = '' } = query;
+    const {page = 1, limit = 10, search = ''} = query;
     const userId = user._id.toString();
 
     const publicCourses = await this.courseService.getPublicCourses(
       userId,
       page,
       limit,
-      search
+      search,
     );
 
     return publicCourses;
   }
-
-
-
-
-
-
-
 
   @OpenAPI({
     summary: 'Create a new course',
     description: 'Creates a new course in the system.<br/>.',
   })
   @Authorized()
-  @Post('/', { transformResponse: true })
+  @Post('/', {transformResponse: true})
   @UseInterceptor(AuditTrailsHandler)
   @HttpCode(201)
   @ResponseSchema(CourseDataResponse, {
@@ -140,10 +140,10 @@ export class CourseController {
   })
   async create(
     @Body() body: CourseBody,
-    @Ability(getCourseAbility) { ability, user },
-    @Req() req: Request
+    @Ability(getCourseAbility) {ability, user},
+    @Req() req: Request,
   ): Promise<Course> {
-    const { versionName, versionDescription, cohorts } = body;
+    const {versionName, versionDescription, cohorts, hpSystem} = body;
     const userId = user._id.toString();
 
     //1. Build subject context for permissions
@@ -158,7 +158,8 @@ export class CourseController {
       versionName,
       versionDescription,
       userId,
-      cohorts
+      cohorts,
+      hpSystem,
     );
     // //3. Create enrollment for the user
     // await this.enrollmentService.enrollUser(
@@ -179,13 +180,14 @@ export class CourseController {
       },
       context: {
         courseId: createdCourse._id,
-        courseVersionId: createdCourse.versions[createdCourse.versions.length - 1],
+        courseVersionId:
+          createdCourse.versions[createdCourse.versions.length - 1],
       },
       changes: {
         after: {
           title: createdCourse.name,
           description: createdCourse.description,
-        }
+        },
       },
       outcome: {
         status: OutComeStatus.SUCCESS,
@@ -196,8 +198,6 @@ export class CourseController {
     return createdCourse;
   }
 
-
-
   @OpenAPI({
     summary: 'Get course details',
     description: `Retrieves course information by ID.<br/>
@@ -206,7 +206,7 @@ Accessible to:
 `,
   })
   @Authorized()
-  @Get('/:courseId', { transformResponse: true })
+  @Get('/:courseId', {transformResponse: true})
   @ResponseSchema(CourseDataResponse, {
     description: 'Course retrieved successfully',
   })
@@ -220,12 +220,12 @@ Accessible to:
   })
   async read(
     @Params() params: CourseIdParams,
-    @Ability(getCourseAbility) { ability },
+    @Ability(getCourseAbility) {ability},
   ) {
-    const { courseId } = params;
+    const {courseId} = params;
 
     // Create a course resource object with the courseId for permission checking
-    const courseResource = subject('Course', { courseId });
+    const courseResource = subject('Course', {courseId});
 
     // Check permission using ability.can() with the actual course resource
     if (!ability.can(CourseActions.View, courseResource)) {
@@ -245,7 +245,7 @@ Accessible to:
 - Instructor or manager for the course.`,
   })
   @Authorized()
-  @Patch('/:courseId', { transformResponse: true })
+  @Patch('/:courseId', {transformResponse: true})
   @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(CourseDataResponse, {
     description: 'Course updated successfully',
@@ -262,13 +262,13 @@ Accessible to:
   async update(
     @Params() params: CourseIdParams,
     @Body() body: EditCourseBody,
-    @Ability(getCourseAbility) { ability, user },
-    @Req() req: Request
+    @Ability(getCourseAbility) {ability, user},
+    @Req() req: Request,
   ) {
-    const { courseId } = params;
+    const {courseId} = params;
     const userId = user._id.toString();
     // Create a course resource object with the courseId for permission checking
-    const courseResource = subject('Course', { courseId });
+    const courseResource = subject('Course', {courseId});
 
     // Check permission using ability.can() with the actual course resource
     if (!ability.can(CourseActions.Modify, courseResource)) {
@@ -302,11 +302,10 @@ Accessible to:
           description: updatedCourse.description,
         },
       },
-       outcome:{
-          status: OutComeStatus.SUCCESS,
-        }
-      
-    })
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    });
     return updatedCourse;
   }
 
@@ -316,7 +315,7 @@ Accessible to:
     It returns an empty body with a 200 status code.`,
   })
   @Authorized()
-  @Delete('/:courseId', { transformResponse: true })
+  @Delete('/:courseId', {transformResponse: true})
   @UseInterceptor(AuditTrailsHandler)
   @OnUndefined(200)
   @ResponseSchema(BadRequestErrorResponse, {
@@ -329,13 +328,13 @@ Accessible to:
   })
   async delete(
     @Params() params: CourseIdParams,
-    @Ability(getCourseAbility) { ability, user },
-    @Req() req: Request
+    @Ability(getCourseAbility) {ability, user},
+    @Req() req: Request,
   ) {
-    const { courseId } = params;
+    const {courseId} = params;
     const userId = user._id.toString();
     // Create a course resource object with the courseId for permission checking
-    const courseResource = subject('Course', { courseId });
+    const courseResource = subject('Course', {courseId});
 
     // Check permission using ability.can() with the actual course resource
     if (!ability.can(CourseActions.Delete, courseResource)) {
@@ -361,7 +360,8 @@ Accessible to:
       },
       context: {
         courseId: ObjectId.createFromHexString(courseId),
-        courseVersionId: courseBeforeDelete.versions[courseBeforeDelete.versions.length - 1],
+        courseVersionId:
+          courseBeforeDelete.versions[courseBeforeDelete.versions.length - 1],
       },
       changes: {
         before: {
@@ -369,10 +369,10 @@ Accessible to:
           description: courseBeforeDelete.description,
         },
       },
-       outcome:{
-          status: OutComeStatus.SUCCESS,
-        }
-    })
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    });
 
     await this.courseService.deleteCourse(courseId);
   }
@@ -383,8 +383,8 @@ Accessible to:
       'Updates the total item count for a specific course version by ID.<br/> It returns an empty body with a 200 status code.',
   })
   @Authorized()
-  @Patch('/version/total-item-count', { transformResponse: true })
-  @ResponseSchema(ActiveUsersResponseDto, { statusCode: 200 })
+  @Patch('/version/total-item-count', {transformResponse: true})
+  @ResponseSchema(ActiveUsersResponseDto, {statusCode: 200})
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
@@ -394,15 +394,18 @@ Accessible to:
     statusCode: 404,
   })
   async updateCourseVersionTotalItemCount(
-    @Ability(getCourseAbility) { ability },
+    @Ability(getCourseAbility) {ability},
     @QueryParams() query: CourseVersionQuery,
   ) {
-    const { courseId, courseVersionId } = query;
+    const {courseId, courseVersionId} = query;
     // Update total item count in service
-    const updatedVersion = await this.courseService.updateCourseVersionTotalItemCount(courseId, courseVersionId);
+    const updatedVersion =
+      await this.courseService.updateCourseVersionTotalItemCount(
+        courseId,
+        courseVersionId,
+      );
     return updatedVersion;
   }
-
 }
 
 const schemas = validationMetadatasToSchemas({

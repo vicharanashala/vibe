@@ -201,6 +201,11 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   Completed
                 </Badge>
               )}
+              {enrollment?.hpSystem && (
+                <Badge className="bg-purple-100 text-purple-800 border-purple-300">
+                  HP System Enabled
+                </Badge>
+              )}
               
             </div>
             <div className="text-sm text-muted-foreground">
