@@ -195,6 +195,7 @@ export class AnomalyRepository {
     sortOptions?: {field: string; order: 'asc' | 'desc'},
     search?: string | string[],
     type?: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<{data: IAnomalyData[]; total: number}> {
     await this.init();
@@ -243,6 +244,20 @@ export class AnomalyRepository {
       const userIds = search.map(id => new ObjectId(id));
       filter.$and.push({
         userId: {$in: userIds},
+      });
+    } 
+
+    // Add cohort filter if provided
+    if (cohortId) {
+      const cohortIdVariants = [
+        cohortId,
+        ObjectId.isValid(cohortId) ? new ObjectId(cohortId) : undefined,
+      ].filter(Boolean);
+
+      filter.$and.push({
+        $or: [
+          {cohortId: {$in: cohortIdVariants}},
+        ],
       });
     }
 
