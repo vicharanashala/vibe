@@ -333,6 +333,8 @@ export interface Anomaly {
   updatedAt?: string | Date;
   date: string;
   status: 'Pending' | 'Investigated' | 'Resolved';
+  cohortId?: string;
+  cohortName?: string;
 }
 
 export interface ExportFeedbackSubmissionsProps {
@@ -349,7 +351,8 @@ export function useAnomaliesByCourseItem(
   sortField?: string,
   sortOrder: 'asc' | 'desc' = 'desc',
   search?: string,
-  type?: string
+  type?: string,
+  cohort?: string
 ): {
   data: Anomaly[];
   isLoading: boolean;
@@ -358,6 +361,7 @@ export function useAnomaliesByCourseItem(
   total: number;
   page: number;
   totalPages: number;
+  cohort?: string;
 } {
   const result: any = api.useQuery(
     "get",
@@ -374,7 +378,8 @@ export function useAnomaliesByCourseItem(
           sortField,
           sortOrder,
           ...(search && { search }),
-          ...(type && { type })
+          ...(type && { type }),
+          ...(cohort && { cohort })
         }
       }
     },
