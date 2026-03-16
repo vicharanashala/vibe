@@ -80,7 +80,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       : "internship-support@vicharanashala.zohodesk";
 
   // const progress = Math.round(enrollment.percentCompleted || 0) as number 
-  const progress = Number(((enrollment.percentCompleted || 0)).toFixed(2));
+  const progress = Number(Math.min(enrollment.percentCompleted ?? 0, 100).toFixed(2));
 
   // Check if student already has assigned timeslots
   const hasAssignedTimeslot = enrollment.assignedTimeSlot && 
