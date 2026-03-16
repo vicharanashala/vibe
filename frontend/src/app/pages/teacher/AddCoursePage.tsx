@@ -1,4 +1,4 @@
-import { JSX, useState } from "react";
+import { JSX, SetStateAction, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
@@ -26,6 +27,7 @@ export default function CreateCourse() {
   const [versionName, setVersionName] = useState("");
   const [versionDescription, setVersionDescription] = useState("");
   const [cohorts, setCohorts] = useState<string[]>([]);
+  const [hpSystemEnabled, setHpSystemEnabled] = useState<boolean>(false);
 
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +69,8 @@ export default function CreateCourse() {
           description: courseDescription,
           versionName,
           versionDescription,
-          cohorts
+          cohorts,
+          hpSystem:hpSystemEnabled
         }
       });
 
@@ -143,6 +146,11 @@ export default function CreateCourse() {
             setCreateErrors={setCreateErrors}
             cohorts={cohorts}
             setCohorts={setCohorts}
+          />
+
+          <HpCard 
+            hpSystemEnabled={hpSystemEnabled}
+            setHpSystemEnabled={setHpSystemEnabled}
           />
 
 
@@ -676,3 +684,48 @@ const CreateCourseCard = ({
   );
 }
 
+type HpCardProps = {
+  hpSystemEnabled: boolean;
+  setHpSystemEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+};
+
+const HpCard = ({
+  hpSystemEnabled,
+  setHpSystemEnabled,
+}: HpCardProps) => {
+  return (
+    <div className="relative">
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-primary/10 rounded-xl blur-sm"></div>
+
+      <Card className="relative bg-card/95 backdrop-blur-sm border border-border/50 p-6">
+        <div className="flex items-center justify-between gap-4">
+
+          <div className="flex items-start gap-3">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-lg blur-sm"></div>
+              <div className="relative bg-gradient-to-r from-primary to-accent p-2 rounded-lg">
+                ❤️
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-sm font-semibold">HP System</Label>
+              <p className="text-xs text-muted-foreground">
+                Enable HP system for this course. Students can gain or lose HP
+                based on activities and performance.
+              </p>
+            </div>
+          </div>
+
+          <Switch
+            checked={hpSystemEnabled}
+            onCheckedChange={() =>
+              setHpSystemEnabled((prev) => !prev)
+            }
+          />
+
+        </div>
+      </Card>
+    </div>
+  );
+};
