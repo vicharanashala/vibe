@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import type { SubmissionAttachment, HpStudentSubmission } from "@/lib/api/hp-system";
 import { toast } from "sonner";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const statusConfig = {
     SUBMITTED: { label: "Submitted", variant: "default" as const, icon: CheckCircle, color: "text-green-600" },
@@ -93,30 +92,35 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
         }
     };
 
-    return (
-        <TooltipProvider>
+    return(
     <div className="space-y-3">
   {/* Instructor Feedback */}
   {sub.instructorFeedback && (
     <div className="rounded-lg bg-muted/50 p-3 border">
       <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5">
-        <MessageSquare className="h-3.5 w-3.5" />
-        Instructor Feedback: {String((sub.instructorFeedback as any)?.decision || "Reviewed")}
+        <div className="flex items-center justify-between">
+         {(sub.instructorFeedback as any)?.reviewerName && (
+        <div className="gap-2 mb-1">
+          <span className="font-bold">
+            {(sub.instructorFeedback as any).reviewerName?.replace(/\b\w/g, (c: string) => c.toUpperCase())}
+            </span>
+          <span className="text-xs text-muted-foreground">
+            {(sub.instructorFeedback as any).reviewerEmail}
+            </span>
+        </div>
+      )}
+      <div>
+        <span className="text-muted-foreground">
+            {new Date((sub.instructorFeedback as any).reviewedAt).toLocaleString("en-IN")}
+          </span>
       </div>
-
-      {(sub.instructorFeedback as any)?.reviewerName && (
-        <div className="text-xs text-muted-foreground mb-1">
-          <div>Instructor Name: {(sub.instructorFeedback as any).reviewerName}</div>
-          <div>Email: {(sub.instructorFeedback as any).reviewerEmail}</div>
+      </div>
+        
+      </div>
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5">
+      <MessageSquare className="h-3.5 w-3.5" />
+        Instructor Feedback: {String((sub.instructorFeedback as any)?.decision || "Reviewed")}
         </div>
-      )}
-
-      {(sub.instructorFeedback as any)?.reviewedAt && (
-        <div className="text-xs text-muted-foreground mb-1">
-          {new Date((sub.instructorFeedback as any).reviewedAt).toLocaleString("en-IN")}
-        </div>
-      )}
-
       <p className="text-sm">
         {String((sub.instructorFeedback as any)?.note || "No note provided")}
       </p>
@@ -126,44 +130,34 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
             {/* Feedback Controls */}
             <div className="flex items-center gap-2">
                 {/* Add Feedback Button */}
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowInput(true)}
-                            className="flex items-center gap-2"
-                        >
-                            <MessageSquare className="h-3.5 w-3.5" />
-                            <span className="text-xs">{sub.instructorFeedback ? "Update Feedback" : "Add Feedback"}</span>
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Add or update feedback for this student's submission</TooltipContent>
-                </Tooltip>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowInput(true)}
+                    className="flex items-center gap-2"
+                >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    <span className="text-xs">{sub.instructorFeedback ? "Update Feedback" : "Add Feedback"}</span>
+                </Button>
 
                 {/* View All Feedbacks */}
                 {sub.feedbacks && sub.feedbacks.length > 0 && (
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                    const panel = document.getElementById(`feedback-panel-${sub.submission?._id}`);
-                                    panel?.classList.toggle('hidden');
-                                }}
-                                className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded border"
-                            >
-                                {sub.feedbacks && sub.feedbacks.length > 0 && (
-                                    <div className="">
-                                        {sub.feedbacks.length} Feedback{sub.feedbacks.length !== 1 ? 's' : ''}
-                                    </div>
-                                )}
-                                <ChevronDown className={`h-3 w-3 transition-transform ${document.getElementById(`feedback-panel-${sub.submission?._id}`)?.classList.contains('hidden') ? '' : 'rotate-180'}`} />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>View all feedback given for this submission</TooltipContent>
-                    </Tooltip>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                            const panel = document.getElementById(`feedback-panel-${sub.submission?._id}`);
+                            panel?.classList.toggle('hidden');
+                        }}
+                        className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded border"
+                    >
+                        {sub.feedbacks && sub.feedbacks.length > 0 && (
+                            <div className="">
+                                {sub.feedbacks.length} Feedback{sub.feedbacks.length !== 1 ? 's' : ''}
+                            </div>
+                        )}
+                        <ChevronDown className={`h-3 w-3 transition-transform ${document.getElementById(`feedback-panel-${sub.submission?._id}`)?.classList.contains('hidden') ? '' : 'rotate-180'}`} />
+                    </Button>
                 )}
             </div>
 
@@ -223,7 +217,6 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
                 </div>
             )}
         </div>
-        </TooltipProvider>
     );
 }
 
@@ -299,7 +292,6 @@ export default function StudentSubmissionsPage() {
     const totalCurrentHp = safeSubmissions.reduce((sum: number, s: any) => sum + (s.hp?.currentHp || 0), 0);
     const totalBaseHp = safeSubmissions.reduce((sum: number, s: any) => sum + (s.hp?.baseHp || 0), 0);
     return (
-        <TooltipProvider>
         <div className="space-y-6 w-full pb-12">
             {/* Header */}
             <div className="flex items-center gap-4">
@@ -457,15 +449,10 @@ export default function StudentSubmissionsPage() {
                                             </>
                                         )}
                                         {sub.submission?.isLate && (
-                                           <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950/20 cursor-default">
-                                                        <Timer className="h-3 w-3 mr-1" />
-                                                        Late
-                                                    </Badge>
-                                                </TooltipTrigger>
-                                                <TooltipContent>This submission was submitted after the deadline</TooltipContent>
-                                            </Tooltip>
+                                            <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950/20">
+                                                <Timer className="h-3 w-3 mr-1" />
+                                                Late
+                                            </Badge>
                                         )}
                                         <Badge variant={cfg.variant} className="flex items-center gap-1">
                                             <StatusIcon className="h-3 w-3" />
@@ -623,59 +610,18 @@ export default function StudentSubmissionsPage() {
                         </DialogDescription>
                     </DialogHeader>
 
-                    {(reasonDialog.action === 'reject' || reasonDialog.action === 'revert') && (
-                        <div className="py-4 space-y-4">
-
-                            <div>
-                                <label className="text-sm font-medium mb-2 block">
-                                    Note <span className="text-red-500 ml-1">*</span>
-                                </label>
-                                <Textarea
-                                    placeholder="Add feedback (minimum 10 characters)"
-                                    value={reasonDialog.note}
-                                    onChange={(e) =>
-                                        setReasonDialog({ ...reasonDialog, note: e.target.value })
-                                    }
-                                    className="min-h-[80px]"
-                                />
-                                {reasonDialog.note && reasonDialog.note.length < 10 && (
-                                    <p className="text-xs text-red-500 mt-1">
-                                        Note must be at least 10 characters
-                                    </p>
-                                )}
-                            </div>
-
-                            {reasonDialog.action === 'reject' && (
-                                <div>
-                                    <label className="text-sm font-medium mb-2 block">
-                                        Points to Deduct
-                                    </label>
-                                    <div className="flex items-center gap-3">
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            max={reasonDialog.baseHp}
-                                            value={reasonDialog.pointsToDeduct}
-                                            onChange={(e) =>
-                                                setReasonDialog({
-                                                    ...reasonDialog,
-                                                    pointsToDeduct: Math.max(
-                                                        0,
-                                                        Math.min(
-                                                            reasonDialog.baseHp,
-                                                            parseInt(e.target.value) || 0
-                                                        )
-                                                    ),
-                                                })
-                                            }
-                                            className="w-24 px-3 py-2 border border-input rounded-md text-sm"
-                                        />
-                                        <span className="text-sm text-muted-foreground">
-                                            / {reasonDialog.baseHp} (base HP)
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
+                    {(reasonDialog.action === 'approve' || reasonDialog.action === 'reject' || reasonDialog.action === 'revert') && (
+                        <div className="py-4">
+                            <label htmlFor="note" className="text-sm font-medium mb-2 block">
+                                Note (optional)
+                            </label>
+                            <Textarea
+                                id="note"
+                                placeholder="Add any feedback or notes..."
+                                value={reasonDialog.note}
+                                onChange={(e) => setReasonDialog({ ...reasonDialog, note: e.target.value })}
+                                className="min-h-[80px]"
+                            />
                         </div>
                     )}
 
@@ -695,6 +641,5 @@ export default function StudentSubmissionsPage() {
                 </DialogContent>
             </Dialog>
         </div>
-        </TooltipProvider>
-    );  
+    );
 }
