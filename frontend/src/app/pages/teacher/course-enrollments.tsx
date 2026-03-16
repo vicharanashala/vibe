@@ -1200,13 +1200,34 @@ export default function CourseEnrollments() {
                     )}
                   </div>
 
-                    {/* Content Summary — loaded from API 2 */}
-                    <div className="border border-border rounded-lg ml-auto p-3 min-w-[240px]">
-                      <p className="font-medium text-sm mb-2">Content Summary</p>
-                      {progressDetailLoading ? (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Loading progress...
+                  {/* Content Summary — loaded from API 2 */}
+                  <div className="border border-border rounded-lg ml-auto p-3 min-w-[240px]">
+                    <p className="font-medium text-sm mb-2">Content Summary</p>
+                    {progressDetailLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading progress...
+                      </div>
+                    ) : progressDetail ? (
+                      <>
+                        <div className="flex justify-between items-center mb-3">
+                          <p className="text-sm text-muted-foreground">Completion</p>
+                          <EnrollmentProgress progress={Math.min(progressDetail?.percentCompleted ?? 0, 100)} /> 
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                          <SummaryRow label="Total Items" value={progressDetail.contentCounts?.totalItems ?? 0} />
+                          <SummaryRow label="Videos" value={progressDetail.contentCounts?.itemCounts?.VIDEO ?? 0} />
+                          <SummaryRow label="Quizzes" value={progressDetail.contentCounts?.itemCounts?.QUIZ ?? 0} />
+                          <SummaryRow label="Articles" value={progressDetail.contentCounts?.itemCounts?.BLOG ?? 0} />
+                          <SummaryRow label="Projects" value={progressDetail.contentCounts?.itemCounts?.PROJECT ?? 0} />
+                          <SummaryRow
+                            label="Quiz Score"
+                            value={`${progressDetail.totalQuizScore ?? 0} / ${progressDetail.totalQuizMaxScore ?? 0}`}
+                          />
+                          <SummaryRow
+                            label="Items Completed"
+                            value={`${Math.min(progressDetail.completedItemsCount ?? 0, progressDetail.contentCounts?.totalItems ?? 0)} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
+                          />
                         </div>
                       ) : progressDetail ? (
                         <>
