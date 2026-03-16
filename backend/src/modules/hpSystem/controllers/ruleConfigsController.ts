@@ -55,6 +55,8 @@ export class RuleConfigsController {
         @Param("ruleConfigId") ruleConfigId: string,
         @Body() body: UpdateHpRuleConfigBody,
     ) {
+        // console.log("Received update request for ruleConfigId:", ruleConfigId);
+        // console.log("Update body:", body);
         const data = await this.ruleConfigService.update(ruleConfigId, body);
         return {
             success: true,
@@ -67,6 +69,7 @@ export class RuleConfigsController {
     @Authorized()
     @Get("/activity/:activityId")
     async getByActivityId(@Param("activityId") activityId: string) {
+        console.log("Fetching rule config for activity ID: ", activityId);
         const data = await this.ruleConfigService.getByActivityId(activityId);
         return {
             success: true,
