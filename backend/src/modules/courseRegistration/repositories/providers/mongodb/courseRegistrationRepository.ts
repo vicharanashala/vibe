@@ -393,6 +393,89 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
     }));
   }
 
+  async getPendingRegistrationsByStudent(
+    studentId: string,
+    session?: ClientSession,
+  ): Promise<any[]> {
+    await this.init();
+
+    const result = await this.courseRegistrationCollection.aggregate([
+      {
+        $match: {
+          userId: new ObjectId(studentId),
+          status: 'PENDING',
+        },
+      },
+      {
+        $sort: {
+          createdAt: -1,
+        },
+      },
+    ], { session }).toArray();
+
+    const courseIds = [...new Set(result.map(item => item.courseId))];
+    const courses = await this.courseCollection.find(
+      { _id: { $in: courseIds.map(id => new ObjectId(id)) } },
+      { session }
+    ).toArray();
+
+    const courseMap = courses.reduce((acc, course) => {
+      acc[course._id.toString()] = course.name;
+      return acc;
+    }, {} as Record<string, string>);
+
+    return result.map(item => ({
+      ...item,
+      _id: item._id?.toString(),
+      userId: item.userId?.toString(),
+      courseId: item.courseId?.toString(),
+      versionId: item.versionId?.toString(),
+      courseName: courseMap[item.courseId?.toString()] || 'Unknown Course',
+    }));
+  }
+
+  async getRejectedRegistrationsByStudent(
+    studentId: string,
+    session?: ClientSession,
+  ): Promise<any[]> {
+    await this.init();
+
+    const result = await this.courseRegistrationCollection.aggregate([
+      {
+        $match: {
+          userId: new ObjectId(studentId),
+          status: 'REJECTED',
+          rejectionNotificationRead: { $ne: true },
+        },
+      },
+      {
+        $sort: {
+          updatedAt: -1,
+        },
+      },
+    ], { session }).toArray();
+
+    const courseIds = [...new Set(result.map(item => item.courseId))];
+    const courses = await this.courseCollection.find(
+      { _id: { $in: courseIds.map(id => new ObjectId(id)) } },
+      { session }
+    ).toArray();
+
+    const courseMap = courses.reduce((acc, course) => {
+      acc[course._id.toString()] = course.name;
+      return acc;
+    }, {} as Record<string, string>);
+
+    return result.map(item => ({
+      ...item,
+      _id: item._id?.toString(),
+      userId: item.userId?.toString(),
+      courseId: item.courseId?.toString(),
+      versionId: item.versionId?.toString(),
+      courseName: courseMap[item.courseId?.toString()] || 'Unknown Course',
+    }));
+  }
+
   async markNotificationAsRead(
     registrationId: string,
     session?: ClientSession,
@@ -401,7 +484,7 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
 
     const result = await this.courseRegistrationCollection.updateOne(
       { _id: new ObjectId(registrationId) },
-      { $set: { read: true, updatedAt: new Date() } },
+      { $set: { read: true, rejectionNotificationRead: true, updatedAt: new Date() } },
       { session }
     );
 

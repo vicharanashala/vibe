@@ -835,6 +835,18 @@ export class CourseRegistrationService extends BaseService {
     });
   }
 
+  async getPendingRegistrationsByStudent(studentId: string) {
+    return this._withTransaction(async session => {
+      return await this.courseRegistrationRepo.getPendingRegistrationsByStudent(studentId, session);
+    });
+  }
+
+  async getRejectedRegistrationsByStudent(studentId: string) {
+    return this._withTransaction(async session => {
+      return await this.courseRegistrationRepo.getRejectedRegistrationsByStudent(studentId, session);
+    });
+  }
+
   async getUnreadApprovedRegistrations(studentId: string) {
     return this._withTransaction(async session => {
       return await this.courseRegistrationRepo.getUnreadApprovedRegistrations(studentId, session);
