@@ -49,6 +49,15 @@ export class NewAnomalyData {
   @IsMongoId()
   @IsString()
   itemId: string | ObjectId;
+
+  @JSONSchema({
+    description: 'Cohort ID associated with the anomaly (optional)',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsMongoId()
+  @IsString()
+  cohortId?: string | ObjectId;
 }
 
 export class AnomalyData extends NewAnomalyData implements IAnomalyData {
@@ -118,6 +127,15 @@ export class AnomalyData extends NewAnomalyData implements IAnomalyData {
   })
   @IsNotEmpty()
   createdAt: Date;
+
+  @JSONSchema({
+    description: 'Cohort name associated with the anomaly (optional)',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsOptional()
+  @IsString()
+  cohortName?: string;
 }
 
 export class GetCourseAnomalyParams {
@@ -242,6 +260,15 @@ export class CourseAnomaliesQuery extends PaginationWithSortQuery {
   @IsOptional()
   @IsEnum(AnomalyType)
   type?: AnomalyType;
+
+  @JSONSchema({
+    description: 'Filter anomalies by cohort ID',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsMongoId()
+  @IsString()
+  cohort?: string;
 }
 
 export {SortOrder, PaginationWithSortQuery};

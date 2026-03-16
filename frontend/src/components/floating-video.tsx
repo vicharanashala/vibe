@@ -304,20 +304,25 @@ const lastCalledRef = useRef<number>(0);
         // // Log for debugging
         // console.log("Image File", imageFile);
         // console.log('%c ', `font-size:1px; padding:40px 80px; background:url(${screenshot}); background-size:contain; background-repeat:no-repeat;`);
-        // console.log("anomalyType", reportAnomaly, "====", "anamoly=", anomaly);
+        // console.log("anomalyType", reportAnomalyType, "====", "anamoly=", anomaly);
         // console.log("courseId", courseStore.currentCourse?.courseId);
         // console.log("versionId", courseStore.currentCourse?.versionId);
         // console.log("itemId", courseStore.currentCourse?.itemId);
 
 
         try {
+          const body: any = {
+            type: reportAnomalyType,
+            courseId: courseStore.currentCourse?.courseId,
+            versionId: courseStore.currentCourse?.versionId,
+            itemId: courseStore.currentCourse?.itemId,
+          };
+
+          if (courseStore.currentCourse?.cohortId) {
+            body.cohortId = courseStore.currentCourse.cohortId;
+          }
           const response = await reportImage.mutateAsync({
-            body: {
-              type: reportAnomalyType as AnomalyType,
-              courseId: courseStore.currentCourse?.courseId || "",
-              versionId: courseStore.currentCourse?.versionId || "",
-              itemId: courseStore.currentCourse?.itemId || "",
-            },
+            body,
             file: imageFile,
           });
           // console.log("Post response", response);

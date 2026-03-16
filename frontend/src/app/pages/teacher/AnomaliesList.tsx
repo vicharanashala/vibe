@@ -4,13 +4,21 @@ import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { ArrowUp, ArrowDown, Loader2, AlertCircle, Search } from "lucide-react"
-import { useAnomaliesByCourseItem, type Anomaly } from "@/hooks/hooks"
+import { ArrowUp, ArrowDown, Loader2, AlertCircle, Search, Layers } from "lucide-react"
+import { useAnomaliesByCourseItem, useCourseVersionById, type Anomaly } from "@/hooks/hooks"
 import { useAnomalyStore } from "@/store/anomaly-store"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Pagination } from "@/components/ui/Pagination"
 import { Input } from "@/components/ui/input"
 import CourseBackButton from "./CourseBackButton";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button"
 
 export default function AnomaliesList() {
  
@@ -25,6 +33,8 @@ export default function AnomaliesList() {
   const [anomalyType, setAnomalyType] = useState<string>('ALL');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
+  const [cohort, setCohort] = useState<string | null>(null);
 
   // Anomaly types for filter dropdown
   const anomalyTypes = [
@@ -73,7 +83,8 @@ export default function AnomaliesList() {
     sortBy,
     sortOrder,
     debouncedSearch,
-    anomalyType === 'ALL' ? undefined : anomalyType
+    anomalyType === 'ALL' ? undefined : anomalyType,
+    cohort ?? undefined
   );
 
   const getTypeBadge = (type: string) => {
@@ -153,6 +164,44 @@ export default function AnomaliesList() {
                   <div className="flex md:flex-row flex-col justify-between items-center mb-6">
                     <h2 className="text-2xl font-semibold">Anomalies</h2>
                     <div className="flex md:flex-row flex-col gap-4 w-full sm:w-auto md:mt-0 mt-3">
+
+                    {(version as any)?.cohortDetails?.length > 0 && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            >
+                            <Layers className="h-4 w-4 text-muted-foreground" />
+                    {cohort ? (version as any).cohortDetails.find((c: any) => c.id === cohort)?.name : "Select Cohort"}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuRadioGroup
+                              value={cohort ?? ""}
+                              onValueChange={(id) => {
+                                setCohort(id);
+                              }}
+                            >
+                        <DropdownMenuRadioItem
+                          value={""}
+                          onClick={() => setCohort(null)}>
+                          All Cohorts
+                        </DropdownMenuRadioItem>
+                              {(version as any)?.cohortDetails?.map((cohort: any) => (
+                                <DropdownMenuRadioItem
+                                  key={cohort.id}
+                                  value={cohort.id}
+                                >
+                                  {cohort.name}
+                                </DropdownMenuRadioItem>
+                              ))}
+                            </DropdownMenuRadioGroup>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+
                       {/* Type Filter */}
                       <select
                         value={anomalyType}
@@ -246,9 +295,12 @@ export default function AnomaliesList() {
                                     <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${anomaly.studentName}`} />
                                     <AvatarFallback>{anomaly.studentName?.charAt(0) || 'U'}</AvatarFallback>
                                   </Avatar>
-                                  <div>
+                                  <div className="space-y-1 flex flex-col items-start p-1">
                                     <div className="font-medium">{anomaly.studentName || 'Unknown User'}</div>
                                     <div className="text-xs text-muted-foreground">{anomaly.studentEmail}</div>
+                                    {anomaly.cohortName && (
+                                      <div className="text-xs text-muted-foreground">Cohort: {anomaly.cohortName}</div>
+                                    )}
                                   </div>
                                 </div>
                               </TableCell>
