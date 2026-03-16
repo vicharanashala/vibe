@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, BookOpen, Plus, AlertCircle, CheckCircle, Rocket, GitBranch, HelpCircle, Lightbulb, Info, GraduationCap } from "lucide-react";
+import { Loader2, BookOpen, Plus, AlertCircle, CheckCircle, Rocket, GitBranch, HelpCircle, Lightbulb, Info, GraduationCap, Activity  } from "lucide-react";
 import { useCreateCourse } from "@/hooks/hooks";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "@tanstack/react-router";
@@ -704,7 +704,7 @@ const HpCard = ({
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-lg blur-sm"></div>
               <div className="relative bg-gradient-to-r from-primary to-accent p-2 rounded-lg">
-                ❤️
+                {<Activity className="h-5 w-5 text-primary-foreground" />}
               </div>
             </div>
 
