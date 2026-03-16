@@ -247,6 +247,7 @@ export interface HpRuleConfig {
         allowLate: boolean;
         lateBehavior: "NO_REWARD" | "REWARD";
         minHpFloor: number;
+        required_percentage?: number;
     };
     penalty?: {
         enabled: boolean;

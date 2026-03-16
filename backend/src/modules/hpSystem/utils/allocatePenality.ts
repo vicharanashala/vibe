@@ -34,7 +34,7 @@ function getActualCourseIds(activity: any) {
     };
 }
 
-export const allocatePenality = () => {
+export const allocatePenality = async () => {
     const container = getContainer();
 
     const activityRepo = container.get<ActivityRepository>(HP_SYSTEM_TYPES.activityRepository);
@@ -87,7 +87,7 @@ async function processActivityPenalties(
 ) {
     const { activityRepo, activitySubmissionRepo, ledgerRepo, cohortRepo, db } = repositories;
     
-    console.log(`🎯 Processing activity: ${activityConfig.activityId}`);
+    console.log(`🎯 Processing activity ${activityConfig.activityId}`);
 
     // Get activity details
     const activity = await activityRepo.findById(activityConfig.activityId.toString());
@@ -98,7 +98,6 @@ async function processActivityPenalties(
 
     // Get actual course IDs (handle legacy vs new cohort system)
     const { courseId, courseVersionId } = getActualCourseIds(activity);
-    console.log(`🎯 Processing activity: ${activity._id} (Course: ${courseId}, Version: ${courseVersionId})`);
 
     // Get enrolled students for this course/cohort
     const enrolledStudents = await cohortRepo.getStudentsForCohortByVersionAndCohortName(
@@ -106,18 +105,13 @@ async function processActivityPenalties(
         activity.cohort
     );
 
-    console.log(`👥 Found ${enrolledStudents.length} enrolled students`);
-
-    // OPTIMIZED: Batch fetch all submissions and existing penalties upfront
-    console.log('� Batch fetching submissions and existing penalties...');
+    // Batch fetch all submissions and existing penalties upfront
     const [allSubmissions, existingPenalties] = await Promise.all([
         // Get all submissions for this activity
-        activitySubmissionRepo.findAllByActivityId(activity._id.toString()).catch(() => []),
+        activitySubmissionRepo.list({ activityId: activity._id.toString() }).catch(() => []),
         // Get all existing penalties for this activity  
         ledgerRepo.findPenaltiesByActivityId(activity._id.toString()).catch(() => [])
     ]);
-
-    console.log(`📄 Found ${allSubmissions.length} submissions and ${existingPenalties.length} existing penalties`);
 
     // Create lookup maps for O(1) access
     const submissionMap = new Map<string, any>(
@@ -133,23 +127,14 @@ async function processActivityPenalties(
         const hasSubmitted = submissionMap.has(studentId);
         const hasPenalty = penaltyMap.has(studentId);
         
-        if (hasSubmitted) {
-            console.log(`✅ Student ${student.email} has submitted activity ${activity._id}`);
-            return false;
-        }
-        
-        if (hasPenalty) {
-            console.log(`⏭️ Student ${student.email} already has penalty for activity ${activity._id}`);
+        if (hasSubmitted || hasPenalty) {
             return false;
         }
         
         return true; // This student needs penalty
     });
 
-    console.log(`🎯 Students needing penalty: ${studentsNeedingPenalty.length}/${enrolledStudents.length}`);
-
     if (studentsNeedingPenalty.length === 0) {
-        console.log(`✅ No students require penalties for activity ${activity._id}`);
         return;
     }
 
@@ -163,10 +148,9 @@ async function processActivityPenalties(
         );
         
         await Promise.all(batchPromises);
-        console.log(`⚡ Processed batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(studentsNeedingPenalty.length/batchSize)}`);
     }
 
-    console.log(`✅ Completed activity ${activity._id}: ${studentsNeedingPenalty.length} penalties processed`);
+    console.log(`✅ Activity ${activity._id}: ${studentsNeedingPenalty.length} penalties processed`);
 }
 
 async function processStudentPenalty(

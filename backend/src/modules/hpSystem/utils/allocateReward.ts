@@ -82,7 +82,6 @@ export const allocateReward = async () => {
         for (const activityConfig of validRewardConfigs) {
             await processMilestoneRewards(activityConfig, {
                 activityRepo,
-                activitySubmissionRepo: null, // Not needed for milestones
                 ledgerRepo,
                 cohortRepo,
                 db
@@ -99,7 +98,6 @@ export const allocateReward = async () => {
 
 interface ProcessRewardDependencies {
     activityRepo: ActivityRepository;
-    activitySubmissionRepo: ActivitySubmissionsRepository | null; // Not needed for milestones
     ledgerRepo: LedgerRepository;
     cohortRepo: any;
     db: MongoDatabase;
@@ -134,7 +132,7 @@ async function processMilestoneRewards(
 
     console.log(`👥 Found ${enrolledStudents.length} active student enrollments`);
 
-    // OPTIMIZED: Batch fetch existing rewards upfront (no submissions needed for milestones)
+    // OPTIMIZED: Batch fetch existing rewards upfront
     console.log('📦 Batch fetching existing rewards...');
     const existingRewards = await ledgerRepo.findRewardsByActivityId(activity._id.toString()).catch(() => []);
 
@@ -197,7 +195,6 @@ async function processMilestoneRewards(
         
         const batchPromises = batch.map(student => 
             processStudentReward(student, activityConfig, activity, {
-                activitySubmissionRepo: null, // Not needed for milestones
                 ledgerRepo,
                 cohortRepo,
                 db
@@ -212,7 +209,6 @@ async function processMilestoneRewards(
 }
 
 interface StudentRewardDependencies {
-    activitySubmissionRepo: ActivitySubmissionsRepository | null; // Not needed for milestones
     ledgerRepo: LedgerRepository;
     cohortRepo: any;
     db: MongoDatabase;
@@ -229,8 +225,7 @@ async function processStudentReward(
     const studentId = student._id.toString();
     const enrollmentId = student._id?.toString(); // Assuming this is enrollment ID
     
-    console.log(`\n🎓 Processing student: ${studentId}`);
-    console.log(`� Current progress: ${student.percentCompleted || 0}%`);
+    console.log(`\n🎓 Processing student: ${studentId}, ==> Current progress: ${student.percentCompleted || 0}%`);
 
     // Calculate reward amount
     const currentHp = student.hpPoints || 0;
@@ -249,17 +244,7 @@ async function processStudentReward(
 
     const newHp = currentHp + rewardAmount;
 
-    console.log(`💰 Reward calculation:`);
-    console.log(`   📊 Current HP: ${currentHp}`);
-    console.log(`   🎯 Reward Type: ${activityConfig.reward.type}`);
-    console.log(`   📝 Reward Value: ${activityConfig.reward.value}`);
-    if (activityConfig.reward.type === "PERCENTAGE") {
-        console.log(`   📈 Percentage Calculation: ${currentHp} × (${activityConfig.reward.value}% / 100) = ${rewardAmount}`);
-    } else {
-        console.log(`   🔢 Absolute Reward: ${rewardAmount}`);
-    }
-    console.log(`   ⚠️  Min HP Floor: ${activityConfig.reward.minHpFloor}`);
-    console.log(`   📈 New HP: ${currentHp} + ${rewardAmount} = ${newHp}`);
+    console.log(`💰 Reward: +${rewardAmount} HP (Current: ${currentHp} → New: ${newHp})`);
 
     // Apply reward and create ledger entry
     await applyStudentReward(
