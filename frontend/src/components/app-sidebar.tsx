@@ -12,6 +12,7 @@ import {
   Megaphone,
   PieChart,
   Settings2,
+  Shield,
   SquareTerminal,
 } from "lucide-react"
 
@@ -61,6 +62,11 @@ export function AppSidebar() {
         url: "/teacher/announcements",
         icon: Megaphone,
       },
+      {
+    title: "Policies",
+    url: "/teacher/ejection-policies",
+    icon: Shield,
+  },
     ],
   }
 
