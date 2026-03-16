@@ -332,24 +332,36 @@ export class EjectionPolicyService extends BaseService {
 
   /**
    * Check for policy conflicts
-   * - Only one active platform-wide policy allowed
-   * - Prevent conflicting priorities
+   * - Prevent duplicate priorities
+   * - Validate scope constraints
    */
   private async checkPolicyConflicts(
     policy: Partial<EjectionPolicy>,
     excludePolicyId?: string,
     session?: ClientSession,
   ): Promise<void> {
-    // Only allow one active platform-wide policy
-    if (policy.scope === 'platform' && policy.isActive !== false) {
-      const hasActivePlatform = await this.policyRepo.hasActivePlatformPolicy(
-        excludePolicyId,
-        session,
-      );
+    if (policy.priority === undefined || policy.priority === null) {
+      return;
+    }
 
-      if (hasActivePlatform) {
+    const existingPolicy = await this.policyRepo.findByPriority(
+      policy.scope,
+      policy.priority,
+      String(policy.courseId),
+      excludePolicyId,
+      session,
+    );
+
+    if (existingPolicy) {
+      if (policy.scope === 'platform') {
         throw new BadRequestError(
-          'Only one active platform-wide policy is allowed. Please deactivate the existing platform policy first.',
+          `A platform policy with priority ${policy.priority} already exists.`,
+        );
+      }
+
+      if (policy.scope === 'course') {
+        throw new BadRequestError(
+          `A course policy with priority ${policy.priority} already exists for this course.`,
         );
       }
     }

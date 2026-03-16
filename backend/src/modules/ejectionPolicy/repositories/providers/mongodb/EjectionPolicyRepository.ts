@@ -274,4 +274,35 @@ export class EjectionPolicyRepository {
       deletedAt: doc.deletedAt,
     });
   }
+
+  async findByPriority(
+    scope: PolicyScope,
+    priority: number,
+    courseId?: string,
+    excludePolicyId?: string,
+    session?: ClientSession,
+  ): Promise<EjectionPolicy | null> {
+    await this.init();
+
+    const query: Filter<any> = {
+      scope,
+      priority,
+      isDeleted: {$ne: true},
+      deletedAt: {$exists: false},
+    };
+
+    // Course policies must match the same course
+    if (scope === 'course' && courseId) {
+      query.courseId = new ObjectId(courseId);
+    }
+
+    // Exclude the policy being updated
+    if (excludePolicyId) {
+      query._id = {$ne: new ObjectId(excludePolicyId)};
+    }
+
+    const doc = await this.collection.findOne(query, {session});
+
+    return doc ? this.mapToEjectionPolicy(doc) : null;
+  }
 }
