@@ -2,7 +2,7 @@ import { Course, CourseVersion } from "#root/modules/courses/classes/index.js";
 import { CohortStudentItemDto, CohortStudentsListQueryDto } from "#root/modules/hpSystem/classes/validators/courseAndCohorts.js";
 import { ID } from "#root/modules/hpSystem/constants.js";
 import { ICohortRepository } from "#root/modules/hpSystem/interfaces/ICohortsRepository.js";
-import { IEnrollment, MongoDatabase } from "#root/shared/index.js";
+import { ICohort, IEnrollment, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { plainToInstance } from "class-transformer";
 import { inject, injectable } from "inversify";
@@ -13,6 +13,7 @@ export class CohortRepository implements ICohortRepository {
     private courseCollection: Collection<Course>;
     private courseVersionCollection: Collection<CourseVersion>;
     private enrollmentCollection: Collection<IEnrollment>;
+    private cohortsCollection: Collection<ICohort>;
 
     constructor(
         @inject(GLOBAL_TYPES.Database)
@@ -28,12 +29,58 @@ export class CohortRepository implements ICohortRepository {
         this.enrollmentCollection = await this.db.getCollection<IEnrollment>(
             'enrollment',
         );
+
+        this.cohortsCollection = await this.db.getCollection<ICohort>(
+            'cohorts',
+        );
     }
 
     async getTotalStudentsCountForCourseVersion(courseVersionId: string): Promise<number> {
         await this.init();
         return await this.enrollmentCollection.countDocuments({
             courseVersionId: new ObjectId(courseVersionId), isDeleted: { $ne: true },
+        });
+    }
+
+    async getCohortsByVersionId(courseVersionId: string): Promise<ICohort[]> {
+        await this.init();
+
+        const orVersionMatch: any[] = [{ courseVersionId }];
+        if (ObjectId.isValid(courseVersionId)) {
+            orVersionMatch.push({ courseVersionId: new ObjectId(courseVersionId) });
+        }
+
+        return await this.cohortsCollection
+            .find({ $or: orVersionMatch })
+            .sort({ createdAt: 1 })
+            .toArray();
+    }
+
+    async getAllCohorts(): Promise<ICohort[]> {
+        await this.init();
+        return await this.cohortsCollection
+            .find({})
+            .sort({ createdAt: 1 })
+            .toArray();
+    }
+
+    async getTotalStudentsCountForCohort(courseVersionId: string, cohortId: string): Promise<number> {
+        await this.init();
+
+        const orVersionMatch: any[] = [{ courseVersionId }];
+        if (ObjectId.isValid(courseVersionId)) {
+            orVersionMatch.push({ courseVersionId: new ObjectId(courseVersionId) });
+        }
+
+        const orCohortMatch: any[] = [{ cohortId }];
+        if (ObjectId.isValid(cohortId)) {
+            orCohortMatch.push({ cohortId: new ObjectId(cohortId) });
+        }
+
+        return await this.enrollmentCollection.countDocuments({
+            $or: orVersionMatch,
+            $and: [{ $or: orCohortMatch }],
+            isDeleted: { $ne: true },
         });
     }
 
@@ -202,6 +249,118 @@ export class CohortRepository implements ICohortRepository {
                 },
             },
             { $sort: { name: 1 } },
+        ];
+
+        const docs = await this.enrollmentCollection.aggregate(pipeline).toArray();
+
+        return plainToInstance(CohortStudentItemDto, docs, {
+            excludeExtraneousValues: true,
+            enableImplicitConversion: true,
+        });
+    }
+
+
+    async getStudentsForCohortByCohortId(
+        courseVersionId: string,
+        cohortId: string,
+        query: CohortStudentsListQueryDto
+    ): Promise<CohortStudentItemDto[]> {
+        await this.init();
+
+        const page = query.page ?? 1;
+        const limit = query.limit ?? 20;
+        const skip = (page - 1) * limit;
+
+        const search = query.search?.trim();
+        const sortOrder = query.sortOrder === "desc" ? -1 : 1;
+
+        const sortByRaw = (query.sortBy ?? "name").trim();
+        const SORT_MAP: Record<string, Record<string, 1 | -1>> = {
+            name: { name: sortOrder },
+            email: { email: sortOrder },
+            completionPercentage: { completionPercentage: sortOrder },
+            totalHp: { totalHp: sortOrder },
+        };
+
+        const sortStage = SORT_MAP[sortByRaw] ?? { name: sortOrder };
+
+        const orVersionMatch: any[] = [{ courseVersionId }];
+        if (ObjectId.isValid(courseVersionId)) {
+            orVersionMatch.push({ courseVersionId: new ObjectId(courseVersionId) });
+        }
+
+        const orCohortMatch: any[] = [{ cohortId }];
+        if (ObjectId.isValid(cohortId)) {
+            orCohortMatch.push({ cohortId: new ObjectId(cohortId) });
+        }
+
+        const searchRegex = search ? new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") : null;
+
+        const pipeline: any[] = [
+            {
+                $match: {
+                    $and: [
+                        { $or: orVersionMatch },
+                        { $or: orCohortMatch },
+                    ],
+                    isDeleted: { $ne: true },
+                },
+            },
+
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "userId",
+                    foreignField: "_id",
+                    as: "user",
+                },
+            },
+            { $unwind: { path: "$user", preserveNullAndEmptyArrays: false } },
+
+            {
+                $addFields: {
+                    fullName: {
+                        $trim: {
+                            input: {
+                                $concat: [
+                                    { $ifNull: ["$user.firstName", ""] },
+                                    " ",
+                                    { $ifNull: ["$user.lastName", ""] },
+                                ],
+                            },
+                        },
+                    },
+                },
+            },
+
+            ...(searchRegex
+                ? [
+                    {
+                        $match: {
+                            $or: [
+                                { "user.firstName": searchRegex },
+                                { "user.lastName": searchRegex },
+                                { "user.email": searchRegex },
+                                { fullName: searchRegex },
+                            ],
+                        },
+                    },
+                ]
+                : []),
+
+            {
+                $project: {
+                    _id: { $toString: "$user._id" },
+                    email: "$user.email",
+                    name: "$fullName",
+                    completionPercentage: { $ifNull: ["$percentCompleted", 0] },
+                    totalHp: { $ifNull: ["$hpPoints", 0] },
+                },
+            },
+
+            { $sort: sortStage },
+            { $skip: skip },
+            { $limit: limit },
         ];
 
         const docs = await this.enrollmentCollection.aggregate(pipeline).toArray();

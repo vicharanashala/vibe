@@ -26,25 +26,39 @@ export class CohortsService extends BaseService {
         super(mongoDatabase);
     }
 
-    private async _handleExisitingCourse(): Promise<CourseWithVersionsDto> {
-        return {
-            courseId: "000000000000000000000001",
-            courseName: "MERN Stack Development",
-            versions: [
-                {
-                    courseVersionId: "000000000000000000000001",
-                    versionName: "Pinternship",
-                    totalCohorts: 3, // Euclideans, Dijkstrians, Kruskalians
-                    createdAt: "2025-12-18T07:52:42Z",
-                },
-                {
-                    courseVersionId: "000000000000000000000002",
-                    versionName: "Vinternship",
-                    totalCohorts: 2, // RSAians, AKSians
-                    createdAt: "2025-12-18T07:52:42Z",
-                }
-            ]
-        }
+    private async _handleExisitingCourse(): Promise<CourseWithVersionsDto[]> {
+        return [
+            {
+                courseId: "000000000000000000000001",
+                courseName: "MERN Stack Development",
+                versions: [
+                    {
+                        courseVersionId: "000000000000000000000001",
+                        versionName: "Pinternship",
+                        totalCohorts: 3, // Euclideans, Dijkstrians, Kruskalians
+                        createdAt: "2025-12-18T07:52:42Z",
+                    },
+                    {
+                        courseVersionId: "000000000000000000000002",
+                        versionName: "Vinternship",
+                        totalCohorts: 2, // RSAians, AKSians
+                        createdAt: "2025-12-18T07:52:42Z",
+                    }
+                ]
+            },
+            {
+                courseId: "000000000000000000000003",
+                courseName: "Hp System course",
+                versions: [
+                    {
+                        courseVersionId: "69b7a82ef131f5fad0c7a76e",
+                        versionName: "Hp System course",
+                        totalCohorts: 1,
+                        createdAt: "2026-03-16T10:00:00Z",
+                    }
+                ]
+            }
+        ];
     }
 
 
@@ -52,12 +66,10 @@ export class CohortsService extends BaseService {
         return await this._withTransaction(async (session: ClientSession) => {
             return {
                 success: true,
-                data: [
-                    await this._handleExisitingCourse(),
-                ],
+                data: await this._handleExisitingCourse(),
                 meta: {
-                    totalCourses: 1,
-                    totalVersions: 2,
+                    totalCourses: 2,
+                    totalVersions: 3,
                     page: query.page ?? 1,
                     limit: query.limit ?? 10,
                     sortBy: query.sortBy ?? "createdAt",
@@ -181,8 +193,13 @@ export class CohortsService extends BaseService {
             let cohorts: CohortListItemDto[] = [];
 
             if (query.courseVersionId) {
+                // 1. Fetch hardcoded cohorts for this version
                 const fetched = await this._handleExisitingCohorts(query.courseVersionId);
                 if (fetched) cohorts = fetched;
+
+                // 2. Fetch dynamic DB cohorts for this version
+                const dbCohorts = await this._fetchDbCohorts(query.courseVersionId);
+                cohorts.push(...dbCohorts);
             } else {
                 // Return cohorts from all known versions if no specific version requested
                 const versions = ["000000000000000000000001", "000000000000000000000002"];
@@ -207,10 +224,100 @@ export class CohortsService extends BaseService {
                     currentPage: query.page ?? 1,
                 },
             }
-
-            // IMP: IMPLEMENT LOGIC FOR UPCOMING COURSES FROM ENROLLMENT COLLECTION    
-
         })
+    }
+
+    /**
+     * Fetches cohorts from the DB `cohorts` collection for a given courseVersionId
+     * and builds CohortListItemDto objects with stats.
+     */
+    private async _fetchDbCohorts(courseVersionId: string): Promise<CohortListItemDto[]> {
+        const dbCohorts = await this.cohortRepository.getCohortsByVersionId(courseVersionId);
+        if (!dbCohorts || dbCohorts.length === 0) return [];
+
+        const results = await Promise.all(
+            dbCohorts.map(async (cohort) => {
+                const cohortId = cohort._id?.toString() ?? "";
+                const [
+                    totalStudents,
+                    totalActivities,
+                    draftActivities,
+                    publishedActivities,
+                ] = await Promise.all([
+                    this.cohortRepository.getTotalStudentsCountForCohort(courseVersionId, cohortId),
+                    this.activityRepository.getCountByCohortName(cohort.name),
+                    this.activityRepository.getDraftCountByCohortName(cohort.name),
+                    this.activityRepository.getPublishedCountByCohortName(cohort.name),
+                ]);
+
+                return {
+                    cohortName: cohort.name,
+                    courseVersionId,
+                    stats: {
+                        totalStudents,
+                        totalActivities,
+                        draftActivities,
+                        publishedActivities,
+                        totalHpDistributed: 0,
+                        totalCredits: 0,
+                        totalDebits: 0,
+                        pendingApprovals: 0,
+                        overdueActivities: 0,
+                    },
+                    lastActivityAt: cohort.updatedAt?.toISOString?.() ?? new Date().toISOString(),
+                    createdAt: cohort.createdAt?.toISOString?.() ?? new Date().toISOString(),
+                };
+            })
+        );
+
+        return results;
+    }
+
+    /**
+     * Fetches ALL cohorts from the DB `cohorts` collection (no version filter)
+     * and builds CohortListItemDto objects with stats.
+     */
+    private async _fetchAllDbCohorts(): Promise<CohortListItemDto[]> {
+        const dbCohorts = await this.cohortRepository.getAllCohorts();
+        if (!dbCohorts || dbCohorts.length === 0) return [];
+
+        const results = await Promise.all(
+            dbCohorts.map(async (cohort) => {
+                const cohortId = cohort._id?.toString() ?? "";
+                const versionId = cohort.courseVersionId?.toString() ?? "";
+                const [
+                    totalStudents,
+                    totalActivities,
+                    draftActivities,
+                    publishedActivities,
+                ] = await Promise.all([
+                    this.cohortRepository.getTotalStudentsCountForCohort(versionId, cohortId),
+                    this.activityRepository.getCountByCohortName(cohort.name),
+                    this.activityRepository.getDraftCountByCohortName(cohort.name),
+                    this.activityRepository.getPublishedCountByCohortName(cohort.name),
+                ]);
+
+                return {
+                    cohortName: cohort.name,
+                    courseVersionId: versionId,
+                    stats: {
+                        totalStudents,
+                        totalActivities,
+                        draftActivities,
+                        publishedActivities,
+                        totalHpDistributed: 0,
+                        totalCredits: 0,
+                        totalDebits: 0,
+                        pendingApprovals: 0,
+                        overdueActivities: 0,
+                    },
+                    lastActivityAt: cohort.updatedAt?.toISOString?.() ?? new Date().toISOString(),
+                    createdAt: cohort.createdAt?.toISOString?.() ?? new Date().toISOString(),
+                };
+            })
+        );
+
+        return results;
     }
 
     private async _handleExisitingCohortStudents(
@@ -256,8 +363,24 @@ export class CohortsService extends BaseService {
             if (!versionId?.trim()) throw new BadRequestError("versionId is required");
             if (!cohortName?.trim()) throw new BadRequestError("cohortName is required");
 
+            // 1. Try hardcoded cohorts first
+            let students = await this._handleExisitingCohortStudents(versionId, cohortName, query);
 
-            const students = await this._handleExisitingCohortStudents(versionId, cohortName, query);
+            // 2. If not a hardcoded cohort, try dynamic DB cohort
+            if (!students) {
+                const dbCohorts = await this.cohortRepository.getCohortsByVersionId(versionId);
+                const matchedCohort = dbCohorts.find(
+                    c => c.name.toLowerCase() === cohortName.trim().toLowerCase()
+                );
+
+                if (matchedCohort && matchedCohort._id) {
+                    students = await this.cohortRepository.getStudentsForCohortByCohortId(
+                        versionId,
+                        matchedCohort._id.toString(),
+                        query
+                    );
+                }
+            }
 
             return {
                 success: true,
