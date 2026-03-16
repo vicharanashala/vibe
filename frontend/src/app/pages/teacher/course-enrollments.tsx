@@ -178,7 +178,7 @@ export default function CourseEnrollments() {
   // Fetch course and version data
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
-// console.log("----version-----", version);
+
   // Fetch course anomalies stats
   const { data: enrollmentStats, isLoading: statsLoading, error: statsError } = useCourseEnrollmentsStats(
     courseId,
@@ -333,7 +333,7 @@ export default function CourseEnrollments() {
       toast.error('Course or version information missing')
       return
     }
-    if(!cohort) {
+    if(version?.cohorts?.length > 0 && !cohort) {
       toast.error('Please select a cohort for unenrollment')
       return;
     }
@@ -350,7 +350,7 @@ export default function CourseEnrollments() {
         },
         body: {
           userIds,
-          cohort: cohort,
+          cohortId: cohort,
         },
       })
 
@@ -1530,7 +1530,7 @@ export default function CourseEnrollments() {
                 <p className="text-lg text-card-foreground">
                   Want to remove <strong className="text-primary">{userToRemove?.name}</strong> from{" "}
                   <strong className="text-primary">
-                    {course.name} ({version.version}) ({userToRemove?.cohortName})
+                    {course.name} ({version.version}) {userToRemove?.cohortName}
                   </strong>
                   ?
                 </p>

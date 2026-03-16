@@ -3242,8 +3242,8 @@ export function useQuizSubmissions(quizId: string, gradeStatus: GradingSystemSta
 }
 
 export function useSubmitFlag(): {
-  mutate: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string, questionId?: string } }) => void,
-  mutateAsync: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string, questionId?: string } }) => Promise<void>,
+  mutate: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string, questionId?: string, cohortId?: string } }) => void,
+  mutateAsync: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string, questionId?: string, cohortId?: string } }) => Promise<void>,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
@@ -4015,6 +4015,8 @@ export interface IssueReport {
   status: IssueStatusHistory[]; // ✅ fixed: array of objects
   createdAt: string;
   updatedAt: string;
+  cohortId?: string;
+  cohortName?: string;
 }
 
 interface Params {
