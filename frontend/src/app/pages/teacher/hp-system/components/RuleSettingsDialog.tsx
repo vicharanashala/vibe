@@ -38,8 +38,13 @@ export function RuleSettingsDialog({
 }: RuleSettingsDialogProps) {
     const [config, setConfig] = useState<Partial<HpRuleConfig> | null>(null);
 
+    useEffect(()=>{
+        console.log("RuleSettingsDialog props changed:", { isOpen, courseId, courseVersionId, activityId });
+    })
+
     // Hooks
     const { data: existingConfig, isLoading: fetchLoading, refetch } = useHpRuleConfig(isOpen ? activityId : undefined);
+    console.log("Existing config from hook:", existingConfig, "Loading:", fetchLoading);
     const { mutateAsync: createRuleConfig, isPending: isCreating } = useCreateHpRuleConfig();
     const { mutateAsync: updateRuleConfig, isPending: isUpdating } = useUpdateHpRuleConfig();
 
@@ -95,7 +100,8 @@ export function RuleSettingsDialog({
         if (!config) return;
         try {
             if (existingConfig?._id) {
-                await updateRuleConfig(existingConfig._id, config);
+                console.log("Updating existing config with ID:", existingConfig._id);
+                await updateRuleConfig(activityId, config);
             } else {
                 const createPayload: Partial<HpRuleConfig> = {
                     courseId,

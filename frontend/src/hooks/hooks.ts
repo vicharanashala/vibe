@@ -5220,6 +5220,7 @@ export function useHpRuleConfig(activityId: string | undefined) {
     queryKey: ['hp-rule-config', activityId],
     queryFn: async () => {
       try {
+        console.log("Fetching rule config for activity ID:", activityId);
         const res = await hpApi.getRuleConfigByActivityId(activityId!);
         if (!res.success) return null;
         return res.data;
@@ -5263,6 +5264,7 @@ export function useUpdateHpRuleConfig() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async ({ ruleConfigId, updates }: { ruleConfigId: string, updates: Partial<HpRuleConfig> }) => {
+      console.log("Updating rule config with ID:", ruleConfigId, "and updates:", updates);
       const res = await hpApi.updateRuleConfig(ruleConfigId, updates);
       if (!res.success) throw new Error(res.message || 'Failed to update rule config');
       return res.data;
@@ -5503,6 +5505,19 @@ export function useHpStudentSubmissions(studentId: string | undefined, courseVer
     },
     enabled: !!studentId,
   });
+}
+
+export function useHpStudentStats(studentId: string | undefined, cohort: string){
+  return useQuery({
+    queryKey: ['hpStudentStats', studentId, cohort],
+    queryFn: async () => {
+      if (!studentId) return null;
+      const res = await hpApi.getStudentSubmissionStats(studentId, cohort);
+      if (!res.success) throw new Error("Failed to fetch student stats");
+      return res.data;
+    },
+    enabled: !!studentId,
+  })
 }
 
 export function useStudentMySubmissions(courseVersionId: string, cohort: string) {

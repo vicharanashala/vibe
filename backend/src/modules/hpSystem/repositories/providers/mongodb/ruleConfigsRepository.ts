@@ -46,11 +46,11 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
         >
     ): Promise<HpRuleConfigTransformer | null> {
         await this.init();
-        const _id = new ObjectId(ruleConfigId);
+        const activityId = new ObjectId(ruleConfigId);
 
         const result = await this.hpRuleConfigsCollection.findOneAndUpdate(
             {
-                _id, isDeleted: { $ne: true },
+                activityId, isDeleted: { $ne: true },
             },
             { $set: patch },
             { returnDocument: "after" }
@@ -63,9 +63,10 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
 
     async findById(ruleConfigId: string): Promise<HpRuleConfigTransformer | null> {
         await this.init();
-        const _id = new ObjectId(ruleConfigId);
+        const activityId = new ObjectId(ruleConfigId);
+        console.log("Finding rule config by ID:", activityId);
         const doc = await this.hpRuleConfigsCollection.findOne({
-            _id, isDeleted: { $ne: true },
+            activityId, isDeleted: { $ne: true },
         });
         return plainToInstance(HpRuleConfigTransformer, doc as HpRuleConfig, {
             excludeExtraneousValues: true,

@@ -82,8 +82,9 @@ export class HpPenaltyRuleDto {
   @Min(0)
   graceMinutes!: number;
 
+  @IsOptional()
   @IsBoolean()
-  runOnce!: boolean;
+  runOnce?: boolean;
 }
 
 export class HpRuleLimitsDto {
@@ -134,6 +135,7 @@ export class CreateHpRuleConfigBody {
 /* ===== Update Body (partial) ===== */
 
 export class UpdateHpRuleConfigBody {
+
   @IsOptional()
   @IsBoolean()
   isMandatory?: boolean;
