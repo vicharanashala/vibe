@@ -3,7 +3,7 @@ import { useStudentMySubmissions } from "@/hooks/hooks";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SubmissionStatusBadge } from "@/components/hp-system/SubmissionStatusBadge";
-import { ArrowLeft, Loader2, Link as LinkIcon, FileText, Clock } from "lucide-react";
+import { ArrowLeft, Loader2, Link as LinkIcon, FileText, Clock, User } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function StudentSubmissions() {
@@ -175,12 +175,32 @@ export default function StudentSubmissions() {
                                     <div className="mt-6 pt-4 border-t">
                                         <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-2">Instructor Note</h4>
                                         <div className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-md text-sm border border-blue-100 dark:border-blue-900/50">
-                                            <div className="flex justify-between items-center mb-1">
-                                                <span className="font-semibold">{sub.instructorFeedback?.decision || sub.review?.decision}</span>
+
+                                            <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <User className="h-4 w-4" />
+                                               <span className="font-semibold">
+                                                {(sub.instructorFeedback?.reviewerName || sub.review?.reviewerName)
+                                                    ?.replace(/\b\w/g, (c) => c.toUpperCase())}
+                                                </span>
+
+                                                <span className="text-xs text-muted-foreground">
+                                                    {sub.instructorFeedback?.reviewerEmail || sub.review?.reviewerEmail}
+                                                </span>
+                                            </div>
+                                            <div>
                                                 <span className="text-xs text-muted-foreground">
                                                     {formatDateTime(sub.instructorFeedback?.reviewedAt || sub.review?.reviewedAt)}
                                                 </span>
                                             </div>
+                                            </div>
+                                            
+                                            {/* Decision */}
+                                            <div className="text-xs font-medium text-muted-foreground mb-1">
+                                                {sub.instructorFeedback?.decision || sub.review?.decision}
+                                            </div>
+
+                                            {/* Note */}
                                             <p>{sub.instructorFeedback?.note || sub.review?.note}</p>
                                         </div>
                                     </div>
