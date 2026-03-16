@@ -237,130 +237,102 @@ export default function StudentActivities() {
                 </Card>
             ) : (
                 <div className="grid grid-cols-1 gap-6">
-                    {activities.map((activity: HpActivity) => (
-                        <Card key={activity._id} className="group relative overflow-hidden border-border/60 bg-card/80 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg">
-                            <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-400/60 via-rose-400/60 to-sky-400/60" />
-                            <CardHeader className="relative pb-3 pt-4">
-                                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                                    <div className="space-y-1.5">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <Badge variant="secondary" className="bg-secondary/60 text-secondary-foreground shadow-none">
-                                                {getActivityTypeLabel(activity.activityType)}
-                                            </Badge>
-                                            <Badge variant="outline" className="bg-background/80">
-                                                {activity.submissionMode === 'EXTERNAL_LINK' ? 'External Link' : 'In Platform'}
-                                            </Badge>
-                                            {activity.rules && (
-                                                activity.rules.isMandatory ? (
-                                                    <Badge className="border-red-600/70 bg-red-600 text-white">
-                                                        Mandatory
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge variant="outline" className="bg-background/80">
-                                                        Optional
-                                                    </Badge>
-                                                )
-                                            )}
-                                        </div>
-                                        <CardTitle className="text-xl tracking-tight">{activity.title}</CardTitle>
-                                        <div className="space-y-1.5 text-xs text-muted-foreground">
-                                            {activity.createdAt && (
-                                                <div className="flex items-center gap-1.5">
-                                                    <Clock className="h-4 w-4" />
-                                                    <span>Created {formatDate(activity.createdAt)}</span>
-                                                </div>
-                                            )}
-                                            {activity.instructorName && (
-                                                <div className="flex items-center gap-1.5">
-                                                    <User className="h-4 w-4" />
-                                                    <span className="font-medium">Instructor:</span>
-                                                    <span>{activity.instructorName}</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                    {activity.rules?.deadlineAt && (
-                                        <div className="rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground shadow-sm">
-                                            <div className="flex items-center gap-1.5 text-orange-600/90 dark:text-orange-400">
-                                                <Clock className="h-4 w-4" />
-                                                <span className="font-medium text-foreground">Deadline</span>
-                                            </div>
-                                            <div className="mt-1 text-sm font-medium text-foreground">
-                                                {formatDate(activity.rules.deadlineAt.toString())}
-                                            </div>
-                                            <div className="mt-1 text-[11px]">
-                                                <DeadlineCountdown
-                                                    deadline={activity.rules.deadlineAt.toString()}
-                                                    allowLate={activity.rules.allowLateSubmission ?? true}
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4 pt-3">
-                                <div>
-                                    <h4 className="text-sm font-semibold mb-1">Description</h4>
-                                    <p className="text-muted-foreground text-sm whitespace-pre-wrap">
-                                        {activity.description}
-                                    </p>
-                                </div>
+                   {activities.map((activity: HpActivity) => (
+                    <Card
+                    key={activity._id}
+                    className="relative overflow-hidden rounded-xl border bg-card shadow-sm hover:shadow-md transition-all"
+                    >
+                    <div className="absolute left-0 top-0 h-full w-1 bg-emerald-500" />
 
-                                {activity.attachments && activity.attachments.length > 0 && (
-                                    <div>
-                                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                                            <Paperclip className="h-4 w-4" />
-                                            Attachments
-                                        </h4>
-                                        <div className="grid gap-2 sm:grid-cols-2">
-                                            {activity.attachments.map((att, idx) => (
-                                                <a
-                                                    key={idx}
-                                                    href={att.url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-2 rounded-lg border bg-background/70 px-3 py-2 text-sm transition-colors hover:bg-muted/60"
-                                                >
-                                                    {att.kind === 'LINK' ? <LinkIcon className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
-                                                    {att.name}
-                                                </a>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+                    <div className="flex items-start justify-between gap-6 px-6 py-5 pl-8">
+                    <div className="flex flex-col gap-2 flex-1 min-w-0">
 
-                                {activity.submissionMode === 'EXTERNAL_LINK' && activity.externalLink && (
-                                    <div>
-                                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                                            <LinkIcon className="h-4 w-4" />
-                                            External Link
-                                        </h4>
-                                        <a
-                                            href={activity.externalLink}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-2 rounded-lg border border-blue-200/60 bg-blue-50/70 px-3 py-2 text-sm text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-800/60 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
-                                        >
-                                            <LinkIcon className="h-4 w-4" />
-                                            {activity.externalLink}
-                                        </a>
-                                    </div>
-                                )}
-                            </CardContent>
-                                <CardFooter className="border-t bg-muted/10 px-6 py-1">
-                                    <div className="flex w-full items-center justify-end gap-2">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => navigate({
-                                                to: `/student/hp-system/${courseVersionId}/${cohortName}/activities/${activity._id}`
-                                            })}
-                                        >
-                                            View
-                                        </Button>
-                                    </div>
-                            </CardFooter>
-                        </Card>
+                    <div className="flex flex-wrap items-center gap-2">
+                    <CardTitle className="text-base font-semibold">
+                    {activity.title}
+                    </CardTitle>
+
+                    <Badge variant="secondary">
+                    {getActivityTypeLabel(activity.activityType)}
+                    </Badge>
+
+                    <Badge variant="outline">
+                    {activity.submissionMode === 'EXTERNAL_LINK'
+                    ? 'External Link'
+                    : 'In Platform'}
+                    </Badge>
+
+                    {activity.rules && (
+                    activity.rules.isMandatory ? (
+                    <Badge className="bg-red-600 text-white">
+                    Mandatory
+                    </Badge>
+                    ) : (
+                    <Badge variant="outline">
+                    Optional
+                    </Badge>
+                    )
+                    )}
+
+                    </div>
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                    {activity.description}
+                    </p>
+                    <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                    {activity.createdAt && (
+                    <div className="flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5" />
+                    <span>Created {formatDate(activity.createdAt)}</span>
+                    </div>
+                    )}
+                    {activity.instructorName && (
+                    <div className="flex items-center gap-1">
+                    <User className="h-3.5 w-3.5" />
+                    <span>By: {activity.instructorName}</span>
+                    </div>
+                    )}
+                    </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-3 shrink-0">
+                    {activity.rules?.deadlineAt && (
+                    <div className="text-right text-xs text-muted-foreground">
+
+                    <div className="flex items-center justify-end gap-1 text-orange-600">
+                    <Clock className="h-3.5 w-3.5" />
+                    <span className="font-medium">Deadline</span>
+                    </div>
+
+                    <div className="text-sm font-medium text-foreground">
+                    {formatDate(activity.rules.deadlineAt.toString())}
+                    </div>
+
+                    <div className="text-[11px] text-orange-500">
+                    <DeadlineCountdown
+                    deadline={activity.rules.deadlineAt.toString()}
+                    allowLate={activity.rules.allowLateSubmission ?? true}
+                    />
+                    </div>
+
+                    </div>
+                    )}
+
+                    <Button
+                    className="bg-primary"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                    navigate({
+                    to: `/student/hp-system/${courseVersionId}/${cohortName}/activities/${activity._id}`
+                    })
+                    }
+                    >
+                    View
+                    </Button>
+
+                    </div>
+
+                    </div>
+                    </Card>
                     ))}
                 </div>
             )}
