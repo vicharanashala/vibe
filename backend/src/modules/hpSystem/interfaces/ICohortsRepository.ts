@@ -1,6 +1,6 @@
 import { ClientSession, ObjectId } from "mongodb";
 import { CohortStudentItemDto, CohortStudentsListQueryDto } from "../classes/validators/courseAndCohorts.js";
-import { IEnrollment } from "#root/shared/index.js";
+import { ICohort, IEnrollment } from "#root/shared/index.js";
 import { ID } from "../constants.js";
 
 export interface ICohortRepository {
@@ -9,6 +9,26 @@ export interface ICohortRepository {
      */
     getTotalStudentsCountForCourseVersion(
         courseVersionId: string
+    ): Promise<number>;
+
+    /**
+     * Returns cohorts from the DB `cohorts` collection for a given course version.
+     */
+    getCohortsByVersionId(
+        courseVersionId: string
+    ): Promise<ICohort[]>;
+
+    /**
+     * Returns all cohorts from the DB `cohorts` collection.
+     */
+    getAllCohorts(): Promise<ICohort[]>;
+
+    /**
+     * Returns total number of students enrolled in a specific cohort within a course version.
+     */
+    getTotalStudentsCountForCohort(
+        courseVersionId: string,
+        cohortId: string
     ): Promise<number>;
 
     /**
@@ -27,6 +47,16 @@ export interface ICohortRepository {
     getStudentsForCohortByVersionAndCohortName(
         courseVersionId: string,
         cohortName: string
+    ): Promise<CohortStudentItemDto[]>;
+
+    /**
+     * Returns students filtered by versionId and cohortId
+     * (used for dynamic cohorts where enrollment has a cohortId field).
+     */
+    getStudentsForCohortByCohortId(
+        courseVersionId: string,
+        cohortId: string,
+        query: CohortStudentsListQueryDto
     ): Promise<CohortStudentItemDto[]>;
 
 
