@@ -1,4 +1,4 @@
-import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play } from "lucide-react";
+import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play, Shield, LucideShield } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ import type { CourseCardProps } from '@/types/course.types';
 import { Pagination } from "../ui/Pagination";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { lazy, Suspense } from "react";
+import { StudentPolicyModal } from "@/app/pages/student/policies/StudentPolicyModal";
 
 const EnrollmentDetailsDialog = lazy(() =>
   import("@/components/course/EnrollmentDetailsDialog").then(mod => ({
@@ -38,6 +39,7 @@ const isCurrentTimeInTimeSlot = (timeSlot?: { from: string; to: string }) => {
   
   const now = new Date();
   const currentTime = now.getHours() * 60 + now.getMinutes(); // Convert to minutes since midnight
+
   
   const [fromHours, fromMinutes] = timeSlot.from.split(':').map(Number);
   const [toHours, toMinutes] = timeSlot.to.split(':').map(Number);
@@ -59,6 +61,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const module_number = enrollment.moduleNumber || "";
   const section_number = enrollment.sectionNumber || "";
   const item_type = enrollment.itemType || "VIDEO";
+  const [showPolicies, setShowPolicies] = useState(false)
 
   // Fetch course version to get supportLink
   const { data: courseVersionData } = useCourseVersionById(versionId, variant !== 'available');
@@ -201,6 +204,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   Completed
                 </Badge>
               )}
+              
               
             </div>
             <div className="text-sm text-muted-foreground">
@@ -350,9 +354,22 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   {hasAssignedTimeslot ? 'Timeslot Assigned' : 'Choose Timeslot'}
                 </Button>
                 <Button onClick={() => setIsDetailsOpen(true)} variant="outline" className="w-full sm:w-auto">View Details</Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPolicies(true)}
+                >
+                  <LucideShield className="h-3 w-3 mr-1" />
+                  Course Policies
+                </Button>
+                
               </>
             )}
-            
+            <StudentPolicyModal
+                  open={showPolicies}
+                  onClose={() => setShowPolicies(false)}
+                  courseId={courseId}
+                />
 
             {variant !== 'available' && supportLink && (() => {
               const isEmail = supportLink.startsWith('mailto:') || (!supportLink.startsWith('http://') && !supportLink.startsWith('https://') && !supportLink.startsWith('//') && supportLink.includes('@'));

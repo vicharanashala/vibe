@@ -24,7 +24,7 @@ export default function EjectionPoliciesPage() {
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
   // Check if user is admin
-  const isAdmin = user?.roles === 'admin';
+  const isAdmin = user?.role === 'admin';
 
   // Fetch policies based on active tab and filters
   const isActiveFilter = activeFilter === 'all' ? undefined : activeFilter === 'active';
@@ -144,12 +144,12 @@ export default function EjectionPoliciesPage() {
             {!isAdmin && (
               <Card className="border-yellow-200 bg-yellow-50/50 dark:bg-yellow-950/20 p-4 mb-4">
                 <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                  Only administrators can view and manage platform-wide policies.
+                  Platform-wide policies apply to all courses. 
                 </p>
               </Card>
             )}
             
-            {isAdmin && (
+            { (
               <EjectionPolicyList
                 policies={platformPolicies?.policies || []}
                 isLoading={platformLoading}
