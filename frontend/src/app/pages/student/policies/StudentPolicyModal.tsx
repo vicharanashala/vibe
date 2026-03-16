@@ -20,12 +20,16 @@ export function StudentPolicyModal({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
 
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            Course Policies
-          </DialogTitle>
-        </DialogHeader>
+       <DialogHeader>
+  <DialogTitle className="flex items-center gap-2">
+    <Shield className="h-5 w-5 text-primary" />
+    Course Policies
+  </DialogTitle>
+
+  <p className="text-sm text-muted-foreground py-3">
+    These rules determine when a student may be automatically removed from the course.
+  </p>
+</DialogHeader>
 
         {isLoading ? (
           <div className="text-center py-6">Loading policies...</div>
