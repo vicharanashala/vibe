@@ -104,7 +104,11 @@ export default function EjectionPoliciesPage() {
           <div className="relative bg-card/60 backdrop-blur-sm border border-border/50 rounded-xl p-4">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'platform' | 'course')} className="w-full md:w-auto">
-                <TabsList className="grid w-full md:w-[400px] grid-cols-2 h-11 bg-muted/40 backdrop-blur-sm border border-border/50 p-1 rounded-xl">
+             <TabsList
+  className={`grid w-full md:w-[400px] ${
+    courseIdFromUrl ? "grid-cols-2" : "grid-cols-1"
+  } h-11 bg-muted/40 backdrop-blur-sm border border-border/50 p-1 rounded-xl`}
+>
                   <TabsTrigger
                     value="platform"
                     className="rounded-lg text-sm font-semibold text-muted-foreground transition-all duration-200 data-[state=active]:bg-background/80 data-[state=active]:text-foreground data-[state=active]:shadow-sm"
@@ -112,12 +116,13 @@ export default function EjectionPoliciesPage() {
                     <Shield className="h-4 w-4 mr-2" />
                     Platform Policies
                   </TabsTrigger>
+                  {courseIdFromUrl && (
                   <TabsTrigger
                     value="course"
                     className="rounded-lg text-sm font-semibold text-muted-foreground transition-all duration-200 data-[state=active]:bg-background/80 data-[state=active]:text-foreground data-[state=active]:shadow-sm"
                   >
                     Course Policies
-                  </TabsTrigger>
+                  </TabsTrigger>)}
                 </TabsList>
               </Tabs>
 
