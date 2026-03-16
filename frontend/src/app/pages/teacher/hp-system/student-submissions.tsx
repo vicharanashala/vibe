@@ -18,7 +18,8 @@ import {
     ArrowLeft, ExternalLink, Clock, FileText, CheckCircle, AlertCircle, XCircle,
     Image as ImageIcon, File, Link2, MessageSquare, CalendarClock, RotateCcw,
     Timer, Send, Zap, Undo2, ThumbsUp, ThumbsDown, ChevronDown,
-    ChevronUp
+    ChevronUp,
+    User
 } from "lucide-react";
 import type { SubmissionAttachment, HpStudentSubmission } from "@/lib/api/hp-system";
 import { toast } from "sonner";
@@ -97,10 +98,12 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
   {/* Instructor Feedback */}
   {sub.instructorFeedback && (
     <div className="rounded-lg bg-muted/50 p-3 border">
-      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5">
-        <div className="flex items-center justify-between">
+      <div className="items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5">
+        
          {(sub.instructorFeedback as any)?.reviewerName && (
-        <div className="gap-2 mb-1">
+            <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 mb-1">
+            <User className="h-3.5 w-3.5" />
           <span className="font-bold">
             {(sub.instructorFeedback as any).reviewerName?.replace(/\b\w/g, (c: string) => c.toUpperCase())}
             </span>
@@ -108,14 +111,14 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
             {(sub.instructorFeedback as any).reviewerEmail}
             </span>
         </div>
-      )}
-      <div>
-        <span className="text-muted-foreground">
+        <div>
+            <span className="text-muted-foreground">
             {new Date((sub.instructorFeedback as any).reviewedAt).toLocaleString("en-IN")}
           </span>
       </div>
       </div>
-        
+      )}
+          
       </div>
       <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5">
       <MessageSquare className="h-3.5 w-3.5" />
