@@ -7,25 +7,32 @@ export function useEjectionPolicies(
   courseId?: string,
   isActive?: boolean,
   enabled: boolean = true
-
 ) {
   const params: any = {};
+
   if (scope) params.scope = scope;
   if (courseId) params.courseId = courseId;
   if (isActive !== undefined) params.active = isActive;
 
-  const result = api.useQuery("get", "/ejection-policies", { params: { query: params } },{
-    enabled,
-  });
-   const policies =
-    (result.data as any)?.content?.["application/json"]?.policies ?? [];
+  const result = api.useQuery(
+    "get",
+    "/ejection-policies",
+    { params: { query: params } },
+    { enabled }
+  );
+
+  const policies = result.data?.policies ?? [];
+  const isAdmin = result.data?.isAdmin ?? false;
+
   return {
     ...result,
-     policies,
-    error: result.error ? (result.error.message || 'Failed to load policies') : null
+    policies,
+    isAdmin,
+    error: result.error
+      ? result.error.message || "Failed to load policies"
+      : null,
   };
 }
-
 // POST /ejection-policies
 export function useCreateEjectionPolicy(): {
   mutate: (variables: { body: components['schemas']['CreateEjectionPolicyBody'] }) => void,
