@@ -792,7 +792,7 @@ It returns an empty body with a 200 status code.
     @Req() req: Request,
   ): Promise<string> {
     const { courseId, courseVersionId, userId: requestedUserId , cohortId } = body;
-console.log('Recalculate Progress API hit with body:', body);
+
     // Determine target user
     const targetUserId = requestedUserId ?? currentUser._id?.toString();
 
