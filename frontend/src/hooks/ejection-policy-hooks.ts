@@ -5,14 +5,18 @@ import { components } from '@/types/schema';
 export function useEjectionPolicies(
   scope?: 'platform' | 'course',
   courseId?: string,
-  isActive?: boolean
+  isActive?: boolean,
+  enabled: boolean = true
+
 ) {
   const params: any = {};
   if (scope) params.scope = scope;
   if (courseId) params.courseId = courseId;
   if (isActive !== undefined) params.active = isActive;
 
-  const result = api.useQuery("get", "/ejection-policies", { params: { query: params } });
+  const result = api.useQuery("get", "/ejection-policies", { params: { query: params } },{
+    enabled,
+  });
    const policies =
     (result.data as any)?.content?.["application/json"]?.policies ?? [];
   return {

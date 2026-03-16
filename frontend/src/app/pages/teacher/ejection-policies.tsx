@@ -38,7 +38,8 @@ export default function EjectionPoliciesPage() {
   const { data: coursePolicies, isLoading: courseLoading } = useEjectionPolicies(
     PolicyScope.COURSE,
     courseIdFromUrl,
-    isActiveFilter
+    isActiveFilter,
+    !!courseIdFromUrl
   );
 
   const handleCreateClick = () => {
