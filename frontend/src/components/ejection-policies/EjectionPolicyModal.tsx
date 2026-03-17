@@ -94,13 +94,13 @@ export const EjectionPolicyModal = ({
         
         violationsEnabled: editPolicy.triggers.policyViolations?.enabled || false,
         violationTypes: [
-          ...(editPolicy.triggers.policyViolations?.violations.predefined || []),
-          ...(editPolicy.triggers.policyViolations?.violations.custom?.length
+          ...(editPolicy.triggers.policyViolations?.violations?.predefined || []),
+          ...(editPolicy.triggers.policyViolations?.violations?.custom?.length
             ? ["other"]
             : []),
         ],
         violationOtherDescription:
-          editPolicy.triggers.policyViolations?.violations.custom?.[0] || "",
+          editPolicy.triggers.policyViolations?.violations?.custom?.[0] || "",
         violationThresholdCount: editPolicy.triggers.policyViolations?.thresholdCount || 3,
 
         anomalyEnabled: editPolicy.triggers.anomalyDetection?.enabled || false,
