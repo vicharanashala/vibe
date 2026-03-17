@@ -56,6 +56,7 @@ export const EjectionPolicyModal = ({
     violationsEnabled: false,
     violationTypes: [] as string[],
     violationThresholdCount: 3,
+    violationOtherDescription: "",
 
     // Anomaly Detection
     anomalyEnabled: false,
@@ -183,6 +184,9 @@ export const EjectionPolicyModal = ({
       if (formData.violationTypes.length === 0) {
         newErrors.violationTypes = "At least one violation type must be selected";
       }
+      if (formData.violationTypes.includes("other") && !formData.violationOtherDescription.trim()) {
+    newErrors.violationOther = "Please describe the 'other' violation";
+  }
       if (formData.violationThresholdCount <= 0) {
         newErrors.violationThreshold = "Violation threshold must be greater than 0";
       }
@@ -494,22 +498,51 @@ export const EjectionPolicyModal = ({
                       <Label className="text-xs">Violation Types *</Label>
                       <div className="grid grid-cols-2 gap-2 mt-2">
                         {['plagiarism', 'cheating', 'misconduct', 'other'].map((type) => (
-                          <label key={type} className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={formData.violationTypes.includes(type)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setFormData({ ...formData, violationTypes: [...formData.violationTypes, type] });
-                                } else {
-                                  setFormData({ ...formData, violationTypes: formData.violationTypes.filter(t => t !== type) });
-                                }
-                              }}
-                              className="rounded"
-                            />
-                            <span className="text-sm capitalize">{type}</span>
-                          </label>
-                        ))}
+  <label key={type} className="flex items-center gap-2 cursor-pointer">
+    <input
+      type="checkbox"
+      checked={formData.violationTypes.includes(type)}
+      onChange={(e) => {
+        if (e.target.checked) {
+          setFormData({
+            ...formData,
+            violationTypes: [...formData.violationTypes, type],
+          });
+        } else {
+          setFormData({
+            ...formData,
+            violationTypes: formData.violationTypes.filter(t => t !== type),
+            // ✅ clear description if "other" unchecked
+            ...(type === "other" && { violationOtherDescription: "" }),
+          });
+        }
+      }}
+      className="rounded"
+    />
+    <span className="text-sm capitalize">{type}</span>
+  </label>
+))}
+{formData.violationTypes.includes("other") && (
+  <div className="mt-3">
+    <Label className="text-xs">Describe Other Violation *</Label>
+    <Input
+      value={formData.violationOtherDescription}
+      onChange={(e) =>
+        setFormData({
+          ...formData,
+          violationOtherDescription: e.target.value,
+        })
+      }
+      placeholder="e.g., abusive language, spam behavior..."
+      className={errors.violationOther ? "border-destructive" : ""}
+    />
+    {errors.violationOther && (
+      <p className="text-xs text-destructive mt-1">
+        {errors.violationOther}
+      </p>
+    )}
+  </div>
+)}
                       </div>
                       {errors.violationTypes && (
                         <p className="text-xs text-destructive mt-1">{errors.violationTypes}</p>
