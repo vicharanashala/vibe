@@ -249,6 +249,7 @@ export default function StudentSubmissionsPage() {
     );
 
     const { data: submissionsStats, isLoading: submissionsStatsLoading, submissionsStatsError } = useHpStudentStats(studentId || "", cohortName || "");
+    console.log("Fetched student stats:", submissionsStats, "Loading:", submissionsStatsLoading, "Error:", submissionsStatsError);
     // console.log("Fetched student submissions:", submissions, "Loading:", submissionsLoading, "Error:", error);
 
     const { data: students, isLoading: studentsLoading } = useHpStudents(courseVersionId || "", cohortName || "");
@@ -376,7 +377,7 @@ export default function StudentSubmissionsPage() {
                             <CardContent>
                                 <div className="text-2xl font-bold text-yellow-600 flex items-center gap-2">
                                     <Clock className="h-5 w-5" />
-                                    {submissionsStats.totalPending}
+                                    {submissionsStats?.totalPendings}
                                 </div>
                             </CardContent>
                         </Card>

@@ -2,7 +2,7 @@ import { HpLedgerTransformer } from "#root/modules/hpSystem/classes/transformers
 import { FilterQueryDto } from "#root/modules/hpSystem/classes/validators/activitySubmissionValidators.js";
 import { LedgerListResponseDto } from "#root/modules/hpSystem/classes/validators/ledgerValidators.js";
 import { ILedgerRepository } from "#root/modules/hpSystem/interfaces/ILedgerRepository.js";
-import { HpLedger } from "#root/modules/hpSystem/models.js";
+import { HpActivity, HpLedger } from "#root/modules/hpSystem/models.js";
 import { MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { instanceToPlain, plainToInstance } from "class-transformer";
@@ -12,7 +12,7 @@ import { ClientSession, Collection, InsertOneResult, ObjectId } from "mongodb";
 @injectable()
 export class LedgerRepository implements ILedgerRepository {
     private hpLedgerCollection: Collection<HpLedger>;
-
+    private hpActivityCollection: Collection<HpActivity>;
     constructor(
         @inject(GLOBAL_TYPES.Database)
         private db: MongoDatabase,
@@ -20,6 +20,7 @@ export class LedgerRepository implements ILedgerRepository {
 
     async init() {
         this.hpLedgerCollection = await this.db.getCollection<HpLedger>('hp_ledger');
+        this.hpActivityCollection = await this.db.getCollection<HpActivity>('hp_activities');
     }
 
     async create(entry: Omit<HpLedger, "_id" | "createdAt">, session?: ClientSession): Promise<InsertOneResult<HpLedger>> {
@@ -69,13 +70,50 @@ export class LedgerRepository implements ILedgerRepository {
         };
 
         const [docs, total] = await Promise.all([
-            this.hpLedgerCollection
-                .find(query)
-                .sort(sort)
-                .skip(skip)
-                .limit(limit)
-                .toArray(),
-            this.hpLedgerCollection.countDocuments(query),
+
+            this.hpLedgerCollection.aggregate([
+
+                { $match: query },
+
+                {
+                    $lookup: {
+                        from: "hp_activities",
+                        let: { activityId: "$activityId" },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: { $eq: ["$_id", "$$activityId"] }
+                                }
+                            },
+                            {
+                                $project: { _id: 0, title: 1 }
+                            }
+                        ],
+                        as: "activity"
+                    }
+                },
+
+                {
+                    $unwind: {
+                        path: "$activity",
+                        preserveNullAndEmptyArrays: true
+                    }
+                },
+
+                { $sort: sort },
+                { $skip: skip },
+                { $limit: limit },
+
+                {
+                    $addFields: {
+                        activityTitle: "$activity.title"
+                    }
+                }
+
+            ]).toArray(),
+
+            this.hpLedgerCollection.countDocuments(query)
+
         ]);
 
         const data = docs.map((doc) => ({
@@ -86,6 +124,7 @@ export class LedgerRepository implements ILedgerRepository {
             studentId: doc.studentId?.toString(),
             studentEmail: doc.studentEmail,
             activityId: doc.activityId?.toString(),
+            activityTitle: doc.activityTitle,
             submissionId: doc.submissionId?.toString(),
             eventType: doc.eventType,
             direction: doc.direction,

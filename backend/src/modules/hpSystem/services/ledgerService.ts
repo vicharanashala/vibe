@@ -45,6 +45,7 @@ export class LedgerService extends BaseService {
 
         // Try to find enrollment for HP points, but don't fail if not found
         const enrollment = await this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId)
+        console.log("Enrollment details for student:", studentId, enrollment);
 
         const studentDetails: StudentLedgerDetailsDto = {
             hpPoints: enrollment?.hpPoints ?? 0,
@@ -52,6 +53,7 @@ export class LedgerService extends BaseService {
             studentName: `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim(),
         };
         const data = await this.ledgerRepository.listByStudentId(studentId, filter);
+        console.log("Got the data inside the data:", data);
 
         return { studentDetails, ...data }
     }
