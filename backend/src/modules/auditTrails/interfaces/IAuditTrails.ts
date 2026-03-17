@@ -147,6 +147,7 @@ export interface InstructorAuditTrail {
     relatedIds?: Record<string, ObjectId | string>;
     userId?: string | ObjectId;
     cohortId?: string | ObjectId;
+    policyId?: string | ObjectId;
   };
 
   changes?: {
