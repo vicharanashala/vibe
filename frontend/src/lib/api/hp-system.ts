@@ -322,6 +322,18 @@ export interface CreateHpActivityPayload {
     attachments?: { name: string; url: string; kind: string }[];
 }
 
+export interface HpStudentSubmissionStats {
+    totalActivities: number;
+    totalSubmissions: number;
+    totalPendings: number;
+    totalLateSubmissions: number;
+    currentHp: number;
+    reward?: {
+        type: "ABSOLUTE" | "PERCENTAGE";
+        value: number;
+    } | null;
+}
+
 // ─── API Functions ───────────────────────────────────────────
 
 export const hpApi = {
@@ -536,6 +548,15 @@ export const hpApi = {
             ]
         };
         return { success: true, data: mockStats };
+    },
+
+    getStudentSubmissionStats: async (
+        studentId: string,
+        cohortName: string,
+    ): Promise<{ success: boolean; data: HpStudentSubmissionStats | null }> => {
+        return apiFetch(
+            `${BASE_URL}/activity-submissions/stats/student/${studentId}/cohort/${encodeURIComponent(cohortName)}`
+        );
     },
 
     getStudentSubmissions: async (

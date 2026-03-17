@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
-import { useHpStudentSubmissions, useHpStudents, useRevertHpEntry, useRestoreHpEntry, useReviewSubmission, useAddFeedback, useHpStudentStats } from "@/hooks/hooks";
+import { useHpStudentSubmissions, useHpStudents, useRevertHpEntry, useRestoreHpEntry, useReviewSubmission, useAddFeedback, useHpStudentSubmissionStats } from "@/hooks/hooks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -192,11 +192,10 @@ export default function StudentSubmissionsPage() {
     const { data: submissions, isLoading: submissionsLoading, error } = useHpStudentSubmissions(
         studentId || "", courseVersionId || "", cohortName || ""
     );
-
-    const { data: submissionsStats, isLoading: submissionsStatsLoading, submissionsStatsError } = useHpStudentStats(studentId || "", cohortName || "");
-    console.log("Fetched student stats:", submissionsStats, "Loading:", submissionsStatsLoading, "Error:", submissionsStatsError);
-    // console.log("Fetched student submissions:", submissions, "Loading:", submissionsLoading, "Error:", error);
-
+    const { data: stats } = useHpStudentSubmissionStats(
+        studentId || "",
+        decodeURIComponent(cohortName || "")
+    );
     const { data: students, isLoading: studentsLoading } = useHpStudents(courseVersionId || "", cohortName || "");
     const student = students.find(s => s._id === studentId);
 
@@ -212,14 +211,12 @@ export default function StudentSubmissionsPage() {
     }
 
 
-
     const safeSubmissions = submissions ?? [];
-    const totalActivities = safeSubmissions.length;
-    const submitted = safeSubmissions.filter((s: any) => s.submission?.status === "SUBMITTED").length;
-    const pending = safeSubmissions.filter((s: any) => s.submission?.status === "PENDING").length;
-    const late = safeSubmissions.filter((s: any) => s.submission?.isLate).length;
-    const totalCurrentHp = safeSubmissions.reduce((sum: number, s: any) => sum + (s.hp?.currentHp || 0), 0);
-    const totalBaseHp = safeSubmissions.reduce((sum: number, s: any) => sum + (s.hp?.baseHp || 0), 0);
+    const totalActivities = stats?.totalActivities ?? 0;
+    const submitted = stats?.totalSubmissions ?? 0;
+    const pending = stats?.totalPendings ?? 0;
+    const late = stats?.totalLateSubmissions ?? 0;
+    const totalCurrentHp = stats?.currentHp ?? 0;
     return (
         <div className="space-y-6 w-full pb-12">
             {/* Header */}
@@ -306,16 +303,35 @@ export default function StudentSubmissionsPage() {
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Base HP</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-muted-foreground flex items-center gap-2">
-                            <Zap className="h-5 w-5 text-yellow-500" />
-                            {totalBaseHp}
-                        </div>
-                    </CardContent>
-                </Card>
+                <CardHeader className="pb-2">
+                    <CardDescription>Activity Reward</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {(() => {
+                        if (!stats?.reward) return (
+                            <div className="text-2xl font-bold text-muted-foreground">—</div>
+                        );
+                        const { type, value } = stats.reward;
+                        if (type === "ABSOLUTE") return (
+                            <div className="text-2xl font-bold text-muted-foreground flex items-center gap-2">
+                                <Zap className="h-5 w-5 text-yellow-500" />
+                                {value}
+                            </div>
+                        );
+                        return (
+                            <div className="flex flex-col gap-0.5">
+                                <div className="text-2xl font-bold text-muted-foreground flex items-center gap-2">
+                                    <Zap className="h-5 w-5 text-yellow-500" />
+                                    {type === "PERCENTAGE" ? `${value}%` : value}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    of Current HP ({totalCurrentHp})
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </CardContent>
+            </Card>
             </div>
             )}
 
