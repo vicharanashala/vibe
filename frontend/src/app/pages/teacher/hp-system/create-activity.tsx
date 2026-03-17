@@ -81,6 +81,7 @@ export default function CreateHpActivityPage() {
             maxHp: 1000,
         }
     });
+    const [limitErrors, setLimitErrors] = useState<{ minHp?: string; maxHp?: string }>({});
 
     const goToStep2 = async () => {
         const valid = await trigger();
@@ -97,6 +98,40 @@ export default function CreateHpActivityPage() {
 
         if (!isHex24(courseId) || !isHex24(courseVersionId)) {
             console.error("Invalid ObjectId format discovered:", { courseId, courseVersionId });
+        }
+
+        const validateRewardLimits = () => {
+            if (ruleConfig.reward?.type !== "PERCENTAGE") {
+                setLimitErrors({});
+                return true;
+            }
+
+            const minHp = ruleConfig.limits?.minHp;
+            const maxHp = ruleConfig.limits?.maxHp;
+            const nextErrors: { minHp?: string; maxHp?: string } = {};
+
+            if (minHp === undefined || minHp === null || Number.isNaN(minHp)) {
+                nextErrors.minHp = "Minimum HP is required";
+            } else if (minHp < 0) {
+                nextErrors.minHp = "Minimum HP cannot be negative";
+            }
+
+            if (maxHp === undefined || maxHp === null || Number.isNaN(maxHp)) {
+                nextErrors.maxHp = "Maximum HP is required";
+            } else if (maxHp < 0) {
+                nextErrors.maxHp = "Maximum HP cannot be negative";
+            }
+
+            if (minHp !== undefined && maxHp !== undefined && !Number.isNaN(minHp) && !Number.isNaN(maxHp) && maxHp < minHp) {
+                nextErrors.maxHp = "Maximum HP must be greater than or equal to Minimum HP";
+            }
+
+            setLimitErrors(nextErrors);
+            return Object.keys(nextErrors).length === 0;
+        };
+
+        if (!validateRewardLimits()) {
+            return;
         }
 
         // 1. Prepare activity payload (including some fields from ruleConfig that Activity needs)
@@ -425,10 +460,15 @@ export default function CreateHpActivityPage() {
                                         <Label>Rule Type</Label>
                                         <Select
                                             value={ruleConfig.reward?.type || "ABSOLUTE"}
-                                            onValueChange={(v: any) => setRuleConfig(prev => ({
-                                                ...prev,
-                                                reward: { ...(prev.reward || {}), type: v } as any
-                                            }))}
+                                            onValueChange={(v: any) => {
+                                                setRuleConfig(prev => ({
+                                                    ...prev,
+                                                    reward: { ...(prev.reward || {}), type: v } as any
+                                                }));
+                                                if (v !== "PERCENTAGE") {
+                                                    setLimitErrors({});
+                                                }
+                                            }}
                                         >
                                             <SelectTrigger>
                                                 <SelectValue />
@@ -450,6 +490,52 @@ export default function CreateHpActivityPage() {
                                             }))}
                                         />
                                     </div>
+                                    {ruleConfig.reward?.type === "PERCENTAGE" && (
+                                        <>
+                                            <div className="space-y-2">
+                                                <Label>Minimum HP (Cap)</Label>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    value={ruleConfig.limits?.minHp ?? 0}
+                                                    onChange={(e) => {
+                                                        const nextMin = parseInt(e.target.value) || 0;
+                                                        const currentMax = ruleConfig.limits?.maxHp ?? 0;
+                                                        setRuleConfig(prev => ({
+                                                            ...prev,
+                                                            limits: { minHp: nextMin, maxHp: prev.limits?.maxHp ?? currentMax }
+                                                        }));
+                                                        if (limitErrors.minHp) {
+                                                            setLimitErrors(prev => ({ ...prev, minHp: undefined }));
+                                                        }
+                                                    }}
+                                                    className={limitErrors.minHp ? "border-red-500" : ""}
+                                                />
+                                                {limitErrors.minHp && <p className="text-xs text-red-500">{limitErrors.minHp}</p>}
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Maximum HP (Cap)</Label>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    value={ruleConfig.limits?.maxHp ?? 0}
+                                                    onChange={(e) => {
+                                                        const nextMax = parseInt(e.target.value) || 0;
+                                                        const currentMin = ruleConfig.limits?.minHp ?? 0;
+                                                        setRuleConfig(prev => ({
+                                                            ...prev,
+                                                            limits: { minHp: prev.limits?.minHp ?? currentMin, maxHp: nextMax }
+                                                        }));
+                                                        if (limitErrors.maxHp) {
+                                                            setLimitErrors(prev => ({ ...prev, maxHp: undefined }));
+                                                        }
+                                                    }}
+                                                    className={limitErrors.maxHp ? "border-red-500" : ""}
+                                                />
+                                                {limitErrors.maxHp && <p className="text-xs text-red-500">{limitErrors.maxHp}</p>}
+                                            </div>
+                                        </>
+                                    )}
                                     {(watch("activityType") === "MILESTONE" || watch("activityType") === "VIBE_MILESTONE") && (
                                         <div className="space-y-2">
                                             <Label>Required Progress Percentage</Label>
