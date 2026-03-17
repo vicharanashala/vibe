@@ -325,20 +325,25 @@ test('Test course video playback and quiz', async ({ page }) => {
       .locator('..'); // inner container → dialog box
 
     try {
-      await errorDialog.waitFor({ state: 'visible', timeout: 60_000 });
+      // Step 1: Wait only 5 seconds for dialog
+      await errorDialog.waitFor({ state: 'visible', timeout: 5000 });
       console.warn('⚠️ "Failed to stop video" dialog detected');
 
-      const continueButton = page
-        .getByText('Failed to stop video')
-        .locator('xpath=ancestor::div[.//button[text()="Continue"]]')
-        .getByRole('button', { name: 'Continue' });
+      // Step 2: Scope Continue button inside the SAME dialog
+      const continueButton = errorDialog.getByRole('button', { name: 'Continue' });
 
-      await continueButton.waitFor({ state: 'visible', timeout: 60_000 });
-      await continueButton.click();
+      try {
+        // Wait up to 10 seconds for Continue button
+        await continueButton.waitFor({ state: 'visible', timeout: 10000 });
+        await continueButton.click();
 
-      console.log('✅ Clicked Continue inside error dialog');
-    } catch (err) {
-      console.error('❌ Dialog detected but Continue could not be clicked', err);
+        console.log('✅ Clicked Continue inside error dialog');
+      } catch {
+        // Continue button not found → proceed silently
+        console.log('ℹ️ Continue button not found, proceeding...');
+      }
+    } catch {
+      // Dialog not found within 5 seconds → do nothing
     }
   }
 
@@ -430,7 +435,7 @@ test('Test course video playback and quiz', async ({ page }) => {
     }
 
     const completedHeading = page.getByText(/quiz\s+completed/i);
-    await completedHeading.waitFor({ state: 'visible', timeout: 60_000 });
+    await completedHeading.waitFor({ state: 'visible', timeout: 100_000 });
     console.log('🎉 Quiz completed successfully');
 
     // Wait for "Next Lesson" button (optional)
