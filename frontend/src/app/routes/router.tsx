@@ -58,6 +58,7 @@ import HpSystemDashboard from '../pages/teacher/hp-system/CohortDetails'
 import CreateHpActivityPage from '../pages/teacher/hp-system/create-activity'
 import StudentLedgerPage from '../pages/teacher/hp-system/student-ledger'
 import StudentSubmissionsPage from '../pages/teacher/hp-system/student-submissions'
+import SubmissionDetailsPage from '../pages/teacher/hp-system/submission-details'
 import StudentCohorts from '@/app/pages/student/hp-system/cohorts'
 import StudentActivities from '@/app/pages/student/hp-system/activities'
 import StudentSubmissions from '@/app/pages/student/hp-system/submissions'
@@ -439,6 +440,12 @@ const teacherStudentSubmissionsRoute = new Route({
   component: StudentSubmissionsPage,
 })
 
+const teacherSubmissionDetailsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system/$courseVersionId/cohort/$cohortName/student/$studentId/submission/$submissionId',
+  component: SubmissionDetailsPage,
+})
+
 // Student dashboard route
 const studentDashboardRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -643,6 +650,7 @@ const routeTree = rootRoute.addChildren([
     teacherCreateHpActivityRoute,
     teacherStudentLedgerRoute,
     teacherStudentSubmissionsRoute,
+    teacherSubmissionDetailsRoute,
     teacherConfigureCohortsRoute
   ]),
   studentLayoutRoute.addChildren([

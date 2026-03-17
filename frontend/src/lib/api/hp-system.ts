@@ -192,6 +192,10 @@ export interface SubmissionAttachment {
     name: string;
     url: string;
     type: 'image' | 'pdf' | 'document' | 'link' | 'other';
+    textResponse?: string;
+    files?: Array<{ _id: string; name: string; url: string; type: string }>;
+    images?: Array<{ _id: string; name: string; url: string; type: string }>;
+    links?: Array<{ _id: string; name: string; url: string; type: string }>;
 }
 
 export interface HpStudentSubmission {
@@ -217,13 +221,18 @@ export interface HpStudentSubmission {
     };
     feedbacks?: Array<{
         feedback: string;
-        teacherId?: string;
-        feedbackAt?: string;
+        feedbackAt: string;
     }>;
     submission?: {
         _id: string;
         status: string;
         submittedAt: string;
+        attachments?: {
+            textResponse?: string;
+            files?: Array<{ _id: string; name: string; url: string; type: string }>;
+            images?: Array<{ _id: string; name: string; url: string; type: string }>;
+            links?: Array<{ _id: string; name: string; url: string; type: string }>;
+        };
     };
     safetyStatus?: 'safe' | 'unsafe';
     isRequiredInstructorApproval?: boolean;
