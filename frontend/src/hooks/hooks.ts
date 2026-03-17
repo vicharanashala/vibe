@@ -21,7 +21,7 @@ import type {
 import type { ProctoringSettings } from '@/types/video.types';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
 import { EntityType, IReport, ReportStatus } from '@/types/flag.types';
-import { PendingRegistrationNotification, ApprovedRegistrationNotification } from '@/types/notification.types';
+import { PendingRegistrationNotification, ApprovedRegistrationNotification, PendingStudentRegistrationNotification, RejectedStudentRegistrationNotification } from '@/types/notification.types';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { VersionWithCourse } from '@/app/pages/student/CourseRegistration';
 import { Registration, RegistrationStatus } from '@/app/pages/teacher/CourseRegistrationRequests';
@@ -4704,6 +4704,56 @@ export function useGetUnreadApprovedRegistrations(studentId: string): {
     data: Array.isArray(result?.data) ? result?.data : [],
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch unread notifications') : null,
+    refetch: result.refetch
+  };
+}
+
+// GET /course/registration/pending/student
+export function useGetPendingStudentRegistrations(studentId: string): {
+  data: PendingStudentRegistrationNotification[];
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery("get", "/course/registration/pending/student" as any, {
+    params: {
+      query: { studentId }
+    }
+  }, {
+    enabled: !!studentId,
+    refetchOnWindowFocus: false,
+    refetchInterval: 30000
+  });
+
+  return {
+    data: Array.isArray(result?.data) ? result?.data as PendingStudentRegistrationNotification[] : [],
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch pending student registrations') : null,
+    refetch: result.refetch
+  };
+}
+
+// GET /course/registration/rejected/student
+export function useGetRejectedStudentRegistrations(studentId: string): {
+  data: RejectedStudentRegistrationNotification[];
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery("get", "/course/registration/rejected/student" as any, {
+    params: {
+      query: { studentId }
+    }
+  }, {
+    enabled: !!studentId,
+    refetchOnWindowFocus: false,
+    refetchInterval: 30000
+  });
+
+  return {
+    data: Array.isArray(result?.data) ? result?.data as RejectedStudentRegistrationNotification[] : [],
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch rejected student registrations') : null,
     refetch: result.refetch
   };
 }
