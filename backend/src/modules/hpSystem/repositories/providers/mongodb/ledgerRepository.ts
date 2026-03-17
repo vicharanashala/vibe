@@ -201,4 +201,14 @@ export class LedgerRepository implements ILedgerRepository {
             "calc.reasonCode": "SUBMISSION_REWARD"
         }).toArray();
     }
+
+    async findBySubmissionIds(submissionIds: string[]): Promise<HpLedger[]> {
+        await this.init();
+        
+        const objectIds = submissionIds.map(id => new ObjectId(id));
+        
+        return await this.hpLedgerCollection.find({
+            submissionId: { $in: objectIds }
+        }).sort({ createdAt: -1 }).toArray();
+    }
 }
