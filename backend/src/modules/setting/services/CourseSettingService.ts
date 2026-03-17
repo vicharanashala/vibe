@@ -198,6 +198,7 @@ class CourseSettingService extends BaseService {
                 linearProgressionEnabled,
                 seekForwardEnabled,
                 isPublic,
+                hpSystem,
               },
             },
           },
@@ -227,6 +228,7 @@ class CourseSettingService extends BaseService {
           courseSettings.settings?.linearProgressionEnabled,
         seekForwardEnabled: courseSettings.settings?.seekForwardEnabled,
         isPublic: courseSettings.settings?.isPublic,
+        hpSystem: courseSettings.settings?.hpSystem,
       };
 
       const afterState = {
@@ -234,6 +236,7 @@ class CourseSettingService extends BaseService {
         linearProgressionEnabled,
         seekForwardEnabled,
         isPublic,
+        hpSystem
       };
 
       const audit: AuditingDto = {
@@ -252,8 +255,8 @@ class CourseSettingService extends BaseService {
         detectors,
         linearProgressionEnabled,
         seekForwardEnabled,
-        isPublic,
         hpSystem,
+        isPublic,
         audit,
         session,
       );
