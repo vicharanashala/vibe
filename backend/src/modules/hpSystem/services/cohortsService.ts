@@ -135,6 +135,7 @@ export class CohortsService extends BaseService {
                     return {
                         cohortName: c.cohortName,
                         courseVersionId: versionId, // keep the requested "parent" version id
+                        courseId: "000000000000000000000001", // The parent course ID for predefined cohorts
                         stats: {
                             totalStudents,
                             totalActivities,
@@ -182,6 +183,7 @@ export class CohortsService extends BaseService {
                     return {
                         cohortName: c.cohortName,
                         courseVersionId: versionId,
+                        courseId: "000000000000000000000001", // The parent course ID for predefined cohorts
                         stats: {
                             totalStudents,
                             totalActivities,
@@ -216,7 +218,10 @@ export class CohortsService extends BaseService {
                 if (fetched) cohorts = fetched;
 
                 // 2. Fetch dynamic DB cohorts for this version
-                const dbCohorts = await this._fetchDbCohorts(query.courseVersionId);
+                // For listCohorts (instructor side), we don't have courseId readily available from enrollments here.
+                // However, we can either fetch it or just pass empty string if the frontend doesn't need it on the instructor side.
+                // Assuming instructor side has `query.courseId` if needed, otherwise empty.
+                const dbCohorts = await this._fetchDbCohorts(query.courseVersionId, "");
                 cohorts.push(...dbCohorts);
             }
 
@@ -242,7 +247,7 @@ export class CohortsService extends BaseService {
      * Fetches cohorts from the DB `cohorts` collection for a given courseVersionId
      * and builds CohortListItemDto objects with stats.
      */
-    private async _fetchDbCohorts(courseVersionId: string): Promise<CohortListItemDto[]> {
+    private async _fetchDbCohorts(courseVersionId: string, courseId: string = ""): Promise<CohortListItemDto[]> {
         const dbCohorts = await this.cohortRepository.getCohortsByVersionId(courseVersionId);
         if (!dbCohorts || dbCohorts.length === 0) return [];
 
@@ -264,6 +269,7 @@ export class CohortsService extends BaseService {
                 return {
                     cohortName: cohort.name,
                     courseVersionId,
+                    courseId: courseId,
                     stats: {
                         totalStudents,
                         totalActivities,
@@ -426,7 +432,8 @@ export class CohortsService extends BaseService {
                     }
 
                     for (const [versionId, versionEnrollments] of enrollmentsByVersion) {
-                        const dynamic = await this._fetchDbCohorts(versionId);
+                        const courseId = versionEnrollments[0]?.courseId?.toString() ?? "";
+                        const dynamic = await this._fetchDbCohorts(versionId, courseId);
 
                         const enrolledCohortNames = new Set(
                             versionEnrollments
