@@ -131,6 +131,7 @@ export default function CreateHpActivityPage() {
             courseId: courseId,
             courseVersionId: courseVersionId,
             cohort: cohortName || "",
+            attachments: data.attachments?.map(att => ({ ...att, kind: att.kind || "LINK" })),
             status,
             deadlineAt: ruleConfig.deadlineAt || new Date().toISOString(),
             allowLateSubmission: ruleConfig.allowLateSubmission || false,
@@ -336,7 +337,8 @@ export default function CreateHpActivityPage() {
                                 </p>
                             )}
                             {fields.map((field, index) => (
-                                <div key={field.id} className="grid grid-cols-1 md:grid-cols-[1fr_2fr_120px_auto] gap-4 items-end bg-muted/30 p-4 rounded-lg border border-border/50">
+                                <div key={field.id} className="grid grid-cols-1 md:grid-cols-[1fr_2fr_auto] gap-4 items-end bg-muted/30 p-4 rounded-lg border border-border/50">
+                                    <input type="hidden" value="LINK" {...register(`attachments.${index}.kind` as const)} />
                                     <div className="space-y-2">
                                         <label className="text-xs font-medium uppercase text-muted-foreground">
                                             Link Name <span className="text-muted-foreground normal-case font-normal">(optional)</span>
@@ -355,25 +357,6 @@ export default function CreateHpActivityPage() {
                                             placeholder="https://... (optional)"
                                             {...register(`attachments.${index}.url` as const, { required: "URL is required" })}
                                             className={errors.attachments?.[index]?.url ? "border-red-500" : ""}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-medium uppercase text-muted-foreground">Type</label>
-                                        <Controller
-                                            name={`attachments.${index}.kind` as const}
-                                            control={control}
-                                            render={({ field }) => (
-                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                    <SelectTrigger>
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="LINK">Link</SelectItem>
-                                                        <SelectItem value="PDF">PDF</SelectItem>
-                                                        <SelectItem value="OTHER">Other</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            )}
                                         />
                                     </div>
                                     <Button type="button" variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => remove(index)}>

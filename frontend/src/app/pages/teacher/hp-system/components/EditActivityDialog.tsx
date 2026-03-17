@@ -79,7 +79,8 @@ export function EditActivityDialog({
             await onSubmit(activity._id, {
                 ...data,
                 activityType: data.activityType as any,
-                submissionMode: data.submissionMode as any
+                submissionMode: data.submissionMode as any,
+                attachments: data.attachments?.map(att => ({ ...att, kind: att.kind || "LINK" })),
             });
             onOpenChange(false);
         } catch (error) {
@@ -186,6 +187,7 @@ export function EditActivityDialog({
                             <div className="space-y-3">
                                 {fields.map((field, index) => (
                                     <div key={field.id} className="flex items-start gap-2 items-center bg-muted/40 p-2 rounded-md border">
+                                        <input type="hidden" value="LINK" {...register(`attachments.${index}.kind` as const)} />
                                         <div className="grid grid-cols-2 gap-2 flex-1">
                                             <Input
                                                 placeholder="Link Name (e.g. Instructions)"
@@ -198,22 +200,6 @@ export function EditActivityDialog({
                                                 className="h-8 text-sm"
                                             />
                                         </div>
-                                        <Controller
-                                            name={`attachments.${index}.kind` as const}
-                                            control={control}
-                                            render={({ field }) => (
-                                                <Select onValueChange={field.onChange} value={field.value}>
-                                                    <SelectTrigger className="w-[110px] h-8 text-sm">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="LINK">Link</SelectItem>
-                                                        <SelectItem value="PDF">PDF</SelectItem>
-                                                        <SelectItem value="OTHER">Other</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            )}
-                                        />
                                         <Button
                                             type="button"
                                             variant="ghost"
