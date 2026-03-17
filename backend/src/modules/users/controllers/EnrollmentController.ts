@@ -36,6 +36,7 @@ import {
   BadRequestError,
   Body,
   ForbiddenError,
+  NotFoundError,
   Authorized,
   QueryParams,
   Patch,
@@ -182,6 +183,11 @@ export class EnrollmentController {
       versionId,
       body.cohortId
     );
+
+    if (!enrollmentData) {
+      throw new NotFoundError('Enrollment not found for the user in the specified course version');
+    }
+
     // Create an enrollment resource object for permission checking
     const enrollmentResource = subject('Enrollment', {
       courseId,
