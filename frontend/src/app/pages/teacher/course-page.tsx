@@ -37,6 +37,7 @@ import {
   Archive,
   ArchiveRestore,
   Layers,
+  Activity,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -1926,6 +1927,16 @@ function VersionCard({
                   <BookOpenIcon className="h-3 w-3 mr-1" />
                   Manage
                 </Button>
+                {version.hpSystem &&
+                    <Button 
+                    variant="outline"
+                    size="sm" 
+                    className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
+                    >
+                      <Activity className="h-3 w-3 mr-1" />
+                      Hp System
+                    </Button>
+                }
                 <Button
                   variant="outline"
                   size="sm"
@@ -1953,7 +1964,6 @@ function VersionCard({
                   <Settings2 className="h-3 w-3 mr-1" />
                   Settings
                 </Button>
-
                 <Button
                     variant="outline"
                     size="sm"
@@ -1974,6 +1984,15 @@ function VersionCard({
               courseId={courseId}
               courseVersionId={versionId}
               isNew={false}
+              onSuccess={() => {
+                queryClient.invalidateQueries({
+                  queryKey: [
+                    "get",
+                    "/courses/versions/{id}",
+                    { params: { path: { id: selectedVersionId } } },
+                  ],
+                })
+              }}
             />
 
             <LinkModal
@@ -1985,13 +2004,6 @@ function VersionCard({
               link={generatedLink}
             />
           </div>
-          <ProctoringModal
-            open={showProctoringModal}
-            onClose={() => setShowProctoringModal(false)}
-            courseId={courseId}
-            courseVersionId={versionId}
-            isNew={false}
-          />
 
         </CardContent>
       </Card>
