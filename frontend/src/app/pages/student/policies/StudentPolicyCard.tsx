@@ -24,6 +24,10 @@ export function StudentPolicyCard({ policy }: { policy: EjectionPolicy }) {
       `${policy.triggers.policyViolations.thresholdCount} violations`
     )
   }
+  if (policy.triggers.anomalyDetection?.enabled) {
+  const threshold = policy.triggers.anomalyDetection.thresholdScore;
+  triggers.push( `Anomaly score ≥ ${threshold}`)
+}
 
   return (
     <Card className="border border-border/50">
