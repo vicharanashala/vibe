@@ -25,7 +25,14 @@ export interface PolicyTriggers {
   inactivity?: InactivityTrigger | null;
   missedDeadlines?: MissedDeadlinesTrigger | null;
   policyViolations?: PolicyViolationsTrigger | null;
+  anomalyDetection?: AnomalyDetectionTrigger;
   customTriggers?: any[] | null;
+}
+
+export interface AnomalyDetectionTrigger{
+  enabled: boolean;
+  thresholdScore: number;
+  warningScore?: number;
 }
 
 export interface PolicyActions {

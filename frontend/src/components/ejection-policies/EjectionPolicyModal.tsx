@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,6 +56,11 @@ export const EjectionPolicyModal = ({
     violationsEnabled: false,
     violationTypes: [] as string[],
     violationThresholdCount: 3,
+
+    // Anomaly Detection
+    anomalyEnabled: false,
+    anomalyThresholdScore: 80,
+    anomalyWarningScore: 60,
     
     // Actions
     sendWarning: true,
@@ -90,7 +94,11 @@ export const EjectionPolicyModal = ({
         violationsEnabled: editPolicy.triggers.policyViolations?.enabled || false,
         violationTypes: editPolicy.triggers.policyViolations?.violationTypes || [],
         violationThresholdCount: editPolicy.triggers.policyViolations?.thresholdCount || 3,
-        
+
+        anomalyEnabled: editPolicy.triggers.anomalyDetection?.enabled || false,
+        anomalyThresholdScore: editPolicy.triggers.anomalyDetection?.thresholdScore || 80,
+        anomalyWarningScore: editPolicy.triggers.anomalyDetection?.warningScore || 60,
+          
         sendWarning: editPolicy.actions.sendWarning,
         warningTemplate: editPolicy.actions.warningTemplate || "",
         ejectionTemplate: editPolicy.actions.ejectionTemplate || "",
@@ -115,6 +123,9 @@ export const EjectionPolicyModal = ({
         violationsEnabled: false,
         violationTypes: [],
         violationThresholdCount: 3,
+        anomalyEnabled:false,
+        anomalyThresholdScore:80,
+        anomalyWarningScore:60,
         sendWarning: true,
         warningTemplate: "",
         ejectionTemplate: "",
@@ -137,7 +148,7 @@ export const EjectionPolicyModal = ({
     }
 
     // At least one trigger must be enabled
-    if (!formData.inactivityEnabled && !formData.missedDeadlinesEnabled && !formData.violationsEnabled) {
+    if (!formData.inactivityEnabled && !formData.missedDeadlinesEnabled && !formData.violationsEnabled && !formData.anomalyEnabled) {
       newErrors.triggers = "At least one trigger must be enabled";
     }
 
@@ -174,6 +185,19 @@ export const EjectionPolicyModal = ({
       }
       if (formData.violationThresholdCount <= 0) {
         newErrors.violationThreshold = "Violation threshold must be greater than 0";
+      }
+    }
+
+    if (formData.anomalyEnabled) {
+      if (formData.anomalyThresholdScore <= 0) {
+        newErrors.anomalyThreshold = "Threshold score must be greater than 0";
+      }
+
+      if (
+        formData.anomalyWarningScore >= formData.anomalyThresholdScore
+      ) {
+        newErrors.anomalyWarning =
+          "Warning score must be less than threshold score";
       }
     }
 
@@ -215,6 +239,11 @@ export const EjectionPolicyModal = ({
             enabled: true,
             violationTypes: formData.violationTypes,
             thresholdCount: formData.violationThresholdCount,
+          } : null,
+          anomalyDetection: formData.anomalyEnabled ? {
+            enabled: true,
+            thresholdScore: formData.anomalyThresholdScore,
+            warningScore: formData.anomalyWarningScore,
           } : null,
           customTriggers: null,
         },
@@ -499,6 +528,59 @@ export const EjectionPolicyModal = ({
                       {errors.violationThreshold && (
                         <p className="text-xs text-destructive mt-1">{errors.violationThreshold}</p>
                       )}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            <Card className={formData.anomalyEnabled ? "border-primary/50" : ""}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-indigo-500" />
+                    <Label className="cursor-pointer font-medium">
+                      Anomaly Detection Trigger
+                    </Label>
+                  </div>
+
+                  <Switch
+                    checked={formData.anomalyEnabled}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, anomalyEnabled: checked })
+                    }
+                  />
+                </div>
+
+                {formData.anomalyEnabled && (
+                  <div className="grid grid-cols-2 gap-3 pt-3 border-t">
+                    <div>
+                      <Label className="text-xs">Threshold Score *</Label>
+                      <Input
+                        type="number"
+                        value={formData.anomalyThresholdScore}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            anomalyThresholdScore: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        min={1}
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Warning Score *</Label>
+                      <Input
+                        type="number"
+                        value={formData.anomalyWarningScore}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            anomalyWarningScore: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        min={0}
+                      />
                     </div>
                   </div>
                 )}

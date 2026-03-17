@@ -222,6 +222,7 @@ export class EjectionPolicyService extends BaseService {
       triggers.inactivity?.enabled ||
       triggers.missedDeadlines?.enabled ||
       triggers.policyViolations?.enabled ||
+      triggers.anomalyDetection?.enabled ||
       (triggers.customTriggers && triggers.customTriggers.length > 0);
 
     if (!hasEnabledTrigger) {
@@ -244,6 +245,10 @@ export class EjectionPolicyService extends BaseService {
     if (triggers.policyViolations?.enabled) {
       this.validatePolicyViolationsTrigger(triggers.policyViolations);
     }
+    // Validate anomaly detection trigger
+    if (triggers.anomalyDetection?.enabled) {
+      this.validateAnomalyTrigger(triggers.anomalyDetection);
+    }
 
     // Validate actions
     if (policy.actions) {
@@ -260,6 +265,25 @@ export class EjectionPolicyService extends BaseService {
     if (policy.scope === 'platform' && policy.courseId) {
       throw new BadRequestError(
         'Platform-wide policies cannot have a courseId',
+      );
+    }
+  }
+  /*
+   * Validate Anomaly trigger
+   */
+  private validateAnomalyTrigger(trigger: any): void {
+    if (trigger.thresholdScore <= 0) {
+      throw new BadRequestError(
+        'Anomaly detection threshold score must be greater than 0',
+      );
+    }
+
+    if (
+      trigger.warningScore !== undefined &&
+      trigger.warningScore >= trigger.thresholdScore
+    ) {
+      throw new BadRequestError(
+        'Warning score must be less than threshold score',
       );
     }
   }
