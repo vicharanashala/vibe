@@ -332,8 +332,11 @@ export class EjectionPolicyService extends BaseService {
    * Validate policy violations trigger
    */
   private validatePolicyViolationsTrigger(trigger: any): void {
-    if (!trigger.violationTypes || trigger.violationTypes.length === 0) {
-      throw new BadRequestError('Violation types must be specified');
+    const predefined = trigger.violations?.predefined || [];
+    const custom = trigger.violations?.custom || [];
+
+    if (predefined.length === 0 && custom.length === 0) {
+      throw new BadRequestError('At least one violation must be specified');
     }
 
     if (trigger.thresholdCount <= 0) {

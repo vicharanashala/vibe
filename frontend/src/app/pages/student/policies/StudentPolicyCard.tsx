@@ -20,10 +20,20 @@ export function StudentPolicyCard({ policy }: { policy: EjectionPolicy }) {
   }
 
   if (policy.triggers.policyViolations?.enabled) {
+  const predefined =
+    policy.triggers.policyViolations.violations?.predefined || [];
+
+  const custom =
+    policy.triggers.policyViolations.violations?.custom || [];
+
+  const allViolations = [...predefined, ...custom];
+
+  if (allViolations.length > 0) {
     triggers.push(
-      `${policy.triggers.policyViolations.thresholdCount} violations`
-    )
+      `${policy.triggers.policyViolations.thresholdCount} violations (${allViolations.join(", ")})`
+    );
   }
+}
   if (policy.triggers.anomalyDetection?.enabled) {
   const threshold = policy.triggers.anomalyDetection.thresholdScore;
   triggers.push( `Anomaly score ≥ ${threshold}`)

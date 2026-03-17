@@ -93,7 +93,14 @@ export const EjectionPolicyModal = ({
         warningAfterMisses: editPolicy.triggers.missedDeadlines?.warningAfterMisses || 2,
         
         violationsEnabled: editPolicy.triggers.policyViolations?.enabled || false,
-        violationTypes: editPolicy.triggers.policyViolations?.violationTypes || [],
+        violationTypes: [
+          ...(editPolicy.triggers.policyViolations?.violations.predefined || []),
+          ...(editPolicy.triggers.policyViolations?.violations.custom?.length
+            ? ["other"]
+            : []),
+        ],
+        violationOtherDescription:
+          editPolicy.triggers.policyViolations?.violations.custom?.[0] || "",
         violationThresholdCount: editPolicy.triggers.policyViolations?.thresholdCount || 3,
 
         anomalyEnabled: editPolicy.triggers.anomalyDetection?.enabled || false,
@@ -241,7 +248,12 @@ export const EjectionPolicyModal = ({
           } : null,
           policyViolations: formData.violationsEnabled ? {
             enabled: true,
-            violationTypes: formData.violationTypes,
+            violations: {
+              predefined: formData.violationTypes.filter(t => t !== "other"),
+              custom: formData.violationTypes.includes("other")
+                ? [formData.violationOtherDescription]
+                : [],
+            },
             thresholdCount: formData.violationThresholdCount,
           } : null,
           anomalyDetection: formData.anomalyEnabled ? {
