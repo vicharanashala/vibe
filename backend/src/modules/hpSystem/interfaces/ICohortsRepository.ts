@@ -1,5 +1,5 @@
 import { ClientSession, ObjectId } from "mongodb";
-import { CohortStudentItemDto, CohortStudentsListQueryDto } from "../classes/validators/courseAndCohorts.js";
+import { CohortStudentItemDto, CohortStudentsListQueryDto, CourseWithVersionsDto } from "../classes/validators/courseAndCohorts.js";
 import { ICohort, IEnrollment } from "#root/shared/index.js";
 import { ID } from "../constants.js";
 
@@ -69,4 +69,8 @@ export interface ICohortRepository {
         amount: number,
         session?: ClientSession,
     ): Promise<boolean>
+
+    getDynamicCoursesWithVersions(
+        session?: ClientSession
+    ): Promise<CourseWithVersionsDto[]>
 }

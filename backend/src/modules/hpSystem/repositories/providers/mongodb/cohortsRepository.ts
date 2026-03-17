@@ -5,6 +5,7 @@ import { ICohortRepository } from "#root/modules/hpSystem/interfaces/ICohortsRep
 import { ICohort, IEnrollment, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { plainToInstance } from "class-transformer";
+import { CourseWithVersionsDto } from "#root/modules/hpSystem/classes/validators/courseAndCohorts.js";
 import { inject, injectable } from "inversify";
 import { ClientSession, Collection, ObjectId } from "mongodb";
 
@@ -14,6 +15,7 @@ export class CohortRepository implements ICohortRepository {
     private courseVersionCollection: Collection<CourseVersion>;
     private enrollmentCollection: Collection<IEnrollment>;
     private cohortsCollection: Collection<ICohort>;
+    private courseSettingsCollection: Collection<any>;
 
     constructor(
         @inject(GLOBAL_TYPES.Database)
@@ -24,6 +26,10 @@ export class CohortRepository implements ICohortRepository {
         this.courseCollection = await this.db.getCollection<Course>('newCourse');
         this.courseVersionCollection = await this.db.getCollection<CourseVersion>(
             'newCourseVersion',
+        );
+
+        this.courseSettingsCollection = await this.db.getCollection<any>(
+            'courseSettings',
         );
 
         this.enrollmentCollection = await this.db.getCollection<IEnrollment>(
@@ -384,6 +390,81 @@ export class CohortRepository implements ICohortRepository {
         );
     }
 
+    /**
+     * Checks if a user has an active STUDENT enrollment for a given courseVersionId.
+     */
+    async isStudentEnrolledInVersion(userId: string, courseVersionId: string): Promise<boolean> {
+        await this.init();
+        const userObjId = new ObjectId(userId);
+        const versionObjId = ObjectId.isValid(courseVersionId) ? new ObjectId(courseVersionId) : null;
+
+        const match: any = {
+            userId: { $in: [userId, userObjId] },
+            courseVersionId: versionObjId
+                ? { $in: [courseVersionId, versionObjId] }
+                : courseVersionId,
+            role: "STUDENT",
+            status: "ACTIVE",
+            isDeleted: { $ne: true },
+        };
+
+        const count = await this.enrollmentCollection.countDocuments(match);
+        return count > 0;
+    }
+
+    /**
+     * Fetches all active STUDENT enrollments for a user, including cohortName from the cohorts collection.
+     */
+    async getStudentActiveEnrollments(userId: string): Promise<
+        Array<{
+            courseId: string;
+            courseVersionId: string;
+            cohortId?: string;
+            cohortName?: string;
+        }>
+    > {
+        await this.init();
+        const userObjId = new ObjectId(userId);
+
+        const pipeline: any[] = [
+            {
+                $match: {
+                    userId: { $in: [userId, userObjId] },
+                    role: "STUDENT",
+                    status: "ACTIVE",
+                    isDeleted: { $ne: true },
+                },
+            },
+            {
+                $lookup: {
+                    from: "cohorts",
+                    localField: "cohortId",
+                    foreignField: "_id",
+                    as: "cohort",
+                    pipeline: [{ $project: { name: 1 } }],
+                },
+            },
+            { $unwind: { path: "$cohort", preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    _id: 0,
+                    courseId: { $toString: "$courseId" },
+                    courseVersionId: { $toString: "$courseVersionId" },
+                    cohortId: {
+                        $cond: [
+                            { $ifNull: ["$cohortId", false] },
+                            { $toString: "$cohortId" },
+                            null,
+                        ],
+                    },
+                    cohortName: "$cohort.name",
+                },
+            },
+        ];
+
+        return (await this.enrollmentCollection.aggregate(pipeline).toArray()) as any;
+    }
+
     async setHPForEnrollment(
         userId: ID,
         courseId: ID,
@@ -413,4 +494,95 @@ export class CohortRepository implements ICohortRepository {
     }
 
 
+    async getDynamicCoursesWithVersions(session?: ClientSession): Promise<CourseWithVersionsDto[]> {
+        await this.init();
+
+        const pipeline: any[] = [
+            // 1. Get all active & public course versions that have hpSystem enabled
+            {
+                $match: {
+                    "settings.hpSystem": true,
+                    //"settings.isPublic": true, // We might need this if we shouldn't show private courses, ask later if needed.
+                }
+            },
+            // 2. Lookup the courseVersion details
+            {
+                $lookup: {
+                    from: "newCourseVersion",
+                    localField: "courseVersionId",
+                    foreignField: "_id",
+                    as: "versionDetails"
+                }
+            },
+            { $unwind: "$versionDetails" },
+            // Only active versions
+            {
+                $match: {
+                    "versionDetails.isDeleted": { $ne: true },
+                    "versionDetails.versionStatus": { $in: ["active", "published"] }
+                }
+            },
+            // 3. Lookup the parent Course
+            {
+                $lookup: {
+                    from: "newCourse",
+                    localField: "versionDetails.courseId",
+                    foreignField: "_id",
+                    as: "courseDetails"
+                }
+            },
+            { $unwind: "$courseDetails" },
+            {
+                $match: {
+                    "courseDetails.isDeleted": { $ne: true }
+                }
+            },
+            // 4. Lookup cohorts for this version to count them
+            {
+                $lookup: {
+                    from: "cohorts",
+                    let: { versionId: "$courseVersionId" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ["$courseVersionId", "$$versionId"] },
+                                        { $ne: ["$isDeleted", true] }
+                                    ]
+                                }
+                            }
+                        }
+                    ],
+                    as: "versionCohorts"
+                }
+            },
+            // 5. Group by Course structure
+            {
+                $group: {
+                    _id: "$courseDetails._id",
+                    courseName: { $first: "$courseDetails.name" },
+                    versions: {
+                        $push: {
+                            courseVersionId: { $toString: "$versionDetails._id" },
+                            versionName: "$versionDetails.version",
+                            totalCohorts: { $size: "$versionCohorts" },
+                            createdAt: "$versionDetails.createdAt"
+                        }
+                    }
+                }
+            },
+            // 6. Project to the expected DTO shape
+            {
+                $project: {
+                    _id: 0,
+                    courseId: { $toString: "$_id" },
+                    courseName: 1,
+                    versions: 1
+                }
+            }
+        ];
+
+        return await this.courseSettingsCollection.aggregate<CourseWithVersionsDto>(pipeline, { session }).toArray();
+    }
 }

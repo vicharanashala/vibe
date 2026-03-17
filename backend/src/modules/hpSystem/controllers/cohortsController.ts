@@ -118,6 +118,19 @@ export class CohortsController {
         return response;
     }
 
+    @OpenAPI({ summary: "List cohorts the student is enrolled in (hpSystem enabled)" })
+    @Get("/student-cohorts")
+    @Authorized()
+    @HttpCode(200)
+    @ResponseSchema(BadRequestErrorResponse, {
+        description: 'Bad Request Error',
+        statusCode: 400,
+    })
+    async listStudentCohorts(@QueryParams() query: CohortListQueryDto, @CurrentUser() user: IUser) {
+        const userId = user._id.toString();
+        return await this.cohortsService.listStudentCohorts(userId, query);
+    }
+
 
     @OpenAPI({ summary: "List cohort students with HP and completion percentage" })
     @Authorized()

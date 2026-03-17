@@ -966,7 +966,7 @@ export class SettingRepository implements ISettingRepository {
     courseVersionIds: ObjectId[],
     session?: ClientSession,
   ): Promise<ICourseSetting[] | null> {
-    console.log(courseVersionIds);
+    await this.init();
     return this.courseSettingsCollection
       .find({courseVersionId: {$in: courseVersionIds}}, {session})
       .toArray();
