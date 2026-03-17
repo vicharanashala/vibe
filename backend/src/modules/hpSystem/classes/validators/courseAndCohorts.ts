@@ -119,6 +119,9 @@ export class CohortListItemDto {
     cohortName!: string;
 
     @IsString()
+    courseId!: string;
+
+    @IsString()
     courseVersionId!: string;
 
     @ValidateNested()
