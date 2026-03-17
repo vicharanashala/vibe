@@ -19,6 +19,7 @@ import {
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { CreateHpActivityPayload, HpRuleConfig, CourseWithVersions, CourseVersionStats } from "@/lib/api/hp-system";
 import { useCreateHpActivity, useCreateHpRuleConfig, useHpCourseVersions } from "@/hooks/hooks";
+import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal";
 
 export default function CreateHpActivityPage() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
@@ -38,7 +39,7 @@ export default function CreateHpActivityPage() {
     const courseId = course?.courseId;
 
     // ── Step 1: Activity form ──
-    const { control, register, handleSubmit, watch, trigger, formState: { errors } } = useForm<CreateHpActivityPayload>({
+    const { control, register, handleSubmit, watch, trigger, formState: { errors }, setValue } = useForm<CreateHpActivityPayload>({
         defaultValues: {
             title: "",
             description: "",
@@ -51,6 +52,9 @@ export default function CreateHpActivityPage() {
 
     const { fields, append, remove } = useFieldArray({ control, name: "attachments" });
     const currentSubmissionMode = watch("submissionMode");
+    const currentActivityType = watch("activityType");
+    const [isVibeMilestoneConfirmOpen, setIsVibeMilestoneConfirmOpen] = useState(false);
+    const [pendingActivityType, setPendingActivityType] = useState<string | null>(null);
 
     // ── Step 2: Rule config (local state, matches RuleSettingsDialog) ──
     const [ruleConfig, setRuleConfig] = useState<Partial<HpRuleConfig>>({
@@ -88,6 +92,28 @@ export default function CreateHpActivityPage() {
     };
 
     const isHex24 = (id?: string) => /^[0-9a-fA-F]{24}$/.test(id || "");
+
+    const handleActivityTypeChange = (value: string) => {
+        if (value === "VIBE_MILESTONE" && currentActivityType !== "VIBE_MILESTONE") {
+            setPendingActivityType(value);
+            setIsVibeMilestoneConfirmOpen(true);
+            return;
+        }
+        setValue("activityType", value as any, { shouldDirty: true, shouldValidate: true });
+    };
+
+    const handleConfirmVibeMilestone = () => {
+        if (pendingActivityType) {
+            setValue("activityType", pendingActivityType as any, { shouldDirty: true, shouldValidate: true });
+        }
+        setIsVibeMilestoneConfirmOpen(false);
+        setPendingActivityType(null);
+    };
+
+    const handleCloseVibeMilestoneConfirm = () => {
+        setIsVibeMilestoneConfirmOpen(false);
+        setPendingActivityType(null);
+    };
 
     const onSubmit = async (data: CreateHpActivityPayload, status: "DRAFT" | "PUBLISHED") => {
         if (!courseId || !courseVersionId) {
@@ -174,6 +200,7 @@ export default function CreateHpActivityPage() {
     }
 
     return (
+        <>
         <div className="space-y-6  mx-4 pb-12">
             {/* Header */}
             <div className="flex items-center gap-4 border-b pb-4">
@@ -238,7 +265,7 @@ export default function CreateHpActivityPage() {
                                         name="activityType"
                                         control={control}
                                         render={({ field }) => (
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <Select onValueChange={handleActivityTypeChange} value={field.value}>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select type" />
                                                 </SelectTrigger>
@@ -605,5 +632,15 @@ export default function CreateHpActivityPage() {
                 </div>
             )}
         </div>
+        <ConfirmationModal
+            isOpen={isVibeMilestoneConfirmOpen}
+            onClose={handleCloseVibeMilestoneConfirm}
+            onConfirm={handleConfirmVibeMilestone}
+            title="Confirm Vibe Platform Milestone"
+            description="By selecting Vibe Platform Milestone, students who miss the deadline for this activity will automatically receive a penalty. Are you sure you want to continue?"
+            confirmText="Confirm"
+            cancelText="Cancel"
+        />
+        </>
     );
 }
