@@ -350,7 +350,7 @@ export const hpApi = {
     },
 
     getStudentCohorts: async (): Promise<{ success: boolean; message: string; data: any[] }> => {
-        return apiFetch(`${BASE_URL}/courses-cohorts/cohorts`);
+        return apiFetch(`${BASE_URL}/courses-cohorts/student-cohorts`);
     },
 
     getStudentActivities: async (

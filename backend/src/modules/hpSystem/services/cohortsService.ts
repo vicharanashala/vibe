@@ -1,8 +1,8 @@
-import { BaseService, MongoDatabase } from "#root/shared/index.js";
+import { BaseService, ISettingRepository, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { inject, injectable } from "inversify";
 import { CohortListItemDto, CohortListQueryDto, CohortListResponseDto, CohortStudentItemDto, CohortStudentsListQueryDto, CohortStudentsResponseDto, CourseVersionListQueryDto, CourseVersionListResponseDto, CourseWithVersionsDto } from "../classes/validators/courseAndCohorts.js";
-import { ClientSession } from "mongodb";
+import { ClientSession, ObjectId } from "mongodb";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { ActivityRepository } from "../repositories/index.js";
@@ -21,6 +21,9 @@ export class CohortsService extends BaseService {
 
         @inject(HP_SYSTEM_TYPES.activityRepository)
         private readonly activityRepository: ActivityRepository,
+
+        @inject(GLOBAL_TYPES.SettingRepo)
+        private readonly settingsRepository: ISettingRepository,
 
     ) {
         super(mongoDatabase);
@@ -45,18 +48,6 @@ export class CohortsService extends BaseService {
                         createdAt: "2025-12-18T07:52:42Z",
                     }
                 ]
-            },
-            {
-                courseId: "000000000000000000000003",
-                courseName: "Hp System course",
-                versions: [
-                    {
-                        courseVersionId: "69b7a82ef131f5fad0c7a76e",
-                        versionName: "Hp System course",
-                        totalCohorts: 1,
-                        createdAt: "2026-03-16T10:00:00Z",
-                    }
-                ]
             }
         ];
     }
@@ -64,14 +55,41 @@ export class CohortsService extends BaseService {
 
     async listCourseVersions(userId: string, query: CourseVersionListQueryDto): Promise<CourseVersionListResponseDto> {
         return await this._withTransaction(async (session: ClientSession) => {
+            const [hardcodedCourses, dynamicCourses] = await Promise.all([
+                this._handleExisitingCourse(),
+                this.cohortRepository.getDynamicCoursesWithVersions(session)
+            ]);
+
+            const allCourses = [...hardcodedCourses, ...dynamicCourses];
+
+            const totalCourses = allCourses.length;
+            const totalVersions = allCourses.reduce((sum, course) => sum + course.versions.length, 0);
+
+            // In-memory pagination and sorting
+            const page = query.page ?? 1;
+            const limit = query.limit ?? 10;
+            const skip = (page - 1) * limit;
+
+            // Simplified sorting (usually handled by DB, but here we merge two lists)
+            const sortedCourses = allCourses.sort((a, b) => {
+                const aName = a.courseName?.toLowerCase() || "";
+                const bName = b.courseName?.toLowerCase() || "";
+                if (query.sortBy === "courseName") {
+                    return query.sortOrder === "asc" ? aName.localeCompare(bName) : bName.localeCompare(aName);
+                }
+                return 0; // default to no structural change if not sorting by courseName
+            });
+
+            const paginatedCourses = sortedCourses.slice(skip, skip + limit);
+
             return {
                 success: true,
-                data: await this._handleExisitingCourse(),
+                data: paginatedCourses,
                 meta: {
-                    totalCourses: 2,
-                    totalVersions: 3,
-                    page: query.page ?? 1,
-                    limit: query.limit ?? 10,
+                    totalCourses,
+                    totalVersions,
+                    page,
+                    limit,
                     sortBy: query.sortBy ?? "createdAt",
                     sortOrder: query.sortOrder ?? "desc",
                     search: query.search,
@@ -341,5 +359,110 @@ export class CohortsService extends BaseService {
             }
 
         })
+    }
+
+
+    /**
+     * Lists the cohorts the student is enrolled in.
+     * Hardcoded cohorts are checked directly via enrollment without needing hpSystem checks.
+     * Dynamic cohorts are loaded only if the version's hpSystem is enabled.
+     */
+    async listStudentCohorts(userId: string, query: CohortListQueryDto): Promise<CohortListResponseDto> {
+        return await this._withTransaction(async (session: ClientSession) => {
+            const studentCohorts: CohortListItemDto[] = [];
+
+            // 1. Manually check the hardcoded cohorts WITHOUT hpSystem checking
+            const hardcodedMappings = [
+                { pseudoVersionId: "000000000000000000000001", cohortName: "Euclideans", cohortVersionId: "6968e12cbf2860d6e39051af" },
+                { pseudoVersionId: "000000000000000000000001", cohortName: "Dijkstrians", cohortVersionId: "6970f87e30644cbc74b67150" },
+                { pseudoVersionId: "000000000000000000000001", cohortName: "Kruskalians", cohortVersionId: "697b4e262942654879011c57" },
+                { pseudoVersionId: "000000000000000000000002", cohortName: "RSAians", cohortVersionId: "69903415e1930c015760a719" },
+                { pseudoVersionId: "000000000000000000000002", cohortName: "AKSians", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
+            ];
+
+            for (const mapping of hardcodedMappings) {
+                // Check if student is enrolled in the actual cohortVersionId
+                const isEnrolled = await this.cohortRepository.isStudentEnrolledInVersion(userId, mapping.cohortVersionId);
+                if (isEnrolled) {
+                    // Fetch the hardcoded cohort data using the pseudo version ID
+                    const hardcodedList = await this._handleExisitingCohorts(mapping.pseudoVersionId);
+                    if (hardcodedList) {
+                        const matchedCohort = hardcodedList.find(c => c.cohortName === mapping.cohortName);
+                        if (matchedCohort) {
+                            studentCohorts.push(matchedCohort);
+                        }
+                    }
+                }
+            }
+
+            // 2. Fetch active dynamic enrollments and filter by hpSystem
+            const enrollments = await this.cohortRepository.getStudentActiveEnrollments(userId);
+            if (enrollments && enrollments.length > 0) {
+                const versionIds = [...new Set(enrollments.map(e => e.courseVersionId))];
+
+                // Exclude hardcoded version ids from dynamic lookup to avoid double counting or unnecessary db processing
+                const dynamicVersionIds = versionIds.filter(id =>
+                    !hardcodedMappings.some(m => m.cohortVersionId === id)
+                );
+
+                if (dynamicVersionIds.length > 0) {
+                    const courseSettings = await this.settingsRepository.getSettingsByVersionIds(
+                        dynamicVersionIds.map(id => new ObjectId(id))
+                    );
+
+                    const hpEnabledVersionIds = new Set(
+                        (courseSettings ?? [])
+                            .filter(s => s.settings?.hpSystem === true)
+                            .map(s => s.courseVersionId.toString())
+                    );
+
+                    const hpEnrollments = enrollments.filter(e => hpEnabledVersionIds.has(e.courseVersionId));
+
+                    const enrollmentsByVersion = new Map<string, typeof hpEnrollments>();
+                    for (const enr of hpEnrollments) {
+                        const list = enrollmentsByVersion.get(enr.courseVersionId) ?? [];
+                        list.push(enr);
+                        enrollmentsByVersion.set(enr.courseVersionId, list);
+                    }
+
+                    for (const [versionId, versionEnrollments] of enrollmentsByVersion) {
+                        const dynamic = await this._fetchDbCohorts(versionId);
+
+                        const enrolledCohortNames = new Set(
+                            versionEnrollments
+                                .map(e => e.cohortName?.toLowerCase())
+                                .filter(Boolean)
+                        );
+
+                        const hasNoCohortName = versionEnrollments.some(e => !e.cohortName);
+
+                        if (hasNoCohortName) {
+                            studentCohorts.push(...dynamic);
+                        } else {
+                            const matched = dynamic.filter(
+                                c => enrolledCohortNames.has(c.cohortName.toLowerCase())
+                            );
+                            studentCohorts.push(...matched);
+                        }
+                    }
+                }
+            }
+
+            return {
+                success: true,
+                message: "Cohorts fetched successfully",
+                data: studentCohorts,
+                meta: {
+                    totalRecords: studentCohorts.length,
+                    totalPages: 1,
+                    page: query.page ?? 1,
+                    limit: query.limit ?? 10,
+                    sortBy: query.sortBy ?? "createdAt",
+                    sortOrder: query.sortOrder ?? "desc",
+                    search: query.search ?? "",
+                    currentPage: query.page ?? 1,
+                },
+            };
+        });
     }
 }
