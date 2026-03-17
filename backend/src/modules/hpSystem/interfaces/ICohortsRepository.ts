@@ -19,11 +19,6 @@ export interface ICohortRepository {
     ): Promise<ICohort[]>;
 
     /**
-     * Returns all cohorts from the DB `cohorts` collection.
-     */
-    getAllCohorts(): Promise<ICohort[]>;
-
-    /**
      * Returns total number of students enrolled in a specific cohort within a course version.
      */
     getTotalStudentsCountForCohort(
