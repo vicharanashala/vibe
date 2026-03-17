@@ -19,7 +19,7 @@ import type { CourseCardProps } from '@/types/course.types';
 import { Pagination } from "../ui/Pagination";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { lazy, Suspense } from "react";
-import { StudentPolicyModal } from "@/app/pages/student/policies/StudentPolicyModal";
+import { StudentPolicyModal } from "@/app/pages/student/components/policies/StudentPolicyModal";
 
 const EnrollmentDetailsDialog = lazy(() =>
   import("@/components/course/EnrollmentDetailsDialog").then(mod => ({
