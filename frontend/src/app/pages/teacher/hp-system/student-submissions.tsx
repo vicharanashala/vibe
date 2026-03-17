@@ -388,7 +388,7 @@ export default function StudentSubmissionsPage() {
                             <CardContent>
                                 <div className="text-2xl font-bold text-orange-600 flex items-center gap-2">
                                     <Timer className="h-5 w-5" />
-                                    {submissionsStats.totalLateSubmissions}
+                                    {submissionsStats?.totalLateSubmissions}
                                 </div>
                             </CardContent>
                         </Card>
@@ -399,7 +399,7 @@ export default function StudentSubmissionsPage() {
                             <CardContent>
                                 <div className="text-2xl font-bold text-green-600 flex items-center gap-2">
                                     <Zap className="h-5 w-5 text-yellow-500" />
-                                    {submissionsStats.currentHp}
+                                    {submissionsStats?.currentHp}
                                 </div>
                             </CardContent>
                         </Card>
