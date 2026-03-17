@@ -10,6 +10,7 @@ export type TriggerType =
   | 'inactivity'
   | 'missed-deadlines'
   | 'violation'
+  | 'anomaly-detection'
   | 'custom';
 export type PolicyScope = 'platform' | 'course';
 export type PolicyStatus = 'active' | 'inactive' | 'archived';
@@ -43,6 +44,13 @@ export interface PolicyTriggers {
   missedDeadlines?: MissedDeadlinesTrigger;
   policyViolations?: PolicyViolationsTrigger;
   customTriggers?: CustomTrigger[];
+  anomalyDetection?: AnomalyDetectionTrigger;
+}
+
+export interface AnomalyDetectionTrigger {
+  enabled: boolean;
+  thresholdScore: number;
+  warningScore?: number;
 }
 
 export interface PolicyActions {

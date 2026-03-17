@@ -86,6 +86,22 @@ export class CustomTriggerDto implements CustomTrigger {
   @Expose()
   threshold: number;
 }
+export class AnomalyDetectionTriggerDto {
+  @IsBoolean()
+  @Expose()
+  enabled: boolean;
+
+  @IsNumber()
+  @Expose()
+  @Min(0)
+  thresholdScore: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Expose()
+  @Min(0)
+  warningScore?: number;
+}
 
 export class PolicyTriggersDto {
   @IsOptional()
@@ -105,6 +121,12 @@ export class PolicyTriggersDto {
   @Type(() => PolicyViolationsTriggerDto)
   @Expose()
   policyViolations?: PolicyViolationsTriggerDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AnomalyDetectionTriggerDto)
+  @Expose()
+  anomalyDetection?: AnomalyDetectionTriggerDto;
 
   @IsOptional()
   @IsArray()

@@ -12,6 +12,8 @@ import {
   CurrentUser,
   HttpCode,
   ForbiddenError,
+  UseInterceptor,
+  Req,
 } from 'routing-controllers';
 import {injectable, inject} from 'inversify';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
@@ -35,6 +37,14 @@ import {
 } from '../abilities/ejectionPolicyAbilities.js';
 import {subject} from '@casl/ability';
 import {plainToClass} from 'class-transformer';
+import {AuditTrailsHandler} from '#root/shared/middleware/auditTrails.js';
+import {setAuditTrail} from '#root/utils/setAuditTrail.js';
+import {
+  AuditAction,
+  AuditCategory,
+  OutComeStatus,
+} from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
+import {ObjectId} from 'mongodb';
 
 /**
  * Controller for managing ejection policies
@@ -54,6 +64,7 @@ export class EjectionPolicyController {
 
   @Authorized()
   @Post('/')
+  @UseInterceptor(AuditTrailsHandler)
   @HttpCode(201)
   @ResponseSchema(EjectionPolicyResponse, {
     description: 'Ejection policy created successfully',
@@ -71,6 +82,7 @@ export class EjectionPolicyController {
   async createPolicy(
     @Body() body: CreateEjectionPolicyBody,
     @Ability(getEjectionPolicyAbility) {ability, user},
+    @Req() req: Request,
   ): Promise<EjectionPolicyResponse> {
     // Only admins can create platform-wide policies
     if (body.scope === 'platform' && user.roles !== 'admin') {
@@ -101,7 +113,28 @@ export class EjectionPolicyController {
       body,
       user._id.toString(),
     );
-
+    setAuditTrail(req, {
+      category: AuditCategory.EJECTION_POLICY,
+      action: AuditAction.EJECTION_POLICY_CREATE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName ?? ''}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        policyId: ObjectId.createFromHexString(policy._id.toString()),
+        courseId: body.courseId
+          ? ObjectId.createFromHexString(body.courseId)
+          : undefined,
+      },
+      changes: {
+        after: policy,
+      },
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    });
     return plainToClass(EjectionPolicyResponse, policy, {
       enableImplicitConversion: true,
     });
@@ -273,6 +306,7 @@ export class EjectionPolicyController {
   }
 
   @Authorized()
+  @UseInterceptor(AuditTrailsHandler)
   @Put('/:policyId')
   @HttpCode(200)
   @ResponseSchema(EjectionPolicyResponse, {
@@ -292,6 +326,7 @@ export class EjectionPolicyController {
     @Param('policyId') policyId: string,
     @Body() body: UpdateEjectionPolicyBody,
     @Ability(getEjectionPolicyAbility) {ability, user},
+    @Req() req: Request,
   ): Promise<EjectionPolicyResponse> {
     const existingPolicy = await this.policyService.getPolicyById(policyId);
 
@@ -315,6 +350,26 @@ export class EjectionPolicyController {
     }
 
     const updatedPolicy = await this.policyService.updatePolicy(policyId, body);
+    setAuditTrail(req, {
+      category: AuditCategory.EJECTION_POLICY,
+      action: AuditAction.EJECTION_POLICY_UPDATE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName ?? ''}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        policyId: ObjectId.createFromHexString(policyId),
+      },
+      changes: {
+        before: existingPolicy,
+        after: updatedPolicy,
+      },
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    });
 
     return plainToClass(EjectionPolicyResponse, updatedPolicy, {
       enableImplicitConversion: true,
@@ -322,6 +377,7 @@ export class EjectionPolicyController {
   }
 
   @Authorized()
+  @UseInterceptor(AuditTrailsHandler)
   @Post('/:policyId/toggle')
   @HttpCode(200)
   @ResponseSchema(EjectionPolicyResponse, {
@@ -335,6 +391,7 @@ export class EjectionPolicyController {
   async togglePolicyStatus(
     @Param('policyId') policyId: string,
     @Ability(getEjectionPolicyAbility) {ability, user},
+    @Req() req: Request,
   ): Promise<EjectionPolicyResponse> {
     const existingPolicy = await this.policyService.getPolicyById(policyId);
 
@@ -357,6 +414,22 @@ export class EjectionPolicyController {
     }
 
     const updatedPolicy = await this.policyService.togglePolicyStatus(policyId);
+    setAuditTrail(req, {
+      category: AuditCategory.EJECTION_POLICY,
+      action: AuditAction.EJECTION_POLICY_TOGGLE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName ?? ''}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        policyId: ObjectId.createFromHexString(policyId),
+      },
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    });
 
     return plainToClass(EjectionPolicyResponse, updatedPolicy, {
       enableImplicitConversion: true,
@@ -364,6 +437,7 @@ export class EjectionPolicyController {
   }
 
   @Authorized()
+  @UseInterceptor(AuditTrailsHandler)
   @Delete('/:policyId')
   @HttpCode(200)
   @ResponseSchema(DeletePolicyResponse, {
@@ -382,6 +456,7 @@ export class EjectionPolicyController {
   async deletePolicy(
     @Param('policyId') policyId: string,
     @Ability(getEjectionPolicyAbility) {ability, user},
+    @Req() req: Request,
   ): Promise<DeletePolicyResponse> {
     const existingPolicy = await this.policyService.getPolicyById(policyId);
 
@@ -405,6 +480,22 @@ export class EjectionPolicyController {
     }
 
     await this.policyService.deletePolicy(policyId);
+    setAuditTrail(req, {
+      category: AuditCategory.EJECTION_POLICY,
+      action: AuditAction.EJECTION_POLICY_DELETE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName ?? ''}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        policyId: ObjectId.createFromHexString(policyId),
+      },
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    });
     return {
       message: 'Policy deleted successfully',
       policyId: policyId,
