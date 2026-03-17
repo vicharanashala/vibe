@@ -63,6 +63,10 @@ export class HpRewardRuleDto {
 
   @IsNumber()
   minHpFloor!: number;
+
+  @IsNumber()
+  @IsOptional()
+  required_percentage?: number;
 }
 
 export class HpPenaltyRuleDto {
