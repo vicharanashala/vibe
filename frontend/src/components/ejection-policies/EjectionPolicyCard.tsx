@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit3, Trash2, Power, Shield, AlertTriangle } from "lucide-react";
+import { Edit3, Trash2, Power, Shield, AlertTriangle, Flag } from "lucide-react";
 import { EjectionPolicy } from "@/types/ejection-policy.types";
 import { useTogglePolicyStatus, useDeleteEjectionPolicy } from "@/hooks/ejection-policy-hooks";
 import { toast } from "sonner";
@@ -43,35 +43,45 @@ export const EjectionPolicyCard = ({ policy, onEdit, canEdit, canDelete }: Eject
     }
   };
 
-  const getTriggerSummary = () => {
-    const triggers = [];
-    if (policy.triggers.inactivity?.enabled) {
-      triggers.push(`Inactivity (${policy.triggers.inactivity.thresholdDays} days)`);
-    }
-    if (policy.triggers.missedDeadlines?.enabled) {
-      triggers.push(`Missed Deadlines (${policy.triggers.missedDeadlines.consecutiveMisses})`);
-    }
-    if (policy.triggers.policyViolations?.enabled) {
-  const predefined =
-    policy.triggers.policyViolations.violations?.predefined || [];
+  const getTriggers = () => {
+  const triggers: string[] = [];
 
-  const custom =
-    policy.triggers.policyViolations.violations?.custom || [];
-
-  const allViolations = [...predefined, ...custom];
-
-  if (allViolations.length > 0) {
+  if (policy.triggers.inactivity?.enabled) {
     triggers.push(
-      `${policy.triggers.policyViolations.thresholdCount} violations (${allViolations.join(", ")})`
+      `Inactive for ${policy.triggers.inactivity.thresholdDays} days`
     );
   }
-}
-if (policy.triggers.anomalyDetection?.enabled) {
-  const threshold = policy.triggers.anomalyDetection.thresholdScore;
-  triggers.push( `Anomaly score ≥ ${threshold}`)
-}
-    return triggers.length > 0 ? triggers.join(', ') : 'No triggers configured';
-  };
+
+  if (policy.triggers.missedDeadlines?.enabled) {
+    triggers.push(
+      `${policy.triggers.missedDeadlines.consecutiveMisses} missed deadlines`
+    );
+  }
+
+  if (policy.triggers.policyViolations?.enabled) {
+    const predefined =
+      policy.triggers.policyViolations.violations?.predefined || [];
+
+    const custom =
+      policy.triggers.policyViolations.violations?.custom || [];
+
+    const allViolations = [...predefined, ...custom];
+
+    if (allViolations.length > 0) {
+      triggers.push(
+        `${policy.triggers.policyViolations.thresholdCount} violations (${allViolations.join(", ")})`
+      );
+    }
+  }
+
+  if (policy.triggers.anomalyDetection?.enabled) {
+    triggers.push(
+      `Anomaly score ≥ ${policy.triggers.anomalyDetection.thresholdScore}`
+    );
+  }
+
+  return triggers;
+};
 
   return (
     <>
@@ -142,10 +152,21 @@ if (policy.triggers.anomalyDetection?.enabled) {
           <div className="space-y-3">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <AlertTriangle className="h-4 w-4 text-orange-500" />
+                <Flag className="h-4 w-4 text-orange-500" />
                 <span className="text-sm font-medium">Triggers</span>
               </div>
-              <p className="text-sm text-muted-foreground pl-6">{getTriggerSummary()}</p>
+              <div className="space-y-1 text-sm pl-6">
+  {getTriggers().length > 0 ? (
+    getTriggers().map((trigger, i) => (
+      <div key={i} className="flex items-center gap-2">
+        <AlertTriangle className="h-3 w-3 text-orange-500" />
+        {trigger}
+      </div>
+    ))
+  ) : (
+    <span className="text-muted-foreground">No triggers configured</span>
+  )}
+</div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-sm">
