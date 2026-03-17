@@ -134,6 +134,7 @@ export interface HpLedgerCalcEntry {
 export interface HpLedgerMetaEntry {
     triggeredBy?: string;
     triggeredByUserId?: string;
+    triggeredByUserName?: string;
     note?: string;
 }
 
@@ -150,6 +151,7 @@ export interface HpLedgerTransformerEntry {
     studentId: string;
     studentEmail?: string;
     activityId?: string;
+    activityTitle?: string;
     submissionId?: string;
     eventType: string;
     direction: 'CREDIT' | 'DEBIT';

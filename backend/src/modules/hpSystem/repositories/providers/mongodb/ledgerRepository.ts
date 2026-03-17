@@ -69,12 +69,42 @@ export class LedgerRepository implements ILedgerRepository {
         };
 
         const [docs, total] = await Promise.all([
-            this.hpLedgerCollection
-                .find(query)
-                .sort(sort)
-                .skip(skip)
-                .limit(limit)
-                .toArray(),
+            this.hpLedgerCollection.aggregate([
+                { $match: query },
+                { $sort: sort },
+                { $skip: skip },
+                { $limit: limit },
+                {
+                    $lookup: {
+                        from: "hp_activities",
+                        localField: "activityId",
+                        foreignField: "_id",
+                        pipeline: [{ $project: { title: 1 } }],
+                        as: "activity",
+                    }
+                },
+                {
+                    $unwind: {
+                        path: "$activity",
+                        preserveNullAndEmptyArrays: true,
+                    }
+                },
+                {
+                    $lookup: {
+                        from: "users",
+                        localField: "meta.triggeredByUserId",
+                        foreignField: "_id",
+                        pipeline: [{ $project: { firstName: 1, lastName: 1, email: 1 } }],
+                        as: "triggeredByUser",
+                    }
+                },
+                {
+                    $unwind: {
+                        path: "$triggeredByUser",
+                        preserveNullAndEmptyArrays: true,
+                    }
+                },
+            ]).toArray(),
             this.hpLedgerCollection.countDocuments(query),
         ]);
 
@@ -86,6 +116,7 @@ export class LedgerRepository implements ILedgerRepository {
             studentId: doc.studentId?.toString(),
             studentEmail: doc.studentEmail,
             activityId: doc.activityId?.toString(),
+            activityTitle: doc.activity?.title,
             submissionId: doc.submissionId?.toString(),
             eventType: doc.eventType,
             direction: doc.direction,
@@ -114,6 +145,9 @@ export class LedgerRepository implements ILedgerRepository {
                 ? {
                     triggeredBy: doc.meta.triggeredBy,
                     triggeredByUserId: doc.meta.triggeredByUserId?.toString(),
+                    triggeredByUserName: doc.triggeredByUser
+                        ? `${doc.triggeredByUser.firstName ?? ""} ${doc.triggeredByUser.lastName ?? ""}`.trim() || doc.triggeredByUser.email || ""
+                        : undefined,
                     note: doc.meta.note,
                 }
                 : null,

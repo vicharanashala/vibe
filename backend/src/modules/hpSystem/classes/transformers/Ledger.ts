@@ -5,7 +5,7 @@
 ========================================================= */
 
 import { Expose, Transform, Type } from "class-transformer";
-import { IsBoolean, IsEnum, IsNumber, IsString, ValidateNested } from "class-validator";
+import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
 import { HpLedgerDirection, HpLedgerEventType, HpReasonCode, ID, RuleType, TriggeredBy } from "../../constants.js";
 import { JSONSchema } from "class-validator-jsonschema";
 import { ObjectIdArrayToStringArray, ObjectIdToString, StringArrayToObjectIdArray, StringToObjectId } from "#root/shared/index.js";
@@ -89,6 +89,12 @@ export class HpLedgerMeta {
     triggeredByUserId: ID;
 
     @Expose()
+    @IsOptional()
+    @IsString()
+    @JSONSchema({ title: 'Triggered By User Name', type: 'string' })
+    triggeredByUserName?: string;
+
+    @Expose()
     @IsString()
     @JSONSchema({ title: 'Note', type: 'string', example: 'Auto reward on submission' })
     note: string;
@@ -141,6 +147,12 @@ export class HpLedgerTransformer {
     @Transform(StringToObjectId.transformer, { toClassOnly: true })
     @JSONSchema({ title: 'Activity ID', type: 'string' })
     activityId: ID;
+
+    @Expose()
+    @IsOptional()
+    @IsString()
+    @JSONSchema({ title: 'Activity Title', type: 'string' })
+    activityTitle?: string;
 
     @Expose()
     @Transform(ObjectIdToString.transformer, { toPlainOnly: true })

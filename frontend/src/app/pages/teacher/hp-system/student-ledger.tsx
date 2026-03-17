@@ -201,7 +201,7 @@ export default function StudentLedgerPage() {
                                     <TableRow key={entry._id}>
                                         <TableCell>
                                             <div className="font-medium max-w-[200px] truncate">
-                                                {activityMap[entry.activityId] || entry.activityId || 'Manual Adjustment'}
+                                                {entry.activityTitle || activityMap[entry.activityId] || entry.activityId || 'Manual Adjustment'}
                                             </div>
                                         </TableCell>
                                         <TableCell>
@@ -256,7 +256,9 @@ export default function StudentLedgerPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Activity</p>
-                                    <p className="text-sm font-semibold">{activityMap[selectedEntry.activityId] || selectedEntry.activityId || 'Manual Adjustment'}</p>
+                                    <p className="text-sm font-semibold">
+                                        {selectedEntry.activityTitle || activityMap[selectedEntry.activityId] || selectedEntry.activityId || 'Manual Adjustment'}
+                                    </p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Event Type</p>
@@ -293,8 +295,16 @@ export default function StudentLedgerPage() {
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Triggered By</p>
                                     <div className="flex items-center gap-2 text-sm bg-muted/50 p-2 rounded-md">
                                         <User className="h-4 w-4 text-muted-foreground" />
-                                        <span className="font-medium">{selectedEntry.meta?.triggeredBy || 'SYSTEM'}</span>
-                                        <span className="text-xs text-muted-foreground">({selectedEntry.meta?.triggeredByUserId || 'Automated'})</span>
+                                        <span className="font-medium">
+                                            {selectedEntry.meta?.triggeredByUserName || selectedEntry.meta?.triggeredBy || 'SYSTEM'}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">
+                                            {selectedEntry.meta?.triggeredByUserName
+                                                ? `(${selectedEntry.meta?.triggeredBy || 'SYSTEM'})`
+                                                : selectedEntry.meta?.triggeredByUserId
+                                                    ? `(${selectedEntry.meta?.triggeredByUserId})`
+                                                    : '(Automated)'}
+                                        </span>
                                     </div>
                                 </div>
                                 
