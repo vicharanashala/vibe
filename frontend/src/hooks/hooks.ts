@@ -4979,6 +4979,7 @@ import {
   LedgerStudentDetails,
   HpCohortOverviewStats,
   HpStudentSubmission,
+  HpStudentSubmissionStats,
 } from '../lib/api/hp-system';
 
 export function useHpCourseVersions() {
@@ -5505,6 +5506,22 @@ export function useHpStudentSubmissions(studentId: string | undefined, courseVer
     },
     enabled: !!studentId,
   });
+}
+
+export function useHpStudentSubmissionStats(
+    studentId: string | undefined,
+    cohortName: string
+) {
+    return useQuery({
+        queryKey: ['hpStudentSubmissionStats', studentId, cohortName],
+        queryFn: async () => {
+            if (!studentId) return null;
+            const res = await hpApi.getStudentSubmissionStats(studentId, cohortName);
+            if (!res.success) throw new Error("Failed to fetch submission stats");
+            return res.data;
+        },
+        enabled: !!studentId && !!cohortName,
+    });
 }
 
 export function useStudentMySubmissions(courseVersionId: string, cohort: string) {

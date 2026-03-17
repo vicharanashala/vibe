@@ -392,6 +392,16 @@ export class StudentActivitySubmissionsResponseDto {
     meta?: PaginationMetaDto;
 }
 
+export class RewardInfoDto {
+    @Expose()
+    @IsString()
+    @IsIn(["ABSOLUTE", "PERCENTAGE"])
+    type!: string;
+
+    @Expose()
+    @IsNumber()
+    value!: number;
+}
 
 export class StudentActivitySubmissionStatsViewDto {
     @Expose()
@@ -409,6 +419,10 @@ export class StudentActivitySubmissionStatsViewDto {
     @Expose()
     @IsNumber()
     currentHp!: number;
+    @Expose()
+    @IsOptional()
+    @Type(() => RewardInfoDto)
+    reward?: RewardInfoDto | null;
 }
 
 export class StudentActivitySubmissionStatsResponseDto {
