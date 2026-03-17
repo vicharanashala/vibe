@@ -57,15 +57,28 @@ export class MissedDeadlinesTriggerDto implements MissedDeadlinesTrigger {
   warningAfterMisses: number;
 }
 
-export class PolicyViolationsTriggerDto implements PolicyViolationsTrigger {
+class ViolationsDto {
+  @IsArray()
+  @IsString({each: true})
+  @Expose()
+  predefined: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({each: true})
+  @Expose()
+  custom?: string[];
+}
+
+export class PolicyViolationsTriggerDto {
   @IsBoolean()
   @Expose()
   enabled: boolean;
 
-  @IsArray()
+  @ValidateNested()
+  @Type(() => ViolationsDto)
   @Expose()
-  @IsString({each: true})
-  violationTypes: string[];
+  violations: ViolationsDto;
 
   @IsNumber()
   @Expose()

@@ -17,7 +17,10 @@ export interface MissedDeadlinesTrigger {
 
 export interface PolicyViolationsTrigger {
   enabled: boolean;
-  violationTypes: string[];
+  violations: {
+  predefined: string[]
+  custom?: string[]
+}
   thresholdCount: number;
 }
 

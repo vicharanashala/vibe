@@ -52,8 +52,24 @@ export const EjectionPolicyCard = ({ policy, onEdit, canEdit, canDelete }: Eject
       triggers.push(`Missed Deadlines (${policy.triggers.missedDeadlines.consecutiveMisses})`);
     }
     if (policy.triggers.policyViolations?.enabled) {
-      triggers.push(`Violations (${policy.triggers.policyViolations.thresholdCount})`);
-    }
+  const predefined =
+    policy.triggers.policyViolations.violations?.predefined || [];
+
+  const custom =
+    policy.triggers.policyViolations.violations?.custom || [];
+
+  const allViolations = [...predefined, ...custom];
+
+  if (allViolations.length > 0) {
+    triggers.push(
+      `${policy.triggers.policyViolations.thresholdCount} violations (${allViolations.join(", ")})`
+    );
+  }
+}
+if (policy.triggers.anomalyDetection?.enabled) {
+  const threshold = policy.triggers.anomalyDetection.thresholdScore;
+  triggers.push( `Anomaly score ≥ ${threshold}`)
+}
     return triggers.length > 0 ? triggers.join(', ') : 'No triggers configured';
   };
 
