@@ -421,7 +421,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                     <Button size="sm" variant="outline" className="h-9 px-4" disabled={activity.status === 'PUBLISHED'} onClick={() => handlePublish(activity._id)}>
                                         <Send className="mr-2 h-3.5 w-3.5" /> Publish
                                     </Button>
-                                    <Button variant="outline" size="sm" className="h-9 px-4" onClick={() => { setSelectedActivityId(activity._id); setIsRulesOpen(true); }}>
+                                    <Button variant="outline" size="sm" className="h-9 px-4" onClick={() => { setSelectedActivityId(activity._id); setIsRulesOpen(true); console.log("Opening rule settings for activity:", activity._id) }}>
                                         <Settings className="mr-2 h-3.5 w-3.5" /> Rules
                                     </Button>
                                     {activity.status === "ARCHIVED" && (

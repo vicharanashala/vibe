@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
-import { useHpStudentSubmissions, useHpStudents, useRevertHpEntry, useRestoreHpEntry, useReviewSubmission, useAddFeedback } from "@/hooks/hooks";
+import { useHpStudentSubmissions, useHpStudents, useRevertHpEntry, useRestoreHpEntry, useReviewSubmission, useAddFeedback, useHpStudentStats } from "@/hooks/hooks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -233,6 +233,10 @@ export default function StudentSubmissionsPage() {
     const { data: submissions, isLoading: submissionsLoading, error } = useHpStudentSubmissions(
     studentId || "", courseVersionId || "", cohortName || ""
     );
+
+    const { data: submissionsStats, isLoading: submissionsStatsLoading, submissionsStatsError } = useHpStudentStats(studentId || "", cohortName || "");
+    // console.log("Fetched student submissions:", submissions, "Loading:", submissionsLoading, "Error:", error);
+
     const { data: students, isLoading: studentsLoading } = useHpStudents(courseVersionId || "", cohortName || "");
     const student = students.find(s => s._id === studentId);
 
@@ -292,11 +296,11 @@ export default function StudentSubmissionsPage() {
 
 
     const safeSubmissions = submissions ?? [];
-    const totalActivities = safeSubmissions.length;
-    const submitted = safeSubmissions.filter((s: any) => s.submission?.status === "SUBMITTED").length;
-    const pending = safeSubmissions.filter((s: any) => s.submission?.status === "PENDING").length;
-    const late = safeSubmissions.filter((s: any) => s.submission?.isLate).length;
-    const totalCurrentHp = safeSubmissions.reduce((sum: number, s: any) => sum + (s.hp?.currentHp || 0), 0);
+    // const totalActivities = safeSubmissions.length;
+    // const submitted = safeSubmissions.filter((s: any) => s.submission?.status === "SUBMITTED").length;
+    // const pending = safeSubmissions.filter((s: any) => s.submission?.status === "PENDING").length;
+    // const late = safeSubmissions.filter((s: any) => s.submission?.isLate).length;
+    // const totalCurrentHp = safeSubmissions.reduce((sum: number, s: any) => sum + (s.hp?.currentHp || 0), 0);
     const totalBaseHp = safeSubmissions.reduce((sum: number, s: any) => sum + (s.hp?.baseHp || 0), 0);
     return (
         <TooltipProvider>
@@ -336,7 +340,7 @@ export default function StudentSubmissionsPage() {
                     <CardContent>
                         <div className="text-2xl font-bold flex items-center gap-2">
                             <FileText className="h-5 w-5 text-muted-foreground" />
-                            {totalActivities}
+                            {submissionsStats.totalActivities}
                         </div>
                     </CardContent>
                 </Card>
@@ -347,7 +351,7 @@ export default function StudentSubmissionsPage() {
                     <CardContent>
                         <div className="text-2xl font-bold text-green-600 flex items-center gap-2">
                             <CheckCircle className="h-5 w-5" />
-                            {submitted}
+                            {submissionsStats.totalSubmissions}
                         </div>
                     </CardContent>
                 </Card>
@@ -358,7 +362,7 @@ export default function StudentSubmissionsPage() {
                     <CardContent>
                         <div className="text-2xl font-bold text-yellow-600 flex items-center gap-2">
                             <Clock className="h-5 w-5" />
-                            {pending}
+                            {submissionsStats.totalPending}
                         </div>
                     </CardContent>
                 </Card>
@@ -369,7 +373,7 @@ export default function StudentSubmissionsPage() {
                     <CardContent>
                         <div className="text-2xl font-bold text-orange-600 flex items-center gap-2">
                             <Timer className="h-5 w-5" />
-                            {late}
+                            {submissionsStats.totalLateSubmissions}
                         </div>
                     </CardContent>
                 </Card>
@@ -380,7 +384,7 @@ export default function StudentSubmissionsPage() {
                     <CardContent>
                         <div className="text-2xl font-bold text-green-600 flex items-center gap-2">
                             <Zap className="h-5 w-5 text-yellow-500" />
-                            {totalCurrentHp}
+                            {submissionsStats.currentHp}
                         </div>
                     </CardContent>
                 </Card>

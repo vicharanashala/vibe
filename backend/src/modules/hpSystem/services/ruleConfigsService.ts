@@ -94,9 +94,11 @@ export class RuleConfigService extends BaseService {
         }
 
         const existing = await this.ruleConfigRepository.findById(ruleConfigId);
+        console.log("Existing rule config:", existing);
         if (!existing) {
             throw new NotFoundError("Rule config not found");
         }
+        
 
         // Optional consistency guard: penalty only for mandatory
         if (patch.isMandatory === false && patch.penalty?.enabled) {
