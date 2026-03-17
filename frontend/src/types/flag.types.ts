@@ -53,4 +53,6 @@ export interface IReport {
     moduleName?: string;
     sectionName?: string;
     itemName?: string;
+    cohortId?: string;
+    cohortName?: string;
 }

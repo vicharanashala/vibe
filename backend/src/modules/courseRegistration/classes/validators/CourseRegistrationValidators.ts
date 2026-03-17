@@ -220,6 +220,14 @@ export class AutoApprovalSettingsBody {
     description: 'Email patterns to auto-approve (if empty, all emails are approved)'
   })
   autoapproval_emails?: string[];
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    example: 'cohortId123',
+    description: 'Cohort ID for which the auto-approval settings apply (required if course version has cohorts)'
+  })
+  cohortId?: string;
 }
 
 export class PendingRegistrationResponse {
@@ -291,6 +299,16 @@ export class GetPendingRegistrationsParams {
 }
 
 export class GetUnreadApprovedRegistrationsParams {
+  @IsString()
+  studentId: string;
+}
+
+export class GetPendingStudentRegistrationsParams {
+  @IsString()
+  studentId: string;
+}
+
+export class GetRejectedStudentRegistrationsParams {
   @IsString()
   studentId: string;
 }

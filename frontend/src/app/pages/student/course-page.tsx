@@ -606,7 +606,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
         entityId: currentItem._id,
         entityType: currentItem.type as EntityType,
         reason,
-        questionId: itemContainerRef.current?.getCurrentDetails?.()?.questionId
+        questionId: itemContainerRef.current?.getCurrentDetails?.()?.questionId,
+        cohortId: COHORT_ID
       }
 
       await submitFlagAsyncMutate({ body: submitFlagBody })
@@ -1153,7 +1154,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
             body: {
               courseId: COURSE_ID,
               courseVersionId: VERSION_ID,
-              cohort: COHORT_ID
+              cohortId: COHORT_ID
             },
           });
           return;

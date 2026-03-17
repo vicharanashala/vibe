@@ -259,7 +259,7 @@ export class EnrollmentController {
     @Ability(getEnrollmentAbility) { ability, user },
     @Req() req: Request,
   ): Promise<BulkUnenrollResponse> {
-    const { userIds } = body;
+    const { userIds, cohortId} = body;
 
     if (!userIds || userIds.length === 0) {
       throw new BadRequestError(
@@ -284,6 +284,7 @@ export class EnrollmentController {
       userIds,
       courseId,
       versionId,
+      cohortId
     );
 
     setAuditTrail(req, {
