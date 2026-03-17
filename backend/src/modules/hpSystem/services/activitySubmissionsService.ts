@@ -704,6 +704,7 @@ export class ActivitySubmissionsService extends BaseService {
                         totalLateSubmissions: 0,
                         totalPendings: 0,
                         currentHp: 0,
+                        reward: null,
                     },
                 };
             }
@@ -718,13 +719,19 @@ export class ActivitySubmissionsService extends BaseService {
             totalLateSubmissions,
             totalPendingActivites,
             enrollment,
+            latestActivity,
         ] = await Promise.all([
             this.activityRepository.getCountByCohortName(cohortName),
             this.activitySubmissionsRepository.getCountByStudentId(studentId, courseId, courseVersionId),
             this.activitySubmissionsRepository.getLateSubmissionCountByStudentId(studentId, courseId, courseVersionId),
             this.activityRepository.getPendingActivitesCount(studentId, courseId, courseVersionId),
             this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId),
+            this.activityRepository.getLatestActivityByCohortName(cohortName),
         ]);
+
+        const ruleConfig = latestActivity
+        ? await this.ruleConfigService.getByActivityId(latestActivity._id.toString())
+        : null;
 
         const data: StudentActivitySubmissionStatsViewDto = {
             totalActivities,
@@ -732,6 +739,10 @@ export class ActivitySubmissionsService extends BaseService {
             totalLateSubmissions,
             totalPendings: totalPendingActivites,
             currentHp: enrollment?.hpPoints ?? 0,
+            reward: ruleConfig?.reward?.enabled ? {
+                type: ruleConfig.reward.type,
+                value: ruleConfig.reward.value,
+            } : null,
         };
 
         return {
