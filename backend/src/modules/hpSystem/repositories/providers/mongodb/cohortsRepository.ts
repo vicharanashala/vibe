@@ -56,14 +56,6 @@ export class CohortRepository implements ICohortRepository {
             .toArray();
     }
 
-    async getAllCohorts(): Promise<ICohort[]> {
-        await this.init();
-        return await this.cohortsCollection
-            .find({})
-            .sort({ createdAt: 1 })
-            .toArray();
-    }
-
     async getTotalStudentsCountForCohort(courseVersionId: string, cohortId: string): Promise<number> {
         await this.init();
 

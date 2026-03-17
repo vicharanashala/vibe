@@ -200,13 +200,6 @@ export class CohortsService extends BaseService {
                 // 2. Fetch dynamic DB cohorts for this version
                 const dbCohorts = await this._fetchDbCohorts(query.courseVersionId);
                 cohorts.push(...dbCohorts);
-            } else {
-                // Return cohorts from all known versions if no specific version requested
-                const versions = ["000000000000000000000001", "000000000000000000000002"];
-                for (const v of versions) {
-                    const fetched = await this._handleExisitingCohorts(v);
-                    if (fetched) cohorts.push(...fetched);
-                }
             }
 
             return {
@@ -273,52 +266,7 @@ export class CohortsService extends BaseService {
         return results;
     }
 
-    /**
-     * Fetches ALL cohorts from the DB `cohorts` collection (no version filter)
-     * and builds CohortListItemDto objects with stats.
-     */
-    private async _fetchAllDbCohorts(): Promise<CohortListItemDto[]> {
-        const dbCohorts = await this.cohortRepository.getAllCohorts();
-        if (!dbCohorts || dbCohorts.length === 0) return [];
 
-        const results = await Promise.all(
-            dbCohorts.map(async (cohort) => {
-                const cohortId = cohort._id?.toString() ?? "";
-                const versionId = cohort.courseVersionId?.toString() ?? "";
-                const [
-                    totalStudents,
-                    totalActivities,
-                    draftActivities,
-                    publishedActivities,
-                ] = await Promise.all([
-                    this.cohortRepository.getTotalStudentsCountForCohort(versionId, cohortId),
-                    this.activityRepository.getCountByCohortName(cohort.name),
-                    this.activityRepository.getDraftCountByCohortName(cohort.name),
-                    this.activityRepository.getPublishedCountByCohortName(cohort.name),
-                ]);
-
-                return {
-                    cohortName: cohort.name,
-                    courseVersionId: versionId,
-                    stats: {
-                        totalStudents,
-                        totalActivities,
-                        draftActivities,
-                        publishedActivities,
-                        totalHpDistributed: 0,
-                        totalCredits: 0,
-                        totalDebits: 0,
-                        pendingApprovals: 0,
-                        overdueActivities: 0,
-                    },
-                    lastActivityAt: cohort.updatedAt?.toISOString?.() ?? new Date().toISOString(),
-                    createdAt: cohort.createdAt?.toISOString?.() ?? new Date().toISOString(),
-                };
-            })
-        );
-
-        return results;
-    }
 
     private async _handleExisitingCohortStudents(
         versionId: string,
