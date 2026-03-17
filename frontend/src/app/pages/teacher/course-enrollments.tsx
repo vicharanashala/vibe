@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate, useSearch } from "@tanstack/react-router"
-import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check, Layers, Video, HelpCircle } from 'lucide-react'
+import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check, Layers,Video, HelpCircle } from 'lucide-react'
 import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -178,7 +178,7 @@ export default function CourseEnrollments() {
   // Fetch course and version data
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
-  // console.log("----version-----", version);
+
   // Fetch course anomalies stats
   const { data: enrollmentStats, isLoading: statsLoading, error: statsError } = useCourseEnrollmentsStats(
     courseId,
@@ -298,7 +298,7 @@ export default function CourseEnrollments() {
     versionId || "",
     selectedUser?.cohortId,
   )
-  // console.log("selectedUser cohort", selectedUser);
+// console.log("selectedUser cohort", selectedUser);
   const toggleSelectionMode = () => {
     setIsSelectionMode((prev) => {
       if (prev) {
@@ -333,7 +333,7 @@ export default function CourseEnrollments() {
       toast.error('Course or version information missing')
       return
     }
-    if (!cohort) {
+    if(version?.cohorts?.length > 0 && !cohort) {
       toast.error('Please select a cohort for unenrollment')
       return;
     }
@@ -350,7 +350,7 @@ export default function CourseEnrollments() {
         },
         body: {
           userIds,
-          cohort: cohort,
+          cohortId: cohort,
         },
       })
 
@@ -439,17 +439,17 @@ export default function CourseEnrollments() {
     // Frontend validation: Check if cohort is selected and has students
     if (cohort) {
       const cohortName = (version as any)?.cohortDetails?.find((c: any) => c.id === cohort)?.name;
-
+      
       const cohortStudents = filteredStudentEnrollments.filter((enrollment: any) => {
         // The cohort ID is stored directly on the enrollment object
         return enrollment.cohortId === cohort;
       });
-
+      
       if (!cohortName) {
         toast.error('Selected cohort not found');
         return;
       }
-
+      
       if (cohortStudents.length === 0) {
         toast.warning(`No students found in cohort: ${cohortName}`);
         return;
@@ -458,7 +458,7 @@ export default function CourseEnrollments() {
 
     if (!quizScores?.data?.length || isLoadingQuizScores) {
       const cohortName = cohort ? (version as any)?.cohortDetails?.find((c: any) => c.id === cohort)?.name : null;
-      const message = cohort
+      const message = cohort 
         ? `No quiz scores available for cohort: ${cohortName || 'selected cohort'}`
         : 'No quiz scores available';
       toast.warning(message);
@@ -513,7 +513,7 @@ export default function CourseEnrollments() {
 
       // ðŸ§  Let UI breathe before heavy Excel generation
       await new Promise(resolve => setTimeout(resolve, 0));
-      // console.log("JSON.stringify(formattedData,---",JSON.stringify(formattedData, null, 2));
+// console.log("JSON.stringify(formattedData,---",JSON.stringify(formattedData, null, 2));
       generateExcel(formattedData, filename);
       toast.success(`${enrollmentTab.toLowerCase()} quiz scores exported successfully`);
     } catch (error) {
@@ -630,7 +630,7 @@ export default function CourseEnrollments() {
     }
   }, [totalDocuments, enrollmentTab])
   const totalPages = enrollmentsData?.totalPages || 1
-  // console.log("enrollmentsData--------------", enrollmentsData);
+// console.log("enrollmentsData--------------", enrollmentsData);
 
   // Sorting handler
   const handleSort = (column: 'name' | 'enrollmentDate' | 'progress' | "scoreObtained" | "unenrolledAt") => {
@@ -767,7 +767,7 @@ export default function CourseEnrollments() {
         requestBody.sectionId = selectedSection
         requestBody.itemId = selectedItem
       }
-      if (selectedUser.cohortId) {
+      if(selectedUser.cohortId) {
         requestBody.cohortId = selectedUser.cohortId
       }
 
@@ -877,6 +877,18 @@ export default function CourseEnrollments() {
       icon: TrendingUp,
       color: "text-purple-600",
       bgColor: "bg-purple-50",
+    },
+     {
+      title: "Avg Watch Hours",
+      value: (() => {
+        const v = enrollmentStats?.averageWatchHoursPerUser ?? 0;
+        if (v <= 0) return `0h`;
+        if (v < 0.005) return `<0.01h`;
+        return `${v.toFixed(2)}h`;
+      })(),
+      icon: Clock,
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
     },
   ]
   const {
@@ -998,7 +1010,14 @@ export default function CourseEnrollments() {
           </div>
 
           {/* Stats */}
-          <div className="flex lg:flex-nowrap flex-wrap gap-6">
+          {statsLoading?<>
+           <div className="ml-6 p-2">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Loading statistics...</span>
+        </div>
+      </div>
+          </>:<div className="flex lg:flex-nowrap flex-wrap gap-6">
             {stats.map((stat) => (
               <Card key={stat.title} className="border-0 shadow-sm hover:shadow-md transition-shadow w-full">
                 <CardContent className="p-6">
@@ -1014,75 +1033,75 @@ export default function CourseEnrollments() {
                 </CardContent>
               </Card>
             ))}
-          </div>
+          </div>}
 
-        {/* Search */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              placeholder="Search students by user ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value?.toLowerCase())}
-              className="pl-12 h-12 border-border bg-card text-card-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
-            />
-            <X className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setSearchQuery("");
-              }} />
-          </div>
-
-
-          {/* Time Slot Selection Mode Header */}
-          {(selectMode || isSelectionMode) && (
-            <div className="flex items-center gap-3">
-              <div className="bg-card border border-border rounded-lg px-4 py-2">
-                <p className="text-sm text-card-foreground font-medium">
-                  Select students for time slot assignment
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {selectedUsers.size} student{selectedUsers.size !== 1 ? 's' : ''} selected
-                </p>
-              </div>
-              <Button
-                onClick={handleTimeSlotStudentSelection}
-                disabled={selectedUsers.size === 0}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground"
-              >
-                <Check className="h-4 w-4 mr-2" />
-                Confirm Selection
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setIsSelectionMode(false)}
-                className="border-border text-foreground hover:bg-muted"
-              >
-                Cancel
-              </Button>
+          {/* Search */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                placeholder="Search students by user ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value?.toLowerCase())}
+                className="pl-12 h-12 border-border bg-card text-card-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+              />
+              <X className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setSearchQuery("");
+                }} />
             </div>
-          )}
-        </div>
+
+
+            {/* Time Slot Selection Mode Header */}
+            {(selectMode || isSelectionMode) && (
+              <div className="flex items-center gap-3">
+                <div className="bg-card border border-border rounded-lg px-4 py-2">
+                  <p className="text-sm text-card-foreground font-medium">
+                    Select students for time slot assignment
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedUsers.size} student{selectedUsers.size !== 1 ? 's' : ''} selected
+                  </p>
+                </div>
+                <Button
+                  onClick={handleTimeSlotStudentSelection}
+                  disabled={selectedUsers.size === 0}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  Confirm Selection
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsSelectionMode(false)}
+                  className="border-border text-foreground hover:bg-muted"
+                >
+                  Cancel
+                </Button>
+              </div>
+            )}
+          </div>
 
 
 
-        {/* Students Table */}
-        {/* Students Table + Tabs */}
-        <Tabs
-          value={enrollmentTab}
-          onValueChange={(v) => setEnrollmentTab(v as "ACTIVE" | "INACTIVE")}
-          className="w-full"
-        >
-          {/* Tabs Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <TabsList className="grid w-full sm:w-[420px] grid-cols-2 h-11 bg-muted/30 p-1 rounded-xl">
-              <TabsTrigger
-                value="ACTIVE"
-                className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
-              >
-                Active Students({activeCount})
-              </TabsTrigger>
+          {/* Students Table */}
+          {/* Students Table + Tabs */}
+          <Tabs
+            value={enrollmentTab}
+            onValueChange={(v) => setEnrollmentTab(v as "ACTIVE" | "INACTIVE")}
+            className="w-full"
+          >
+            {/* Tabs Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <TabsList className="grid w-full sm:w-[420px] grid-cols-2 h-11 bg-muted/30 p-1 rounded-xl">
+                <TabsTrigger
+                  value="ACTIVE"
+                  className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
+                >
+                  Active Students({activeCount})
+                </TabsTrigger>
 
                 <TabsTrigger
                   value="INACTIVE"
@@ -1160,7 +1179,7 @@ export default function CourseEnrollments() {
           </Tabs>
 
 
-        {/* Enhanced View Progress Modal */}
+          {/* Enhanced View Progress Modal */}
 
           {isViewProgressDialogOpen && selectedUser && (
             <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
@@ -1220,6 +1239,7 @@ export default function CourseEnrollments() {
                           <SummaryRow label="Quizzes" value={progressDetail.contentCounts?.itemCounts?.QUIZ ?? 0} />
                           <SummaryRow label="Articles" value={progressDetail.contentCounts?.itemCounts?.BLOG ?? 0} />
                           <SummaryRow label="Projects" value={progressDetail.contentCounts?.itemCounts?.PROJECT ?? 0} />
+                          <SummaryRow label="Feedbacks" value={progressDetail.contentCounts?.itemCounts?.FEEDBACK ?? 0} />
                           <SummaryRow
                             label="Quiz Score"
                             value={`${progressDetail.totalQuizScore ?? 0} / ${progressDetail.totalQuizMaxScore ?? 0}`}
@@ -1228,79 +1248,62 @@ export default function CourseEnrollments() {
                             label="Items Completed"
                             value={`${Math.min(progressDetail.completedItemsCount ?? 0, progressDetail.contentCounts?.totalItems ?? 0)} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
                           />
+                           <SummaryRow
+                            label="Watch Hours"
+                            value={`${(progressDetail.watchHours ?? 0).toFixed(2)}h`}
+                          />
                         </div>
-                      ) : progressDetail ? (
-                        <>
-                          <div className="flex justify-between items-center mb-3">
-                            <p className="text-sm text-muted-foreground">Completion</p>
-                            <EnrollmentProgress progress={progressDetail.percentCompleted || 0} />
-                          </div>
-                          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                            <SummaryRow label="Total Items" value={progressDetail.contentCounts?.totalItems ?? 0} />
-                            <SummaryRow label="Videos" value={progressDetail.contentCounts?.itemCounts?.VIDEO ?? 0} />
-                            <SummaryRow label="Quizzes" value={progressDetail.contentCounts?.itemCounts?.QUIZ ?? 0} />
-                            <SummaryRow label="Articles" value={progressDetail.contentCounts?.itemCounts?.BLOG ?? 0} />
-                            <SummaryRow label="Projects" value={progressDetail.contentCounts?.itemCounts?.PROJECT ?? 0} />
-                            <SummaryRow
-                              label="Quiz Score"
-                              value={`${progressDetail.totalQuizScore ?? 0} / ${progressDetail.totalQuizMaxScore ?? 0}`}
-                            />
-                            <SummaryRow
-                              label="Items Completed"
-                              value={`${progressDetail.completedItemsCount ?? 0} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
-                            />
-                          </div>
-                        </>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">No progress data found</p>
-                      )}
-                    </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No progress data found</p>
+                    )}
                   </div>
+                </div>
 
-                  {/* View Course Structure button — lazy loads API 3 */}
-                  <div className="flex justify-center mt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowCourseStructure(true)}
-                      disabled={showCourseStructure}
-                      className="gap-2 cursor-pointer"
-                    >
-                      {courseStructureLoading ? (
-                        <><Loader2 className="h-4 w-4 animate-spin" /> Loading Course Structure...</>
-                      ) : (
-                        <><BookOpen className="h-4 w-4" /> View Course Structure</>
+                {/* View Course Structure button — lazy loads API 3 */}
+                <div className="flex justify-center mt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowCourseStructure(true)}
+                    disabled={showCourseStructure}
+                    className="gap-2 cursor-pointer"
+                  >
+                    {courseStructureLoading ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Loading Course Structure...</>
+                    ) : (
+                      <><BookOpen className="h-4 w-4" /> View Course Structure</>
+                    )}
+                  </Button>
+                </div>
+                {/* Current Learning Position & Course Structure gated by API 3 */}
+                {showCourseStructure && (
+                  <div className="space-y-6">
+
+                    {/* Current Learning Position */}
+                    <div className="space-y-2 p-4 rounded-lg border border-border bg-muted/20">
+                      <h4 className="text-sm font-semibold text-muted-foreground">
+                        Current Learning Position
+                      </h4>
+
+                      {pathError && (
+                        <div className="text-sm text-destructive">
+                          <p>Failed to load current progress</p>
+                          <p className="text-xs mt-1">Error: {pathError.message || 'Unknown error'}</p>
+                        </div>
                       )}
-                    </Button>
-                  </div>
-                  {/* Current Learning Position & Course Structure gated by API 3 */}
-                  {showCourseStructure && (
-                    <div className="space-y-6">
 
-                      {/* Current Learning Position */}
-                      <div className="space-y-2 p-4 rounded-lg border border-border bg-muted/20">
-                        <h4 className="text-sm font-semibold text-muted-foreground">
-                          Current Learning Position
-                        </h4>
+                      {!currentPath && !pathError && (
+                        <p className="text-sm text-muted-foreground">
+                          Progress not started yet
+                        </p>
+                      )}
 
-                        {pathError && (
-                          <div className="text-sm text-destructive">
-                            <p>Failed to load current progress</p>
-                            <p className="text-xs mt-1">Error: {pathError.message || 'Unknown error'}</p>
-                          </div>
-                        )}
-
-                        {!currentPath && !pathError && (
-                          <p className="text-sm text-muted-foreground">
-                            Progress not started yet
-                          </p>
-                        )}
-
-                        {currentPath && currentPath.message && (
-                          <div className="text-sm text-muted-foreground">
-                            <p>{currentPath.message}</p>
-                          </div>
-                        )}
+                      {currentPath && currentPath.message && (
+                        <div className="text-sm text-muted-foreground">
+                          <p>{currentPath.message}</p>
+                        </div>
+                      )}
 
                       {currentPath && currentPath.module && (
                         <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
@@ -1414,212 +1417,218 @@ export default function CourseEnrollments() {
                               <BookOpen className="h-5 w-5 text-blue-600" />
                               <span className="font-semibold text-foreground flex-1">{module.name}</span>
 
-                                            {/* Module completion count */}
-                                            {(() => {
-                                              // Find progress for this module from the API response
-                                              const moduleProgress = userModuleProgress?.modules?.find(
-                                                (m: any) => m.moduleId === module.moduleId
-                                              );
+                              {/* Module completion count */}
+                              {(() => {
+                                // Find progress for this module from the API response
+                                const moduleProgress = userModuleProgress?.modules?.find(
+                                  (m: any) => m.moduleId === module.moduleId
+                                );
 
-                                              if (moduleProgress) {
-                                                const { totalItems, completedItems } = moduleProgress;
-                                                const completedText = totalItems > 0
-                                                  ? `${completedItems}/${totalItems} completed`
-                                                  : 'No items';
+                                if (moduleProgress) {
+                                  const { totalItems, completedItems } = moduleProgress;
+                                  const completedText = totalItems > 0
+                                    ? `${completedItems}/${totalItems} completed`
+                                    : 'No items';
 
-                                                return (
-                                                  <span className="text-xs ml-auto text-muted-foreground">
-                                                    {completedText}
-                                                  </span>
-                                                );
-                                              }
+                                  return (
+                                    <span className="text-xs ml-auto text-muted-foreground">
+                                      {completedText}
+                                    </span>
+                                  );
+                                }
 
-                                              let totalItems = 0;
-                                              module.sections?.forEach((section: any) => {
-                                                totalItems += section.itemCount || 0;
-                                              });
+                                let totalItems = 0;
+                                module.sections?.forEach((section: any) => {
+                                  totalItems += section.itemCount || 0;
+                                });
 
-                                              const loadingText = moduleProgressLoading
-                                                ? `${totalItems} items (loading...)`
-                                                : `${totalItems} items`;
+                                const loadingText = moduleProgressLoading
+                                  ? `${totalItems} items (loading...)`
+                                  : `${totalItems} items`;
 
-                                              return (
-                                                <span className="text-xs ml-auto text-muted-foreground">
-                                                  {loadingText}
-                                                </span>
-                                              );
-                                            })()}
-                                          </div>
-
-                                          {/* Sections */}
-                                          {expandedModules.has(module.moduleId) && (
-                                            <div className="ml-6 space-y-2">
-                                              {module.sections?.map((section: any) => (
-                                                <div key={section.sectionId} className="space-y-2">
-                                                  <div
-                                                    className="flex items-center gap-2 p-2 bg-muted/10 rounded-lg cursor-pointer hover:bg-muted/20 transition-colors"
-                                                    onClick={() => toggleSection(section.sectionId)}
-                                                  >
-                                                    {expandedSections.has(section.sectionId) ? (
-                                                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                                    ) : (
-                                                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                                    )}
-                                                    <FileText className="h-4 w-4 text-emerald-600" />
-                                                    <span className="font-medium text-foreground">{section.name}</span>
-                                                  </div>
-
-                                                  {/* Items */}
-                                                  {expandedSections.has(section.sectionId) && (
-                                                    <SectionItems
-                                                      versionId={versionId!}
-                                                      moduleId={module.moduleId}
-                                                      sectionId={section.sectionId}
-                                                      selectedViewItem={selectedViewItem}
-                                                      onItemSelect={(itemId, itemType, itemName) => {
-                                                        setSelectedViewItem(itemId)
-                                                        setSelectedViewItemType(itemType)
-                                                        setSelectedViewItemName(itemName)
-                                                      }}
-                                                    />
-                                                  )}
-                                                </div>
-                                              )) || (
-                                                  <p className="text-sm text-muted-foreground ml-6">
-                                                    No sections in this module
-                                                  </p>
-                                                )}
-                                            </div>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>              {/* Item Details Display */}
-                                    {selectedViewItem && (
-                                      <div className="space-y-4">
-                                        {selectedViewItemType?.toUpperCase() === 'QUIZ' ? (
-                                          <QuizSubmissionDisplay
-                                            userId={selectedUser.id}
-                                            quizId={selectedViewItem}
-                                            itemName={selectedViewItemName}
-                                          />
-                                        ) : (
-                                          <WatchTimeDisplay
-                                            userId={selectedUser.id}
-                                            itemId={selectedViewItem}
-                                            courseId={courseId!}
-                                            courseVersionId={versionId}
-                                            itemName={selectedViewItemName}
-                                            itemType={selectedViewItemType}
-                                          />
-                                        )}
-                                      </div>
-                                    )}
-
-                                    {!selectedViewItem && (
-                                      <div className="p-8 text-center text-muted-foreground">
-                                        <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                                        <p>Select an item from the course structure above to view details.</p>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
+                                return (
+                                  <span className="text-xs ml-auto text-muted-foreground">
+                                    {loadingText}
+                                  </span>
+                                );
+                              })()}
                             </div>
-                          </div>
-                        )}
 
-                        {isRemoveDialogOpen && (
-                          <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
-                            <div
-                              className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
-                              onClick={() => setIsRemoveDialogOpen(false)}
-                            />
-                            <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
-                              <div className="flex items-center justify-between">
-                                <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Remove Student</h2>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setIsRemoveDialogOpen(false)}
-                                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
+                            {/* Sections */}
+                            {expandedModules.has(module.moduleId) && (
+                              <div className="ml-6 space-y-2">
+                                {module.sections?.map((section: any) => (
+                                  <div key={section.sectionId} className="space-y-2">
+                                    <div
+                                      className="flex items-center gap-2 p-2 bg-muted/10 rounded-lg cursor-pointer hover:bg-muted/20 transition-colors"
+                                      onClick={() => toggleSection(section.sectionId)}
+                                    >
+                                      {expandedSections.has(section.sectionId) ? (
+                                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                      ) : (
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                      )}
+                                      <FileText className="h-4 w-4 text-emerald-600" />
+                                      <span className="font-medium text-foreground">{section.name}</span>
+                                    </div>
 
-                              <div className="space-y-8">
-                                <p className="text-lg text-card-foreground">
-                                  Want to remove <strong className="text-primary">{userToRemove?.name}</strong> from{" "}
-                                  <strong className="text-primary">
-                                    {course.name} ({version.version}) ({userToRemove?.cohortName})
-                                  </strong>
-                                  ?
-                                </p>
-
-                                <div className="flex gap-4 p-6 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl">
-                                  <div><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" /></div>
-                                  <div className="text-sm text-red-800 dark:text-red-200">
-                                    <strong>Warning:</strong> This action cannot be undone. The student will lose access to the course
-                                    version and all their progress data.
+                                    {/* Items */}
+                                    {expandedSections.has(section.sectionId) && (
+                                      <SectionItems
+                                        versionId={versionId!}
+                                        moduleId={module.moduleId}
+                                        sectionId={section.sectionId}
+                                        selectedViewItem={selectedViewItem}
+                                        onItemSelect={(itemId, itemType, itemName) => {
+                                          setSelectedViewItem(itemId)
+                                          setSelectedViewItemType(itemType)
+                                          setSelectedViewItemName(itemName)
+                                        }}
+                                      />
+                                    )}
                                   </div>
-                                </div>
-                              </div>
-
-                              <div className="flex justify-end gap-3 pt-4">
-                                <Button
-                                  variant="outline"
-                                  onClick={() => setIsRemoveDialogOpen(false)}
-                                  className="min-w-[100px] cursor-pointer"
-                                >
-                                  No, Cancel
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  onClick={confirmRemoveStudent}
-                                  disabled={unenrollMutation.isPending}
-                                  className="min-w-[100px] shadow-lg cursor-pointer"
-                                >
-                                  {unenrollMutation.isPending ? (
-                                    <>
-                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                      Removing...
-                                    </>
-                                  ) : (
-                                    "Yes, Remove"
+                                )) || (
+                                    <p className="text-sm text-muted-foreground ml-6">
+                                      No sections in this module
+                                    </p>
                                   )}
-                                </Button>
                               </div>
-                            </div>
+                            )}
                           </div>
-                        )}
-
-                        {isRecalculateProgressOpen && (
-                          <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
-                            <div
-                              className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
-                              onClick={() => setIsRecalculateProgressOpen(false)}
+                        ))}
+                      </div>              {/* Item Details Display */}
+                      {selectedViewItem && (
+                        <div className="space-y-4">
+                          {selectedViewItemType?.toUpperCase() === 'QUIZ' ? (
+                            <QuizSubmissionDisplay
+                              userId={selectedUser.id}
+                              quizId={selectedViewItem}
+                              itemName={selectedViewItemName}
                             />
-                            <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
-                              <div className="flex items-center justify-between">
-                                <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Recalculate Progress</h2>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setIsRecalculateProgressOpen(false)}
-                                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
+                          ) : (
+                            <WatchTimeDisplay
+                              userId={selectedUser.id}
+                              itemId={selectedViewItem}
+                              courseId={courseId!}
+                              courseVersionId={versionId}
+                              itemName={selectedViewItemName}
+                              itemType={selectedViewItemType}
+                            />
+                          )}
+                        </div>
+                      )}
 
-                              <div className="space-y-8">
-                                <p className="text-lg text-card-foreground">
-                                  Want to Recalculate progress of <strong className="text-primary">{userToRecalculate?.name}</strong>
-                                  ?
-                                </p>
+                      {!selectedViewItem && (
+                        <div className="p-8 text-center text-muted-foreground">
+                          <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>Select an item from the course structure above to view details.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
+          {isRemoveDialogOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+              <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+                onClick={() => setIsRemoveDialogOpen(false)}
+              />
+              <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Remove Student</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsRemoveDialogOpen(false)}
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
 
-                              </div>
+              <div className="space-y-8">
+                <p className="text-lg text-card-foreground">
+                  Want to remove <strong className="text-primary">{userToRemove?.name}</strong> from{" "}
+                  <strong className="text-primary">
+                    {course.name} ({version.version}) {userToRemove?.cohortName}
+                  </strong>
+                  ?
+                </p>
+
+                  <div className="flex gap-4 p-6 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl">
+                    <div><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" /></div>
+                    <div className="text-sm text-red-800 dark:text-red-200">
+                      <strong>Warning:</strong> This action cannot be undone. The student will lose access to the course
+                      version and all their progress data.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsRemoveDialogOpen(false)}
+                    className="min-w-[100px] cursor-pointer"
+                  >
+                    No, Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={confirmRemoveStudent}
+                    disabled={unenrollMutation.isPending}
+                    className="min-w-[100px] shadow-lg cursor-pointer"
+                  >
+                    {unenrollMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Removing...
+                      </>
+                    ) : (
+                      "Yes, Remove"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isRecalculateProgressOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+              <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+                onClick={() => setIsRecalculateProgressOpen(false)}
+              />
+              <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Recalculate Progress</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsRecalculateProgressOpen(false)}
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-8">
+                  <p className="text-lg text-card-foreground">
+                    Want to Recalculate progress of <strong className="text-primary">{userToRecalculate?.name}</strong>
+                    ?
+                  </p>
+
+                  {/* <div className="flex gap-4 p-6 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl">
+                  <div><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" /></div>
+                  <div className="text-sm text-red-800 dark:text-red-200">
+                    <strong>Warning:</strong> This action cannot be undone. The student will lose access to the course
+                    version and all their progress data.
+                  </div>
+                </div> */}
+                </div>
 
                 <div className="flex justify-end gap-3 pt-4">
                   <Button
@@ -1691,243 +1700,243 @@ export default function CourseEnrollments() {
                   </div>
                 )}
 
-                                    <p className="text-muted-foreground">
-                                      Choose the scope of progress reset for this student in{" "}
-                                      <strong>
-                                        {course.name} ({version.version})
-                                      </strong>
-                                      . This action cannot be undone.
-                                    </p>
+                <p className="text-muted-foreground">
+                  Choose the scope of progress reset for this student in{" "}
+                  <strong>
+                    {course.name} ({version.version})
+                  </strong>
+                  . This action cannot be undone.
+                </p>
 
-                                    <div className="space-y-8 flex justify-around flex-wrap">
-                                      <div className="space-y-3">
-                                        <Label htmlFor="reset-scope" className="text-sm font-bold text-foreground">
-                                          Reset Scope
-                                        </Label>
-                                        <Select value={resetScope} onValueChange={(value: any) => setResetScope(value)}>
-                                          <SelectTrigger className="h-16 border-border bg-card text-card-foreground cursor-pointer">
-                                            <SelectValue placeholder="Select reset scope" />
-                                          </SelectTrigger>
-                                          <SelectContent className="bg-card border-border cursor-pointer">
-                                            <SelectItem value="course" className="cursor-pointer">
-                                              <div className="flex items-center sm:gap-3 gap-1 py-3 sm:px-2">
-                                                <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                                                <div>
-                                                  <div className="font-semibold">Entire Course Version</div>
-                                                  <div className="text-xs text-muted-foreground">Reset all progress in this version</div>
-                                                </div>
-                                              </div>
-                                            </SelectItem>
-                                            <SelectItem value="module" className="cursor-pointer" >
-                                              <div className="flex items-center sm:gap-3 gap-1 py-3 sm:px-2">
-                                                <List className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                                                <div>
-                                                  <div className="font-semibold">Specific Module</div>
-                                                  <div className="text-xs text-muted-foreground">Reset module progress</div>
-                                                </div>
-                                              </div>
-                                            </SelectItem>
-                                            <SelectItem value="section" className="cursor-pointer" >
-                                              <div className="flex items-center sm:gap-3 gap-1 py-3 sm:px-2">
-                                                <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                                                <div>
-                                                  <div className="font-semibold">Specific Section</div>
-                                                  <div className="text-xs text-muted-foreground">Reset section progress</div>
-                                                </div>
-                                              </div>
-                                            </SelectItem>
-                                            <SelectItem value="item" className="cursor-pointer" >
-                                              <div className="flex items-center sm:gap-3 gap-1 py-3 sm:px-2">
-                                                <Play className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                                                <div>
-                                                  <div className="font-semibold">Specific Item</div>
-                                                  <div className="text-xs text-muted-foreground">Reset single item</div>
-                                                </div>
-                                              </div>
-                                            </SelectItem>
-                                          </SelectContent>
-                                        </Select>
-                                      </div>
-
-                                      {(resetScope === "module" || resetScope === "section" || resetScope === "item") && (
-                                        <div className="space-y-3">
-                                          <Label htmlFor="module" className="text-sm font-bold text-foreground">
-                                            Module
-                                          </Label>
-                                          <Select value={selectedModule} onValueChange={setSelectedModule}>
-                                            <SelectTrigger className="h-16 border-border bg-card text-card-foreground cursor-pointer">
-                                              <SelectValue placeholder="Select module" />
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-card border-border cursor-pointer">
-                                              {getAvailableModules().map((module: any) => (
-                                                <SelectItem key={module.moduleId} value={module.moduleId} className="cursor-pointer">
-                                                  <div className="py-2">
-                                                    <div className="font-semibold">{module.name}</div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                      {module.sections?.length || 0} sections
-                                                    </div>
-                                                  </div>
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
-                                        </div>
-                                      )}
-
-                                      {(resetScope === "section" || resetScope === "item") && selectedModule && (
-                                        <div className="space-y-3">
-                                          <Label htmlFor="section" className="text-sm font-bold text-foreground">
-                                            Section
-                                          </Label>
-                                          <Select value={selectedSection} onValueChange={setSelectedSection}>
-                                            <SelectTrigger className="h-16 border-border bg-card text-card-foreground cursor-pointer">
-                                              <SelectValue placeholder="Select section" />
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-card border-border cursor-pointer">
-                                              {getAvailableSections().map((section: any) => (
-                                                <SelectItem key={section.sectionId} value={section.sectionId} className="cursor-pointer">
-                                                  <div className="py-2">
-                                                    <div className="font-semibold">{section.name}</div>
-                                                    <div className="text-xs text-muted-foreground">Section in selected module</div>
-                                                  </div>
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
-                                        </div>
-                                      )}
-
-                                      {resetScope === "item" && selectedModule && selectedSection && (
-                                        <ItemSelector
-                                          versionId={versionId!}
-                                          moduleId={selectedModule}
-                                          sectionId={selectedSection}
-                                          selectedItem={selectedItem}
-                                          onItemChange={setSelectedItem}
-                                        />
-                                      )}
-
-                                      <div className="flex gap-4 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl">
-                                        <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                                        <div className="text-sm text-amber-800 dark:text-amber-200">
-                                          <strong>Warning:</strong> This action cannot be undone. The student's progress will be permanently
-                                          reset for the selected scope.
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    <div className="flex justify-end gap-3 pt-4">
-                                      <Button
-                                        variant="outline"
-                                        onClick={() => setIsResetDialogOpen(false)}
-                                        className="min-w-[100px] cursor-pointer"
-                                      >
-                                        Cancel
-                                      </Button>
-                                      <Button
-                                        variant="destructive"
-                                        onClick={handleConfirmReset}
-                                        disabled={!isFormValid() || resetProgressMutation.isPending}
-                                        className="min-w-[120px] shadow-lg cursor-pointer"
-                                      >
-                                        {resetProgressMutation.isPending ? (
-                                          <>
-                                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                            Resetting...
-                                          </>
-                                        ) : (
-                                          "Reset Progress"
-                                        )}
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                              {totalPages > 1 && (
-                                <Pagination
-                                  currentPage={currentPage}
-                                  totalPages={totalPages}
-                                  totalDocuments={totalDocuments}
-                                  onPageChange={handlePageChange}
-                                />
-                              )}
-
-                              {/* Bulk Unenroll Confirmation Dialog */}
-                              {isBulkUnenrollDialogOpen && (
-                                <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
-                                  <div
-                                    className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
-                                    onClick={() => setIsBulkUnenrollDialogOpen(false)}
-                                  />
-                                  <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
-                                    <div className="flex items-center justify-between">
-                                      <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Bulk Unenroll</h2>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setIsBulkUnenrollDialogOpen(false)}
-                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                      <p className="text-lg text-card-foreground">
-                                        Are you sure you want to unenroll <strong>{selectedUsers.size}</strong> students?
-                                      </p>
-                                      <div className="flex gap-4 p-6 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl">
-                                        <div><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" /></div>
-                                        <div className="text-sm text-red-800 dark:text-red-200">
-                                          <strong>Warning:</strong> This action cannot be undone. Selected students will lose access to the course version and all their progress data.
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    <div className="flex justify-end gap-3 pt-4">
-                                      <Button
-                                        variant="outline"
-                                        onClick={() => setIsBulkUnenrollDialogOpen(false)}
-                                        className="min-w-[100px] cursor-pointer"
-                                      >
-                                        Cancel
-                                      </Button>
-                                      <Button
-                                        variant="destructive"
-                                        onClick={confirmBulkUnenroll}
-                                        className="min-w-[100px] shadow-lg cursor-pointer"
-                                      >
-                                        Unenroll Selected
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
+                <div className="space-y-8 flex justify-around flex-wrap">
+                  <div className="space-y-3">
+                    <Label htmlFor="reset-scope" className="text-sm font-bold text-foreground">
+                      Reset Scope
+                    </Label>
+                    <Select value={resetScope} onValueChange={(value: any) => setResetScope(value)}>
+                      <SelectTrigger className="h-16 border-border bg-card text-card-foreground cursor-pointer">
+                        <SelectValue placeholder="Select reset scope" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border cursor-pointer">
+                        <SelectItem value="course" className="cursor-pointer">
+                          <div className="flex items-center sm:gap-3 gap-1 py-3 sm:px-2">
+                            <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            <div>
+                              <div className="font-semibold">Entire Course Version</div>
+                              <div className="text-xs text-muted-foreground">Reset all progress in this version</div>
                             </div>
-                            {/* Time Slots Modal */}
-                            {
-                              courseId && versionId && (
-                                <TimeSlotsModal
-                                  isOpen={isTimeSlotsModalOpen}
-                                  onClose={() => setIsTimeSlotsModalOpen(false)}
-                                  courseId={courseId}
-                                  courseVersionId={versionId}
-                                />
-                              )
-                            }
-                          </div >
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="module" className="cursor-pointer" >
+                          <div className="flex items-center sm:gap-3 gap-1 py-3 sm:px-2">
+                            <List className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                            <div>
+                              <div className="font-semibold">Specific Module</div>
+                              <div className="text-xs text-muted-foreground">Reset module progress</div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="section" className="cursor-pointer" >
+                          <div className="flex items-center sm:gap-3 gap-1 py-3 sm:px-2">
+                            <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                            <div>
+                              <div className="font-semibold">Specific Section</div>
+                              <div className="text-xs text-muted-foreground">Reset section progress</div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="item" className="cursor-pointer" >
+                          <div className="flex items-center sm:gap-3 gap-1 py-3 sm:px-2">
+                            <Play className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                            <div>
+                              <div className="font-semibold">Specific Item</div>
+                              <div className="text-xs text-muted-foreground">Reset single item</div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {(resetScope === "module" || resetScope === "section" || resetScope === "item") && (
+                    <div className="space-y-3">
+                      <Label htmlFor="module" className="text-sm font-bold text-foreground">
+                        Module
+                      </Label>
+                      <Select value={selectedModule} onValueChange={setSelectedModule}>
+                        <SelectTrigger className="h-16 border-border bg-card text-card-foreground cursor-pointer">
+                          <SelectValue placeholder="Select module" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-card border-border cursor-pointer">
+                          {getAvailableModules().map((module: any) => (
+                            <SelectItem key={module.moduleId} value={module.moduleId} className="cursor-pointer">
+                              <div className="py-2">
+                                <div className="font-semibold">{module.name}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {module.sections?.length || 0} sections
+                                </div>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {(resetScope === "section" || resetScope === "item") && selectedModule && (
+                    <div className="space-y-3">
+                      <Label htmlFor="section" className="text-sm font-bold text-foreground">
+                        Section
+                      </Label>
+                      <Select value={selectedSection} onValueChange={setSelectedSection}>
+                        <SelectTrigger className="h-16 border-border bg-card text-card-foreground cursor-pointer">
+                          <SelectValue placeholder="Select section" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-card border-border cursor-pointer">
+                          {getAvailableSections().map((section: any) => (
+                            <SelectItem key={section.sectionId} value={section.sectionId} className="cursor-pointer">
+                              <div className="py-2">
+                                <div className="font-semibold">{section.name}</div>
+                                <div className="text-xs text-muted-foreground">Section in selected module</div>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {resetScope === "item" && selectedModule && selectedSection && (
+                    <ItemSelector
+                      versionId={versionId!}
+                      moduleId={selectedModule}
+                      sectionId={selectedSection}
+                      selectedItem={selectedItem}
+                      onItemChange={setSelectedItem}
+                    />
+                  )}
+
+                  <div className="flex gap-4 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl">
+                    <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-amber-800 dark:text-amber-200">
+                      <strong>Warning:</strong> This action cannot be undone. The student's progress will be permanently
+                      reset for the selected scope.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsResetDialogOpen(false)}
+                    className="min-w-[100px] cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleConfirmReset}
+                    disabled={!isFormValid() || resetProgressMutation.isPending}
+                    className="min-w-[120px] shadow-lg cursor-pointer"
+                  >
+                    {resetProgressMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        Resetting...
+                      </>
+                    ) : (
+                      "Reset Progress"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalDocuments={totalDocuments}
+              onPageChange={handlePageChange}
+            />
+          )}
+
+          {/* Bulk Unenroll Confirmation Dialog */}
+          {isBulkUnenrollDialogOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+              <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+                onClick={() => setIsBulkUnenrollDialogOpen(false)}
+              />
+              <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Bulk Unenroll</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsBulkUnenrollDialogOpen(false)}
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  <p className="text-lg text-card-foreground">
+                    Are you sure you want to unenroll <strong>{selectedUsers.size}</strong> students?
+                  </p>
+                  <div className="flex gap-4 p-6 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl">
+                    <div><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" /></div>
+                    <div className="text-sm text-red-800 dark:text-red-200">
+                      <strong>Warning:</strong> This action cannot be undone. Selected students will lose access to the course version and all their progress data.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsBulkUnenrollDialogOpen(false)}
+                    className="min-w-[100px] cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={confirmBulkUnenroll}
+                    className="min-w-[100px] shadow-lg cursor-pointer"
+                  >
+                    Unenroll Selected
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div >
+
+      {/* Time Slots Modal */}
+      {
+        courseId && versionId && (
+          <TimeSlotsModal
+            isOpen={isTimeSlotsModalOpen}
+            onClose={() => setIsTimeSlotsModalOpen(false)}
+            courseId={courseId}
+            courseVersionId={versionId}
+          />
+        )
+      }
     </>
   )
-
 }
 
 // Component to handle item selection with API call
 function ItemSelector({
   versionId,
-  module,
+  moduleId,
   sectionId,
   selectedItem,
-  onchange,
+  onItemChange,
 }: {
   versionId: string
   moduleId: string
@@ -2007,7 +2016,7 @@ function ItemSelector({
 // Component to fetch and display items for a section
 function SectionItems({
   versionId,
-  module,
+  moduleId,
   sectionId,
   selectedViewItem,
   onItemSelect,
@@ -2192,8 +2201,8 @@ function EnrollmentsTable({
                   variant="outline"
                   size="sm"
                 >
-                  <Layers className="h-4 w-4 text-muted-foreground" />
-                  {cohort ? (version as any).cohortDetails.find((c: any) => c.id === cohort)?.name : "Select Cohort"}
+                <Layers className="h-4 w-4 text-muted-foreground" />
+        {cohort ? (version as any).cohortDetails.find((c: any) => c.id === cohort)?.name : "Select Cohort"}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
@@ -2474,9 +2483,9 @@ function EnrollmentsTable({
                               {enrollment?.user?.email || ""}
                             </p>
                             {enrollment?.cohortName && (
-                              <p className="text-xs md:text-sm text-muted-foreground truncate">
-                                (Cohort- {enrollment?.cohortName || ""})
-                              </p>
+                            <p className="text-xs md:text-sm text-muted-foreground truncate">
+                              (Cohort- {enrollment?.cohortName || ""})
+                            </p>
                             )}
                           </div>
                         </div>
@@ -2586,8 +2595,8 @@ function EnrollmentsTable({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              console.log("Remove student clicked:", enrollment);
+                            onClick={() =>
+                                {console.log("Remove student clicked:", enrollment);
                               handleRemoveStudent({
                                 id: enrollment.user?._id,
                                 name:
@@ -2598,8 +2607,7 @@ function EnrollmentsTable({
                                 progress: 0,
                                 cohortId: enrollment.cohortId,
                                 cohortName: enrollment.cohortName
-                              })
-                            }
+                              })}
                             }
                             className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
                             disabled={
@@ -2628,7 +2636,3 @@ function EnrollmentsTable({
     </Card>
   )
 }
-
-
-
-
