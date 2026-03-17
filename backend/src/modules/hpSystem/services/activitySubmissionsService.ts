@@ -631,9 +631,38 @@ export class ActivitySubmissionsService extends BaseService {
         const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined,
             undefined, cohortName);
 
+        // Get ledger data for all submissions
+        const submissionIds = submissions.map(sub => sub.submission?._id).filter(Boolean);
+        const ledgerEntries = submissionIds.length > 0 
+            ? await this.ledgerRepository.findBySubmissionIds(submissionIds)
+            : [];
+
+        // Create a map of submissionId to ledger entries for quick lookup
+        const ledgerMap = new Map();
+        ledgerEntries.forEach(entry => {
+            const submissionId = entry.submissionId?.toString();
+            if (submissionId) {
+                if (!ledgerMap.has(submissionId)) {
+                    ledgerMap.set(submissionId, []);
+                }
+                ledgerMap.get(submissionId).push(entry);
+            }
+        });
+
+        // Attach ledger data to each submission
+        const submissionsWithLedger = submissions.map(submission => {
+            const submissionId = submission.submission?._id;
+            const relatedLedgerEntries = ledgerMap.get(submissionId) || [];
+            
+            return {
+                ...submission,
+                ledgerEntries: relatedLedgerEntries
+            };
+        });
+
         return {
             success: true,
-            data: submissions,
+            data: submissionsWithLedger,
             meta: {
                 total: submissions.length,
                 page: query.page ?? 1,

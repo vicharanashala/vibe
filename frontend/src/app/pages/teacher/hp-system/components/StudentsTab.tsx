@@ -95,10 +95,10 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
       </div>
 
       {/* Student Count */}
-      <div className="text-sm text-muted-foreground">
+      {/* <div className="text-sm text-muted-foreground">
         {filteredStudents.length} student
         {filteredStudents.length !== 1 ? "s" : ""}
-      </div>
+      </div> */}
 
       {/* Table */}
       {filteredStudents.length === 0 ? (
