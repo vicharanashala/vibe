@@ -194,6 +194,14 @@ export interface SubmissionAttachment {
     type: 'image' | 'pdf' | 'document' | 'link' | 'other';
 }
 
+export interface InstructorFeedback {
+  decision?: string;
+  reviewerName?: string;
+  reviewerEmail?: string;
+  reviewedAt?: string;
+  note?: string;
+}
+
 export interface HpStudentSubmission {
     _id: string;
     activityId: string;
