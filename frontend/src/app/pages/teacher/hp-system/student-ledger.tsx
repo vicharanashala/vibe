@@ -59,6 +59,8 @@ export default function StudentLedgerPage() {
         effectiveVersionId
     );
 
+    console.log("Fetched ledger entries:", ledger, "Loading:", isLoadingLedger, "Error:", error);
+
     // 4. Fetch Activities to map IDs to Titles
     const { data: activities = [], isLoading: isLoadingActivities } = useHpActivities(
         effectiveVersionId,
@@ -201,7 +203,7 @@ export default function StudentLedgerPage() {
                                     <TableRow key={entry._id}>
                                         <TableCell>
                                             <div className="font-medium max-w-[200px] truncate">
-                                                {activityMap[entry.activityId] || entry.activityId || 'Manual Adjustment'}
+                                                {activityMap[entry.activityId] || entry.activityTitle || 'Manual Adjustment'}
                                             </div>
                                         </TableCell>
                                         <TableCell>
@@ -256,7 +258,7 @@ export default function StudentLedgerPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Activity</p>
-                                    <p className="text-sm font-semibold">{activityMap[selectedEntry.activityId] || selectedEntry.activityId || 'Manual Adjustment'}</p>
+                                    <p className="text-sm font-semibold">{activityMap[selectedEntry.activityId] || selectedEntry.activityTitle || 'Manual Adjustment'}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Event Type</p>
@@ -310,6 +312,7 @@ export default function StudentLedgerPage() {
                             </div>
                         </div>
                     )}
+                      <Button className="mx-auto" onClick={()=>navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${cohortName}/student/${studentId}/submissions`})}>See Submissions</Button>
                 </DialogContent>
             </Dialog>
         </div>
