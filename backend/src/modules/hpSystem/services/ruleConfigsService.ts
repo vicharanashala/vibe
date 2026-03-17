@@ -65,6 +65,7 @@ export class RuleConfigService extends BaseService {
                 allowLate: body.reward.allowLate,
                 lateBehavior: body.reward.lateBehavior as any,
                 minHpFloor: body.reward.minHpFloor,
+                required_percentage: body.reward.required_percentage || 100,
             },
 
             penalty: {

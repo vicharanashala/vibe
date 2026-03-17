@@ -18,8 +18,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { HpRuleConfig } from "@/lib/api/hp-system";
-import { useHpRuleConfig, useCreateHpRuleConfig, useUpdateHpRuleConfig } from "@/hooks/hooks";
+import { HpRuleConfig, HpActivity } from "@/lib/api/hp-system";
+import { useHpRuleConfig, useCreateHpRuleConfig, useUpdateHpRuleConfig, useHpActivities } from "@/hooks/hooks";
 
 interface RuleSettingsDialogProps {
     isOpen: boolean;
@@ -45,6 +45,8 @@ export function RuleSettingsDialog({
     // Hooks
     const { data: existingConfig, isLoading: fetchLoading, refetch } = useHpRuleConfig(isOpen ? activityId : undefined);
     console.log("Existing config from hook:", existingConfig, "Loading:", fetchLoading);
+    const { data: activities = [] } = useHpActivities(courseVersionId, "", "", "");
+    const activity = activities.find((a: HpActivity) => a._id === activityId);
     const { mutateAsync: createRuleConfig, isPending: isCreating } = useCreateHpRuleConfig();
     const { mutateAsync: updateRuleConfig, isPending: isUpdating } = useUpdateHpRuleConfig();
 
@@ -60,6 +62,7 @@ export function RuleSettingsDialog({
         allowLate: false,
         lateBehavior: "NO_REWARD",
         minHpFloor: 0,
+        required_percentage: undefined,
     };
 
     const defaultPenalty: any = {
@@ -220,6 +223,26 @@ export function RuleSettingsDialog({
                                         } as any))}
                                     />
                                 </div>
+
+                                {(activity?.activityType === "MILESTONE" || activity?.activityType === "VIBE_MILESTONE") && (
+                                    <div className="space-y-2">
+                                        <Label>Required Progress Percentage</Label>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            placeholder="e.g., 75"
+                                            value={config?.reward?.required_percentage || ""}
+                                            onChange={(e) => setConfig(prev => ({
+                                                ...prev,
+                                                reward: { ...(prev?.reward || defaultReward), required_percentage: parseInt(e.target.value) || undefined }
+                                            } as any))}
+                                        />
+                                        <p className="text-[10px] text-muted-foreground">
+                                            Minimum progress percentage required to earn this milestone reward
+                                        </p>
+                                    </div>
+                                )}
 
                                 <div className="space-y-2">
                                     <Label>Apply Policy</Label>
