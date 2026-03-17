@@ -406,6 +406,7 @@ export interface IEnrollment {
   isDeleted?: boolean;
   deletedAt?: Date;
   unenrolledAt?: Date;
+  hpPoints?:number;
   hasNewItemsAfterCompletion?: boolean;
   cohortId?: ID;
 }
