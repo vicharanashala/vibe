@@ -293,6 +293,7 @@ export class EnrollmentService extends BaseService {
     userIds: string[],
     courseId: string,
     courseVersionId: string,
+    cohortId?: string
   ): Promise<{
     successCount: number;
     failureCount: number;
@@ -320,6 +321,7 @@ export class EnrollmentService extends BaseService {
             userId,
             courseId,
             courseVersionId,
+            cohortId
           );
 
           if (!enrollment) {
