@@ -332,6 +332,8 @@ export interface Anomaly {
   updatedAt?: string | Date;
   date: string;
   status: 'Pending' | 'Investigated' | 'Resolved';
+  cohortId?: string;
+  cohortName?: string;
 }
 
 export interface ExportFeedbackSubmissionsProps {
@@ -348,7 +350,8 @@ export function useAnomaliesByCourseItem(
   sortField?: string,
   sortOrder: 'asc' | 'desc' = 'desc',
   search?: string,
-  type?: string
+  type?: string,
+  cohort?: string
 ): {
   data: Anomaly[];
   isLoading: boolean;
@@ -357,6 +360,7 @@ export function useAnomaliesByCourseItem(
   total: number;
   page: number;
   totalPages: number;
+  cohort?: string;
 } {
   const result: any = api.useQuery(
     "get",
@@ -373,7 +377,8 @@ export function useAnomaliesByCourseItem(
           sortField,
           sortOrder,
           ...(search && { search }),
-          ...(type && { type })
+          ...(type && { type }),
+          ...(cohort && { cohort })
         }
       }
     },
@@ -3237,8 +3242,8 @@ export function useQuizSubmissions(quizId: string, gradeStatus: GradingSystemSta
 }
 
 export function useSubmitFlag(): {
-  mutate: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string, questionId?: string } }) => void,
-  mutateAsync: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string, questionId?: string } }) => Promise<void>,
+  mutate: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string, questionId?: string, cohortId?: string } }) => void,
+  mutateAsync: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string, questionId?: string, cohortId?: string } }) => Promise<void>,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
@@ -3869,8 +3874,8 @@ export const useToggleRegistrationStatus = (versionId: string): {
 export const useUpdateAutoApprovalsettings = (
   versionId: string,
 ): {
-  mutate: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] }) => void;
-  mutateAsync: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] }) => Promise<any>;
+  mutate: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[], cohortId?: string }) => void;
+  mutateAsync: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[], cohortId?: string }) => Promise<any>;
   data: any;
   error: string | null;
   isPending: boolean;
@@ -3883,7 +3888,7 @@ export const useUpdateAutoApprovalsettings = (
   const result = api.useMutation('put', '/course/registration/auto-approval/version/{versionId}' as any);
 
   return {
-    mutate: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] }) =>
+    mutate: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[], cohortId?: string }) =>
       result.mutate({
         params: {
           path: { versionId },
@@ -3891,7 +3896,7 @@ export const useUpdateAutoApprovalsettings = (
         body: params,
       }),
 
-    mutateAsync: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] }) =>
+    mutateAsync: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[], cohortId?: string }) =>
       result.mutateAsync({
         params: {
           path: { versionId },
@@ -4010,6 +4015,8 @@ export interface IssueReport {
   status: IssueStatusHistory[]; // ✅ fixed: array of objects
   createdAt: string;
   updatedAt: string;
+  cohortId?: string;
+  cohortName?: string;
 }
 
 interface Params {

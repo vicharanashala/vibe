@@ -277,7 +277,7 @@ export class EnrollmentService extends BaseService {
         courseId,
         courseVersionId,
         enrollment?._id.toString(),
-        enrollment?.cohortId.toString(),
+        enrollment?.cohortId?.toString(),
         session,
       );
 
@@ -293,6 +293,7 @@ export class EnrollmentService extends BaseService {
     userIds: string[],
     courseId: string,
     courseVersionId: string,
+    cohortId?: string
   ): Promise<{
     successCount: number;
     failureCount: number;
@@ -320,6 +321,7 @@ export class EnrollmentService extends BaseService {
             userId,
             courseId,
             courseVersionId,
+            cohortId
           );
 
           if (!enrollment) {
@@ -955,7 +957,7 @@ export class EnrollmentService extends BaseService {
       await this.enrollmentRepo.getBatchQuizSubmissionGrades(
         userIds,
         allQuizIds,
-        enrollments.filter(e => e.cohortId).map(e => e.cohortId.toString())
+        enrollments.filter(e => e.cohortId).map(e => e.cohortId?.toString())
       );
     // 5. Create a map: userId -> quiz grades
     const userQuizGradesMap = new Map<string, IGradingResult[]>();

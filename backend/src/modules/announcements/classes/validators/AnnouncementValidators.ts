@@ -78,9 +78,9 @@ export class CreateAnnouncementBody {
     content: string;
 
     @JSONSchema({
-        description: 'Type of announcement: GENERAL, COURSE_SPECIFIC, or VERSION_SPECIFIC',
+        description: 'Type of announcement: GENERAL, COURSE_SPECIFIC, VERSION_SPECIFIC, or COHORT_SPECIFIC',
         type: 'string',
-        enum: ['GENERAL', 'COURSE_SPECIFIC', 'VERSION_SPECIFIC'],
+        enum: ['GENERAL', 'COURSE_SPECIFIC', 'VERSION_SPECIFIC', 'COHORT_SPECIFIC'],
         example: 'GENERAL',
     })
     @IsEnum(AnnouncementType)
@@ -112,6 +112,14 @@ export class CreateAnnouncementBody {
     @ValidateNested({ each: true })
     @Type(() => AttachmentBody)
     attachments?: AttachmentBody[];
+
+    @JSONSchema({
+        description: 'Cohort ID (required for COHORT_SPECIFIC)',
+        type: 'string',
+    })
+    @IsOptional()
+    @IsMongoId()
+    cohortId?: string;
 }
 
 export class UpdateAnnouncementBody {
@@ -171,4 +179,8 @@ export class AnnouncementQueryParams {
     @IsOptional()
     @IsMongoId()
     courseVersionId?: string;
+
+    @IsOptional()
+    @IsMongoId()
+    cohortId?: string;
 }

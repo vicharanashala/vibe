@@ -178,7 +178,7 @@ export default function CourseEnrollments() {
   // Fetch course and version data
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
-// console.log("----version-----", version);
+
   // Fetch course anomalies stats
   const { data: enrollmentStats, isLoading: statsLoading, error: statsError } = useCourseEnrollmentsStats(
     courseId,
@@ -333,7 +333,7 @@ export default function CourseEnrollments() {
       toast.error('Course or version information missing')
       return
     }
-    if(!cohort) {
+    if(version?.cohorts?.length > 0 && !cohort) {
       toast.error('Please select a cohort for unenrollment')
       return;
     }
@@ -350,7 +350,7 @@ export default function CourseEnrollments() {
         },
         body: {
           userIds,
-          cohort: cohort,
+          cohortId: cohort,
         },
       })
 
@@ -878,6 +878,18 @@ export default function CourseEnrollments() {
       color: "text-purple-600",
       bgColor: "bg-purple-50",
     },
+     {
+      title: "Avg Watch Hours",
+      value: (() => {
+        const v = enrollmentStats?.averageWatchHoursPerUser ?? 0;
+        if (v <= 0) return `0h`;
+        if (v < 0.005) return `<0.01h`;
+        return `${v.toFixed(2)}h`;
+      })(),
+      icon: Clock,
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
+    },
   ]
   const {
     data: currentPath,
@@ -998,7 +1010,14 @@ export default function CourseEnrollments() {
           </div>
 
           {/* Stats */}
-          <div className="flex lg:flex-nowrap flex-wrap gap-6">
+          {statsLoading?<>
+           <div className="ml-6 p-2">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Loading statistics...</span>
+        </div>
+      </div>
+          </>:<div className="flex lg:flex-nowrap flex-wrap gap-6">
             {stats.map((stat) => (
               <Card key={stat.title} className="border-0 shadow-sm hover:shadow-md transition-shadow w-full">
                 <CardContent className="p-6">
@@ -1014,7 +1033,7 @@ export default function CourseEnrollments() {
                 </CardContent>
               </Card>
             ))}
-          </div>
+          </div>}
 
           {/* Search */}
           <div className="flex flex-col sm:flex-row gap-4">
@@ -1212,7 +1231,7 @@ export default function CourseEnrollments() {
                       <>
                         <div className="flex justify-between items-center mb-3">
                           <p className="text-sm text-muted-foreground">Completion</p>
-                          <EnrollmentProgress progress={progressDetail.percentCompleted || 0} />
+                          <EnrollmentProgress progress={Math.min(progressDetail?.percentCompleted ?? 0, 100)} /> 
                         </div>
                         <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                           <SummaryRow label="Total Items" value={progressDetail.contentCounts?.totalItems ?? 0} />
@@ -1220,13 +1239,18 @@ export default function CourseEnrollments() {
                           <SummaryRow label="Quizzes" value={progressDetail.contentCounts?.itemCounts?.QUIZ ?? 0} />
                           <SummaryRow label="Articles" value={progressDetail.contentCounts?.itemCounts?.BLOG ?? 0} />
                           <SummaryRow label="Projects" value={progressDetail.contentCounts?.itemCounts?.PROJECT ?? 0} />
+                          <SummaryRow label="Feedbacks" value={progressDetail.contentCounts?.itemCounts?.FEEDBACK ?? 0} />
                           <SummaryRow
                             label="Quiz Score"
                             value={`${progressDetail.totalQuizScore ?? 0} / ${progressDetail.totalQuizMaxScore ?? 0}`}
                           />
                           <SummaryRow
                             label="Items Completed"
-                            value={`${progressDetail.completedItemsCount ?? 0} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
+                            value={`${Math.min(progressDetail.completedItemsCount ?? 0, progressDetail.contentCounts?.totalItems ?? 0)} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
+                          />
+                           <SummaryRow
+                            label="Watch Hours"
+                            value={`${(progressDetail.watchHours ?? 0).toFixed(2)}h`}
                           />
                         </div>
                       </>
@@ -1530,7 +1554,7 @@ export default function CourseEnrollments() {
                 <p className="text-lg text-card-foreground">
                   Want to remove <strong className="text-primary">{userToRemove?.name}</strong> from{" "}
                   <strong className="text-primary">
-                    {course.name} ({version.version}) ({userToRemove?.cohortName})
+                    {course.name} ({version.version}) {userToRemove?.cohortName}
                   </strong>
                   ?
                 </p>

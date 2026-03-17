@@ -3,6 +3,7 @@ import { ICourseRepository } from '#shared/database/interfaces/ICourseRepository
 import {
   courseVersionStatus,
   ICohort,
+  ICohortSettings,
   ICourse,
   ICourseVersion,
   ID,
@@ -58,6 +59,7 @@ export class CourseRepository implements ICourseRepository {
   private inviteCollection: Collection<Invite>;
   private questionBankCollection: Collection<IQuestionBank>;
   private cohortsCollection: Collection<ICohort>;
+  private cohortSettingsCollection: Collection<ICohortSettings>;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -104,6 +106,8 @@ export class CourseRepository implements ICourseRepository {
     this.itemsGroupCollection.createIndex({ 'items.type': 1 });
 
     this.cohortsCollection = await this.db.getCollection<ICohort>('cohorts');
+
+    this.cohortSettingsCollection = await this.db.getCollection<ICohortSettings>('cohortSettings');
   }
 
   async getDBClient(): Promise<MongoClient> {
@@ -1385,4 +1389,110 @@ export class CourseRepository implements ICourseRepository {
       throw new NotFoundError('Course version not founded!',);
     return isExistVersion.versionStatus;
   }
+
+  async createCohortSettings(
+    versionId: string,
+    cohortId: string,
+    registrationsAutoApproved: boolean,
+    autoapproval_emails: string[],
+    session?: ClientSession
+  ): Promise<string> {
+    try{
+      await this.init();
+      const result = await this.cohortSettingsCollection.insertOne(
+      {
+          courseVersionId: new ObjectId(versionId),
+          cohortId: new ObjectId(cohortId),
+          registrationsAutoApproved,
+          autoapproval_emails
+        },
+        { session }
+      );
+
+      return result.insertedId.toString();
+    } catch (error) {
+      throw new InternalServerError(
+        'Failed to create cohort settings.\n More Details: ' + error,
+      );
+    }
+  }
+
+  async getCohortSettingById(
+    id: string,
+    session?: ClientSession
+  ): Promise<any>{
+    try{
+      await this.init();
+      const setting = await this.cohortSettingsCollection.findOne(
+        {
+          _id: new ObjectId(id)
+        },
+        { session }
+      );
+
+      if (!setting) {
+        return null;
+      }
+      return setting;
+    } catch (error) {
+      throw new InternalServerError(
+        'Failed to get cohort setting by ID.\n More Details: ' + error,
+      );
+    }
+  }
+
+  async getCohortSetting(
+    versionId: string,
+    cohortId: string,
+    session?: ClientSession
+  ): Promise<string> {
+    try{
+      await this.init();
+      const setting = await this.cohortSettingsCollection.findOne(
+        {
+          courseVersionId: new ObjectId(versionId),
+          cohortId: new ObjectId(cohortId)
+        },
+        { session }
+      );
+
+      if (!setting) {
+        return null;
+      }
+      return setting._id.toString();
+    } catch (error) {
+      throw new InternalServerError(
+        'Failed to get cohort setting.\n More Details: ' + error,
+      );
+    }
+  }
+
+  async updateCohortSettings(
+    settingId: string,
+    registrationsAutoApproved: boolean,
+    autoapproval_emails: string[],
+    session?: ClientSession
+  ): Promise<boolean> {
+    try{
+      await this.init();
+      const result = await this.cohortSettingsCollection.updateOne(
+        { _id: new ObjectId(settingId) },
+        {
+          $set: {
+            registrationsAutoApproved,
+            autoapproval_emails,
+            updatedAt: new Date()
+          }
+        },
+        { session }
+      );
+
+      return result.modifiedCount === 1;
+    } catch (error) {
+      throw new InternalServerError(
+        'Failed to update cohort settings.\n More Details: ' + error,
+      );
+    }
+  }
+
 }
