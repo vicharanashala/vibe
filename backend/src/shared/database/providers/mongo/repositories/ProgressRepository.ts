@@ -107,7 +107,7 @@ class ProgressRepository {
         courseVersionId: new ObjectId(courseVersionId),
         endTime: { $exists: true, $ne: null },
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       { session },
     );
@@ -166,7 +166,7 @@ class ProgressRepository {
           userId: new ObjectId(userId),
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
-          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
           itemId: new ObjectId(itemId),
           endTime: { $exists: true, $ne: null },
           isDeleted: { $ne: true },
@@ -586,7 +586,7 @@ class ProgressRepository {
       {
         _id: new ObjectId(watchTimeId),
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       { $set: { endTime: new Date() } },
       { returnDocument: 'after', session },
