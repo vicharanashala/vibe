@@ -878,6 +878,18 @@ export default function CourseEnrollments() {
       color: "text-purple-600",
       bgColor: "bg-purple-50",
     },
+     {
+      title: "Avg Watch Hours",
+      value: (() => {
+        const v = enrollmentStats?.averageWatchHoursPerUser ?? 0;
+        if (v <= 0) return `0h`;
+        if (v < 0.005) return `<0.01h`;
+        return `${v.toFixed(2)}h`;
+      })(),
+      icon: Clock,
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
+    },
   ]
   const {
     data: currentPath,
@@ -998,7 +1010,14 @@ export default function CourseEnrollments() {
           </div>
 
           {/* Stats */}
-          <div className="flex lg:flex-nowrap flex-wrap gap-6">
+          {statsLoading?<>
+           <div className="ml-6 p-2">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Loading statistics...</span>
+        </div>
+      </div>
+          </>:<div className="flex lg:flex-nowrap flex-wrap gap-6">
             {stats.map((stat) => (
               <Card key={stat.title} className="border-0 shadow-sm hover:shadow-md transition-shadow w-full">
                 <CardContent className="p-6">
@@ -1014,7 +1033,7 @@ export default function CourseEnrollments() {
                 </CardContent>
               </Card>
             ))}
-          </div>
+          </div>}
 
           {/* Search */}
           <div className="flex flex-col sm:flex-row gap-4">
@@ -1220,6 +1239,7 @@ export default function CourseEnrollments() {
                           <SummaryRow label="Quizzes" value={progressDetail.contentCounts?.itemCounts?.QUIZ ?? 0} />
                           <SummaryRow label="Articles" value={progressDetail.contentCounts?.itemCounts?.BLOG ?? 0} />
                           <SummaryRow label="Projects" value={progressDetail.contentCounts?.itemCounts?.PROJECT ?? 0} />
+                          <SummaryRow label="Feedbacks" value={progressDetail.contentCounts?.itemCounts?.FEEDBACK ?? 0} />
                           <SummaryRow
                             label="Quiz Score"
                             value={`${progressDetail.totalQuizScore ?? 0} / ${progressDetail.totalQuizMaxScore ?? 0}`}
@@ -1227,6 +1247,10 @@ export default function CourseEnrollments() {
                           <SummaryRow
                             label="Items Completed"
                             value={`${Math.min(progressDetail.completedItemsCount ?? 0, progressDetail.contentCounts?.totalItems ?? 0)} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
+                          />
+                           <SummaryRow
+                            label="Watch Hours"
+                            value={`${(progressDetail.watchHours ?? 0).toFixed(2)}h`}
                           />
                         </div>
                       </>
