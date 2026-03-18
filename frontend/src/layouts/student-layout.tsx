@@ -290,6 +290,11 @@ export default function StudentLayout() {
                 </Button>
 
                 {showInvites && <InviteDropdown
+                 setShowInvites={setShowInvites}
+                onRejectClick={(invite) => {
+  setSelectedInvite(null);
+  setShowInvites(false);
+}}
                 selectedInvite={selectedInvite}
                 setSelectedInvite={setSelectedInvite}
                   setPendingInvites={setPendingInvites}
