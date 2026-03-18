@@ -39,50 +39,43 @@ export function setupEjectionPolicyAbilities(
   builder: AbilityBuilder<any>,
   user: AuthenticatedUser,
 ) {
-  const {can, cannot} = builder;
+  const {can} = builder;
 
   if (user.globalRole === 'admin') {
     can('manage', 'EjectionPolicy');
     return;
   }
 
-  if (!user.enrollments || user.enrollments.length === 0) {
-    return 'User has no enrollments';
-  }
+  // 🔥 DO NOT block if no enrollments
 
-  user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
+  user.enrollments?.forEach(enrollment => {
     const courseBounded = {courseId: enrollment.courseId};
-    const versionBounded = {
-      courseId: enrollment.courseId,
-      versionId: enrollment.versionId,
-    };
 
     switch (enrollment.role) {
       case 'STUDENT':
-        //  Can view policies affecting their course but cannot modify them
-        can(EjectionPolicyActions.View, 'EjectionPolicy', courseBounded);
-        can(EjectionPolicyActions.View, 'EjectionPolicy', {scope: 'platform'});
+        can('view', 'EjectionPolicy', courseBounded);
+        can('view', 'EjectionPolicy', {scope: 'platform'});
         break;
 
       case 'INSTRUCTOR':
-        // Instructors can view policies for their courses
-        can(EjectionPolicyActions.View, 'EjectionPolicy', courseBounded);
-        // can('manage', 'EjectionPolicy', courseBounded);
-
+        can('view', 'EjectionPolicy', courseBounded);
         break;
 
       case 'MANAGER':
-        // Managers have full control over policies for their courses
-        can(EjectionPolicyActions.View, 'EjectionPolicy', courseBounded);
         can('manage', 'EjectionPolicy', courseBounded);
         break;
 
       case 'TA':
-        // TAs can view policies for their course versions
-        can(EjectionPolicyActions.View, 'EjectionPolicy', versionBounded);
+        can('view', 'EjectionPolicy', {
+          courseId: enrollment.courseId,
+          versionId: enrollment.versionId,
+        });
         break;
     }
   });
+
+  // 🔥 Fallback for invite flow
+  can('view', 'EjectionPolicy');
 }
 
 /**
