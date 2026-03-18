@@ -8,6 +8,8 @@ import { useMarkNotificationAsRead } from "@/hooks/hooks";
 import { PolicyAcknowledgementModal } from "@/app/pages/student/components/policies/PolicyAcknowledgementModal";
 
 type InviteDropdownProps = {
+  selectedInvite:any,
+  setSelectedInvite:React.Dispatch<React.SetStateAction<any>>
   pendingInvites: any[];
   setPendingInvites: React.Dispatch<React.SetStateAction<any[]>>;
   approvedNotifications?: ApprovedRegistrationNotification[];
@@ -15,6 +17,8 @@ type InviteDropdownProps = {
 };
 
 const InviteDropdown = ({ 
+  selectedInvite,
+  setSelectedInvite,
   pendingInvites, 
   setPendingInvites, 
   approvedNotifications = [], 
@@ -23,7 +27,7 @@ const InviteDropdown = ({
   const { getInvites, loading, error } = useInvites();
   const { mutate: markAsRead, isPending } = useMarkNotificationAsRead();
   const [invites, setInvites] = useState<any[]>(pendingInvites || []);
-  const [selectedInvite, setSelectedInvite] = useState<any | null>(null);
+ 
   const [showPolicyModal, setShowPolicyModal] = useState(false);
 
 console.log("Invites:", invites);
@@ -39,7 +43,7 @@ console.log("Invites:", invites);
     setApprovedNotifications?.(prev => prev.filter(n => n._id !== notificationId));
   };
 
-  return (
+  return (<>
     <div className="absolute right-0 top-full mt-1 w-72 bg-white dark:bg-black rounded-lg shadow-lg border border-red-100 dark:border-zinc-700 z-50">
       <ul className="divide-y divide-gray-200 dark:divide-zinc-600 max-h-48 overflow-auto p-1">
         {loading ? (
@@ -80,15 +84,7 @@ console.log("Invites:", invites);
                 </div>
               </li>
             ))}
-            {selectedInvite && (
-  <PolicyAcknowledgementModal
-  open={!!selectedInvite}
-  onClose={() => setSelectedInvite(null)}
-  inviteId={selectedInvite?.inviteId}
-  courseId={selectedInvite?.courseId}
-  courseVersionId={selectedInvite?.courseVersionId}
-/>
-)}
+           
             {/* Render Invites */}
             {invites.map((invite: any, idx: number) => (
               <InviteItem 
@@ -102,7 +98,11 @@ console.log("Invites:", invites);
           </>
         )}
       </ul>
+       
     </div>
+   
+    </>
+
   );
 };
 

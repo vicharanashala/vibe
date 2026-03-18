@@ -59,8 +59,10 @@ if (!inviteId) {
 }
 
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="max-w-4xl max-h-[90vh]" >
+    <Dialog open={open} onOpenChange={(isOpen) => {
+  if (!isOpen) onClose();
+}}>
+      <DialogContent className="max-w-4xl max-h-[90vh]" onInteractOutside={(e) => e.preventDefault()} >
 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
