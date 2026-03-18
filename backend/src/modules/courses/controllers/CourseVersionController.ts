@@ -179,7 +179,7 @@ Accessible to:
   async read(
     @Params() params: ReadCourseVersionParams,
     @Ability(getCourseVersionAbility) { ability, user },
-  ): Promise<CourseVersion> {
+  ): Promise<CourseVersion & {hpSystem: boolean}> {
     const { versionId } = params;
 
     // Build the subject context first

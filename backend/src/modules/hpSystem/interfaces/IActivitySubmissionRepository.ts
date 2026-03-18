@@ -54,4 +54,11 @@ export interface IActivitySubmissionRepository {
     getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number>
 
     updateFeedbackById(id: string, feedback: SubmissionFeedbackItem, session?: ClientSession): Promise<boolean>
+
+    getCohortActivityStats(cohortName: string, activityId: string, session?: ClientSession): Promise<{
+        totalSubmissions: number;
+        approvedCount: number;
+        rejectedCount: number;
+        revertedCount: number;
+    }>
 }

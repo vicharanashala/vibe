@@ -42,12 +42,14 @@ export function ProctoringModal({
   courseId,
   courseVersionId,
   isNew,
+  onSuccess,
 }: {
   open: boolean
   onClose: () => void
   courseId: string
   courseVersionId: string
   isNew: boolean
+  onSuccess?: ()=> void
 }) {
   const { editSettings, loading, error } = useEditProctoringSettings()
   const { getSettings, settingLoading, settingError } = useGetProcotoringSettings();
@@ -96,6 +98,7 @@ export function ProctoringModal({
     try {
       const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled, seekForwardEnabled, isPublic, hpSystemEnabled)
       if (result != undefined) {
+        onSuccess?.();
         onClose();
       }
       toast.success("Settings updated!")

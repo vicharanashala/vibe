@@ -21,7 +21,7 @@ import multer from "multer";
 
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivitySubmissionsService } from "../services/activitySubmissionsService.js";
-import { CreateOrUpdateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, SubmissionFeedbackBody } from "../classes/validators/activitySubmissionValidators.js";
+import { CreateOrUpdateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, StudentCohortWiseActivitySubmissionsStatsDto, SubmissionFeedbackBody } from "../classes/validators/activitySubmissionValidators.js";
 
 @OpenAPI({
   tags: ["HP Activity Submissions"],
@@ -176,5 +176,31 @@ export class ActivitySubmissionsController {
     return { success: true, data: result };
   }
 
+  @OpenAPI({ summary: "get submission stats of a activity for a cohort" })
+  @Get("/stats/cohort/:cohortName/activity/:activityId")
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(StudentCohortWiseActivitySubmissionsStatsDto)
+  async getCohortActivityStats(
+    @CurrentUser() user: IUser,
+    @Param("cohortName") cohortName: string,
+    @Param("activityId") activityId: string,
+  ): Promise<StudentCohortWiseActivitySubmissionsStatsDto> {
+    return await this.submissionService.getCohortActivityStats(cohortName, activityId);
+  }
+
+  @OpenAPI( { summary: "get bulk stats of activity submissions for a cohort" })
+  @Get("/stats/cohort/:cohortName/courseversion/:courseVersionId")
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(StudentActivitySubmissionStatsResponseDto)
+  async getBulkCohortActivityStats(
+    @CurrentUser() user: IUser,
+    @Param("cohortName") cohortName: string,
+    @Param("courseVersionId") courseVersionId: string,
+  ): Promise<StudentActivitySubmissionStatsResponseDto> {
+    const data =  await this.submissionService.getBulkCohortActivityStats(cohortName, courseVersionId);
+    return { success: true, data };
+  }
 
 }

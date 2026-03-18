@@ -3,7 +3,7 @@ import { GLOBAL_TYPES } from "#root/types.js";
 import { inject, injectable } from "inversify";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivityRepository, ActivitySubmissionsRepository, LedgerRepository } from "../repositories/index.js";
-import { CreateOrUpdateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, StudentActivitySubmissionStatsViewDto, StudentActivitySubmissionsViewDto } from "../classes/validators/activitySubmissionValidators.js";
+import { CreateOrUpdateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, StudentActivitySubmissionStatsViewDto, StudentActivitySubmissionsViewDto, StudentCohortWiseActivitySubmissionsStatsDto } from "../classes/validators/activitySubmissionValidators.js";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { appConfig } from "#root/config/app.js";
 import { Bucket, Storage } from '@google-cloud/storage';
@@ -12,7 +12,7 @@ import { randomBytes } from "crypto";
 import { ActivityService } from "./activityService.js";
 import { RuleConfigService } from "./ruleConfigsService.js";
 import { HpActivitySubmission, HpLedger, HpLedgerDirection, HpLedgerEventType, HpReasonCode, ReviewDecision, TriggeredBy } from "../models.js";
-import { ObjectId } from "mongodb";
+import { ClientSession, ObjectId } from "mongodb";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { SubmissionFeedbackItem } from "../classes/transformers/ActivitySubmission.js";
 import { COHORT_OVERRIDES, ID } from "../constants.js";
@@ -1006,6 +1006,22 @@ export class ActivitySubmissionsService extends BaseService {
                 message: result ? "Feedback added successfully" : "Failed to add feedback"
             };
         })
+    }
+
+    async getCohortActivityStats(cohortName: string, activityId: string, session?: ClientSession): Promise<StudentCohortWiseActivitySubmissionsStatsDto> {
+        return this._withTransaction(async (session) => {
+            const data =  await this.activitySubmissionsRepository.getCohortActivityStats(cohortName, activityId, session);
+            return {
+                data
+            };
+        });
+    }
+
+    async getBulkCohortActivityStats(cohortName: string, courseVersionId: string, session?: ClientSession):Promise<any> {
+        return this._withTransaction(async (session) => {
+            const data = await this.activitySubmissionsRepository.getCohortStatsMap(cohortName, courseVersionId, session);
+            return data;
+        });
     }
 }
 

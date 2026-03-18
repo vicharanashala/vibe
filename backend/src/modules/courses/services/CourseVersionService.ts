@@ -145,7 +145,7 @@ export class CourseVersionService extends BaseService {
   public async readCourseVersion(
     courseVersionId: string,
     userId: string,
-  ): Promise<CourseVersion> {
+  ): Promise<CourseVersion & {hpSystem: boolean}> {
     return this._withTransaction(async session => {
       const readVersion = await this.courseRepo.getActiveVersion(
         courseVersionId,
@@ -206,12 +206,12 @@ export class CourseVersionService extends BaseService {
             return {...module, sections: visibleSections};
           });
       }
+      const hpSystem = await this.settingsRepo.getisHpSystemEnabled(new ObjectId(courseVersionId));
 
       const version = instanceToPlain(
         Object.assign(new CourseVersion(), readVersion),
       ) as CourseVersion;
-
-      return version;
+      return {...version,hpSystem:hpSystem};
     });
   }
 

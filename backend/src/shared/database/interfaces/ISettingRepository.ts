@@ -251,4 +251,8 @@ export interface ISettingRepository {
     courseVersionIds: ObjectId[],
     session?: ClientSession,
   ): Promise<ICourseSetting[] | null>;
+
+  getisHpSystemEnabled(
+    courseVersionId: ObjectId,
+  ): Promise<boolean>;
 }

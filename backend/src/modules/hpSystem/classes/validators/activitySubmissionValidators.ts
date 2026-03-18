@@ -434,3 +434,14 @@ export class StudentActivitySubmissionStatsResponseDto {
     @Expose()
     data!: StudentActivitySubmissionStatsViewDto
 }
+
+export class StudentCohortWiseActivitySubmissionsStatsDto {
+    @Expose()
+    data!: {
+        totalSubmissions: number;
+        approvedCount: number;
+        rejectedCount: number;
+        revertedCount: number;
+        submittedCount: number;
+    };
+}
