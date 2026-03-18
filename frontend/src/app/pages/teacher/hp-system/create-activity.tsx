@@ -43,8 +43,8 @@ export default function CreateHpActivityPage() {
         defaultValues: {
             title: "",
             description: "",
-            activityType: "ASSIGNMENT",
-            submissionMode: "IN_PLATFORM",
+            activityType: "",
+            submissionMode: "",
             externalLink: "",
             attachments: []
         }
@@ -57,35 +57,40 @@ export default function CreateHpActivityPage() {
     const [pendingActivityType, setPendingActivityType] = useState<string | null>(null);
 
     // ── Step 2: Rule config (local state, matches RuleSettingsDialog) ──
-    const [ruleConfig, setRuleConfig] = useState<Partial<HpRuleConfig>>({
-        isMandatory: true,
-        allowLateSubmission: false,
-        lateRewardPolicy: "NONE",
+    type RuleConfigFormState = Omit<Partial<HpRuleConfig>, "reward" | "penalty" | "limits"> & {
+        reward?: Partial<HpRuleConfig["reward"]>;
+        penalty?: Partial<HpRuleConfig["penalty"]>;
+        limits?: Partial<HpRuleConfig["limits"]>;
+    };
+
+    const [ruleConfig, setRuleConfig] = useState<RuleConfigFormState>({
         reward: {
             enabled: true,
-            type: "ABSOLUTE",
-            value: 10,
-            applyWhen: "ON_APPROVAL",
             onlyWithinDeadline: true,
             allowLate: false,
             lateBehavior: "NO_REWARD",
             minHpFloor: 0,
-            required_percentage: undefined,
         },
         penalty: {
-            enabled: false,
-            type: "ABSOLUTE",
-            value: 5,
             applyWhen: "AFTER_DEADLINE",
-            graceMinutes: 0,
             runOnce: true,
         },
-        limits: {
-            minHp: 0,
-            maxHp: 1000,
-        }
     });
-    const [limitErrors, setLimitErrors] = useState<{ minHp?: string; maxHp?: string }>({});
+    const [ruleErrors, setRuleErrors] = useState<{
+        isMandatory?: string;
+        allowLateSubmission?: string;
+        lateRewardPolicy?: string;
+        deadlineAt?: string;
+        rewardType?: string;
+        rewardValue?: string;
+        rewardApplyWhen?: string;
+        limitsMin?: string;
+        limitsMax?: string;
+        penaltyEnabled?: string;
+        penaltyType?: string;
+        penaltyValue?: string;
+        penaltyGraceMinutes?: string;
+    }>({});
 
     const goToStep2 = async () => {
         const valid = await trigger();
@@ -126,33 +131,111 @@ export default function CreateHpActivityPage() {
             console.error("Invalid ObjectId format discovered:", { courseId, courseVersionId });
         }
 
+        const validateRuleConfig = () => {
+            const nextErrors: typeof ruleErrors = {};
+
+            if (ruleConfig.isMandatory === undefined) {
+                nextErrors.isMandatory = "Please select if this activity is mandatory";
+            }
+            if (ruleConfig.allowLateSubmission === undefined) {
+                nextErrors.allowLateSubmission = "Please select if late submissions are allowed";
+            }
+            if (!ruleConfig.deadlineAt) {
+                nextErrors.deadlineAt = "Deadline is required";
+            }
+            if (!ruleConfig.reward?.type) {
+                nextErrors.rewardType = "Reward type is required";
+            }
+            if (ruleConfig.reward?.value === undefined || Number.isNaN(ruleConfig.reward.value)) {
+                nextErrors.rewardValue = "Reward value is required";
+            } else if (ruleConfig.reward.value < 0) {
+                nextErrors.rewardValue = "Reward value cannot be negative";
+            }
+            if (ruleConfig.reward?.type === "PERCENTAGE") {
+                if (ruleConfig.limits?.minHp === undefined || Number.isNaN(ruleConfig.limits.minHp)) {
+                    nextErrors.limitsMin = "Minimum HP is required";
+                } else if (ruleConfig.limits.minHp < 0) {
+                    nextErrors.limitsMin = "Minimum HP cannot be negative";
+                }
+                if (ruleConfig.limits?.maxHp === undefined || Number.isNaN(ruleConfig.limits.maxHp)) {
+                    nextErrors.limitsMax = "Maximum HP is required";
+                } else if (ruleConfig.limits.maxHp < 0) {
+                    nextErrors.limitsMax = "Maximum HP cannot be negative";
+                }
+                if (
+                    ruleConfig.limits?.minHp !== undefined &&
+                    ruleConfig.limits?.maxHp !== undefined &&
+                    !Number.isNaN(ruleConfig.limits.minHp) &&
+                    !Number.isNaN(ruleConfig.limits.maxHp) &&
+                    ruleConfig.limits.maxHp < ruleConfig.limits.minHp
+                ) {
+                    nextErrors.limitsMax = "Maximum HP must be greater than or equal to Minimum HP";
+                }
+            }
+            if (!ruleConfig.reward?.applyWhen) {
+                nextErrors.rewardApplyWhen = "Apply policy is required";
+            }
+            if (!ruleConfig.lateRewardPolicy) {
+                nextErrors.lateRewardPolicy = "Late behavior is required";
+            }
+            if (ruleConfig.penalty?.enabled === undefined) {
+                nextErrors.penaltyEnabled = "Please select if penalty is enabled";
+            }
+            if (ruleConfig.penalty?.enabled) {
+                if (!ruleConfig.penalty?.type) {
+                    nextErrors.penaltyType = "Penalty type is required";
+                }
+                if (ruleConfig.penalty?.value === undefined || Number.isNaN(ruleConfig.penalty.value)) {
+                    nextErrors.penaltyValue = "Penalty value is required";
+                } else if (ruleConfig.penalty.value < 0) {
+                    nextErrors.penaltyValue = "Penalty value cannot be negative";
+                }
+                if (ruleConfig.penalty?.graceMinutes === undefined || Number.isNaN(ruleConfig.penalty.graceMinutes)) {
+                    nextErrors.penaltyGraceMinutes = "Grace period is required";
+                } else if (ruleConfig.penalty.graceMinutes < 0) {
+                    nextErrors.penaltyGraceMinutes = "Grace period cannot be negative";
+                }
+            }
+
+            setRuleErrors(nextErrors);
+            return Object.keys(nextErrors).length === 0;
+        };
+
+        if (!validateRuleConfig()) {
+            return;
+        }
+
         const validateRewardLimits = () => {
             if (ruleConfig.reward?.type !== "PERCENTAGE") {
-                setLimitErrors({});
+                setRuleErrors(prev => ({ ...prev, limitsMin: undefined, limitsMax: undefined }));
                 return true;
             }
 
             const minHp = ruleConfig.limits?.minHp;
             const maxHp = ruleConfig.limits?.maxHp;
-            const nextErrors: { minHp?: string; maxHp?: string } = {};
+            const nextErrors: { limitsMin?: string; limitsMax?: string } = {};
 
             if (minHp === undefined || minHp === null || Number.isNaN(minHp)) {
-                nextErrors.minHp = "Minimum HP is required";
+                nextErrors.limitsMin = "Minimum HP is required";
             } else if (minHp < 0) {
-                nextErrors.minHp = "Minimum HP cannot be negative";
+                nextErrors.limitsMin = "Minimum HP cannot be negative";
             }
 
             if (maxHp === undefined || maxHp === null || Number.isNaN(maxHp)) {
-                nextErrors.maxHp = "Maximum HP is required";
+                nextErrors.limitsMax = "Maximum HP is required";
             } else if (maxHp < 0) {
-                nextErrors.maxHp = "Maximum HP cannot be negative";
+                nextErrors.limitsMax = "Maximum HP cannot be negative";
             }
 
             if (minHp !== undefined && maxHp !== undefined && !Number.isNaN(minHp) && !Number.isNaN(maxHp) && maxHp < minHp) {
-                nextErrors.maxHp = "Maximum HP must be greater than or equal to Minimum HP";
+                nextErrors.limitsMax = "Maximum HP must be greater than or equal to Minimum HP";
             }
 
-            setLimitErrors(nextErrors);
+            setRuleErrors(prev => ({
+                ...prev,
+                limitsMin: nextErrors.limitsMin,
+                limitsMax: nextErrors.limitsMax,
+            }));
             return Object.keys(nextErrors).length === 0;
         };
 
@@ -168,9 +251,9 @@ export default function CreateHpActivityPage() {
             cohort: cohortName || "",
             attachments: data.attachments?.map(att => ({ ...att, kind: att.kind || "LINK" })),
             status,
-            deadlineAt: ruleConfig.deadlineAt || new Date().toISOString(),
-            allowLateSubmission: ruleConfig.allowLateSubmission || false,
-            lateRewardPolicy: ruleConfig.lateRewardPolicy || "NONE",
+            deadlineAt: ruleConfig.deadlineAt,
+            allowLateSubmission: ruleConfig.allowLateSubmission,
+            lateRewardPolicy: ruleConfig.lateRewardPolicy,
         };
 
         try {
@@ -193,8 +276,33 @@ export default function CreateHpActivityPage() {
                 courseId: courseId,
                 courseVersionId: courseVersionId,
                 activityId: createdActivityId,
-                ...ruleConfig,
-                deadlineAt: ruleConfig.deadlineAt || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Default: 1 week from now
+                isMandatory: ruleConfig.isMandatory as boolean,
+                deadlineAt: ruleConfig.deadlineAt as string,
+                allowLateSubmission: ruleConfig.allowLateSubmission as boolean,
+                lateRewardPolicy: ruleConfig.lateRewardPolicy as any,
+                reward: {
+                    enabled: ruleConfig.reward?.enabled ?? true,
+                    type: ruleConfig.reward?.type as any,
+                    value: ruleConfig.reward?.value as number,
+                    applyWhen: ruleConfig.reward?.applyWhen as any,
+                    onlyWithinDeadline: ruleConfig.reward?.onlyWithinDeadline ?? true,
+                    allowLate: ruleConfig.reward?.allowLate ?? false,
+                    lateBehavior: ruleConfig.reward?.lateBehavior ?? "NO_REWARD",
+                    minHpFloor: ruleConfig.reward?.minHpFloor ?? 0,
+                    required_percentage: ruleConfig.reward?.required_percentage,
+                },
+                penalty: {
+                    enabled: ruleConfig.penalty?.enabled ?? false,
+                    type: (ruleConfig.penalty?.type ?? "ABSOLUTE") as any,
+                    value: ruleConfig.penalty?.value ?? 0,
+                    applyWhen: (ruleConfig.penalty?.applyWhen ?? "AFTER_DEADLINE") as any,
+                    graceMinutes: ruleConfig.penalty?.graceMinutes ?? 0,
+                    runOnce: ruleConfig.penalty?.runOnce ?? true,
+                },
+                limits: {
+                    minHp: ruleConfig.limits?.minHp ?? 0,
+                    maxHp: ruleConfig.limits?.maxHp ?? 1000,
+                },
             };
 
             try {
@@ -300,9 +408,10 @@ export default function CreateHpActivityPage() {
                                     <Controller
                                         name="activityType"
                                         control={control}
+                                        rules={{ required: "Activity type is required" }}
                                         render={({ field }) => (
-                                            <Select onValueChange={handleActivityTypeChange} value={field.value}>
-                                                <SelectTrigger>
+                                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                                                <SelectTrigger className={errors.activityType ? "border-red-500" : ""}>
                                                     <SelectValue placeholder="Select type" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -315,6 +424,7 @@ export default function CreateHpActivityPage() {
                                             </Select>
                                         )}
                                     />
+                                    {errors.activityType && <p className="text-xs text-red-500">{errors.activityType.message as string}</p>}
                                 </div>
 
                                 <div className="space-y-2">
@@ -322,9 +432,10 @@ export default function CreateHpActivityPage() {
                                     <Controller
                                         name="submissionMode"
                                         control={control}
+                                        rules={{ required: "Submission mode is required" }}
                                         render={({ field }) => (
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                <SelectTrigger>
+                                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                                                <SelectTrigger className={errors.submissionMode ? "border-red-500" : ""}>
                                                     <SelectValue placeholder="Select mode" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -334,6 +445,7 @@ export default function CreateHpActivityPage() {
                                             </Select>
                                         )}
                                     />
+                                    {errors.submissionMode && <p className="text-xs text-red-500">{errors.submissionMode.message as string}</p>}
                                 </div>
                             </div>
 
@@ -424,17 +536,33 @@ export default function CreateHpActivityPage() {
 
                         <div className="space-y-8">
                             {/* Mandatory Toggle */}
-                            <div className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between rounded-lg border p-4 shadow-sm gap-3">
                                 <div className="space-y-0.5">
                                     <Label className="text-base">Mandatory Activity</Label>
                                     <p className="text-sm text-muted-foreground">
                                         Students must complete this to pass the cohort.
                                     </p>
                                 </div>
-                                <Switch
-                                    checked={ruleConfig.isMandatory || false}
-                                    onCheckedChange={(c) => setRuleConfig(prev => ({ ...prev, isMandatory: c }))}
-                                />
+                                <div className="min-w-[160px] space-y-1">
+                                    <Select
+                                        value={ruleConfig.isMandatory === undefined ? "" : String(ruleConfig.isMandatory)}
+                                        onValueChange={(v: string) => {
+                                            setRuleConfig(prev => ({ ...prev, isMandatory: v === "true" }));
+                                            if (ruleErrors.isMandatory) {
+                                                setRuleErrors(prev => ({ ...prev, isMandatory: undefined }));
+                                            }
+                                        }}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="true">Yes</SelectItem>
+                                            <SelectItem value="false">No</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    {ruleErrors.isMandatory && <p className="text-xs text-red-500">{ruleErrors.isMandatory}</p>}
+                                </div>
                             </div>
 
                             {/* Deadline Settings */}
@@ -446,18 +574,39 @@ export default function CreateHpActivityPage() {
                                         <Input
                                             type="datetime-local"
                                             value={ruleConfig.deadlineAt ? new Date(ruleConfig.deadlineAt).toISOString().slice(0, 16) : ""}
-                                            onChange={(e) => setRuleConfig(prev => ({ ...prev, deadlineAt: new Date(e.target.value).toISOString() }))}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setRuleConfig(prev => ({
+                                                    ...prev,
+                                                    deadlineAt: value ? new Date(value).toISOString() : undefined
+                                                }));
+                                                if (ruleErrors.deadlineAt) {
+                                                    setRuleErrors(prev => ({ ...prev, deadlineAt: undefined }));
+                                                }
+                                            }}
                                         />
+                                        {ruleErrors.deadlineAt && <p className="text-xs text-red-500">{ruleErrors.deadlineAt}</p>}
                                     </div>
-                                    <div className="space-y-2 flex flex-col justify-end pb-2">
-                                        <div className="flex items-center gap-2">
-                                            <Switch
-                                                id="allow-late"
-                                                checked={ruleConfig.allowLateSubmission || false}
-                                                onCheckedChange={(c) => setRuleConfig(prev => ({ ...prev, allowLateSubmission: c }))}
-                                            />
-                                            <Label htmlFor="allow-late">Allow Late Submissions</Label>
-                                        </div>
+                                    <div className="space-y-2">
+                                        <Label>Allow Late Submissions</Label>
+                                        <Select
+                                            value={ruleConfig.allowLateSubmission === undefined ? "" : String(ruleConfig.allowLateSubmission)}
+                                            onValueChange={(v: string) => {
+                                                setRuleConfig(prev => ({ ...prev, allowLateSubmission: v === "true" }));
+                                                if (ruleErrors.allowLateSubmission) {
+                                                    setRuleErrors(prev => ({ ...prev, allowLateSubmission: undefined }));
+                                                }
+                                            }}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="true">Yes</SelectItem>
+                                                <SelectItem value="false">No</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        {ruleErrors.allowLateSubmission && <p className="text-xs text-red-500">{ruleErrors.allowLateSubmission}</p>}
                                     </div>
                                 </div>
                             </div>
@@ -469,36 +618,47 @@ export default function CreateHpActivityPage() {
                                     <div className="space-y-2">
                                         <Label>Rule Type</Label>
                                         <Select
-                                            value={ruleConfig.reward?.type || "ABSOLUTE"}
+                                            value={ruleConfig.reward?.type ?? ""}
                                             onValueChange={(v: any) => {
                                                 setRuleConfig(prev => ({
                                                     ...prev,
                                                     reward: { ...(prev.reward || {}), type: v } as any
                                                 }));
-                                                if (v !== "PERCENTAGE") {
-                                                    setLimitErrors({});
+                                                if (ruleErrors.rewardType) {
+                                                    setRuleErrors(prev => ({ ...prev, rewardType: undefined }));
                                                 }
                                             }}
                                         >
                                             <SelectTrigger>
-                                                <SelectValue />
+                                                <SelectValue placeholder="Select type" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="ABSOLUTE">Absolute Points</SelectItem>
                                                 <SelectItem value="PERCENTAGE">Percentage (%)</SelectItem>
                                             </SelectContent>
                                         </Select>
+                                        {ruleErrors.rewardType && <p className="text-xs text-red-500">{ruleErrors.rewardType}</p>}
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Reward Value</Label>
                                         <Input
                                             type="number"
-                                            value={ruleConfig.reward?.value || 0}
-                                            onChange={(e) => setRuleConfig(prev => ({
-                                                ...prev,
-                                                reward: { ...(prev.reward || {}), value: parseInt(e.target.value) || 0 } as any
-                                            }))}
+                                            value={ruleConfig.reward?.value ?? ""}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setRuleConfig(prev => ({
+                                                    ...prev,
+                                                    reward: {
+                                                        ...(prev.reward || {}),
+                                                        value: value === "" ? undefined : parseInt(value)
+                                                    } as any
+                                                }));
+                                                if (ruleErrors.rewardValue) {
+                                                    setRuleErrors(prev => ({ ...prev, rewardValue: undefined }));
+                                                }
+                                            }}
                                         />
+                                        {ruleErrors.rewardValue && <p className="text-xs text-red-500">{ruleErrors.rewardValue}</p>}
                                     </div>
                                     {ruleConfig.reward?.type === "PERCENTAGE" && (
                                         <>
@@ -507,42 +667,44 @@ export default function CreateHpActivityPage() {
                                                 <Input
                                                     type="number"
                                                     min="0"
-                                                    value={ruleConfig.limits?.minHp ?? 0}
+                                                    value={ruleConfig.limits?.minHp ?? ""}
                                                     onChange={(e) => {
-                                                        const nextMin = parseInt(e.target.value) || 0;
-                                                        const currentMax = ruleConfig.limits?.maxHp ?? 0;
+                                                        const value = e.target.value;
                                                         setRuleConfig(prev => ({
                                                             ...prev,
-                                                            limits: { minHp: nextMin, maxHp: prev.limits?.maxHp ?? currentMax }
+                                                            limits: {
+                                                                ...(prev.limits || {}),
+                                                                minHp: value === "" ? undefined : parseInt(value)
+                                                            }
                                                         }));
-                                                        if (limitErrors.minHp) {
-                                                            setLimitErrors(prev => ({ ...prev, minHp: undefined }));
+                                                        if (ruleErrors.limitsMin) {
+                                                            setRuleErrors(prev => ({ ...prev, limitsMin: undefined }));
                                                         }
                                                     }}
-                                                    className={limitErrors.minHp ? "border-red-500" : ""}
                                                 />
-                                                {limitErrors.minHp && <p className="text-xs text-red-500">{limitErrors.minHp}</p>}
+                                                {ruleErrors.limitsMin && <p className="text-xs text-red-500">{ruleErrors.limitsMin}</p>}
                                             </div>
                                             <div className="space-y-2">
                                                 <Label>Maximum HP (Cap)</Label>
                                                 <Input
                                                     type="number"
                                                     min="0"
-                                                    value={ruleConfig.limits?.maxHp ?? 0}
+                                                    value={ruleConfig.limits?.maxHp ?? ""}
                                                     onChange={(e) => {
-                                                        const nextMax = parseInt(e.target.value) || 0;
-                                                        const currentMin = ruleConfig.limits?.minHp ?? 0;
+                                                        const value = e.target.value;
                                                         setRuleConfig(prev => ({
                                                             ...prev,
-                                                            limits: { minHp: prev.limits?.minHp ?? currentMin, maxHp: nextMax }
+                                                            limits: {
+                                                                ...(prev.limits || {}),
+                                                                maxHp: value === "" ? undefined : parseInt(value)
+                                                            }
                                                         }));
-                                                        if (limitErrors.maxHp) {
-                                                            setLimitErrors(prev => ({ ...prev, maxHp: undefined }));
+                                                        if (ruleErrors.limitsMax) {
+                                                            setRuleErrors(prev => ({ ...prev, limitsMax: undefined }));
                                                         }
                                                     }}
-                                                    className={limitErrors.maxHp ? "border-red-500" : ""}
                                                 />
-                                                {limitErrors.maxHp && <p className="text-xs text-red-500">{limitErrors.maxHp}</p>}
+                                                {ruleErrors.limitsMax && <p className="text-xs text-red-500">{ruleErrors.limitsMax}</p>}
                                             </div>
                                         </>
                                     )}
@@ -555,10 +717,16 @@ export default function CreateHpActivityPage() {
                                                 max="100"
                                                 placeholder="e.g., 75"
                                                 value={ruleConfig.reward?.required_percentage || ""}
-                                                onChange={(e) => setRuleConfig(prev => ({
-                                                    ...prev,
-                                                    reward: { ...(prev.reward || {}), required_percentage: parseInt(e.target.value) || undefined } as any
-                                                }))}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    setRuleConfig(prev => ({
+                                                        ...prev,
+                                                        reward: {
+                                                            ...(prev.reward || {}),
+                                                            required_percentage: value === "" ? undefined : parseInt(value)
+                                                        } as any
+                                                    }));
+                                                }}
                                             />
                                             <p className="text-[10px] text-muted-foreground">
                                                 Minimum progress percentage required to earn this milestone reward
@@ -568,30 +736,40 @@ export default function CreateHpActivityPage() {
                                     <div className="space-y-2">
                                         <Label>Apply Policy</Label>
                                         <Select
-                                            value={ruleConfig.reward?.applyWhen || "ON_APPROVAL"}
-                                            onValueChange={(v: any) => setRuleConfig(prev => ({
-                                                ...prev,
-                                                reward: { ...(prev.reward || {}), applyWhen: v } as any
-                                            }))}
+                                            value={ruleConfig.reward?.applyWhen ?? ""}
+                                            onValueChange={(v: any) => {
+                                                setRuleConfig(prev => ({
+                                                    ...prev,
+                                                    reward: { ...(prev.reward || {}), applyWhen: v } as any
+                                                }));
+                                                if (ruleErrors.rewardApplyWhen) {
+                                                    setRuleErrors(prev => ({ ...prev, rewardApplyWhen: undefined }));
+                                                }
+                                            }}
                                         >
                                             <SelectTrigger>
-                                                <SelectValue />
+                                                <SelectValue placeholder="Select policy" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="ON_SUBMISSION">Auto upon Submission</SelectItem>
                                                 <SelectItem value="ON_APPROVAL">Manual (Instructor Approval)</SelectItem>
                                             </SelectContent>
                                         </Select>
+                                        {ruleErrors.rewardApplyWhen && <p className="text-xs text-red-500">{ruleErrors.rewardApplyWhen}</p>}
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Late Behavior</Label>
                                         <Select
-                                            value={ruleConfig.lateRewardPolicy || "NONE"}
-                                            onValueChange={(val: any) => setRuleConfig(prev => ({ ...prev, lateRewardPolicy: val }))}
-                                            disabled={!ruleConfig.allowLateSubmission}
+                                            value={ruleConfig.lateRewardPolicy ?? ""}
+                                            onValueChange={(val: any) => {
+                                                setRuleConfig(prev => ({ ...prev, lateRewardPolicy: val }));
+                                                if (ruleErrors.lateRewardPolicy) {
+                                                    setRuleErrors(prev => ({ ...prev, lateRewardPolicy: undefined }));
+                                                }
+                                            }}
                                         >
                                             <SelectTrigger>
-                                                <SelectValue />
+                                                <SelectValue placeholder="Select behavior" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="NONE">Deny Reward</SelectItem>
@@ -599,7 +777,7 @@ export default function CreateHpActivityPage() {
                                                 <SelectItem value="REWARD_DENIED">Penalty Apply (No Reward)</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        {!ruleConfig.allowLateSubmission && <p className="text-[10px] text-muted-foreground">Enable Late Submissions to configure late behavior.</p>}
+                                        {ruleErrors.lateRewardPolicy && <p className="text-xs text-red-500">{ruleErrors.lateRewardPolicy}</p>}
                                     </div>
                                 </div>
                             </div>
@@ -607,77 +785,106 @@ export default function CreateHpActivityPage() {
                             {/* Penalty Settings */}
                             <div className="space-y-4">
 
-                                <div className="flex items-center justify-between">
+                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                                     <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                                         Penalty Configuration (Late)
                                     </h4>
 
-                                    <Switch
-                                        checked={ruleConfig.penalty?.enabled || false}
-                                        onCheckedChange={(c) =>
-                                            setRuleConfig(prev => ({
-                                                ...prev,
-                                                penalty: {
-                                                    ...(prev.penalty || {
-                                                        enabled: false,
-                                                        type: "ABSOLUTE",
-                                                        value: 5,
-                                                        applyWhen: "AFTER_DEADLINE",
-                                                        graceMinutes: 0,
-                                                        runOnce: true
-                                                    }),
-                                                    enabled: c
+                                    <div className="min-w-[160px] space-y-1">
+                                        <Select
+                                            value={ruleConfig.penalty?.enabled === undefined ? "" : String(ruleConfig.penalty.enabled)}
+                                            onValueChange={(v: string) => {
+                                                setRuleConfig(prev => ({
+                                                    ...prev,
+                                                    penalty: { ...(prev.penalty || {}), enabled: v === "true" }
+                                                }));
+                                                if (ruleErrors.penaltyEnabled) {
+                                                    setRuleErrors(prev => ({ ...prev, penaltyEnabled: undefined }));
                                                 }
-                                            }))
-                                        }
-                                    />
+                                            }}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="true">Enabled</SelectItem>
+                                                <SelectItem value="false">Disabled</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        {ruleErrors.penaltyEnabled && <p className="text-xs text-red-500">{ruleErrors.penaltyEnabled}</p>}
+                                    </div>
                                 </div>
 
-                                <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20 ${
-                                    !ruleConfig.penalty?.enabled ? "opacity-60 pointer-events-none" : ""
-                                }`}>
+                                <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20 ${ruleConfig.penalty?.enabled === false ? "opacity-60 pointer-events-none" : ""
+                                    }`}>
 
                                     <div className="space-y-2">
                                         <Label>Penalty Type</Label>
                                         <Select
-                                            value={ruleConfig.penalty?.type || "PERCENTAGE"}
-                                            onValueChange={(v: any) => setRuleConfig(prev => ({
-                                                ...prev,
-                                                penalty: { ...(prev.penalty || {}), type: v } as any
-                                            }))}
+                                            value={ruleConfig.penalty?.type ?? ""}
+                                            onValueChange={(v: any) => {
+                                                setRuleConfig(prev => ({
+                                                    ...prev,
+                                                    penalty: { ...(prev.penalty || {}), type: v } as any
+                                                }));
+                                                if (ruleErrors.penaltyType) {
+                                                    setRuleErrors(prev => ({ ...prev, penaltyType: undefined }));
+                                                }
+                                            }}
                                         >
                                             <SelectTrigger>
-                                                <SelectValue />
+                                                <SelectValue placeholder="Select type" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="ABSOLUTE">Absolute Points</SelectItem>
                                                 <SelectItem value="PERCENTAGE">Percentage (%)</SelectItem>
                                             </SelectContent>
                                         </Select>
+                                        {ruleErrors.penaltyType && <p className="text-xs text-red-500">{ruleErrors.penaltyType}</p>}
                                     </div>
 
                                     <div className="space-y-2">
                                         <Label>Penalty Value</Label>
                                         <Input
                                             type="number"
-                                            value={ruleConfig.penalty?.value || 0}
-                                            onChange={(e) => setRuleConfig(prev => ({
-                                                ...prev,
-                                                penalty: { ...(prev.penalty || {}), value: parseInt(e.target.value) || 0 } as any
-                                            }))}
+                                            value={ruleConfig.penalty?.value ?? ""}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setRuleConfig(prev => ({
+                                                    ...prev,
+                                                    penalty: {
+                                                        ...(prev.penalty || {}),
+                                                        value: value === "" ? undefined : parseInt(value)
+                                                    } as any
+                                                }));
+                                                if (ruleErrors.penaltyValue) {
+                                                    setRuleErrors(prev => ({ ...prev, penaltyValue: undefined }));
+                                                }
+                                            }}
                                         />
+                                        {ruleErrors.penaltyValue && <p className="text-xs text-red-500">{ruleErrors.penaltyValue}</p>}
                                     </div>
 
                                     <div className="space-y-2">
                                         <Label>Grace Period (Minutes)</Label>
                                         <Input
                                             type="number"
-                                            value={ruleConfig.penalty?.graceMinutes || 0}
-                                            onChange={(e) => setRuleConfig(prev => ({
-                                                ...prev,
-                                                penalty: { ...(prev.penalty || {}), graceMinutes: parseInt(e.target.value) || 0 } as any
-                                            }))}
+                                            value={ruleConfig.penalty?.graceMinutes ?? ""}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setRuleConfig(prev => ({
+                                                    ...prev,
+                                                    penalty: {
+                                                        ...(prev.penalty || {}),
+                                                        graceMinutes: value === "" ? undefined : parseInt(value)
+                                                    } as any
+                                                }));
+                                                if (ruleErrors.penaltyGraceMinutes) {
+                                                    setRuleErrors(prev => ({ ...prev, penaltyGraceMinutes: undefined }));
+                                                }
+                                            }}
                                         />
+                                        {ruleErrors.penaltyGraceMinutes && <p className="text-xs text-red-500">{ruleErrors.penaltyGraceMinutes}</p>}
                                     </div>
 
                                 </div>
