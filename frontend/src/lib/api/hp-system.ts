@@ -641,6 +641,16 @@ export const hpApi = {
         return apiFetch(`${BASE_URL}/activity-submissions/stats/student/${studentId}/cohort/${cohort}`);
     },
 
+    // Made by Rishabh Shukla
+    getCohortActivityStats: async(cohortName: string, activityId: string): Promise<{ data: any }> => {
+        return apiFetch(`${BASE_URL}/activity-submissions/stats/cohort/${cohortName}/activity/${activityId}`);        
+    },
+
+    // Made by Rishabh Shukla
+    getCohortActivityStatsMap: async(cohortName: string, courseVersionId: string): Promise<{ success: boolean; data: any }> => {
+        return apiFetch(`${BASE_URL}/activity-submissions/stats/cohort/${cohortName}/courseVersion/${courseVersionId}`);
+    },
+
     getStudentLedger: async (
         studentId: string,
         cohortName: string,
