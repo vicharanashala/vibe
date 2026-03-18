@@ -303,7 +303,12 @@ export default function StudentLedgerPage() {
                                     <div className="flex items-center gap-2 text-sm bg-muted/50 p-2 rounded-md">
                                         <User className="h-4 w-4 text-muted-foreground" />
                                         <span className="font-medium">{selectedEntry.meta?.triggeredBy || 'SYSTEM'}</span>
-                                        <span className="text-xs text-muted-foreground">({selectedEntry.meta?.triggeredByUserId || 'Automated'})</span>
+                                       <span className="text-xs text-muted-foreground">
+                                            ({selectedEntry.meta?.triggeredBy === 'SYSTEM' 
+                                                ? 'Automated' 
+                                                : selectedEntry.meta?.triggeredByUserName || selectedEntry.meta?.triggeredByUserId || 'Automated'
+                                            })
+                                        </span>
                                     </div>
                                 </div>
 
