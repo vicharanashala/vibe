@@ -1589,6 +1589,34 @@ function VersionCard({
 
                     <DropdownMenuContent align="end" className="w-48">
 
+                      {(version as any)?.supportLink && (() => {
+                        const link = (version as any).supportLink;
+                        const isEmail = link.startsWith('mailto:') || 
+                          (!link.startsWith('http://') && !link.startsWith('https://') && link.includes('@'));
+
+                        const href = link.startsWith('mailto:')
+                          ? link
+                          : link.startsWith('http://') || link.startsWith('https://')
+                            ? link
+                            : link.includes('@')
+                              ? `mailto:${link}`
+                              : link;
+
+                        return (
+                          <DropdownMenuItem asChild>
+                            <a
+                              href={href}
+                              target={isEmail ? undefined : "_blank"}
+                              rel={isEmail ? undefined : "noopener noreferrer"}
+                              className="flex items-center"
+                            >
+                              <Headphones className="mr-2 h-4 w-4" />
+                              Support
+                            </a>
+                          </DropdownMenuItem>
+                        );
+                      })()}
+
                       <DropdownMenuItem onClick={() => setIsCopyModalOpen(true)}>
                         <Copy className="mr-2 h-4 w-4" />
                         Clone
