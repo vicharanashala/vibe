@@ -23,6 +23,7 @@ import {
 } from '../classes/index.js';
 import {ReportRepository} from '../repositories/index.js';
 import {plainToInstance} from 'class-transformer';
+import { ObjectId } from 'mongodb';
 
 @injectable()
 export class ReportService extends BaseService {
@@ -78,7 +79,7 @@ export class ReportService extends BaseService {
       const newStatus: IStatus = {
         status,
         comment,
-        createdBy,
+        createdBy: new ObjectId(createdBy),
         createdAt: new Date(),
       };
       await this.reportsRepository.update(reportId, newStatus, session);

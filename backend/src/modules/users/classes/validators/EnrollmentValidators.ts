@@ -78,6 +78,10 @@ export class BulkUnenrollBody {
   @ArrayMaxSize(50, {message: 'Cannot unenroll more than 50 students at once'})
   @IsMongoId({each: true})
   userIds: string[];
+
+  @IsOptional()
+  @IsMongoId()
+  cohortId?: string
 }
 export class EnrollmentDataResponse {
   @JSONSchema({
