@@ -82,6 +82,15 @@ class ReportBody implements Partial<IReport> {
   @IsNotEmpty()
   @IsString()
   reason: string;
+
+  @JSONSchema({
+    title: 'cohortId in a version',
+    description: 'CohortId in a course version if any',
+    example: '64bfcb05e13e3547e90c8767',
+    type: 'string',
+  })
+  @IsOptional()
+  cohortId?: ID;
 }
 
 class UpdateReportStatusBody {

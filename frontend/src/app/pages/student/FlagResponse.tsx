@@ -626,6 +626,8 @@ export interface IssueReport {
   status: IssueStatusHistory[]; // <-- correct
   createdAt: string;
   updatedAt: string;
+  cohortId?: string;
+  cohortName?: string;
 }
 
 export interface IssueReportsResponse {
@@ -822,6 +824,11 @@ export default function CourseIssueReports() {
 
                           <TableCell className="py-4">
                             {detail.courseId || '-'}
+                            {detail.cohortName && (
+                              <span className="text-xs text-muted-foreground ml-2">
+                                ({detail.cohortName})
+                              </span>
+                            )}
                           </TableCell>
 
                           <TableCell className="py-4">

@@ -8,7 +8,7 @@ import {
   StringToObjectId,
 } from '#root/shared/index.js';
 import { Expose, Transform, Type } from 'class-transformer';
-import { IsEnum, IsIn, IsString, ValidateNested } from 'class-validator';
+import { IsEnum, IsIn, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 import {
   EntityTypeEnum,
@@ -192,6 +192,16 @@ class Report implements IReport {
   })
   updatedAt?: Date;
 
+  @JSONSchema({
+    title: 'cohortId in a version',
+    description: 'CohortId in a course version if any',
+    example: '64bfcb05e13e3547e90c8767',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  cohortId?: ID
+
   constructor(
     reportBody?: ReportBody | UpdateReportStatusBody,
     reportedBy?: ID,
@@ -215,6 +225,9 @@ class Report implements IReport {
           'Entity flagged',
         ),
       ];
+      if('cohortId' in reportBody && ObjectId.isValid(reportBody.cohortId)){
+        this.cohortId = new ObjectId(reportBody.cohortId);
+      }
     } else {
       this.status = [
         new ReportStatusEntry(reportBody.status, reportBody.comment),

@@ -164,7 +164,6 @@ function DashboardContent() {
       {/* Main content and sidebar */}
       <div className="mb-6 px-0 sm:px-6 lg:px-8 xl:px-0">
 
-
       </div>
 
       <div className="container mx-auto px-0 sm:px-6 lg:px-8 xl:px-0 py-6 flex flex-col lg:flex-row gap-6 transition-all duration-300">
