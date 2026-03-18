@@ -631,9 +631,38 @@ export class ActivitySubmissionsService extends BaseService {
         const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined,
             undefined, cohortName);
 
+        // Get ledger data for all submissions
+        const submissionIds = submissions.map(sub => sub.submission?._id).filter(Boolean);
+        const ledgerEntries = submissionIds.length > 0 
+            ? await this.ledgerRepository.findBySubmissionIds(submissionIds)
+            : [];
+
+        // Create a map of submissionId to ledger entries for quick lookup
+        const ledgerMap = new Map();
+        ledgerEntries.forEach(entry => {
+            const submissionId = entry.submissionId?.toString();
+            if (submissionId) {
+                if (!ledgerMap.has(submissionId)) {
+                    ledgerMap.set(submissionId, []);
+                }
+                ledgerMap.get(submissionId).push(entry);
+            }
+        });
+
+        // Attach ledger data to each submission
+        const submissionsWithLedger = submissions.map(submission => {
+            const submissionId = submission.submission?._id;
+            const relatedLedgerEntries = ledgerMap.get(submissionId) || [];
+            
+            return {
+                ...submission,
+                ledgerEntries: relatedLedgerEntries
+            };
+        });
+
         return {
             success: true,
-            data: submissions,
+            data: submissionsWithLedger,
             meta: {
                 total: submissions.length,
                 page: query.page ?? 1,
@@ -675,6 +704,7 @@ export class ActivitySubmissionsService extends BaseService {
                         totalLateSubmissions: 0,
                         totalPendings: 0,
                         currentHp: 0,
+                        reward: null,
                     },
                 };
             }
@@ -689,13 +719,19 @@ export class ActivitySubmissionsService extends BaseService {
             totalLateSubmissions,
             totalPendingActivites,
             enrollment,
+            latestActivity,
         ] = await Promise.all([
             this.activityRepository.getCountByCohortName(cohortName),
             this.activitySubmissionsRepository.getCountByStudentId(studentId, courseId, courseVersionId),
             this.activitySubmissionsRepository.getLateSubmissionCountByStudentId(studentId, courseId, courseVersionId),
             this.activityRepository.getPendingActivitesCount(studentId, courseId, courseVersionId),
             this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId),
+            this.activityRepository.getLatestActivityByCohortName(cohortName),
         ]);
+
+        const ruleConfig = latestActivity
+        ? await this.ruleConfigService.getByActivityId(latestActivity._id.toString())
+        : null;
 
         const data: StudentActivitySubmissionStatsViewDto = {
             totalActivities,
@@ -703,6 +739,10 @@ export class ActivitySubmissionsService extends BaseService {
             totalLateSubmissions,
             totalPendings: totalPendingActivites,
             currentHp: enrollment?.hpPoints ?? 0,
+            reward: ruleConfig?.reward?.enabled ? {
+                type: ruleConfig.reward.type,
+                value: ruleConfig.reward.value,
+            } : null,
         };
 
         return {

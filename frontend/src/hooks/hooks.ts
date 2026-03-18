@@ -4979,6 +4979,7 @@ import {
   LedgerStudentDetails,
   HpCohortOverviewStats,
   HpStudentSubmission,
+  HpStudentSubmissionStats,
 } from '../lib/api/hp-system';
 
 export function useHpCourseVersions() {
@@ -5083,6 +5084,40 @@ export function useSubmitActivity() {
       queryClient.invalidateQueries({ queryKey: ['hp-students'] });
       queryClient.invalidateQueries({ queryKey: ['hp-cohort-overview'] });
       toast.success("Activity submitted successfully");
+    },
+  });
+
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+  };
+}
+
+export function useUpdateActivitySubmission() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: async (payload: {
+      submissionId: string;
+      courseId: string;
+      courseVersionId: string;
+      cohort: string;
+      activityId: string;
+      payload: {
+        textResponse?: string;
+        links?: { url: string; label: string }[];
+      };
+      submissionSource?: string;
+      files?: File[];
+      images?: File[];
+    }) => {
+      const { submissionId, ...rest } = payload;
+      const res = await hpApi.updateActivitySubmission(submissionId, rest);
+      if (!res.success) throw new Error(res.message || 'Failed to update submission');
+      return res.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['studentMySubmissions', variables.courseVersionId, variables.cohort] });
+      toast.success("Submission updated successfully");
     },
   });
 
@@ -5509,17 +5544,20 @@ export function useHpStudentSubmissions(studentId: string | undefined, courseVer
   });
 }
 
-export function useHpStudentStats(studentId: string | undefined, cohort: string){
-  return useQuery({
-    queryKey: ['hpStudentStats', studentId, cohort],
-    queryFn: async () => {
-      if (!studentId) return null;
-      const res = await hpApi.getStudentSubmissionStats(studentId, cohort);
-      if (!res.success) throw new Error("Failed to fetch student stats");
-      return res.data;
-    },
-    enabled: !!studentId,
-  })
+export function useHpStudentSubmissionStats(
+    studentId: string | undefined,
+    cohortName: string
+) {
+    return useQuery({
+        queryKey: ['hpStudentSubmissionStats', studentId, cohortName],
+        queryFn: async () => {
+            if (!studentId) return null;
+            const res = await hpApi.getStudentSubmissionStats(studentId, cohortName);
+            if (!res.success) throw new Error("Failed to fetch submission stats");
+            return res.data;
+        },
+        enabled: !!studentId && !!cohortName,
+    });
 }
 
 export function useStudentMySubmissions(courseVersionId: string, cohort: string) {

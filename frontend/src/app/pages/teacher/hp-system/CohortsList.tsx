@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, ArrowLeft, Loader2 } from "lucide-react";
+import { Users, ArrowLeft, Loader2, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useHpCohorts } from "@/hooks/hooks";
 
@@ -82,7 +82,7 @@ export default function HpSystemCohorts() {
 
                                 <div className="flex justify-between">
                                     <span>HP Distributed:</span>
-                                    <span className="font-medium text-foreground">{c.stats.totalHpDistributed}</span>
+                                    <span className="font-medium text-foreground">{c.stats.totalHpDistributed || <Ban className="w-3 h-3 text-muted-foreground" />}</span>
                                 </div>
                             </div>
                         </CardContent>

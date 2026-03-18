@@ -19,6 +19,7 @@ import {
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { CreateHpActivityPayload, HpRuleConfig, CourseWithVersions, CourseVersionStats } from "@/lib/api/hp-system";
 import { useCreateHpActivity, useCreateHpRuleConfig, useHpCourseVersions } from "@/hooks/hooks";
+import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal";
 
 export default function CreateHpActivityPage() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
@@ -38,7 +39,7 @@ export default function CreateHpActivityPage() {
     const courseId = course?.courseId;
 
     // ── Step 1: Activity form ──
-    const { control, register, handleSubmit, watch, trigger, formState: { errors } } = useForm<CreateHpActivityPayload>({
+    const { control, register, handleSubmit, watch, trigger, formState: { errors }, setValue } = useForm<CreateHpActivityPayload>({
         defaultValues: {
             title: "",
             description: "",
@@ -51,6 +52,9 @@ export default function CreateHpActivityPage() {
 
     const { fields, append, remove } = useFieldArray({ control, name: "attachments" });
     const currentSubmissionMode = watch("submissionMode");
+    const currentActivityType = watch("activityType");
+    const [isVibeMilestoneConfirmOpen, setIsVibeMilestoneConfirmOpen] = useState(false);
+    const [pendingActivityType, setPendingActivityType] = useState<string | null>(null);
 
     // ── Step 2: Rule config (local state, matches RuleSettingsDialog) ──
     type RuleConfigFormState = Omit<Partial<HpRuleConfig>, "reward" | "penalty" | "limits"> & {
@@ -94,6 +98,28 @@ export default function CreateHpActivityPage() {
     };
 
     const isHex24 = (id?: string) => /^[0-9a-fA-F]{24}$/.test(id || "");
+
+    const handleActivityTypeChange = (value: string) => {
+        if (value === "VIBE_MILESTONE" && currentActivityType !== "VIBE_MILESTONE") {
+            setPendingActivityType(value);
+            setIsVibeMilestoneConfirmOpen(true);
+            return;
+        }
+        setValue("activityType", value as any, { shouldDirty: true, shouldValidate: true });
+    };
+
+    const handleConfirmVibeMilestone = () => {
+        if (pendingActivityType) {
+            setValue("activityType", pendingActivityType as any, { shouldDirty: true, shouldValidate: true });
+        }
+        setIsVibeMilestoneConfirmOpen(false);
+        setPendingActivityType(null);
+    };
+
+    const handleCloseVibeMilestoneConfirm = () => {
+        setIsVibeMilestoneConfirmOpen(false);
+        setPendingActivityType(null);
+    };
 
     const onSubmit = async (data: CreateHpActivityPayload, status: "DRAFT" | "PUBLISHED") => {
         if (!courseId || !courseVersionId) {
@@ -179,12 +205,51 @@ export default function CreateHpActivityPage() {
             return;
         }
 
+        const validateRewardLimits = () => {
+            if (ruleConfig.reward?.type !== "PERCENTAGE") {
+                setRuleErrors(prev => ({ ...prev, limitsMin: undefined, limitsMax: undefined }));
+                return true;
+            }
+
+            const minHp = ruleConfig.limits?.minHp;
+            const maxHp = ruleConfig.limits?.maxHp;
+            const nextErrors: { limitsMin?: string; limitsMax?: string } = {};
+
+            if (minHp === undefined || minHp === null || Number.isNaN(minHp)) {
+                nextErrors.limitsMin = "Minimum HP is required";
+            } else if (minHp < 0) {
+                nextErrors.limitsMin = "Minimum HP cannot be negative";
+            }
+
+            if (maxHp === undefined || maxHp === null || Number.isNaN(maxHp)) {
+                nextErrors.limitsMax = "Maximum HP is required";
+            } else if (maxHp < 0) {
+                nextErrors.limitsMax = "Maximum HP cannot be negative";
+            }
+
+            if (minHp !== undefined && maxHp !== undefined && !Number.isNaN(minHp) && !Number.isNaN(maxHp) && maxHp < minHp) {
+                nextErrors.limitsMax = "Maximum HP must be greater than or equal to Minimum HP";
+            }
+
+            setRuleErrors(prev => ({
+                ...prev,
+                limitsMin: nextErrors.limitsMin,
+                limitsMax: nextErrors.limitsMax,
+            }));
+            return Object.keys(nextErrors).length === 0;
+        };
+
+        if (!validateRewardLimits()) {
+            return;
+        }
+
         // 1. Prepare activity payload (including some fields from ruleConfig that Activity needs)
         const activityPayload = {
             ...data,
             courseId: courseId,
             courseVersionId: courseVersionId,
             cohort: cohortName || "",
+            attachments: data.attachments?.map(att => ({ ...att, kind: att.kind || "LINK" })),
             status,
             deadlineAt: ruleConfig.deadlineAt,
             allowLateSubmission: ruleConfig.allowLateSubmission,
@@ -279,6 +344,7 @@ export default function CreateHpActivityPage() {
     }
 
     return (
+        <>
         <div className="space-y-6  mx-4 pb-12">
             {/* Header */}
             <div className="flex items-center gap-4 border-b pb-4">
@@ -418,7 +484,8 @@ export default function CreateHpActivityPage() {
                                 </p>
                             )}
                             {fields.map((field, index) => (
-                                <div key={field.id} className="grid grid-cols-1 md:grid-cols-[1fr_2fr_120px_auto] gap-4 items-end bg-muted/30 p-4 rounded-lg border border-border/50">
+                                <div key={field.id} className="grid grid-cols-1 md:grid-cols-[1fr_2fr_auto] gap-4 items-end bg-muted/30 p-4 rounded-lg border border-border/50">
+                                    <input type="hidden" value="LINK" {...register(`attachments.${index}.kind` as const)} />
                                     <div className="space-y-2">
                                         <label className="text-xs font-medium uppercase text-muted-foreground">
                                             Link Name <span className="text-muted-foreground normal-case font-normal">(optional)</span>
@@ -437,25 +504,6 @@ export default function CreateHpActivityPage() {
                                             placeholder="https://... (optional)"
                                             {...register(`attachments.${index}.url` as const, { required: "URL is required" })}
                                             className={errors.attachments?.[index]?.url ? "border-red-500" : ""}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-medium uppercase text-muted-foreground">Type</label>
-                                        <Controller
-                                            name={`attachments.${index}.kind` as const}
-                                            control={control}
-                                            render={({ field }) => (
-                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                    <SelectTrigger>
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="LINK">Link</SelectItem>
-                                                        <SelectItem value="PDF">PDF</SelectItem>
-                                                        <SelectItem value="OTHER">Other</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            )}
                                         />
                                     </div>
                                     <Button type="button" variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => remove(index)}>
@@ -860,5 +908,15 @@ export default function CreateHpActivityPage() {
                 </div>
             )}
         </div>
+        <ConfirmationModal
+            isOpen={isVibeMilestoneConfirmOpen}
+            onClose={handleCloseVibeMilestoneConfirm}
+            onConfirm={handleConfirmVibeMilestone}
+            title="Confirm Vibe Platform Milestone"
+            description="By selecting Vibe Platform Milestone, students who miss the deadline for this activity will automatically receive a penalty. Are you sure you want to continue?"
+            confirmText="Confirm"
+            cancelText="Cancel"
+        />
+        </>
     );
 }

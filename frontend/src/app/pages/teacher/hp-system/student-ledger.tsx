@@ -13,19 +13,19 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { 
+import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { 
-    ArrowLeft, 
-    Zap, 
-    User, 
-    Mail, 
-    Clock, 
-    MessageSquare, 
+import {
+    ArrowLeft,
+    Zap,
+    User,
+    Mail,
+    Clock,
+    MessageSquare,
     Eye,
     Calendar,
     AlertCircle,
@@ -58,6 +58,8 @@ export default function StudentLedgerPage() {
         effectiveCourseId,
         effectiveVersionId
     );
+
+    console.log("Fetched ledger entries:", ledger, "Loading:", isLoadingLedger, "Error:", error);
 
     // 4. Fetch Activities to map IDs to Titles
     const { data: activities = [], isLoading: isLoadingActivities } = useHpActivities(
@@ -201,7 +203,7 @@ export default function StudentLedgerPage() {
                                     <TableRow key={entry._id}>
                                         <TableCell>
                                             <div className="font-medium max-w-[200px] truncate">
-                                                {activityMap[entry.activityId] || entry.activityId || 'Manual Adjustment'}
+                                                {activityMap[entry.activityId] || entry.activityTitle || 'Manual Adjustment'}
                                             </div>
                                         </TableCell>
                                         <TableCell>
@@ -227,8 +229,8 @@ export default function StudentLedgerPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-center">
-                                            <Button 
-            
+                                            <Button
+
                                                 onClick={() => setSelectedEntry(entry)}
                                             >
                                                 view more
@@ -244,7 +246,7 @@ export default function StudentLedgerPage() {
 
             {/* Detail View Modal */}
             <Dialog open={!!selectedEntry} onOpenChange={(open) => !open && setSelectedEntry(null)}>
-                <DialogContent className="sm:max-w-[500px]">
+                <DialogContent className="sm:max-w-[700px]">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <History className="h-5 w-5" />
@@ -253,10 +255,10 @@ export default function StudentLedgerPage() {
                     </DialogHeader>
                     {selectedEntry && (
                         <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-[2fr_1fr] gap-x-6 gap-y-4">
                                 <div className="space-y-1">
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Activity</p>
-                                    <p className="text-sm font-semibold">{activityMap[selectedEntry.activityId] || selectedEntry.activityId || 'Manual Adjustment'}</p>
+                                    <p className="text-sm font-semibold">{activityMap[selectedEntry.activityId] || selectedEntry.activityTitle || 'Manual Adjustment'}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Event Type</p>
@@ -287,7 +289,7 @@ export default function StudentLedgerPage() {
                                     <Badge variant="outline">{selectedEntry.calc?.reasonCode || '—'}</Badge>
                                 </div>
                             </div>
-                            
+
                             <div className="space-y-2 pt-2 border-t">
                                 <div className="space-y-1">
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Triggered By</p>
@@ -297,19 +299,58 @@ export default function StudentLedgerPage() {
                                         <span className="text-xs text-muted-foreground">({selectedEntry.meta?.triggeredByUserId || 'Automated'})</span>
                                     </div>
                                 </div>
-                                
+
                                 <div className="space-y-1">
-                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Note</p>
-                                    <div className="flex items-start gap-2 text-sm bg-muted/30 p-3 rounded-md min-h-[60px]">
-                                        <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5" />
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-0.5"><MessageSquare className="h-4 w-4 text-muted-foreground inline" /> Note</p>
+                                    <div className="flex flex-col items-start gap-2 text-sm bg-muted/30 p-3 rounded-md min-h-[60px]">
+
                                         <p className="italic text-muted-foreground">
                                             {selectedEntry.meta?.note || 'No additional notes provided.'}
                                         </p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                            HP Calculation
+                                        </p>
+
+                                        <div className="bg-muted/40 rounded-md p-3 space-y-2 text-sm">
+
+                                            <div className="flex justify-between">
+                                                <span className="text-muted-foreground">Base HP</span>
+                                                <span className="font-medium">
+                                                    {selectedEntry.calc?.baseHpAtTime}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex justify-between">
+                                                <span className="text-muted-foreground">
+                                                    {selectedEntry.direction === "CREDIT" ? "Reward Added" : "Penalty Applied"}
+                                                </span>
+
+                                                <span className={`font-medium ${selectedEntry.direction === "CREDIT" ? "text-green-600" : "text-red-600"}`}>
+                                                    {selectedEntry.direction === "CREDIT" ? "+" : "-"}
+                                                    {selectedEntry.amount}
+
+                                                    {selectedEntry.calc?.percentage && (
+                                                        <span className="text-xs text-muted-foreground ml-1">
+                                                            ({selectedEntry.calc.percentage}% rule)
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            </div>
+
+                                            <div className="border-t pt-2 flex justify-between font-semibold">
+                                                <span>Final HP</span>
+                                                <span>{selectedEntry.calc?.computedAmount}</span>
+                                            </div>
+
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     )}
+                    <Button className="w-full" onClick={() => navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${cohortName}/student/${studentId}/submissions` })}>View Submission</Button>
                 </DialogContent>
             </Dialog>
         </div>
