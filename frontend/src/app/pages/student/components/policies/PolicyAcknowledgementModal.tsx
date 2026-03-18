@@ -31,7 +31,7 @@ export function PolicyAcknowledgementModal({
 
   setIsSubmitting(true);
   try {
-    await processInviteApi(inviteId, "ACCEPT");
+    await processInviteApi(inviteId, "ACCEPT",true);
 
     onClose();
   } catch (err) {
