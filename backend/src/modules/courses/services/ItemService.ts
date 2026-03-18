@@ -1559,7 +1559,13 @@ export class ItemService extends BaseService {
         videoId,
       );
 
-      const MAX_SECONDS_PER_VIEW = 10 * 60; // 600
+      const averageVideoDurationSeconds =
+        await this.getAverageCourseVideoDurationSeconds(versionId, session);
+      const currentVideoDurationSeconds = this.getVideoDurationSeconds(item);
+      const maxSecondsPerView = this.getVideoWatchCapSeconds(
+        averageVideoDurationSeconds,
+        currentVideoDurationSeconds,
+      );
 
       const getCappedWatchSeconds = (startTime?: Date, endTime?: Date) => {
         if (!startTime || !endTime) return 0;
@@ -1568,7 +1574,7 @@ export class ItemService extends BaseService {
 
         if (!Number.isFinite(diffSeconds) || diffSeconds <= 0) return 0;
 
-        return Math.min(diffSeconds, MAX_SECONDS_PER_VIEW);
+        return Math.min(diffSeconds, maxSecondsPerView);
       };
 
       const totalViews = watchTimeData.length;
@@ -1604,6 +1610,15 @@ export class ItemService extends BaseService {
   ): Promise<VideoUserAnalyticsResponse> {
 
     const { page = 1, limit = 12, search, sortBy = 'name', sortOrder = 'asc' } = query;
+    const item = await this.itemRepo.readItem(versionId, videoId);
+    const currentVideoDurationSeconds = this.getVideoDurationSeconds(item);
+    const averageVideoDurationSeconds =
+      await this.getAverageCourseVideoDurationSeconds(versionId);
+    const maxSecondsPerView = this.getVideoWatchCapSeconds(
+      averageVideoDurationSeconds,
+      currentVideoDurationSeconds,
+    );
+
     return await this.progressRepo.getVideoUserAnalytics(
       courseId,
       versionId,
@@ -1612,7 +1627,122 @@ export class ItemService extends BaseService {
       limit,
       search,
       sortBy,
-      sortOrder
+      sortOrder,
+      maxSecondsPerView,
     );
+  }
+
+  private parseDurationToSeconds(time?: string): number {
+    if (!time) return 0;
+    const parts = time.split(':').map(part => Number(part));
+    if (parts.some(part => Number.isNaN(part) || part < 0)) return 0;
+
+    if (parts.length === 3) {
+      return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    }
+
+    if (parts.length === 2) {
+      return parts[0] * 60 + parts[1];
+    }
+
+    if (parts.length === 1) {
+      return parts[0];
+    }
+
+    return 0;
+  }
+
+  private getVideoDurationSeconds(videoItem: any): number {
+    const startSeconds = this.parseDurationToSeconds(videoItem?.details?.startTime);
+    const endSeconds = this.parseDurationToSeconds(videoItem?.details?.endTime);
+    const durationSeconds = endSeconds - startSeconds;
+
+    return durationSeconds > 0 ? durationSeconds : 0;
+  }
+
+  private getVideoWatchCapSeconds(
+    averageVideoDurationSeconds: number,
+    currentVideoDurationSeconds: number = 0,
+  ): number {
+    const DEFAULT_CAP_SECONDS = 10 * 60;
+    const MAX_CAP_SECONDS = 4 * 60 * 60;
+
+    const candidates = [
+      Number.isFinite(averageVideoDurationSeconds) ? averageVideoDurationSeconds : 0,
+      Number.isFinite(currentVideoDurationSeconds) ? currentVideoDurationSeconds : 0,
+    ].filter(value => value > 0);
+
+    if (!candidates.length) return DEFAULT_CAP_SECONDS;
+
+    const baselineDurationSeconds = Math.max(...candidates);
+    const dynamicCapSeconds = Math.round(baselineDurationSeconds * 2);
+    return Math.max(DEFAULT_CAP_SECONDS, Math.min(dynamicCapSeconds, MAX_CAP_SECONDS));
+  }
+
+  private async getAverageCourseVideoDurationSeconds(
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    const courseVersion = await this.courseRepo.readVersion(versionId, session);
+    if (!courseVersion?.modules?.length) return 0;
+
+    const itemsGroupIds = Array.from(
+      new Set(
+        courseVersion.modules.flatMap(module =>
+          module.sections
+            .map(section => section.itemsGroupId?.toString())
+            .filter(Boolean),
+        ),
+      ),
+    );
+
+    if (!itemsGroupIds.length) return 0;
+
+    const itemGroups = await Promise.all(
+      itemsGroupIds.map(async groupId => {
+        try {
+          return await this.itemRepo.readItemsGroup(groupId, session);
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    const videoItemIds = Array.from(
+      new Set(
+        itemGroups
+          .flatMap(group => group?.items || [])
+          .filter(item => item?.type === ItemType.VIDEO)
+          .map(item => item._id?.toString())
+          .filter(Boolean),
+      ),
+    );
+
+    if (!videoItemIds.length) return 0;
+
+    const videoItems = await Promise.all(
+      videoItemIds.map(async id => {
+        try {
+          return await this.itemRepo.readItem(versionId, id, session);
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    const durations = videoItems
+      .filter(
+        videoItem =>
+          videoItem?.type === ItemType.VIDEO &&
+          !videoItem?.isDeleted &&
+          !videoItem?.isHidden,
+      )
+      .map(videoItem => this.getVideoDurationSeconds(videoItem))
+      .filter(duration => duration > 0);
+
+    if (!durations.length) return 0;
+
+    const totalDuration = durations.reduce((sum, duration) => sum + duration, 0);
+    return totalDuration / durations.length;
   }
 }
