@@ -24,6 +24,7 @@ import {
   UpdateEjectionPolicyBody,
   PolicyIdParams,
   CourseIdParams,
+  CourseVersionParams,
   GetPoliciesQuery,
   EjectionPolicyResponse,
   PoliciesListResponse,
@@ -99,7 +100,16 @@ export class EjectionPolicyController {
         );
       }
 
-      const policyContext = {courseId: body.courseId};
+      if (!body.courseVersionId) {
+        throw new ForbiddenError(
+          'courseVersionId is required for course-specific policies',
+        );
+      }
+
+      const policyContext = {
+        courseId: body.courseId,
+        courseVersionId: body.courseVersionId,
+      };
       const policySubject = subject('EjectionPolicy', policyContext);
 
       if (!ability.can(EjectionPolicyActions.Create, policySubject)) {
@@ -127,6 +137,9 @@ export class EjectionPolicyController {
         courseId: body.courseId
           ? ObjectId.createFromHexString(body.courseId)
           : undefined,
+        courseVersionId: body.courseVersionId
+          ? ObjectId.createFromHexString(body.courseVersionId)
+          : undefined,
       },
       changes: {
         after: policy,
@@ -150,7 +163,7 @@ export class EjectionPolicyController {
   @OpenAPI({
     summary: 'Get all ejection policies',
     description:
-      'Retrieves ejection policies with optional filters. Admins see all policies. Managers/Instructors must specify courseId.',
+      'Retrieves ejection policies with optional filters. Admins see all policies. Managers/Instructors must specify courseId and courseVersionId.',
   })
   async getPolicies(
     @QueryParams() query: GetPoliciesQuery,
@@ -159,7 +172,7 @@ export class EjectionPolicyController {
     let policies;
 
     if (user.roles === 'admin') {
-      //  Admins can see all policies
+      // Admins can see all policies
       const filters: any = {
         scope: query.scope,
         isActive: query.active,
@@ -167,6 +180,10 @@ export class EjectionPolicyController {
 
       if (query.courseId) {
         filters.courseId = query.courseId;
+      }
+
+      if (query.courseVersionId) {
+        filters.courseVersionId = query.courseVersionId;
       }
 
       policies = await this.policyService.getPolicies(filters);
@@ -180,14 +197,23 @@ export class EjectionPolicyController {
       if (query.scope === 'platform') {
         policies = await this.policyService.getPolicies(filters);
       } else {
-        // Course policies require courseId
+        // Course policies require courseId and courseVersionId
         if (!query.courseId) {
           throw new ForbiddenError(
             'courseId is required for course-specific policies.',
           );
         }
 
-        const policyContext = {courseId: query.courseId};
+        if (!query.courseVersionId) {
+          throw new ForbiddenError(
+            'courseVersionId is required for course-specific policies.',
+          );
+        }
+
+        const policyContext = {
+          courseId: query.courseId,
+          courseVersionId: query.courseVersionId,
+        };
         const policySubject = subject('EjectionPolicy', policyContext);
 
         if (!ability.can(EjectionPolicyActions.View, policySubject)) {
@@ -197,6 +223,7 @@ export class EjectionPolicyController {
         }
 
         filters.courseId = query.courseId;
+        filters.courseVersionId = query.courseVersionId;
 
         policies = await this.policyService.getPolicies(filters);
       }
@@ -240,7 +267,10 @@ export class EjectionPolicyController {
     if (user.roles !== 'admin') {
       // For course-specific policies, check permissions
       if (policy.scope === 'course' && policy.courseId) {
-        const policyContext = {courseId: policy.courseId.toString()};
+        const policyContext = {
+          courseId: policy.courseId.toString(),
+          courseVersionId: policy.courseVersionId?.toString(),
+        };
         const policySubject = subject('EjectionPolicy', policyContext);
 
         if (!ability.can(EjectionPolicyActions.View, policySubject)) {
@@ -262,24 +292,25 @@ export class EjectionPolicyController {
   }
 
   @Authorized()
-  @Get('/courses/:courseId/active')
+  @Get('/courses/:courseId/versions/:courseVersionId/active')
   @HttpCode(200)
   @ResponseSchema(PoliciesListResponse, {
-    description: 'Active policies for the course',
+    description: 'Active policies for the course version',
     statusCode: 200,
   })
   @OpenAPI({
-    summary: 'Get active policies for a course',
+    summary: 'Get active policies for a course version',
     description:
-      'Retrieves all active ejection policies for a specific course (includes platform-wide and course-specific policies).',
+      'Retrieves all active ejection policies for a specific course version (includes platform-wide and course-specific policies).',
   })
   async getActivePoliciesForCourse(
     @Param('courseId') courseId: string,
+    @Param('courseVersionId') courseVersionId: string,
     @Ability(getEjectionPolicyAbility) {ability, user},
   ): Promise<PoliciesListResponse> {
-    // Check if user has access to this course
+    // Check if user has access to this course version
     if (user.roles !== 'admin') {
-      const courseContext = {courseId};
+      const courseContext = {courseId, courseVersionId};
       const policySubject = subject('EjectionPolicy', courseContext);
 
       if (!ability.can(EjectionPolicyActions.View, policySubject)) {
@@ -289,8 +320,10 @@ export class EjectionPolicyController {
       }
     }
 
-    const policies =
-      await this.policyService.getActivePoliciesForCourse(courseId);
+    const policies = await this.policyService.getActivePoliciesForCourse(
+      courseId,
+      courseVersionId,
+    );
 
     const responsePolicies = policies.map(p =>
       plainToClass(EjectionPolicyResponse, p, {
@@ -339,7 +372,10 @@ export class EjectionPolicyController {
 
     // For course-specific policies, check permissions
     if (existingPolicy.scope === 'course' && existingPolicy.courseId) {
-      const policyContext = {courseId: existingPolicy.courseId.toString()};
+      const policyContext = {
+        courseId: existingPolicy.courseId.toString(),
+        courseVersionId: existingPolicy.courseVersionId?.toString(),
+      };
       const policySubject = subject('EjectionPolicy', policyContext);
 
       if (!ability.can(EjectionPolicyActions.Modify, policySubject)) {
@@ -361,6 +397,11 @@ export class EjectionPolicyController {
       },
       context: {
         policyId: ObjectId.createFromHexString(policyId),
+        courseVersionId: existingPolicy.courseVersionId
+          ? ObjectId.createFromHexString(
+              existingPolicy.courseVersionId.toString(),
+            )
+          : undefined,
       },
       changes: {
         before: existingPolicy,
@@ -403,7 +444,10 @@ export class EjectionPolicyController {
     }
 
     if (existingPolicy.scope === 'course' && existingPolicy.courseId) {
-      const policyContext = {courseId: existingPolicy.courseId.toString()};
+      const policyContext = {
+        courseId: existingPolicy.courseId.toString(),
+        courseVersionId: existingPolicy.courseVersionId?.toString(),
+      };
       const policySubject = subject('EjectionPolicy', policyContext);
 
       if (!ability.can(EjectionPolicyActions.Modify, policySubject)) {
@@ -425,6 +469,11 @@ export class EjectionPolicyController {
       },
       context: {
         policyId: ObjectId.createFromHexString(policyId),
+        courseVersionId: existingPolicy.courseVersionId
+          ? ObjectId.createFromHexString(
+              existingPolicy.courseVersionId.toString(),
+            )
+          : undefined,
       },
       outcome: {
         status: OutComeStatus.SUCCESS,
@@ -469,7 +518,10 @@ export class EjectionPolicyController {
 
     // For course-specific policies, check permissions
     if (existingPolicy.scope === 'course' && existingPolicy.courseId) {
-      const policyContext = {courseId: existingPolicy.courseId.toString()};
+      const policyContext = {
+        courseId: existingPolicy.courseId.toString(),
+        courseVersionId: existingPolicy.courseVersionId?.toString(),
+      };
       const policySubject = subject('EjectionPolicy', policyContext);
 
       if (!ability.can(EjectionPolicyActions.Delete, policySubject)) {
@@ -491,6 +543,11 @@ export class EjectionPolicyController {
       },
       context: {
         policyId: ObjectId.createFromHexString(policyId),
+        courseVersionId: existingPolicy.courseVersionId
+          ? ObjectId.createFromHexString(
+              existingPolicy.courseVersionId.toString(),
+            )
+          : undefined,
       },
       outcome: {
         status: OutComeStatus.SUCCESS,

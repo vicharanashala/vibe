@@ -19,6 +19,12 @@ export class EjectionPolicy {
   })
   courseId?: ObjectId | string | null;
 
+  @Transform(({value}) => value?.toString(), {toPlainOnly: true})
+  @Transform(({value}) => (value ? new ObjectId(value) : value), {
+    toClassOnly: true,
+  })
+  courseVersionId?: ObjectId | string | null;
+
   isActive: boolean;
   priority: number;
   triggers: PolicyTriggers;

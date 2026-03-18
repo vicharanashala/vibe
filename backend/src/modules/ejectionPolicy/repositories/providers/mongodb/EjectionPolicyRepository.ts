@@ -39,10 +39,10 @@ export class EjectionPolicyRepository {
         {name: 'scope_active_deleted_idx'},
       );
 
-      // Index for course-specific policies
+      // Index for course-specific policies (courseId + courseVersionId)
       await this.collection.createIndex(
-        {courseId: 1, isActive: 1, deletedAt: 1},
-        {name: 'course_active_deleted_idx'},
+        {courseId: 1, courseVersionId: 1, isActive: 1, deletedAt: 1},
+        {name: 'course_version_active_deleted_idx'},
       );
 
       // Index for priority sorting
@@ -68,6 +68,9 @@ export class EjectionPolicyRepository {
       description: policy.description,
       scope: policy.scope,
       courseId: policy.courseId ? new ObjectId(policy.courseId) : null,
+      courseVersionId: policy.courseVersionId
+        ? new ObjectId(policy.courseVersionId)
+        : null,
       isActive: policy.isActive,
       priority: policy.priority,
       triggers: policy.triggers,
@@ -110,6 +113,7 @@ export class EjectionPolicyRepository {
     filters: {
       scope?: PolicyScope;
       courseId?: string;
+      courseVersionId?: string;
       isActive?: boolean;
     },
     session?: ClientSession,
@@ -129,6 +133,10 @@ export class EjectionPolicyRepository {
       query.courseId = new ObjectId(filters.courseId);
     }
 
+    if (filters.courseVersionId) {
+      query.courseVersionId = new ObjectId(filters.courseVersionId);
+    }
+
     if (filters.isActive !== undefined) {
       query.isActive = filters.isActive;
     }
@@ -142,18 +150,25 @@ export class EjectionPolicyRepository {
   }
 
   /**
-   * Get active policies for a specific course (includes platform-wide)
+   * Get active policies for a specific course version (includes platform-wide policies)
    */
   async findActivePoliciesForCourse(
     courseId: string,
+    courseVersionId: string,
     session?: ClientSession,
   ): Promise<EjectionPolicy[]> {
     await this.init();
 
     const query: Filter<any> = {
       $or: [
+        // Platform-wide policies apply to all courses/versions
         {scope: 'platform'},
-        {scope: 'course', courseId: new ObjectId(courseId)},
+        // Course-specific policies scoped to this exact version
+        {
+          scope: 'course',
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+        },
       ],
       isActive: true,
       isDeleted: {$ne: true},
@@ -212,6 +227,10 @@ export class EjectionPolicyRepository {
       updateDoc.courseId = new ObjectId(updates.courseId);
     }
 
+    if (updates.courseVersionId) {
+      updateDoc.courseVersionId = new ObjectId(updates.courseVersionId);
+    }
+
     // Don't allow updating createdAt or _id
     delete updateDoc._id;
     delete updateDoc.createdAt;
@@ -264,6 +283,7 @@ export class EjectionPolicyRepository {
       description: doc.description,
       scope: doc.scope,
       courseId: doc.courseId,
+      courseVersionId: doc.courseVersionId,
       isActive: doc.isActive,
       priority: doc.priority,
       triggers: doc.triggers,
@@ -279,6 +299,7 @@ export class EjectionPolicyRepository {
     scope: PolicyScope,
     priority: number,
     courseId?: string,
+    courseVersionId?: string,
     excludePolicyId?: string,
     session?: ClientSession,
   ): Promise<EjectionPolicy | null> {
@@ -291,9 +312,13 @@ export class EjectionPolicyRepository {
       deletedAt: {$exists: false},
     };
 
-    // Course policies must match the same course
+    // Course policies must match the same course and version
     if (scope === 'course' && courseId) {
       query.courseId = new ObjectId(courseId);
+    }
+
+    if (scope === 'course' && courseVersionId) {
+      query.courseVersionId = new ObjectId(courseVersionId);
     }
 
     // Exclude the policy being updated

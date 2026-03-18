@@ -6,6 +6,7 @@ import { components } from '@/types/schema';
 export function useEjectionPolicies(
   scope?: 'platform' | 'course',
   courseId?: string,
+  courseVersionId?: string,
   isActive?: boolean,
   enabled: boolean = true
 ) {
@@ -13,6 +14,7 @@ export function useEjectionPolicies(
 
   if (scope) params.scope = scope;
   if (courseId) params.courseId = courseId;
+  if (courseVersionId) params.courseVersionId = courseVersionId;
   if (isActive !== undefined) params.active = isActive;
 
   const result = api.useQuery(
@@ -34,6 +36,7 @@ export function useEjectionPolicies(
       : null,
   };
 }
+
 // POST /ejection-policies
 export function useCreateEjectionPolicy(): {
   mutate: (variables: { body: components['schemas']['CreateEjectionPolicyBody'] }) => void,
@@ -149,14 +152,27 @@ export function useEjectionPolicy(policyId: string) {
   };
 }
 
-// GET /ejection-policies/courses/{courseId}/active
-export function useActivePoliciesForCourse(courseId: string) {
-  const result = api.useQuery("get", "/ejection-policies/courses/{courseId}/active", {
-    params: { path: { courseId } }
-  });
+// GET /ejection-policies/courses/{courseId}/versions/{courseVersionId}/active
+export function useActivePoliciesForCourse(
+  courseId: string,
+  courseVersionId: string
+): {
+  policies: components['schemas']['EjectionPolicyResponse'][];
+  isLoading: boolean;
+  isError: boolean;
+  error: string | null;
+} {
+  const result = api.useQuery(
+    "get",
+    "/ejection-policies/courses/{courseId}/versions/{courseVersionId}/active",
+    {
+      params: { path: { courseId, courseVersionId } }
+    }
+  );
   return {
-    ...result,
     policies: (result.data as any)?.policies ?? [],
+    isLoading: result.isLoading,
+    isError: result.isError,
     error: result.error ? (result.error.message || 'Failed to load active policies') : null
   };
 }

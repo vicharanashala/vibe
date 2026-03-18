@@ -11,10 +11,20 @@ import { useAuthStore } from "@/store/auth-store";
 import { PolicyScope, EjectionPolicy } from "@/types/ejection-policy.types";
 import { useSearch } from "@tanstack/react-router";
 
+type EjectionPolicySearchParams = {
+  courseId?: string;
+  courseVersionId?: string;
+};
+
 export default function EjectionPoliciesPage() {
   const { user } = useAuthStore();
-  const searchParams = useSearch({ strict: false });
-  const courseIdFromUrl = searchParams.courseId as string | undefined;
+  const searchParams = useSearch({ strict: false }) as EjectionPolicySearchParams;
+  const courseIdFromUrl = searchParams.courseId;
+  const courseVersionIdFromUrl = searchParams.courseVersionId;
+
+  // Tab is shown whenever courseId is present.
+  // Data fetch is only enabled when both IDs are present.
+  const hasCourseContext = !!courseIdFromUrl && !!courseVersionIdFromUrl;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<EjectionPolicy | null>(null);
@@ -23,37 +33,30 @@ export default function EjectionPoliciesPage() {
   );
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
-
-
-  // Fetch policies based on active tab and filters
   const isActiveFilter = activeFilter === 'all' ? undefined : activeFilter === 'active';
-  
+
   const {
-  policies: platformPolicies,
-  isLoading: platformLoading,
-  isAdmin: platformIsAdmin
-} = useEjectionPolicies(
-  PolicyScope.PLATFORM,
-  undefined,
-  isActiveFilter
-);
-console.log('platformIsAdmin', platformIsAdmin);
+    policies: platformPolicies,
+    isLoading: platformLoading,
+    isAdmin: platformIsAdmin
+  } = useEjectionPolicies(
+    PolicyScope.PLATFORM,
+    undefined,
+    undefined,
+    isActiveFilter
+  );
 
+  const {
+    policies: coursePolicies,
+    isLoading: courseLoading,
+  } = useEjectionPolicies(
+    PolicyScope.COURSE,
+    courseIdFromUrl,
+    courseVersionIdFromUrl,
+    isActiveFilter,
+    hasCourseContext
+  );
 
-const {
-  policies: coursePolicies,
-  isLoading: courseLoading,
-  isAdmin: courseIsAdmin
-} = useEjectionPolicies(
-  PolicyScope.COURSE,
-  courseIdFromUrl,
-  isActiveFilter,
-  !!courseIdFromUrl
-
-);
-console.log('courseIsAdmin', courseIsAdmin);
-
-  // Check if user is admin
   const isAdmin = platformIsAdmin;
 
   const handleCreateClick = () => {
@@ -97,18 +100,19 @@ console.log('courseIsAdmin', courseIsAdmin);
                   </div>
                 </div>
               </div>
-{isAdmin &&(
-              <Button
-                onClick={handleCreateClick}
-                disabled={!isAdmin && activeTab === 'platform'}
-                className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_auto] hover:bg-[length:100%_auto] shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 h-12 px-8 group"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                <div className="relative flex items-center gap-2">
-                  <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
-                  <span className="font-semibold">Create Policy</span>
-                </div>
-              </Button>)}
+              {isAdmin && (
+                <Button
+                  onClick={handleCreateClick}
+                  disabled={!isAdmin && activeTab === 'platform'}
+                  className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_auto] hover:bg-[length:100%_auto] shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 h-12 px-8 group"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                  <div className="relative flex items-center gap-2">
+                    <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
+                    <span className="font-semibold">Create Policy</span>
+                  </div>
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -119,11 +123,11 @@ console.log('courseIsAdmin', courseIsAdmin);
           <div className="relative bg-card/60 backdrop-blur-sm border border-border/50 rounded-xl p-4">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'platform' | 'course')} className="w-full md:w-auto">
-             <TabsList
-  className={`grid w-full md:w-[400px] ${
-    courseIdFromUrl ? "grid-cols-2" : "grid-cols-1"
-  } h-11 bg-muted/40 backdrop-blur-sm border border-border/50 p-1 rounded-xl`}
->
+                <TabsList
+                  className={`grid w-full md:w-[400px] ${
+                    courseIdFromUrl ? "grid-cols-2" : "grid-cols-1"
+                  } h-11 bg-muted/40 backdrop-blur-sm border border-border/50 p-1 rounded-xl`}
+                >
                   <TabsTrigger
                     value="platform"
                     className="rounded-lg text-sm font-semibold text-muted-foreground transition-all duration-200 data-[state=active]:bg-background/80 data-[state=active]:text-foreground data-[state=active]:shadow-sm"
@@ -132,12 +136,13 @@ console.log('courseIsAdmin', courseIsAdmin);
                     Platform Policies
                   </TabsTrigger>
                   {courseIdFromUrl && (
-                  <TabsTrigger
-                    value="course"
-                    className="rounded-lg text-sm font-semibold text-muted-foreground transition-all duration-200 data-[state=active]:bg-background/80 data-[state=active]:text-foreground data-[state=active]:shadow-sm"
-                  >
-                    Course Policies
-                  </TabsTrigger>)}
+                    <TabsTrigger
+                      value="course"
+                      className="rounded-lg text-sm font-semibold text-muted-foreground transition-all duration-200 data-[state=active]:bg-background/80 data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+                    >
+                      Course Policies
+                    </TabsTrigger>
+                  )}
                 </TabsList>
               </Tabs>
 
@@ -164,11 +169,11 @@ console.log('courseIsAdmin', courseIsAdmin);
             {!isAdmin && (
               <Card className="border-yellow-200 bg-yellow-50/50 dark:bg-yellow-950/20 p-4 mb-4">
                 <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                  Platform-wide policies apply to all courses. 
+                  Platform-wide policies apply to all courses.
                 </p>
               </Card>
             )}
-            
+
             <EjectionPolicyList
               policies={platformPolicies}
               isLoading={platformLoading}
@@ -179,17 +184,17 @@ console.log('courseIsAdmin', courseIsAdmin);
           </TabsContent>
 
           <TabsContent value="course" className="mt-0">
-            {courseIdFromUrl ? (
+            {hasCourseContext ? (
               <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200">
                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                  Showing policies for the selected course
+                  Showing policies for the selected course version
                 </p>
               </div>
             ) : (
               <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 p-4 mb-4">
                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                  Course policies are shown when viewing from a specific course page.
-                  Go to a course to create course-specific policies.
+                  Course version policies require a course version to be selected.
+                  Go to a specific course version to manage its policies.
                 </p>
               </Card>
             )}
@@ -212,6 +217,7 @@ console.log('courseIsAdmin', courseIsAdmin);
         editPolicy={editingPolicy}
         defaultScope={activeTab === 'platform' ? PolicyScope.PLATFORM : PolicyScope.COURSE}
         courseId={courseIdFromUrl}
+        courseVersionId={courseVersionIdFromUrl}
         isAdmin={isAdmin}
       />
     </div>
