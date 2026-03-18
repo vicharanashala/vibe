@@ -1906,7 +1906,7 @@ function VersionCard({
                 <Button
   variant="outline"
   size="sm"
-  onClick={() => navigate({ to: `/teacher/ejection-policies?courseId=${courseId}` })}
+  onClick={() => navigate({ to: `/teacher/ejection-policies?courseId=${courseId}&courseVersionId=${versionId}` })}
   className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
 >
   <Shield className="h-3 w-3 mr-1" />

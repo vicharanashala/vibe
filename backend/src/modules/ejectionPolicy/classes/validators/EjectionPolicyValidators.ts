@@ -214,6 +214,13 @@ export class CreateEjectionPolicyBody {
   courseId?: string;
 
   @JSONSchema({
+    description: 'Course Version ID (required if scope is "course")',
+  })
+  @IsOptional()
+  @IsMongoId()
+  courseVersionId?: string;
+
+  @JSONSchema({
     description: 'Priority level',
     minimum: 1,
   })
@@ -288,6 +295,22 @@ export class CourseIdParams {
   courseId: string;
 }
 
+export class CourseVersionParams {
+  @JSONSchema({
+    description: 'Course ID',
+  })
+  @IsMongoId()
+  @IsNotEmpty()
+  courseId: string;
+
+  @JSONSchema({
+    description: 'Course Version ID',
+  })
+  @IsMongoId()
+  @IsNotEmpty()
+  courseVersionId: string;
+}
+
 // ============ Query Params ============
 
 export class GetPoliciesQuery {
@@ -300,65 +323,15 @@ export class GetPoliciesQuery {
   courseId?: string;
 
   @IsOptional()
+  @IsMongoId()
+  courseVersionId?: string;
+
+  @IsOptional()
   @IsBoolean()
   @Type(() => Boolean)
   active?: boolean;
 }
 
-// ============ Response DTOs ============
-
-// @Expose()
-// export class EjectionPolicyResponse {
-//   @IsString()
-//   @Expose()
-//   _id: string;
-
-//   @IsString()
-//   @Expose()
-//   name: string;
-
-//   @IsOptional()
-//   @IsString()
-//   @Expose()
-//   description?: string;
-
-//   @IsString()
-//   @Expose()
-//   scope: PolicyScope;
-
-//   @IsOptional()
-//   @IsString()
-//   @Expose()
-//   courseId?: string;
-
-//   @IsBoolean()
-//   @Expose()
-//   isActive: boolean;
-
-//   @IsNumber()
-//   @Expose()
-//   priority: number;
-
-//   @IsObject()
-//   @Expose()
-//   triggers: any;
-
-//   @IsObject()
-//   @Expose()
-//   actions: any;
-
-//   @IsString()
-//   @Expose()
-//   createdBy: string;
-
-//   @Type(() => Date)
-//   @Expose()
-//   createdAt: Date;
-
-//   @Type(() => Date)
-//   @Expose()
-//   updatedAt: Date;
-// }
 @Expose()
 export class EjectionPolicyResponse {
   @IsString()
@@ -405,6 +378,16 @@ export class EjectionPolicyResponse {
     example: '507f1f77bcf86cd799439011',
   })
   courseId?: string;
+
+  @IsString()
+  @IsOptional()
+  @Expose()
+  @Transform(({value}) => value?.toString())
+  @JSONSchema({
+    description: 'Course Version ID (for course-specific policies)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  courseVersionId?: string;
 
   @IsBoolean()
   @Expose()

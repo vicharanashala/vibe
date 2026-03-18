@@ -104,8 +104,12 @@ export class EjectionPolicyService extends BaseService {
    */
   async getActivePoliciesForCourse(
     courseId: string,
+    courseVersionId: string,
   ): Promise<EjectionPolicy[]> {
-    return await this.policyRepo.findActivePoliciesForCourse(courseId);
+    return await this.policyRepo.findActivePoliciesForCourse(
+      courseId,
+      courseVersionId,
+    );
   }
 
   /**
@@ -375,6 +379,7 @@ export class EjectionPolicyService extends BaseService {
       policy.scope,
       policy.priority,
       String(policy.courseId),
+      String(policy.courseVersionId),
       excludePolicyId,
       session,
     );

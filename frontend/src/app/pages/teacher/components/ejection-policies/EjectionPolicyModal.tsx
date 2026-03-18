@@ -19,6 +19,7 @@ interface EjectionPolicyModalProps {
   editPolicy?: EjectionPolicy | null;
   defaultScope?: PolicyScope;
   courseId?: string;
+  courseVersionId?:string,
   courseName?: string;
   isAdmin: boolean;
 }
@@ -29,6 +30,7 @@ export const EjectionPolicyModal = ({
   editPolicy,
   defaultScope = PolicyScope.PLATFORM,
   courseId,
+  courseVersionId,
   courseName,
   isAdmin,
 }: EjectionPolicyModalProps) => {
@@ -41,6 +43,7 @@ export const EjectionPolicyModal = ({
     description: "",
     scope: defaultScope,
     courseId: defaultScope === PolicyScope.COURSE ? courseId || "" : "",
+    courseVersionId: defaultScope === PolicyScope.COURSE ? courseVersionId || "" : "",
     priority: 100,
     isActive: true,
     
@@ -81,6 +84,7 @@ export const EjectionPolicyModal = ({
         description: editPolicy.description || "",
         scope: editPolicy.scope,
         courseId: editPolicy.courseId || "",
+        courseVersionId: editPolicy.courseVersionId || "",
         priority: editPolicy.priority,
         isActive: editPolicy.isActive,
         
@@ -120,6 +124,7 @@ export const EjectionPolicyModal = ({
         description: "",
         scope: defaultScope,
         courseId: courseId || "",
+        courseVersionId: courseVersionId || "",
         priority: 100,
         isActive: true,
         inactivityEnabled: false,
@@ -234,6 +239,7 @@ export const EjectionPolicyModal = ({
         description: formData.description,
         scope: formData.scope,
         courseId: formData.scope === PolicyScope.COURSE ? formData.courseId : undefined,
+        courseVersionId: formData.scope === PolicyScope.COURSE ? formData.courseVersionId : undefined,
         priority: formData.priority,
         isActive: formData.isActive,
         triggers: {
