@@ -532,7 +532,8 @@ export class EnrollmentController {
           totalQuizMaxScore: enrollment.totalQuizMaxScore || 0,
           contentCounts: enrollment.contentCounts,
           cohortId: enrollment.cohortId,
-          cohortName: enrollment.cohortName
+          cohortName: enrollment.cohortName,
+          id: enrollment._id,
         }))
         .sort((a, b) => {
           // sort by isDeleted deleted should be at the bottom
