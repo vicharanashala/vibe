@@ -526,7 +526,7 @@ export function useCreateCourse(): {
   };
 }
 
-export async function useProcessInvites(inviteId: string, action: "ACCEPT" | "REJECTED" = "ACCEPT",
+export async function processInviteApi(inviteId: string, action: "ACCEPT" | "REJECTED" = "ACCEPT",
 
 ): Promise<{
   data: null,

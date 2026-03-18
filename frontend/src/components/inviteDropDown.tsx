@@ -5,6 +5,7 @@ import { ApprovedRegistrationNotification, PendingStudentRegistrationNotificatio
 import { CheckCircle, Clock3, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMarkNotificationAsRead } from "@/hooks/hooks";
+import { PolicyAcknowledgementModal } from "@/app/pages/student/components/policies/PolicyAcknowledgementModal";
 
 type InviteDropdownProps = {
   pendingInvites: any[];
@@ -28,6 +29,11 @@ const InviteDropdown = ({
   const { getInvites, loading, error } = useInvites();
   const { mutate: markAsRead, isPending } = useMarkNotificationAsRead();
   const [invites, setInvites] = useState<any[]>(pendingInvites || []);
+  const [selectedInvite, setSelectedInvite] = useState<any | null>(null);
+  const [showPolicyModal, setShowPolicyModal] = useState(false);
+
+console.log("Invites:", invites);
+
 
   const handleMarkAsRead = (notificationId: string) => {
     markAsRead({ params: { path: { registrationId: notificationId } } });
@@ -136,10 +142,24 @@ const InviteDropdown = ({
                 </div>
               </li>
             ))}
-            
+            {selectedInvite && (
+  <PolicyAcknowledgementModal
+  open={!!selectedInvite}
+  onClose={() => setSelectedInvite(null)}
+  inviteId={selectedInvite?.inviteId}
+  courseId={selectedInvite?.courseId}
+  courseVersionId={selectedInvite?.courseVersionId}
+/>
+)}
             {/* Render Invites */}
             {invites.map((invite: any, idx: number) => (
-              <InviteItem key={`invite-${idx}`} invite={invite} />
+              <InviteItem 
+                key={`invite-${idx}`} 
+                invite={invite}   
+                onAcceptClick={(invite) => {
+                setSelectedInvite(invite);
+                setShowPolicyModal(true);
+              }} />
             ))}
           </>
         )}

@@ -1,27 +1,27 @@
-import { useProcessInvites } from "@/hooks/hooks";
+
 import { useState } from "react";
 import { Button } from "./ui/button";
 
-const InviteItem = ({ invite }) => {
+const InviteItem = ({ invite, onAcceptClick }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [status, setStatus] = useState(invite.inviteStatus); // track local status
 
-    const onAccept = async (invite) => {
-        const { data, isLoading, error } = await useProcessInvites(invite.inviteId, 'ACCEPT');
-        if (!isLoading && !error) {
-            setStatus("ACCEPTED");
-            setIsExpanded(false);
-            window.location.reload();
-        }
-    };
-    const onReject = async (invite) => {
-        const { isLoading, error } = await useProcessInvites(invite.inviteId, 'REJECTED');
-        if (!isLoading && !error) {
-            setStatus("REJECTED");
-            setIsExpanded(false);
-            window.location.reload();
-        }
-    };
+    // const onAccept = async (invite) => {
+    //     const { data, isLoading, error } = await useProcessInvites(invite.inviteId, 'ACCEPT');
+    //     if (!isLoading && !error) {
+    //         setStatus("ACCEPTED");
+    //         setIsExpanded(false);
+    //         window.location.reload();
+    //     }
+    // };
+    // const onReject = async (invite) => {
+    //     const { isLoading, error } = await useProcessInvites(invite.inviteId, 'REJECTED');
+    //     if (!isLoading && !error) {
+    //         setStatus("REJECTED");
+    //         setIsExpanded(false);
+    //         window.location.reload();
+    //     }
+    // };
 
     const handleToggle = () => {
         if (status !== "ACCEPTED") {
@@ -53,10 +53,7 @@ const InviteItem = ({ invite }) => {
                 <div className="mt-2">
                     <Button
                         variant="ghost"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onAccept(invite);
-                        }}
+                        onClick={() => onAcceptClick(invite)}
                         className="relative right-0 mt-1 text-sm cursor-pointer font-medium text-green-600 dark:text-green-400"
                     >
                         Accept
