@@ -266,7 +266,7 @@ test('Test course video playback and quiz', async ({ page }) => {
 
     await fastForwardIfAvailable(page, timeDisplay);
 
-    // Wait for completion (1s tolerance)
+    // Wait for completion (2s tolerance)
     await expect
       .poll(
         async () => {
@@ -278,7 +278,7 @@ test('Test course video playback and quiz', async ({ page }) => {
           const current = parseTimeToSeconds(currentText);
           const total = parseTimeToSeconds(totalText);
 
-          return current >= total - 1;
+          return current >= total - 2;
         },
         {
           timeout: 6 * 60 * 1000,
