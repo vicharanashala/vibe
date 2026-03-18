@@ -134,6 +134,7 @@ export interface HpLedgerCalcEntry {
 export interface HpLedgerMetaEntry {
     triggeredBy?: string;
     triggeredByUserId?: string;
+    triggeredByUserName?: string | null;
     note?: string;
 }
 
