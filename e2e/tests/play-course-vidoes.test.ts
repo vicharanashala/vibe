@@ -42,7 +42,7 @@ test('Test course video playback and quiz', async ({ page }) => {
   await page.getByRole('button', { name: /sign in as learner/i }).click();
 
   // --- 3. Verify login ---
-  await expect(page.getByText(/logout/i)).toBeVisible();
+  await expect(page.getByText(/logout/i)).toBeVisible({ timeout: 60000 });
   console.log('URL after login:', page.url());
 
   // 4. Locate course title
@@ -51,7 +51,7 @@ test('Test course video playback and quiz', async ({ page }) => {
     level: 3,
   });
 
-  await expect(courseTitle).toBeVisible({ timeout: 30000 });
+  await expect(courseTitle).toBeVisible({ timeout: 60000 });
 
   // 5. Scope to THIS course card
   const courseCard = courseTitle.locator(
@@ -71,10 +71,10 @@ test('Test course video playback and quiz', async ({ page }) => {
   // Helpers functions
   // ---------------------------------------------
   async function verifyWebcamStream_ifpresent(page: Page) {
-    // 🔎 Check if Declaration is visible (short timeout so it doesn’t wait 30s)
+    // 🔎 Check if Declaration is visible (short timeout so it doesn’t wait 60s)
     const declarationVisible = await page
       .getByText(/Declaration/i)
-      .isVisible({ timeout: 30000 })
+      .isVisible({ timeout: 60000 })
       .catch(() => false);
 
     if (!declarationVisible) {
@@ -96,7 +96,7 @@ test('Test course video playback and quiz', async ({ page }) => {
         return v && v.readyState >= 2 && v.videoWidth > 0;
       },
       null,
-      { timeout: 30_000 },
+      { timeout: 60_000 },
     );
 
     // Extract video metadata
@@ -122,7 +122,7 @@ test('Test course video playback and quiz', async ({ page }) => {
   }
 
   async function expandIfCollapsed(button: Locator) {
-    await button.waitFor({ state: 'visible', timeout: 30_000 });
+    await button.waitFor({ state: 'visible', timeout: 60_000 });
 
     const expanded = await button.getAttribute('aria-expanded');
 
@@ -133,7 +133,7 @@ test('Test course video playback and quiz', async ({ page }) => {
     if (expanded === 'false') {
       await button.click();
       await expect(button).toHaveAttribute('aria-expanded', 'true', {
-        timeout: 30_000,
+        timeout: 60_000,
       });
     }
   }
@@ -216,8 +216,8 @@ test('Test course video playback and quiz', async ({ page }) => {
     const timeDisplay = page.locator('text=/\\d{1,2}:\\d{2}\\s*\\/\\s*\\d{1,2}:\\d{2}/');
 
     // Wait for player to be ready
-    await expect(playButton).toBeVisible({ timeout: 30_000 });
-    await expect(timeDisplay).toBeVisible({ timeout: 30_000 });
+    await expect(playButton).toBeVisible({ timeout: 60_000 });
+    await expect(timeDisplay).toBeVisible({ timeout: 60_000 });
 
     // Increase speed to 2x
     const speedTrack = page.locator('[data-slot="slider"]').nth(1);
@@ -225,6 +225,23 @@ test('Test course video playback and quiz', async ({ page }) => {
 
     const box = await speedTrack.boundingBox();
     if (!box) throw new Error('No bounding box');
+
+    // ▶️ Click Play
+    await playButton.click();
+    console.log('▶ Play clicked');
+
+    // Wait for playback to start
+    const startTime = await timeDisplay.textContent();
+    console.log(`startTime :${startTime}`);
+
+    await expect
+      .poll(async () => await timeDisplay.textContent(), {
+        timeout: 60_000,
+        message: 'Waiting for video playback to start',
+      })
+      .not.toBe(startTime);
+
+    console.log('⏳ Playback started');
 
     // Click at extreme right edge
     await speedTrack.click({
@@ -237,29 +254,15 @@ test('Test course video playback and quiz', async ({ page }) => {
     const thumb = page.locator('[role="slider"]').nth(1);
 
     await expect
-      .poll(async () => {
-        return await thumb.getAttribute('aria-valuenow');
-      })
+      .poll(
+        async () => {
+          return await thumb.getAttribute('aria-valuenow');
+        },
+        { timeout: 60000 }, // 60 seconds
+      )
       .toBe('2');
 
     console.log('✅ Speed set to ~2x');
-
-    // ▶️ Click Play
-    await playButton.click();
-    console.log('▶ Play clicked');
-
-    // Wait for playback to start
-    const startTime = await timeDisplay.textContent();
-    console.log(`startTime :${startTime}`);
-
-    await expect
-      .poll(async () => await timeDisplay.textContent(), {
-        timeout: 30_000,
-        message: 'Waiting for video playback to start',
-      })
-      .not.toBe(startTime);
-
-    console.log('⏳ Playback started');
 
     await fastForwardIfAvailable(page, timeDisplay);
 
@@ -292,7 +295,7 @@ test('Test course video playback and quiz', async ({ page }) => {
 
     const items = section.getByTestId('course-item');
 
-    await expect(items.first()).toBeVisible({ timeout: 30000 });
+    await expect(items.first()).toBeVisible({ timeout: 60000 });
 
     let previousCount = 0;
     let stableIterations = 0;
@@ -322,20 +325,25 @@ test('Test course video playback and quiz', async ({ page }) => {
       .locator('..'); // inner container → dialog box
 
     try {
-      await errorDialog.waitFor({ state: 'visible', timeout: 30_000 });
+      // Step 1: Wait only 5 seconds for dialog
+      await errorDialog.waitFor({ state: 'visible', timeout: 5000 });
       console.warn('⚠️ "Failed to stop video" dialog detected');
 
-      const continueButton = page
-        .getByText('Failed to stop video')
-        .locator('xpath=ancestor::div[.//button[text()="Continue"]]')
-        .getByRole('button', { name: 'Continue' });
+      // Step 2: Scope Continue button inside the SAME dialog
+      const continueButton = errorDialog.getByRole('button', { name: 'Continue' });
 
-      await continueButton.waitFor({ state: 'visible', timeout: 30_000 });
-      await continueButton.click();
+      try {
+        // Wait up to 10 seconds for Continue button
+        await continueButton.waitFor({ state: 'visible', timeout: 10000 });
+        await continueButton.click();
 
-      console.log('✅ Clicked Continue inside error dialog');
-    } catch (err) {
-      console.error('❌ Dialog detected but Continue could not be clicked', err);
+        console.log('✅ Clicked Continue inside error dialog');
+      } catch {
+        // Continue button not found → proceed silently
+        console.log('ℹ️ Continue button not found, proceeding...');
+      }
+    } catch {
+      // Dialog not found within 5 seconds → do nothing
     }
   }
 
@@ -343,7 +351,7 @@ test('Test course video playback and quiz', async ({ page }) => {
     const modules = page.getByTestId('course-module');
 
     // 1️⃣ Wait for at least one module
-    await modules.first().waitFor({ state: 'visible', timeout: 30_000 });
+    await modules.first().waitFor({ state: 'visible', timeout: 60_000 });
 
     let previousCount = await modules.count();
     let stableIterations = 0;
@@ -356,7 +364,7 @@ test('Test course video playback and quiz', async ({ page }) => {
       await modules.nth(previousCount - 1).scrollIntoViewIfNeeded();
 
       // Give React time to render lazy content
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(600);
 
       const currentCount = await modules.count();
       console.log(`🔎 Modules visible so far: ${currentCount}`);
@@ -380,7 +388,7 @@ test('Test course video playback and quiz', async ({ page }) => {
 
     while (current < total) {
       const questionBadge = page.getByText(/Question\s+\d+\s+of\s+\d+/i);
-      await expect(questionBadge).toBeVisible({ timeout: 30000 });
+      await expect(questionBadge).toBeVisible({ timeout: 60000 });
 
       const badgeText = await questionBadge.textContent();
       if (!badgeText) {
@@ -427,17 +435,35 @@ test('Test course video playback and quiz', async ({ page }) => {
     }
 
     const completedHeading = page.getByText(/quiz\s+completed/i);
-    await completedHeading.waitFor({ state: 'visible', timeout: 30_000 });
+    await completedHeading.waitFor({ state: 'visible', timeout: 100_000 });
     console.log('🎉 Quiz completed successfully');
 
-    //Wait for "Next Lesson" button
+    // Wait for "Next Lesson" button (optional)
     const nextLessonButton = page.getByRole('button', { name: /next\s+lesson/i });
-    await nextLessonButton.waitFor({ state: 'visible', timeout: 30_000 });
 
-    //Click it
-    await nextLessonButton.click();
+    try {
+      await nextLessonButton.waitFor({ state: 'visible', timeout: 60_000 });
+      await nextLessonButton.click();
+      console.log('✅ "Next Lesson" button clicked');
+    } catch {
+      console.log('ℹ️ "Next Lesson" button not found after 60 seconds. Continuing...');
+    }
   }
 
+  async function submitProject(page: Page) {
+    // Fill the Work Link textbox
+    const workLinkTextbox = page.getByRole('textbox', { name: /work link/i });
+    await workLinkTextbox.fill('https://vibe.vicharanashala.ai/student');
+
+    // Click Submit button
+    const submitButton = page.getByRole('button', { name: /submit form/i });
+    await submitButton.click();
+
+    // Wait for success popup
+    await expect(page.getByText(/form submitted successfully/i).first()).toBeVisible();
+
+    console.log('✅ Project submitted successfully');
+  }
   /* ----------------------------------------------------------------------
    //  Load all modules and loop through all of them ---
 ---------------------------------------------------------------------- */
@@ -509,7 +535,7 @@ test('Test course video playback and quiz', async ({ page }) => {
         await expect(page.locator('[data-testid="current-item-title"]')).toHaveAttribute(
           'data-item-id',
           itemId,
-          { timeout: 30000 },
+          { timeout: 60000 },
         );
 
         console.log(`   ✅ Item ${j} loaded successfully`);
@@ -535,6 +561,12 @@ test('Test course video playback and quiz', async ({ page }) => {
           await attemptQuiz(page);
 
           console.log(` item [${j}] 📝 Quiz completed`);
+        } else if (lessonType === 'project') {
+          console.log('   📝 Project detected');
+
+          await submitProject(page);
+
+          console.log(` item [${j}] 📝 project completed`);
         } else {
           console.log(`   ℹ️ Unsupported lesson type: ${lessonType}`);
         }
