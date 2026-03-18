@@ -1,4 +1,4 @@
-import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play } from "lucide-react";
+import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play, Activity } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -352,8 +352,19 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 <Button onClick={() => setIsDetailsOpen(true)} variant="outline" className="w-full sm:w-auto">View Details</Button>
               </>
             )}
-            
-
+              {variant !== 'available' && enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && (
+              <>
+                {enrollment?.hpSystem && (
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto gap-2"
+                  >
+                    <Activity className="h-4 w-4" />
+                    HP Dashboard
+                  </Button>
+                )}
+              </>
+            )}
             {variant !== 'available' && supportLink && (() => {
               const isEmail = supportLink.startsWith('mailto:') || (!supportLink.startsWith('http://') && !supportLink.startsWith('https://') && !supportLink.startsWith('//') && supportLink.includes('@'));
               const href = supportLink.startsWith('mailto:')

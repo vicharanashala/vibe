@@ -1,5 +1,5 @@
-import { ICourse, ID } from '#root/shared/interfaces/models.js';
-import { Transform, Type } from 'class-transformer';
+import {ICourse, ID} from '#root/shared/interfaces/models.js';
+import {Transform, Type} from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -12,9 +12,10 @@ import {
   IsArray,
   ValidateNested,
   ArrayUnique,
+  IsBoolean,
 } from 'class-validator';
-import { JSONSchema } from 'class-validator-jsonschema';
-import { ObjectId } from 'mongodb';
+import {JSONSchema} from 'class-validator-jsonschema';
+import {ObjectId} from 'mongodb';
 
 class EditCourseBody implements Partial<ICourse> {
   @JSONSchema({
@@ -87,13 +88,22 @@ class CourseBody implements Partial<ICourse> {
 
   @IsArray()
   @ArrayUnique()
-  @IsString({ each: true })
+  @IsString({each: true})
   @IsOptional() // allow the array to be empty
   @JSONSchema({
     description: 'Array of cohort names in a version',
     example: ['cohort1', 'cohort2'],
   })
   cohorts?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether HP System is enabled',
+    examples: [true, false],
+    default: false,
+  })
+  hpSystem?: boolean;
 
   // @JSONSchema({
   //   title: 'Course Versions',
@@ -141,7 +151,7 @@ export class ActiveUserDto {
 }
 
 export class ActiveUsersResponseDto {
-  @ValidateNested({ each: true })
+  @ValidateNested({each: true})
   @Type(() => ActiveUserDto)
   activeUsers: ActiveUserDto[];
 }
@@ -150,7 +160,6 @@ export class CourseVersionQueryWithTime extends CourseVersionQuery {
   @IsOptional()
   @IsString()
   startTimeStamp: string;
-
 
   @IsOptional()
   @IsString()

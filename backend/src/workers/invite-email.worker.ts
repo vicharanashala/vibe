@@ -80,7 +80,7 @@ const userQuizMetricsRepo = new UserQuizMetricsRepository(database)
 const quizRepo = new QuizRepository(database)
 const feedbackRepo = new FeedbackRepository(database)
 const progressService = new ProgressService(progressRepo, submissionRepo, courseRepo, settingsRepo, userRepo, itemRepo, enrollmentRepo, userQuizMetricsRepo, quizRepo, projectSubmissionRepo, feedbackRepo, database)
-const enrollmentService = new EnrollmentService(enrollmentRepo, courseRepo, userRepo, itemRepo, courseRegistrationRepo, progressService, inviteRepo, progressRepo, database)
+const enrollmentService = new EnrollmentService(enrollmentRepo, courseRepo, userRepo, itemRepo, courseRegistrationRepo, progressService, settingsRepo, inviteRepo, progressRepo, database)
 const inviteService = new InviteService(inviteRepo, userRepo, courseRepo, enrollmentRepo, mailService, itemRepo, enrollmentService, database);
 
 (async () => {

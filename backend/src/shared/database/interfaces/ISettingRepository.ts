@@ -1,4 +1,4 @@
-import { ClientSession, ObjectId, UpdateResult } from 'mongodb';
+import {ClientSession, ObjectId, UpdateResult} from 'mongodb';
 import {
   ICourseSetting,
   IRegistrationSettings,
@@ -61,6 +61,7 @@ export interface ISettingRepository {
     detectors: DetectorSettingsDto[],
     linearProgressionEnabled: boolean,
     seekForwardEnabled: boolean,
+    hpSystem: boolean,
     isPublic: boolean,
     audit: AuditingDto,
     session?: ClientSession,
@@ -69,9 +70,9 @@ export interface ISettingRepository {
   updateRegistrationSchemas(
     courseId: string,
     versionId: string,
-    schemas: { jsonSchema?: any; uiSchema?: any; isActive?: boolean }, // Partial update for schemas only
+    schemas: {jsonSchema?: any; uiSchema?: any; isActive?: boolean}, // Partial update for schemas only
     session?: ClientSession,
-  ): Promise<UpdateResult>
+  ): Promise<UpdateResult>;
 
   /**
    * Reads course settings for a specific course and version.
@@ -100,17 +101,24 @@ export interface ISettingRepository {
   updateRegistrationSettings(
     courseId: string,
     versionId: string,
-    schemas: { jsonSchema: any; uiSchema: any; isActive: boolean, registrationsAutoApproved?: boolean, autoapproval_emails?: string[], cohortSettings?: ObjectId[] },
+    schemas: {
+      jsonSchema: any;
+      uiSchema: any;
+      isActive: boolean;
+      registrationsAutoApproved?: boolean;
+      autoapproval_emails?: string[];
+      cohortSettings?: ObjectId[];
+    },
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
 
   updateCohortSettings(
     courseId: string,
     versionId: string,
-    schemas: { cohortSettings: ObjectId[] },
+    schemas: {cohortSettings: ObjectId[]},
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
-  
+
   /**
    * Creates new user settings.
    * @param userSettings - The user settings to create
@@ -126,7 +134,7 @@ export interface ISettingRepository {
   readSettingsSchema(
     versionId: string,
     session?: ClientSession,
-  ): Promise<{ jsonSchema: any; uiSchema: any; isActive: boolean }>;
+  ): Promise<{jsonSchema: any; uiSchema: any; isActive: boolean}>;
 
   /**
    * Reads user settings for a specific student, course and version.
@@ -222,7 +230,7 @@ export interface ISettingRepository {
   updateTimeslotsSettings(
     courseId: string,
     courseVersionId: string,
-    timeslots: { isActive: boolean; slots: ITimeSlot[] },
+    timeslots: {isActive: boolean; slots: ITimeSlot[]},
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
 
@@ -237,5 +245,14 @@ export interface ISettingRepository {
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
-  ): Promise<{ isActive: boolean; slots: ITimeSlot[] } | null>;
+  ): Promise<{isActive: boolean; slots: ITimeSlot[]} | null>;
+
+  getSettingsByVersionIds(
+    courseVersionIds: ObjectId[],
+    session?: ClientSession,
+  ): Promise<ICourseSetting[] | null>;
+
+  getisHpSystemEnabled(
+    courseVersionId: ObjectId,
+  ): Promise<boolean>;
 }

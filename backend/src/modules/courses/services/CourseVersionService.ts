@@ -109,33 +109,32 @@ export class CourseVersionService extends BaseService {
       newVersion = instanceToPlain(
         Object.assign(new CourseVersion(), createdVersion),
       ) as CourseVersion;
-      const defaultSettingsPayload: CreateCourseSettingBody = {
-        courseId,
-        courseVersionId: createdVersion._id as string,
-        settings: {
-          proctors: {
-            detectors: Object.values(ProctoringComponent).map(detector => ({
-              detectorName: detector,
-              settings: {enabled: false, options: {}},
-            })),
-          },
-          linearProgressionEnabled: false,
-          seekForwardEnabled: false,
-        },
-      };
-      const courseSettings = new CourseSetting(defaultSettingsPayload);
+      // const defaultSettingsPayload: CreateCourseSettingBody = {
+      //   courseId,
+      //   courseVersionId: createdVersion._id as string,
+      //   settings: {
+      //     proctors: {
+      //       detectors: Object.values(ProctoringComponent).map(detector => ({
+      //         detectorName: detector,
+      //         settings: {enabled: false, options: {}},
+      //       })),
+      //     },
+      //     linearProgressionEnabled: false,
+      //     seekForwardEnabled: false,
+      //   },
+      // };
+      // const courseSettings = new CourseSetting(defaultSettingsPayload);
       course.versions.push(new ObjectId(createdVersion._id));
       course.updatedAt = new Date();
-      const settingsPromise = this.settingsRepo.createCourseSettings(
-        courseSettings,
-        txnSession,
-      );
-      const updatedPromise = this.courseRepo.update(
+      // const settingsPromise = this.settingsRepo.createCourseSettings(
+      //   courseSettings,
+      //   txnSession,
+      // );
+      const updatedPromise = await this.courseRepo.update(
         courseId,
         course,
         txnSession,
       );
-      await Promise.all([updatedPromise, settingsPromise]);
       return newVersion;
     };
 
@@ -146,7 +145,7 @@ export class CourseVersionService extends BaseService {
   public async readCourseVersion(
     courseVersionId: string,
     userId: string,
-  ): Promise<CourseVersion> {
+  ): Promise<CourseVersion & {hpSystem: boolean}> {
     return this._withTransaction(async session => {
       const readVersion = await this.courseRepo.getActiveVersion(
         courseVersionId,
@@ -163,17 +162,21 @@ export class CourseVersionService extends BaseService {
         );
 
         for (const cohort of cohorts) {
-          if (!readVersion.cohorts.some(id => id.toString() === cohort._id.toString())) {
+          if (
+            !readVersion.cohorts.some(
+              id => id.toString() === cohort._id.toString(),
+            )
+          ) {
             throw new InternalServerError(
-              `Cohort ID ${cohort._id} not referenced in course version ${courseVersionId}`
+              `Cohort ID ${cohort._id} not referenced in course version ${courseVersionId}`,
             );
           }
         }
-        (readVersion as any).cohortDetails  = cohorts.map(cohort => ({
+        (readVersion as any).cohortDetails = cohorts.map(cohort => ({
           id: cohort._id.toString(),
           name: cohort.name,
           createdAt: cohort.createdAt,
-          updatedAt: cohort.updatedAt
+          updatedAt: cohort.updatedAt,
         }));
       }
 
@@ -203,12 +206,12 @@ export class CourseVersionService extends BaseService {
             return {...module, sections: visibleSections};
           });
       }
+      const hpSystem = await this.settingsRepo.getisHpSystemEnabled(new ObjectId(courseVersionId));
 
       const version = instanceToPlain(
         Object.assign(new CourseVersion(), readVersion),
       ) as CourseVersion;
-
-      return version;
+      return {...version,hpSystem:hpSystem};
     });
   }
 
@@ -217,23 +220,20 @@ export class CourseVersionService extends BaseService {
     skip?: number,
     limit?: number,
     search?: string,
-    sortBy?: "name" | "createdAt" | "updatedAt",
-    sortOrder?: "asc" | "desc"
-  ):Promise<CohortsResponse>{
-    const  courseVersion = await this.courseRepo.readVersion(
-      courseVersionId
-    );
-    if(!courseVersion.cohorts || courseVersion.cohorts.length == 0){
-        const cohortDetails: CohortsResponse = {
+    sortBy?: 'name' | 'createdAt' | 'updatedAt',
+    sortOrder?: 'asc' | 'desc',
+  ): Promise<CohortsResponse> {
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    if (!courseVersion.cohorts || courseVersion.cohorts.length == 0) {
+      const cohortDetails: CohortsResponse = {
         version: courseVersion.version,
       };
       return cohortDetails;
     }
-    const cohorts = 
-    await this.courseRepo.getCohortsByIds(
-      courseVersion.cohorts,{ search, sortBy, sortOrder, skip, limit }
+    const cohorts = await this.courseRepo.getCohortsByIds(
+      courseVersion.cohorts,
+      {search, sortBy, sortOrder, skip, limit},
     );
-
 
     const cohortDetails: CohortsResponse = {
       cohorts: cohorts.map(cohort => ({
@@ -241,7 +241,7 @@ export class CourseVersionService extends BaseService {
         name: cohort.name,
         createdAt: cohort.createdAt,
         updatedAt: cohort.updatedAt,
-        isPublic: cohort.isPublic
+        isPublic: cohort.isPublic,
       })),
       version: courseVersion.version,
     };
@@ -249,32 +249,61 @@ export class CourseVersionService extends BaseService {
     return cohortDetails;
   }
 
-
-  public async updateCohortInCourseVersion(cohortId: string, cohortName: string, isPublic: boolean): Promise<boolean>{
+  public async updateCohortInCourseVersion(
+    cohortId: string,
+    cohortName: string,
+    isPublic: boolean,
+  ): Promise<boolean> {
     return this._withTransaction(async session => {
       if (!cohortName && (isPublic === null || isPublic === undefined)) {
-        throw new BadRequestError("No information provided in request body");
+        throw new BadRequestError('No information provided in request body');
       }
-      const existingCohort = await this.courseRepo.getCohortsByIds(Array.of(new ObjectId(cohortId)),undefined, session);
-      if(!existingCohort){
+      const existingCohort = await this.courseRepo.getCohortsByIds(
+        Array.of(new ObjectId(cohortId)),
+        undefined,
+        session,
+      );
+      if (!existingCohort) {
         throw new NotFoundError("Cohort Id doesn't exist");
       }
-      return await this.courseRepo.modifyCohortById(new ObjectId(cohortId), cohortName, isPublic, session);
+      return await this.courseRepo.modifyCohortById(
+        new ObjectId(cohortId),
+        cohortName,
+        isPublic,
+        session,
+      );
     });
   }
 
-  public async deleteCohortInCourseVersion(versionId: string, cohortId: string):Promise<boolean>{
+  public async deleteCohortInCourseVersion(
+    versionId: string,
+    cohortId: string,
+  ): Promise<boolean> {
     return this._withTransaction(async session => {
-      const existingCohort = await this.courseRepo.getCohortsByIds(Array.of(new ObjectId(cohortId)), undefined, session);
-      if(!existingCohort){
+      const existingCohort = await this.courseRepo.getCohortsByIds(
+        Array.of(new ObjectId(cohortId)),
+        undefined,
+        session,
+      );
+      if (!existingCohort) {
         throw new NotFoundError("Cohort Id doesn't exist");
       }
-      const enrollmentExists = await this.enrollmentService.enrollmentExists(versionId, cohortId, session);
-      if(enrollmentExists){
-        throw new BadRequestError("Students are already enrolled in this cohort, can't delete");
+      const enrollmentExists = await this.enrollmentService.enrollmentExists(
+        versionId,
+        cohortId,
+        session,
+      );
+      if (enrollmentExists) {
+        throw new BadRequestError(
+          "Students are already enrolled in this cohort, can't delete",
+        );
       }
       await this.courseRepo.deleteCohortById(cohortId, session);
-      return await this.courseRepo.removeCohortFromVersion(versionId, cohortId, session);
+      return await this.courseRepo.removeCohortFromVersion(
+        versionId,
+        cohortId,
+        session,
+      );
     });
   }
 
@@ -305,16 +334,18 @@ export class CourseVersionService extends BaseService {
       if (body.supportLink !== undefined)
         existingVersion.supportLink = body.supportLink;
       existingVersion.updatedAt = new Date();
-      if(body.cohorts){
+      if (body.cohorts) {
         const cohortIds = await this.courseRepo.createCohorts(
           courseVersionId,
           body.cohorts,
-          session
+          session,
         );
         if (!existingVersion.cohorts) {
           existingVersion.cohorts = [];
         }
-        const existing = new Set(existingVersion.cohorts.map(id => id.toString()));
+        const existing = new Set(
+          existingVersion.cohorts.map(id => id.toString()),
+        );
         for (const id of cohortIds) {
           if (!existing.has(id.toString())) {
             existingVersion.cohorts.push(id);
@@ -322,7 +353,7 @@ export class CourseVersionService extends BaseService {
         }
       }
 
-// console.log("Updating course version with data:", existingVersion, body);
+      // console.log("Updating course version with data:", existingVersion, body);
       const updatedVersion = await this.courseRepo.updateVersion(
         courseVersionId,
         existingVersion,
@@ -633,17 +664,21 @@ export class CourseVersionService extends BaseService {
         );
 
         for (const cohort of cohorts) {
-          if (!readVersion.cohorts.some(id => id.toString() === cohort._id.toString())) {
+          if (
+            !readVersion.cohorts.some(
+              id => id.toString() === cohort._id.toString(),
+            )
+          ) {
             throw new InternalServerError(
-              `Cohort ID ${cohort._id} not referenced in course version ${versionId}`
+              `Cohort ID ${cohort._id} not referenced in course version ${versionId}`,
             );
           }
         }
-        (readVersion as any).cohortDetails  = cohorts.map(cohort => ({
+        (readVersion as any).cohortDetails = cohorts.map(cohort => ({
           id: cohort._id.toString(),
           name: cohort.name,
           createdAt: cohort.createdAt,
-          updatedAt: cohort.updatedAt
+          updatedAt: cohort.updatedAt,
         }));
       }
 

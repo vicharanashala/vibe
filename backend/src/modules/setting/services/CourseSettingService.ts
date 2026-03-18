@@ -127,6 +127,7 @@ class CourseSettingService extends BaseService {
         settings.linearProgressionEnabled = true;
         settings.seekForwardEnabled = false;
         settings.isPublic = false;
+        settings.hpSystem = false;
         settings.registration = {isActive: true};
         settings.timeslots = {isActive: false, slots: []};
 
@@ -156,6 +157,7 @@ class CourseSettingService extends BaseService {
     detectors: DetectorSettingsDto[],
     linearProgressionEnabled: boolean,
     seekForwardEnabled: boolean,
+    hpSystem: boolean,
     isPublic: boolean,
     userId: string,
   ): Promise<boolean> {
@@ -182,6 +184,7 @@ class CourseSettingService extends BaseService {
         settings.linearProgressionEnabled = linearProgressionEnabled;
         settings.seekForwardEnabled = seekForwardEnabled;
         settings.isPublic = isPublic;
+        settings.hpSystem = hpSystem;
 
         settings.audit = [
           {
@@ -195,6 +198,7 @@ class CourseSettingService extends BaseService {
                 linearProgressionEnabled,
                 seekForwardEnabled,
                 isPublic,
+                hpSystem,
               },
             },
           },
@@ -224,6 +228,7 @@ class CourseSettingService extends BaseService {
           courseSettings.settings?.linearProgressionEnabled,
         seekForwardEnabled: courseSettings.settings?.seekForwardEnabled,
         isPublic: courseSettings.settings?.isPublic,
+        hpSystem: courseSettings.settings?.hpSystem,
       };
 
       const afterState = {
@@ -231,6 +236,7 @@ class CourseSettingService extends BaseService {
         linearProgressionEnabled,
         seekForwardEnabled,
         isPublic,
+        hpSystem
       };
 
       const audit: AuditingDto = {
@@ -249,6 +255,7 @@ class CourseSettingService extends BaseService {
         detectors,
         linearProgressionEnabled,
         seekForwardEnabled,
+        hpSystem,
         isPublic,
         audit,
         session,
@@ -321,6 +328,17 @@ class CourseSettingService extends BaseService {
           session,
         );
       return isCourseEnabled;
+    });
+  }
+
+  async getSettingsByVersionIds(
+    courseVersionIds: ObjectId[],
+  ): Promise<CourseSetting[] | null> {
+    return this._withTransaction(async session => {
+      return await this.settingsRepo.getSettingsByVersionIds(
+        courseVersionIds,
+        session,
+      );
     });
   }
 }
