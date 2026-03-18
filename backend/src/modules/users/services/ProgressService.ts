@@ -3374,13 +3374,6 @@ class ProgressService extends BaseService {
     };
   }
 
-  sortItemsByOrder(items: any[]) {
-    return [...items].sort((a, b) => {
-      const orderA = a.order || '';
-      const orderB = b.order || '';
-      return orderA.localeCompare(orderB);
-    });
-  }
 
   async getItemIdsUntilItem(
     courseVersionId: string,
@@ -3399,13 +3392,6 @@ class ProgressService extends BaseService {
       throw new NotFoundError(`Course version ${courseVersionId} not found`);
     }
 
-    courseVersion.modules = this.sortItemsByOrder(courseVersion.modules).map(module => ({
-      ...module,
-      sections: this.sortItemsByOrder(module.sections || []).map(section => ({
-        ...section,
-        items: this.sortItemsByOrder(section.items || [])
-      }))
-    }));
 
     const collectedItemIds: string[] = [];
     let isItemFound = false;
@@ -3500,13 +3486,6 @@ class ProgressService extends BaseService {
       throw new NotFoundError('Course version not found');
     }
 
-    courseVersion.modules = this.sortItemsByOrder(courseVersion.modules).map(module => ({
-      ...module,
-      sections: this.sortItemsByOrder(module.sections || []).map(section => ({
-        ...section,
-        items: this.sortItemsByOrder(section.items || [])
-      }))
-    }));
 
     const completedSet = new Set(completedItemIds.map(id => id.toString()));
 
