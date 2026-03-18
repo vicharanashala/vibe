@@ -192,6 +192,10 @@ export interface SubmissionAttachment {
     name: string;
     url: string;
     type: 'image' | 'pdf' | 'document' | 'link' | 'other';
+    textResponse?: string;
+    files?: Array<{ _id: string; name: string; url: string; type: string }>;
+    images?: Array<{ _id: string; name: string; url: string; type: string }>;
+    links?: Array<{ _id: string; name: string; url: string; type: string }>;
 }
 
 export interface InstructorFeedback {
@@ -225,13 +229,18 @@ export interface HpStudentSubmission {
     };
     feedbacks?: Array<{
         feedback: string;
-        teacherId?: string;
-        feedbackAt?: string;
+        feedbackAt: string;
     }>;
     submission?: {
         _id: string;
         status: string;
         submittedAt: string;
+        attachments?: {
+            textResponse?: string;
+            files?: Array<{ _id: string; name: string; url: string; type: string }>;
+            images?: Array<{ _id: string; name: string; url: string; type: string }>;
+            links?: Array<{ _id: string; name: string; url: string; type: string }>;
+        };
     };
     safetyStatus?: 'safe' | 'unsafe';
     isRequiredInstructorApproval?: boolean;
@@ -311,6 +320,18 @@ export interface CreateHpActivityPayload {
     allowLateSubmission?: boolean;
     lateRewardPolicy?: string;
     attachments?: { name: string; url: string; kind: string }[];
+}
+
+export interface HpStudentSubmissionStats {
+    totalActivities: number;
+    totalSubmissions: number;
+    totalPendings: number;
+    totalLateSubmissions: number;
+    currentHp: number;
+    reward?: {
+        type: "ABSOLUTE" | "PERCENTAGE";
+        value: number;
+    } | null;
 }
 
 // ─── API Functions ───────────────────────────────────────────
@@ -402,6 +423,70 @@ export const hpApi = {
 
         return apiFetch(`${BASE_URL}/activity-submissions`, {
             method: 'POST',
+            body: JSON.stringify(rest),
+        });
+    },
+
+    updateActivitySubmission: async (submissionId: string, options: {
+        courseId: string;
+        courseVersionId: string;
+        cohort: string;
+        activityId: string;
+        payload: {
+            textResponse?: string;
+            links?: { url: string; label: string }[];
+        };
+        submissionSource?: string;
+        files?: File[];
+        images?: File[];
+    }): Promise<{ success: boolean; data: any }> => {
+        const { files, images, ...rest } = options;
+        const hasFiles = (files && files.length > 0) || (images && images.length > 0);
+
+        if (hasFiles) {
+            const formData = new FormData();
+            formData.append('courseId', rest.courseId);
+            formData.append('courseVersionId', rest.courseVersionId);
+            formData.append('cohort', rest.cohort);
+            formData.append('activityId', rest.activityId);
+            if (rest.submissionSource) {
+                formData.append('submissionSource', rest.submissionSource);
+            }
+            if (rest.payload.textResponse) {
+                formData.append('payload[textResponse]', rest.payload.textResponse);
+            }
+            if (rest.payload.links) {
+                rest.payload.links.forEach((link, idx) => {
+                    formData.append(`payload[links][${idx}][url]`, link.url);
+                    formData.append(`payload[links][${idx}][label]`, link.label);
+                });
+            }
+
+            if (files) {
+                files.forEach(f => formData.append('files', f));
+            }
+            if (images) {
+                images.forEach(img => formData.append('images', img));
+            }
+
+            const token = localStorage.getItem('firebase-auth-token');
+            const res = await fetch(`${BASE_URL}/activity-submissions/${submissionId}`, {
+                method: 'PUT',
+                body: formData,
+                headers: {
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                credentials: 'include',
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.message || `Request failed (${res.status})`);
+            }
+            return res.json();
+        }
+
+        return apiFetch(`${BASE_URL}/activity-submissions/${submissionId}`, {
+            method: 'PUT',
             body: JSON.stringify(rest),
         });
     },
@@ -527,6 +612,15 @@ export const hpApi = {
             ]
         };
         return { success: true, data: mockStats };
+    },
+
+    getStudentSubmissionStats: async (
+        studentId: string,
+        cohortName: string,
+    ): Promise<{ success: boolean; data: HpStudentSubmissionStats | null }> => {
+        return apiFetch(
+            `${BASE_URL}/activity-submissions/stats/student/${studentId}/cohort/${encodeURIComponent(cohortName)}`
+        );
     },
 
     getStudentSubmissions: async (

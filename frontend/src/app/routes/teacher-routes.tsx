@@ -23,6 +23,7 @@ import HpSystemCohorts from "../pages/teacher/hp-system/CohortsList";
 import HpSystemDashboard from "../pages/teacher/hp-system/CohortDetails";
 import StudentLedgerPage from "../pages/teacher/hp-system/student-ledger";
 import StudentSubmissionsPage from "../pages/teacher/hp-system/student-submissions";
+import SubmissionDetailsPage from "../pages/teacher/hp-system/submission-details";
 const teacherRoutes: RouteObject = {
   path: "/teacher",
   element: <TeacherLayout />,
@@ -118,6 +119,9 @@ const teacherRoutes: RouteObject = {
     }, {
       path: "hp-system/:courseVersionId/cohort/:cohortName/student/:studentId/submissions",
       element: <StudentSubmissionsPage />
+    }, {
+      path: "hp-system/:courseVersionId/cohort/:cohortName/student/:studentId/submission/:submissionId",
+      element: <SubmissionDetailsPage />
     }
   ],
 };
