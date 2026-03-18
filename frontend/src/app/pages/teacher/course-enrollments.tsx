@@ -16,7 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { QuizSubmissionDisplay } from "./QuizSubmissionDisplay"
 import { WatchTimeDisplay } from "./WatchTimeDisplay"
 import TimeSlotsModal from "./components/TimeSlotsModal"
-import { useStudentCurrentProgressPath } from "@/hooks/hooks"
+import { useStudentCurrentProgressPath, useMoveToCohort } from "@/hooks/hooks"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { MoreVertical, Trash2 } from "lucide-react"
@@ -198,6 +198,11 @@ export default function CourseEnrollments() {
   const [selectedModule, setSelectedModule] = useState<string>("")
   const [selectedSection, setSelectedSection] = useState<string>("")
   const [selectedItem, setSelectedItem] = useState<string>("")
+const [isMoveCohortModalOpen, setIsMoveCohortModalOpen] = useState(false);
+const [isMoveSelectionMode, setIsMoveSelectionMode] = useState(false);
+const [moveSelectedUsers, setMoveSelectedUsers] = useState<Set<string>>(new Set());
+const [selectedMoveCohort, setSelectedMoveCohort] = useState<string | null>(null);
+const moveToCohortMutation = useMoveToCohort();
 
   // New states for view progress functionality
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
@@ -819,6 +824,89 @@ export default function CourseEnrollments() {
     }
   }
 
+const handleMoveSelectUser = (enrollment: any, checked: boolean) => {
+  const enrollmentId = enrollment.id;
+
+  setMoveSelectedUsers(prev => {
+    const newSet = new Set(prev);
+
+    if (checked) newSet.add(enrollmentId);
+    else newSet.delete(enrollmentId);
+
+    return newSet;
+  });
+};
+
+
+const handleMoveSelectAll = (checked: boolean) => {
+  const validEnrollmentIds = filteredStudentEnrollments
+    .filter((e: any) => !e.cohortId)
+    .map((e: any) => e.id);
+
+  setMoveSelectedUsers(prev => {
+    const newSet = new Set(prev);
+
+    validEnrollmentIds.forEach(id => {
+      if (checked) newSet.add(id);
+      else newSet.delete(id);
+    });
+
+    return newSet;
+  });
+};
+
+const handleMoveToCohort = async () => {
+  if (!selectedMoveCohort) {
+    toast.error("Select target cohort");
+    return;
+  }
+
+  if (moveSelectedUsers.size === 0) {
+    toast.error("No students selected");
+    return;
+  }
+
+  const enrollmentIds = Array.from(moveSelectedUsers);
+
+  if (!enrollmentIds.length) {
+    toast.warning("Nothing to move");
+    return;
+  }
+
+  if(!courseId || !versionId) {
+    toast.error("Course or version information missing");
+    return;
+  }
+
+  try {
+    await moveToCohortMutation.mutateAsync({
+      params: {
+        path: {
+          courseId,
+          versionId,
+        },
+      },
+      body: {
+        enrollmentIds,
+        targetCohortId: selectedMoveCohort,
+      },
+    });
+
+    toast.success("Students moved successfully");
+
+    // Reset state
+    setMoveSelectedUsers(new Set());
+    setIsMoveSelectionMode(false);
+    setIsMoveCohortModalOpen(false);
+
+    // Refresh data
+    refetchEnrollments();
+
+  } catch (error: any) {
+    toast.error(error?.message || "Failed to move students");
+  }
+};
+
 
   // Toggle functions for expanding/collapsing modules and sections
   const toggleModule = (moduleId: string) => {
@@ -1110,6 +1198,18 @@ export default function CourseEnrollments() {
                   Inactive Students({inactiveCount})
                 </TabsTrigger>
               </TabsList>
+              {(version as any)?.cohortDetails?.length > 0 && (
+                <span className="relative flex justify-end right-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsMoveCohortModalOpen(true)}
+                  >
+                    <Layers className="h-4 w-4 text-muted-foreground mr-2" />
+                    Move students to cohort
+                  </Button>
+                </span>
+              )}
             </div>
             {/* Active Tab */}
             <TabsContent value="ACTIVE" className="mt-4">
@@ -1859,6 +1959,141 @@ export default function CourseEnrollments() {
               totalDocuments={totalDocuments}
               onPageChange={handlePageChange}
             />
+          )}
+          {/* Move Cohort Modal */}
+          {isMoveCohortModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+
+              {/* Backdrop */}
+              <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                onClick={() => setIsMoveCohortModalOpen(false)}
+              />
+
+              {/* Modal */}
+              <div className="relative bg-card border border-border rounded-xl shadow-xl w-full max-w-md mx-4 p-6 space-y-5">
+
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Move Students to Cohort</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsMoveCohortModalOpen(false)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Selection Controls */}
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    {moveSelectedUsers.size} selected
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsMoveSelectionMode(prev => !prev)}
+                  >
+                    <CheckSquare className="h-4 w-4 mr-2" />
+                    {isMoveSelectionMode ? "Hide" : "Select Students"}
+                  </Button>
+                </div>
+
+                {/* Student Selection */}
+                {isMoveSelectionMode && (
+                  <div className="max-h-60 overflow-y-auto border rounded-lg p-2 space-y-2">
+
+                    {/* Select All */}
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <Checkbox
+                        checked={
+                          filteredStudentEnrollments
+                            .filter((e: any) => !e.cohortId)
+                            .every((e: any) => moveSelectedUsers.has(e.id))
+                        }
+                        onCheckedChange={(checked) =>
+                          handleMoveSelectAll(checked === true)
+                        }
+                      />
+                      <span className="text-sm font-medium">Select All</span>
+                    </div>
+
+                    {/* Students */}
+                    {filteredStudentEnrollments
+                      .filter((e: any) => !e.cohortId)
+                      .map((enrollment: any) => {
+                        const enrollmentId = enrollment.id;
+
+                        return (
+                          <div
+                            key={enrollmentId}
+                            className="flex items-center gap-3 p-2 rounded hover:bg-muted/20"
+                          >
+                            <Checkbox
+                              checked={moveSelectedUsers.has(enrollmentId)}
+                              onCheckedChange={(checked) =>
+                                handleMoveSelectUser(enrollment, checked === true)
+                              }
+                            />
+
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">
+                                {`${enrollment.user?.firstName || ""} ${enrollment.user?.lastName || ""}`}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {enrollment.user?.email}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+
+                {/* Cohort Select */}
+                <div className="space-y-2">
+                  <Label>Select Target Cohort</Label>
+                  <Select
+                    value={selectedMoveCohort ?? ""}
+                    onValueChange={(val) => setSelectedMoveCohort(val)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose cohort" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(version as any)?.cohortDetails?.map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Actions */}
+                <div className="flex justify-end gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsMoveCohortModalOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+
+                  <Button
+                    disabled={
+                      !selectedMoveCohort ||
+                      moveSelectedUsers.size === 0 ||
+                      moveToCohortMutation.isPending
+                    }
+                    onClick={handleMoveToCohort}
+                  >
+                    {moveToCohortMutation.isPending ? "Moving..." : "Move"}
+                  </Button>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Bulk Unenroll Confirmation Dialog */}

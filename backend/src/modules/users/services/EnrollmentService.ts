@@ -1918,4 +1918,53 @@ export class EnrollmentService extends BaseService {
   async enrollmentExists(versionId : string, cohortId: string, session: ClientSession): Promise<boolean>{
    return await this.enrollmentRepo.enrollmentExistsByCohortId(versionId, cohortId, session);
   }
+
+  async moveNonCohortStudentsToCohortInEnrollment(
+    enrollmentIds: string[],
+    courseId: string,
+    versionId: string,
+    cohortId: string
+  ): Promise<boolean> {
+
+    return this._withTransaction(async (session: ClientSession) => {
+
+      const result = await this.enrollmentRepo.moveEnrollmentsToCohort(
+        enrollmentIds,
+        courseId,
+        versionId,
+        cohortId,
+        session
+      );
+
+      if (result.modifiedCount !== enrollmentIds.length) {
+        throw new BadRequestError(
+          "Some enrollments are invalid or already assigned to a cohort"
+        );
+      }
+
+      return true;
+    });
+  }
+
+    // Move other documents realted to that student to the target cohort.
+    async moveRelatedDocumentsToCohort(
+      enrollmentIds: string[],
+      courseId: string,
+      versionId: string,
+      targetCohortId: string
+    ): Promise<boolean> {
+
+      return this._withTransaction(async (session: ClientSession) => {
+
+        await this.enrollmentRepo.moveRelatedDocumentsToCohort(
+          enrollmentIds,
+          courseId,
+          versionId,
+          targetCohortId,
+          session
+        );
+
+        return true;
+      });
+    }
 }
