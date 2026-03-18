@@ -5485,6 +5485,35 @@ export function useReviewSubmission() {
   };
 }
 
+// Made by Rishabh Shukla....
+export function useHpCohortActivitySubmissionsStats(cohort: string, activityId: string){
+  const query = useQuery({
+    queryKey: ['hp-cohort-activity-submissions-stats', cohort, activityId],
+    queryFn: async () => {
+      const res = await hpApi.getCohortActivityStats(cohort, activityId);
+      if (!res.success) throw new Error(res.message || 'Failed to load submission stats');
+      return res.data;
+    }
+})
+  return {
+    data: query.data || null,
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
+}
+
+// Made by Rishabh Shukla....
+export function useHpActivitiesStatsMap(cohort: string, courseVersionId: string) {
+  return useQuery({
+    queryKey: ['hp-activities-stats-map', cohort, courseVersionId],
+    queryFn: async () => {
+      const res = await hpApi.getCohortActivityStatsMap(cohort, courseVersionId);
+      return res.data;
+    }
+  });
+}
+
 export function useAddFeedback() {
   const queryClient = useQueryClient();
   const mutation = useMutation({

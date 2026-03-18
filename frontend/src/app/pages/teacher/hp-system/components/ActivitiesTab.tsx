@@ -3,7 +3,7 @@ import { HpActivity } from "@/lib/api/hp-system";
 import { useNavigate } from "@tanstack/react-router";
 import { EditActivityDialog } from "./EditActivityDialog";
 import { RuleSettingsDialog } from "./RuleSettingsDialog";
-import { useHpActivities, useUpdateHpActivity, usePublishHpActivity, useArchiveHpActivity, useHpCourseVersions, useDeleteHpActivity } from "@/hooks/hooks";
+import { useHpActivities, useUpdateHpActivity, usePublishHpActivity, useArchiveHpActivity, useHpCourseVersions, useDeleteHpActivity, useHpActivitiesStatsMap } from "@/hooks/hooks";
 import { Plus, Search, Trash2, Paperclip, Edit, Link as LinkIcon, FileText, Send, Settings, LayoutGrid, List, Archive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +57,9 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
     const { mutateAsync: publishActivity } = usePublishHpActivity();
     const { mutateAsync: archiveActivity } = useArchiveHpActivity();
     const {mutateAsync: deleteActivity} = useDeleteHpActivity();
+
+    const { data: statsMap } = useHpActivitiesStatsMap(cohortName, courseVersionId);
+    console.log("Stats Map:", statsMap);
 
     // Handle Search Debounce
     useEffect(() => {
@@ -363,17 +366,17 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                 {/* Stats block from backend */}
                                 <div className="bg-muted/30 p-3 rounded-md flex justify-between items-center mt-4 border text-xs">
                                     <div className="text-center px-2">
-                                        <div className="font-bold text-foreground">{activity.stats?.submittedCount ?? 0}/{activity.stats?.totalStudents ?? 0}</div>
-                                        <div className="text-muted-foreground">Submitted</div>
+                                        <div className="font-bold text-foreground">{(Number(statsMap?.[activity._id]?.approvedCount) + Number(statsMap?.[activity._id]?.rejectedCount) + Number(statsMap?.[activity._id]?.submittedCount)+ Number(statsMap?.[activity._id]?.revertedCount)) || 0}</div>
+                                        <div className="text-muted-foreground">Total Submitted</div>
                                     </div>
                                     <div className="w-px h-8 bg-border" />
                                     <div className="text-center px-2">
-                                        <div className="font-bold text-foreground">{activity.stats?.overdueCount ?? 0}</div>
+                                        <div className="font-bold text-foreground">{(Number(statsMap?.[activity._id]?.rejectedCount) + Number(statsMap?.[activity._id]?.submittedCount)+ Number(statsMap?.[activity._id]?.revertedCount)) || 0}</div>
                                         <div className="text-muted-foreground">Overdue</div>
                                     </div>
                                     <div className="w-px h-8 bg-border" />
                                     <div className="text-center px-2">
-                                        <div className="font-bold text-green-600">{activity.stats?.completedCount ?? 0}</div>
+                                        <div className="font-bold text-green-600">{(Number(statsMap?.[activity._id]?.approvedCount)) || 0}</div>
                                         <div className="text-muted-foreground">Completed</div>
                                     </div>
                                 </div>
@@ -403,9 +406,9 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                             <span><span className="font-medium text-foreground">Deadline:</span> {new Date(activity.rules.deadlineAt).toLocaleDateString()}</span>
                                         )}
                                         <span><span className="font-medium text-foreground">Submission:</span> {(activity.submissionMode || "").replace('_', ' ')}</span>
-                                        <span><span className="font-medium text-foreground">Submitted:</span> {activity.stats?.submittedCount ?? 0}/{activity.stats?.totalStudents ?? 0}</span>
-                                        <span><span className="font-medium text-foreground">Overdue:</span> {activity.stats?.overdueCount ?? 0}</span>
-                                        <span className="text-green-600"><span className="font-medium">Completed:</span> {activity.stats?.completedCount ?? 0}</span>
+                                        <span><span className="font-medium text-foreground">Total Submitted:</span> {(Number(statsMap?.[activity._id]?.approvedCount) + Number(statsMap?.[activity._id]?.rejectedCount) + Number(statsMap?.[activity._id]?.submittedCount)+ Number(statsMap?.[activity._id]?.revertedCount)) || 0}</span>
+                                        <span><span className="font-medium text-foreground">Overdue:</span> {(Number(statsMap?.[activity._id]?.rejectedCount) + Number(statsMap?.[activity._id]?.submittedCount)+ Number(statsMap?.[activity._id]?.revertedCount)) || 0}</span>
+                                        <span className="text-green-600"><span className="font-medium">Completed:</span> {(Number(statsMap?.[activity._id]?.approvedCount)) || 0}</span>
                                     </div>
                                 </div>
                                 <div className="flex flex-wrap sm:flex-nowrap justify-end gap-2">

@@ -490,4 +490,112 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         return true;
     }
 
+    async getCohortActivityStats(
+        cohortName: string,
+        activityId: string,
+        session?: ClientSession
+    ): Promise<{
+        totalSubmissions: number;
+        approvedCount: number;
+        rejectedCount: number;
+        revertedCount: number;
+        submittedCount: number;
+    }> {
+        await this.init();
+
+        const result = await this.hpActivitySubmissionCollection.aggregate([
+
+            {
+                $match: {
+                    cohort: cohortName,
+                    activityId: new ObjectId(activityId)
+                }
+            },
+
+            {
+                $group: {
+                    _id: "$status",
+                    count: { $sum: 1 }
+                }
+            }
+
+        ], { session }).toArray();
+
+        // Default structure
+        const stats = {
+            totalSubmissions: 0,
+            approvedCount: 0,
+            rejectedCount: 0,
+            revertedCount: 0,
+            submittedCount: 0
+
+
+        };
+
+        // Fill counts
+        result.forEach(r => {
+            const count = r.count || 0;
+
+            stats.totalSubmissions += count;
+
+            if (r._id === "APPROVED") stats.approvedCount = count;
+            if (r._id === "REJECTED") stats.rejectedCount = count;
+            if (r._id === "REVERT") stats.revertedCount = count;
+            if (r._id === "SUBMITTED") stats.submittedCount = count;
+        });
+
+        return stats;
+    }
+    async getCohortStatsMap(
+        cohortName: string,
+        courseVersionId: string,
+        session?: ClientSession
+    ) {
+        await this.init();
+
+        const result = await this.hpActivitySubmissionCollection.aggregate([
+
+            {
+                $match: {
+                    cohort: cohortName,
+                    courseVersionId: new ObjectId(courseVersionId)
+                }
+            },
+
+            {
+                $group: {
+                    _id: {
+                        activityId: "$activityId",
+                        status: "$status"
+                    },
+                    count: { $sum: 1 }
+                }
+            }
+
+        ]).toArray();
+
+        const statsMap: Record<string, any> = {};
+
+        result.forEach(r => {
+            const activityId = r._id.activityId.toString();
+            const status = r._id.status;
+
+            if (!statsMap[activityId]) {
+                statsMap[activityId] = {
+                    approvedCount: 0,
+                    rejectedCount: 0,
+                    submittedCount: 0,
+                    revertedCount: 0,
+                };
+            }
+
+            if (status === "APPROVED") statsMap[activityId].approvedCount = r.count;
+            if (status === "REJECTED") statsMap[activityId].rejectedCount = r.count;
+            if (status === "SUBMITTED") statsMap[activityId].submittedCount = r.count;
+            if (status === "REVERT") statsMap[activityId].revertedCount = r.count;
+            if (status === "SUBMITTED") statsMap[activityId].submittedCount = r.count;
+        });
+
+        return statsMap;
+    }
 }
