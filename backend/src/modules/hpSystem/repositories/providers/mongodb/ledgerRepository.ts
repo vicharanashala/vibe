@@ -100,13 +100,59 @@ export class LedgerRepository implements ILedgerRepository {
                     }
                 },
 
+                {
+                    $addFields: {
+                        triggeredByUserObjectId: {
+                            $convert: {
+                                input: "$meta.triggeredByUserId",
+                                to: "objectId",
+                                onError: null,
+                                onNull: null,
+                            }
+                        }
+                    }
+                },
+
+                {
+                    $lookup: {
+                        from: "users",
+                        localField: "triggeredByUserObjectId",
+                        foreignField: "_id",
+                        as: "triggeredByUser"
+                    }
+                },
+
+                {
+                    $unwind: {
+                        path: "$triggeredByUser",
+                        preserveNullAndEmptyArrays: true
+                    }
+                },
+
                 { $sort: sort },
                 { $skip: skip },
                 { $limit: limit },
 
                 {
                     $addFields: {
-                        activityTitle: "$activity.title"
+                        activityTitle: "$activity.title",
+                        triggeredByUserName: {
+                            $cond: [
+                                { $ifNull: ["$triggeredByUser._id", false] },
+                                {
+                                    $trim: {
+                                        input: {
+                                            $concat: [
+                                                { $ifNull: ["$triggeredByUser.firstName", ""] },
+                                                " ",
+                                                { $ifNull: ["$triggeredByUser.lastName", ""] }
+                                            ]
+                                        }
+                                    }
+                                },
+                                null
+                            ]
+                        }
                     }
                 }
 
@@ -153,6 +199,7 @@ export class LedgerRepository implements ILedgerRepository {
                 ? {
                     triggeredBy: doc.meta.triggeredBy,
                     triggeredByUserId: doc.meta.triggeredByUserId?.toString(),
+                    triggeredByUserName: doc.triggeredByUserName ?? null,
                     note: doc.meta.note,
                 }
                 : null,

@@ -971,4 +971,10 @@ export class SettingRepository implements ISettingRepository {
       .find({courseVersionId: {$in: courseVersionIds}}, {session})
       .toArray();
   }
+
+  async getisHpSystemEnabled(courseVersionId: ObjectId): Promise<boolean> {
+    await this.init();
+    const result=await this.courseSettingsCollection.findOne({courseVersionId:courseVersionId});
+    return result.settings?.hpSystem ?? false;
+  }
 }
