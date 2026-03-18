@@ -8,6 +8,8 @@ import { useMarkNotificationAsRead } from "@/hooks/hooks";
 import { PolicyAcknowledgementModal } from "@/app/pages/student/components/policies/PolicyAcknowledgementModal";
 
 type InviteDropdownProps = {
+  selectedInvite:any,
+  setSelectedInvite:React.Dispatch<React.SetStateAction<any>>
   pendingInvites: any[];
   setPendingInvites: React.Dispatch<React.SetStateAction<any[]>>;
   approvedNotifications?: ApprovedRegistrationNotification[];
@@ -18,6 +20,8 @@ type InviteDropdownProps = {
 };
 
 const InviteDropdown = ({ 
+  selectedInvite,
+  setSelectedInvite,
   pendingInvites, 
   setPendingInvites, 
   approvedNotifications = [], 
@@ -29,7 +33,7 @@ const InviteDropdown = ({
   const { getInvites, loading, error } = useInvites();
   const { mutate: markAsRead, isPending } = useMarkNotificationAsRead();
   const [invites, setInvites] = useState<any[]>(pendingInvites || []);
-  const [selectedInvite, setSelectedInvite] = useState<any | null>(null);
+ 
   const [showPolicyModal, setShowPolicyModal] = useState(false);
 
 console.log("Invites:", invites);
@@ -142,15 +146,7 @@ console.log("Invites:", invites);
                 </div>
               </li>
             ))}
-            {selectedInvite && (
-  <PolicyAcknowledgementModal
-  open={!!selectedInvite}
-  onClose={() => setSelectedInvite(null)}
-  inviteId={selectedInvite?.inviteId}
-  courseId={selectedInvite?.courseId}
-  courseVersionId={selectedInvite?.courseVersionId}
-/>
-)}
+           
             {/* Render Invites */}
             {invites.map((invite: any, idx: number) => (
               <InviteItem 
@@ -164,7 +160,11 @@ console.log("Invites:", invites);
           </>
         )}
       </ul>
+       
     </div>
+   
+    </>
+
   );
 };
 

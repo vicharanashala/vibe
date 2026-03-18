@@ -18,7 +18,12 @@ import { useInvites, useGetUnreadApprovedRegistrations, useGetPendingStudentRegi
 import { ApprovedRegistrationNotification } from "@/types/notification.types"
 import { useRef, useEffect } from "react"
 import logo from "../../public/img/vibe_logo_img.ico"
-import { useLocation } from "react-router-dom";
+import { PolicyAcknowledgementModal } from "@/app/pages/student/components/policies/PolicyAcknowledgementModal"
+type Invite = {
+  inviteId: string;
+  courseId: string;
+  courseVersionId: string;
+};
 
 export default function StudentLayout() {
   const { user, isAuthReady } = useAuthStore()
@@ -35,6 +40,7 @@ export default function StudentLayout() {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const invitesRef = useRef<HTMLDivElement | null>(null);
+  const [selectedInvite, setSelectedInvite] = useState<Invite|null>(null);
   const { hasNew: hasNewAnnouncements, markSeen: markAnnouncementsSeen } = useNewAnnouncementIndicator();
   // const location = useLocation();
   const [pathname, setPathname] = useState(
@@ -141,6 +147,8 @@ export default function StudentLayout() {
 
     const handlePointerDown = (event: MouseEvent | TouchEvent) => {
       const target = event.target as Node | null;
+      //  Ignore clicks if modal is open
+  if (selectedInvite) return;
       if (invitesRef.current && target && !invitesRef.current.contains(target)) {
         setShowInvites(false);
       }
@@ -292,6 +300,8 @@ export default function StudentLayout() {
                 </Button>
 
                 {showInvites && <InviteDropdown
+                selectedInvite={selectedInvite}
+                setSelectedInvite={setSelectedInvite}
                   setPendingInvites={setPendingInvites}
                   pendingInvites={pendingInvites}
                   approvedNotifications={approvedNotificationsList}
@@ -400,6 +410,15 @@ export default function StudentLayout() {
           </div>
         )}
       </header>
+      {selectedInvite && (
+        <PolicyAcknowledgementModal
+          open={!!selectedInvite}
+          onClose={() => setSelectedInvite(null)}
+          inviteId={selectedInvite?.inviteId}
+          courseId={selectedInvite?.courseId}
+          courseVersionId={selectedInvite?.courseVersionId}
+        />
+      )}
 
       <main className="relative flex flex-1 flex-col p-6">
         {/* Content background gradient */}
