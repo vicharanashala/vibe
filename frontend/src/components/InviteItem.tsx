@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "./ui/button";
 
-const InviteItem = ({ invite, onAcceptClick }) => {
+const InviteItem = ({ invite, onAcceptClick,onRejectClick }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [status, setStatus] = useState(invite.inviteStatus); // track local status
 
@@ -62,7 +62,7 @@ const InviteItem = ({ invite, onAcceptClick }) => {
             variant="ghost"
             onClick={(e) => {
                 e.stopPropagation();
-                onReject(invite);
+                onRejectClick(invite);
             }}
             className="text-sm cursor-pointer font-medium text-red-600 dark:text-red-400"
         >

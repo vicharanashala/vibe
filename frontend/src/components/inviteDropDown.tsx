@@ -8,6 +8,8 @@ import { useMarkNotificationAsRead } from "@/hooks/hooks";
 import { PolicyAcknowledgementModal } from "@/app/pages/student/components/policies/PolicyAcknowledgementModal";
 
 type InviteDropdownProps = {
+  setShowInvites?: React.Dispatch<React.SetStateAction<boolean>>;
+    onRejectClick?: (invite: any) => void;
   selectedInvite:any,
   setSelectedInvite:React.Dispatch<React.SetStateAction<any>>
   pendingInvites: any[];
@@ -23,7 +25,10 @@ const InviteDropdown = ({
   selectedInvite,
   setSelectedInvite,
   pendingInvites, 
+
   setPendingInvites, 
+  setShowInvites,
+  onRejectClick,
   approvedNotifications = [], 
   setApprovedNotifications,
   pendingStudentRegistrations = [],
@@ -152,6 +157,7 @@ console.log("Invites:", invites);
               <InviteItem 
                 key={`invite-${idx}`} 
                 invite={invite}   
+                 onRejectClick={onRejectClick ?? (() => {})}
                 onAcceptClick={(invite) => {
                 setSelectedInvite(invite);
                 setShowPolicyModal(true);
