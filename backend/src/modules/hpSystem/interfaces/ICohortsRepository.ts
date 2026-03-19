@@ -83,4 +83,10 @@ export interface ICohortRepository {
     getTotalHpDistributedByCohort(courseVersionId: string, cohortId: string): Promise<number>
 
     getCohortIdByCohortName(cohortName: string): Promise<string | null>
+
+    updateCohortNameAcrossDB(
+        courseVersionId: string,
+        oldCohortName: string,
+        newCohortName: string,
+    ): Promise<void>
 }
