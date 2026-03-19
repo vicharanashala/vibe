@@ -37,7 +37,7 @@ export interface IActivityRepository {
         session?: ClientSession,
     ): Promise<{ modifiedCount: number }>;
 
-    getCountByCohortName(cohortName: string): Promise<number>;
-    getDraftCountByCohortName(cohortName: string): Promise<number>;
-    getPublishedCountByCohortName(cohortName: string): Promise<number>;
+    getCountByCohortName(cohortName: string, courseVersionId?: string): Promise<number>;
+    getDraftCountByCohortName(cohortName: string, courseVersionId?: string): Promise<number>;
+    getPublishedCountByCohortName(cohortName: string, courseVersionId?: string): Promise<number>;
 }
