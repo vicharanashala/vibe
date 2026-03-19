@@ -30,10 +30,13 @@ import {
     AlertCircle,
     CheckCircle2,
 } from "lucide-react";
+import { Pagination } from "@/components/ui/Pagination";
 
 export default function StudentLedgerPage() {
     const navigate = useNavigate();
     const [selectedEntry, setSelectedEntry] = useState<any>(null);
+    const [page, setPage] = useState(1);
+    const itemsPerPage = 10;
 
     // 1. Get student's cohorts so we can call getMyLedger with valid IDs
     const { data: cohorts = [], isLoading: isLoadingCohorts } = useHpStudentCohorts();
@@ -47,11 +50,15 @@ export default function StudentLedgerPage() {
     );
 
     // 2. Fetch Ledger Data
-    const { data: ledger = [], studentDetails, isLoading: isLoadingLedger, error } = useMyHpLedger(
+    const { data: ledger, studentDetails, isLoading: isLoadingLedger, error, total, pages, limitValue } = useMyHpLedger(
         effectiveCourseId,
         effectiveVersionId,
         firstCohort?.cohortName || ""
     );
+
+    console.log("Fetched ledger entries:", ledger, "Loading:", isLoadingLedger, "Error:", error, "Total:", total, "Page:", pages, "Limit:", limitValue);
+
+    const totalPages = Math.ceil((total || 0) / (limitValue || 1));
 
     // 3. Build a combined activity map from all cohorts for resolving activity names
     const cohortQueries = cohorts.map((c: any) => {
@@ -243,6 +250,12 @@ export default function StudentLedgerPage() {
                                 ))}
                             </TableBody>
                         </Table>
+                        <Pagination
+                            currentPage={page || 1}
+                            totalPages={totalPages}
+                            totalDocuments={total || 0}
+                            onPageChange={(newPage) => setPage(newPage)}
+                        />
                     </CardContent>
                 </Card>
             )}

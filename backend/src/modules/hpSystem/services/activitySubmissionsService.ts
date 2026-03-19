@@ -626,18 +626,20 @@ export class ActivitySubmissionsService extends BaseService {
         }));
     }
 
-    async listStudentCohortWiseSubmssions(teacherId: string, studentId: string, query: FilterQueryDto, cohortName: string): Promise<StudentActivitySubmissionsResponseDto> {
+    async listStudentCohortWiseSubmssions(teacherId: string, studentId: string, query: FilterQueryDto, cohortName: string): Promise<any> {
 
-        const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined,
+        const {data, total} = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined,
             undefined, cohortName);
+
+            console.log("Data fetched for student submissions:", { studentId, cohortName, data, total });
 
         return {
             success: true,
-            data: submissions,
+            data,
             meta: {
-                total: submissions.length,
+                total: total,
                 page: query.page ?? 1,
-                limit: query.limit ?? 20,
+                limit: query.limit ?? 6,
             },
         };
     }
@@ -720,7 +722,7 @@ export class ActivitySubmissionsService extends BaseService {
             meta: {
                 total: submissions.length,
                 page: query.page ?? 1,
-                limit: query.limit ?? 20,
+                limit: query.limit ?? 10,
             },
         };
     }

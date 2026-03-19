@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { HpActivity } from "@/lib/api/hp-system";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Pagination } from "@/components/ui/Pagination";
 
 // Countdown timer component for deadline display
 const DeadlineCountdown = ({ deadline, allowLate }: { deadline: string; allowLate: boolean }) => {
@@ -85,10 +86,20 @@ export default function StudentActivities() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
     const navigate = useNavigate();
 
+        const [currentPage, setCurrentPage] = useState(1);
+        const itemsPerPage = 6;
+
     const { data: activities, isLoading, error, refetch } = useHpStudentActivities(
         courseVersionId as string,
         cohortName as string
     );
+
+    const totalPages = Math.ceil((activities?.length || 0) / itemsPerPage);
+     const paginatedActivities = (activities || []).slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
     const { mutateAsync: submitActivity, isPending: isSubmitting } = useSubmitActivity();
 
     // Submit dialog state
@@ -227,7 +238,7 @@ export default function StudentActivities() {
                 </Tooltip>
             </div>
 
-            {(!activities || activities.length === 0) ? (
+            {(!paginatedActivities || paginatedActivities.length === 0) ? (
                 <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
                     <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
                     <h3 className="text-lg font-medium">No Activities Yet</h3>
@@ -237,7 +248,7 @@ export default function StudentActivities() {
                 </Card>
             ) : (
                 <div className="grid grid-cols-1 gap-6">
-                    {activities.map((activity: HpActivity) => (
+                    {paginatedActivities.map((activity: HpActivity) => (
                         <Card key={activity._id} className="group relative overflow-hidden border-border/60 bg-card/80 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg">
                             <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-400/60 via-rose-400/60 to-sky-400/60" />
                             <CardHeader className="relative pb-3 pt-4">
@@ -362,6 +373,20 @@ export default function StudentActivities() {
                             </CardFooter>
                         </Card>
                     ))}
+
+                                {activities && activities.length > 0 && (
+                                    <Card>
+                                        <CardContent className="p-3">
+                                            <Pagination
+                                                currentPage={currentPage}
+                                                totalPages={totalPages}
+                                                totalDocuments={activities?.length || 0}
+                                                onPageChange={setCurrentPage}
+                                            />
+                                        </CardContent>
+                                    </Card>
+                                )}
+
                 </div>
             )}
 

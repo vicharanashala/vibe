@@ -5307,12 +5307,15 @@ export function useHpStudentLedger(
   studentId: string,
   cohortName: string,
   courseId: string,
-  courseVersionId: string
+  courseVersionId: string,
+  page: number,
+  limit: number
 ) {
   const query = useQuery({
-    queryKey: ['hp-student-ledger', studentId, cohortName, courseId, courseVersionId],
+    queryKey: ['hp-student-ledger', studentId, cohortName, courseId, courseVersionId, page, limit],
     queryFn: async () => {
-      const res = await hpApi.getStudentLedger(studentId, cohortName, courseId, courseVersionId);
+      const res = await hpApi.getStudentLedger(studentId, cohortName, courseId, courseVersionId, page, limit);
+      console.log ("Fetched student ledger:", res);
       return res;
     },
     enabled: !!studentId && !!courseId && !!courseVersionId && !!cohortName,
@@ -5324,6 +5327,8 @@ export function useHpStudentLedger(
     studentDetails: query.data?.studentDetails || null,
     total: query.data?.total || 0,
     isLoading: query.isLoading,
+    limitValue: query.data?.limit || 10,
+    pages: query.data?.page || 1,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,
   };
@@ -5338,6 +5343,7 @@ export function useMyHpLedger(
     queryKey: ['hp-my-ledger', courseId, courseVersionId, cohort],
     queryFn: async () => {
       const res = await hpApi.getMyLedger(courseId, courseVersionId, cohort);
+      console.log("Fetched my ledger:", res);
       return res;
     },
     enabled: !!courseId && !!courseVersionId && !!cohort,
@@ -5348,6 +5354,8 @@ export function useMyHpLedger(
     data: query.data?.data || [],
     studentDetails: query.data?.studentDetails || null,
     total: query.data?.total || 0,
+    limitValue: query.data?.limit || 10,
+    pages: query.data?.page || 1,
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,
@@ -5525,17 +5533,45 @@ export function useHpCohortOverviewStats(courseVersionId: string, cohort: string
   };
 }
 
-export function useHpStudentSubmissions(studentId: string | undefined, courseVersionId: string, cohort: string) {
-  return useQuery({
-    queryKey: ['hpStudentSubmissions', studentId, courseVersionId, cohort],
+export function useHpStudentSubmissions(
+  studentId: string | undefined,
+  courseVersionId: string,
+  cohort: string,
+    page: number,
+  limit: number
+) {
+  const query = useQuery({
+    queryKey: ['hpStudentSubmissions', studentId, courseVersionId, cohort, page, limit],
     queryFn: async () => {
-      if (!studentId) return [];
-      const res = await hpApi.getStudentSubmissions(studentId, courseVersionId, cohort);
+      if (!studentId) return { data: [], meta: null };
+
+      const res = await hpApi.getStudentSubmissions(
+        studentId,
+        courseVersionId,
+        cohort,
+        page,
+        limit
+      );
+
+      console.log("Fetched student submissions:", res);
+
       if (!res.success) throw new Error("Failed to fetch student submissions");
-      return res.data;
+
+      return {
+        data: res.data,
+        meta: res.meta, // ✅ include meta
+      };
     },
     enabled: !!studentId,
   });
+
+  return {
+    data: query.data?.data || [],
+    meta: query.data?.meta || null,
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
 }
 
 export function useHpStudentStats(studentId: string | undefined, cohort: string){
@@ -5551,16 +5587,19 @@ export function useHpStudentStats(studentId: string | undefined, cohort: string)
   })
 }
 
-export function useStudentMySubmissions(courseVersionId: string, cohort: string) {
+export function useStudentMySubmissions(courseVersionId: string, cohort: string, page: number, limit: number) {
   return useQuery({
-    queryKey: ['studentMySubmissions', courseVersionId, cohort],
+    queryKey: ['studentMySubmissions', courseVersionId, cohort, page, limit],
     queryFn: async () => {
-      const res = await hpApi.getStudentMySubmissions(courseVersionId, cohort);
+      const res = await hpApi.getStudentMySubmissions(courseVersionId, cohort, page, limit);
       if (!res.success) throw new Error("Failed to fetch current student submissions");
-      return res.data;
+      console.log("Fetched my submissions:", res);
+      const objectWithDataAndMeta = {
+        data: res.data,
+        meta: res.meta,
+      };
+      return objectWithDataAndMeta;
     },
     enabled: !!courseVersionId && !!cohort,
   });
-
-
 }

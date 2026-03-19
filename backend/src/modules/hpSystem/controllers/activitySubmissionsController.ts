@@ -106,7 +106,7 @@ export class ActivitySubmissionsController {
   ): Promise<any> {
     const studentId = user._id.toString();
     const doc = await this.submissionService.listMySubmissions(studentId, query, cohort);
-    return { success: true, data: doc.data };
+    return { success: true, data: doc.data, meta: doc.meta };
   }
 
   @OpenAPI({ summary: "List submissions (teacher/admin)" })

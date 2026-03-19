@@ -25,6 +25,7 @@ import {
 import type { SubmissionAttachment, HpStudentSubmission } from "@/lib/api/hp-system";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Pagination } from "@/components/ui/Pagination";
 
 const statusConfig = {
     SUBMITTED: { label: "Submitted", variant: "default" as const, icon: CheckCircle, color: "text-green-600" },
@@ -243,9 +244,20 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
 
 export default function StudentSubmissionsPage() {
     const { courseVersionId, cohortName, studentId } = useParams({ strict: false });
+    const [page, setPage] = useState(1);
+    const limit = 6;
     const navigate = useNavigate();
-    const { data: submissions, isLoading: submissionsLoading, error } = useHpStudentSubmissions(
-        studentId || "", courseVersionId || "", cohortName || ""
+    const {
+        data: submissions,
+        meta,
+        isLoading: submissionsLoading,
+        error
+    } = useHpStudentSubmissions(
+        studentId || "",
+        courseVersionId || "",
+        cohortName || "",
+        page,
+        limit
     );
 
     const { data: submissionsStats, isLoading: submissionsStatsLoading, submissionsStatsError } = useHpStudentStats(studentId || "", cohortName || "");
@@ -276,6 +288,8 @@ export default function StudentSubmissionsPage() {
             : activityTitle || 'Activity';
         setReasonDialog({ open: true, subId, action, activityTitle: displayTitle, baseHp, note: '', pointsToDeduct: baseHp });
     };
+
+    const totalPages = Math.ceil((meta?.total || 0) / (meta?.limit || 1));
 
     const handleConfirmAction = async () => {
         const { subId, action, note, pointsToDeduct } = reasonDialog;
@@ -619,6 +633,13 @@ export default function StudentSubmissionsPage() {
                             </Card>
                         );
                     })}
+
+                    <Pagination
+                        currentPage={meta?.page || 1}
+                        totalPages={totalPages}
+                        totalDocuments={meta?.total || 0}
+                        onPageChange={setPage}
+                    />
                 </div>
 
                 {/* Reason Dialog for Revert/Restore/Approve/Reject */}

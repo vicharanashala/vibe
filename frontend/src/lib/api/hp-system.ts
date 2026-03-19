@@ -424,9 +424,11 @@ export const hpApi = {
 
     getStudentMySubmissions: async (
         courseVersionId: string,
-        cohort: string
+        cohort: string,
+        page: number,
+        limit: number
     ): Promise<{ success: boolean; data: any[] }> => {
-        const params = new URLSearchParams({ courseVersionId, cohort });
+        const params = new URLSearchParams({ courseVersionId, cohort, page: page.toString(), limit: limit.toString() });
         // The teacher list endpoint returns the submissions according to the query.
         // It relies on the token if we had a specific student endpoint, but we can reuse the generic list one 
         // if the backend filters it by the token's user ID.
@@ -533,8 +535,10 @@ export const hpApi = {
         studentId: string,
         courseVersionId: string,
         cohort: string,
+        page: number,
+        limit: number
     ): Promise<{ success: boolean; data: any[] }> => {
-        const params = new URLSearchParams({ courseVersionId, cohort });
+        const params = new URLSearchParams({ courseVersionId, cohort, page: String(page), limit: String(limit) });
         // The backend returns { success, data: StudentActivitySubmissionsViewDto[] }
         return apiFetch(`${BASE_URL}/activity-submissions/student/${studentId}/cohort/${cohort}?${params.toString()}`);
     },
@@ -561,8 +565,8 @@ export const hpApi = {
         cohortName: string,
         courseId: string,
         courseVersionId: string,
-        page: number = 1,
-        limit: number = 50,
+        page: number,
+        limit: number
     ): Promise<LedgerListResponse> => {
         const params = new URLSearchParams({ page: String(page), limit: String(limit) });
         return apiFetch(
@@ -575,7 +579,7 @@ export const hpApi = {
         courseVersionId: string,
         cohort: string,
         page: number = 1,
-        limit: number = 50,
+        limit: number = 10,
     ): Promise<LedgerListResponse> => {
         const params = new URLSearchParams({ page: String(page), limit: String(limit) });
         return apiFetch(

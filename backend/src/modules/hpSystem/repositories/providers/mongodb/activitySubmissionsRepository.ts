@@ -111,11 +111,11 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         courseId?: string,
         courseVersionId?: string,
         cohortName?: string
-    ): Promise<StudentActivitySubmissionsViewDto[]> {
+    ): Promise<any> {
         await this.init();
 
         const page = query.page ?? 1;
-        const limit = query.limit ?? 20;
+        const limit = query.limit ?? 10;
         const skip = (page - 1) * limit;
 
         const search = query.search?.trim();
@@ -379,12 +379,22 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             { $limit: limit },
         ];
 
-        const docs = await this.hpActivitySubmissionCollection.aggregate(pipeline).toArray();
+        const [docs, total] = await Promise.all([
+            this.hpActivitySubmissionCollection.aggregate(pipeline).toArray(),
+            this.hpActivitySubmissionCollection.countDocuments(matchStage)
+        ]);
 
-        return plainToInstance(StudentActivitySubmissionsViewDto, docs, {
-            excludeExtraneousValues: true,
-            enableImplicitConversion: true,
-        });
+        console.log("Aggregation result for student submissions:", { studentId, cohortName, docs, total });
+
+        // return plainToInstance(StudentActivitySubmissionsViewDto, docs, {
+        //     excludeExtraneousValues: true,
+        //     enableImplicitConversion: true,
+        // });
+
+        return {
+            data: docs,
+            total
+        }
     }
 
     async list(query: ListSubmissionsQueryDto, opts?: { session?: ClientSession }): Promise<HpActivitySubmission[]> {
