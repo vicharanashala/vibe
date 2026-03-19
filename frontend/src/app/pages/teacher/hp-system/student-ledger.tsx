@@ -467,7 +467,12 @@ export default function StudentLedgerPage() {
                             </div>
                         </div>
                     )}
-                    <Button className="w-full" onClick={() => navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${cohortName}/student/${studentId}/submissions` })}>View Submission</Button>
+                    <Button className="w-full" onClick={() => navigate({ 
+                            to: selectedEntry?.submissionId 
+                                ? `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/student/${studentId}/submission/${selectedEntry.submissionId}`
+                                : `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/student/${studentId}/submissions`
+                        })}>View Submission
+                    </Button>
                 </DialogContent>
             </Dialog>
         </div>
