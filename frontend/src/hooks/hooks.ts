@@ -1000,6 +1000,44 @@ export function useDeleteCohort(): {
   };
 }
 
+export function useMoveToCohort(): {
+  mutate: (variables: {
+    params: { path: { courseId: string; versionId: string } };
+    body: { enrollmentIds: string[]; targetCohortId: string };
+  }) => void;
+  mutateAsync: (variables: {
+    params: { path: { courseId: string; versionId: string } };
+    body: { enrollmentIds: string[]; targetCohortId: string };
+  }) => Promise<any>;
+  data: any;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: "idle" | "pending" | "success" | "error";
+} {
+  const result = api.useMutation(
+    "post",
+    "/courses/{courseId}/versions/{versionId}/move-to-cohort" as any
+  );
+
+  return {
+    mutate: result.mutate,
+    mutateAsync: result.mutateAsync,
+    data: result.data,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+    error: result.error
+      ? result.error.message || "Move to cohort failed"
+      : null,
+  };
+}
 
 export function useCourseVersionArchive(): {
   mutate: (variables: { params: { path: { versionId: string } }, body: components['schemas']['UpdateCourseVersionStatusBody'] }) => void,

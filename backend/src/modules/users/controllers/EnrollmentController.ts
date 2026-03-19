@@ -38,6 +38,7 @@ import {
   BadRequestError,
   Body,
   ForbiddenError,
+  NotFoundError,
   Authorized,
   QueryParams,
   Patch,
@@ -185,6 +186,11 @@ export class EnrollmentController {
       versionId,
       body.cohortId
     );
+
+    if (!enrollmentData) {
+      throw new NotFoundError('Enrollment not found for the user in the specified course version');
+    }
+
     // Create an enrollment resource object for permission checking
     const enrollmentResource = subject('Enrollment', {
       courseId,
@@ -661,7 +667,8 @@ export class EnrollmentController {
           totalQuizMaxScore: enrollment.totalQuizMaxScore || 0,
           contentCounts: enrollment.contentCounts,
           cohortId: enrollment.cohortId,
-          cohortName: enrollment.cohortName
+          cohortName: enrollment.cohortName,
+          id: enrollment._id,
         }))
         .sort((a, b) => {
           // sort by isDeleted deleted should be at the bottom

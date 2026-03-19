@@ -110,6 +110,7 @@ export enum AuditAction {
   COHORT_ADD = "COHORT_ADD",
   COHORT_UPDATE = "COHORT_UPDATE",
   COHORT_DELETE = "COHORT_DELETE",
+  COHORT_MOVE = "COHORT_MOVE",
 }
 
 export enum OutComeStatus {
