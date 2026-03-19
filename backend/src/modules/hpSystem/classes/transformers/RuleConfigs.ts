@@ -4,7 +4,7 @@
 ========================================================= */
 
 import { Expose, Transform, Type } from "class-transformer";
-import { IsBoolean, IsEnum, IsNumber, IsString, ValidateNested } from "class-validator";
+import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
 import { JSONSchema } from "class-validator-jsonschema";
 import { HpRuleStatus, LateBehavior, LateRewardPolicy, PenaltyApplyWhen, RewardApplyWhen, RuleType } from "../../constants.js";
 import { ID, ObjectIdToString, StringToObjectId } from "#root/shared/index.js";
@@ -101,14 +101,16 @@ export class HpPenaltyRule {
 
 export class HpRuleLimits {
     @Expose()
+    @IsOptional()
     @IsNumber()
     @JSONSchema({ title: 'Min HP', type: 'number', example: 0 })
-    minHp: number;
+    minHp?: number;
 
     @Expose()
+    @IsOptional()
     @IsNumber()
     @JSONSchema({ title: 'Max HP', type: 'number', example: 100000 })
-    maxHp: number;
+    maxHp?: number;
 }
 
 /**

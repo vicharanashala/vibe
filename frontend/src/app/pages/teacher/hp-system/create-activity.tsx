@@ -152,14 +152,10 @@ export default function CreateHpActivityPage() {
                 nextErrors.rewardValue = "Reward value cannot be negative";
             }
             if (ruleConfig.reward?.type === "PERCENTAGE") {
-                if (ruleConfig.limits?.minHp === undefined || Number.isNaN(ruleConfig.limits.minHp)) {
-                    nextErrors.limitsMin = "Minimum HP is required";
-                } else if (ruleConfig.limits.minHp < 0) {
+                if (ruleConfig.limits?.minHp !== undefined && !Number.isNaN(ruleConfig.limits.minHp) && ruleConfig.limits.minHp < 0) {
                     nextErrors.limitsMin = "Minimum HP cannot be negative";
                 }
-                if (ruleConfig.limits?.maxHp === undefined || Number.isNaN(ruleConfig.limits.maxHp)) {
-                    nextErrors.limitsMax = "Maximum HP is required";
-                } else if (ruleConfig.limits.maxHp < 0) {
+                if (ruleConfig.limits?.maxHp !== undefined && !Number.isNaN(ruleConfig.limits.maxHp) && ruleConfig.limits.maxHp < 0) {
                     nextErrors.limitsMax = "Maximum HP cannot be negative";
                 }
                 if (
@@ -215,15 +211,11 @@ export default function CreateHpActivityPage() {
             const maxHp = ruleConfig.limits?.maxHp;
             const nextErrors: { limitsMin?: string; limitsMax?: string } = {};
 
-            if (minHp === undefined || minHp === null || Number.isNaN(minHp)) {
-                nextErrors.limitsMin = "Minimum HP is required";
-            } else if (minHp < 0) {
+            if (minHp !== undefined && minHp !== null && !Number.isNaN(minHp) && minHp < 0) {
                 nextErrors.limitsMin = "Minimum HP cannot be negative";
             }
 
-            if (maxHp === undefined || maxHp === null || Number.isNaN(maxHp)) {
-                nextErrors.limitsMax = "Maximum HP is required";
-            } else if (maxHp < 0) {
+            if (maxHp !== undefined && maxHp !== null && !Number.isNaN(maxHp) && maxHp < 0) {
                 nextErrors.limitsMax = "Maximum HP cannot be negative";
             }
 
@@ -300,8 +292,8 @@ export default function CreateHpActivityPage() {
                     runOnce: ruleConfig.penalty?.runOnce ?? true,
                 },
                 limits: {
-                    minHp: ruleConfig.limits?.minHp ?? 0,
-                    maxHp: ruleConfig.limits?.maxHp ?? 1000,
+                    minHp: ruleConfig.limits?.minHp,
+                    maxHp: ruleConfig.limits?.maxHp,
                 },
             };
 

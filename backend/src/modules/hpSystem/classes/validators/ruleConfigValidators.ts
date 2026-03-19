@@ -92,11 +92,13 @@ export class HpPenaltyRuleDto {
 }
 
 export class HpRuleLimitsDto {
+  @IsOptional()
   @IsNumber()
-  minHp!: number;
+  minHp?: number;
 
+  @IsOptional()
   @IsNumber()
-  maxHp!: number;
+  maxHp?: number;
 }
 
 /* ===== Create Body ===== */

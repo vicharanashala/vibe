@@ -276,8 +276,8 @@ export interface HpRuleConfig {
         runOnce: boolean;
     };
     limits?: {
-        minHp: number;
-        maxHp: number;
+        minHp?: number;
+        maxHp?: number;
     };
     createdAt?: string;
     updatedAt?: string;
@@ -634,12 +634,7 @@ export const hpApi = {
         return apiFetch(`${BASE_URL}/activity-submissions/student/${studentId}/cohort/${cohort}?${params.toString()}`);
     },
 
-    getStudentSubmissionStats: async(
-        studentId: string,
-        cohort: string,
-    ): Promise<{ success: boolean; data: any }> => {
-        return apiFetch(`${BASE_URL}/activity-submissions/stats/student/${studentId}/cohort/${cohort}`);
-    },
+
 
     // Made by Rishabh Shukla
     getCohortActivityStats: async(cohortName: string, activityId: string): Promise<{ data: any }> => {
