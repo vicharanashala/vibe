@@ -148,6 +148,14 @@ export class CourseVersionService extends BaseService {
     return session ? run(session) : this._withTransaction(run);
   }
 
+  sortItemsByOrder(items: any[]) {
+    return [...items].sort((a, b) => {
+      const orderA = a.order || '';
+      const orderB = b.order || '';
+      return orderA.localeCompare(orderB);
+    });
+  }
+
   public async readCourseVersion(
     courseVersionId: string,
     userId: string,
@@ -213,6 +221,14 @@ export class CourseVersionService extends BaseService {
           });
       }
       const hpSystem = await this.settingsRepo.getisHpSystemEnabled(new ObjectId(courseVersionId));
+
+      readVersion.modules = this.sortItemsByOrder(readVersion.modules).map(module => ({
+        ...module,
+        sections: this.sortItemsByOrder(module.sections || []).map(section => ({
+          ...section,
+          items: this.sortItemsByOrder(section.items || [])
+        }))
+      }));
 
       const version = instanceToPlain(
         Object.assign(new CourseVersion(), readVersion),
@@ -705,7 +721,13 @@ export class CourseVersionService extends BaseService {
           updatedAt: cohort.updatedAt,
         }));
       }
-
+      readVersion.modules = this.sortItemsByOrder(readVersion.modules).map(module => ({
+        ...module,
+        sections: this.sortItemsByOrder(module.sections || []).map(section => ({
+          ...section,
+          items: this.sortItemsByOrder(section.items || [])
+        }))
+      }));
       const version = instanceToPlain(
         Object.assign(new CourseVersion(), readVersion),
       ) as CourseVersion;

@@ -225,6 +225,40 @@ export class EnrollmentService extends BaseService {
     });
   }
 
+  async findAnyEnrollment(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohort?: string
+  ) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const user = await this.userRepo.findById(userId);
+      if (!user) throw new NotFoundError('User not found');
+
+      const course = await this.courseRepo.read(courseId);
+      if (!course) throw new NotFoundError('Course not found');
+
+      const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
+        throw new NotFoundError(
+          'Course version not found or does not belong to this course',
+        );
+      }
+      const existingEnrollment = await this.enrollmentRepo.findAnyEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        cohort,
+        session
+      );
+
+      return existingEnrollment;
+    });
+  }
+
   async findActiveEnrollment(
     userId: string,
     courseId: string,
@@ -356,6 +390,66 @@ export class EnrollmentService extends BaseService {
     );
 
     return results;
+  }
+
+  async updateStatus(
+    userId: string,
+    courseId: string,
+    versionId: string,
+    status: EnrollmentStatus,
+    cohortId?: string,
+  ) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const enrollment = await this.enrollmentRepo.findAnyEnrollment(
+        userId,
+        courseId,
+        versionId,
+        cohortId,
+        session,
+      );
+
+      if (!enrollment) {
+        throw new NotFoundError('Enrollment not found');
+      }
+
+      await this.enrollmentRepo.updateEnrollmentStatus(
+        enrollment._id!.toString(),
+        status,
+        session,
+      );
+
+      return {
+        enrollment: {
+          ...enrollment,
+          status,
+          isDeleted: enrollment.isDeleted ?? false,
+        },
+      };
+    });
+  }
+
+  async bulkUpdateStatus(
+    userIds: string[],
+    courseId: string,
+    versionId: string,
+    status: EnrollmentStatus,
+    cohortId?: string,
+  ) {
+    return this._withTransaction(async (session: ClientSession) => {
+      await this.enrollmentRepo.bulkUpdateEnrollmentStatus(
+        courseId,
+        versionId,
+        userIds,
+        status,
+        cohortId,
+        session,
+      );
+
+      return {
+        success: true,
+        updatedCount: userIds.length,
+      };
+    });
   }
 
   private filterCourseVersions(course: any, enrolledVersionIds: Set<string>) {
@@ -842,10 +936,30 @@ export class EnrollmentService extends BaseService {
       );
       if (!detail) return null;
 
+      const completedItemIds = await this.progressRepo.getCompletedItems(
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId,
+        session,
+      );
+      const completedItemsCount = completedItemIds.length;
+
       // Enrich with quiz scores for this student only
       const courseVersion = await this.courseRepo.readVersion(courseVersionId);
       let totalQuizScore = 0;
       let totalQuizMaxScore = 0;
+      const totalItems =
+        detail?.contentCounts?.totalItems ??
+        courseVersion?.totalItems ??
+        0;
+      const percentCompleted =
+        totalItems > 0
+          ? Math.min(
+            100,
+            Number(((completedItemsCount / totalItems) * 100).toFixed(2)),
+          )
+          : 0;
 
       if (courseVersion) {
         const itemGroupIds: string[] = [];
@@ -882,6 +996,8 @@ export class EnrollmentService extends BaseService {
 
       return {
         ...detail,
+        completedItemsCount,
+        percentCompleted,
         totalQuizScore,
         totalQuizMaxScore,
       };
@@ -1964,4 +2080,53 @@ export class EnrollmentService extends BaseService {
       session,
     );
   }
+
+  async moveNonCohortStudentsToCohortInEnrollment(
+    enrollmentIds: string[],
+    courseId: string,
+    versionId: string,
+    cohortId: string
+  ): Promise<boolean> {
+
+    return this._withTransaction(async (session: ClientSession) => {
+
+      const result = await this.enrollmentRepo.moveEnrollmentsToCohort(
+        enrollmentIds,
+        courseId,
+        versionId,
+        cohortId,
+        session
+      );
+
+      if (result.modifiedCount !== enrollmentIds.length) {
+        throw new BadRequestError(
+          "Some enrollments are invalid or already assigned to a cohort"
+        );
+      }
+
+      return true;
+    });
+  }
+
+    // Move other documents realted to that student to the target cohort.
+    async moveRelatedDocumentsToCohort(
+      enrollmentIds: string[],
+      courseId: string,
+      versionId: string,
+      targetCohortId: string
+    ): Promise<boolean> {
+
+      return this._withTransaction(async (session: ClientSession) => {
+
+        await this.enrollmentRepo.moveRelatedDocumentsToCohort(
+          enrollmentIds,
+          courseId,
+          versionId,
+          targetCohortId,
+          session
+        );
+
+        return true;
+      });
+    }
 }
