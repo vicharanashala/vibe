@@ -59,6 +59,7 @@ export class ActivityService extends BaseService {
                     submissionMode: body.submissionMode,
                     externalLink: body.externalLink,
                     attachments: body.attachments ?? [],
+                    required_percentage: body.required_percentage,
 
                     stats: {
                         totalStudents: 0,
@@ -102,6 +103,7 @@ export class ActivityService extends BaseService {
                     ...(body.ruleConfigId !== undefined ? { ruleConfigId: new ObjectId(body.ruleConfigId) } : {}),
                     ...(body.isMandatory !== undefined ? { isMandatory: body.isMandatory } : {}),
                     ...(body.cohort !== undefined ? { cohort: body.cohort } : {}),
+                    ...(body.required_percentage !== undefined ? { required_percentage: body.required_percentage } : {}),
                     updatedAt: new Date(),
                 },
                 session,

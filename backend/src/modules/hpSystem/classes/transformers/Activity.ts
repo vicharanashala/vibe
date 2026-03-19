@@ -193,6 +193,12 @@ export class HpActivityTransformer {
   @JSONSchema({ title: 'Submission count', type: 'number', example: 10 })
   submissionCount?: boolean;
 
+  @Expose()
+  @IsNumber()
+  @IsOptional()
+  @JSONSchema({ title: 'Required Percentage', type: 'number', example: 75 })
+  required_percentage?: number;
+
 
   // Submission mode
   @Expose()

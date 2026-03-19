@@ -11,9 +11,11 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
     ArrowLeft, ArrowRight, Save, FileText, Settings, Plus, Trash2,
-    Link as LinkIcon, CheckCircle
+    Link as LinkIcon, CheckCircle, Info
 } from "lucide-react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { CreateHpActivityPayload, HpRuleConfig, CourseWithVersions, CourseVersionStats } from "@/lib/api/hp-system";
@@ -63,6 +65,7 @@ export default function CreateHpActivityPage() {
         reward?: Partial<HpRuleConfig["reward"]>;
         penalty?: Partial<HpRuleConfig["penalty"]>;
         limits?: Partial<HpRuleConfig["limits"]>;
+        required_percentage?: number;
     };
 
     const [ruleConfig, setRuleConfig] = useState<RuleConfigFormState>({
@@ -110,6 +113,8 @@ export default function CreateHpActivityPage() {
     const handleConfirmVibeMilestone = () => {
         if (pendingActivityType) {
             setValue("activityType", pendingActivityType as any, { shouldDirty: true, shouldValidate: true });
+            setValue("submissionMode", "IN_PLATFORM", { shouldDirty: true, shouldValidate: true });
+            setValue("externalLink", "", { shouldDirty: true, shouldValidate: true });
         }
         setIsVibeMilestoneConfirmOpen(false);
         setPendingActivityType(null);
@@ -254,6 +259,7 @@ export default function CreateHpActivityPage() {
             status,
             deadlineAt: ruleConfig.deadlineAt,
             allowLateSubmission: ruleConfig.allowLateSubmission,
+            required_percentage: ruleConfig.required_percentage,
         };
 
         try {
@@ -286,7 +292,6 @@ export default function CreateHpActivityPage() {
                     applyWhen: ruleConfig.reward?.applyWhen as any,
                     lateBehavior: ruleConfig.reward?.lateBehavior ?? "NO_REWARD",
                     minHpFloor: ruleConfig.reward?.minHpFloor ?? 0,
-                    required_percentage: ruleConfig.reward?.required_percentage,
                 },
                 penalty: {
                     enabled: ruleConfig.penalty?.enabled ?? false,
@@ -431,7 +436,11 @@ export default function CreateHpActivityPage() {
                                         control={control}
                                         rules={{ required: "Submission mode is required" }}
                                         render={({ field }) => (
-                                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                                            <Select 
+                                                onValueChange={field.onChange} 
+                                                value={field.value || ""}
+                                                disabled={watch("activityType") === "VIBE_MILESTONE"}
+                                            >
                                                 <SelectTrigger className={errors.submissionMode ? "border-red-500" : ""}>
                                                     <SelectValue placeholder="Select mode" />
                                                 </SelectTrigger>
@@ -443,10 +452,13 @@ export default function CreateHpActivityPage() {
                                         )}
                                     />
                                     {errors.submissionMode && <p className="text-xs text-red-500">{errors.submissionMode.message as string}</p>}
+                                    {watch("activityType") === "VIBE_MILESTONE" && (
+                                        <p className="text-[10px] text-muted-foreground">Vibe platform milestones use in-platform tracking by default.</p>
+                                    )}
                                 </div>
                             </div>
 
-                            {currentSubmissionMode === "EXTERNAL_LINK" && (
+                            {currentSubmissionMode === "EXTERNAL_LINK" && watch("activityType") !== "VIBE_MILESTONE" && (
                                 <div className="space-y-2 pt-2">
                                     <label className="text-sm font-medium">External Reference URL <span className="text-red-500">*</span></label>
                                     <Input
@@ -533,34 +545,67 @@ export default function CreateHpActivityPage() {
 
                         <div className="space-y-8">
                             {/* Mandatory Toggle */}
-                            <div className="flex flex-col md:flex-row md:items-center md:justify-between rounded-lg border p-4 shadow-sm gap-3">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between rounded-md border p-4 shadow-sm gap-3 bg-card">
                                 <div className="space-y-0.5">
-                                    <Label className="text-base">Mandatory Activity</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Label className="text-base">Mandatory Activity</Label>
+                                        <TooltipProvider delayDuration={300}>
+                                            <Tooltip>
+                                                <TooltipTrigger type="button" tabIndex={-1}>
+                                                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>Students must complete this to pass the cohort.</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
                                     <p className="text-sm text-muted-foreground">
                                         Students must complete this to pass the cohort.
                                     </p>
                                 </div>
-                                <div className="min-w-[160px] space-y-1">
-                                    <Select
-                                        value={ruleConfig.isMandatory === undefined ? "" : String(ruleConfig.isMandatory)}
-                                        onValueChange={(v: string) => {
-                                            setRuleConfig(prev => ({ ...prev, isMandatory: v === "true" }));
-                                            if (ruleErrors.isMandatory) {
-                                                setRuleErrors(prev => ({ ...prev, isMandatory: undefined }));
-                                            }
-                                        }}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="true">Yes</SelectItem>
-                                            <SelectItem value="false">No</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    {ruleErrors.isMandatory && <p className="text-xs text-red-500">{ruleErrors.isMandatory}</p>}
-                                </div>
+                                <Switch
+                                    checked={ruleConfig.isMandatory ?? false}
+                                    onCheckedChange={(c) => {
+                                        setRuleConfig(prev => ({ ...prev, isMandatory: c }));
+                                        if (ruleErrors.isMandatory) {
+                                            setRuleErrors(prev => ({ ...prev, isMandatory: undefined }));
+                                        }
+                                    }}
+                                />
                             </div>
+
+                            {/* Required Progress Percentage (Milestones Only) */}
+                            {(watch("activityType") === "MILESTONE" || watch("activityType") === "VIBE_MILESTONE") && (
+                                <div className="space-y-4">
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between rounded-md border p-4 shadow-sm gap-3 bg-muted/20">
+                                        <div className="space-y-1">
+                                            <Label className="text-base text-foreground">Required Progress Percentage</Label>
+                                            <p className="text-sm text-muted-foreground">
+                                                Minimum progress percentage required.
+                                            </p>
+                                        </div>
+                                        <div className="w-full md:w-32">
+                                            <div className="relative">
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    max="100"
+                                                    placeholder="100"
+                                                    className="pr-8"
+                                                    value={ruleConfig.required_percentage ?? ""}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value;
+                                                        setRuleConfig(prev => ({
+                                                            ...prev,
+                                                            required_percentage: value === "" ? undefined : parseInt(value)
+                                                        }));
+                                                    }}
+                                                />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Deadline Settings */}
                             <div className="space-y-4">
@@ -584,34 +629,55 @@ export default function CreateHpActivityPage() {
                                         />
                                         {ruleErrors.deadlineAt && <p className="text-xs text-red-500">{ruleErrors.deadlineAt}</p>}
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label>Allow Late Submissions</Label>
-                                        <Select
-                                            value={ruleConfig.allowLateSubmission === undefined ? "" : String(ruleConfig.allowLateSubmission)}
-                                            onValueChange={(v: string) => {
-                                                setRuleConfig(prev => ({ ...prev, allowLateSubmission: v === "true" }));
-                                                if (ruleErrors.allowLateSubmission) {
-                                                    setRuleErrors(prev => ({ ...prev, allowLateSubmission: undefined }));
-                                                }
-                                            }}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="true">Yes</SelectItem>
-                                                <SelectItem value="false">No</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        {ruleErrors.allowLateSubmission && <p className="text-xs text-red-500">{ruleErrors.allowLateSubmission}</p>}
+                                <div className="flex items-center justify-between border p-4 rounded-md shadow-sm bg-card h-full">
+                                    <div className="flex items-center gap-2">
+                                        <Label htmlFor="allow-late" className="cursor-pointer text-base font-semibold">Allow Late Submissions</Label>
+                                        <TooltipProvider delayDuration={300}>
+                                            <Tooltip>
+                                                <TooltipTrigger type="button" tabIndex={-1}>
+                                                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>Enable to accept submissions after the deadline has passed.</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     </div>
+                                    <Switch
+                                        id="allow-late"
+                                        checked={ruleConfig.allowLateSubmission ?? false}
+                                        onCheckedChange={(c) => {
+                                            setRuleConfig(prev => ({ ...prev, allowLateSubmission: c }));
+                                            if (ruleErrors.allowLateSubmission) {
+                                                setRuleErrors(prev => ({ ...prev, allowLateSubmission: undefined }));
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                {ruleErrors.allowLateSubmission && <p className="text-xs text-red-500 px-1">{ruleErrors.allowLateSubmission}</p>}
                                 </div>
                             </div>
 
-                            {/* Reward Settings */}
                             <div className="space-y-4">
-                                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Reward Configuration</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
+                                <div className="flex items-center justify-between border p-4 rounded-md shadow-sm bg-card">
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="text-base font-semibold text-foreground">Reward Configuration</h4>
+                                        <TooltipProvider delayDuration={300}>
+                                            <Tooltip>
+                                                <TooltipTrigger type="button" tabIndex={-1}>
+                                                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>Reward students for completing the activity.</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
+                                    <Switch
+                                        checked={ruleConfig.reward?.enabled || false}
+                                        onCheckedChange={(c) => setRuleConfig(prev => ({
+                                            ...prev,
+                                            reward: { ...(prev.reward || {}), enabled: c } as any
+                                        }))}
+                                    />
+                                </div>
+                                <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20 ${ruleConfig.reward?.enabled === false ? "opacity-60 pointer-events-none" : ""}`}>
                                     <div className="space-y-2">
                                         <Label>Rule Type</Label>
                                         <Select
@@ -657,79 +723,7 @@ export default function CreateHpActivityPage() {
                                         />
                                         {ruleErrors.rewardValue && <p className="text-xs text-red-500">{ruleErrors.rewardValue}</p>}
                                     </div>
-                                    {ruleConfig.reward?.type === "PERCENTAGE" && (
-                                        <>
-                                            <div className="space-y-2">
-                                                <Label>Minimum HP (Cap)</Label>
-                                                <Input
-                                                    type="number"
-                                                    min="0"
-                                                    value={ruleConfig.limits?.minHp ?? ""}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value;
-                                                        setRuleConfig(prev => ({
-                                                            ...prev,
-                                                            limits: {
-                                                                ...(prev.limits || {}),
-                                                                minHp: value === "" ? undefined : parseInt(value)
-                                                            }
-                                                        }));
-                                                        if (ruleErrors.limitsMin) {
-                                                            setRuleErrors(prev => ({ ...prev, limitsMin: undefined }));
-                                                        }
-                                                    }}
-                                                />
-                                                {ruleErrors.limitsMin && <p className="text-xs text-red-500">{ruleErrors.limitsMin}</p>}
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Maximum HP (Cap)</Label>
-                                                <Input
-                                                    type="number"
-                                                    min="0"
-                                                    value={ruleConfig.limits?.maxHp ?? ""}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value;
-                                                        setRuleConfig(prev => ({
-                                                            ...prev,
-                                                            limits: {
-                                                                ...(prev.limits || {}),
-                                                                maxHp: value === "" ? undefined : parseInt(value)
-                                                            }
-                                                        }));
-                                                        if (ruleErrors.limitsMax) {
-                                                            setRuleErrors(prev => ({ ...prev, limitsMax: undefined }));
-                                                        }
-                                                    }}
-                                                />
-                                                {ruleErrors.limitsMax && <p className="text-xs text-red-500">{ruleErrors.limitsMax}</p>}
-                                            </div>
-                                        </>
-                                    )}
-                                    {(watch("activityType") === "MILESTONE" || watch("activityType") === "VIBE_MILESTONE") && (
-                                        <div className="space-y-2">
-                                            <Label>Required Progress Percentage</Label>
-                                            <Input
-                                                type="number"
-                                                min="0"
-                                                max="100"
-                                                placeholder="e.g., 75"
-                                                value={ruleConfig.reward?.required_percentage || ""}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    setRuleConfig(prev => ({
-                                                        ...prev,
-                                                        reward: {
-                                                            ...(prev.reward || {}),
-                                                            required_percentage: value === "" ? undefined : parseInt(value)
-                                                        } as any
-                                                    }));
-                                                }}
-                                            />
-                                            <p className="text-[10px] text-muted-foreground">
-                                                Minimum progress percentage required to earn this milestone reward
-                                            </p>
-                                        </div>
-                                    )}
+
                                     <div className="space-y-2">
                                         <Label>Apply Policy</Label>
                                         <Select
@@ -802,35 +796,33 @@ export default function CreateHpActivityPage() {
                             {/* Penalty Settings */}
                             <div className="space-y-4">
 
-                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                                    <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                                        Penalty Configuration (Late)
-                                    </h4>
-
-                                    <div className="min-w-[160px] space-y-1">
-                                        <Select
-                                            value={ruleConfig.penalty?.enabled === undefined ? "" : String(ruleConfig.penalty.enabled)}
-                                            onValueChange={(v: string) => {
-                                                setRuleConfig(prev => ({
-                                                    ...prev,
-                                                    penalty: { ...(prev.penalty || {}), enabled: v === "true" }
-                                                }));
-                                                if (ruleErrors.penaltyEnabled) {
-                                                    setRuleErrors(prev => ({ ...prev, penaltyEnabled: undefined }));
-                                                }
-                                            }}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="true">Enabled</SelectItem>
-                                                <SelectItem value="false">Disabled</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        {ruleErrors.penaltyEnabled && <p className="text-xs text-red-500">{ruleErrors.penaltyEnabled}</p>}
+                                <div className="flex items-center justify-between border p-4 rounded-md shadow-sm bg-card">
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="text-base font-semibold text-foreground">Penalty Configuration (Late)</h4>
+                                        <TooltipProvider delayDuration={300}>
+                                            <Tooltip>
+                                                <TooltipTrigger type="button" tabIndex={-1}>
+                                                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>Apply a penalty for late completions.</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     </div>
+
+                                    <Switch
+                                        checked={ruleConfig.penalty?.enabled || false}
+                                        onCheckedChange={(c) => {
+                                            setRuleConfig(prev => ({
+                                                ...prev,
+                                                penalty: { ...(prev.penalty || {}), enabled: c }
+                                            }));
+                                            if (ruleErrors.penaltyEnabled) {
+                                                setRuleErrors(prev => ({ ...prev, penaltyEnabled: undefined }));
+                                            }
+                                        }}
+                                    />
                                 </div>
+                                {ruleErrors.penaltyEnabled && <p className="text-xs text-red-500">{ruleErrors.penaltyEnabled}</p>}
 
                                 <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20 ${ruleConfig.penalty?.enabled === false ? "opacity-60 pointer-events-none" : ""
                                     }`}>
@@ -908,6 +900,62 @@ export default function CreateHpActivityPage() {
 
                             </div>
                         </div>
+
+                        {/* HP Limits section */}
+                        {(ruleConfig.reward?.type === "PERCENTAGE" || ruleConfig.penalty?.type === "PERCENTAGE") && (
+                            <div className="space-y-4">
+                                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">HP Limits (Cap)</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
+                                    <div className="space-y-2">
+                                        <Label>Minimum HP (Cap)</Label>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            value={ruleConfig.limits?.minHp ?? ""}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setRuleConfig(prev => ({
+                                                    ...prev,
+                                                    limits: {
+                                                        ...(prev.limits || {}),
+                                                        minHp: value === "" ? undefined : parseInt(value)
+                                                    }
+                                                }));
+                                                if (ruleErrors.limitsMin) {
+                                                    setRuleErrors(prev => ({ ...prev, limitsMin: undefined }));
+                                                }
+                                            }}
+                                        />
+                                        {ruleErrors.limitsMin && <p className="text-xs text-red-500">{ruleErrors.limitsMin}</p>}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Maximum HP (Cap)</Label>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            value={ruleConfig.limits?.maxHp ?? ""}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setRuleConfig(prev => ({
+                                                    ...prev,
+                                                    limits: {
+                                                        ...(prev.limits || {}),
+                                                        maxHp: value === "" ? undefined : parseInt(value)
+                                                    }
+                                                }));
+                                                if (ruleErrors.limitsMax) {
+                                                    setRuleErrors(prev => ({ ...prev, limitsMax: undefined }));
+                                                }
+                                            }}
+                                        />
+                                        {ruleErrors.limitsMax && <p className="text-xs text-red-500">{ruleErrors.limitsMax}</p>}
+                                    </div>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">
+                                    Define lower and upper bounds for HP changes when using percentage-based calculations.
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     {/* Step 2 Actions */}

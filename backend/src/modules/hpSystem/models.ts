@@ -46,6 +46,9 @@ export interface HpActivity {
         kind: AttachmentKind;
     }[];
 
+    // Activity constraints
+    required_percentage?: number;
+
     // Stats
     stats: { // to track submission stats for this activity, updated by a scheduled job that runs every hour
         totalStudents: number;
@@ -180,7 +183,6 @@ export interface HpRuleConfig {
         applyWhen: RewardApplyWhen;
         lateBehavior: LateBehavior;
         minHpFloor: number;
-        required_percentage?: number;
     };
     
     // students => hpPOints = 50 (shouldn't be -ve)

@@ -109,16 +109,16 @@ async function processMilestoneRewards(
 ) {
     const { activityRepo, ledgerRepo, cohortRepo, db } = dependencies;
     
-    console.log(`🎯 Processing milestone activity: ${activityConfig.activityId}`);
-    console.log(`📊 Required progress percentage: ${activityConfig.reward.required_percentage}%`);
-    console.log(`💰 Reward type: ${activityConfig.reward.type}, Value: ${activityConfig.reward.value}`);
-
     // Get activity details
     const activity = await activityRepo.findById(activityConfig.activityId.toString());
     if (!activity) {
         console.log(`⚠️ Activity not found: ${activityConfig.activityId}`);
         return;
     }
+    
+    console.log(`🎯 Processing milestone activity: ${activityConfig.activityId}`);
+    console.log(`📊 Required progress percentage: ${activity.required_percentage || 100}%`);
+    console.log(`💰 Reward type: ${activityConfig.reward.type}, Value: ${activityConfig.reward.value}`);
 
     // Get actual course IDs (handle legacy vs new cohort system)
     const { courseId, courseVersionId } = getActualCourseIds(activity);
@@ -147,7 +147,7 @@ async function processMilestoneRewards(
     const studentsNeedingReward = enrolledStudents.filter((student: any) => {
         const studentId = student._id.toString();
         const currentProgress = student.percentCompleted || 0;
-        const requiredProgress = activityConfig.reward.required_percentage;
+        const requiredProgress = activity.required_percentage || 100;
         const hasReward = rewardMap.has(studentId);
         
         // Check progress requirement
