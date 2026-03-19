@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pagination } from "@/components/ui/Pagination";
-import { DirectionBadge } from "@/app/pages/teacher/hp-system/submission-details";
+import { DirectionBadge } from "@/app/pages/teacher/hp-system/components/DirectionBadge";
 import {
     Table,
     TableBody,
