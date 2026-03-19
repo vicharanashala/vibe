@@ -1,4 +1,4 @@
-import { IsArray, IsBoolean, IsDateString, IsEnum, IsMongoId, IsOptional, IsString, ValidateNested } from "class-validator";
+import { IsArray, IsBoolean, IsDateString, IsEnum, IsMongoId, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
 import { ActivityStatus, ActivityType, AttachmentKind, SubmissionMode } from "../../models.js";
 import { Type } from "class-transformer";
 
@@ -58,6 +58,10 @@ export class CreateActivityBody {
     @ValidateNested({ each: true })
     @Type(() => AttachmentDto)
     attachments?: AttachmentDto[];
+
+    @IsOptional()
+    @IsNumber()
+    required_percentage?: number;
 }
 
 
@@ -110,6 +114,10 @@ export class UpdateActivityBody {
     @IsOptional()
     @IsString()
     cohort?: string;
+
+    @IsOptional()
+    @IsNumber()
+    required_percentage?: number;
 }
 
 
