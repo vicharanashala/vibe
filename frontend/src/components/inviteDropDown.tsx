@@ -54,7 +54,7 @@ console.log("Invites:", invites);
     onDismissRejected?.(registrationId);
   };
 
-  return (
+  return (<>
     <div className="absolute right-0 top-full mt-1 w-72 bg-white dark:bg-black rounded-lg shadow-lg border border-red-100 dark:border-zinc-700 z-50">
       <ul className="divide-y divide-gray-200 dark:divide-zinc-600 max-h-48 overflow-auto p-1">
         {loading ? (
