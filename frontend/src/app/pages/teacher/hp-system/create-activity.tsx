@@ -72,7 +72,6 @@ export default function CreateHpActivityPage() {
         reward: {
             enabled: true,
             lateBehavior: "NO_REWARD",
-            minHpFloor: 0,
         },
         penalty: {
             applyWhen: "AFTER_DEADLINE",
@@ -291,7 +290,6 @@ export default function CreateHpActivityPage() {
                     value: ruleConfig.reward?.value as number,
                     applyWhen: ruleConfig.reward?.applyWhen as any,
                     lateBehavior: ruleConfig.reward?.lateBehavior ?? "NO_REWARD",
-                    minHpFloor: ruleConfig.reward?.minHpFloor ?? 0,
                 },
                 penalty: {
                     enabled: ruleConfig.penalty?.enabled ?? false,

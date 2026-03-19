@@ -182,7 +182,6 @@ export interface HpRuleConfig {
         value: number;
         applyWhen: RewardApplyWhen;
         lateBehavior: LateBehavior;
-        minHpFloor: number;
     };
     
     // students => hpPOints = 50 (shouldn't be -ve)

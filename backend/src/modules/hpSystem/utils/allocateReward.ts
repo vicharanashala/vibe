@@ -228,7 +228,6 @@ async function processStudentReward(
         activityConfig.reward.type,
         activityConfig.reward.value,
         currentHp,
-        activityConfig.reward.minHpFloor,
         activityConfig.limits?.maxHp
     );
 
@@ -260,7 +259,6 @@ function calculateRewardAmount(
     type: "ABSOLUTE" | "PERCENTAGE",
     value: number,
     currentHp: number,
-    minHpFloor: number,
     maxHp?: number
 ): number {
     let rewardAmount: number;
@@ -270,11 +268,6 @@ function calculateRewardAmount(
     } else {
         // PERCENTAGE calculation
         rewardAmount = Math.floor((currentHp * value) / 100);
-        
-        // Apply minimum HP floor
-        if (rewardAmount < minHpFloor) {
-            rewardAmount = minHpFloor;
-        }
     }
 
     // Apply max HP limit if specified

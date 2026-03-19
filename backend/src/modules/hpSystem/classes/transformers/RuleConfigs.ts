@@ -44,11 +44,6 @@ export class HpRewardRule {
         example: 'NO_REWARD',
     })
     lateBehavior: LateBehavior;
-
-    @Expose()
-    @IsNumber()
-    @JSONSchema({ title: 'Min HP Floor', type: 'number', example: 0 })
-    minHpFloor: number;
 }
 
 export class HpPenaltyRule {
