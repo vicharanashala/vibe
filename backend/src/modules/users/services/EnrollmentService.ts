@@ -821,10 +821,30 @@ export class EnrollmentService extends BaseService {
       );
       if (!detail) return null;
 
+      const completedItemIds = await this.progressRepo.getCompletedItems(
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId,
+        session,
+      );
+      const completedItemsCount = completedItemIds.length;
+
       // Enrich with quiz scores for this student only
       const courseVersion = await this.courseRepo.readVersion(courseVersionId);
       let totalQuizScore = 0;
       let totalQuizMaxScore = 0;
+      const totalItems =
+        detail?.contentCounts?.totalItems ??
+        courseVersion?.totalItems ??
+        0;
+      const percentCompleted =
+        totalItems > 0
+          ? Math.min(
+            100,
+            Number(((completedItemsCount / totalItems) * 100).toFixed(2)),
+          )
+          : 0;
 
       if (courseVersion) {
         const itemGroupIds: string[] = [];
@@ -861,6 +881,8 @@ export class EnrollmentService extends BaseService {
 
       return {
         ...detail,
+        completedItemsCount,
+        percentCompleted,
         totalQuizScore,
         totalQuizMaxScore,
       };
@@ -1918,4 +1940,53 @@ export class EnrollmentService extends BaseService {
   async enrollmentExists(versionId : string, cohortId: string, session: ClientSession): Promise<boolean>{
    return await this.enrollmentRepo.enrollmentExistsByCohortId(versionId, cohortId, session);
   }
+
+  async moveNonCohortStudentsToCohortInEnrollment(
+    enrollmentIds: string[],
+    courseId: string,
+    versionId: string,
+    cohortId: string
+  ): Promise<boolean> {
+
+    return this._withTransaction(async (session: ClientSession) => {
+
+      const result = await this.enrollmentRepo.moveEnrollmentsToCohort(
+        enrollmentIds,
+        courseId,
+        versionId,
+        cohortId,
+        session
+      );
+
+      if (result.modifiedCount !== enrollmentIds.length) {
+        throw new BadRequestError(
+          "Some enrollments are invalid or already assigned to a cohort"
+        );
+      }
+
+      return true;
+    });
+  }
+
+    // Move other documents realted to that student to the target cohort.
+    async moveRelatedDocumentsToCohort(
+      enrollmentIds: string[],
+      courseId: string,
+      versionId: string,
+      targetCohortId: string
+    ): Promise<boolean> {
+
+      return this._withTransaction(async (session: ClientSession) => {
+
+        await this.enrollmentRepo.moveRelatedDocumentsToCohort(
+          enrollmentIds,
+          courseId,
+          versionId,
+          targetCohortId,
+          session
+        );
+
+        return true;
+      });
+    }
 }

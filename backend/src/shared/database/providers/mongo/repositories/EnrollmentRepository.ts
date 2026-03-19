@@ -8,10 +8,11 @@ import {
   IUser,
   ID,
   courseVersionStatus,
+  IUserActivityEvent,
 } from '#shared/interfaces/models.js';
 import { injectable, inject } from 'inversify';
 import { ClientSession, Collection, ObjectId, OptionalId } from 'mongodb';
-import { InternalServerError, NotFoundError } from 'routing-controllers';
+import { BadRequestError, InternalServerError, NotFoundError } from 'routing-controllers';
 import { MongoDatabase } from '../MongoDatabase.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { EnrollmentStats } from '#root/modules/users/types.js';
@@ -22,11 +23,14 @@ import {
 import {
   IAttempt,
   ISubmission,
+  IUserQuizMetrics,
 } from '#root/modules/quizzes/interfaces/grading.js';
-import { ItemsGroup, QuizItem } from '#root/modules/courses/classes/index.js';
+import { FeedbackSubmissionItem, ItemsGroup, QuizItem } from '#root/modules/courses/classes/index.js';
 import { AttemptRepository } from '#root/modules/quizzes/repositories/index.js';
 import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import { IQuestionBank } from '#root/shared/interfaces/quiz.js';
+import { IProjectSubmission } from '#root/modules/projects/repositories/model.js';
+import { IReport } from '#root/shared/index.js';
 
 @injectable()
 export class EnrollmentRepository {
@@ -39,6 +43,11 @@ export class EnrollmentRepository {
   private quizCollection!: Collection<QuizItem>;
   private itemsGroupCollection!: Collection<ItemsGroup>;
   private questionBankCollection!: Collection<IQuestionBank>;
+  private feedbackCollection!: Collection<FeedbackSubmissionItem>;
+  private projectSubmissionCollection!: Collection<IProjectSubmission>;
+  private reportCollection!: Collection<IReport>;
+  private userQuizMetricsCollection!: Collection<IUserQuizMetrics>;
+  private userActivityEventCollection!: Collection<IUserActivityEvent>;
 
   constructor(
     @inject(QUIZZES_TYPES.AttemptRepo)
@@ -65,6 +74,16 @@ export class EnrollmentRepository {
       await this.db.getCollection<IAttempt>('quiz_attempts');
     this.questionBankCollection =
       await this.db.getCollection<IQuestionBank>('questionBanks');
+    this.feedbackCollection =
+      await this.db.getCollection<FeedbackSubmissionItem>('feedback_submission');
+    this.projectSubmissionCollection =
+          await this.db.getCollection<IProjectSubmission>('project_submissions');
+    this.reportCollection = await this.db.getCollection<IReport>('reports');
+    this.userQuizMetricsCollection =
+      await this.db.getCollection<IUserQuizMetrics>('user_quiz_metrics');
+    this.userActivityEventCollection = await this.db.getCollection<IUserActivityEvent>(
+      'user_activity_events',
+    );
   }
 
   /**
@@ -94,7 +113,7 @@ export class EnrollmentRepository {
         userId: { $in: [userId, new ObjectId(userId)] },
         courseId: { $in: [courseId, new ObjectId(courseId)] },
         courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
         isDeleted: { $ne: true },
       },
       { session },
@@ -121,7 +140,7 @@ export class EnrollmentRepository {
         courseVersionId: { $in: [courseVersionObjectId, courseVersionId] },
         status: 'ACTIVE',
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       { session },
     );
@@ -254,7 +273,7 @@ export class EnrollmentRepository {
         userId: { $in: userFilter },
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       {
         $set: {
@@ -1536,8 +1555,8 @@ export class EnrollmentRepository {
           completedItemsCount: { $ifNull: ['$completedItemsCount', 0] },
           cohortId: {
             $cond: [
-              { $ifNull: ["$cohort._id", false] },
-              { $toString: "$cohort._id" },
+              { $ifNull: ["$cohortId", false] },
+              { $toString: "$cohortId" },
               null
             ]
           },
@@ -1591,7 +1610,7 @@ export class EnrollmentRepository {
           userId: { $in: [userId, userIdObj] },
           courseId: { $in: [courseId, courseIdObj] },
           courseVersionId: { $in: [courseVersionId, versionIdObj] },
-          ...(cohortIdObj ? { cohortId: cohortIdObj } : {cohortId: null}),
+          ...(cohortIdObj ? { cohortId: cohortIdObj } : {}),
           role: 'STUDENT',
         },
       },
@@ -1635,12 +1654,12 @@ export class EnrollmentRepository {
           assignedTimeSlots: 1,
           cohortId: {
             $cond: [
-              { $ifNull: ["$cohort._id", false] },
-              { $toString: "$cohort._id" },
+              { $ifNull: ["$cohortId", false] },
+              { $toString: "$cohortId" },
               null
             ]
           },
-          cohortName: "$cohort.name",
+          cohortName: null,
           contentCounts: {
             totalItems: { $ifNull: ['$courseVersionInfo.totalItems', 0] },
             itemCounts: { $ifNull: ['$courseVersionInfo.itemCounts', {}] },
@@ -3445,14 +3464,15 @@ export class EnrollmentRepository {
     session?: ClientSession,
   ): Promise<ISubmission[]> {
     await this.init();
-    // console.log("Fetching quiz submission grades for cohorts", cohorts);
+    console.log("Fetching quiz submission grades for cohorts", cohorts);
     if (!userIds.length || !quizIds.length) {
       return [];
     }
 
     const userObjectIds = userIds.map(id => new ObjectId(id));
     const quizObjectIds = quizIds.map(id => new ObjectId(id));
-    const cohortObjectIds = cohorts?.map(id => new ObjectId(id));
+    const validCohorts = cohorts?.filter(id => !!id);
+    const cohortObjectIds = validCohorts?.map(id => new ObjectId(id));
 
     // Get the best (max score) submission for each user-quiz combination
     return await this.submissionCollection
@@ -3464,7 +3484,7 @@ export class EnrollmentRepository {
               quizId: { $in: quizObjectIds },
               ...(cohortObjectIds?.length
                 ? { cohortId: { $in: cohortObjectIds } }
-                : {}),
+                : { cohortId: null }),
               'gradingResult.totalScore': { $exists: true },
             },
           },
@@ -4078,5 +4098,218 @@ export class EnrollmentRepository {
     );
     // console.log("---enrollment------", enrollment);
     return !!enrollment;
+  }
+
+  async moveEnrollmentsToCohort(
+    enrollmentIds: string[],
+    courseId: string,
+    versionId: string,
+    targetCohortId: string,
+    session?: ClientSession
+  ): Promise<{ modifiedCount: number }> {
+
+    const objectIds = enrollmentIds.map(id => new ObjectId(id));
+    const courseObjectId = new ObjectId(courseId);
+    const versionObjectId = new ObjectId(versionId);
+    const cohortObjectId = new ObjectId(targetCohortId);
+
+    // 1. Get userIds of selected enrollments
+    const userIds = await this.enrollmentCollection.distinct(
+      "userId",
+      { _id: { $in: objectIds } },
+      { session }
+    );
+
+    // 2. Check if already in target cohort
+    const duplicateUserIds = await this.enrollmentCollection.distinct(
+      "userId",
+      {
+        userId: { $in: userIds },
+        courseId: courseObjectId,
+        courseVersionId: versionObjectId,
+        cohortId: cohortObjectId,
+        isDeleted: { $ne: true },
+      },
+      { session }
+    );
+
+    if (duplicateUserIds.length > 0) {
+      throw new BadRequestError(
+        "Some students are already enrolled in the target cohort"
+      );
+    }
+
+    // 3. Update (no null restriction)
+    const result = await this.enrollmentCollection.updateMany(
+      {
+        _id: { $in: objectIds },
+        courseId: courseObjectId,
+        courseVersionId: versionObjectId,
+        isDeleted: { $ne: true },
+      },
+      {
+        $set: { cohortId: cohortObjectId }
+      },
+      { session }
+    );
+
+    return {
+      modifiedCount: result.modifiedCount ?? 0,
+    };
+  }
+
+  async moveRelatedDocumentsToCohort(
+    enrollmentIds: string[],
+    courseId: string,
+    versionId: string,
+    targetCohortId: string,
+    session?: ClientSession
+  ): Promise<void> {
+
+    const objectIds = enrollmentIds.map(id => new ObjectId(id));
+    const courseObjectId = new ObjectId(courseId);
+    const versionObjectId = new ObjectId(versionId);
+    const cohortObjectId = new ObjectId(targetCohortId);
+
+    // 1. Get userIds
+    const userIds = await this.enrollmentCollection.distinct(
+      "userId",
+      { _id: { $in: objectIds } },
+      { session }
+    );
+
+    if (!userIds.length) return;
+
+    const quizIds: ObjectId[] = [];
+    const courseVersion = await this.courseVersionCollection.findOne(
+      { _id: versionObjectId },
+      { session }
+    );
+
+    for (const module of courseVersion.modules) {
+      for (const section of module.sections) {
+
+        const itemsGroup = await this.itemsGroupCollection.findOne({
+          _id: section.itemsGroupId
+        });
+
+        for (const item of itemsGroup.items) {
+          if (item.type === "QUIZ") {
+            quizIds.push(new ObjectId(item._id));
+          }
+        }
+      }
+    }
+
+    // 2. Update related collections
+    await Promise.all([
+
+      this.progressCollection.updateMany(
+        {
+          userId: { $in: userIds },
+          courseId: courseObjectId,
+          courseVersionId: versionObjectId,
+          isDeleted: { $ne: true },
+          cohortId: null,
+        },
+        { $set: { cohortId: cohortObjectId } },
+        { session }
+      ),
+
+      this.watchTimeCollection.updateMany(
+        {
+          userId: { $in: userIds },
+          courseId: courseObjectId,
+          courseVersionId: versionObjectId,
+          isDeleted: { $ne: true },
+          cohortId: null,
+        },
+        { $set: { cohortId: cohortObjectId } },
+        { session }
+      ),
+
+      this.feedbackCollection.updateMany(
+        {
+          userId: { $in: userIds },
+          courseId: courseObjectId,
+          courseVersionId: versionObjectId,
+          isDeleted: { $ne: true },
+          cohortId: null
+        },
+        { $set: { cohortId: cohortObjectId } },
+        { session }
+      ),
+
+      this.projectSubmissionCollection.updateMany(
+        {
+          userId: { $in: userIds },
+          courseId: courseObjectId,
+          courseVersionId: versionObjectId,
+          isDeleted: { $ne: true },
+          cohortId: null
+        },
+        { $set: { cohortId: cohortObjectId } },
+        { session }
+      ),
+
+      this.reportCollection.updateMany(
+        {
+          reportedBy: { $in: userIds },
+          courseId: courseObjectId,
+          versionId: versionObjectId,
+          isDeleted: { $ne: true },
+          cohortId: null
+        },
+        { $set: { cohortId: cohortObjectId } },
+        { session }
+      ),
+
+      this.userActivityEventCollection.updateMany(
+        {
+          userId: { $in: userIds },
+          courseId: courseObjectId,
+          courseVersionId: versionObjectId,
+          isDeleted: { $ne: true },
+          cohortId: null
+        },
+        { $set: { cohortId: cohortObjectId } },
+        { session }
+      ),
+
+      this.submissionCollection.updateMany(
+        {
+          userId: { $in: userIds },
+          quizId: { $in: quizIds },
+          isDeleted: { $ne: true },
+          cohortId: null
+        },
+        { $set: { cohortId: cohortObjectId } },
+        { session }
+      ),
+
+      this.userQuizMetricsCollection.updateMany(
+        {
+          userId: { $in: userIds },
+          quizId: { $in: quizIds },
+          isDeleted: { $ne: true },
+          cohortId: null
+        },
+        { $set: { cohortId: cohortObjectId } },
+        { session }
+      ),
+
+      this.attemptCollection.updateMany(
+        {
+          userId: { $in: userIds },
+          quizId: { $in: quizIds },
+          isDeleted: { $ne: true },
+          cohortId: null
+        },
+        { $set: { cohortId: cohortObjectId } },
+        { session }
+      ),
+
+    ]);
+
   }
 }
