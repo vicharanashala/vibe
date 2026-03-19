@@ -843,14 +843,32 @@ export class EnrollmentService extends BaseService {
       );
       const completedItemsCount = completedItemIds.length;
 
+      const existingContentCounts = detail?.contentCounts ?? {};
+      let resolvedItemCounts = existingContentCounts.itemCounts ?? {};
+      let resolvedTotalItems = Number(existingContentCounts.totalItems ?? 0);
+
+      const hasResolvedContentCounts =
+        resolvedTotalItems > 0 || Object.keys(resolvedItemCounts).length > 0;
+
+      if (!hasResolvedContentCounts) {
+        const { totalItems, itemCounts } =
+          await this.itemRepo.calculateItemCountsForVersion(
+            courseVersionId,
+            session,
+          );
+
+        resolvedTotalItems = Number(totalItems ?? 0);
+        resolvedItemCounts = itemCounts ?? {};
+      }
+
       // Enrich with quiz scores for this student only
       const courseVersion = await this.courseRepo.readVersion(courseVersionId);
       let totalQuizScore = 0;
       let totalQuizMaxScore = 0;
       const totalItems =
-        detail?.contentCounts?.totalItems ??
-        courseVersion?.totalItems ??
-        0;
+        resolvedTotalItems > 0
+          ? resolvedTotalItems
+          : Number(courseVersion?.totalItems ?? 0);
       const percentCompleted =
         totalItems > 0
           ? Math.min(
@@ -894,6 +912,10 @@ export class EnrollmentService extends BaseService {
 
       return {
         ...detail,
+        contentCounts: {
+          totalItems,
+          itemCounts: resolvedItemCounts,
+        },
         completedItemsCount,
         percentCompleted,
         totalQuizScore,

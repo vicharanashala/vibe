@@ -1256,6 +1256,7 @@ export class EnrollmentRepository {
       ...(e.cohortId ? { cohortId: e.cohortId } : {}),
       isHidden: { $ne: true },
       isDeleted: { $ne: true },
+      endTime: { $exists: true, $ne: null },
     }));
 
     const results = await this.watchTimeCollection
