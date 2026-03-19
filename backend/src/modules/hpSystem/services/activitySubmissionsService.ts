@@ -236,6 +236,15 @@ export class ActivitySubmissionsService extends BaseService {
                 throw new BadRequestError("Activity rule config not found");
             }
 
+            const ledger = await this.ledgerRepository.findByStudentAndActivityId(activityId, student.id);
+            if (ledger) {
+                throw new BadRequestError(
+                    activityRuleConfig.reward.applyWhen === "ON_APPROVAL"
+                        ? "This activity has already been submitted. Please wait for the instructor to review it and credit the HP points."
+                        : "This activity has already been submitted and the HP points for this activity have already been credited."
+                );
+            }
+
             const latestSubmissions = await this.activitySubmissionsRepository.getLatestByStudentId(student.id, activityId)
             if (latestSubmissions && latestSubmissions.status !== "REVERTED")
                 throw new BadRequestError("You have already attended this activity.")
@@ -255,10 +264,10 @@ export class ActivitySubmissionsService extends BaseService {
                 session
             );
 
-            // if (!enrollment) {
-            //     console.error(`Enrollment check failed for Student: ${student.id} in Course: ${finalCourseId}`);
-            //     throw new BadRequestError(`Student is not enrolled in the required course context for cohort: ${cohort}`);
-            // }
+            if (!enrollment) {
+                console.error(`Enrollment check failed for Student: ${student.id} in Course: ${finalCourseId}`);
+                throw new BadRequestError(`Student is not enrolled in the required course context for cohort: ${cohort}`);
+            }
 
             // Determine if submission is late based on activity rule config deadline
             const deadline = activityRuleConfig?.deadlineAt
@@ -520,7 +529,7 @@ export class ActivitySubmissionsService extends BaseService {
                 uploadedPdfs = uploadResult.uploadedPdfs ?? [];
                 uploadedImages = uploadResult.uploadedImages ?? [];
             }
-            
+
             const payload = {
                 ...basePayload,
                 files: uploadedPdfs.map((x) => ({
