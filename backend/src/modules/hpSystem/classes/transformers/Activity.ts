@@ -19,7 +19,7 @@ import {
 
 import { Expose, Transform, Type } from 'class-transformer';
 import { JSONSchema } from 'class-validator-jsonschema';
-import { ActivityStatus, ActivityType, AttachmentKind, LateRewardPolicy, ReviewDecision, SubmissionMode } from '../../constants.js';
+import { ActivityStatus, ActivityType, AttachmentKind, ReviewDecision, SubmissionMode } from '../../constants.js';
 
 
 export class HpActivityAttachment {
@@ -193,15 +193,6 @@ export class HpActivityTransformer {
   @JSONSchema({ title: 'Submission count', type: 'number', example: 10 })
   submissionCount?: boolean;
 
-  @Expose()
-  @IsEnum(LateRewardPolicy)
-  @JSONSchema({
-    title: 'Late Reward Policy',
-    type: 'string',
-    enum: Object.values(LateRewardPolicy),
-    example: 'REWARD_DENIED',
-  })
-  lateRewardPolicy: LateRewardPolicy;
 
   // Submission mode
   @Expose()

@@ -200,10 +200,14 @@ export default function StudentActivityDetail() {
                                     <span className="text-muted-foreground">Late Submission:</span>
                                     <span className="font-medium">{activity.rules?.allowLateSubmission ? 'Allowed' : 'Not Allowed'}</span>
                                 </div>
-                                {ruleConfig?.lateRewardPolicy && (
+                                {ruleConfig?.reward && (
                                     <div className="flex items-center gap-2 px-4 py-2 rounded-full border bg-muted/30">
-                                        <span className="text-muted-foreground">Late Reward Policy:</span>
-                                        <span className="font-medium">{ruleConfig.lateRewardPolicy.replace('_', ' ')}</span>
+                                        <span className="text-muted-foreground">Late Reward:</span>
+                                        <span className="font-medium text-green-600">
+                                            {ruleConfig.reward.lateBehavior === "REWARD" && !ruleConfig.reward.onlyWithinDeadline 
+                                                ? "Allowed" 
+                                                : "Denied"}
+                                        </span>
                                     </div>
                                 )}
                             </div>
