@@ -204,7 +204,7 @@ export default function StudentActivityDetail() {
                                     <div className="flex items-center gap-2 px-4 py-2 rounded-full border bg-muted/30">
                                         <span className="text-muted-foreground">Late Reward:</span>
                                         <span className="font-medium text-green-600">
-                                            {ruleConfig.reward.lateBehavior === "REWARD" && !ruleConfig.reward.onlyWithinDeadline 
+                                            {ruleConfig.reward.lateBehavior === "REWARD" 
                                                 ? "Allowed" 
                                                 : "Denied"}
                                         </span>
@@ -228,10 +228,6 @@ export default function StudentActivityDetail() {
                                         <div>
                                             <div className="text-muted-foreground text-xs mb-1">Apply When</div>
                                             <div className="font-medium text-base">{ruleConfig.reward.applyWhen.replace('_', ' ')}</div>
-                                        </div>
-                                        <div>
-                                            <div className="text-muted-foreground text-xs mb-1">Only Within Deadline</div>
-                                            <div className="font-medium text-base">{ruleConfig.reward.onlyWithinDeadline ? 'Yes' : 'No'}</div>
                                         </div>
                                     </div>
                                 </div>

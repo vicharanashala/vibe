@@ -61,8 +61,6 @@ export function RuleSettingsDialog({
         type: "ABSOLUTE",
         value: 10,
         applyWhen: "ON_APPROVAL",
-        onlyWithinDeadline: true,
-        allowLate: false,
         lateBehavior: "NO_REWARD",
         minHpFloor: 0,
         required_percentage: undefined,
@@ -271,9 +269,9 @@ export function RuleSettingsDialog({
                                     <Label>Late Reward Behavior</Label>
                                     <Select
                                         value={
-                                            config?.reward?.lateBehavior === "REWARD" && !config?.reward?.onlyWithinDeadline
+                                            config?.reward?.lateBehavior === "REWARD"
                                                 ? "REWARD_ALLOWED"
-                                                : config?.reward?.lateBehavior === "NO_REWARD" || config?.reward?.onlyWithinDeadline
+                                                : config?.reward?.lateBehavior === "NO_REWARD"
                                                     ? "REWARD_DENIED"
                                                     : "NONE"
                                         }
@@ -283,17 +281,7 @@ export function RuleSettingsDialog({
                                                     ...prev,
                                                     reward: {
                                                         ...(prev?.reward || defaultReward),
-                                                        lateBehavior: "REWARD",
-                                                        onlyWithinDeadline: false
-                                                    }
-                                                } as any));
-                                            } else if (val === "REWARD_DENIED") {
-                                                setConfig(prev => ({
-                                                    ...prev,
-                                                    reward: {
-                                                        ...(prev?.reward || defaultReward),
-                                                        lateBehavior: "NO_REWARD",
-                                                        onlyWithinDeadline: true
+                                                        lateBehavior: "REWARD"
                                                     }
                                                 } as any));
                                             } else {
@@ -301,8 +289,7 @@ export function RuleSettingsDialog({
                                                     ...prev,
                                                     reward: {
                                                         ...(prev?.reward || defaultReward),
-                                                        lateBehavior: "NO_REWARD",
-                                                        onlyWithinDeadline: true
+                                                        lateBehavior: "NO_REWARD"
                                                     }
                                                 } as any));
                                             }

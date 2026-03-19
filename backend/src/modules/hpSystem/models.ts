@@ -178,8 +178,6 @@ export interface HpRuleConfig {
         type: RuleType;
         value: number;
         applyWhen: RewardApplyWhen;
-        onlyWithinDeadline: boolean;
-        allowLate: boolean;
         lateBehavior: LateBehavior;
         minHpFloor: number;
         required_percentage?: number;

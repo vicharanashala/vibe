@@ -36,16 +36,6 @@ export class HpRewardRule {
     applyWhen: RewardApplyWhen;
 
     @Expose()
-    @IsBoolean()
-    @JSONSchema({ title: 'Only Within Deadline', type: 'boolean', example: true })
-    onlyWithinDeadline: boolean;
-
-    @Expose()
-    @IsBoolean()
-    @JSONSchema({ title: 'Allow Late', type: 'boolean', example: false })
-    allowLate: boolean;
-
-    @Expose()
     @IsEnum(LateBehavior)
     @JSONSchema({
         title: 'Late Behavior',
