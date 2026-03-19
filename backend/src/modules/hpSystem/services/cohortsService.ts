@@ -137,8 +137,6 @@ export class CohortsService extends BaseService {
 
             const results = await Promise.all(
                 cohorts.map(async (c) => {
-                    const cohortId = await this.cohortRepository.getCohortIdByCohortName(c.cohortName);
-
                     const [
                         totalStudents,
                         totalActivities,
@@ -150,9 +148,7 @@ export class CohortsService extends BaseService {
                         this.activityRepository.getCountByCohortName(c.cohortName, versionId),
                         this.activityRepository.getDraftCountByCohortName(c.cohortName, versionId),
                         this.activityRepository.getPublishedCountByCohortName(c.cohortName, versionId),
-                        cohortId
-                            ? this.cohortRepository.getTotalHpDistributedByCohort(versionId)
-                            : Promise.resolve(0),
+                        this.cohortRepository.getTotalHpDistributedByCohort(c.cohortVersionId)
                     ]);
 
                     const totalCredits = 0;
@@ -190,7 +186,6 @@ export class CohortsService extends BaseService {
 
             const results = await Promise.all(
                 cohorts.map(async (c) => {
-                    const cohortId = await this.cohortRepository.getCohortIdByCohortName(c.cohortName);
 
                     const [
                         totalStudents,
@@ -203,9 +198,7 @@ export class CohortsService extends BaseService {
                         this.activityRepository.getCountByCohortName(c.cohortName, versionId),
                         this.activityRepository.getDraftCountByCohortName(c.cohortName, versionId),
                         this.activityRepository.getPublishedCountByCohortName(c.cohortName, versionId),
-                        cohortId
-                            ? this.cohortRepository.getTotalHpDistributedByCohort(versionId)
-                            : Promise.resolve(0),
+                        this.cohortRepository.getTotalHpDistributedByCohort(c.cohortVersionId)
                     ]);
 
                     const totalCredits = 0;
