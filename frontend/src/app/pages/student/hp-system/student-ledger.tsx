@@ -34,6 +34,7 @@ import {
     CheckCircle2,
     Search,
 } from "lucide-react";
+import { DirectionBadge } from "@/app/pages/teacher/hp-system/components/DirectionBadge";
 
 export default function StudentLedgerPage() {
     const navigate = useNavigate();
@@ -120,24 +121,6 @@ export default function StudentLedgerPage() {
         setCurrentPage(1); // Reset to first page when changing items per page
     };
 
-    const getDirectionBadge = (direction: string) => {
-        switch (direction) {
-            case 'CREDIT':
-                return (
-                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 gap-1">
-                        <CheckCircle2 className="h-3 w-3" /> Credit
-                    </Badge>
-                );
-            case 'DEBIT':
-                return (
-                    <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 gap-1">
-                        <AlertCircle className="h-3 w-3" /> Debit
-                    </Badge>
-                );
-            default:
-                return <Badge variant="secondary">{direction}</Badge>;
-        }
-    };
 
     const formatDateTime = (iso?: string) => {
         if (!iso) return '—';
@@ -290,7 +273,7 @@ export default function StudentLedgerPage() {
                                                 {entry.eventType}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell>{getDirectionBadge(entry.direction)}</TableCell>
+                                        <TableCell><DirectionBadge direction={entry.direction} /></TableCell>
                                         <TableCell className="text-right">
                                             <span className={`font-semibold ${entry.direction === 'CREDIT' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                                 {entry.direction === 'CREDIT' ? '+' : '-'}{entry.amount}
@@ -360,7 +343,7 @@ export default function StudentLedgerPage() {
                                 <div className="space-y-1">
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Amount</p>
                                     <div className="flex items-center gap-2">
-                                        {getDirectionBadge(selectedEntry.direction)}
+                                        <DirectionBadge direction={selectedEntry.direction} />
                                         <span className={`text-lg font-bold ${selectedEntry.direction === 'CREDIT' ? 'text-green-600' : 'text-red-600'}`}>
                                             {selectedEntry.direction === 'CREDIT' ? '+' : '-'}{selectedEntry.amount}
                                         </span>
