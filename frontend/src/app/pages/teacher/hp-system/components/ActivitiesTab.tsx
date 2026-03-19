@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { HpActivity } from "@/lib/api/hp-system";
 import { useNavigate } from "@tanstack/react-router";
 import { EditActivityDialog } from "./EditActivityDialog";
@@ -24,10 +24,9 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
     const [search, setSearch] = useState("");
     const [viewMode, setViewMode] = useState<"grid" | "list">("list");
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 6;
+    const [itemsPerPage, setItemsPerPage] = useState(5);
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [activityFilter, setActivityFilter] = useState("ALL");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
 
 
     // Edit Dialog state
@@ -46,11 +45,39 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
         c.versions.some(v => v.courseVersionId === courseVersionId)
     )?.courseId || "000000000000000000000001";
     const { data: activities, isLoading: loading, refetch } = useHpActivities(
-        courseVersionId, cohortName, statusFilter, debouncedSearch, activityFilter
+        courseVersionId, cohortName, statusFilter, "", activityFilter
     );
+    
+    // Client-side filtering based only on activity title
+    const filteredActivities = useMemo(() => {
+        if (!search.trim()) return activities || [];
+        
+        const query = search.toLowerCase();
+        
+        // Separate activities into priority groups
+        const startsWithMatches: any[] = [];
+        const containsMatches: any[] = [];
+        
+        (activities || []).forEach((activity: any) => {
+            const title = activity.title || '';
+            
+            const titleStartsWith = title.toLowerCase().startsWith(query);
+            const titleContains = title.toLowerCase().includes(query);
+            
+            if (titleStartsWith) {
+                startsWithMatches.push(activity);
+            } else if (titleContains) {
+                containsMatches.push(activity);
+            }
+        });
+        
+        // Return prioritized results: starts with > contains
+        return [...startsWithMatches, ...containsMatches];
+    }, [activities, search]);
+    
     const { mutateAsync: updateActivity } = useUpdateHpActivity();
-    const totalPages = Math.ceil((activities?.length || 0) / itemsPerPage);
-    const paginatedActivities = (activities || []).slice(
+    const totalPages = Math.ceil(filteredActivities.length / itemsPerPage);
+    const paginatedActivities = filteredActivities.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
@@ -58,13 +85,17 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
     const { mutateAsync: archiveActivity } = useArchiveHpActivity();
     const {mutateAsync: deleteActivity} = useDeleteHpActivity();
 
-    // Handle Search Debounce
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedSearch(search);
-        }, 500);
-        return () => clearTimeout(timer);
-    }, [search]);
+    // Handle search change (immediate since we're doing client-side filtering)
+    const handleSearchChange = (value: string) => {
+        setSearch(value);
+        setCurrentPage(1); // Reset page when search changes
+    };
+    
+    // Handle items per page change
+    const handleItemsPerPageChange = (value: string) => {
+        setItemsPerPage(Number(value));
+        setCurrentPage(1);
+    };
 
     const handleArchive = async (id: string) => {
         if (confirm("Are you sure you want to archive this activity?")) {
@@ -106,7 +137,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                             placeholder="Search activities..."
                             className="pl-8"
                             value={search}
-                            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                            onChange={(e) => handleSearchChange(e.target.value)}
                         />
                     </div>
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -158,6 +189,26 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                             <LayoutGrid className="h-4 w-4" />
                         </Button>
 
+                    </div>
+                    
+                    {/* Items per page selector */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Show:</span>
+                        <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                            <SelectTrigger className="w-[80px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="5">5</SelectItem>
+                                <SelectItem value="6">6</SelectItem>
+                                <SelectItem value="10">10</SelectItem>
+                                <SelectItem value="15">15</SelectItem>
+                                <SelectItem value="20">20</SelectItem>
+                                <SelectItem value="30">30</SelectItem>
+                                <SelectItem value="40">40</SelectItem>
+                                <SelectItem value="50">50</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
                 <Button onClick={() => navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName)}/activities/create` })}>
@@ -439,6 +490,11 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
             {activities && activities.length > 0 && (
                 <Card>
                     <CardContent className="p-3">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm text-muted-foreground">
+                                Showing {paginatedActivities.length} of {activities?.length || 0} activities
+                            </span>
+                        </div>
                         <Pagination
                             currentPage={currentPage}
                             totalPages={totalPages}
