@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "@tanstack/react-router";
+import { useParams, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, ArrowLeft, Loader2, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,13 +7,15 @@ import { useHpCohorts } from "@/hooks/hooks";
 export default function HpSystemCohorts() {
     const { courseVersionId } = useParams({ strict: false });
     const navigate = useNavigate();
+    const router = useRouterState();
+    const from = router.location.state?.from;
 
     const { data: cohorts, isLoading, error } = useHpCohorts(courseVersionId as string);
 
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4">
-                <Button variant="outline" size="icon" onClick={() => window.history.back()}>
+                <Button variant="outline" size="icon" onClick={() => navigate({ to: from || "/teacher/hp-system" }) }>
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
@@ -49,6 +51,7 @@ export default function HpSystemCohorts() {
                                 to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(
                                     c.cohortName
                                 )}/activities`,
+                                state:{from}
                             })
                         }
                     >
