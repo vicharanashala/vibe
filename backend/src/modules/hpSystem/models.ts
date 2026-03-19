@@ -205,9 +205,9 @@ export interface HpRuleConfig {
     };
 
     // Safety guards
-    limits: {
-        minHp: number;
-        maxHp: number;
+    limits?: {
+        minHp?: number;
+        maxHp?: number;
     };
 
     createdAt: Date;

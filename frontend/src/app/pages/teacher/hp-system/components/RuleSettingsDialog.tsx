@@ -74,10 +74,7 @@ export function RuleSettingsDialog({
         runOnce: true,
     };
 
-    const defaultLimits: any = {
-        minHp: 0,
-        maxHp: 10,
-    };
+    const defaultLimits: any = {};
 
     // Sync fetched config into local state when dialog opens
     useEffect(() => {

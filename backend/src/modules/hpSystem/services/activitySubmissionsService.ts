@@ -251,6 +251,7 @@ export class ActivitySubmissionsService extends BaseService {
                 student.id,
                 finalCourseId,
                 finalVersionId,
+                cohort,
                 session
             );
 
@@ -439,16 +440,23 @@ export class ActivitySubmissionsService extends BaseService {
                 if (ruleType === "ABSOLUTE") {
                     incrementAmount = rewardValue;
                 } else if (ruleType === "PERCENTAGE") {
-                    const rewardMaxLimit = activityRuleConfig.limits?.maxHp ?? 0;
+                    const rewardMaxLimit = activityRuleConfig.limits?.maxHp;
+                    const rewardMinLimit = activityRuleConfig.limits?.minHp;
 
                     // Calculate percentage reward
                     const calculatedReward = Math.round((totalStudentHpPoints * rewardValue) / 100);
 
-                    // Apply max limit if defined
-                    incrementAmount =
-                        rewardMaxLimit > 0
-                            ? Math.min(calculatedReward, rewardMaxLimit)
-                            : calculatedReward;
+                    let finalReward = calculatedReward;
+
+                    if (rewardMinLimit !== undefined && finalReward < rewardMinLimit) {
+                        finalReward = rewardMinLimit;
+                    }
+
+                    if (rewardMaxLimit !== undefined && finalReward > rewardMaxLimit) {
+                        finalReward = rewardMaxLimit;
+                    }
+
+                    incrementAmount = finalReward;
                 }
 
                 // For transparency in the audit trail, we create a human-readable note about how the reward was calculated
@@ -496,6 +504,7 @@ export class ActivitySubmissionsService extends BaseService {
                         student.id,
                         finalCourseId,
                         finalVersionId,
+                        cohort,
                         totalStudentHpPoints + incrementAmount,
                         session
                     )
@@ -725,7 +734,7 @@ export class ActivitySubmissionsService extends BaseService {
             this.activitySubmissionsRepository.getCountByStudentId(studentId, courseId, courseVersionId),
             this.activitySubmissionsRepository.getLateSubmissionCountByStudentId(studentId, courseId, courseVersionId),
             this.activityRepository.getPendingActivitesCount(studentId, courseId, courseVersionId),
-            this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId),
+            this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId, cohortName),
             this.activityRepository.getLatestActivityByCohortName(cohortName),
         ]);
 
@@ -797,7 +806,7 @@ export class ActivitySubmissionsService extends BaseService {
             const [activityRuleConfig, user, enrollment] = await Promise.all([
                 this.ruleConfigService.getByActivityId(submission.activityId.toString()),
                 this.userRepo.findById(submission.studentId.toString()),
-                this.cohortRepository.findEnrollment(submission.studentId.toString(), courseId, courseVersionId)
+                this.cohortRepository.findEnrollment(submission.studentId.toString(), courseId, courseVersionId, submission.cohort, session)
             ]);
 
             if (!user || !enrollment) throw new BadRequestError(!user ? "Student account missing." : "Enrollment data missing.");
@@ -873,16 +882,23 @@ export class ActivitySubmissionsService extends BaseService {
                     rewardDetailsNote = `Reward Type: ABSOLUTE, Reward HP: ${rewardValue}`;
 
                 } else if (ruleType === "PERCENTAGE") {
-                    const rewardMaxLimit = activityRuleConfig.limits?.maxHp ?? 0;
+                    const rewardMaxLimit = activityRuleConfig.limits?.maxHp;
+                    const rewardMinLimit = activityRuleConfig.limits?.minHp;
 
                     // Calculate percentage reward
                     const calculatedReward = Math.round((totalStudentHpPoints * rewardValue) / 100);
 
-                    // Apply max limit if defined
-                    incrementAmount =
-                        rewardMaxLimit > 0
-                            ? Math.min(calculatedReward, rewardMaxLimit)
-                            : calculatedReward;
+                    let finalReward = calculatedReward;
+
+                    if (rewardMinLimit !== undefined && finalReward < rewardMinLimit) {
+                        finalReward = rewardMinLimit;
+                    }
+
+                    if (rewardMaxLimit !== undefined && finalReward > rewardMaxLimit) {
+                        finalReward = rewardMaxLimit;
+                    }
+
+                    incrementAmount = finalReward;
 
                     rewardDetailsNote = `Reward Type: PERCENTAGE, Base HP: ${totalStudentHpPoints}, Percentage: ${rewardValue}%`;
 
@@ -944,7 +960,7 @@ export class ActivitySubmissionsService extends BaseService {
 
             await Promise.all([
                 ...ledgerPromises,
-                this.cohortRepository.setHPForEnrollment(submission.studentId.toString(), courseId, courseVersionId, finalHpBalance, session)
+                this.cohortRepository.setHPForEnrollment(submission.studentId.toString(), courseId, courseVersionId, submission.cohort, finalHpBalance, session)
             ]);
 
             return { success: true };

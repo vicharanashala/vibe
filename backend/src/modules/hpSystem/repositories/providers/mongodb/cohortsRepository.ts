@@ -370,19 +370,39 @@ export class CohortRepository implements ICohortRepository {
     }
 
 
+    private async _getCohortMatchConditions(cohort: string): Promise<any[]> {
+        const orConditions: any[] = [{ tag: cohort }];
+
+        if (ObjectId.isValid(cohort)) {
+            orConditions.push({ cohortId: new ObjectId(cohort) });
+            orConditions.push({ cohortId: cohort });
+        } else {
+            const dynamicCohort = await this.cohortsCollection.findOne({ name: cohort });
+            if (dynamicCohort) {
+                orConditions.push({ cohortId: dynamicCohort._id });
+                orConditions.push({ cohortId: dynamicCohort._id.toString() });
+            }
+        }
+        return orConditions;
+    }
+
     async findEnrollment(
         userId: string | ObjectId,
         courseId: string,
         courseVersionId: string,
+        cohort: string,
         session?: ClientSession,
     ): Promise<IEnrollment | null> {
         await this.init();
+
+        const cohortConditions = await this._getCohortMatchConditions(cohort);
 
         return await this.enrollmentCollection.findOne(
             {
                 userId: { $in: [userId, new ObjectId(userId)] },
                 courseId: { $in: [courseId, new ObjectId(courseId)] },
                 courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+                $or: cohortConditions,
                 isDeleted: { $ne: true },
 
             },
@@ -469,16 +489,20 @@ export class CohortRepository implements ICohortRepository {
         userId: ID,
         courseId: ID,
         courseVersionId: ID,
+        cohort: string,
         amount: number,
         session?: ClientSession,
     ): Promise<boolean> {
         await this.init();
+
+        const cohortConditions = await this._getCohortMatchConditions(cohort);
 
         const updateResult = await this.enrollmentCollection.updateOne(
             {
                 userId: { $in: [userId, new ObjectId(userId)] },
                 courseId: { $in: [courseId, new ObjectId(courseId)] },
                 courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+                $or: cohortConditions,
                 isDeleted: { $ne: true },
             },
             {
