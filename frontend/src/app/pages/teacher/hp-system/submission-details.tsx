@@ -23,6 +23,7 @@ import type { SubmissionAttachment, HpStudentSubmission } from "@/lib/api/hp-sys
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Pagination } from "@/components/ui/Pagination";
+import { DirectionBadge } from "@/app/pages/teacher/hp-system/components/DirectionBadge";
 import {
     Table,
     TableBody,
@@ -32,20 +33,6 @@ import {
     TableRow,
 } from "@/components/ui/table";
 
-export function DirectionBadge({ direction }: { direction: string }) {
-    if (direction === 'CREDIT') {
-        return (
-            <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 gap-1 border-green-200">
-                <CheckCircle className="h-3 w-3" /> Credit
-            </Badge>
-        );
-    }
-    return (
-        <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 gap-1 border-red-200">
-            <AlertCircle className="h-3 w-3" /> Debit
-        </Badge>
-    );
-}
 
 const statusConfig = {
     SUBMITTED: { label: "Submitted", variant: "default" as const, icon: CheckCircle, color: "text-green-600" },
