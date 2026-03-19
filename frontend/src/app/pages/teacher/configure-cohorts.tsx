@@ -202,6 +202,7 @@ export default function ConfigureCohorts() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      {/* Restricting cohort creation for already existing course versions because these versions are already published and have students enrolled in them */}
       {isRestricted && (
         <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg flex items-center gap-2 mb-2 animate-in fade-in slide-in-from-top-2 duration-300">
           <Ban className="h-4 w-4" />
