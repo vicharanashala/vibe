@@ -585,4 +585,21 @@ export class CohortRepository implements ICohortRepository {
 
         return await this.courseSettingsCollection.aggregate<CourseWithVersionsDto>(pipeline, { session }).toArray();
     }
+
+    async getInstructorActiveEnrollments(userId: string): Promise<Array<{ courseId: string; courseVersionId: string; cohortId?: string }>> {
+        await this.init();
+        const userObjId = new ObjectId(userId);
+
+        const enrollments = await this.enrollmentCollection.find({
+            userId: { $in: [userId, userObjId] },
+            role: "INSTRUCTOR",
+            isDeleted: { $ne: true }
+        }).toArray();
+
+        return enrollments.map(e => ({
+            courseId: e.courseId?.toString() ?? "",
+            courseVersionId: e.courseVersionId?.toString() ?? "",
+            cohortId: e.cohortId?.toString()
+        }));
+    }
 }
