@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "@tanstack/react-router";
+import { useParams, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useHpStudentActivities, useSubmitActivity } from "@/hooks/hooks";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -87,6 +87,9 @@ const DeadlineCountdown = ({ deadline, allowLate }: { deadline: string; allowLat
 export default function StudentActivities() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
     const navigate = useNavigate();
+    
+    const router = useRouterState();
+    const from = router.location.state?.from;
 
     // Pagination and search state
     const [searchQuery, setSearchQuery] = useState("");
@@ -265,7 +268,7 @@ export default function StudentActivities() {
         <TooltipProvider>
         <div className="container mx-auto p-6 max-w-5xl space-y-6">
             <div className="flex items-center gap-4 mb-6">
-                <Button variant="ghost" size="icon" onClick={() => navigate({ to: '/student/hp-system/cohorts' })}>
+                <Button variant="ghost" size="icon" onClick={() => navigate({ to: from || '/student/hp-system/cohorts' })}>
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
                 <div className="flex-1">
@@ -278,7 +281,7 @@ export default function StudentActivities() {
                     <TooltipTrigger asChild>
                         <Button
                             variant="outline"
-                            onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/submissions` })}
+                            onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/submissions`, state:{from} })}
                         >
                             View My Submissions
                         </Button>
@@ -444,7 +447,7 @@ export default function StudentActivities() {
                     variant="outline"
                     onClick={() =>
                     navigate({
-                    to: `/student/hp-system/${courseVersionId}/${cohortName}/activities/${activity._id}`
+                    to: `/student/hp-system/${courseVersionId}/${cohortName}/activities/${activity._id}`,state:{from}
                     })
                     }
                     >

@@ -308,7 +308,7 @@ export default function CreateHpActivityPage() {
             }
 
             // 4. Navigate back
-            navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/activities` });
+            navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/activities`, state:{from} });
         } catch (error: any) {
             console.error("Failed to create activity", error);
             if (error.response) {
