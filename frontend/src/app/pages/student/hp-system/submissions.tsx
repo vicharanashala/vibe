@@ -1,13 +1,15 @@
+import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { useHpCourseVersions, useStudentMySubmissions, useUpdateActivitySubmission } from "@/hooks/hooks";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SubmissionStatusBadge } from "@/components/hp-system/SubmissionStatusBadge";
-import { Eye, ChevronDown, ChevronUp } from "lucide-react";
-import { useState } from "react";
+import { Eye, ChevronDown, ChevronUp, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Pagination } from "@/components/ui/Pagination";
 import { ArrowLeft, Loader2, Link as LinkIcon, FileText, Clock, Edit, Plus, Trash2, Send, Image as ImageIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CourseWithVersions, CourseVersionStats } from "@/lib/api/hp-system";
@@ -16,6 +18,11 @@ export default function StudentSubmissions() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
     const navigate = useNavigate();
     const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+    // Pagination and search state
+    const [searchQuery, setSearchQuery] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const { data: submissions, isLoading, error } = useStudentMySubmissions(
         courseVersionId as string,
@@ -48,6 +55,32 @@ export default function StudentSubmissions() {
             }
             return newSet;
         });
+    };
+
+    // Pagination logic
+    const filteredSubmissions = useMemo(() => {
+        if (!submissions) return [];
+        return submissions.filter((sub: any) =>
+            sub.activity?.title?.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [submissions, searchQuery]);
+
+    const paginatedSubmissions = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return filteredSubmissions.slice(startIndex, endIndex);
+    }, [filteredSubmissions, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(filteredSubmissions.length / itemsPerPage);
+
+    const handleSearchChange = (value: string) => {
+        setSearchQuery(value);
+        setCurrentPage(1); // Reset to first page when searching
+    };
+
+    const handleItemsPerPageChange = (value: string) => {
+        setItemsPerPage(parseInt(value));
+        setCurrentPage(1); // Reset to first page when changing items per page
     };
 
     const formatDateTime = (dateString: string) => {
@@ -193,8 +226,40 @@ export default function StudentSubmissions() {
                         </Tooltip>
                     </Card>
                 ) : (
+                    <>
+                        {/* Search and Pagination Controls */}
+                        <div className="flex flex-col lg:flex-row items-center justify-between gap-4 mb-6">
+                            <div className="relative w-full max-w-md">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search by activity title..."
+                                    value={searchQuery}
+                                    onChange={(e) => handleSearchChange(e.target.value)}
+                                    className="pl-10"
+                                />
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-muted-foreground">Show:</span>
+                                <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                                    <SelectTrigger className="w-[80px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="5">5</SelectItem>
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="15">15</SelectItem>
+                                        <SelectItem value="20">20</SelectItem>
+                                        <SelectItem value="30">30</SelectItem>
+                                        <SelectItem value="40">40</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        
                     <div className="space-y-4">
-                        {submissions.map((sub: any) => (
+                            {paginatedSubmissions.map((sub: any, index: number) => (
                             <Card key={sub.id} className="overflow-hidden">
                                 <CardHeader className="">
                                     <div className="flex justify-between items-start gap-4">
@@ -512,6 +577,15 @@ export default function StudentSubmissions() {
                             </Card>
                         ))}
                     </div>
+                    
+                    {/* Pagination Component */}
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalDocuments={filteredSubmissions.length}
+                        onPageChange={setCurrentPage}
+                    />
+                </>
                 )}
             </div>
         </TooltipProvider>

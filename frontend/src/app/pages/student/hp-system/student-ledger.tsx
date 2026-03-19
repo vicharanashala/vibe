@@ -5,6 +5,9 @@ import { getEffectiveIds } from "@/lib/api/hp-system";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Pagination } from "@/components/ui/Pagination";
 import {
     Table,
     TableBody,
@@ -29,11 +32,17 @@ import {
     Calendar,
     AlertCircle,
     CheckCircle2,
+    Search,
 } from "lucide-react";
 
 export default function StudentLedgerPage() {
     const navigate = useNavigate();
     const [selectedEntry, setSelectedEntry] = useState<any>(null);
+
+    // Pagination and search state
+    const [searchQuery, setSearchQuery] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     // 1. Get student's cohorts so we can call getMyLedger with valid IDs
     const { data: cohorts = [], isLoading: isLoadingCohorts } = useHpStudentCohorts();
@@ -59,21 +68,57 @@ export default function StudentLedgerPage() {
         return { versionId: evId, cohortName: c.cohortName };
     });
 
-    // We'll use just the first cohort's activities for now (can extend later)
-    const { data: activities = [], isLoading: isLoadingActivities } = useHpActivities(
-        cohortQueries[0]?.versionId || "",
-        cohortQueries[0]?.cohortName || ""
-    );
+    // Fetch activities from all cohorts to build complete activity map
+    const activityQueries = cohortQueries.map((query) => {
+        return useHpActivities(query.versionId, query.cohortName);
+    });
+
+    // Combine all activities from all cohorts
+    const allActivities = activityQueries.reduce((acc: any[], queryResult) => {
+        if (queryResult.data) {
+            acc.push(...queryResult.data);
+        }
+        return acc;
+    }, []);
 
     const activityMap = useMemo(() => {
         const map: Record<string, string> = {};
-        activities.forEach((act: any) => {
+        allActivities.forEach((act: any) => {
             map[act._id] = act.title;
         });
         return map;
-    }, [activities]);
+    }, [allActivities]);
 
-    const totalLoading = isLoadingCohorts || isLoadingLedger || isLoadingActivities;
+    const totalLoading = isLoadingCohorts || isLoadingLedger || activityQueries.some(q => q.isLoading);
+
+    // Pagination logic
+    const filteredLedger = useMemo(() => {
+        if (!ledger) return [];
+        return ledger.filter((entry: any) => {
+            const activityName = entry.activityTitle || 'Manual Adjustment';
+            return activityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                   entry.cohort?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                   entry.eventType?.toLowerCase().includes(searchQuery.toLowerCase());
+        });
+    }, [ledger, searchQuery]);
+
+    const paginatedLedger = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return filteredLedger.slice(startIndex, endIndex);
+    }, [filteredLedger, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(filteredLedger.length / itemsPerPage);
+
+    const handleSearchChange = (value: string) => {
+        setSearchQuery(value);
+        setCurrentPage(1); // Reset to first page when searching
+    };
+
+    const handleItemsPerPageChange = (value: string) => {
+        setItemsPerPage(parseInt(value));
+        setCurrentPage(1); // Reset to first page when changing items per page
+    };
 
     const getDirectionBadge = (direction: string) => {
         switch (direction) {
@@ -177,30 +222,62 @@ export default function StudentLedgerPage() {
                     No HP transactions found yet.
                 </div>
             ) : (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg">Transaction History</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-0 overflow-x-auto">
-                        <Table className="w-full">
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Activity Name</TableHead>
-                                    <TableHead>Cohort</TableHead>
-                                    <TableHead>Event Type</TableHead>
-                                    <TableHead>Direction</TableHead>
-                                    <TableHead className="text-right">Amount</TableHead>
-                                    <TableHead>Deadline</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead className="text-center">Action</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {ledger.map((entry: any) => (
+                <>
+                    {/* Search and Pagination Controls */}
+                    <div className="flex flex-col lg:flex-row items-center justify-between gap-4 mb-6">
+                        <div className="relative w-full max-w-md">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search transactions..."
+                                value={searchQuery}
+                                onChange={(e) => handleSearchChange(e.target.value)}
+                                className="pl-10"
+                            />
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">Show:</span>
+                            <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                                <SelectTrigger className="w-[80px]">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="5">5</SelectItem>
+                                    <SelectItem value="10">10</SelectItem>
+                                    <SelectItem value="15">15</SelectItem>
+                                    <SelectItem value="20">20</SelectItem>
+                                    <SelectItem value="30">30</SelectItem>
+                                    <SelectItem value="40">40</SelectItem>
+                                    <SelectItem value="50">50</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg">Transaction History</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0 overflow-x-auto">
+                            <Table className="w-full">
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Activity Name</TableHead>
+                                        <TableHead>Cohort</TableHead>
+                                        <TableHead>Event Type</TableHead>
+                                        <TableHead>Direction</TableHead>
+                                        <TableHead className="text-right">Amount</TableHead>
+                                        <TableHead>Deadline</TableHead>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead className="text-center">Action</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {paginatedLedger.map((entry: any) => (
                                     <TableRow key={entry._id}>
                                         <TableCell>
                                             <div className="font-medium max-w-[200px] truncate">
-                                                {activityMap[entry.activityId] || entry.activityId || 'Manual Adjustment'}
+                                                {activityMap[entry.activityTitle] || entry.activityTitle || 'Manual Adjustment'}
                                             </div>
                                         </TableCell>
                                         <TableCell>
@@ -245,6 +322,15 @@ export default function StudentLedgerPage() {
                         </Table>
                     </CardContent>
                 </Card>
+                
+                {/* Pagination Component */}
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalDocuments={filteredLedger.length}
+                    onPageChange={setCurrentPage}
+                />
+                </>
             )}
 
             {/* Detail View Modal */}
@@ -261,7 +347,7 @@ export default function StudentLedgerPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Activity</p>
-                                    <p className="text-sm font-semibold">{activityMap[selectedEntry.activityId] || selectedEntry.activityId || 'Manual Adjustment'}</p>
+                                    <p className="text-sm font-semibold">{selectedEntry.activityTitle || 'Manual Adjustment'}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cohort</p>
