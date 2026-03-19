@@ -416,10 +416,10 @@ export default function CreateHpActivityPage() {
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="ASSIGNMENT">Assignment</SelectItem>
-                                                    <SelectItem value="MILESTONE">Milestone</SelectItem>
-                                                    <SelectItem value="EXTERNAL_IMPORT">External Import</SelectItem>
+                                                    {/* <SelectItem value="MILESTONE">Milestone</SelectItem>
+                                                    <SelectItem value="EXTERNAL_IMPORT">External Import</SelectItem> */}
                                                     <SelectItem value="VIBE_MILESTONE">Vibe Platform Milestone</SelectItem>
-                                                    <SelectItem value="OTHER">Other</SelectItem>
+                                                    {/* <SelectItem value="OTHER">Other</SelectItem> */}
                                                 </SelectContent>
                                             </Select>
                                         )}
