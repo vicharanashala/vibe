@@ -55,12 +55,37 @@ export class CohortsService extends BaseService {
 
     async listCourseVersions(userId: string, query: CourseVersionListQueryDto): Promise<CourseVersionListResponseDto> {
         return await this._withTransaction(async (session: ClientSession) => {
-            const [hardcodedCourses, dynamicCourses] = await Promise.all([
+            const [hardcodedCourses, dynamicCourses, instructorEnrollments] = await Promise.all([
                 this._handleExisitingCourse(),
-                this.cohortRepository.getDynamicCoursesWithVersions(session)
+                this.cohortRepository.getDynamicCoursesWithVersions(session),
+                this.cohortRepository.getInstructorActiveEnrollments(userId)
             ]);
 
-            const allCourses = [...hardcodedCourses, ...dynamicCourses];
+            const enrolledVersionIds = new Set(instructorEnrollments.map(e => e.courseVersionId));
+
+            const hardcodedMappings = [
+                { pseudoVersionId: "000000000000000000000001", cohortVersionId: "6968e12cbf2860d6e39051af" },
+                { pseudoVersionId: "000000000000000000000001", cohortVersionId: "6970f87e30644cbc74b67150" },
+                { pseudoVersionId: "000000000000000000000001", cohortVersionId: "697b4e262942654879011c57" },
+                { pseudoVersionId: "000000000000000000000002", cohortVersionId: "69903415e1930c015760a719" },
+                { pseudoVersionId: "000000000000000000000002", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
+            ];
+
+            const enrolledPseudoIds = new Set<string>();
+            for (const map of hardcodedMappings) {
+                if (enrolledVersionIds.has(map.cohortVersionId)) {
+                    enrolledPseudoIds.add(map.pseudoVersionId);
+                }
+            }
+
+            const allCoursesRaw = [...hardcodedCourses, ...dynamicCourses];
+
+            const allCourses = allCoursesRaw.map(course => {
+                const filteredVersions = course.versions.filter(v => 
+                    enrolledVersionIds.has(v.courseVersionId) || enrolledPseudoIds.has(v.courseVersionId)
+                );
+                return { ...course, versions: filteredVersions };
+            }).filter(course => course.versions.length > 0);
 
             const totalCourses = allCourses.length;
             const totalVersions = allCourses.reduce((sum, course) => sum + course.versions.length, 0);
@@ -212,16 +237,44 @@ export class CohortsService extends BaseService {
         return await this._withTransaction(async (session: ClientSession) => {
             let cohorts: CohortListItemDto[] = [];
 
+            const instructorEnrollments = await this.cohortRepository.getInstructorActiveEnrollments(userId);
+            const enrolledVersionIds = new Set(instructorEnrollments.map(e => e.courseVersionId));
+            const enrolledCohortIds = new Set(instructorEnrollments.map(e => e.cohortId).filter(Boolean));
+
             if (query.courseVersionId) {
+                const isGeneralInstructorForVersion = instructorEnrollments.some(e => 
+                    e.courseVersionId === query.courseVersionId && !e.cohortId
+                );
+
                 // 1. Fetch hardcoded cohorts for this version
                 const fetched = await this._handleExisitingCohorts(query.courseVersionId);
-                if (fetched) cohorts = fetched;
+                if (fetched) {
+                    const hardcodedMappings = [
+                        { pseudoVersionId: "000000000000000000000001", cohortName: "Euclideans", cohortVersionId: "6968e12cbf2860d6e39051af" },
+                        { pseudoVersionId: "000000000000000000000001", cohortName: "Dijkstrians", cohortVersionId: "6970f87e30644cbc74b67150" },
+                        { pseudoVersionId: "000000000000000000000001", cohortName: "Kruskalians", cohortVersionId: "697b4e262942654879011c57" },
+                        { pseudoVersionId: "000000000000000000000002", cohortName: "RSAians", cohortVersionId: "69903415e1930c015760a719" },
+                        { pseudoVersionId: "000000000000000000000002", cohortName: "AKSians", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
+                    ];
+                    
+                    const filteredFetched = fetched.filter(c => {
+                        const mapping = hardcodedMappings.find(m => m.cohortName === c.cohortName);
+                        return mapping && enrolledVersionIds.has(mapping.cohortVersionId);
+                    });
+                    cohorts.push(...filteredFetched);
+                }
 
                 // 2. Fetch dynamic DB cohorts for this version
-                // For listCohorts (instructor side), we don't have courseId readily available from enrollments here.
-                // However, we can either fetch it or just pass empty string if the frontend doesn't need it on the instructor side.
-                // Assuming instructor side has `query.courseId` if needed, otherwise empty.
-                const dbCohorts = await this._fetchDbCohorts(query.courseVersionId, "");
+                let dbCohorts = await this._fetchDbCohorts(query.courseVersionId, "");
+                
+                if (!isGeneralInstructorForVersion) {
+                    const dbCohortsData = await this.cohortRepository.getCohortsByVersionId(query.courseVersionId);
+                    dbCohorts = dbCohorts.filter(c => {
+                        const matchingData = dbCohortsData.find(dbC => dbC.name === c.cohortName);
+                        return matchingData && enrolledCohortIds.has(matchingData._id?.toString() || "");
+                    });
+                }
+                
                 cohorts.push(...dbCohorts);
             }
 

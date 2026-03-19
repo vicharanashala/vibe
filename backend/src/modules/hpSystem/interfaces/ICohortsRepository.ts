@@ -73,4 +73,8 @@ export interface ICohortRepository {
     getDynamicCoursesWithVersions(
         session?: ClientSession
     ): Promise<CourseWithVersionsDto[]>
+
+    getInstructorActiveEnrollments(
+        userId: string
+    ): Promise<{ courseId: string; courseVersionId: string; cohortId?: string }[]>
 }
