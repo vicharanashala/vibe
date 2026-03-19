@@ -207,7 +207,6 @@ export class ActivityService extends BaseService {
         // if (!enrollment) throw new BadRequestError("Enrollment not found!")
         // const role = enrollment.role;
 
-        console.log("Listing activities with filters:", filters, "by user:", userId);
         return this.activityRepository.listActivities(filters);
     }
 }
