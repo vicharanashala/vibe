@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Pagination } from "@/components/ui/Pagination";
+import ConfirmationModal from "../../components/confirmation-modal";
 
 
 interface ActivitiesTabProps {
@@ -36,6 +37,21 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
     // Rule Dialog state
     const [isRulesOpen, setIsRulesOpen] = useState(false);
     const [selectedActivityId, setSelectedActivityId] = useState("");
+
+    // Confirmation Modal state
+    const [confirmConfig, setConfirmConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        description: string;
+        onConfirm: () => Promise<void>;
+        isDestructive?: boolean;
+        isLoading?: boolean;
+    }>({
+        isOpen: false,
+        title: "",
+        description: "",
+        onConfirm: async () => { },
+    });
 
     const navigate = useNavigate();
 
@@ -107,11 +123,21 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
         setCurrentPage(1);
     };
 
-    const handleArchive = async (id: string) => {
-        if (confirm("Are you sure you want to archive this activity?")) {
-            await archiveActivity(id);
-            refetch();
-        }
+    const handleArchive = (id: string) => {
+        setConfirmConfig({
+            isOpen: true,
+            title: "Archive Activity",
+            description: "Are you sure you want to archive this activity? It will be removed from the active list for students.",
+            onConfirm: async () => {
+                try {
+                    setConfirmConfig(prev => ({ ...prev, isLoading: true }));
+                    await archiveActivity(id);
+                    refetch();
+                } finally {
+                    setConfirmConfig(prev => ({ ...prev, isOpen: false, isLoading: false }));
+                }
+            }
+        });
     };
 
 
@@ -125,15 +151,39 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
         refetch();
     };
 
-    const handlePublish = async (id: string) => {
-        await publishActivity(id);
-        refetch();
+    const handlePublish = (id: string) => {
+        setConfirmConfig({
+            isOpen: true,
+            title: "Publish Activity",
+            description: "Are you sure you want to publish this activity? It will become visible to all students in the cohort.",
+            onConfirm: async () => {
+                try {
+                    setConfirmConfig(prev => ({ ...prev, isLoading: true }));
+                    await publishActivity(id);
+                    refetch();
+                } finally {
+                    setConfirmConfig(prev => ({ ...prev, isOpen: false, isLoading: false }));
+                }
+            }
+        });
     };
 
-    const handleDelete = async (id: string) => {
-        console.log("Delete activity with id:", id);
-        await deleteActivity(id)
-        refetch();
+    const handleDelete = (id: string) => {
+        setConfirmConfig({
+            isOpen: true,
+            title: "Delete Activity",
+            description: "Are you sure you want to permanently delete this activity? This action cannot be undone.",
+            isDestructive: true,
+            onConfirm: async () => {
+                try {
+                    setConfirmConfig(prev => ({ ...prev, isLoading: true }));
+                    await deleteActivity(id);
+                    refetch();
+                } finally {
+                    setConfirmConfig(prev => ({ ...prev, isOpen: false, isLoading: false }));
+                }
+            }
+        });
     };
 
     return (
@@ -528,6 +578,17 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                 courseId={courseId}
                 courseVersionId={courseVersionId}
                 activityId={selectedActivityId}
+            />
+
+            <ConfirmationModal
+                isOpen={confirmConfig.isOpen}
+                onClose={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmConfig.onConfirm}
+                title={confirmConfig.title}
+                description={confirmConfig.description}
+                isDestructive={confirmConfig.isDestructive}
+                isLoading={confirmConfig.isLoading}
+                confirmText={confirmConfig.isDestructive ? "Delete" : "Confirm"}
             />
         </div>
         </TooltipProvider>

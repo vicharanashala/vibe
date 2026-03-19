@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
     Select,
@@ -55,6 +54,9 @@ export default function CreateHpActivityPage() {
     const currentActivityType = watch("activityType");
     const [isVibeMilestoneConfirmOpen, setIsVibeMilestoneConfirmOpen] = useState(false);
     const [pendingActivityType, setPendingActivityType] = useState<string | null>(null);
+    const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
+    const [pendingSaveStatus, setPendingSaveStatus] = useState<"DRAFT" | "PUBLISHED" | null>(null);
+    const [pendingFormData, setPendingFormData] = useState<CreateHpActivityPayload | null>(null);
 
     // ── Step 2: Rule config (local state, matches RuleSettingsDialog) ──
     type RuleConfigFormState = Omit<Partial<HpRuleConfig>, "reward" | "penalty" | "limits"> & {
@@ -119,6 +121,19 @@ export default function CreateHpActivityPage() {
     const handleCloseVibeMilestoneConfirm = () => {
         setIsVibeMilestoneConfirmOpen(false);
         setPendingActivityType(null);
+    };
+
+    const handleSaveClick = (data: CreateHpActivityPayload, status: "DRAFT" | "PUBLISHED") => {
+        setPendingFormData(data);
+        setPendingSaveStatus(status);
+        setIsSaveConfirmOpen(true);
+    };
+
+    const handleConfirmSave = async () => {
+        if (pendingFormData && pendingSaveStatus) {
+            await onSubmit(pendingFormData, pendingSaveStatus);
+            setIsSaveConfirmOpen(false);
+        }
     };
 
     const onSubmit = async (data: CreateHpActivityPayload, status: "DRAFT" | "PUBLISHED") => {
@@ -402,7 +417,7 @@ export default function CreateHpActivityPage() {
                                         control={control}
                                         rules={{ required: "Activity type is required" }}
                                         render={({ field }) => (
-                                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                                            <Select onValueChange={handleActivityTypeChange} value={field.value || ""}>
                                                 <SelectTrigger className={errors.activityType ? "border-red-500" : ""}>
                                                     <SelectValue placeholder="Select type" />
                                                 </SelectTrigger>
@@ -890,10 +905,10 @@ export default function CreateHpActivityPage() {
                         <Button type="button" variant="outline" onClick={() => setStep(1)}>
                             <ArrowLeft className="mr-2 h-4 w-4" /> Back
                         </Button>
-                        <Button type="button" variant="secondary" onClick={handleSubmit(data => onSubmit(data, "DRAFT"))} disabled={isSubmitting}>
+                        <Button type="button" variant="secondary" onClick={handleSubmit(data => handleSaveClick(data, "DRAFT"))} disabled={isSubmitting}>
                             <Save className="mr-2 h-4 w-4" /> Save Draft
                         </Button>
-                        <Button type="button" variant="default" onClick={handleSubmit(data => onSubmit(data, "PUBLISHED"))} disabled={isSubmitting}>
+                        <Button type="button" variant="default" onClick={handleSubmit(data => handleSaveClick(data, "PUBLISHED"))} disabled={isSubmitting}>
                             <Save className="mr-2 h-4 w-4" /> Save & Publish
                         </Button>
                     </div>
@@ -908,6 +923,18 @@ export default function CreateHpActivityPage() {
             description="By selecting Vibe Platform Milestone, students who miss the deadline for this activity will automatically receive a penalty. Are you sure you want to continue?"
             confirmText="Confirm"
             cancelText="Cancel"
+        />
+        <ConfirmationModal
+            isOpen={isSaveConfirmOpen}
+            onClose={() => setIsSaveConfirmOpen(false)}
+            onConfirm={handleConfirmSave}
+            title={pendingSaveStatus === "PUBLISHED" ? "Save & Publish Activity" : "Save Activity Draft"}
+            description={pendingSaveStatus === "PUBLISHED" 
+                ? "Are you sure you want to save and publish this activity? It will become immediately visible to students." 
+                : "Are you sure you want to save this activity as a draft? You can publish it later."}
+            confirmText={pendingSaveStatus === "PUBLISHED" ? "Save & Publish" : "Save Draft"}
+            cancelText="Cancel"
+            isLoading={isSubmitting}
         />
         </>
     );

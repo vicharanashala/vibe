@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { HpRuleConfig, HpActivity } from "@/lib/api/hp-system";
 import { useHpRuleConfig, useCreateHpRuleConfig, useUpdateHpRuleConfig, useHpActivities } from "@/hooks/hooks";
+import ConfirmationModal from "../../components/confirmation-modal";
 
 interface RuleSettingsDialogProps {
     isOpen: boolean;
@@ -41,6 +42,8 @@ export function RuleSettingsDialog({
     useEffect(()=>{
         console.log("RuleSettingsDialog props changed:", { isOpen, courseId, courseVersionId, activityId });
     })
+
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
     // Hooks
     const { data: existingConfig, isLoading: fetchLoading, refetch } = useHpRuleConfig(isOpen ? activityId : undefined);
@@ -116,6 +119,11 @@ export function RuleSettingsDialog({
         } catch (error) {
             console.error("Failed to save rule config", error);
         }
+    };
+
+    const handleConfirmSave = async () => {
+        await handleSave();
+        setIsConfirmOpen(false);
     };
 
     return (
@@ -342,9 +350,19 @@ export function RuleSettingsDialog({
 
                 <DialogFooter className="sticky bottom-0 bg-background pt-4 border-t">
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleSave} disabled={loading}>{loading ? "Saving..." : "Save Configuration"}</Button>
+                    <Button onClick={() => setIsConfirmOpen(true)} disabled={loading}>{loading ? "Saving..." : "Save Configuration"}</Button>
                 </DialogFooter>
             </DialogContent>
+            <ConfirmationModal
+                isOpen={isConfirmOpen}
+                onClose={() => setIsConfirmOpen(false)}
+                onConfirm={handleConfirmSave}
+                title="Save Configuration"
+                description="Are you sure you want to save these rules and settings for the activity? These rules will apply to all future submissions."
+                confirmText="Save Configuration"
+                cancelText="Cancel"
+                isLoading={loading}
+            />
         </Dialog>
     );
 }
