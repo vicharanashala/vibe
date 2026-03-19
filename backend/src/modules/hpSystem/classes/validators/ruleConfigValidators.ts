@@ -51,9 +51,6 @@ export class HpRewardRuleDto {
 
   @IsEnum(LateBehaviorEnum)
   lateBehavior!: LateBehaviorEnum;
-
-  @IsNumber()
-  minHpFloor!: number;
 }
 
 export class HpPenaltyRuleDto {

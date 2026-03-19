@@ -63,7 +63,6 @@ export function RuleSettingsDialog({
         value: 10,
         applyWhen: "ON_APPROVAL",
         lateBehavior: "NO_REWARD",
-        minHpFloor: 0,
     };
 
     const defaultPenalty: any = {

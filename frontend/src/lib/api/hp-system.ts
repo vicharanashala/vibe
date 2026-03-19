@@ -262,7 +262,6 @@ export interface HpRuleConfig {
         value: number;
         applyWhen: "ON_SUBMISSION" | "ON_APPROVAL";
         lateBehavior: "NO_REWARD" | "REWARD";
-        minHpFloor: number;
     };
     penalty?: {
         enabled: boolean;
