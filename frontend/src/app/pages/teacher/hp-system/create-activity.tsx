@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "@tanstack/react-router";
+import { useParams, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,6 +31,9 @@ export default function CreateHpActivityPage() {
     const isSubmitting = isSubmittingActivity || isSubmittingRules;
 
     const [step, setStep] = useState<1 | 2>(1);
+    
+    const router = useRouterState();
+    let from = router.location.state?.from;
 
     // Find the correct courseId for the given courseVersionId
     const course = courses.find((c: CourseWithVersions) =>
@@ -230,7 +233,7 @@ export default function CreateHpActivityPage() {
             <div className="p-8 text-center bg-red-50 border border-red-200 rounded-lg text-red-600">
                 <h3 className="text-lg font-bold">Configuration Error</h3>
                 <p>Could not find the parent course for version ID: {courseVersionId}</p>
-                <Button variant="outline" className="mt-4" onClick={() => navigate({ to: '/teacher/hp-system' })}>Go Back</Button>
+                <Button variant="outline" className="mt-4" onClick={() => navigate({ to: '/teacher/hp-system/$courseVersionId/cohort/$cohortName/activities',state:{from} })}>Go Back</Button>
             </div>
         );
     }
@@ -240,7 +243,7 @@ export default function CreateHpActivityPage() {
         <div className="space-y-6  mx-4 pb-12">
             {/* Header */}
             <div className="flex items-center gap-4 border-b pb-4">
-                <Button variant="outline" size="icon" onClick={() => step === 1 ? navigate({ to: backUrl }) : setStep(1)}>
+                <Button variant="outline" size="icon" onClick={() => step === 1 ? navigate({ to: backUrl, state:{from} }) : setStep(1)}>
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
@@ -404,7 +407,7 @@ export default function CreateHpActivityPage() {
 
                     {/* Step 1 Actions */}
                     <div className="flex justify-end gap-4">
-                        <Button type="button" variant="outline" onClick={() => navigate({ to: backUrl })}>
+                        <Button type="button" variant="outline" onClick={() => navigate({ to: backUrl , state:{from}})}>
                             Cancel
                         </Button>
                         <Button type="submit">
