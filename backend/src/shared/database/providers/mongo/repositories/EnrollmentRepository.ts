@@ -113,7 +113,7 @@ export class EnrollmentRepository {
         userId: { $in: [userId, new ObjectId(userId)] },
         courseId: { $in: [courseId, new ObjectId(courseId)] },
         courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
         isDeleted: { $ne: true },
       },
       { session },
@@ -140,7 +140,7 @@ export class EnrollmentRepository {
         courseVersionId: { $in: [courseVersionObjectId, courseVersionId] },
         status: 'ACTIVE',
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       { session },
     );
@@ -273,7 +273,7 @@ export class EnrollmentRepository {
         userId: { $in: userFilter },
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       {
         $set: {
@@ -1555,8 +1555,8 @@ export class EnrollmentRepository {
           completedItemsCount: { $ifNull: ['$completedItemsCount', 0] },
           cohortId: {
             $cond: [
-              { $ifNull: ["$cohort._id", false] },
-              { $toString: "$cohort._id" },
+              { $ifNull: ["$cohortId", false] },
+              { $toString: "$cohortId" },
               null
             ]
           },
@@ -1610,7 +1610,7 @@ export class EnrollmentRepository {
           userId: { $in: [userId, userIdObj] },
           courseId: { $in: [courseId, courseIdObj] },
           courseVersionId: { $in: [courseVersionId, versionIdObj] },
-          ...(cohortIdObj ? { cohortId: cohortIdObj } : {cohortId: null}),
+          ...(cohortIdObj ? { cohortId: cohortIdObj } : {}),
           role: 'STUDENT',
         },
       },
@@ -1654,12 +1654,12 @@ export class EnrollmentRepository {
           assignedTimeSlots: 1,
           cohortId: {
             $cond: [
-              { $ifNull: ["$cohort._id", false] },
-              { $toString: "$cohort._id" },
+              { $ifNull: ["$cohortId", false] },
+              { $toString: "$cohortId" },
               null
             ]
           },
-          cohortName: "$cohort.name",
+          cohortName: null,
           contentCounts: {
             totalItems: { $ifNull: ['$courseVersionInfo.totalItems', 0] },
             itemCounts: { $ifNull: ['$courseVersionInfo.itemCounts', {}] },
