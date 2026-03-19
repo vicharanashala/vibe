@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { useHpStudentActivities, useSubmitActivity } from "@/hooks/hooks";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
@@ -7,8 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Pagination } from "@/components/ui/Pagination";
 import {
     FileText,
     Link as LinkIcon,
@@ -20,11 +18,11 @@ import {
     Loader2,
     Send,
     Image as ImageIcon,
-    User,
-    Search
+    User
 } from "lucide-react";
 import { HpActivity } from "@/lib/api/hp-system";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Pagination } from "@/components/ui/Pagination";
 
 // Countdown timer component for deadline display
 const DeadlineCountdown = ({ deadline, allowLate }: { deadline: string; allowLate: boolean }) => {
@@ -88,16 +86,16 @@ export default function StudentActivities() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
     const navigate = useNavigate();
 
-    // Pagination and search state
-    const [searchQuery, setSearchQuery] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
-    const [selectedActivityTypes, setSelectedActivityTypes] = useState<string[]>([]);
+        const [currentPage, setCurrentPage] = useState(1);
+        const itemsPerPage = 6;
 
     const { data: activities, isLoading, error, refetch } = useHpStudentActivities(
         courseVersionId as string,
         cohortName as string
     );
+
+    const totalPages = Math.ceil((activities?.length || 0) / itemsPerPage);
+
     const { mutateAsync: submitActivity, isPending: isSubmitting } = useSubmitActivity();
 
     // Submit dialog state
@@ -193,57 +191,6 @@ export default function StudentActivities() {
         return labels[type] || type;
     };
 
-    // Pagination logic
-    const filteredActivities = useMemo(() => {
-        if (!activities) return [];
-        return activities.filter((activity: HpActivity) => {
-            // Search by title only
-            const matchesSearch = activity.title?.toLowerCase().includes(searchQuery.toLowerCase());
-            
-            // Filter by activity types
-            const matchesType = selectedActivityTypes.length === 0 || 
-                selectedActivityTypes.includes(activity.activityType);
-            
-            return matchesSearch && matchesType;
-        });
-    }, [activities, searchQuery, selectedActivityTypes]);
-
-    const paginatedActivities = useMemo(() => {
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        return filteredActivities.slice(startIndex, endIndex);
-    }, [filteredActivities, currentPage, itemsPerPage]);
-
-    const totalPages = Math.ceil(filteredActivities.length / itemsPerPage);
-
-    // Get unique activity types for filter options
-    const activityTypes = useMemo(() => {
-        if (!activities) return [];
-        const types = [...new Set(activities.map((a: HpActivity) => a.activityType).filter(Boolean))];
-        return types.sort();
-    }, [activities]);
-
-    const handleSearchChange = (value: string) => {
-        setSearchQuery(value);
-        setCurrentPage(1); // Reset to first page when searching
-    };
-
-    const handleItemsPerPageChange = (value: string) => {
-        setItemsPerPage(parseInt(value));
-        setCurrentPage(1); // Reset to first page when changing items per page
-    };
-
-    const handleActivityTypeToggle = (type: string) => {
-        setSelectedActivityTypes(prev => {
-            if (prev.includes(type)) {
-                return prev.filter(t => t !== type);
-            } else {
-                return [...prev, type];
-            }
-        });
-        setCurrentPage(1); // Reset to first page when filtering
-    };
-
     if (isLoading) {
         return (
             <div className="p-8 text-center text-muted-foreground flex items-center justify-center min-h-[50vh]">
@@ -296,176 +243,147 @@ export default function StudentActivities() {
                     </p>
                 </Card>
             ) : (
-                <>
-                    {/* Search and Filter Controls */}
-                    <div className="flex flex-col gap-4 mb-6">
-                        {/* Search Bar */}
-                        <div className="relative w-full max-w-md">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search by activity title..."
-                                value={searchQuery}
-                                onChange={(e) => handleSearchChange(e.target.value)}
-                                className="pl-10"
-                            />
-                        </div>
-                        
-                        {/* Activity Type Filters and Items Per Page */}
-                        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-                            {/* Activity Type Filters */}
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-sm text-muted-foreground">Activity Types:</span>
-                                {activityTypes.map((type) => (
-                                    <Badge
-                                        key={type}
-                                        variant={selectedActivityTypes.includes(type) ? "default" : "outline"}
-                                        className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
-                                        onClick={() => handleActivityTypeToggle(type)}
-                                    >
-                                        {getActivityTypeLabel(type)}
-                                    </Badge>
-                                ))}
-                                {selectedActivityTypes.length > 0 && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setSelectedActivityTypes([])}
-                                        className="text-xs h-6 px-2 text-muted-foreground hover:text-foreground"
-                                    >
-                                        Clear filters
-                                    </Button>
+                <div className="grid grid-cols-1 gap-6">
+                    {activities.map((activity: HpActivity) => (
+                        <Card key={activity._id} className="group relative overflow-hidden border-border/60 bg-card/80 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg">
+                            <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-400/60 via-rose-400/60 to-sky-400/60" />
+                            <CardHeader className="relative pb-3 pt-4">
+                                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                    <div className="space-y-1.5">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Badge variant="secondary" className="bg-secondary/60 text-secondary-foreground shadow-none">
+                                                {getActivityTypeLabel(activity.activityType)}
+                                            </Badge>
+                                            <Badge variant="outline" className="bg-background/80">
+                                                {activity.submissionMode === 'EXTERNAL_LINK' ? 'External Link' : 'In Platform'}
+                                            </Badge>
+                                            {activity.rules && (
+                                                activity.rules.isMandatory ? (
+                                                    <Badge className="border-red-600/70 bg-red-600 text-white">
+                                                        Mandatory
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="outline" className="bg-background/80">
+                                                        Optional
+                                                    </Badge>
+                                                )
+                                            )}
+                                        </div>
+                                        <CardTitle className="text-xl tracking-tight">{activity.title}</CardTitle>
+                                        <div className="space-y-1.5 text-xs text-muted-foreground">
+                                            {activity.createdAt && (
+                                                <div className="flex items-center gap-1.5">
+                                                    <Clock className="h-4 w-4" />
+                                                    <span>Created {formatDate(activity.createdAt)}</span>
+                                                </div>
+                                            )}
+                                            {activity.instructorName && (
+                                                <div className="flex items-center gap-1.5">
+                                                    <User className="h-4 w-4" />
+                                                    <span className="font-medium">Instructor:</span>
+                                                    <span>{activity.instructorName}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {activity.rules?.deadlineAt && (
+                                        <div className="rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground shadow-sm">
+                                            <div className="flex items-center gap-1.5 text-orange-600/90 dark:text-orange-400">
+                                                <Clock className="h-4 w-4" />
+                                                <span className="font-medium text-foreground">Deadline</span>
+                                            </div>
+                                            <div className="mt-1 text-sm font-medium text-foreground">
+                                                {formatDate(activity.rules.deadlineAt.toString())}
+                                            </div>
+                                            <div className="mt-1 text-[11px]">
+                                                <DeadlineCountdown
+                                                    deadline={activity.rules.deadlineAt.toString()}
+                                                    allowLate={activity.rules.allowLateSubmission ?? true}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-4 pt-3">
+                                <div>
+                                    <h4 className="text-sm font-semibold mb-1">Description</h4>
+                                    <p className="text-muted-foreground text-sm whitespace-pre-wrap">
+                                        {activity.description}
+                                    </p>
+                                </div>
+
+                                {activity.attachments && activity.attachments.length > 0 && (
+                                    <div>
+                                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                            <Paperclip className="h-4 w-4" />
+                                            Attachments
+                                        </h4>
+                                        <div className="grid gap-2 sm:grid-cols-2">
+                                            {activity.attachments.map((att, idx) => (
+                                                <a
+                                                    key={idx}
+                                                    href={att.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-2 rounded-lg border bg-background/70 px-3 py-2 text-sm transition-colors hover:bg-muted/60"
+                                                >
+                                                    {att.kind === 'LINK' ? <LinkIcon className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+                                                    {att.name}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
                                 )}
-                            </div>
-                            
-                            {/* Items Per Page */}
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm text-muted-foreground">Show:</span>
-                                <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
-                                    <SelectTrigger className="w-[80px]">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="5">5</SelectItem>
-                                    <SelectItem value="10">10</SelectItem>
-                                    <SelectItem value="15">15</SelectItem>
-                                    <SelectItem value="20">20</SelectItem>
-                                    <SelectItem value="30">30</SelectItem>
-                                    <SelectItem value="40">40</SelectItem>
-                                    <SelectItem value="50">50</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 gap-6">
-                        {paginatedActivities.map((activity: HpActivity) => (
-                    <Card
-                    key={activity._id}
-                    className="relative overflow-hidden rounded-xl border bg-card shadow-sm hover:shadow-md transition-all"
-                    >
-                    <div className="absolute left-0 top-0 h-full w-1 bg-emerald-500" />
-
-                    <div className="flex items-start justify-between gap-6 px-6 py-5 pl-8">
-                    <div className="flex flex-col gap-2 flex-1 min-w-0">
-
-                    <div className="flex flex-wrap items-center gap-2">
-                    <CardTitle className="text-base font-semibold">
-                    {activity.title}
-                    </CardTitle>
-
-                    <Badge variant="secondary">
-                    {getActivityTypeLabel(activity.activityType)}
-                    </Badge>
-
-                    <Badge variant="outline">
-                    {activity.submissionMode === 'EXTERNAL_LINK'
-                    ? 'External Link'
-                    : 'In Platform'}
-                    </Badge>
-
-                    {activity.rules && (
-                    activity.rules.isMandatory ? (
-                    <Badge className="bg-red-600 text-white">
-                    Mandatory
-                    </Badge>
-                    ) : (
-                    <Badge variant="outline">
-                    Optional
-                    </Badge>
-                    )
-                    )}
-
-                    </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                    {activity.description}
-                    </p>
-                    <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                    {activity.createdAt && (
-                    <div className="flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" />
-                    <span>Created {formatDate(activity.createdAt)}</span>
-                    </div>
-                    )}
-                    {activity.instructorName && (
-                    <div className="flex items-center gap-1">
-                    <User className="h-3.5 w-3.5" />
-                    <span>By: {activity.instructorName}</span>
-                    </div>
-                    )}
-                    </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-3 shrink-0">
-                    {activity.rules?.deadlineAt && (
-                    <div className="text-right text-xs text-muted-foreground">
-
-                    <div className="flex items-center justify-end gap-1 text-orange-600">
-                    <Clock className="h-3.5 w-3.5" />
-                    <span className="font-medium">Deadline</span>
-                    </div>
-
-                    <div className="text-sm font-medium text-foreground">
-                    {formatDate(activity.rules.deadlineAt.toString())}
-                    </div>
-
-                    <div className="text-[11px] text-orange-500">
-                    <DeadlineCountdown
-                    deadline={activity.rules.deadlineAt.toString()}
-                    allowLate={activity.rules.allowLateSubmission ?? true}
-                    />
-                    </div>
-
-                    </div>
-                    )}
-
-                    <Button
-                    className="bg-primary"
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                    navigate({
-                    to: `/student/hp-system/${courseVersionId}/${cohortName}/activities/${activity._id}`
-                    })
-                    }
-                    >
-                    View
-                    </Button>
-
-                    </div>
-
-                    </div>
-                    </Card>
+                                {activity.submissionMode === 'EXTERNAL_LINK' && activity.externalLink && (
+                                    <div>
+                                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                            <LinkIcon className="h-4 w-4" />
+                                            External Link
+                                        </h4>
+                                        <a
+                                            href={activity.externalLink}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-2 rounded-lg border border-blue-200/60 bg-blue-50/70 px-3 py-2 text-sm text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-800/60 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
+                                        >
+                                            <LinkIcon className="h-4 w-4" />
+                                            {activity.externalLink}
+                                        </a>
+                                    </div>
+                                )}
+                            </CardContent>
+                                <CardFooter className="border-t bg-muted/10 px-6 py-1">
+                                    <div className="flex w-full items-center justify-end gap-2">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => navigate({
+                                                to: `/student/hp-system/${courseVersionId}/${cohortName}/activities/${activity._id}`
+                                            })}
+                                        >
+                                            View
+                                        </Button>
+                                    </div>
+                            </CardFooter>
+                        </Card>
                     ))}
+
+                                {activities && activities.length > 0 && (
+                                    <Card>
+                                        <CardContent className="p-3">
+                                            <Pagination
+                                                currentPage={currentPage}
+                                                totalPages={totalPages}
+                                                totalDocuments={activities?.length || 0}
+                                                onPageChange={setCurrentPage}
+                                            />
+                                        </CardContent>
+                                    </Card>
+                                )}
+
                 </div>
-                
-                {/* Pagination Component */}
-                <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    totalDocuments={filteredActivities.length}
-                    onPageChange={setCurrentPage}
-                />
-                </>
             )}
 
             {/* Submit Activity Dialog */}
