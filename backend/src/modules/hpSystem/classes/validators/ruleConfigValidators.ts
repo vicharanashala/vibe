@@ -31,11 +31,6 @@ export enum PenaltyApplyWhenEnum {
   AFTER_DEADLINE = "AFTER_DEADLINE",
 }
 
-export enum LateRewardPolicyEnum {
-  NONE = "NONE",
-  REWARD_ALLOWED = "REWARD_ALLOWED",
-  REWARD_DENIED = "REWARD_DENIED",
-}
 
 /* ===== Nested DTOs ===== */
 
@@ -122,8 +117,6 @@ export class CreateHpRuleConfigBody {
   @IsBoolean()
   allowLateSubmission!: boolean;
 
-  @IsEnum(LateRewardPolicyEnum)
-  lateRewardPolicy!: LateRewardPolicyEnum;
 
   @ValidateNested()
   @Type(() => HpRewardRuleDto)
@@ -154,9 +147,6 @@ export class UpdateHpRuleConfigBody {
   @IsBoolean()
   allowLateSubmission?: boolean;
 
-  @IsOptional()
-  @IsEnum(LateRewardPolicyEnum)
-  lateRewardPolicy?: LateRewardPolicyEnum;
 
   @IsOptional()
   @ValidateNested()

@@ -89,7 +89,6 @@ export function RuleSettingsDialog({
                 setConfig({
                     isMandatory: true,
                     allowLateSubmission: false,
-                    lateRewardPolicy: "NONE",
                     reward: defaultReward,
                     penalty: defaultPenalty,
                     limits: defaultLimits,
@@ -271,8 +270,43 @@ export function RuleSettingsDialog({
                                 <div className="space-y-2">
                                     <Label>Late Reward Behavior</Label>
                                     <Select
-                                        value={config?.lateRewardPolicy || "NONE"}
-                                        onValueChange={(val: any) => setConfig(prev => ({ ...prev, lateRewardPolicy: val } as any))}
+                                        value={
+                                            config?.reward?.lateBehavior === "REWARD" && !config?.reward?.onlyWithinDeadline
+                                                ? "REWARD_ALLOWED"
+                                                : config?.reward?.lateBehavior === "NO_REWARD" || config?.reward?.onlyWithinDeadline
+                                                    ? "REWARD_DENIED"
+                                                    : "NONE"
+                                        }
+                                        onValueChange={(val: any) => {
+                                            if (val === "REWARD_ALLOWED") {
+                                                setConfig(prev => ({
+                                                    ...prev,
+                                                    reward: {
+                                                        ...(prev?.reward || defaultReward),
+                                                        lateBehavior: "REWARD",
+                                                        onlyWithinDeadline: false
+                                                    }
+                                                } as any));
+                                            } else if (val === "REWARD_DENIED") {
+                                                setConfig(prev => ({
+                                                    ...prev,
+                                                    reward: {
+                                                        ...(prev?.reward || defaultReward),
+                                                        lateBehavior: "NO_REWARD",
+                                                        onlyWithinDeadline: true
+                                                    }
+                                                } as any));
+                                            } else {
+                                                setConfig(prev => ({
+                                                    ...prev,
+                                                    reward: {
+                                                        ...(prev?.reward || defaultReward),
+                                                        lateBehavior: "NO_REWARD",
+                                                        onlyWithinDeadline: true
+                                                    }
+                                                } as any));
+                                            }
+                                        }}
                                         disabled={!config?.allowLateSubmission}
                                     >
                                         <SelectTrigger>

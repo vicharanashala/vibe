@@ -81,7 +81,6 @@ export default function CreateHpActivityPage() {
     const [ruleErrors, setRuleErrors] = useState<{
         isMandatory?: string;
         allowLateSubmission?: string;
-        lateRewardPolicy?: string;
         deadlineAt?: string;
         rewardType?: string;
         rewardValue?: string;
@@ -186,9 +185,6 @@ export default function CreateHpActivityPage() {
             if (!ruleConfig.reward?.applyWhen) {
                 nextErrors.rewardApplyWhen = "Apply policy is required";
             }
-            if (!ruleConfig.lateRewardPolicy) {
-                nextErrors.lateRewardPolicy = "Late behavior is required";
-            }
             if (ruleConfig.penalty?.enabled === undefined) {
                 nextErrors.penaltyEnabled = "Please select if penalty is enabled";
             }
@@ -260,7 +256,6 @@ export default function CreateHpActivityPage() {
             status,
             deadlineAt: ruleConfig.deadlineAt,
             allowLateSubmission: ruleConfig.allowLateSubmission,
-            lateRewardPolicy: ruleConfig.lateRewardPolicy,
         };
 
         try {
@@ -286,7 +281,6 @@ export default function CreateHpActivityPage() {
                 isMandatory: ruleConfig.isMandatory as boolean,
                 deadlineAt: ruleConfig.deadlineAt as string,
                 allowLateSubmission: ruleConfig.allowLateSubmission as boolean,
-                lateRewardPolicy: ruleConfig.lateRewardPolicy as any,
                 reward: {
                     enabled: ruleConfig.reward?.enabled ?? true,
                     type: ruleConfig.reward?.type as any,
@@ -765,11 +759,35 @@ export default function CreateHpActivityPage() {
                                         {ruleErrors.rewardApplyWhen && <p className="text-xs text-red-500">{ruleErrors.rewardApplyWhen}</p>}
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Late Behavior</Label>
+                                        <Label>Late Reward Behavior</Label>
                                         <Select
-                                            value={ruleConfig.lateRewardPolicy ?? ""}
+                                            value={
+                                                ruleConfig.reward?.lateBehavior === "REWARD" && !ruleConfig.reward?.onlyWithinDeadline
+                                                    ? "REWARD_ALLOWED"
+                                                    : ruleConfig.reward?.lateBehavior === "NO_REWARD" || ruleConfig.reward?.onlyWithinDeadline
+                                                        ? "REWARD_DENIED"
+                                                        : "NONE"
+                                            }
                                             onValueChange={(val: any) => {
-                                                setRuleConfig(prev => ({ ...prev, lateRewardPolicy: val }));
+                                                if (val === "REWARD_ALLOWED") {
+                                                    setRuleConfig(prev => ({
+                                                        ...prev,
+                                                        reward: {
+                                                            ...prev.reward,
+                                                            lateBehavior: "REWARD",
+                                                            onlyWithinDeadline: false
+                                                        }
+                                                    } as any));
+                                                } else {
+                                                    setRuleConfig(prev => ({
+                                                        ...prev,
+                                                        reward: {
+                                                            ...prev.reward,
+                                                            lateBehavior: "NO_REWARD",
+                                                            onlyWithinDeadline: true
+                                                        }
+                                                    } as any));
+                                                }
                                                 if (ruleErrors.lateRewardPolicy) {
                                                     setRuleErrors(prev => ({ ...prev, lateRewardPolicy: undefined }));
                                                 }
@@ -779,12 +797,10 @@ export default function CreateHpActivityPage() {
                                                 <SelectValue placeholder="Select behavior" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="NONE">Deny Reward</SelectItem>
                                                 <SelectItem value="REWARD_ALLOWED">Allow Reward</SelectItem>
-                                                {/* <SelectItem value="REWARD_DENIED">Penalty Apply (No Reward)</SelectItem> */}
+                                                <SelectItem value="REWARD_DENIED">Deny Reward</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        {ruleErrors.lateRewardPolicy && <p className="text-xs text-red-500">{ruleErrors.lateRewardPolicy}</p>}
                                     </div>
                                 </div>
                             </div>

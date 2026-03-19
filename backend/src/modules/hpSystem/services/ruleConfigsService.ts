@@ -54,7 +54,6 @@ export class RuleConfigService extends BaseService {
 
             deadlineAt: new Date(body.deadlineAt),
             allowLateSubmission: body.allowLateSubmission,
-            lateRewardPolicy: body.lateRewardPolicy as any,
 
             reward: {
                 enabled: body.reward.enabled,
@@ -114,7 +113,6 @@ export class RuleConfigService extends BaseService {
         if (patch.deadlineAt !== undefined) updatePatch.deadlineAt = new Date(patch.deadlineAt);
         if (patch.allowLateSubmission !== undefined)
             updatePatch.allowLateSubmission = patch.allowLateSubmission;
-        if (patch.lateRewardPolicy !== undefined) updatePatch.lateRewardPolicy = patch.lateRewardPolicy as any;
 
         if (patch.reward !== undefined) updatePatch.reward = patch.reward as any;
         if (patch.penalty !== undefined) updatePatch.penalty = patch.penalty as any;

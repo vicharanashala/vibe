@@ -16,10 +16,6 @@ export type ActivityType =
 
 export type SubmissionMode = "IN_PLATFORM" | "EXTERNAL_LINK";
 
-export type LateRewardPolicy =
-    | "NONE"
-    | "REWARD_ALLOWED"
-    | "REWARD_DENIED";
 
 export type AttachmentKind = "PDF" | "LINK" | "OTHER";
 
@@ -175,7 +171,6 @@ export interface HpRuleConfig {
 
     deadlineAt: Date;
     allowLateSubmission: boolean;
-    lateRewardPolicy: LateRewardPolicy;
 
     // Reward rule
     reward: {

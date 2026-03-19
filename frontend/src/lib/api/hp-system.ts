@@ -255,7 +255,6 @@ export interface HpRuleConfig {
     isMandatory: boolean;
     deadlineAt?: string;
     allowLateSubmission?: boolean;
-    lateRewardPolicy?: "NONE" | "REWARD_ALLOWED" | "REWARD_DENIED";
     reward?: {
         enabled: boolean;
         type: "ABSOLUTE" | "PERCENTAGE";
@@ -319,7 +318,6 @@ export interface CreateHpActivityPayload {
     status?: "DRAFT" | "PUBLISHED";
     deadlineAt?: string;
     allowLateSubmission?: boolean;
-    lateRewardPolicy?: string;
     attachments?: { name: string; url: string; kind: string }[];
 }
 
