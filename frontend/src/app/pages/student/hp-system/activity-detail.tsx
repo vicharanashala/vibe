@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "@tanstack/react-router";
+import { useParams, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useHpStudentActivities, useSubmitActivity, useHpRuleConfig } from "@/hooks/hooks";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 export default function StudentActivityDetail() {
     const { courseVersionId, cohortName, activityId } = useParams({ strict: false });
     const navigate = useNavigate();
+    const router=useRouterState();
+    const from = router.location.state?.from;
 
     const { data: activities, isLoading, error, refetch } = useHpStudentActivities(
         courseVersionId as string,
@@ -93,7 +95,7 @@ export default function StudentActivityDetail() {
             } as any);
             setSubmitDialogOpen(false);
             refetch();
-            navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/activities` });
+            navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/activities`,state:{from} });
         } catch (err: any) {
             setSubmitError(err.message || "Failed to submit activity");
         }
@@ -129,7 +131,7 @@ export default function StudentActivityDetail() {
 
                 {/* Header */}
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/activities` })}>
+                    <Button variant="ghost" size="icon" onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/activities` , state:{from}})}>
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div className="flex-1">

@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { HpActivity } from "@/lib/api/hp-system";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { EditActivityDialog } from "./EditActivityDialog";
 import { RuleSettingsDialog } from "./RuleSettingsDialog";
 import { useHpActivities, useUpdateHpActivity, usePublishHpActivity, useArchiveHpActivity, useHpCourseVersions, useDeleteHpActivity, useHpActivitiesStatsMap } from "@/hooks/hooks";
@@ -28,6 +28,9 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
     const [itemsPerPage, setItemsPerPage] = useState(5);
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [activityFilter, setActivityFilter] = useState("ALL");
+    
+    const router = useRouterState();
+    const from = router.location.state?.from;
 
 
     // Edit Dialog state
@@ -271,7 +274,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                         </Select>
                     </div>
                 </div>
-                <Button onClick={() => navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName)}/activities/create` })}>
+                <Button onClick={() => navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName)}/activities/create` , state: {from}})}>
                     <Plus className="mr-2 h-4 w-4" /> Add Activity
                 </Button>
             </div>

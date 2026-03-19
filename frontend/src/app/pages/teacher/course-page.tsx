@@ -1934,9 +1934,14 @@ function VersionCard({
                     <Button 
                     variant="outline"
                     size="sm" 
-                    className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
+                    className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
                     onClick={()=>{
-                      navigate({ to: `/teacher/hp-system/${version._id}/cohorts`, })}}
+                      navigate({
+                        to: `/teacher/hp-system/${version._id}/cohorts`,
+                        state: {
+                          from: location.pathname,
+                        }});
+                      }}
                     >
                       <Activity className="h-3 w-3 mr-1" />
                       Hp System
