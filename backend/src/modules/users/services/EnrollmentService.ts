@@ -812,11 +812,24 @@ export class EnrollmentService extends BaseService {
     cohortId?: string
   ) {
     return this._withTransaction(async (session: ClientSession) => {
+      let effectiveCohortId = cohortId;
+      if (!effectiveCohortId) {
+        const enrollments = await this.enrollmentRepo.findStudentEnrollmentsByContext(
+          userId,
+          courseId,
+          courseVersionId,
+          session,
+        );
+        if (enrollments.length === 1) {
+          effectiveCohortId = enrollments[0]?.cohortId?.toString();
+        }
+      }
+
       const detail = await this.enrollmentRepo.getStudentProgressDetail(
         userId,
         courseId,
         courseVersionId,
-        cohortId,
+        effectiveCohortId,
         session,
       );
       if (!detail) return null;
@@ -825,7 +838,7 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
-        cohortId,
+        effectiveCohortId,
         session,
       );
       const completedItemsCount = completedItemIds.length;
@@ -867,7 +880,7 @@ export class EnrollmentService extends BaseService {
               await this.enrollmentRepo.getBatchQuizSubmissionGrades(
                 [userId],
                 allQuizIds,
-                [cohortId]
+                [effectiveCohortId]
               );
 
             quizSubmissions.forEach((submission: any) => {
@@ -900,11 +913,24 @@ export class EnrollmentService extends BaseService {
     cohortId?: string
   ) {
     return this._withTransaction(async (session: ClientSession) => {
+      let effectiveCohortId = cohortId;
+      if (!effectiveCohortId) {
+        const enrollments = await this.enrollmentRepo.findStudentEnrollmentsByContext(
+          userId,
+          courseId,
+          courseVersionId,
+          session,
+        );
+        if (enrollments.length === 1) {
+          effectiveCohortId = enrollments[0]?.cohortId?.toString();
+        }
+      }
+
       return this.enrollmentRepo.getStudentCourseStructure(
         userId,
         courseId,
         courseVersionId,
-        cohortId,
+        effectiveCohortId,
         session,
       );
     });

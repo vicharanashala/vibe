@@ -120,6 +120,28 @@ export class EnrollmentRepository {
     );
   }
 
+  async findStudentEnrollmentsByContext(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment[]> {
+    await this.init();
+
+    return await this.enrollmentCollection
+      .find(
+        {
+          userId: { $in: [userId, new ObjectId(userId)] },
+          courseId: { $in: [courseId, new ObjectId(courseId)] },
+          courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+          role: 'STUDENT',
+          isDeleted: { $ne: true },
+        },
+        { session },
+      )
+      .toArray();
+  }
+
   async findActiveEnrollment(
     userId: string | ObjectId,
     courseId: string,
