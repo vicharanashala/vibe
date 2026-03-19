@@ -305,7 +305,7 @@ export default function StudentSubmissionsPage() {
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
                 </div>
             ) : (
-            <div className="grid gap-4 md:grid-cols-6">
+            <div className="grid gap-4 md:grid-cols-5">
                 <Card>
                     <CardHeader className="pb-2">
                         <CardDescription>Total Activities</CardDescription>
@@ -361,36 +361,6 @@ export default function StudentSubmissionsPage() {
                         </div>
                     </CardContent>
                 </Card>
-                <Card>
-                <CardHeader className="pb-2">
-                    <CardDescription>Activity Reward</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {(() => {
-                        if (!stats?.reward) return (
-                            <div className="text-2xl font-bold text-muted-foreground">—</div>
-                        );
-                        const { type, value } = stats.reward;
-                        if (type === "ABSOLUTE") return (
-                            <div className="text-2xl font-bold text-muted-foreground flex items-center gap-2">
-                                <Zap className="h-5 w-5 text-yellow-500" />
-                                {value}
-                            </div>
-                        );
-                        return (
-                            <div className="flex flex-col gap-0.5">
-                                <div className="text-2xl font-bold text-muted-foreground flex items-center gap-2">
-                                    <Zap className="h-5 w-5 text-yellow-500" />
-                                    {type === "PERCENTAGE" ? `${value}%` : value}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                    of Current HP ({totalCurrentHp})
-                                </div>
-                            </div>
-                        );
-                    })()}
-                </CardContent>
-            </Card>
             </div>
             )}
             
