@@ -4823,6 +4823,14 @@ export const useBulkUnenrollUsers = () => {
   return api.useMutation('post', '/users/enrollments/courses/{courseId}/versions/{versionId}/bulk-unenroll');
 };
 
+export const useChangeEnrollmentStatus = () => {
+  return api.useMutation('patch', '/users/{userId}/enrollments/courses/{courseId}/versions/{versionId}/status');
+};
+
+export const useBulkChangeEnrollmentStatus = () => {
+  return api.useMutation('patch', '/users/enrollments/courses/{courseId}/versions/{versionId}/bulk-status');
+};
+
 // Time Slots hooks
 
 // POST /timeslots/add
