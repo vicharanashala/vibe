@@ -47,11 +47,7 @@ export class HpRewardRuleDto {
   @IsEnum(RewardApplyWhenEnum)
   applyWhen!: RewardApplyWhenEnum;
 
-  @IsBoolean()
-  onlyWithinDeadline!: boolean;
 
-  @IsBoolean()
-  allowLate!: boolean;
 
   @IsEnum(LateBehaviorEnum)
   lateBehavior!: LateBehaviorEnum;

@@ -68,8 +68,6 @@ export default function CreateHpActivityPage() {
     const [ruleConfig, setRuleConfig] = useState<RuleConfigFormState>({
         reward: {
             enabled: true,
-            onlyWithinDeadline: true,
-            allowLate: false,
             lateBehavior: "NO_REWARD",
             minHpFloor: 0,
         },
@@ -286,8 +284,6 @@ export default function CreateHpActivityPage() {
                     type: ruleConfig.reward?.type as any,
                     value: ruleConfig.reward?.value as number,
                     applyWhen: ruleConfig.reward?.applyWhen as any,
-                    onlyWithinDeadline: ruleConfig.reward?.onlyWithinDeadline ?? true,
-                    allowLate: ruleConfig.reward?.allowLate ?? false,
                     lateBehavior: ruleConfig.reward?.lateBehavior ?? "NO_REWARD",
                     minHpFloor: ruleConfig.reward?.minHpFloor ?? 0,
                     required_percentage: ruleConfig.reward?.required_percentage,
@@ -762,9 +758,9 @@ export default function CreateHpActivityPage() {
                                         <Label>Late Reward Behavior</Label>
                                         <Select
                                             value={
-                                                ruleConfig.reward?.lateBehavior === "REWARD" && !ruleConfig.reward?.onlyWithinDeadline
+                                                ruleConfig.reward?.lateBehavior === "REWARD"
                                                     ? "REWARD_ALLOWED"
-                                                    : ruleConfig.reward?.lateBehavior === "NO_REWARD" || ruleConfig.reward?.onlyWithinDeadline
+                                                    : ruleConfig.reward?.lateBehavior === "NO_REWARD"
                                                         ? "REWARD_DENIED"
                                                         : "NONE"
                                             }
@@ -774,8 +770,7 @@ export default function CreateHpActivityPage() {
                                                         ...prev,
                                                         reward: {
                                                             ...prev.reward,
-                                                            lateBehavior: "REWARD",
-                                                            onlyWithinDeadline: false
+                                                            lateBehavior: "REWARD"
                                                         }
                                                     } as any));
                                                 } else {
@@ -783,8 +778,7 @@ export default function CreateHpActivityPage() {
                                                         ...prev,
                                                         reward: {
                                                             ...prev.reward,
-                                                            lateBehavior: "NO_REWARD",
-                                                            onlyWithinDeadline: true
+                                                            lateBehavior: "NO_REWARD"
                                                         }
                                                     } as any));
                                                 }

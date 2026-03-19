@@ -167,14 +167,9 @@ async function processMilestoneRewards(
         const deadline = new Date(activityConfig.deadlineAt);
         const isAfterDeadline = now > deadline;
 
-        if (isAfterDeadline) {
-            if (activityConfig.reward.onlyWithinDeadline) {
-                console.log(`⏰ After deadline and onlyWithinDeadline=true - no reward for ${student.email}`);
-                return false;
-            } else if (activityConfig.reward.lateBehavior === "NO_REWARD") {
-                console.log(`⏰ After deadline and lateBehavior=NO_REWARD - no reward for ${student.email}`);
-                return false;
-            }
+        if (isAfterDeadline && activityConfig.reward.lateBehavior === "NO_REWARD") {
+            console.log(`⏰ After deadline and lateBehavior=NO_REWARD - no reward for ${student.email}`);
+            return false;
         }
 
         console.log(`✅ Student ${student.email} eligible for reward: ${currentProgress}% >= ${requiredProgress}%`);

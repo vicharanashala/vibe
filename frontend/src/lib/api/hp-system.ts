@@ -260,8 +260,6 @@ export interface HpRuleConfig {
         type: "ABSOLUTE" | "PERCENTAGE";
         value: number;
         applyWhen: "ON_SUBMISSION" | "ON_APPROVAL";
-        onlyWithinDeadline: boolean;
-        allowLate: boolean;
         lateBehavior: "NO_REWARD" | "REWARD";
         minHpFloor: number;
         required_percentage?: number;

@@ -362,10 +362,7 @@ export class ActivitySubmissionsService extends BaseService {
             if (activityReward?.enabled && activityReward.applyWhen === "ON_SUBMISSION") {
 
                 const shouldSkipReward =
-                    isLate && (
-                        activityReward.lateBehavior === "NO_REWARD" ||
-                        activityReward.onlyWithinDeadline === true
-                    );
+                    isLate && activityReward.lateBehavior === "NO_REWARD";
 
                 if (shouldSkipReward) {
                     return;
@@ -800,10 +797,7 @@ export class ActivitySubmissionsService extends BaseService {
                 const isLate = deadline && new Date() > deadline;
 
                 // 2. Define the "Hard Block" conditions
-                const isLatePolicyViolated = isLate && (
-                    rewardConfig?.lateBehavior === "NO_REWARD" ||
-                    rewardConfig?.onlyWithinDeadline === true
-                );
+                const isLatePolicyViolated = isLate && rewardConfig?.lateBehavior === "NO_REWARD";
 
                 // 3. Throw Detailed Errors
                 if (isLatePolicyViolated) {
