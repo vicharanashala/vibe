@@ -217,7 +217,6 @@ export class ActivityRepository implements IActivityRepository {
     return await this.hpActivityCollection.findOneAndUpdate(
       {
         _id: new ObjectId(activityId),
-        status: { $ne: 'ARCHIVED' },
         isDeleted: { $ne: true },
       },
       {
