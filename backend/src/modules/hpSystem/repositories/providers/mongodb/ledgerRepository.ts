@@ -230,6 +230,22 @@ export class LedgerRepository implements ILedgerRepository {
             }
         );
     }
+    async findByStudentAndActivityId(
+        activityId: string,
+        studentId: string
+    ): Promise<HpLedger | null> {
+        await this.init();
+
+        return await this.hpLedgerCollection.findOne(
+            {
+                activityId: new ObjectId(activityId),
+                studentId: new ObjectId(studentId),
+            },
+            {
+                sort: { createdAt: -1 },
+            }
+        );
+    }
 
     async findPenaltiesByActivityId(activityId: string): Promise<HpLedger[]> {
         await this.init();
@@ -251,9 +267,9 @@ export class LedgerRepository implements ILedgerRepository {
 
     async findBySubmissionIds(submissionIds: string[]): Promise<HpLedger[]> {
         await this.init();
-        
+
         const objectIds = submissionIds.map(id => new ObjectId(id));
-        
+
         return await this.hpLedgerCollection.find({
             submissionId: { $in: objectIds }
         }).sort({ createdAt: -1 }).toArray();
