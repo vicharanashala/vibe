@@ -45,7 +45,7 @@ import {
   Req,
   QueryParam,
   UseInterceptor,
-  NotFoundError,
+
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import {
@@ -268,7 +268,7 @@ export class EnrollmentController {
     @Ability(getEnrollmentAbility) { ability, user },
     @Req() req: Request,
   ): Promise<BulkUnenrollResponse> {
-    const { userIds, cohortId} = body;
+    const { userIds, cohortId } = body;
 
     if (!userIds || userIds.length === 0) {
       throw new BadRequestError(
@@ -359,8 +359,8 @@ export class EnrollmentController {
       throw new NotFoundError('Enrollment not found');
     }
 
-    const enrollmentResource = subject('Enrollment', { 
-      courseId, 
+    const enrollmentResource = subject('Enrollment', {
+      courseId,
       versionId,
       role: enrollmentData.role,
     });
@@ -422,9 +422,9 @@ export class EnrollmentController {
       throw new BadRequestError('User IDs array is required and cannot be empty');
     }
 
-    
-    const enrollmentResource = subject('Enrollment', { 
-      courseId, 
+
+    const enrollmentResource = subject('Enrollment', {
+      courseId,
       versionId,
       role: 'STUDENT'
     });
