@@ -665,7 +665,6 @@ export class ActivitySubmissionsService extends BaseService {
                         totalLateSubmissions: 0,
                         totalPendings: 0,
                         currentHp: 0,
-                        reward: null,
                     },
                 };
             }
@@ -690,20 +689,12 @@ export class ActivitySubmissionsService extends BaseService {
             this.activityRepository.getLatestActivityByCohortName(cohortName),
         ]);
 
-        const ruleConfig = latestActivity
-            ? await this.ruleConfigService.getByActivityId(latestActivity._id.toString())
-            : null;
-
         const data: StudentActivitySubmissionStatsViewDto = {
             totalActivities,
             totalSubmissions,
             totalLateSubmissions,
             totalPendings: totalPendingActivites,
             currentHp: enrollment?.hpPoints ?? 0,
-            reward: ruleConfig?.reward?.enabled ? {
-                type: ruleConfig.reward.type,
-                value: ruleConfig.reward.value,
-            } : null,
         };
 
         return {
