@@ -5,6 +5,9 @@ import { getEffectiveIds } from "@/lib/api/hp-system";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Pagination } from "@/components/ui/Pagination";
 import {
     Table,
     TableBody,
@@ -29,13 +32,19 @@ import {
     Eye,
     Calendar,
     AlertCircle,
-    CheckCircle2
+    CheckCircle2,
+    Search
 } from "lucide-react";
 
 export default function StudentLedgerPage() {
     const { courseVersionId, cohortName, studentId } = useParams({ strict: false });
     const navigate = useNavigate();
     const [selectedEntry, setSelectedEntry] = useState<any>(null);
+    
+    // Pagination and search state
+    const [searchQuery, setSearchQuery] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     // 1. Resolve raw courseId from courseVersionId 
     const { data: versions = [], isLoading: isLoadingCourses } = useHpCourseVersions();
@@ -59,7 +68,7 @@ export default function StudentLedgerPage() {
         effectiveVersionId
     );
 
-    console.log("Fetched ledger entries:", ledger, "Loading:", isLoadingLedger, "Error:", error);
+    // console.log("Fetched ledger entries:", ledger, "Loading:", isLoadingLedger, "Error:", error);
 
     // 4. Fetch Activities to map IDs to Titles
     const { data: activities = [], isLoading: isLoadingActivities } = useHpActivities(
@@ -74,6 +83,59 @@ export default function StudentLedgerPage() {
         });
         return map;
     }, [activities]);
+    
+    // Filter ledger entries based on search query with prioritized results
+    const filteredLedger = useMemo(() => {
+        if (!searchQuery.trim()) return ledger;
+        
+        const query = searchQuery.toLowerCase();
+        
+        // Separate entries into priority groups
+        const startsWithMatches: any[] = [];
+        const containsMatches: any[] = [];
+        const otherMatches: any[] = [];
+        
+        ledger.forEach((entry: any) => {
+            const activityTitle = activityMap[entry.activityId] || entry.activityTitle || 'Manual Adjustment';
+            const eventType = entry.eventType || '';
+            const direction = entry.direction || '';
+            
+            const titleStartsWith = activityTitle.toLowerCase().startsWith(query);
+            const titleContains = activityTitle.toLowerCase().includes(query);
+            const eventContains = eventType.toLowerCase().includes(query);
+            const directionContains = direction.toLowerCase().includes(query);
+            
+            if (titleStartsWith) {
+                startsWithMatches.push(entry);
+            } else if (titleContains || eventContains || directionContains) {
+                containsMatches.push(entry);
+            } else {
+                otherMatches.push(entry);
+            }
+        });
+        
+        // Return prioritized results: starts with > contains > others
+        return [...startsWithMatches, ...containsMatches, ...otherMatches];
+    }, [ledger, activityMap, searchQuery]);
+    
+    // Pagination logic
+    const totalPages = Math.ceil(filteredLedger.length / itemsPerPage);
+    const paginatedLedger = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return filteredLedger.slice(startIndex, endIndex);
+    }, [filteredLedger, currentPage, itemsPerPage]);
+    
+    // Reset page when search or items per page changes
+    const handleSearchChange = (value: string) => {
+        setSearchQuery(value);
+        setCurrentPage(1);
+    };
+    
+    const handleItemsPerPageChange = (value: string) => {
+        setItemsPerPage(Number(value));
+        setCurrentPage(1);
+    };
 
     const totalLoading = isLoadingLedger || isLoadingCourses || isLoadingActivities;
 
@@ -170,6 +232,37 @@ export default function StudentLedgerPage() {
                     </div>
                 </CardContent>
             </Card>
+            
+            {/* Search and Pagination Controls */}
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
+                <div className="relative w-full max-w-md">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search by activity name, event type..."
+                        value={searchQuery}
+                        onChange={(e) => handleSearchChange(e.target.value)}
+                        className="pl-10"
+                    />
+                </div>
+                
+                <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Show:</span>
+                    <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                        <SelectTrigger className="w-[80px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="5">5</SelectItem>
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="15">15</SelectItem>
+                            <SelectItem value="20">20</SelectItem>
+                            <SelectItem value="30">30</SelectItem>
+                            <SelectItem value="40">40</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
 
             {/* Ledger Table */}
             {totalLoading ? (
@@ -183,7 +276,12 @@ export default function StudentLedgerPage() {
             ) : (
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-lg">Transaction History</CardTitle>
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg">Transaction History</CardTitle>
+                            <span className="text-sm text-muted-foreground">
+                                Showing {paginatedLedger.length} of {filteredLedger.length} transactions
+                            </span>
+                        </div>
                     </CardHeader>
                     <CardContent className="p-0 overflow-x-auto">
                         <Table className="w-full">
@@ -199,7 +297,7 @@ export default function StudentLedgerPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {ledger.map((entry: any) => (
+                                {paginatedLedger.map((entry: any) => (
                                     <TableRow key={entry._id}>
                                         <TableCell>
                                             <div className="font-medium max-w-[200px] truncate">
@@ -240,6 +338,20 @@ export default function StudentLedgerPage() {
                                 ))}
                             </TableBody>
                         </Table>
+                    </CardContent>
+                </Card>
+            )}
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <Card>
+                    <CardContent className="p-4">
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            totalDocuments={filteredLedger.length}
+                            onPageChange={setCurrentPage}
+                        />
                     </CardContent>
                 </Card>
             )}
@@ -355,7 +467,12 @@ export default function StudentLedgerPage() {
                             </div>
                         </div>
                     )}
-                    <Button className="w-full" onClick={() => navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${cohortName}/student/${studentId}/submissions` })}>View Submission</Button>
+                    <Button className="w-full" onClick={() => navigate({ 
+                            to: selectedEntry?.submissionId 
+                                ? `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/student/${studentId}/submission/${selectedEntry.submissionId}`
+                                : `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/student/${studentId}/submissions`
+                        })}>View Submission
+                    </Button>
                 </DialogContent>
             </Dialog>
         </div>

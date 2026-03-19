@@ -288,87 +288,30 @@ export class ActivitySubmissionsService extends BaseService {
                     throw new BadRequestError(`Only PDF allowed in files. Invalid: ${f.originalname}`);
                 }
             }
+
             for (const img of images) {
                 if (!img.mimetype.startsWith("image/")) {
                     throw new BadRequestError(`Only images allowed in images. Invalid: ${img.originalname}`);
                 }
             }
 
-            // // GCP Storage setup
-            // const storage = new Storage({
-            //     keyFilename: appConfig.GOOGLE_APPLICATION_CREDENTIALS,
-            // });
 
-            // const bucketName = appConfig.GCP_BACKUP_ACTIVITY_BUCKET;
-            // const bucket = storage.bucket(bucketName);
+            let uploadedPdfs: any[] = [];
+            let uploadedImages: any[] = [];
 
+            // Only call upload when there are files/images
+            if (files.length > 0 || images.length > 0) {
+                const uploadResult = await this.uploadSubmissionAssets(
+                    student.id,
+                    body.cohort,
+                    body.activityId,
+                    files,
+                    images
+                );
 
-            // const uploadToGcp = async (f: Express.Multer.File, folder: string) => {
-            //     const ext = path.extname(f.originalname) || "";
-            //     const baseName = path.basename(f.originalname, ext);
-
-            //     const safeBase = baseName.replace(/[^\w\-]+/g, "_");
-
-            //     const unique = randomBytes(8).toString("hex");
-            //     const timestamp = Date.now();
-
-            //     const fileName = `${student.id}_${safeBase}_${timestamp}_${unique}${ext}`;
-
-            //     const objectPath = `${folder}/${fileName}`;
-
-            //     const file = bucket.file(objectPath);
-
-            //     await file.save(f.buffer, {
-            //         resumable: false,
-            //         contentType: f.mimetype,
-            //         metadata: {
-            //             contentDisposition: `inline; filename="${f.originalname}"`,
-            //         },
-            //     });
-
-            //     const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectPath}`;
-
-            //     const [signedUrl] = await file.getSignedUrl({
-            //         action: "read",
-            //         expires: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 days
-            //     });
-
-            //     return {
-            //         fileId: objectPath,
-            //         url: signedUrl,
-            //         name: fileName,
-            //         mimeType: f.mimetype,
-            //         sizeBytes: f.size,
-            //     };
-            // };
-
-            // // Upload concurrently
-            // const [uploadedPdfs, uploadedImages] = await Promise.all([
-            //     Promise.all(
-            //         files.map((f) =>
-            //             uploadToGcp(
-            //                 f,
-            //                 `hp-activity-submissions/${body.cohort}/${body.activityId}/${student.id}/files`
-            //             )
-            //         )
-            //     ),
-            //     Promise.all(
-            //         images.map((img) =>
-            //             uploadToGcp(
-            //                 img,
-            //                 `hp-activity-submissions/${body.cohort}/${body.activityId}/${student.id}/images`
-            //             )
-            //         )
-            //     ),
-            // ]);
-
-            const { uploadedPdfs, uploadedImages } = await this.uploadSubmissionAssets(
-                student.id,
-                body.cohort,
-                body.activityId,
-                files,
-                images
-            );
+                uploadedPdfs = uploadResult.uploadedPdfs ?? [];
+                uploadedImages = uploadResult.uploadedImages ?? [];
+            }
 
             const payload = {
                 ...basePayload,
@@ -561,14 +504,23 @@ export class ActivitySubmissionsService extends BaseService {
                 }
             }
 
-            const { uploadedPdfs, uploadedImages } = await this.uploadSubmissionAssets(
-                student.id,
-                body.cohort,
-                body.activityId,
-                files,
-                images
-            );
+            let uploadedPdfs: any[] = [];
+            let uploadedImages: any[] = [];
 
+            // Only call upload when there are files/images
+            if (files.length > 0 || images.length > 0) {
+                const uploadResult = await this.uploadSubmissionAssets(
+                    student.id,
+                    body.cohort,
+                    body.activityId,
+                    files,
+                    images
+                );
+
+                uploadedPdfs = uploadResult.uploadedPdfs ?? [];
+                uploadedImages = uploadResult.uploadedImages ?? [];
+            }
+            
             const payload = {
                 ...basePayload,
                 files: uploadedPdfs.map((x) => ({
@@ -642,7 +594,7 @@ export class ActivitySubmissionsService extends BaseService {
 
         // Get ledger data for all submissions
         const submissionIds = submissions.map(sub => sub.submission?._id).filter(Boolean);
-        const ledgerEntries = submissionIds.length > 0 
+        const ledgerEntries = submissionIds.length > 0
             ? await this.ledgerRepository.findBySubmissionIds(submissionIds)
             : [];
 
@@ -662,7 +614,7 @@ export class ActivitySubmissionsService extends BaseService {
         const submissionsWithLedger = submissions.map(submission => {
             const submissionId = submission.submission?._id;
             const relatedLedgerEntries = ledgerMap.get(submissionId) || [];
-            
+
             return {
                 ...submission,
                 ledgerEntries: relatedLedgerEntries
@@ -739,8 +691,8 @@ export class ActivitySubmissionsService extends BaseService {
         ]);
 
         const ruleConfig = latestActivity
-        ? await this.ruleConfigService.getByActivityId(latestActivity._id.toString())
-        : null;
+            ? await this.ruleConfigService.getByActivityId(latestActivity._id.toString())
+            : null;
 
         const data: StudentActivitySubmissionStatsViewDto = {
             totalActivities,
@@ -939,7 +891,7 @@ export class ActivitySubmissionsService extends BaseService {
                 if (isReject) {
                     const penaltyAmount = Number(body.pointsToDeduct) ?? 0;
                     if (penaltyAmount > 0) {
-                        const hpBeforePenalty = finalHpBalance ;
+                        const hpBeforePenalty = finalHpBalance;
                         finalHpBalance -= penaltyAmount;
 
                         // Second Ledger: The Penalty
@@ -1026,14 +978,14 @@ export class ActivitySubmissionsService extends BaseService {
 
     async getCohortActivityStats(cohortName: string, activityId: string, session?: ClientSession): Promise<StudentCohortWiseActivitySubmissionsStatsDto> {
         return this._withTransaction(async (session) => {
-            const data =  await this.activitySubmissionsRepository.getCohortActivityStats(cohortName, activityId, session);
+            const data = await this.activitySubmissionsRepository.getCohortActivityStats(cohortName, activityId, session);
             return {
                 data
             };
         });
     }
 
-    async getBulkCohortActivityStats(cohortName: string, courseVersionId: string, session?: ClientSession):Promise<any> {
+    async getBulkCohortActivityStats(cohortName: string, courseVersionId: string, session?: ClientSession): Promise<any> {
         return this._withTransaction(async (session) => {
             const data = await this.activitySubmissionsRepository.getCohortStatsMap(cohortName, courseVersionId, session);
             return data;
