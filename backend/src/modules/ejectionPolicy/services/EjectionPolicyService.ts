@@ -36,8 +36,23 @@ export class EjectionPolicyService extends BaseService {
       // Validate policy data
       this.validatePolicyData(policyData);
 
+      if (policyData.cohortId) {
+        const existing = await this.policyRepo.findByCohort(
+          String(policyData.courseId),
+          String(policyData.courseVersionId),
+          String(policyData.cohortId),
+          undefined,
+          session,
+        );
+        if (existing) {
+          throw new BadRequestError(
+            'A policy already exists for this cohort. Only one policy per cohort is allowed.',
+          );
+        }
+      }
+
       // Check for conflicts
-      await this.checkPolicyConflicts(policyData, undefined, session);
+      // await this.checkPolicyConflicts(policyData, undefined, session);
 
       // Create the policy
       const policy = new EjectionPolicy({
@@ -91,8 +106,9 @@ export class EjectionPolicyService extends BaseService {
    * Get all policies with optional filters
    */
   async getPolicies(filters: {
-    scope?: PolicyScope;
     courseId?: string;
+    courseVersionId?: string;
+    cohortId?: string;
     isActive?: boolean;
   }): Promise<EjectionPolicy[]> {
     return await this.policyRepo.find(filters);
@@ -105,10 +121,12 @@ export class EjectionPolicyService extends BaseService {
   async getActivePoliciesForCourse(
     courseId: string,
     courseVersionId: string,
+    cohortId: string,
   ): Promise<EjectionPolicy[]> {
     return await this.policyRepo.findActivePoliciesForCourse(
       courseId,
       courseVersionId,
+      cohortId,
     );
   }
 
@@ -259,17 +277,14 @@ export class EjectionPolicyService extends BaseService {
       this.validateActions(policy.actions);
     }
 
-    // Validate scope-specific rules
-    if (policy.scope === 'course' && !policy.courseId) {
-      throw new BadRequestError(
-        'Course-specific policies must have a courseId',
-      );
+    if (!policy.courseId) {
+      throw new BadRequestError('courseId is required');
     }
-
-    if (policy.scope === 'platform' && policy.courseId) {
-      throw new BadRequestError(
-        'Platform-wide policies cannot have a courseId',
-      );
+    if (!policy.courseVersionId) {
+      throw new BadRequestError('courseVersionId is required');
+    }
+    if (!policy.cohortId) {
+      throw new BadRequestError('cohortId is required');
     }
   }
   /*
@@ -356,44 +371,6 @@ export class EjectionPolicyService extends BaseService {
       if (actions.appealDeadlineDays <= 0) {
         throw new BadRequestError(
           'Appeal deadline must be greater than 0 days',
-        );
-      }
-    }
-  }
-
-  /**
-   * Check for policy conflicts
-   * - Prevent duplicate priorities
-   * - Validate scope constraints
-   */
-  private async checkPolicyConflicts(
-    policy: Partial<EjectionPolicy>,
-    excludePolicyId?: string,
-    session?: ClientSession,
-  ): Promise<void> {
-    if (policy.priority === undefined || policy.priority === null) {
-      return;
-    }
-
-    const existingPolicy = await this.policyRepo.findByPriority(
-      policy.scope,
-      policy.priority,
-      String(policy.courseId),
-      String(policy.courseVersionId),
-      excludePolicyId,
-      session,
-    );
-
-    if (existingPolicy) {
-      if (policy.scope === 'platform') {
-        throw new BadRequestError(
-          `A platform policy with priority ${policy.priority} already exists.`,
-        );
-      }
-
-      if (policy.scope === 'course') {
-        throw new BadRequestError(
-          `A course policy with priority ${policy.priority} already exists for this course.`,
         );
       }
     }

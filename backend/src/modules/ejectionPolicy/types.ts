@@ -4,6 +4,8 @@ export const EJECTION_POLICY_TYPES = {
 
   // Repositories
   EjectionPolicyRepo: Symbol.for('EjectionPolicyRepo'),
+
+  ManualEjectionService: Symbol.for('ManualEjectionService'),
 };
 
 export type TriggerType =
@@ -12,7 +14,7 @@ export type TriggerType =
   | 'violation'
   | 'anomaly-detection'
   | 'custom';
-export type PolicyScope = 'platform' | 'course';
+export type PolicyScope = 'course';
 export type PolicyStatus = 'active' | 'inactive' | 'archived';
 
 export interface InactivityTrigger {

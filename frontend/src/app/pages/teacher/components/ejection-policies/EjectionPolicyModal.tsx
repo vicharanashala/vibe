@@ -17,9 +17,10 @@ interface EjectionPolicyModalProps {
   isOpen: boolean;
   onClose: () => void;
   editPolicy?: EjectionPolicy | null;
-  defaultScope?: PolicyScope;
+  defaultScope?: string | null;
   courseId?: string;
   courseVersionId?:string,
+  cohortId?: string; 
   courseName?: string;
   isAdmin: boolean;
 }
@@ -31,6 +32,7 @@ export const EjectionPolicyModal = ({
   defaultScope = PolicyScope.PLATFORM,
   courseId,
   courseVersionId,
+  cohortId,
   courseName,
   isAdmin,
 }: EjectionPolicyModalProps) => {
@@ -41,10 +43,10 @@ export const EjectionPolicyModal = ({
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    scope: defaultScope,
+    
     courseId: defaultScope === PolicyScope.COURSE ? courseId || "" : "",
     courseVersionId: defaultScope === PolicyScope.COURSE ? courseVersionId || "" : "",
-    priority: 100,
+    cohortId: cohortId ||"",
     isActive: true,
     
     // Triggers
@@ -82,10 +84,11 @@ export const EjectionPolicyModal = ({
       setFormData({
         name: editPolicy.name,
         description: editPolicy.description || "",
-        scope: editPolicy.scope,
+        
         courseId: editPolicy.courseId || "",
         courseVersionId: editPolicy.courseVersionId || "",
-        priority: editPolicy.priority,
+        cohortId: editPolicy.cohortId || "",
+        
         isActive: editPolicy.isActive,
         
         inactivityEnabled: editPolicy.triggers.inactivity?.enabled || false,
@@ -122,10 +125,11 @@ export const EjectionPolicyModal = ({
       setFormData({
         name: "",
         description: "",
-        scope: defaultScope,
+        
         courseId: courseId || "",
         courseVersionId: courseVersionId || "",
-        priority: 100,
+        cohortId: cohortId || "",
+        
         isActive: true,
         inactivityEnabled: false,
         inactivityThresholdDays: 30,
@@ -157,9 +161,7 @@ export const EjectionPolicyModal = ({
       newErrors.name = "Policy name is required";
     }
 
-    if (formData.scope === PolicyScope.COURSE && !formData.courseId) {
-      newErrors.courseId = "Course is required for course-specific policies";
-    }
+    
 
     // At least one trigger must be enabled
     if (!formData.inactivityEnabled && !formData.missedDeadlinesEnabled && !formData.violationsEnabled && !formData.anomalyEnabled) {
@@ -237,10 +239,10 @@ export const EjectionPolicyModal = ({
       const policyData = {
         name: formData.name,
         description: formData.description,
-        scope: formData.scope,
-        courseId: formData.scope === PolicyScope.COURSE ? formData.courseId : undefined,
-        courseVersionId: formData.scope === PolicyScope.COURSE ? formData.courseVersionId : undefined,
-        priority: formData.priority,
+        courseId: formData.courseId,
+        courseVersionId: formData.courseVersionId ,
+        cohortId: formData.cohortId, 
+       
         isActive: formData.isActive,
         triggers: {
           inactivity: formData.inactivityEnabled ? {
@@ -305,11 +307,7 @@ export const EjectionPolicyModal = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
-            {editPolicy
-  ? "Edit Policy"
-  : formData.scope === PolicyScope.PLATFORM
-  ? "Create Platform Policy"
-  : "Create Course Policy"}
+            {editPolicy ? "Edit Policy" : "Create Course Policy"}
           </DialogTitle>
         </DialogHeader>
 

@@ -224,7 +224,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-    cohort?: string
+    cohort?: string,
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const user = await this.userRepo.findById(userId);
@@ -247,7 +247,7 @@ export class EnrollmentService extends BaseService {
         courseId,
         courseVersionId,
         cohort,
-        session
+        session,
       );
 
       return existingEnrollment;
@@ -329,7 +329,7 @@ export class EnrollmentService extends BaseService {
     userIds: string[],
     courseId: string,
     courseVersionId: string,
-    cohortId?: string
+    cohortId?: string,
   ): Promise<{
     successCount: number;
     failureCount: number;
@@ -357,7 +357,7 @@ export class EnrollmentService extends BaseService {
             userId,
             courseId,
             courseVersionId,
-            cohortId
+            cohortId,
           );
 
           if (!enrollment) {
@@ -930,15 +930,13 @@ export class EnrollmentService extends BaseService {
       let totalQuizScore = 0;
       let totalQuizMaxScore = 0;
       const totalItems =
-        detail?.contentCounts?.totalItems ??
-        courseVersion?.totalItems ??
-        0;
+        detail?.contentCounts?.totalItems ?? courseVersion?.totalItems ?? 0;
       const percentCompleted =
         totalItems > 0
           ? Math.min(
-            100,
-            Number(((completedItemsCount / totalItems) * 100).toFixed(2)),
-          )
+              100,
+              Number(((completedItemsCount / totalItems) * 100).toFixed(2)),
+            )
           : 0;
 
       if (courseVersion) {
@@ -2065,22 +2063,20 @@ export class EnrollmentService extends BaseService {
     enrollmentIds: string[],
     courseId: string,
     versionId: string,
-    cohortId: string
+    cohortId: string,
   ): Promise<boolean> {
-
     return this._withTransaction(async (session: ClientSession) => {
-
       const result = await this.enrollmentRepo.moveEnrollmentsToCohort(
         enrollmentIds,
         courseId,
         versionId,
         cohortId,
-        session
+        session,
       );
 
       if (result.modifiedCount !== enrollmentIds.length) {
         throw new BadRequestError(
-          "Some enrollments are invalid or already assigned to a cohort"
+          'Some enrollments are invalid or already assigned to a cohort',
         );
       }
 
@@ -2088,25 +2084,83 @@ export class EnrollmentService extends BaseService {
     });
   }
 
-    // Move other documents realted to that student to the target cohort.
-    async moveRelatedDocumentsToCohort(
-      enrollmentIds: string[],
-      courseId: string,
-      versionId: string,
-      targetCohortId: string
-    ): Promise<boolean> {
+  // Move other documents realted to that student to the target cohort.
+  async moveRelatedDocumentsToCohort(
+    enrollmentIds: string[],
+    courseId: string,
+    versionId: string,
+    targetCohortId: string,
+  ): Promise<boolean> {
+    return this._withTransaction(async (session: ClientSession) => {
+      await this.enrollmentRepo.moveRelatedDocumentsToCohort(
+        enrollmentIds,
+        courseId,
+        versionId,
+        targetCohortId,
+        session,
+      );
 
-      return this._withTransaction(async (session: ClientSession) => {
+      return true;
+    });
+  }
+  async ejectUser(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    reason: string,
+    ejectedBy: string,
+    cohortId?: string,
+    policyId?: string,
+  ): Promise<{enrollment: IEnrollment}> {
+    return this._withTransaction(async (session: ClientSession) => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        courseVersionId,
+        session,
+      );
 
-        await this.enrollmentRepo.moveRelatedDocumentsToCohort(
-          enrollmentIds,
-          courseId,
-          versionId,
-          targetCohortId,
-          session
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'This course version is archived, cannot eject users',
         );
+      }
 
-        return true;
-      });
-    }
+      const enrollment = await this.enrollmentRepo.findActiveEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId,
+        session,
+      );
+
+      if (!enrollment) {
+        throw new NotFoundError(
+          'No active enrollment found for this user in the specified course version',
+        );
+      }
+
+      // Soft-deletes progress and watchtime — data is preserved for reinstatement
+      await this.progressService.unenrollUser(
+        userId,
+        courseId,
+        courseVersionId,
+        enrollment._id.toString(),
+        cohortId,
+        session,
+      );
+
+      const ejectedEnrollment = await this.enrollmentRepo.ejectEnrollment(
+        enrollment._id.toString(),
+        reason,
+        ejectedBy,
+        policyId,
+        session,
+      );
+
+      if (!ejectedEnrollment) {
+        throw new NotFoundError('Failed to eject enrollment');
+      }
+
+      return {enrollment: ejectedEnrollment};
+    });
+  }
 }

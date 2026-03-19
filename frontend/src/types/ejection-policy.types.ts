@@ -51,8 +51,11 @@ export interface EjectionPolicy {
   _id: string;
   name: string;
   description?: string;
-  scope: PolicyScope;
+
   courseId?: string | null;
+  courseVersionId?: string | null;
+  cohortId?: string | null;
+  
   isActive: boolean;
   priority: number;
   triggers: PolicyTriggers;

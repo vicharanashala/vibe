@@ -35,8 +35,8 @@ export class EjectionPolicyRepository {
     try {
       // Index for finding active policies by scope and course
       await this.collection.createIndex(
-        {scope: 1, isActive: 1, deletedAt: 1},
-        {name: 'scope_active_deleted_idx'},
+        {courseId: 1, courseVersionId: 1, cohortId: 1},
+        {name: 'course_version_cohort_unique_idx', unique: true},
       );
 
       // Index for course-specific policies (courseId + courseVersionId)
@@ -66,13 +66,13 @@ export class EjectionPolicyRepository {
     const doc = {
       name: policy.name,
       description: policy.description,
-      scope: policy.scope,
+      scope: 'course',
       courseId: policy.courseId ? new ObjectId(policy.courseId) : null,
       courseVersionId: policy.courseVersionId
         ? new ObjectId(policy.courseVersionId)
         : null,
+      cohortId: policy.cohortId ? new ObjectId(policy.cohortId) : null,
       isActive: policy.isActive,
-      priority: policy.priority,
       triggers: policy.triggers,
       actions: policy.actions,
       createdBy: new ObjectId(policy.createdBy),
@@ -111,9 +111,9 @@ export class EjectionPolicyRepository {
    */
   async find(
     filters: {
-      scope?: PolicyScope;
       courseId?: string;
       courseVersionId?: string;
+      cohortId?: string;
       isActive?: boolean;
     },
     session?: ClientSession,
@@ -124,10 +124,6 @@ export class EjectionPolicyRepository {
       isDeleted: {$ne: true},
       deletedAt: {$exists: false},
     };
-
-    if (filters.scope) {
-      query.scope = filters.scope;
-    }
 
     if (filters.courseId) {
       query.courseId = new ObjectId(filters.courseId);
@@ -155,32 +151,24 @@ export class EjectionPolicyRepository {
   async findActivePoliciesForCourse(
     courseId: string,
     courseVersionId: string,
+    cohortId: string, // add
     session?: ClientSession,
   ): Promise<EjectionPolicy[]> {
-    await this.init();
-
     const query: Filter<any> = {
-      $or: [
-        // Platform-wide policies apply to all courses/versions
-        {scope: 'platform'},
-        // Course-specific policies scoped to this exact version
-        {
-          scope: 'course',
-          courseId: new ObjectId(courseId),
-          courseVersionId: new ObjectId(courseVersionId),
-        },
-      ],
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      cohortId: new ObjectId(cohortId),
       isActive: true,
       isDeleted: {$ne: true},
       deletedAt: {$exists: false},
     };
 
-    const docs = await this.collection
-      .find(query, {session})
-      .sort({priority: -1})
-      .toArray();
-
-    return docs.map(doc => this.mapToEjectionPolicy(doc));
+    return (
+      await this.collection
+        .find(query, {session})
+        .sort({createdAt: -1})
+        .toArray()
+    ).map(doc => this.mapToEjectionPolicy(doc));
   }
 
   /**
@@ -284,8 +272,9 @@ export class EjectionPolicyRepository {
       scope: doc.scope,
       courseId: doc.courseId,
       courseVersionId: doc.courseVersionId,
+      cohortId: doc.cohortId,
       isActive: doc.isActive,
-      priority: doc.priority,
+
       triggers: doc.triggers,
       actions: doc.actions,
       createdBy: doc.createdBy,
@@ -294,40 +283,28 @@ export class EjectionPolicyRepository {
       deletedAt: doc.deletedAt,
     });
   }
-
-  async findByPriority(
-    scope: PolicyScope,
-    priority: number,
-    courseId?: string,
-    courseVersionId?: string,
+  async findByCohort(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
     excludePolicyId?: string,
     session?: ClientSession,
   ): Promise<EjectionPolicy | null> {
     await this.init();
 
     const query: Filter<any> = {
-      scope,
-      priority,
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      cohortId: new ObjectId(cohortId),
       isDeleted: {$ne: true},
       deletedAt: {$exists: false},
     };
 
-    // Course policies must match the same course and version
-    if (scope === 'course' && courseId) {
-      query.courseId = new ObjectId(courseId);
-    }
-
-    if (scope === 'course' && courseVersionId) {
-      query.courseVersionId = new ObjectId(courseVersionId);
-    }
-
-    // Exclude the policy being updated
     if (excludePolicyId) {
       query._id = {$ne: new ObjectId(excludePolicyId)};
     }
 
     const doc = await this.collection.findOne(query, {session});
-
     return doc ? this.mapToEjectionPolicy(doc) : null;
   }
 }

@@ -4,17 +4,19 @@ import { components } from '@/types/schema';
 
 // GET /ejection-policies
 export function useEjectionPolicies(
-  scope?: 'platform' | 'course',
+
   courseId?: string,
   courseVersionId?: string,
+  cohortId?:string,
   isActive?: boolean,
   enabled: boolean = true
 ) {
   const params: any = {};
 
-  if (scope) params.scope = scope;
+  
   if (courseId) params.courseId = courseId;
   if (courseVersionId) params.courseVersionId = courseVersionId;
+  if (cohortId) params.cohortId = cohortId; 
   if (isActive !== undefined) params.active = isActive;
 
   const result = api.useQuery(
@@ -155,7 +157,8 @@ export function useEjectionPolicy(policyId: string) {
 // GET /ejection-policies/courses/{courseId}/versions/{courseVersionId}/active
 export function useActivePoliciesForCourse(
   courseId: string,
-  courseVersionId: string
+  courseVersionId: string,
+  cohortId: string,  
 ): {
   policies: components['schemas']['EjectionPolicyResponse'][];
   isLoading: boolean;
@@ -164,9 +167,9 @@ export function useActivePoliciesForCourse(
 } {
   const result = api.useQuery(
     "get",
-    "/ejection-policies/courses/{courseId}/versions/{courseVersionId}/active",
+    "/ejection-policies/courses/{courseId}/versions/{courseVersionId}/cohorts/{cohortId}/active",
     {
-      params: { path: { courseId, courseVersionId } }
+      params: { path: { courseId, courseVersionId,cohortId } }
     }
   );
   return {

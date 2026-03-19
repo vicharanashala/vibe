@@ -199,14 +199,6 @@ export class CreateEjectionPolicyBody {
   description?: string;
 
   @JSONSchema({
-    description: 'Policy scope',
-    enum: ['platform', 'course'],
-  })
-  @IsNotEmpty()
-  @IsEnum(['platform', 'course'])
-  scope: PolicyScope;
-
-  @JSONSchema({
     description: 'Course ID (required if scope is "course")',
   })
   @IsOptional()
@@ -221,13 +213,11 @@ export class CreateEjectionPolicyBody {
   courseVersionId?: string;
 
   @JSONSchema({
-    description: 'Priority level',
-    minimum: 1,
+    description: 'Cohort ID (required for course-specific policies)',
   })
-  @IsOptional()
-  @IsNumber()
-  @Min(1)
-  priority?: number;
+  @IsNotEmpty()
+  @IsMongoId()
+  cohortId: string;
 
   @JSONSchema({
     description: 'Trigger configuration',
@@ -258,11 +248,6 @@ export class UpdateEjectionPolicyBody {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(1)
-  priority?: number;
 
   @IsOptional()
   @ValidateNested()
@@ -315,16 +300,17 @@ export class CourseVersionParams {
 
 export class GetPoliciesQuery {
   @IsOptional()
-  @IsEnum(['platform', 'course'])
-  scope?: PolicyScope;
-
-  @IsOptional()
   @IsMongoId()
   courseId?: string;
 
   @IsOptional()
   @IsMongoId()
   courseVersionId?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  @JSONSchema({type: 'string', description: 'Cohort ID filter'})
+  cohortId?: string;
 
   @IsOptional()
   @IsBoolean()
@@ -361,15 +347,6 @@ export class EjectionPolicyResponse {
   description?: string;
 
   @IsString()
-  @Expose()
-  @JSONSchema({
-    description: 'Policy scope',
-    enum: ['platform', 'course'],
-    example: 'platform',
-  })
-  scope: PolicyScope;
-
-  @IsString()
   @IsOptional()
   @Expose()
   @Transform(({value}) => value?.toString())
@@ -389,6 +366,16 @@ export class EjectionPolicyResponse {
   })
   courseVersionId?: string;
 
+  @IsString()
+  @IsOptional()
+  @Expose()
+  @Transform(({value}) => value?.toString())
+  @JSONSchema({
+    description: 'Cohort ID this policy applies to',
+    example: '507f1f77bcf86cd799439011',
+  })
+  cohortId?: string;
+
   @IsBoolean()
   @Expose()
   @JSONSchema({
@@ -396,14 +383,6 @@ export class EjectionPolicyResponse {
     example: true,
   })
   isActive: boolean;
-
-  @IsNumber()
-  @Expose()
-  @JSONSchema({
-    description: 'Policy priority (higher = executed first)',
-    example: 100,
-  })
-  priority: number;
 
   @ValidateNested()
   @Type(() => PolicyTriggersDto)

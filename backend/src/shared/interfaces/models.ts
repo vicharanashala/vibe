@@ -409,6 +409,15 @@ export interface IEnrollment {
   hasNewItemsAfterCompletion?: boolean;
   cohortId?: ID;
   policyAcknowledgedAt?: Date;
+  isEjected?: boolean;
+  ejectionHistory?: Array<{
+    ejectedAt: Date;
+    ejectionReason: string;
+    ejectedBy: string | ObjectId;
+    policyId?: string | ObjectId;
+    reinstatedAt?: Date;
+    reinstatedBy?: string | ObjectId;
+  }>;
 }
 
 export interface IProgress {

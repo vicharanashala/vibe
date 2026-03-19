@@ -85,38 +85,25 @@ export class EjectionPolicyController {
     @Ability(getEjectionPolicyAbility) {ability, user},
     @Req() req: Request,
   ): Promise<EjectionPolicyResponse> {
-    // Only admins can create platform-wide policies
-    if (body.scope === 'platform' && user.roles !== 'admin') {
-      throw new ForbiddenError(
-        'Only administrators can create platform-wide policies',
-      );
+    if (!body.courseId) {
+      throw new ForbiddenError('courseId is required');
+    }
+    if (!body.courseVersionId) {
+      throw new ForbiddenError('courseVersionId is required');
+    }
+    if (!body.cohortId) {
+      throw new ForbiddenError('cohortId is required');
     }
 
-    // For course-specific policies, check permissions
-    if (body.scope === 'course') {
-      if (!body.courseId) {
-        throw new ForbiddenError(
-          'courseId is required for course-specific policies',
-        );
-      }
+    const policySubject = subject('EjectionPolicy', {
+      courseId: body.courseId,
+      courseVersionId: body.courseVersionId,
+    });
 
-      if (!body.courseVersionId) {
-        throw new ForbiddenError(
-          'courseVersionId is required for course-specific policies',
-        );
-      }
-
-      const policyContext = {
-        courseId: body.courseId,
-        courseVersionId: body.courseVersionId,
-      };
-      const policySubject = subject('EjectionPolicy', policyContext);
-
-      if (!ability.can(EjectionPolicyActions.Create, policySubject)) {
-        throw new ForbiddenError(
-          'You do not have permission to create policies for this course',
-        );
-      }
+    if (!ability.can(EjectionPolicyActions.Create, policySubject)) {
+      throw new ForbiddenError(
+        'You do not have permission to create policies for this course',
+      );
     }
 
     const policy = await this.policyService.createPolicy(
@@ -169,65 +156,92 @@ export class EjectionPolicyController {
     @QueryParams() query: GetPoliciesQuery,
     @Ability(getEjectionPolicyAbility) {ability, user},
   ): Promise<PoliciesListResponse> {
-    let policies;
+    // let policies;
 
-    if (user.roles === 'admin') {
-      // Admins can see all policies
-      const filters: any = {
-        scope: query.scope,
-        isActive: query.active,
-      };
+    // if (user.roles === 'admin') {
+    //   // Admins can see all policies
+    //   const filters: any = {
+    //     scope: query.scope,
+    //     isActive: query.active,
+    //   };
 
-      if (query.courseId) {
-        filters.courseId = query.courseId;
-      }
+    //   if (query.courseId) {
+    //     filters.courseId = query.courseId;
+    //   }
 
-      if (query.courseVersionId) {
-        filters.courseVersionId = query.courseVersionId;
-      }
+    //   if (query.courseVersionId) {
+    //     filters.courseVersionId = query.courseVersionId;
+    //   }
 
-      policies = await this.policyService.getPolicies(filters);
-    } else {
-      const filters: any = {
-        scope: query.scope,
-        isActive: query.active,
-      };
+    //   policies = await this.policyService.getPolicies(filters);
+    // } else {
+    //   const filters: any = {
+    //     scope: query.scope,
+    //     isActive: query.active,
+    //   };
 
-      // Platform policies are visible to everyone
-      if (query.scope === 'platform') {
-        policies = await this.policyService.getPolicies(filters);
-      } else {
-        // Course policies require courseId and courseVersionId
-        if (!query.courseId) {
-          throw new ForbiddenError(
-            'courseId is required for course-specific policies.',
-          );
-        }
+    //   // Platform policies are visible to everyone
+    //   if (query.scope === 'platform') {
+    //     policies = await this.policyService.getPolicies(filters);
+    //   } else {
+    //     // Course policies require courseId and courseVersionId
+    //     if (!query.courseId) {
+    //       throw new ForbiddenError(
+    //         'courseId is required for course-specific policies.',
+    //       );
+    //     }
 
-        if (!query.courseVersionId) {
-          throw new ForbiddenError(
-            'courseVersionId is required for course-specific policies.',
-          );
-        }
+    //     if (!query.courseVersionId) {
+    //       throw new ForbiddenError(
+    //         'courseVersionId is required for course-specific policies.',
+    //       );
+    //     }
 
-        const policyContext = {
-          courseId: query.courseId,
-          courseVersionId: query.courseVersionId,
-        };
-        const policySubject = subject('EjectionPolicy', policyContext);
+    //     const policyContext = {
+    //       courseId: query.courseId,
+    //       courseVersionId: query.courseVersionId,
+    //     };
+    //     const policySubject = subject('EjectionPolicy', policyContext);
 
-        if (!ability.can(EjectionPolicyActions.View, policySubject)) {
-          throw new ForbiddenError(
-            'You do not have permission to view policies for this course',
-          );
-        }
+    //     if (!ability.can(EjectionPolicyActions.View, policySubject)) {
+    //       throw new ForbiddenError(
+    //         'You do not have permission to view policies for this course',
+    //       );
+    //     }
 
-        filters.courseId = query.courseId;
-        filters.courseVersionId = query.courseVersionId;
+    //     filters.courseId = query.courseId;
+    //     filters.courseVersionId = query.courseVersionId;
 
-        policies = await this.policyService.getPolicies(filters);
-      }
+    //     policies = await this.policyService.getPolicies(filters);
+    //   }
+    // }
+    if (!query.courseId) {
+      throw new ForbiddenError('courseId is required');
     }
+    if (!query.courseVersionId) {
+      throw new ForbiddenError('courseVersionId is required');
+    }
+
+    const policySubject = subject('EjectionPolicy', {
+      courseId: query.courseId,
+      courseVersionId: query.courseVersionId,
+    });
+
+    if (
+      user.roles !== 'admin' &&
+      !ability.can(EjectionPolicyActions.View, policySubject)
+    ) {
+      throw new ForbiddenError(
+        'You do not have permission to view policies for this course',
+      );
+    }
+
+    const policies = await this.policyService.getPolicies({
+      courseId: query.courseId,
+      courseVersionId: query.courseVersionId,
+      cohortId: query.cohortId,
+      isActive: query.active,
+    });
 
     const responsePolicies = policies.map(p =>
       plainToClass(EjectionPolicyResponse, p, {
@@ -292,7 +306,7 @@ export class EjectionPolicyController {
   }
 
   @Authorized()
-  @Get('/courses/:courseId/versions/:courseVersionId/active')
+  @Get('/courses/:courseId/versions/:courseVersionId/cohorts/:cohortId/active')
   @HttpCode(200)
   @ResponseSchema(PoliciesListResponse, {
     description: 'Active policies for the course version',
@@ -306,6 +320,7 @@ export class EjectionPolicyController {
   async getActivePoliciesForCourse(
     @Param('courseId') courseId: string,
     @Param('courseVersionId') courseVersionId: string,
+    @Param('cohortId') cohortId: string,
     @Ability(getEjectionPolicyAbility) {ability, user},
   ): Promise<PoliciesListResponse> {
     // Check if user has access to this course version
@@ -323,6 +338,7 @@ export class EjectionPolicyController {
     const policies = await this.policyService.getActivePoliciesForCourse(
       courseId,
       courseVersionId,
+      cohortId,
     );
 
     const responsePolicies = policies.map(p =>
