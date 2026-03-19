@@ -643,6 +643,7 @@ export class CohortRepository implements ICohortRepository {
         cohortId?: string
     ): Promise<number> {
         await this.init();
+        console.log("Course version Id: ", courseVersionId)
 
         const match: any = {
             courseVersionId: new ObjectId(courseVersionId),
