@@ -661,6 +661,8 @@ Accessible to:
       throw new BadRequestError("Cohort name required for creating a cohort");
     }
 
+    // Restricting cohort creation for already existing course versions because these versions are already published and have students enrolled in them
+
     const restrictedVersionIds = [
       '6968e12cbf2860d6e39051af',
       '6970f87e30644cbc74b67150',
