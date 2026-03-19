@@ -774,7 +774,7 @@ export default function CreateHpActivityPage() {
                                             <SelectContent>
                                                 <SelectItem value="NONE">Deny Reward</SelectItem>
                                                 <SelectItem value="REWARD_ALLOWED">Allow Reward</SelectItem>
-                                                <SelectItem value="REWARD_DENIED">Penalty Apply (No Reward)</SelectItem>
+                                                {/* <SelectItem value="REWARD_DENIED">Penalty Apply (No Reward)</SelectItem> */}
                                             </SelectContent>
                                         </Select>
                                         {ruleErrors.lateRewardPolicy && <p className="text-xs text-red-500">{ruleErrors.lateRewardPolicy}</p>}
