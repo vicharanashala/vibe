@@ -8,6 +8,8 @@ import { plainToInstance } from "class-transformer";
 import { CourseWithVersionsDto } from "#root/modules/hpSystem/classes/validators/courseAndCohorts.js";
 import { inject, injectable } from "inversify";
 import { ClientSession, Collection, ObjectId } from "mongodb";
+import { HpActivity, HpLedger } from "#root/modules/hpSystem/models.js";
+import { HpActivitySubmission } from "#root/modules/hpSystem/classes/transformers/ActivitySubmission.js";
 
 @injectable()
 export class CohortRepository implements ICohortRepository {
@@ -16,6 +18,9 @@ export class CohortRepository implements ICohortRepository {
     private enrollmentCollection: Collection<IEnrollment>;
     private cohortsCollection: Collection<ICohort>;
     private courseSettingsCollection: Collection<any>;
+    private hpLedgerCollection: Collection<HpLedger>;
+    private hpActivityCollection: Collection<HpActivity>;
+    private hpActivitySubmissionCollection: Collection<HpActivitySubmission>;
 
     constructor(
         @inject(GLOBAL_TYPES.Database)
@@ -39,6 +44,12 @@ export class CohortRepository implements ICohortRepository {
         this.cohortsCollection = await this.db.getCollection<ICohort>(
             'cohorts',
         );
+        this.hpLedgerCollection = await this.db.getCollection<HpLedger>('hp_ledger');
+        this.hpActivityCollection = await this.db.getCollection<HpActivity>('hp_activities');
+        this.hpActivitySubmissionCollection = await this.db.getCollection<HpActivitySubmission>(
+            'hp_activity_submissions',
+        );
+
     }
 
     async getTotalStudentsCountForCourseVersion(courseVersionId: string): Promise<number> {
@@ -668,5 +679,28 @@ export class CohortRepository implements ICohortRepository {
             .toArray();
 
         return result[0]?.totalHp ?? 0;
+    }
+
+    async updateCohortNameAcrossDB(
+        courseVersionId: string,
+        oldCohortName: string,
+        newCohortName: string,
+    ): Promise<void> {
+        await this.init();
+
+        const filter = {
+            cohort: oldCohortName,
+            courseVersionId: new ObjectId(courseVersionId),
+        };
+
+        const update = {
+            $set: { cohort: newCohortName },
+        };
+
+        await Promise.all([
+            this.hpActivityCollection.updateMany(filter, update),
+            this.hpActivitySubmissionCollection.updateMany(filter, update),
+            this.hpLedgerCollection.updateMany(filter, update),
+        ]);
     }
 }
