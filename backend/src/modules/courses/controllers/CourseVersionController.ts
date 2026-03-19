@@ -661,6 +661,18 @@ Accessible to:
       throw new BadRequestError("Cohort name required for creating a cohort");
     }
 
+    const restrictedVersionIds = [
+      '6968e12cbf2860d6e39051af',
+      '6970f87e30644cbc74b67150',
+      '697b4e262942654879011c57',
+      '69903415e1930c015760a719',
+      '69942dc6d6d99b252e3a54ff',
+    ];
+
+    if (restrictedVersionIds.includes(versionId)) {
+      throw new BadRequestError('Cohort creation is restricted for this course version');
+    }
+
     const existingVersion = await this.courseVersionService.readCourseVersion(versionId, user._id);
     if(existingVersion.cohortDetails && existingVersion.cohortDetails?.some(cohort=> cohort.name === body.newCohortName)){
       throw new BadRequestError("The requested cohort name already exists in the course version");
