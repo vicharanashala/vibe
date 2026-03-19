@@ -1,13 +1,13 @@
-import {HpActivityTransformer} from '#root/modules/hpSystem/classes/transformers/Activity.js';
-import {ListActivitiesQuery} from '#root/modules/hpSystem/classes/validators/activityValidators.js';
-import {IActivityRepository} from '#root/modules/hpSystem/interfaces/IActivityRepository.js';
-import {HpActivity} from '#root/modules/hpSystem/models.js';
+import { HpActivityTransformer } from '#root/modules/hpSystem/classes/transformers/Activity.js';
+import { ListActivitiesQuery } from '#root/modules/hpSystem/classes/validators/activityValidators.js';
+import { IActivityRepository } from '#root/modules/hpSystem/interfaces/IActivityRepository.js';
+import { HpActivity } from '#root/modules/hpSystem/models.js';
 // import { HpActivity, HpActivitySubmission } from "#root/modules/hpSystem/models.js";
-import {MongoDatabase} from '#root/shared/index.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {plainToInstance} from 'class-transformer';
-import {inject, injectable} from 'inversify';
-import {ClientSession, Collection, ObjectId} from 'mongodb';
+import { MongoDatabase } from '#root/shared/index.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { plainToInstance } from 'class-transformer';
+import { inject, injectable } from 'inversify';
+import { ClientSession, Collection, ObjectId } from 'mongodb';
 
 @injectable()
 export class ActivityRepository implements IActivityRepository {
@@ -16,7 +16,7 @@ export class ActivityRepository implements IActivityRepository {
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
-  ) {}
+  ) { }
 
   async init() {
     this.hpActivityCollection =
@@ -38,7 +38,7 @@ export class ActivityRepository implements IActivityRepository {
 
     const result = await this.hpActivityCollection.insertOne(
       docToInsert,
-      session ? {session} : undefined,
+      session ? { session } : undefined,
     );
 
     docToInsert._id = result.insertedId;
@@ -64,10 +64,10 @@ export class ActivityRepository implements IActivityRepository {
   ): Promise<HpActivity | null> {
     await this.init();
     return await this.hpActivityCollection.findOneAndUpdate(
-      {_id: new ObjectId(activityId), isDeleted: {$ne: true}},
-      {$set: {...update, updatedAt: new Date()}},
+      { _id: new ObjectId(activityId), isDeleted: { $ne: true } },
+      { $set: { ...update, updatedAt: new Date() } },
       {
-        ...(session ? {session} : {}),
+        ...(session ? { session } : {}),
         returnDocument: 'after',
       },
     );
@@ -77,7 +77,7 @@ export class ActivityRepository implements IActivityRepository {
     await this.init();
     const doc = await this.hpActivityCollection.findOne({
       _id: new ObjectId(activityId),
-      isDeleted: {$ne: true},
+      isDeleted: { $ne: true },
     });
     return plainToInstance(HpActivityTransformer, doc);
   }
@@ -86,7 +86,7 @@ export class ActivityRepository implements IActivityRepository {
     filters: ListActivitiesQuery,
   ): Promise<HpActivityTransformer[]> {
     await this.init();
-    const q: any = {isDeleted: {$ne: true}};
+    const q: any = { isDeleted: { $ne: true } };
 
     if (filters.courseId) q.courseId = new ObjectId(filters.courseId);
     if (filters.courseVersionId)
@@ -98,20 +98,20 @@ export class ActivityRepository implements IActivityRepository {
       q.createdByTeacherId = new ObjectId(filters.createdByTeacherId);
     if (filters.search) {
       q.$or = [
-        {title: {$regex: filters.search, $options: 'i'}},
-        {description: {$regex: filters.search, $options: 'i'}},
-        {activityType: {$regex: filters.search, $options: 'i'}},
+        { title: { $regex: filters.search, $options: 'i' } },
+        { description: { $regex: filters.search, $options: 'i' } },
+        { activityType: { $regex: filters.search, $options: 'i' } },
       ];
     }
 
     const docs = await this.hpActivityCollection
       .aggregate([
-        {$match: q},
+        { $match: q },
 
         {
           $lookup: {
             from: 'hp_activity_rules',
-            let: {activityId: '$_id'},
+            let: { activityId: '$_id' },
             pipeline: [
               {
                 $match: {
@@ -156,7 +156,7 @@ export class ActivityRepository implements IActivityRepository {
           },
         },
 
-        {$sort: {createdAt: -1}},
+        { $sort: { createdAt: -1 } },
       ])
       .toArray();
 
@@ -217,8 +217,8 @@ export class ActivityRepository implements IActivityRepository {
     return await this.hpActivityCollection.findOneAndUpdate(
       {
         _id: new ObjectId(activityId),
-        status: {$ne: 'ARCHIVED'},
-        isDeleted: {$ne: true},
+        status: { $ne: 'ARCHIVED' },
+        isDeleted: { $ne: true },
       },
       {
         $set: {
@@ -228,7 +228,7 @@ export class ActivityRepository implements IActivityRepository {
         },
       },
       {
-        ...(session ? {session} : {}),
+        ...(session ? { session } : {}),
         returnDocument: 'after',
       },
     );
@@ -240,10 +240,10 @@ export class ActivityRepository implements IActivityRepository {
   ): Promise<HpActivity | null> {
     await this.init();
     return await this.hpActivityCollection.findOneAndUpdate(
-      {_id: new ObjectId(activityId), isDeleted: {$ne: true}},
-      {$set: {status: 'ARCHIVED', updatedAt: new Date()}},
+      { _id: new ObjectId(activityId), isDeleted: { $ne: true } },
+      { $set: { status: 'ARCHIVED', updatedAt: new Date() } },
       {
-        ...(session ? {session} : {}),
+        ...(session ? { session } : {}),
         returnDocument: 'after',
       },
     );
@@ -253,12 +253,12 @@ export class ActivityRepository implements IActivityRepository {
     activityId: string,
     deletedByTeacherId?: string,
     session?: ClientSession,
-  ): Promise<{modifiedCount: number}> {
+  ): Promise<{ modifiedCount: number }> {
     await this.init();
 
     const filter: any = {
       _id: new ObjectId(activityId),
-      deletedAt: {$exists: false},
+      deletedAt: { $exists: false },
     };
 
     const update: any = {
@@ -276,10 +276,10 @@ export class ActivityRepository implements IActivityRepository {
     const res = await this.hpActivityCollection.updateOne(
       filter,
       update,
-      session ? {session} : undefined,
+      session ? { session } : undefined,
     );
 
-    return {modifiedCount: res.modifiedCount ?? 0};
+    return { modifiedCount: res.modifiedCount ?? 0 };
   }
 
   async getLatestActivityByCohortName(
@@ -290,33 +290,54 @@ export class ActivityRepository implements IActivityRepository {
       {
         cohort: cohortName,
       },
-      {sort: {createdAt: -1}},
+      { sort: { createdAt: -1 } },
     );
   }
 
-  async getDraftCountByCohortName(cohortName: string): Promise<number> {
+  async getDraftCountByCohortName(cohortName: string, courseVersionId?: string): Promise<number> {
     await this.init();
-    return await this.hpActivityCollection.countDocuments({
+
+    const query: any = {
       cohort: cohortName,
-      status: 'DRAFT',
-      isDeleted: {$ne: true},
-    });
+      status: "DRAFT",
+      isDeleted: { $ne: true },
+    };
+
+    if (courseVersionId) {
+      query.courseVersionId = new ObjectId(courseVersionId);
+    }
+
+    return await this.hpActivityCollection.countDocuments(query);
+  }
+  async getPublishedCountByCohortName(cohortName: string, courseVersionId?: string): Promise<number> {
+    await this.init();
+
+    const query: any = {
+      cohort: cohortName,
+      status: "PUBLISHED",
+      isDeleted: { $ne: true },
+    };
+
+    if (courseVersionId) {
+      query.courseVersionId = new ObjectId(courseVersionId);
+    }
+
+    return await this.hpActivityCollection.countDocuments(query);
   }
 
-  async getPublishedCountByCohortName(cohortName: string): Promise<number> {
+  async getCountByCohortName(cohortName: string, courseVersionId?: string): Promise<number> {
     await this.init();
-    return await this.hpActivityCollection.countDocuments({
+
+    const query: any = {
       cohort: cohortName,
-      status: 'PUBLISHED',
-      isDeleted: {$ne: true},
-    });
-  }
-  async getCountByCohortName(cohortName: string): Promise<number> {
-    await this.init();
-    return await this.hpActivityCollection.countDocuments({
-      cohort: cohortName,
-      isDeleted: {$ne: true},
-    });
+      isDeleted: { $ne: true },
+    };
+
+    if (courseVersionId) {
+      query.courseVersionId = new ObjectId(courseVersionId);
+    }
+
+    return await this.hpActivityCollection.countDocuments(query);
   }
 
   async getPendingActivitesCount(
@@ -332,20 +353,20 @@ export class ActivityRepository implements IActivityRepository {
           $match: {
             courseId: new ObjectId(courseId),
             courseVersionId: new ObjectId(courseVersionId),
-            isDeleted: {$ne: true},
+            isDeleted: { $ne: true },
           },
         },
         {
           $lookup: {
             from: 'hp_activity_submissions',
-            let: {activityId: '$_id'},
+            let: { activityId: '$_id' },
             pipeline: [
               {
                 $match: {
                   $expr: {
                     $and: [
-                      {$eq: ['$activityId', '$$activityId']},
-                      {$eq: ['$studentId', new ObjectId(studentId)]},
+                      { $eq: ['$activityId', '$$activityId'] },
+                      { $eq: ['$studentId', new ObjectId(studentId)] },
                     ],
                   },
                 },
@@ -356,7 +377,7 @@ export class ActivityRepository implements IActivityRepository {
         },
         {
           $match: {
-            submission: {$size: 0},
+            submission: { $size: 0 },
           },
         },
         {

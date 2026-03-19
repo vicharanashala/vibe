@@ -626,11 +626,12 @@ export class ActivitySubmissionsService extends BaseService {
         }));
     }
 
-    async listStudentCohortWiseSubmssions(teacherId: string, studentId: string, query: FilterQueryDto, cohortName: string): Promise<StudentActivitySubmissionsResponseDto> {
+    async listStudentCohortWiseSubmssions(teacherId: string, studentId: string, query: FilterQueryDto, cohortName: string): Promise<any> {
 
-        const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined,
+        const {data, total} = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined,
             undefined, cohortName);
 
+<<<<<<< HEAD
         // Get ledger data for all submissions
         const submissionIds = submissions.map(sub => sub.submission?._id).filter(Boolean);
         const ledgerEntries = submissionIds.length > 0 
@@ -663,10 +664,17 @@ export class ActivitySubmissionsService extends BaseService {
         return {
             success: true,
             data: submissionsWithLedger,
+=======
+            console.log("Data fetched for student submissions:", { studentId, cohortName, data, total });
+
+        return {
+            success: true,
+            data,
+>>>>>>> 0efd71efdc643074d5dcdc4549dd15f467e4cef8
             meta: {
-                total: submissions.length,
+                total: total,
                 page: query.page ?? 1,
-                limit: query.limit ?? 20,
+                limit: query.limit ?? 6,
             },
         };
     }
@@ -760,7 +768,7 @@ export class ActivitySubmissionsService extends BaseService {
             meta: {
                 total: submissions.length,
                 page: query.page ?? 1,
-                limit: query.limit ?? 20,
+                limit: query.limit ?? 10,
             },
         };
     }

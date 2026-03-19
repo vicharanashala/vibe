@@ -81,7 +81,7 @@ export class CohortsService extends BaseService {
             const allCoursesRaw = [...hardcodedCourses, ...dynamicCourses];
 
             const allCourses = allCoursesRaw.map(course => {
-                const filteredVersions = course.versions.filter(v => 
+                const filteredVersions = course.versions.filter(v =>
                     enrolledVersionIds.has(v.courseVersionId) || enrolledPseudoIds.has(v.courseVersionId)
                 );
                 return { ...course, versions: filteredVersions };
@@ -137,21 +137,24 @@ export class CohortsService extends BaseService {
 
             const results = await Promise.all(
                 cohorts.map(async (c) => {
+                    const cohortId = await this.cohortRepository.getCohortIdByCohortName(c.cohortName);
+
                     const [
                         totalStudents,
                         totalActivities,
                         draftActivities,
                         publishedActivities,
+                        totalHpDistributed,
                     ] = await Promise.all([
                         this.cohortRepository.getTotalStudentsCountForCourseVersion(c.cohortVersionId),
-                        this.activityRepository.getCountByCohortName(c.cohortName),
-                        this.activityRepository.getDraftCountByCohortName(c.cohortName),
-                        this.activityRepository.getPublishedCountByCohortName(c.cohortName),
+                        this.activityRepository.getCountByCohortName(c.cohortName, versionId),
+                        this.activityRepository.getDraftCountByCohortName(c.cohortName, versionId),
+                        this.activityRepository.getPublishedCountByCohortName(c.cohortName, versionId),
+                        cohortId
+                            ? this.cohortRepository.getTotalHpDistributedByCohort(versionId)
+                            : Promise.resolve(0),
                     ]);
 
-                    // If these are placeholders, keep them here.
-                    // Later you can replace with repo calls without changing the structure.
-                    const totalHpDistributed = 0;
                     const totalCredits = 0;
                     const totalDebits = 0;
                     const pendingApprovals = 0;
@@ -159,8 +162,8 @@ export class CohortsService extends BaseService {
 
                     return {
                         cohortName: c.cohortName,
-                        courseVersionId: versionId, // keep the requested "parent" version id
-                        courseId: "000000000000000000000001", // The parent course ID for predefined cohorts
+                        courseVersionId: versionId,
+                        courseId: "000000000000000000000001",
                         stats: {
                             totalStudents,
                             totalActivities,
@@ -187,19 +190,24 @@ export class CohortsService extends BaseService {
 
             const results = await Promise.all(
                 cohorts.map(async (c) => {
+                    const cohortId = await this.cohortRepository.getCohortIdByCohortName(c.cohortName);
+
                     const [
                         totalStudents,
                         totalActivities,
                         draftActivities,
                         publishedActivities,
+                        totalHpDistributed,
                     ] = await Promise.all([
                         this.cohortRepository.getTotalStudentsCountForCourseVersion(c.cohortVersionId),
-                        this.activityRepository.getCountByCohortName(c.cohortName),
-                        this.activityRepository.getDraftCountByCohortName(c.cohortName),
-                        this.activityRepository.getPublishedCountByCohortName(c.cohortName),
+                        this.activityRepository.getCountByCohortName(c.cohortName, versionId),
+                        this.activityRepository.getDraftCountByCohortName(c.cohortName, versionId),
+                        this.activityRepository.getPublishedCountByCohortName(c.cohortName, versionId),
+                        cohortId
+                            ? this.cohortRepository.getTotalHpDistributedByCohort(versionId)
+                            : Promise.resolve(0),
                     ]);
 
-                    const totalHpDistributed = 0;
                     const totalCredits = 0;
                     const totalDebits = 0;
                     const pendingApprovals = 0;
@@ -208,7 +216,7 @@ export class CohortsService extends BaseService {
                     return {
                         cohortName: c.cohortName,
                         courseVersionId: versionId,
-                        courseId: "000000000000000000000001", // The parent course ID for predefined cohorts
+                        courseId: "000000000000000000000001",
                         stats: {
                             totalStudents,
                             totalActivities,
@@ -242,7 +250,7 @@ export class CohortsService extends BaseService {
             const enrolledCohortIds = new Set(instructorEnrollments.map(e => e.cohortId).filter(Boolean));
 
             if (query.courseVersionId) {
-                const isGeneralInstructorForVersion = instructorEnrollments.some(e => 
+                const isGeneralInstructorForVersion = instructorEnrollments.some(e =>
                     e.courseVersionId === query.courseVersionId && !e.cohortId
                 );
 
@@ -256,7 +264,7 @@ export class CohortsService extends BaseService {
                         { pseudoVersionId: "000000000000000000000002", cohortName: "RSAians", cohortVersionId: "69903415e1930c015760a719" },
                         { pseudoVersionId: "000000000000000000000002", cohortName: "AKSians", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
                     ];
-                    
+
                     const filteredFetched = fetched.filter(c => {
                         const mapping = hardcodedMappings.find(m => m.cohortName === c.cohortName);
                         return mapping && enrolledVersionIds.has(mapping.cohortVersionId);
@@ -266,7 +274,7 @@ export class CohortsService extends BaseService {
 
                 // 2. Fetch dynamic DB cohorts for this version
                 let dbCohorts = await this._fetchDbCohorts(query.courseVersionId, "");
-                
+
                 if (!isGeneralInstructorForVersion) {
                     const dbCohortsData = await this.cohortRepository.getCohortsByVersionId(query.courseVersionId);
                     dbCohorts = dbCohorts.filter(c => {
@@ -274,7 +282,7 @@ export class CohortsService extends BaseService {
                         return matchingData && enrolledCohortIds.has(matchingData._id?.toString() || "");
                     });
                 }
-                
+
                 cohorts.push(...dbCohorts);
             }
 
@@ -309,15 +317,18 @@ export class CohortsService extends BaseService {
                 const cohortId = cohort._id?.toString() ?? "";
                 const [
                     totalStudents,
+                    totalHpDistributed,
                     totalActivities,
                     draftActivities,
                     publishedActivities,
                 ] = await Promise.all([
                     this.cohortRepository.getTotalStudentsCountForCohort(courseVersionId, cohortId),
-                    this.activityRepository.getCountByCohortName(cohort.name),
-                    this.activityRepository.getDraftCountByCohortName(cohort.name),
-                    this.activityRepository.getPublishedCountByCohortName(cohort.name),
+                    this.cohortRepository.getTotalHpDistributedByCohort(courseVersionId, cohortId),
+                    this.activityRepository.getCountByCohortName(cohort.name, courseVersionId),
+                    this.activityRepository.getDraftCountByCohortName(cohort.name, courseVersionId),
+                    this.activityRepository.getPublishedCountByCohortName(cohort.name, courseVersionId),
                 ]);
+
 
                 return {
                     cohortName: cohort.name,
@@ -328,7 +339,7 @@ export class CohortsService extends BaseService {
                         totalActivities,
                         draftActivities,
                         publishedActivities,
-                        totalHpDistributed: 0,
+                        totalHpDistributed,
                         totalCredits: 0,
                         totalDebits: 0,
                         pendingApprovals: 0,
