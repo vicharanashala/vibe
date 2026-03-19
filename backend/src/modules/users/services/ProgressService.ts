@@ -3565,6 +3565,7 @@ class ProgressService extends BaseService {
     };
   }
 
+
   async getItemIdsUntilItem(
     courseVersionId: string,
     itemId: string,
@@ -3581,6 +3582,7 @@ class ProgressService extends BaseService {
     if (!courseVersion) {
       throw new NotFoundError(`Course version ${courseVersionId} not found`);
     }
+
 
     const collectedItemIds: string[] = [];
     let isItemFound = false;
@@ -3675,6 +3677,7 @@ class ProgressService extends BaseService {
       throw new NotFoundError('Course version not found');
     }
 
+
     const completedSet = new Set(completedItemIds.map(id => id.toString()));
 
     const moduleStats: Array<{
@@ -3718,7 +3721,7 @@ class ProgressService extends BaseService {
     return moduleStats;
   }
 
-  async recalculateStudentProgress( // changes pending according to cohort
+  async recalculateStudentProgress(
     userId: string,
     courseId: string,
     versionId: string,
