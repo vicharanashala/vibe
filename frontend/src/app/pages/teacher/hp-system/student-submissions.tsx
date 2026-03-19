@@ -1,9 +1,12 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { useHpStudentSubmissions, useHpStudents, useRevertHpEntry, useRestoreHpEntry, useReviewSubmission, useAddFeedback, useHpStudentSubmissionStats } from "@/hooks/hooks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Pagination } from "@/components/ui/Pagination";
 
 import {
     Dialog,
@@ -36,7 +39,8 @@ import {
     ChevronDown,
     ChevronUp,
     Mail,
-    User
+    User,
+    Search
 } from "lucide-react";
 import type { HpStudentSubmission } from "@/lib/api/hp-system";
 
@@ -189,6 +193,12 @@ function SimplifiedSubmissionCard({ sub, onViewMore }: { sub: HpStudentSubmissio
 export default function StudentSubmissionsPage() {
     const { courseVersionId, cohortName, studentId } = useParams({ strict: false });
     const navigate = useNavigate();
+    
+    // Pagination and search state
+    const [searchQuery, setSearchQuery] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    
     const { data: submissions, isLoading: submissionsLoading, error } = useHpStudentSubmissions(
         studentId || "", courseVersionId || "", cohortName || ""
     );
@@ -212,6 +222,55 @@ export default function StudentSubmissionsPage() {
 
 
     const safeSubmissions = submissions ?? [];
+    
+    // Filter submissions based on search query with prioritized results
+    const filteredSubmissions = useMemo(() => {
+        if (!searchQuery.trim()) return safeSubmissions;
+        
+        const query = searchQuery.toLowerCase();
+        
+        // Separate submissions into priority groups
+        const startsWithMatches: any[] = [];
+        const containsMatches: any[] = [];
+        
+        safeSubmissions.forEach((sub: any) => {
+            const title = sub.activity?.title || '';
+            const description = sub.activity?.description || '';
+            
+            const titleStartsWith = title.toLowerCase().startsWith(query);
+            const titleContains = title.toLowerCase().includes(query);
+            const descriptionContains = description.toLowerCase().includes(query);
+            
+            if (titleStartsWith) {
+                startsWithMatches.push(sub);
+            } else if (titleContains || descriptionContains) {
+                containsMatches.push(sub);
+            }
+        });
+        
+        // Return prioritized results: starts with > contains
+        return [...startsWithMatches, ...containsMatches];
+    }, [safeSubmissions, searchQuery]);
+    
+    // Pagination logic
+    const totalPages = Math.ceil(filteredSubmissions.length / itemsPerPage);
+    const paginatedSubmissions = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return filteredSubmissions.slice(startIndex, endIndex);
+    }, [filteredSubmissions, currentPage, itemsPerPage]);
+    
+    // Reset page when search or items per page changes
+    const handleSearchChange = (value: string) => {
+        setSearchQuery(value);
+        setCurrentPage(1);
+    };
+    
+    const handleItemsPerPageChange = (value: string) => {
+        setItemsPerPage(Number(value));
+        setCurrentPage(1);
+    };
+    
     const totalActivities = stats?.totalActivities ?? 0;
     const submitted = stats?.totalSubmissions ?? 0;
     const pending = stats?.totalPendings ?? 0;
@@ -334,10 +393,46 @@ export default function StudentSubmissionsPage() {
             </Card>
             </div>
             )}
+            
+            {/* Search and Pagination Controls */}
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
+                <div className="relative w-full max-w-md">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search by activity title..."
+                        value={searchQuery}
+                        onChange={(e) => handleSearchChange(e.target.value)}
+                        className="pl-10"
+                    />
+                </div>
+                
+                <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Show:</span>
+                    <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                        <SelectTrigger className="w-[80px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="5">5</SelectItem>
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="15">15</SelectItem>
+                            <SelectItem value="20">20</SelectItem>
+                            <SelectItem value="30">30</SelectItem>
+                            <SelectItem value="40">40</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
 
             {/* Submission Cards */}
             <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Activity Submissions</h3>
+                <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Activity Submissions</h3>
+                    <span className="text-sm text-muted-foreground">
+                        Showing {paginatedSubmissions.length} of {filteredSubmissions.length} submissions
+                    </span>
+                </div>
                 {submissionsLoading ? (
                     <div className="flex items-center justify-center py-12">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -346,9 +441,9 @@ export default function StudentSubmissionsPage() {
                     <div className="text-center py-12 border border-dashed rounded-lg">
                         <div className="text-muted-foreground">No submissions found for this student.</div>
                     </div>
-                ) : safeSubmissions.map((sub: any) => (
+                ) : paginatedSubmissions.map((sub: any, index: number) => (
                     <SimplifiedSubmissionCard
-                        key={sub._id || sub.activity?.id}
+                        key={`${sub._id || sub.activity?.id || 'unknown'}-${sub.submission?._id || index}-${currentPage}`}
                         sub={sub}
                         onViewMore={() => navigate({
                             to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || "")}/student/${studentId}/submission/${sub.submission?._id || sub._id}`
@@ -356,6 +451,20 @@ export default function StudentSubmissionsPage() {
                     />
                 ))}
             </div>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <Card>
+                    <CardContent className="p-4">
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            totalDocuments={filteredSubmissions.length}
+                            onPageChange={setCurrentPage}
+                        />
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { useHpStudentActivities, useSubmitActivity } from "@/hooks/hooks";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Pagination } from "@/components/ui/Pagination";
 import {
     FileText,
     Link as LinkIcon,
@@ -18,7 +20,8 @@ import {
     Loader2,
     Send,
     Image as ImageIcon,
-    User
+    User,
+    Search
 } from "lucide-react";
 import { HpActivity } from "@/lib/api/hp-system";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -84,6 +87,12 @@ const DeadlineCountdown = ({ deadline, allowLate }: { deadline: string; allowLat
 export default function StudentActivities() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
     const navigate = useNavigate();
+
+    // Pagination and search state
+    const [searchQuery, setSearchQuery] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [selectedActivityTypes, setSelectedActivityTypes] = useState<string[]>([]);
 
     const { data: activities, isLoading, error, refetch } = useHpStudentActivities(
         courseVersionId as string,
@@ -184,6 +193,57 @@ export default function StudentActivities() {
         return labels[type] || type;
     };
 
+    // Pagination logic
+    const filteredActivities = useMemo(() => {
+        if (!activities) return [];
+        return activities.filter((activity: HpActivity) => {
+            // Search by title only
+            const matchesSearch = activity.title?.toLowerCase().includes(searchQuery.toLowerCase());
+            
+            // Filter by activity types
+            const matchesType = selectedActivityTypes.length === 0 || 
+                selectedActivityTypes.includes(activity.activityType);
+            
+            return matchesSearch && matchesType;
+        });
+    }, [activities, searchQuery, selectedActivityTypes]);
+
+    const paginatedActivities = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return filteredActivities.slice(startIndex, endIndex);
+    }, [filteredActivities, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(filteredActivities.length / itemsPerPage);
+
+    // Get unique activity types for filter options
+    const activityTypes = useMemo(() => {
+        if (!activities) return [];
+        const types = [...new Set(activities.map((a: HpActivity) => a.activityType).filter(Boolean))];
+        return types.sort();
+    }, [activities]);
+
+    const handleSearchChange = (value: string) => {
+        setSearchQuery(value);
+        setCurrentPage(1); // Reset to first page when searching
+    };
+
+    const handleItemsPerPageChange = (value: string) => {
+        setItemsPerPage(parseInt(value));
+        setCurrentPage(1); // Reset to first page when changing items per page
+    };
+
+    const handleActivityTypeToggle = (type: string) => {
+        setSelectedActivityTypes(prev => {
+            if (prev.includes(type)) {
+                return prev.filter(t => t !== type);
+            } else {
+                return [...prev, type];
+            }
+        });
+        setCurrentPage(1); // Reset to first page when filtering
+    };
+
     if (isLoading) {
         return (
             <div className="p-8 text-center text-muted-foreground flex items-center justify-center min-h-[50vh]">
@@ -236,8 +296,70 @@ export default function StudentActivities() {
                     </p>
                 </Card>
             ) : (
-                <div className="grid grid-cols-1 gap-6">
-                   {activities.map((activity: HpActivity) => (
+                <>
+                    {/* Search and Filter Controls */}
+                    <div className="flex flex-col gap-4 mb-6">
+                        {/* Search Bar */}
+                        <div className="relative w-full max-w-md">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search by activity title..."
+                                value={searchQuery}
+                                onChange={(e) => handleSearchChange(e.target.value)}
+                                className="pl-10"
+                            />
+                        </div>
+                        
+                        {/* Activity Type Filters and Items Per Page */}
+                        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                            {/* Activity Type Filters */}
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm text-muted-foreground">Activity Types:</span>
+                                {activityTypes.map((type) => (
+                                    <Badge
+                                        key={type}
+                                        variant={selectedActivityTypes.includes(type) ? "default" : "outline"}
+                                        className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
+                                        onClick={() => handleActivityTypeToggle(type)}
+                                    >
+                                        {getActivityTypeLabel(type)}
+                                    </Badge>
+                                ))}
+                                {selectedActivityTypes.length > 0 && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setSelectedActivityTypes([])}
+                                        className="text-xs h-6 px-2 text-muted-foreground hover:text-foreground"
+                                    >
+                                        Clear filters
+                                    </Button>
+                                )}
+                            </div>
+                            
+                            {/* Items Per Page */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-muted-foreground">Show:</span>
+                                <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                                    <SelectTrigger className="w-[80px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="5">5</SelectItem>
+                                    <SelectItem value="10">10</SelectItem>
+                                    <SelectItem value="15">15</SelectItem>
+                                    <SelectItem value="20">20</SelectItem>
+                                    <SelectItem value="30">30</SelectItem>
+                                    <SelectItem value="40">40</SelectItem>
+                                    <SelectItem value="50">50</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6">
+                        {paginatedActivities.map((activity: HpActivity) => (
                     <Card
                     key={activity._id}
                     className="relative overflow-hidden rounded-xl border bg-card shadow-sm hover:shadow-md transition-all"
@@ -335,6 +457,15 @@ export default function StudentActivities() {
                     </Card>
                     ))}
                 </div>
+                
+                {/* Pagination Component */}
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalDocuments={filteredActivities.length}
+                    onPageChange={setCurrentPage}
+                />
+                </>
             )}
 
             {/* Submit Activity Dialog */}

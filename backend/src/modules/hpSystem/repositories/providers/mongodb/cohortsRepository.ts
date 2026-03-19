@@ -62,6 +62,17 @@ export class CohortRepository implements ICohortRepository {
             .toArray();
     }
 
+    async getCohortIdByCohortName(cohortName: string): Promise<string | null> {
+        await this.init();
+
+        const cohort = await this.cohortsCollection.findOne(
+            { cohortName },
+            { projection: { _id: 1 } }
+        );
+
+        return cohort?._id?.toString() ?? null;
+    }
+
     async getTotalStudentsCountForCohort(courseVersionId: string, cohortId: string): Promise<number> {
         await this.init();
 
@@ -625,5 +636,36 @@ export class CohortRepository implements ICohortRepository {
             courseVersionId: e.courseVersionId?.toString() ?? "",
             cohortId: e.cohortId?.toString()
         }));
+    }
+
+    async getTotalHpDistributedByCohort(
+        courseVersionId: string,
+        cohortId?: string
+    ): Promise<number> {
+        await this.init();
+
+        const match: any = {
+            courseVersionId: new ObjectId(courseVersionId),
+        };
+
+        if (cohortId) {
+            match.cohortId = new ObjectId(cohortId);
+        }
+
+        const result = await this.enrollmentCollection
+            .aggregate([
+                { $match: match },
+                {
+                    $group: {
+                        _id: null,
+                        totalHp: {
+                            $sum: { $ifNull: ["$hpPoints", 0] },
+                        },
+                    },
+                },
+            ])
+            .toArray();
+
+        return result[0]?.totalHp ?? 0;
     }
 }

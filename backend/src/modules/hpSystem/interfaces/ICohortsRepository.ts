@@ -79,4 +79,8 @@ export interface ICohortRepository {
     getInstructorActiveEnrollments(
         userId: string
     ): Promise<{ courseId: string; courseVersionId: string; cohortId?: string }[]>
+
+    getTotalHpDistributedByCohort(courseVersionId: string, cohortId: string): Promise<number>
+
+    getCohortIdByCohortName(cohortName: string): Promise<string | null>
 }
