@@ -381,19 +381,20 @@ export class CohortRepository implements ICohortRepository {
     }
 
 
-    private async _getCohortMatchConditions(cohort: string): Promise<any[]> {
+    private async _getCohortMatchConditions(cohort: string, versionId: string): Promise<any[]> {
         const orConditions: any[] = [{ tag: cohort }];
 
         if (ObjectId.isValid(cohort)) {
             orConditions.push({ cohortId: new ObjectId(cohort) });
             orConditions.push({ cohortId: cohort });
         } else {
-            const dynamicCohort = await this.cohortsCollection.findOne({ name: cohort });
+            const dynamicCohort = await this.cohortsCollection.findOne({ name: cohort, courseVersionId: new ObjectId(versionId) });
             if (dynamicCohort) {
                 orConditions.push({ cohortId: dynamicCohort._id });
                 orConditions.push({ cohortId: dynamicCohort._id.toString() });
             }
         }
+        console.log("Or Condition: ", orConditions)
         return orConditions;
     }
 
@@ -406,7 +407,7 @@ export class CohortRepository implements ICohortRepository {
     ): Promise<IEnrollment | null> {
         await this.init();
 
-        const cohortConditions = await this._getCohortMatchConditions(cohort);
+        const cohortConditions = await this._getCohortMatchConditions(cohort, courseVersionId);
 
         return await this.enrollmentCollection.findOne(
             {
@@ -506,7 +507,7 @@ export class CohortRepository implements ICohortRepository {
     ): Promise<boolean> {
         await this.init();
 
-        const cohortConditions = await this._getCohortMatchConditions(cohort);
+        const cohortConditions = await this._getCohortMatchConditions(cohort, courseVersionId.toString());
 
         const updateResult = await this.enrollmentCollection.updateOne(
             {
@@ -643,7 +644,6 @@ export class CohortRepository implements ICohortRepository {
         cohortId?: string
     ): Promise<number> {
         await this.init();
-        console.log("Course version Id: ", courseVersionId)
 
         const match: any = {
             courseVersionId: new ObjectId(courseVersionId),
