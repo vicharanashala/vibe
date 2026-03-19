@@ -22,6 +22,7 @@ import {
 import type { SubmissionAttachment, HpStudentSubmission } from "@/lib/api/hp-system";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Pagination } from "@/components/ui/Pagination";
 import {
     Table,
     TableBody,
@@ -30,6 +31,21 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+
+export function DirectionBadge({ direction }: { direction: string }) {
+    if (direction === 'CREDIT') {
+        return (
+            <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 gap-1 border-green-200">
+                <CheckCircle className="h-3 w-3" /> Credit
+            </Badge>
+        );
+    }
+    return (
+        <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 gap-1 border-red-200">
+            <AlertCircle className="h-3 w-3" /> Debit
+        </Badge>
+    );
+}
 
 const statusConfig = {
     SUBMITTED: { label: "Submitted", variant: "default" as const, icon: CheckCircle, color: "text-green-600" },
@@ -295,6 +311,10 @@ function TransactionSection({ ledgerEntries }: {
     ledgerEntries: any[];
 }) {
 
+    const [filter, setFilter] = useState<'ALL' | 'CREDIT' | 'DEBIT'>('ALL');
+    const [page, setPage] = useState(1);
+    const PAGE_SIZE = 5;
+
     // Convert ObjectId buffers to strings and normalize the data
     const normalizedTransactions = ledgerEntries.map((entry: any) => ({
         ...entry,
@@ -317,6 +337,18 @@ function TransactionSection({ ledgerEntries }: {
         withinDeadline: entry.calc?.withinDeadline,
         deadlineAt: entry.calc?.deadlineAt,
     }));
+
+    // Filter
+    const filteredTransactions = normalizedTransactions.filter((t: any) =>
+        filter === 'ALL' ? true : t.direction === filter
+    );
+
+    // Pagination
+    const totalPages = Math.ceil(filteredTransactions.length / PAGE_SIZE);
+    const paginatedTransactions = filteredTransactions.slice(
+        (page - 1) * PAGE_SIZE,
+        page * PAGE_SIZE
+    );
 
     if (normalizedTransactions.length === 0) {
         return (
@@ -349,6 +381,21 @@ function TransactionSection({ ledgerEntries }: {
                 <CardDescription className="text-base">
                     House Points awarded/credited for this submission
                 </CardDescription>
+
+                {/* Filter Buttons */}
+                <div className="flex gap-2 pt-2">
+                    {(['ALL', 'CREDIT', 'DEBIT'] as const).map((f) => (
+                        <Button
+                            key={f}
+                            size="sm"
+                            variant={filter === f ? 'default' : 'outline'}
+                            onClick={() => { setFilter(f); setPage(1); }}
+                            className="text-xs"
+                        >
+                            {f}
+                        </Button>
+                    ))}
+                </div>
             </CardHeader>
             <CardContent className="p-6">
                 {/* Transaction Table */}
@@ -364,7 +411,7 @@ function TransactionSection({ ledgerEntries }: {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {normalizedTransactions.map((transaction: any, idx: number) => (
+                            {paginatedTransactions.map((transaction: any, idx: number) => (
                                 <TableRow key={idx} className="hover:bg-muted/50 transition-colors">
                                     <TableCell className="text-sm font-medium py-3">
                                         <div className="flex items-center gap-2">
@@ -394,28 +441,29 @@ function TransactionSection({ ledgerEntries }: {
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right py-3">
-                                        <div className={`text-lg font-bold flex items-center justify-end gap-1 ${transaction.hp > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                            {transaction.hp > 0 && <ThumbsUp className="h-4 w-4" />}
-                                            {transaction.hp < 0 && <ThumbsDown className="h-4 w-4" />}
-                                            <span className="mx-1">{transaction.hp > 0 ? '+' : ''}{Math.abs(transaction.hp)}</span>
+                                        <div className={`text-lg font-bold flex items-center justify-end gap-1 ${transaction.direction === 'CREDIT' ? 'text-green-600' : 'text-red-600'}`}>
+                                            <span className="mx-1">
+                                                {transaction.direction === 'CREDIT' ? '+' : '-'}{Math.abs(transaction.hp)}
+                                            </span>
                                             <Zap className="h-4 w-4 text-yellow-500" />
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-center py-3">
-                                        <Badge
-                                            variant={transaction.direction === 'CREDIT' ? 'default' : 'secondary'}
-                                            className={`text-xs font-semibold px-2 py-1 ${transaction.direction === 'CREDIT' ? 'bg-green-100 text-green-800 border-green-200' :
-                                                'bg-red-100 text-red-800 border-red-200'
-                                                }`}
-                                        >
-                                            {transaction.direction || 'CREDIT'}
-                                        </Badge>
+                                        <DirectionBadge direction={transaction.direction} />
                                     </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
                     </Table>
                 </div>
+
+                {/* Pagination */}
+                <Pagination
+                    currentPage={page}
+                    totalPages={totalPages}
+                    totalDocuments={filteredTransactions.length}
+                    onPageChange={(p) => setPage(p)}
+                />
             </CardContent>
         </Card>
     );
