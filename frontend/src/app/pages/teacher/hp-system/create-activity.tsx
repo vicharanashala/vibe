@@ -416,10 +416,10 @@ export default function CreateHpActivityPage() {
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="ASSIGNMENT">Assignment</SelectItem>
-                                                    <SelectItem value="MILESTONE">Milestone</SelectItem>
-                                                    <SelectItem value="EXTERNAL_IMPORT">External Import</SelectItem>
+                                                    {/* <SelectItem value="MILESTONE">Milestone</SelectItem>
+                                                    <SelectItem value="EXTERNAL_IMPORT">External Import</SelectItem> */}
                                                     <SelectItem value="VIBE_MILESTONE">Vibe Platform Milestone</SelectItem>
-                                                    <SelectItem value="OTHER">Other</SelectItem>
+                                                    {/* <SelectItem value="OTHER">Other</SelectItem> */}
                                                 </SelectContent>
                                             </Select>
                                         )}
@@ -774,7 +774,7 @@ export default function CreateHpActivityPage() {
                                             <SelectContent>
                                                 <SelectItem value="NONE">Deny Reward</SelectItem>
                                                 <SelectItem value="REWARD_ALLOWED">Allow Reward</SelectItem>
-                                                <SelectItem value="REWARD_DENIED">Penalty Apply (No Reward)</SelectItem>
+                                                {/* <SelectItem value="REWARD_DENIED">Penalty Apply (No Reward)</SelectItem> */}
                                             </SelectContent>
                                         </Select>
                                         {ruleErrors.lateRewardPolicy && <p className="text-xs text-red-500">{ruleErrors.lateRewardPolicy}</p>}
