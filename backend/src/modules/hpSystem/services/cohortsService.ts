@@ -173,6 +173,7 @@ export class CohortsService extends BaseService {
                         },
                         lastActivityAt: "2026-01-20T10:00:00Z",
                         createdAt: "2026-01-15T08:00:00Z",
+                        isPublic: true,
                     };
                 })
             );
@@ -223,6 +224,7 @@ export class CohortsService extends BaseService {
                         },
                         lastActivityAt: "2026-01-20T10:00:00Z",
                         createdAt: "2026-01-15T08:00:00Z",
+                        isPublic: true,
                     };
                 })
             );
@@ -301,8 +303,8 @@ export class CohortsService extends BaseService {
      * Fetches cohorts from the DB `cohorts` collection for a given courseVersionId
      * and builds CohortListItemDto objects with stats.
      */
-    private async _fetchDbCohorts(courseVersionId: string, courseId: string = ""): Promise<CohortListItemDto[]> {
-        const dbCohorts = await this.cohortRepository.getCohortsByVersionId(courseVersionId);
+    private async _fetchDbCohorts(courseVersionId: string, courseId: string = "", isPublic?: boolean): Promise<CohortListItemDto[]> {
+        const dbCohorts = await this.cohortRepository.getCohortsByVersionId(courseVersionId, isPublic);
         if (!dbCohorts || dbCohorts.length === 0) return [];
 
         const results = await Promise.all(
@@ -340,6 +342,7 @@ export class CohortsService extends BaseService {
                     },
                     lastActivityAt: cohort.updatedAt?.toISOString?.() ?? new Date().toISOString(),
                     createdAt: cohort.createdAt?.toISOString?.() ?? new Date().toISOString(),
+                    isPublic: !!cohort.isPublic,
                 };
             })
         );
@@ -490,7 +493,7 @@ export class CohortsService extends BaseService {
 
                     for (const [versionId, versionEnrollments] of enrollmentsByVersion) {
                         const courseId = versionEnrollments[0]?.courseId?.toString() ?? "";
-                        const dynamic = await this._fetchDbCohorts(versionId, courseId);
+                        const dynamic = await this._fetchDbCohorts(versionId, courseId, true);
 
                         const enrolledCohortNames = new Set(
                             versionEnrollments
@@ -520,6 +523,11 @@ export class CohortsService extends BaseService {
                     }
                 }
             }
+
+            // [NEW] Simply filter listing of cohorts at student side, only show cohorts isPublic is true
+            // This applies to both hardcoded and dynamic cohorts
+            // Note: _fetchDbCohorts already filters dynamic ones if we pass isPublic: true
+            // Wait, I should update the call to _fetchDbCohorts in listStudentCohorts as well.
 
             return {
                 success: true,
