@@ -353,10 +353,25 @@ export default function StudentActivityDetail() {
                             </div>
 
                             <div className="space-y-3">
-                                <Label>Files (PDF, DOCX, etc)</Label>
-                                <Input type="file" multiple onChange={(e) => {
-                                    if (e.target.files) setFiles((prev) => [...prev, ...Array.from(e.target.files as FileList)]);
-                                }} disabled={isSubmitting} />
+                                <Label>Files (PDF only)</Label>
+                                <Input 
+                                    type="file" 
+                                    accept=".pdf"
+                                    multiple 
+                                    onChange={(e) => {
+                                        if (e.target.files) {
+                                            const selectedFiles = Array.from(e.target.files as FileList);
+                                            const invalidFiles = selectedFiles.filter(f => f.type !== "application/pdf");
+                                            if (invalidFiles.length > 0) {
+                                                setSubmitError("Only PDF files are allowed. Please remove non-PDF files.");
+                                                return;
+                                            }
+                                            setSubmitError(null);
+                                            setFiles((prev) => [...prev, ...selectedFiles]);
+                                        }
+                                    }} 
+                                    disabled={isSubmitting} 
+                                />
                                 {files.map((file, idx) => (
                                     <div key={idx} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded border">
                                         <div className="flex items-center gap-2 truncate">
@@ -410,7 +425,10 @@ export default function StudentActivityDetail() {
                             </div>
 
                             {submitError && (
-                                <div className="text-sm text-red-500 bg-red-50 p-3 rounded-md">{submitError}</div>
+                                <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-3 rounded-md flex items-start gap-2">
+                                    <span className="text-red-500 mt-0.5">⚠️</span>
+                                    <span>{submitError}</span>
+                                </div>
                             )}
                         </div>
 
