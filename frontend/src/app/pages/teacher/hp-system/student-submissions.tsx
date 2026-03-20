@@ -145,9 +145,9 @@ function SimplifiedSubmissionCard({ sub, onViewMore }: { sub: HpStudentSubmissio
 
                         {/* 3. BASE / REWARD INFO */}
                         <Badge variant="outline" className="text-sm text-muted-foreground">
-                            {(isOnSubmissionReward || submissionStatus === "APPROVED")
-                                ? `Activity Reward ${sub.rule.reward.value}`
-                                : `Base ${sub.hp.baseHp}`}
+
+                            Activity Reward {sub.rule.reward.value}
+
                         </Badge>
 
                         {/* 4. LATE FLAG */}
@@ -197,14 +197,14 @@ function SimplifiedSubmissionCard({ sub, onViewMore }: { sub: HpStudentSubmissio
                         variant="default"
                         size="default"
                         onClick={onViewMore}
-                        className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold px-6 py-1 h-auto w-100 min-h-[32px]"
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold px-6 py-1 h-auto w-full min-h-[32px]"
                     >
                         View More
                     </Button>
                 </div>
 
                 {/* View More button for submissions without attachments - wider, shorter, and consistently aligned */}
-                {((sub.submission?.attachments?.files?.length || 0) + (sub.submission?.attachments?.images?.length || 0) + (sub.submission?.attachments?.links?.length || 0)) === 0 && (
+                {/* {((sub.submission?.attachments?.files?.length || 0) + (sub.submission?.attachments?.images?.length || 0) + (sub.submission?.attachments?.links?.length || 0)) === 0 && (
                     <div className="flex">
                         <Button
                             variant="default"
@@ -215,7 +215,7 @@ function SimplifiedSubmissionCard({ sub, onViewMore }: { sub: HpStudentSubmissio
                             View More
                         </Button>
                     </div>
-                )}
+                )} */}
             </CardContent>
         </Card>
     );
@@ -337,7 +337,7 @@ export default function StudentSubmissionsPage() {
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
                 </div>
             ) : (
-                <div className="grid gap-4 md:grid-cols-6">
+                <div className="grid gap-4 md:grid-cols-5">
                     <Card>
                         <CardHeader className="pb-2">
                             <CardDescription>Total Activities</CardDescription>
@@ -393,7 +393,7 @@ export default function StudentSubmissionsPage() {
                             </div>
                         </CardContent>
                     </Card>
-                    <Card>
+                    {/* <Card>
                         <CardHeader className="pb-2">
                             <CardDescription>Activity Reward</CardDescription>
                         </CardHeader>
@@ -422,7 +422,7 @@ export default function StudentSubmissionsPage() {
                                 );
                             })()}
                         </CardContent>
-                    </Card>
+                    </Card> */}
                 </div>
             )}
 
