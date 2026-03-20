@@ -28,7 +28,7 @@ export default function CreateCourse() {
   const [versionDescription, setVersionDescription] = useState("");
   const [cohorts, setCohorts] = useState<string[]>([]);
   const [hpSystemEnabled, setHpSystemEnabled] = useState<boolean>(false);
-  const [baseHp, setBaseHp] = useState<number | "">("");
+  const [baseHp, setBaseHp] = useState<number | "">(100);
 
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
