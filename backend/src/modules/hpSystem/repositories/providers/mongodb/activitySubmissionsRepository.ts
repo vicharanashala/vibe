@@ -196,10 +196,105 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             },
             { $unwind: { path: "$rule", preserveNullAndEmptyArrays: true } },
 
-            // 5) Include all feedbacks from feedbacks array
+            // 5) Lookup teachers for feedback enrichment
+            {
+                $lookup: {
+                    from: "users",
+                    let: { 
+                        teacherIds: {
+                            $setUnion: [
+                                {
+                                    $map: {
+                                        input: { $ifNull: ["$feedbacks", []] },
+                                        as: "fb",
+                                        in: { $toObjectId: "$$fb.teacherId" }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $in: ["$_id", "$$teacherIds"] }
+                            }
+                        },
+                        {
+                            $project: {
+                                _id: 1,
+                                email: 1,
+                                firstName: 1,
+                                lastName: 1
+                            }
+                        }
+                    ],
+                    as: "teachers"
+                }
+            },
+
+            // 6) Include all feedbacks from feedbacks array and enrich with teacher info
             {
                 $addFields: {
-                    feedbacks: { $ifNull: ["$feedbacks", []] }
+                    feedbacks: {
+                        $map: {
+                            input: { $ifNull: ["$feedbacks", []] },
+                            as: "fb",
+                            in: {
+                                $mergeObjects: [
+                                    "$$fb",
+                                    {
+                                        teacherId: { $toString: "$$fb.teacherId" },
+                                        username: {
+                                            $let: {
+                                                vars: {
+                                                    teacher: {
+                                                        $arrayElemAt: [
+                                                            {
+                                                                $filter: {
+                                                                    input: "$teachers",
+                                                                    cond: { $eq: ["$$this._id", { $toObjectId: "$$fb.teacherId" }] }
+                                                                }
+                                                            },
+                                                            0
+                                                        ]
+                                                    }
+                                                },
+                                                in: {
+                                                    $ifNull: [
+                                                        { $concat: ["$$teacher.firstName", " ", "$$teacher.lastName"] },
+                                                        "Unknown"
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        email: {
+                                            $let: {
+                                                vars: {
+                                                    teacher: {
+                                                        $arrayElemAt: [
+                                                            {
+                                                                $filter: {
+                                                                    input: "$teachers",
+                                                                    cond: { $eq: ["$$this._id", { $toObjectId: "$$fb.teacherId" }] }
+                                                                }
+                                                            },
+                                                            0
+                                                        ]
+                                                    }
+                                                },
+                                                in: {
+                                                    $ifNull: [
+                                                        "$$teacher.email",
+                                                        "N/A"
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
                 }
             },
 
@@ -366,7 +461,9 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                             in: {
                                 feedback: "$$fb.feedback",
                                 teacherId: { $toString: "$$fb.teacherId" },
-                                feedbackAt: "$$fb.feedbackAt"
+                                feedbackAt: "$$fb.feedbackAt",
+                                username: "$$fb.username",
+                                email: "$$fb.email"
                             }
                         }
                     },

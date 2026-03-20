@@ -239,13 +239,23 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
                 >
                     <div className="space-y-2">
                         {sub.feedbacks.map((feedback: any, idx: number) => (
-                            <div key={idx} className="bg-background rounded border p-2">
-                                <p className="text-sm leading-relaxed">{feedback.feedback}</p>
-                                {feedback.feedbackAt && (
-                                    <div className="text-xs text-muted-foreground mt-2">
-                                        {new Date(feedback.feedbackAt).toLocaleDateString()}
+                            <div key={idx} className="bg-background rounded border p-3">
+                                <div className="flex items-start justify-between mb-2">
+                                    <div className="flex-1">
+                                        <div className="font-medium text-sm">
+                                            {feedback.username || 'Anonymous'}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {feedback.email || 'N/A'}
+                                        </div>
                                     </div>
-                                )}
+                                    {feedback.feedbackAt && (
+                                        <div className="text-xs text-muted-foreground">
+                                            {new Date(feedback.feedbackAt).toLocaleDateString()}
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="text-sm leading-relaxed">{feedback.feedback}</p>
                             </div>
                         ))}
                     </div>

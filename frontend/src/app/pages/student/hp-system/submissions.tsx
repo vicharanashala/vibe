@@ -329,7 +329,22 @@ export default function StudentSubmissions() {
                                                 <div className="space-y-3">
                                                     {sub.feedbacks.map((feedback: any, idx: number) => (
                                                         <div key={idx} className="bg-green-50/50 dark:bg-green-900/10 p-4 rounded-md text-sm border border-green-100 dark:border-green-900/50">
-                                                            <p>{feedback.feedback}</p>
+                                                            <div className="flex items-start justify-between mb-2">
+                                                                <div className="flex-1">
+                                                                    <div className="font-medium text-gray-900 dark:text-gray-100">
+                                                                        {feedback.username || 'Anonymous'}
+                                                                    </div>
+                                                                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                                        {feedback.email || 'N/A'}
+                                                                    </div>
+                                                                </div>
+                                                                {feedback.feedbackAt && (
+                                                                    <div className="text-xs text-muted-foreground">
+                                                                        {new Date(feedback.feedbackAt).toLocaleDateString()}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-gray-700 dark:text-gray-300 mt-2">{feedback.feedback}</p>
                                                         </div>
                                                     ))}
                                                 </div>
