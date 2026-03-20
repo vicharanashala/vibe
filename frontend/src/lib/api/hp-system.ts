@@ -107,6 +107,7 @@ export interface HpActivity {
         deadlineAt: Date | string;
         allowLateSubmission: boolean;
     };
+    required_percentage?: number;
     createdAt: string;
     updatedAt: string;
 }
@@ -255,17 +256,12 @@ export interface HpRuleConfig {
     isMandatory: boolean;
     deadlineAt?: string;
     allowLateSubmission?: boolean;
-    lateRewardPolicy?: "NONE" | "REWARD_ALLOWED" | "REWARD_DENIED";
     reward?: {
         enabled: boolean;
         type: "ABSOLUTE" | "PERCENTAGE";
         value: number;
         applyWhen: "ON_SUBMISSION" | "ON_APPROVAL";
-        onlyWithinDeadline: boolean;
-        allowLate: boolean;
         lateBehavior: "NO_REWARD" | "REWARD";
-        minHpFloor: number;
-        required_percentage?: number;
     };
     penalty?: {
         enabled: boolean;
@@ -319,8 +315,8 @@ export interface CreateHpActivityPayload {
     status?: "DRAFT" | "PUBLISHED";
     deadlineAt?: string;
     allowLateSubmission?: boolean;
-    lateRewardPolicy?: string;
     attachments?: { name: string; url: string; kind: string }[];
+    required_percentage?: number;
 }
 
 export interface HpStudentSubmissionStats {

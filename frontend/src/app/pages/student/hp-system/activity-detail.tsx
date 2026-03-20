@@ -202,10 +202,14 @@ export default function StudentActivityDetail() {
                                     <span className="text-muted-foreground">Late Submission:</span>
                                     <span className="font-medium">{activity.rules?.allowLateSubmission ? 'Allowed' : 'Not Allowed'}</span>
                                 </div>
-                                {ruleConfig?.lateRewardPolicy && (
+                                {ruleConfig?.reward && (
                                     <div className="flex items-center gap-2 px-4 py-2 rounded-full border bg-muted/30">
-                                        <span className="text-muted-foreground">Late Reward Policy:</span>
-                                        <span className="font-medium">{ruleConfig.lateRewardPolicy.replace('_', ' ')}</span>
+                                        <span className="text-muted-foreground">Late Reward:</span>
+                                        <span className="font-medium text-green-600">
+                                            {ruleConfig.reward.lateBehavior === "REWARD" 
+                                                ? "Allowed" 
+                                                : "Denied"}
+                                        </span>
                                     </div>
                                 )}
                             </div>
@@ -226,10 +230,6 @@ export default function StudentActivityDetail() {
                                         <div>
                                             <div className="text-muted-foreground text-xs mb-1">Apply When</div>
                                             <div className="font-medium text-base">{ruleConfig.reward.applyWhen.replace('_', ' ')}</div>
-                                        </div>
-                                        <div>
-                                            <div className="text-muted-foreground text-xs mb-1">Only Within Deadline</div>
-                                            <div className="font-medium text-base">{ruleConfig.reward.onlyWithinDeadline ? 'Yes' : 'No'}</div>
                                         </div>
                                     </div>
                                 </div>
