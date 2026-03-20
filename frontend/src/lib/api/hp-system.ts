@@ -494,6 +494,8 @@ export const hpApi = {
         payload: {
             textResponse?: string;
             links?: { url: string; label: string }[];
+            files?: any[];
+            images?: any[];
         };
         submissionSource?: string;
         files?: File[];
@@ -518,6 +520,22 @@ export const hpApi = {
                 rest.payload.links.forEach((link, idx) => {
                     formData.append(`payload[links][${idx}][url]`, link.url);
                     formData.append(`payload[links][${idx}][label]`, link.label);
+                });
+            }
+            if (rest.payload.files) {
+                rest.payload.files.forEach((file: any, idx: number) => {
+                    if (file.fileId) formData.append(`payload[files][${idx}][fileId]`, file.fileId);
+                    if (file.url) formData.append(`payload[files][${idx}][url]`, file.url);
+                    if (file.name) formData.append(`payload[files][${idx}][name]`, file.name);
+                    if (file.mimeType) formData.append(`payload[files][${idx}][mimeType]`, file.mimeType);
+                    if (file.sizeBytes !== undefined) formData.append(`payload[files][${idx}][sizeBytes]`, String(file.sizeBytes));
+                });
+            }
+            if (rest.payload.images) {
+                rest.payload.images.forEach((img: any, idx: number) => {
+                    if (img.fileId) formData.append(`payload[images][${idx}][fileId]`, img.fileId);
+                    if (img.url) formData.append(`payload[images][${idx}][url]`, img.url);
+                    if (img.name) formData.append(`payload[images][${idx}][name]`, img.name);
                 });
             }
 

@@ -37,8 +37,10 @@ export class SubmissionFileDto {
     mimeType!: string;
 
     @Expose()
-    @IsOptional()
-    sizeBytes?: number;
+    @ToNumber()
+    @IsNumber()
+    @IsNotEmpty()
+    sizeBytes!: number;
 }
 
 export class SubmissionImageDto {
@@ -72,6 +74,20 @@ export class SubmissionPayloadDto {
     @Type(() => SubmissionLinkDto)
     @ArrayMaxSize(20)
     links?: SubmissionLinkDto[];
+
+    @Expose()
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => SubmissionFileDto)
+    files?: SubmissionFileDto[];
+
+    @Expose()
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => SubmissionImageDto)
+    images?: SubmissionImageDto[];
 }
 
 export class CreateOrUpdateHpActivitySubmissionBodyDto {
@@ -344,6 +360,10 @@ export class StudentActivitySubmissionsViewDto {
     @Expose()
     @Type(() => StudentSubmissionActivityDto)
     activity!: StudentSubmissionActivityDto;
+
+    @Expose()
+    @IsString()
+    courseId!: string;
 
     @Expose()
     @IsDateString()

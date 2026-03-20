@@ -529,18 +529,24 @@ export class ActivitySubmissionsService extends BaseService {
 
             const payload = {
                 ...basePayload,
-                files: uploadedPdfs.map((x) => ({
-                    fileId: x.fileId,
-                    url: x.url,
-                    name: x.name,
-                    mimeType: x.mimeType,
-                    sizeBytes: x.sizeBytes,
-                })),
-                images: uploadedImages.map((x) => ({
-                    fileId: x.fileId,
-                    url: x.url,
-                    name: x.name,
-                })),
+                files: [
+                    ...(body.payload?.files ?? []),
+                    ...uploadedPdfs.map((x) => ({
+                        fileId: x.fileId,
+                        url: x.url,
+                        name: x.name,
+                        mimeType: x.mimeType,
+                        sizeBytes: x.sizeBytes,
+                    })),
+                ],
+                images: [
+                    ...(body.payload?.images ?? []),
+                    ...uploadedImages.map((x) => ({
+                        fileId: x.fileId,
+                        url: x.url,
+                        name: x.name,
+                    })),
+                ],
             };
 
             await this.activitySubmissionsRepository.updateById(
