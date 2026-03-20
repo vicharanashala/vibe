@@ -131,6 +131,7 @@ const AiWorkflow = () => {
   // <<<<<<<<<< Ref >>>>>>>>>>
   const optimisticFailedTaskRef = useRef<string | null>(null);
   const currentJobRef = useRef<CurrentJob>(currentJob);
+  const errorRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     currentJobRef.current = currentJob;
   }, [currentJob]);
@@ -384,40 +385,55 @@ const AiWorkflow = () => {
       if (
         segData &&
         segData.segmentationMap &&
-        Array.isArray(segData.segmentationMap) &&
-        segData.transcriptFileUrl
+        Array.isArray(segData.segmentationMap)
       ) {
         setSegmentationMap(segData.segmentationMap);
         setIsTaskResultLoading(true);
-        const transcriptRes = await fetch(segData.transcriptFileUrl);
-        if (!transcriptRes.ok)
-          throw new Error("Failed to fetch transcript file");
 
-        const transcriptData = await transcriptRes.json();
-        const chunks = Array.isArray(transcriptData.chunks)
-          ? transcriptData.chunks
-          : [];
-        const segMap = (segData.segmentationMap || []).map((v: any) => {
-          if (typeof v === 'number') return v;
-          if (typeof v === 'string') return parseTimeToSeconds(v);
-          return 0;
-        });
-        const grouped: any[][] = [];
+        let fileUrl = segData.transcriptFileUrl;
 
-        let segStart = 0;
-        for (let i = 0; i < segMap.length; ++i) {
-          const segEnd = segMap[i];
-          const segChunks = chunks.filter(
-            (chunk: { timestamp: [number, number]; text: string }) =>
-              chunk.timestamp &&
-              typeof chunk.timestamp[0] === "number" &&
-              chunk.timestamp[0] >= segStart &&
-              chunk.timestamp[0] < segEnd
-          );
-          grouped.push(segChunks);
-          segStart = segEnd;
+        // Fallback for "No file URL found" case:
+        if (!fileUrl && aiJobStatus?.transcriptGeneration) {
+          const trans = aiJobStatus.transcriptGeneration;
+          if (Array.isArray(trans) && trans.length > 0) {
+            fileUrl = trans[trans.length - 1].fileUrl;
+          }
         }
-        setSegmentationChunks(grouped);
+
+        if (fileUrl) {
+          const transcriptRes = await fetch(fileUrl);
+          if (!transcriptRes.ok)
+            throw new Error("Failed to fetch transcript file");
+
+          const transcriptData = await transcriptRes.json();
+          const chunks = Array.isArray(transcriptData.chunks)
+            ? transcriptData.chunks
+            : [];
+          const segMap = (segData.segmentationMap || []).map((v: any) => {
+            if (typeof v === 'number') return v;
+            if (typeof v === 'string') return parseTimeToSeconds(v);
+            return 0;
+          });
+          const grouped: any[][] = [];
+
+          let segStart = 0;
+          for (let i = 0; i < segMap.length; ++i) {
+            const segEnd = segMap[i];
+            const segChunks = chunks.filter(
+              (chunk: { timestamp: [number, number]; text: string }) =>
+                chunk.timestamp &&
+                typeof chunk.timestamp[0] === "number" &&
+                chunk.timestamp[0] >= segStart &&
+                chunk.timestamp[0] < segEnd
+            );
+            grouped.push(segChunks);
+            segStart = segEnd;
+          }
+          setSegmentationChunks(grouped);
+        } else {
+          console.warn("No transcript file URL found even after fallback.");
+          setSegmentationChunks([]);
+        }
       } else if (segData?.transcriptFileUrl) {
         const segs = await fetchSegmentationFromUrl(segData.transcriptFileUrl);
         setSegments(segs);
@@ -572,7 +588,23 @@ const AiWorkflow = () => {
       if (!isPolling) {
         setProgress(0);
       }
-      const status = await aiSectionAPI.getJobStatus(aiJobId);
+      const status = await aiSectionAPI.getJobStatus(aiJobId) as any;
+
+      // Enrich status with detailed task runs if a task failed
+      const failedTask = Object.entries(status.jobStatus || {}).find(([_, s]) => s === 'FAILED')?.[0];
+      if (failedTask) {
+        try {
+          const taskType = failedTask === 'transcriptGeneration' ? 'TRANSCRIPT_GENERATION'
+            : failedTask === 'segmentation' ? 'SEGMENTATION'
+              : failedTask === 'questionGeneration' ? 'QUESTION_GENERATION'
+                : failedTask.toUpperCase();
+          const runs = await aiSectionAPI.getTaskStatus(aiJobId, taskType);
+          status[failedTask] = runs;
+        } catch (e) {
+          console.error(`Failed to fetch task details for ${failedTask}:`, e);
+        }
+      }
+
       const jobStatusKey = (currentJobRef.current.task === "AUDIO_EXTRACTION" ? "audioExtraction"
         : currentJobRef.current.task === "TRANSCRIPT_GENERATION" ? "transcriptGeneration"
           : currentJobRef.current.task === "SEGMENTATION" ? "segmentation"
@@ -645,6 +677,25 @@ const AiWorkflow = () => {
         setShouldPoll(false);
       }
 
+      // Safeguard: If we've already marked it as COMPLETED locally but server still says RUNNING or FAILED (due to deadlock)
+      // Unified check for case-insensitivity
+      const isUploadTask = currentTask === "uploadContent" || currentJobRef.current.task === "UPLOAD_CONTENT";
+      
+      // Also check if results exist in the uploadContent array
+      const hasUploadResults = Array.isArray(status.uploadContent) && status.uploadContent.length > 0;
+
+      if (isUploadTask && (currentStatus === "FAILED" || currentStatus === "WAITING") && (currentJobRef.current.status === "COMPLETED" || hasUploadResults)) {
+        console.warn("Server reported FAILED/WAITING for uploadContent, but we have local success or server results. Likely deadlock false-positive. Ignoring server status.");
+        if (hasUploadResults && currentJobRef.current.status !== "COMPLETED") {
+          setAiJobStatus({ ...status, task: "UPLOAD_CONTENT", status: "COMPLETED" });
+          updateCurrentJob("UPLOAD_CONTENT", "COMPLETED");
+          setProgress(100);
+          setTimeout(() => setIsLoading(false), 500);
+          setShouldPoll(false);
+        }
+        return;
+      }
+
     } catch (error) {
       if (!isPolling) {
         toast.error('Failed to refresh status.');
@@ -653,6 +704,7 @@ const AiWorkflow = () => {
   };
 
   const handleApproveTask = async (qnGenParams?: QuestionGenerationParameters, filteredQuestions?: any[]) => {
+    let activeWorkflowTask = "";
     try {
       // 1. Check aiJobId
       if (!aiJobId) {
@@ -679,13 +731,13 @@ const AiWorkflow = () => {
         return;
       }
 
-      const currentTask = currentTaskData.task;
+      activeWorkflowTask = currentTaskData.task;
       const currentStatus = currentTaskData.status;
 
-      if (currentTask == "uploadContent") // Manully adding upload status, becuae live status api will not trigger
+      if (activeWorkflowTask == "uploadContent") // Manully adding upload status, becuae live status api will not trigger
         updateCurrentJob("uploadContent", "RUNNING");
 
-      setAiJobStatus({ ...status, task: currentTask, status: currentStatus });
+      setAiJobStatus({ ...status, task: activeWorkflowTask, status: currentStatus });
 
 
       const customUploadParams: any = {
@@ -719,13 +771,51 @@ const AiWorkflow = () => {
 
       let params: Record<string, any> | null = null;
       // 3. Set proper request params
-      switch (currentTask) {
+      switch (activeWorkflowTask) {
         case 'segmentation':
           params = { parameters: customSegmentationParams, usePrevious: 0, type: "SEGMENTATION" };
           break;
         case 'questionGeneration':
           clearStoredQuestions();
-          params = { parameters: customQuestionGenParams, type: "QUESTION_GENERATION" };
+
+          let transcriptUrl = '';
+          let freshSegMap = segmentationMap;
+
+          // Re-fetch latest status to ensure we have the most current results
+          if (aiJobId) {
+            try {
+              const freshStatus = (await aiSectionAPI.getJobStatus(aiJobId)) as any;
+              const lastSeg = freshStatus.segmentation?.[freshStatus.segmentation?.length - 1];
+              if (lastSeg?.segmentationMap) {
+                freshSegMap = lastSeg.segmentationMap;
+              }
+              const lastTranscript = freshStatus.transcriptGeneration?.[freshStatus.transcriptGeneration?.length - 1];
+              transcriptUrl = lastTranscript?.fileUrl;
+
+              // Persist segmentation map to satisfy backend "No file URL found" check
+              if (freshSegMap) {
+                await aiSectionAPI.editSegmentMap(aiJobId, freshSegMap);
+              }
+            } catch (e) {
+              console.error("Failed to re-fetch status or edit segment map before question generation:", e);
+            }
+          }
+
+          // Ensure at least one question type is requested if all are 0
+          const finalQnParams = { ...customQuestionGenParams };
+          const qnTypes = ['SOL', 'SML', 'NAT', 'DES', 'BIN'] as const;
+          const totalRequested = qnTypes.reduce((sum, type) => sum + (Number(finalQnParams[type]) || 0), 0);
+          if (totalRequested === 0) {
+            finalQnParams.NAT = Number(finalQnParams.numberOfQuestions || 10);
+          }
+
+          params = {
+            parameters: {
+              ...finalQnParams,
+              transcriptFileUrl: transcriptUrl
+            },
+            type: "QUESTION_GENERATION"
+          };
           break;
         case 'uploadContent':
           if (customUploadParams.questions && customUploadParams.questions.length > 0) {
@@ -738,7 +828,7 @@ const AiWorkflow = () => {
           params = { parameters: customUploadParams, type: "UPLOAD_CONTENT", usePrevious: 0 };
           break;
         default:
-          console.error("Invalid current task", currentTask);
+          console.error("Invalid current task", activeWorkflowTask);
           toast.error("Invalid current task");
           return;
       }
@@ -750,21 +840,60 @@ const AiWorkflow = () => {
       setShouldPoll(true);
       setIsWaitingServer(true) // setting true until we get response from live status ap
 
-      if (currentTask == "uploadContent") {
+      if (activeWorkflowTask == "uploadContent") {
         handleRefreshStatus(); // for upload content status refresh
         toast.success("Content upload successfully!");
       }
 
     } catch (error) {
-      if (!isWaitingServer) {
+      if (activeWorkflowTask === "uploadContent") {
+        console.warn("Upload content might have deadlocked but succeeded. Verifying status...");
+        try {
+          // Wait longer (5s) for the DB to settle then check status
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          const status = await aiSectionAPI.getJobStatus(aiJobId!) as any;
+          
+          const uploadStatus = status.jobStatus?.uploadContent;
+          const hasResults = Array.isArray(status.uploadContent) && status.uploadContent.length > 0;
+
+          if (uploadStatus === "COMPLETED" || hasResults) {
+            setAiJobStatus({ ...status, task: "UPLOAD_CONTENT", status: "COMPLETED" });
+            updateCurrentJob("UPLOAD_CONTENT", "COMPLETED");
+            toast.success("Content upload verified as successful!");
+            setIsApprovingTask(false);
+            setIsLoading(false);
+            setShouldPoll(false);
+            return;
+          } else if (uploadStatus === "RUNNING" || uploadStatus === "PENDING") {
+            console.info("Upload detected as active on server. Proceeding with polling.");
+            setAiJobStatus({ ...status, task: "UPLOAD_CONTENT", status: "RUNNING" });
+            updateCurrentJob("UPLOAD_CONTENT", "RUNNING");
+            setShouldPoll(true);
+            setIsApprovingTask(false);
+            setIsLoading(true);
+            setIsWaitingServer(true);
+            toast.info("Upload is processing in the background...");
+            return;
+          }
+        } catch (innerError) {
+          console.error("Failed to verify status after upload error:", innerError);
+        }
+      }
+
+      // If we are not in uploadContent, or verification failed to find it RUNNING/COMPLETED/PENDING
+      setIsWaitingServer(false);
+      setIsApprovingTask(false);
+      setIsLoading(false);
+      
+      if (activeWorkflowTask === "uploadContent") {
+        updateCurrentJob("UPLOAD_CONTENT", "FAILED"); // Stop perpetual "Processing"
+        toast.error("Upload process encountered an error. Please check your course if it was uploaded.");
+      } else if (!isWaitingServer) {
         toast.error("Failed to approve task");
       } else {
         toast.error("Failed to retry task");
       }
-      setProgress(100);
-      setTimeout(() => setIsLoading(false), 500);
-      setIsWaitingServer(false);
-      setError("Failed to approve task")
+      return;
     } finally {
       setIsApprovingTask(false);
     }
@@ -877,7 +1006,7 @@ const AiWorkflow = () => {
           </CardContent> :
           <div className=" bg-gradient-to-br from-background to-muted/20 ">
 
-            {isURLValidated && <Stepper currentJobData={currentJob} />}
+            {isURLValidated && <Stepper currentJobData={currentJob} aiJobStatus={aiJobStatus} />}
 
             {isLoading && (
               // <div className="space-y-2  bg-card w-full">
@@ -1220,7 +1349,7 @@ const YoutubeIcon = () => (
   </svg>
 );
 
-const Stepper = React.memo(({ currentJobData }: { currentJobData: any }) => {
+const Stepper = React.memo(({ currentJobData, aiJobStatus }: { currentJobData: any; aiJobStatus: any }) => {
 
   const WORKFLOW_STEPS = [
     { key: 'audioExtraction', label: 'Audio Extraction', icon: <UploadCloud className="w-5 h-5" /> },
@@ -1374,10 +1503,20 @@ const Stepper = React.memo(({ currentJobData }: { currentJobData: any }) => {
                     </div>
                   )}
                   {isFailed && (
-                    <div className="mt-1 flex items-center justify-center">
-                      <div className="w-2 h-2 bg-red-500 rounded-full" />
-                      <span className="ml-1 text-[10px] lg:text-xs text-red-600 dark:text-red-400 font-medium">
-                        Failed
+                    <div className="mt-1 flex flex-col items-center justify-center">
+                      <div className="flex items-center">
+                        <div className="w-2 h-2 bg-red-500 rounded-full" />
+                        <span className="ml-1 text-[10px] lg:text-xs text-red-600 dark:text-red-400 font-medium">
+                          Failed
+                        </span>
+                      </div>
+                      <span className="mt-0.5 text-[9px] text-red-500 font-medium line-clamp-1 max-w-[100px] text-center">
+                        {(() => {
+                          const taskKey = step.key === 'transcription' ? 'transcriptGeneration' : step.key;
+                          const taskData = (aiJobStatus as any)?.[taskKey];
+                          const lastRun = Array.isArray(taskData) ? taskData[taskData.length - 1] : null;
+                          return lastRun?.error || "";
+                        })()}
                       </span>
                     </div>
                   )}
