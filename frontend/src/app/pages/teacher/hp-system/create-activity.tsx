@@ -159,7 +159,7 @@ export default function CreateHpActivityPage() {
             if (ruleConfig.allowLateSubmission === undefined) {
                 nextErrors.allowLateSubmission = "Please select if late submissions are allowed";
             }
-            if (!ruleConfig.deadlineAt) {
+            if (ruleConfig.isMandatory && !ruleConfig.deadlineAt) {
                 nextErrors.deadlineAt = "Deadline is required";
             }
             if (!ruleConfig.reward?.type) {
@@ -613,9 +613,15 @@ export default function CreateHpActivityPage() {
                                 <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Deadline Configuration</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
                                     <div className="space-y-2">
-                                        <Label>Deadline Date & Time</Label>
+                                        <Label>
+                                            Deadline Date & Time
+                                            {!ruleConfig.isMandatory && (
+                                                <span className="text-muted-foreground text-xs ml-1">(Optional)</span>
+                                            )}
+                                        </Label>
                                         <Input
                                             type="datetime-local"
+                                            min={new Date().toISOString().slice(0, 16)}
                                             value={ruleConfig.deadlineAt ? new Date(ruleConfig.deadlineAt).toISOString().slice(0, 16) : ""}
                                             onChange={(e) => {
                                                 const value = e.target.value;
@@ -678,7 +684,8 @@ export default function CreateHpActivityPage() {
                                         }))}
                                     />
                                 </div>
-                                <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20 ${ruleConfig.reward?.enabled === false ? "opacity-60 pointer-events-none" : ""}`}>
+                                {ruleConfig.reward?.enabled && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
                                     <div className="space-y-2">
                                         <Label>Rule Type</Label>
                                         <Select
@@ -792,6 +799,7 @@ export default function CreateHpActivityPage() {
                                         </Select>
                                     </div>
                                 </div>
+                                )}
                             </div>
 
                             {/* Penalty Settings */}
@@ -825,8 +833,9 @@ export default function CreateHpActivityPage() {
                                 </div>
                                 {ruleErrors.penaltyEnabled && <p className="text-xs text-red-500">{ruleErrors.penaltyEnabled}</p>}
 
-                                <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20 ${ruleConfig.penalty?.enabled === false ? "opacity-60 pointer-events-none" : ""
-                                    }`}>
+                                {ruleConfig.penalty?.enabled && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
+
 
                                     <div className="space-y-2">
                                         <Label>Penalty Type</Label>
@@ -898,6 +907,7 @@ export default function CreateHpActivityPage() {
                                     </div>
 
                                 </div>
+                                )}
 
                             </div>
                         </div>
@@ -908,7 +918,7 @@ export default function CreateHpActivityPage() {
                                 <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">HP Limits (Cap)</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
                                     <div className="space-y-2">
-                                        <Label>Minimum HP (Cap)</Label>
+                                        <Label>Minimum HP (Cap) <span className="text-muted-foreground text-xs">(Optional)</span></Label>
                                         <Input
                                             type="number"
                                             min="0"
@@ -930,7 +940,7 @@ export default function CreateHpActivityPage() {
                                         {ruleErrors.limitsMin && <p className="text-xs text-red-500">{ruleErrors.limitsMin}</p>}
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Maximum HP (Cap)</Label>
+                                        <Label>Maximum HP (Cap) <span className="text-muted-foreground text-xs">(Optional)</span></Label>
                                         <Input
                                             type="number"
                                             min="0"
@@ -952,8 +962,8 @@ export default function CreateHpActivityPage() {
                                         {ruleErrors.limitsMax && <p className="text-xs text-red-500">{ruleErrors.limitsMax}</p>}
                                     </div>
                                 </div>
-                                <p className="text-[10px] text-muted-foreground">
-                                    Define lower and upper bounds for HP changes when using percentage-based calculations.
+                               <p className="text-[10px] text-muted-foreground">
+                                    💡 Recommended for more consistent HP allocation. Define lower and upper bounds for HP changes when using percentage-based calculations.
                                 </p>
                             </div>
                         )}

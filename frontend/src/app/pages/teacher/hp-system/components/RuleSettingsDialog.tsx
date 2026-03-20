@@ -198,9 +198,15 @@ export function RuleSettingsDialog({
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
 
                                 <div className="space-y-2">
-                                    <Label>Deadline Date & Time</Label>
+                                    <Label>
+                                        Deadline Date & Time
+                                        {!config?.isMandatory && (
+                                            <span className="text-muted-foreground text-xs ml-1">(Optional)</span>
+                                        )}
+                                    </Label>
                                     <Input
                                         type="datetime-local"
+                                        min={new Date().toISOString().slice(0, 16)}
                                         value={config?.deadlineAt ? new Date(config.deadlineAt).toISOString().slice(0, 16) : ""}
                                         onChange={(e) => setConfig(prev => ({ ...prev, deadlineAt: new Date(e.target.value).toISOString() } as any))}
                                     />
@@ -231,7 +237,8 @@ export function RuleSettingsDialog({
                                     } as any))}
                                 />
                             </div>
-                            <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20 ${!config?.reward?.enabled ? 'opacity-50 pointer-events-none' : ''}`}>
+                            {config?.reward?.enabled && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
 
                                 <div className="space-y-2">
                                     <Label>Rule Type</Label>
@@ -328,8 +335,8 @@ export function RuleSettingsDialog({
                                     {!config?.allowLateSubmission && <p className="text-[10px] text-muted-foreground">Enable Late Submissions to configure late behavior.</p>}
                                 </div>
                             </div>
+                            )}
                         </div>
-
                         {/* Penalty Settings */}
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
@@ -342,7 +349,8 @@ export function RuleSettingsDialog({
                                     } as any))}
                                 />
                             </div>
-                            <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20 ${!config?.penalty?.enabled ? 'opacity-50 pointer-events-none' : ''}`}>
+                            {config?.penalty?.enabled && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
                                 <div className="space-y-2">
                                     <Label>Penalty Type</Label>
                                     <Select
@@ -384,8 +392,43 @@ export function RuleSettingsDialog({
                                     />
                                 </div>
                             </div>
+                            )}
                         </div>
-
+                        {/* HP Limits */}
+                        {(config?.reward?.type === "PERCENTAGE" || config?.penalty?.type === "PERCENTAGE") && (
+                            <div className="space-y-4">
+                                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">HP Limits (Cap)</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
+                                    <div className="space-y-2">
+                                        <Label>Minimum HP (Cap) <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            value={config?.limits?.minHp ?? ""}
+                                            onChange={(e) => setConfig(prev => ({
+                                                ...prev,
+                                                limits: { ...(prev?.limits || {}), minHp: e.target.value === "" ? undefined : parseInt(e.target.value) }
+                                            } as any))}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Maximum HP (Cap) <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            value={config?.limits?.maxHp ?? ""}
+                                            onChange={(e) => setConfig(prev => ({
+                                                ...prev,
+                                                limits: { ...(prev?.limits || {}), maxHp: e.target.value === "" ? undefined : parseInt(e.target.value) }
+                                            } as any))}
+                                        />
+                                    </div>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">
+                                    💡 Recommended for more consistent HP allocation. Define lower and upper bounds for HP changes when using percentage-based calculations.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 )}
 
