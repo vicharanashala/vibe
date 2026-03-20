@@ -14,11 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   CheckCircle,
   Loader2,
-  Edit,
   XCircle,
-  PauseCircle,
-  Plus,
-  Trash2
+  PauseCircle
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCourseStore } from "@/store/course-store";
@@ -29,10 +26,12 @@ import { RunQuestionSection } from "./run-question-section";
 // Types (should match the main component)
 type QuestionGenParams = {
   model: string;
-  SQL: number;
+  SOL: number;
   SML: number;
   NAT: number;
   DES: number;
+  BIN: number;
+  numberOfQuestions: number;
   prompt: string;
 };
 
@@ -51,9 +50,6 @@ interface TaskRuns {
   upload: TaskRun[];
 }
 
-function getApiUrl(path: string) {
-  return `${import.meta.env.VITE_BASE_URL}${path}`;
-}
 
 interface TaskAccordionProps {
   task: keyof TaskRuns;
@@ -99,11 +95,6 @@ const getStatusIcon = (status: string) => {
   }
 };
 
-// EditSegmentsModalButton component
-function EditSegmentsModalButton({ aiJobId, run, runIndex }: { aiJobId: string | null, run: TaskRun, runIndex: number }) {
-  // This component logic would be moved here or kept in parent - simplified for now
-  return null;
-}
 
 export const TaskAccordion = React.memo(({ 
   task, 
@@ -137,8 +128,8 @@ export const TaskAccordion = React.memo(({
 
     const [localSegParams, setLocalSegParams] = useState(segParams);
 
-    const fields = React.useMemo<(keyof Pick<QuestionGenParams, "SQL" | "SML" | "NAT" | "DES">)[]>(() =>
-      ["SQL", "SML", "NAT", "DES"],
+    const fields = React.useMemo<(keyof Pick<QuestionGenParams, "SOL" | "SML" | "NAT" | "DES" | "BIN" | "numberOfQuestions">)[]>(() =>
+      ["SOL", "SML", "NAT", "DES", "BIN", "numberOfQuestions"],
       [],);
 
     const segFields: { key: "lam" | "runs" | "noiseId", type: 'float' | "int" }[] = [
@@ -403,6 +394,7 @@ export const TaskAccordion = React.memo(({
                   // Use the current values from the parameter inputs
                   // const params = questionGenParams;
 
+                  await aiSectionAPI.approveContinueTask(aiJobId);
                   await aiSectionAPI.rerunJobTask(aiJobId, 'QUESTION_GENERATION', localParams);
                   toast.success('Question generation rerun started. Click Refresh to check status.');
                   setTaskRuns(prev => ({
@@ -437,6 +429,7 @@ export const TaskAccordion = React.memo(({
                   // Always use the latest values from segParams for the payload
 
                   const params = { lam: localSegParams.lam, runs: localSegParams.runs, noiseId: localSegParams.noiseId };
+                  await aiSectionAPI.approveContinueTask(aiJobId);
                   await aiSectionAPI.rerunJobTask(aiJobId, 'SEGMENTATION', params);
                   toast.success('Segmentation rerun started. Click Refresh to check status.');
                   setTaskRuns(prev => ({
@@ -469,29 +462,30 @@ export const TaskAccordion = React.memo(({
               const segParamsNodes: React.ReactNode[] =
                 task === "segmentation" && run.parameters
                   ? [
-                    run.parameters.lam !== undefined ? (<span key="lam"><strong>Lambda:</strong> {run.parameters.lam}</span>) : undefined,
-                    run.parameters.runs !== undefined ? (<span key="runs"><strong>Runs:</strong> {run.parameters.runs}</span>) : undefined,
-                    run.parameters.noiseId !== undefined ? (<span key="noiseId"><strong>Noise ID:</strong> {run.parameters.noiseId}</span>) : undefined,
+                    (run.parameters as any).lam !== undefined ? (<span key="lam"><strong>Lambda:</strong> {(run.parameters as any).lam}</span>) : null,
+                    (run.parameters as any).runs !== undefined ? (<span key="runs"><strong>Runs:</strong> {(run.parameters as any).runs}</span>) : null,
+                    (run.parameters as any).noiseId !== undefined ? (<span key="noiseId"><strong>Noise ID:</strong> {(run.parameters as any).noiseId}</span>) : null,
                   ].filter((x): x is React.ReactNode => x != null)
                   : [];
               // --- Fix for readable parameters display for question task ---
               let readableParams: React.ReactNode = null;
               if (task === "question" && run.parameters && typeof run.parameters === 'object') {
-                const paramKeys = Object.keys(run.parameters);
-                const mainKeys = ["model", "SQL", "SML", "NAT", "DES"];
+                const params = run.parameters as Record<string, any>;
+                const paramKeys = Object.keys(params);
+                const mainKeys = ["model", "SOL", "SML", "NAT", "DES", "BIN"];
                 const promptKey = paramKeys.find(k => k.toLowerCase() === "prompt");
                 readableParams = (
                   <div className="text-sm text-gray-600 dark:text-muted-foreground mb-2">
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2.5rem', marginBottom: '0.5rem' }}>
                       {mainKeys.map(key =>
-                        key in run.parameters ? (
-                          <div key={key}><strong>{key}:</strong> {run.parameters[key]}</div>
+                        key in params ? (
+                          <div key={key}><strong>{key}:</strong> {String(params[key])}</div>
                         ) : null
                       )}
                     </div>
                     {promptKey && (
                       <div style={{ marginTop: '0.5rem' }}>
-                        <strong>prompt:</strong> {run.parameters[promptKey]}
+                        <strong>prompt:</strong> {String(params[promptKey])}
                       </div>
                     )}
                   </div>
@@ -515,17 +509,15 @@ export const TaskAccordion = React.memo(({
                     )}
                     {run.status === "done" && (
                       task === "segmentation"
-                        ? <>
-                          <RunSegmentationSection aiJobId={aiJobId} run={run} acceptedRunId={acceptedRunId} onAccept={() => handleAcceptRun(task, run.id)} runIndex={index} />
-                          <EditSegmentsModalButton aiJobId={aiJobId} run={run} runIndex={index} />
-                        </>
+                        ? <RunSegmentationSection aiJobId={aiJobId} run={run} acceptedRunId={acceptedRunId} onAccept={() => handleAcceptRun(task, run.id)} runIndex={index} />
+
                         : task === "question"
                           ? <RunQuestionSection aiJobId={aiJobId} run={run} acceptedRunId={acceptedRunId} onAccept={() => handleAcceptRun(task, run.id)} runIndex={index} />
                           : <RunTranscriptSection aiJobId={aiJobId} run={run} acceptedRunId={acceptedRunId} onAccept={() => handleAcceptRun(task, run.id)} runIndex={index} />
                     )}
                     {run.status === "failed" && (
                       <div className="text-sm text-red-600 dark:text-red-500">
-                        This run failed. Try running the task again.
+                        {run.result?.error || "This run failed. Try running the task again."}
                       </div>
                     )}
                   </AccordionContent>
