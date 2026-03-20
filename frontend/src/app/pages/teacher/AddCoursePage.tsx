@@ -28,6 +28,7 @@ export default function CreateCourse() {
   const [versionDescription, setVersionDescription] = useState("");
   const [cohorts, setCohorts] = useState<string[]>([]);
   const [hpSystemEnabled, setHpSystemEnabled] = useState<boolean>(false);
+  const [baseHp, setBaseHp] = useState<number | "">("");
 
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,12 +41,13 @@ export default function CreateCourse() {
   const queryClient = useQueryClient();
 
   const handleCreateCourse = async () => {
-    if (!courseName.trim() || !courseDescription.trim() || !versionName.trim() || !versionDescription.trim() || versionName.trim().length < 3) {
+    if (!courseName.trim() || !courseDescription.trim() || !versionName.trim() || !versionDescription.trim() || versionName.trim().length < 3 || (hpSystemEnabled && (baseHp === "" || baseHp < 0 || baseHp > 100))) {
       const errors = {
         courseName: !courseName.trim() ? "Course Name is required" : "",
         courseDescription: !courseDescription.trim() ? "Course description is required" : "",
         versionName: !versionName.trim() ? "Version Name is required" : versionName.trim().length < 3 ? "Version Name must be at least 3 characters" : "",
         versionDescription: !versionDescription.trim() ? "Version description is required" : "",
+        baseHp: hpSystemEnabled && (baseHp === "" || baseHp < 0 || baseHp > 100) ? "Base HP must be between 0 and 100": "",
       };
       setCreateErrors(errors);
 
@@ -70,7 +72,8 @@ export default function CreateCourse() {
           versionName,
           versionDescription,
           cohorts,
-          hpSystem:hpSystemEnabled
+          hpSystem:hpSystemEnabled,
+          baseHp:hpSystemEnabled && baseHp!=="" ? baseHp : undefined
         }
       });
 
@@ -151,6 +154,8 @@ export default function CreateCourse() {
           <HpCard 
             hpSystemEnabled={hpSystemEnabled}
             setHpSystemEnabled={setHpSystemEnabled}
+            baseHp={baseHp}
+            setBaseHp={setBaseHp}
           />
 
 
@@ -687,11 +692,15 @@ const CreateCourseCard = ({
 type HpCardProps = {
   hpSystemEnabled: boolean;
   setHpSystemEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+  baseHp: number | "";
+  setBaseHp: React.Dispatch<React.SetStateAction<number | "">>;
 };
 
 const HpCard = ({
   hpSystemEnabled,
   setHpSystemEnabled,
+  baseHp,
+  setBaseHp,
 }: HpCardProps) => {
   return (
     <div className="relative">
@@ -725,6 +734,40 @@ const HpCard = ({
           />
 
         </div>
+
+         {hpSystemEnabled && (
+          <div className="mt-4 space-y-2">
+            <Label className="text-sm font-medium">
+              Base HP (0 - 100)
+            </Label>
+
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              placeholder="Enter base HP"
+              value={baseHp}
+              onChange={(e) => {
+                const val = e.target.value;
+
+                if (val === "") {
+                  setBaseHp("");
+                  return;
+                }
+
+                const num = Number(val);
+
+                if (num >= 0 && num <= 100) {
+                  setBaseHp(num);
+                }
+              }}
+            />
+
+            <p className="text-xs text-muted-foreground">
+              Default HP assigned to students at the start.
+            </p>
+          </div>
+        )}
       </Card>
     </div>
   );

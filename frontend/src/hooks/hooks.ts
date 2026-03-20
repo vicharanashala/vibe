@@ -510,7 +510,7 @@ export function useChangePassword(): {
 // POST /courses/
 export function useCreateCourse(): {
   mutate: (variables: { body: components['schemas']['CreateCourseBody'] }) => void,
-  mutateAsync: (variables: { body: { name: string, description: string, versionName: string, versionDescription: string, cohorts: string[], hpSystem:boolean } }) => Promise<components['schemas']['CourseDataResponse']>,
+  mutateAsync: (variables: { body: { name: string, description: string, versionName: string, versionDescription: string, cohorts: string[], hpSystem:boolean, baseHp:number | undefined } }) => Promise<components['schemas']['CourseDataResponse']>,
   data: components['schemas']['CourseDataResponse'] | undefined,
   error: string | null,
   isPending: boolean,
@@ -2009,7 +2009,8 @@ export function useEditProctoringSettings() {
     linearProgressionEnabled: boolean,
     seekForwardEnabled: boolean,
     isPublic: boolean,
-    hpSystem: boolean
+    hpSystem: boolean,
+    baseHp: number,
   ) => {
     setLoading(true);
     setError(null);
@@ -2028,7 +2029,8 @@ export function useEditProctoringSettings() {
         linearProgressionEnabled,
         seekForwardEnabled,
         isPublic,
-        hpSystem
+        hpSystem,
+        baseHp,
       };
 
       const res = await fetch(url, {
@@ -5430,6 +5432,7 @@ export function useMyHpLedger(
     enabled: !!courseId && !!courseVersionId && !!cohort,
     refetchOnWindowFocus: false,
   });
+  console.log(query);
 
   return {
     data: query.data?.data || [],

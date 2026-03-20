@@ -13,6 +13,9 @@ import {
   ValidateNested,
   ArrayUnique,
   IsBoolean,
+  IsNumber,
+  Min,
+  Max,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
@@ -104,6 +107,18 @@ class CourseBody implements Partial<ICourse> {
     default: false,
   })
   hpSystem?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  @Transform(({ value }) => (value === undefined ? 0 : value))
+  @JSONSchema({
+    description: 'Indicates base Hp for each cohort',
+    examples: [0, 100],
+    default: false,
+  })
+  baseHp?: number;
 
   // @JSONSchema({
   //   title: 'Course Versions',
