@@ -133,6 +133,9 @@ export class CohortListItemDto {
 
     @IsString() // ISO date string
     createdAt!: string;
+
+    @IsBoolean()
+    isPublic!: boolean;
 }
 
 /* =========================================================
