@@ -2984,7 +2984,7 @@ function EnrollmentsTable({
 
                       {/* Progress */}
                       <TableCell className="py-6">
-                        <EnrollmentProgress progress={enrollment.progress || 0} />
+                        <EnrollmentProgress progress={Math.min(enrollment.progress ?? 0, 100)} />
                       </TableCell>
 
                       {/* Assigned Time Slot */}
