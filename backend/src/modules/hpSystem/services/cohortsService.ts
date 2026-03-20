@@ -506,7 +506,16 @@ export class CohortsService extends BaseService {
                             const matched = dynamic.filter(
                                 c => enrolledCohortNames.has(c.cohortName.toLowerCase())
                             );
-                            studentCohorts.push(...matched);
+                            console.log("matched--", matched);
+                            studentCohorts.push(
+                                ...matched.map(c => ({
+                                    ...c,
+                                    percentCompleted:
+                                    versionEnrollments.find(
+                                        e => e.cohortName?.toLowerCase() === c.cohortName.toLowerCase()
+                                    )?.percentCompleted ?? 0
+                                }))
+                            );
                         }
                     }
                 }
