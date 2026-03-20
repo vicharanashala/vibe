@@ -54,18 +54,13 @@ export class RuleConfigService extends BaseService {
 
             deadlineAt: new Date(body.deadlineAt),
             allowLateSubmission: body.allowLateSubmission,
-            lateRewardPolicy: body.lateRewardPolicy as any,
 
             reward: {
                 enabled: body.reward.enabled,
                 type: body.reward.type as any,
                 value: body.reward.value, 
                 applyWhen: body.reward.applyWhen as any,
-                onlyWithinDeadline: body.reward.onlyWithinDeadline,
-                allowLate: body.reward.allowLate,
                 lateBehavior: body.reward.lateBehavior as any,
-                minHpFloor: body.reward.minHpFloor,
-                required_percentage: body.reward.required_percentage || 100,
             },
 
             penalty: {
@@ -114,7 +109,6 @@ export class RuleConfigService extends BaseService {
         if (patch.deadlineAt !== undefined) updatePatch.deadlineAt = new Date(patch.deadlineAt);
         if (patch.allowLateSubmission !== undefined)
             updatePatch.allowLateSubmission = patch.allowLateSubmission;
-        if (patch.lateRewardPolicy !== undefined) updatePatch.lateRewardPolicy = patch.lateRewardPolicy as any;
 
         if (patch.reward !== undefined) updatePatch.reward = patch.reward as any;
         if (patch.penalty !== undefined) updatePatch.penalty = patch.penalty as any;

@@ -31,11 +31,6 @@ export enum PenaltyApplyWhenEnum {
   AFTER_DEADLINE = "AFTER_DEADLINE",
 }
 
-export enum LateRewardPolicyEnum {
-  NONE = "NONE",
-  REWARD_ALLOWED = "REWARD_ALLOWED",
-  REWARD_DENIED = "REWARD_DENIED",
-}
 
 /* ===== Nested DTOs ===== */
 
@@ -52,21 +47,10 @@ export class HpRewardRuleDto {
   @IsEnum(RewardApplyWhenEnum)
   applyWhen!: RewardApplyWhenEnum;
 
-  @IsBoolean()
-  onlyWithinDeadline!: boolean;
 
-  @IsBoolean()
-  allowLate!: boolean;
 
   @IsEnum(LateBehaviorEnum)
   lateBehavior!: LateBehaviorEnum;
-
-  @IsNumber()
-  minHpFloor!: number;
-
-  @IsNumber()
-  @IsOptional()
-  required_percentage?: number;
 }
 
 export class HpPenaltyRuleDto {
@@ -122,8 +106,6 @@ export class CreateHpRuleConfigBody {
   @IsBoolean()
   allowLateSubmission!: boolean;
 
-  @IsEnum(LateRewardPolicyEnum)
-  lateRewardPolicy!: LateRewardPolicyEnum;
 
   @ValidateNested()
   @Type(() => HpRewardRuleDto)
@@ -154,9 +136,6 @@ export class UpdateHpRuleConfigBody {
   @IsBoolean()
   allowLateSubmission?: boolean;
 
-  @IsOptional()
-  @IsEnum(LateRewardPolicyEnum)
-  lateRewardPolicy?: LateRewardPolicyEnum;
 
   @IsOptional()
   @ValidateNested()

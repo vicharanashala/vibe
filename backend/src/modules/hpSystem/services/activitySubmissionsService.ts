@@ -370,12 +370,8 @@ export class ActivitySubmissionsService extends BaseService {
 
             if (activityReward?.enabled && activityReward.applyWhen === "ON_SUBMISSION") {
 
-                // Reward allocation conditions
                 const shouldSkipReward =
-                    isLate && (
-                        activityReward.lateBehavior === "NO_REWARD" ||
-                        activityReward.onlyWithinDeadline === true
-                    ) || activityRuleConfig?.lateRewardPolicy == "REWARD_DENIED"
+                    isLate && activityReward.lateBehavior === "NO_REWARD";
 
                 if (shouldSkipReward) {
                     return;
@@ -801,20 +797,11 @@ export class ActivitySubmissionsService extends BaseService {
                 const isLate = deadline && new Date() > deadline;
 
                 // 2. Define the "Hard Block" conditions
-                const isLatePolicyViolated = isLate && (
-                    rewardConfig?.lateBehavior === "NO_REWARD" ||
-                    rewardConfig?.onlyWithinDeadline === true
-                );
-
-                const isGlobalPolicyViolated = activityRuleConfig?.lateRewardPolicy === "REWARD_DENIED";
+                const isLatePolicyViolated = isLate && rewardConfig?.lateBehavior === "NO_REWARD";
 
                 // 3. Throw Detailed Errors
                 if (isLatePolicyViolated) {
                     throw new BadRequestError(`Approval Denied: This submission is late, and the activity policy is set to 'No Reward' for late work.`);
-                }
-
-                if (isGlobalPolicyViolated) {
-                    throw new BadRequestError("Approval Denied: The global course policy for this activity currently denies all late rewards.");
                 }
             }
 

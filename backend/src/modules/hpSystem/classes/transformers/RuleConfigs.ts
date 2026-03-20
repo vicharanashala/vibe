@@ -6,9 +6,8 @@
 import { Expose, Transform, Type } from "class-transformer";
 import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
 import { JSONSchema } from "class-validator-jsonschema";
-import { HpRuleStatus, LateBehavior, LateRewardPolicy, PenaltyApplyWhen, RewardApplyWhen, RuleType } from "../../constants.js";
+import { HpRuleStatus, LateBehavior, PenaltyApplyWhen, RewardApplyWhen, RuleType } from "../../constants.js";
 import { ID, ObjectIdToString, StringToObjectId } from "#root/shared/index.js";
-import { LateRewardPolicyEnum } from "../validators/ruleConfigValidators.js";
 
 export class HpRewardRule {
     @Expose()
@@ -37,16 +36,6 @@ export class HpRewardRule {
     applyWhen: RewardApplyWhen;
 
     @Expose()
-    @IsBoolean()
-    @JSONSchema({ title: 'Only Within Deadline', type: 'boolean', example: true })
-    onlyWithinDeadline: boolean;
-
-    @Expose()
-    @IsBoolean()
-    @JSONSchema({ title: 'Allow Late', type: 'boolean', example: false })
-    allowLate: boolean;
-
-    @Expose()
     @IsEnum(LateBehavior)
     @JSONSchema({
         title: 'Late Behavior',
@@ -55,11 +44,6 @@ export class HpRewardRule {
         example: 'NO_REWARD',
     })
     lateBehavior: LateBehavior;
-
-    @Expose()
-    @IsNumber()
-    @JSONSchema({ title: 'Min HP Floor', type: 'number', example: 0 })
-    minHpFloor: number;
 }
 
 export class HpPenaltyRule {
@@ -174,15 +158,6 @@ export class HpRuleConfigTransformer {
     @JSONSchema({ title: "Allow Late Submission", type: "boolean", example: false })
     allowLateSubmission: boolean;
 
-    @Expose()
-    @IsEnum(LateRewardPolicyEnum)
-    @JSONSchema({
-        title: "Late Reward Policy",
-        type: "string",
-        enum: Object.values(LateRewardPolicy),
-        example: "REWARD_DENIED",
-    })
-    lateRewardPolicy: LateRewardPolicy;
 
     @Expose()
     @ValidateNested()

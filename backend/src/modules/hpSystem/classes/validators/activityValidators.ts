@@ -1,5 +1,5 @@
-import { IsArray, IsBoolean, IsDateString, IsEnum, IsMongoId, IsOptional, IsString, ValidateNested } from "class-validator";
-import { ActivityStatus, ActivityType, AttachmentKind, LateRewardPolicy, SubmissionMode } from "../../models.js";
+import { IsArray, IsBoolean, IsDateString, IsEnum, IsMongoId, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
+import { ActivityStatus, ActivityType, AttachmentKind, SubmissionMode } from "../../models.js";
 import { Type } from "class-transformer";
 
 export class AttachmentDto {
@@ -44,8 +44,6 @@ export class CreateActivityBody {
     @IsBoolean()
     allowLateSubmission!: boolean;
 
-    @IsEnum(["NONE", "REWARD_ALLOWED", "REWARD_DENIED"])
-    lateRewardPolicy!: LateRewardPolicy;
 
     // Submission mode
     @IsEnum(["IN_PLATFORM", "EXTERNAL_LINK"])
@@ -60,6 +58,10 @@ export class CreateActivityBody {
     @ValidateNested({ each: true })
     @Type(() => AttachmentDto)
     attachments?: AttachmentDto[];
+
+    @IsOptional()
+    @IsNumber()
+    required_percentage?: number;
 }
 
 
@@ -86,8 +88,6 @@ export class UpdateActivityBody {
     allowLateSubmission?: boolean;
 
     @IsOptional()
-    @IsEnum(["NONE", "REWARD_ALLOWED", "REWARD_DENIED"])
-    lateRewardPolicy?: LateRewardPolicy;
 
     @IsOptional()
     @IsEnum(["IN_PLATFORM", "EXTERNAL_LINK"])
@@ -114,6 +114,10 @@ export class UpdateActivityBody {
     @IsOptional()
     @IsString()
     cohort?: string;
+
+    @IsOptional()
+    @IsNumber()
+    required_percentage?: number;
 }
 
 
