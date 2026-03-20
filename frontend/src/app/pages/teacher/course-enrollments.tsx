@@ -1732,6 +1732,7 @@ const handleMoveToCohort = async () => {
                               userId={selectedUser.id}
                               quizId={selectedViewItem}
                               itemName={selectedViewItemName}
+                              cohortId={selectedUser.cohortId}
                             />
                           ) : (
                             <WatchTimeDisplay
@@ -1741,6 +1742,7 @@ const handleMoveToCohort = async () => {
                               courseVersionId={versionId}
                               itemName={selectedViewItemName}
                               itemType={selectedViewItemType}
+                              cohortId={selectedUser.cohortId}
                             />
                           )}
                         </div>
