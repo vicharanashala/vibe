@@ -75,7 +75,7 @@ const AiWorkflow = () => {
   });
   const [customQuestionParams, setCustomQuestionParams] =
     useState<QuestionGenerationParameters>({
-
+      BIN:0,
       SOL: 10,
       SML: 0,
       NAT: 0,
@@ -2059,7 +2059,7 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
       ...customQuestionParams,
       SOL: (isMCQ) ? numberOfQuestions : 0,
       SML: isMSQ ? numberOfQuestions : 0,
-      // BIN:isBinary ? numberOfQuestions : 0,
+      BIN:isBinary ? numberOfQuestions : 0,
       numberOfQuestions: numberOfQuestions,
       prompt: isBinary ? binaryPrompt : customQuestionParams.prompt,
     };
