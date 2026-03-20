@@ -133,9 +133,9 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
         <TooltipProvider>
             <div className="space-y-3">
                 {/* Instructor Feedback Display Card */}
-                <Card className="bg-muted/50 border">
+                <Card className="border bg-muted/50">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-base flex items-center justify-between">
+                        <CardTitle className="flex items-center justify-between text-base">
                             <div className="flex items-center gap-2">
                                 <MessageSquare className="h-4 w-4 text-muted-foreground" />
                                 Instructor Feedback
@@ -145,41 +145,48 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
                             </Badge>
                         </CardTitle>
                     </CardHeader>
+
                     <CardContent className="pt-0">
                         {sub.instructorFeedback ? (
                             <>
-                                {/* Compact Instructor Info */}
-                                <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                                <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
                                     {(sub.instructorFeedback as any)?.reviewerName && (
                                         <div className="flex items-center gap-2">
-                                            <span className="font-medium">{(sub.instructorFeedback as any).reviewerName}</span>
+                                            <span className="font-medium">
+                                                {(sub.instructorFeedback as any).reviewerName}
+                                            </span>
                                             <span className="text-muted-foreground/60">•</span>
-                                            <span className="truncate max-w-[150px]">{(sub.instructorFeedback as any).reviewerEmail}</span>
+                                            <span className="max-w-[150px] truncate">
+                                                {(sub.instructorFeedback as any).reviewerEmail}
+                                            </span>
                                         </div>
                                     )}
+
                                     {(sub.instructorFeedback as any)?.reviewedAt && (
                                         <span className="text-xs">
-                                            {new Date((sub.instructorFeedback as any).reviewedAt).toLocaleString("en-IN", {
-                                                day: 'numeric',
-                                                month: 'short',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
+                                            {new Date(
+                                                (sub.instructorFeedback as any).reviewedAt
+                                            ).toLocaleString("en-IN", {
+                                                day: "numeric",
+                                                month: "short",
+                                                hour: "2-digit",
+                                                minute: "2-digit",
                                             })}
                                         </span>
                                     )}
                                 </div>
 
-                                {/* Compact Note */}
-                                <div className="bg-background rounded-md border p-2.5">
+                                <div className="rounded-md border bg-background p-2.5">
                                     <p className="text-sm leading-relaxed">
-                                        {String((sub.instructorFeedback as any)?.note || "No note provided")}
+                                        {String(
+                                            (sub.instructorFeedback as any)?.note || "No note provided"
+                                        )}
                                     </p>
                                 </div>
                             </>
                         ) : (
-                            /* Compact No Feedback State */
-                            <div className="text-center py-4 text-muted-foreground">
-                                <MessageSquare className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                            <div className="py-4 text-center text-muted-foreground">
+                                <MessageSquare className="mx-auto mb-2 h-6 w-6 opacity-50" />
                                 <p className="text-xs">No instructor feedback provided yet</p>
                             </div>
                         )}
@@ -187,27 +194,26 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
                 </Card>
 
                 {/* Feedback Controls Card */}
-                <Card className="bg-muted/50 border">
+                <Card className="border bg-muted/50">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-base">Feedback Actions</CardTitle>
                         <CardDescription>
                             Manage feedback for this submission
                         </CardDescription>
                     </CardHeader>
+
                     <CardContent className="pt-0">
                         <div className="flex flex-col gap-3">
-                            {/* Update Feedback Button */}
                             <Button
                                 variant="default"
                                 size="sm"
                                 onClick={() => setShowInput(true)}
-                                className="w-full shadow-md hover:shadow-lg transition-all duration-200 bg-primary hover:bg-primary/90 text-primary-foreground"
+                                className="w-full bg-primary text-primary-foreground shadow-md transition-all duration-200 hover:bg-primary/90 hover:shadow-lg"
                             >
                                 <MessageSquare className="h-4 w-4" />
                                 {sub.instructorFeedback ? "Update Feedback" : "Add Feedback"}
                             </Button>
 
-                            {/* View All Feedbacks */}
                             {sub.feedbacks && sub.feedbacks.length > 0 && (
                                 <Tooltip>
                                     <TooltipTrigger asChild>
@@ -215,16 +221,28 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
                                             variant="outline"
                                             size="sm"
                                             onClick={() => {
-                                                const panel = document.getElementById(`feedback-panel-${sub.submission?._id}`);
-                                                panel?.classList.toggle('hidden');
+                                                const panel = document.getElementById(
+                                                    `feedback-panel-${sub.submission?._id}`
+                                                );
+                                                panel?.classList.toggle("hidden");
                                             }}
                                             className="w-full"
                                         >
-                                            {sub.feedbacks.length} Feedback{sub.feedbacks.length !== 1 ? 's' : ''}
-                                            <ChevronDown className={`h-4 w-4 ml-2 transition-transform ${document.getElementById(`feedback-panel-${sub.submission?._id}`)?.classList.contains('hidden') ? '' : 'rotate-180'}`} />
+                                            {sub.feedbacks.length} Feedback
+                                            {sub.feedbacks.length !== 1 ? "s" : ""}
+                                            <ChevronDown
+                                                className={`ml-2 h-4 w-4 transition-transform ${document
+                                                        .getElementById(`feedback-panel-${sub.submission?._id}`)
+                                                        ?.classList.contains("hidden")
+                                                        ? ""
+                                                        : "rotate-180"
+                                                    }`}
+                                            />
                                         </Button>
                                     </TooltipTrigger>
-                                    <TooltipContent>View all feedback given for this submission</TooltipContent>
+                                    <TooltipContent>
+                                        View all feedback given for this submission
+                                    </TooltipContent>
                                 </Tooltip>
                             )}
                         </div>
@@ -235,17 +253,29 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
                 {sub.feedbacks && sub.feedbacks.length > 0 && (
                     <div
                         id={`feedback-panel-${sub.submission?._id}`}
-                        className="hidden bg-muted/20 rounded-lg border p-2"
+                        className="hidden rounded-lg border bg-muted/20 p-2"
                     >
                         <div className="space-y-2">
                             {sub.feedbacks.map((feedback: any, idx: number) => (
-                                <div key={idx} className="bg-background rounded border p-2">
-                                    <p className="text-sm leading-relaxed">{feedback.feedback}</p>
-                                    {feedback.feedbackAt && (
-                                        <div className="text-xs text-muted-foreground mt-2">
-                                            {new Date(feedback.feedbackAt).toLocaleDateString()}
+                                <div key={idx} className="rounded border bg-background p-3">
+                                    <div className="mb-2 flex items-start justify-between">
+                                        <div className="flex-1">
+                                            <div className="text-sm font-medium">
+                                                {feedback.username || "Anonymous"}
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {feedback.email || "N/A"}
+                                            </div>
                                         </div>
-                                    )}
+
+                                        {feedback.feedbackAt && (
+                                            <div className="text-xs text-muted-foreground">
+                                                {new Date(feedback.feedbackAt).toLocaleDateString("en-IN")}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <p className="text-sm leading-relaxed">{feedback.feedback}</p>
                                 </div>
                             ))}
                         </div>
@@ -254,30 +284,39 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
 
                 {/* Add Feedback Input */}
                 {showInput && (
-                    <div className="space-y-3 bg-muted/20 rounded-lg border p-4">
+                    <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
                         <Textarea
                             placeholder="Write feedback for this submission (minimum 10 characters)..."
                             value={feedbackText}
-                            onChange={e => setFeedbackText(e.target.value)}
+                            onChange={(e) => setFeedbackText(e.target.value)}
                             rows={3}
                             className="resize-none bg-background"
                         />
-                        <div className="flex items-center gap-2 justify-end">
+
+                        <div className="flex items-center justify-end gap-2">
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => { setShowInput(false); setFeedbackText(""); }}
+                                onClick={() => {
+                                    setShowInput(false);
+                                    setFeedbackText("");
+                                }}
                             >
                                 Cancel
                             </Button>
+
                             <Button
                                 size="sm"
-                                disabled={!feedbackText.trim() || feedbackText.trim().length < 10 || isPending}
+                                disabled={
+                                    !feedbackText.trim() ||
+                                    feedbackText.trim().length < 10 ||
+                                    isPending
+                                }
                                 onClick={handleSubmitFeedback}
                                 className="flex items-center gap-2"
                             >
                                 {isPending ? (
-                                    <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white" />
+                                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-b-2 border-white" />
                                 ) : (
                                     <Send className="h-3.5 w-3.5" />
                                 )}
@@ -568,7 +607,7 @@ export default function SubmissionDetailsPage() {
                                     <StatusIcon className="h-3 w-3" />
                                     {cfg.label}
                                 </Badge>
-                                {status === "SUBMITTED"  && submission.rule.reward?.applyWhen !== "ON_SUBMISSION" && (
+                                {status === "SUBMITTED" && submission.rule.reward?.applyWhen !== "ON_SUBMISSION" && (
                                     <Badge variant="outline" className="text-sm font-semibold text-white">
                                         <Clock className="h-3 w-3 mr-1" />
                                         Wating for Approval
@@ -582,12 +621,12 @@ export default function SubmissionDetailsPage() {
                                 )}
                             </div>
                             <div className="flex items-center gap-2">
-                               
-                        
-                                        <Badge variant="outline" className="text-sm text-muted-foreground">
-                                            Activity Points: {submission.rule?.reward?.value || 0}
-                                        </Badge>
-                                    
+
+
+                                <Badge variant="outline" className="text-sm text-muted-foreground">
+                                    Activity Points: {submission.rule?.reward?.value || 0}
+                                </Badge>
+
                             </div>
                         </div>
                     </CardHeader>
@@ -711,16 +750,16 @@ export default function SubmissionDetailsPage() {
                                                     <ThumbsUp className="h-3.5 w-3.5 mr-1.5" />
                                                     {isReviewing && actionType === 'approve' ? 'Approving...' : 'Approve'}
                                                 </Button>
-                                            ): (<Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="border-2 border-orange-500 text-orange-600 hover:bg-orange-50 dark:border-orange-400 dark:text-orange-400 dark:hover:bg-orange-950/50 shadow-md hover:shadow-lg transition-all duration-200 font-medium w-full"
-                                            disabled={isReviewing && actionSubId === submission?.submission?._id}
-                                            onClick={() => openReasonDialog(submission?.submission?._id || '', 'revert', submission?.activity?.title || '', submission?.hp?.baseHp || 0)}
-                                        >
-                                            <Undo2 className="h-3.5 w-3.5 mr-1.5" />
-                                            {isReviewing && actionSubId === submission?.submission?._id ? 'Reverting...' : 'Revert'}
-                                        </Button>)}
+                                            ) : (<Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="border-2 border-orange-500 text-orange-600 hover:bg-orange-50 dark:border-orange-400 dark:text-orange-400 dark:hover:bg-orange-950/50 shadow-md hover:shadow-lg transition-all duration-200 font-medium w-full"
+                                                disabled={isReviewing && actionSubId === submission?.submission?._id}
+                                                onClick={() => openReasonDialog(submission?.submission?._id || '', 'revert', submission?.activity?.title || '', submission?.hp?.baseHp || 0)}
+                                            >
+                                                <Undo2 className="h-3.5 w-3.5 mr-1.5" />
+                                                {isReviewing && actionSubId === submission?.submission?._id ? 'Reverting...' : 'Revert'}
+                                            </Button>)}
                                             <Button
                                                 variant="destructive"
                                                 size="sm"

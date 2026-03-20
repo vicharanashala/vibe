@@ -129,6 +129,18 @@ export class SubmissionFeedbackDto {
     @Expose()
     @IsString()
     feedback!: string;
+
+    @Expose()
+    @IsString()
+    username!: string;
+
+    @Expose()
+    @IsString()
+    email!: string;
+
+    @Expose()
+    @IsDateString()
+    feedbackAt!: Date;
 }
 
 export class SubmissionFeedbackBody {
