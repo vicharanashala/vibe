@@ -246,8 +246,8 @@ export class ActivitySubmissionsService extends BaseService {
             } 
 
             const latestSubmissions = await this.activitySubmissionsRepository.getLatestByStudentId(student.id, activityId)
-            if (latestSubmissions && latestSubmissions.status !== "REVERTED")
-                throw new BadRequestError("You have already attended this activity.")
+            // if (latestSubmissions && latestSubmissions.status !== "REVERTED")
+            //     throw new BadRequestError("You have already attended this activity.")
 
             const cohort = body.cohort;
 
@@ -255,7 +255,7 @@ export class ActivitySubmissionsService extends BaseService {
             const finalCourseId = COHORT_OVERRIDES[cohort]?.courseId ?? body.courseId;
             const finalVersionId = COHORT_OVERRIDES[cohort]?.versionId ?? body.courseVersionId;
 
-          
+
             // 3. Fetch Enrollment using the CORRECT (overridden) IDs
             const enrollment = await this.cohortRepository.findEnrollment(
                 student.id,
@@ -391,17 +391,17 @@ export class ActivitySubmissionsService extends BaseService {
                 } else if (ruleType === "PERCENTAGE") {
                     const rewardMaxLimit = activityRuleConfig.limits?.maxHp;
                     const rewardMinLimit = activityRuleConfig.limits?.minHp;
-
+                    
                     // Calculate percentage reward
                     const calculatedReward = Math.round((totalStudentHpPoints * rewardValue) / 100);
 
                     let finalReward = calculatedReward;
 
-                    if (rewardMinLimit !== undefined && finalReward < rewardMinLimit) {
+                    if (rewardMinLimit  && finalReward < rewardMinLimit) {
                         finalReward = rewardMinLimit;
                     }
 
-                    if (rewardMaxLimit !== undefined && finalReward > rewardMaxLimit) {
+                    if (rewardMaxLimit  && finalReward > rewardMaxLimit) {
                         finalReward = rewardMaxLimit;
                     }
 
@@ -830,11 +830,11 @@ export class ActivitySubmissionsService extends BaseService {
 
                     let finalReward = calculatedReward;
 
-                    if (rewardMinLimit !== undefined && finalReward < rewardMinLimit) {
+                    if (rewardMinLimit && finalReward < rewardMinLimit) {
                         finalReward = rewardMinLimit;
                     }
 
-                    if (rewardMaxLimit !== undefined && finalReward > rewardMaxLimit) {
+                    if (rewardMaxLimit && finalReward > rewardMaxLimit) {
                         finalReward = rewardMaxLimit;
                     }
 
