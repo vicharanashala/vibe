@@ -204,6 +204,23 @@ export const getJobStatus = async (jobId: string): Promise<JobStatus> => {
   return result;
 };
 
+export const getTaskStatus = async (jobId: string | null, type: string): Promise<JobStatus> => {
+  if (!jobId || !type) {
+    throw new Error('Job ID and Task Type are required to get task status');
+  }
+
+  let response: any
+  setInterval(async () => {
+    response = await makeAuthenticatedRequest(`/genai/${jobId}/tasks/${type}/status`, {
+      method: 'GET',
+    });
+  }, 5000)
+
+  const result = await response.json();
+  console.log(`Status for task ${type}:`, result);
+  return result;
+}
+
 export const stopJobTask = async (jobId: string): Promise<void> => {
 
   const response = await makeAuthenticatedRequest(`/genai/jobs/${jobId}/tasks/abort`, {

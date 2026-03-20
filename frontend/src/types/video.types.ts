@@ -54,7 +54,7 @@ declare global {
           };
         }
       ) => YTPlayerInstance;
-      PlayerState: { PLAYING: number; ENDED: number };
+      PlayerState: { PLAYING: number; ENDED: number; PAUSED: number };
     };
     onYouTubeIframeAPIReady?: () => void;
   }

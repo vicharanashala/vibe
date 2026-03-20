@@ -229,12 +229,12 @@ class QuizService extends BaseService {
       return banks.filter(Boolean);
     });
   }
-  getUserMetricsForQuiz(userId: string, quizId: string) {
+  getUserMetricsForQuiz(userId: string, quizId: string, cohortId?: string) {
     return this._withTransaction(async session => {
       const metrics = await this.userQuizMetricsRepo.get(
         userId,
         quizId,
-        undefined,
+        cohortId,
         session,
       );
       if (!metrics) {
