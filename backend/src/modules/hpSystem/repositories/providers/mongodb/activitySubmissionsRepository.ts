@@ -111,7 +111,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         courseId?: string,
         courseVersionId?: string,
         cohortName?: string
-    ): Promise<StudentActivitySubmissionsViewDto[]> {
+    ): Promise<any[]> {
         await this.init();
 
         const page = query.page ?? 1;
@@ -123,16 +123,17 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             ? new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")
             : null;
 
-        const sortOrder = query.sortOrder === "asc" ? 1 : -1;
+        const sortOrder = query.sortOrder === "desc" ? -1 : 1;
+        console.log("Received sortBy value in repo-> ", query.sortOrder);
         const sortByRaw = (query.sortBy ?? "submittedAt").trim();
 
         // allowlist sort keys
         const SORT_MAP: Record<string, any> = {
-            submittedAt: { submittedAt: sortOrder },
+            submittedAt: { "submission.submittedAt": sortOrder },
             updatedAt: { updatedAt: sortOrder },
-            status: { status: sortOrder },
+            status: { "submission.status": sortOrder },
             activityTitle: { "activity.title": sortOrder },
-            deadline: { "rule.deadlineAt": sortOrder },
+            deadline: { deadline: sortOrder }
         };
         const sortStage = SORT_MAP[sortByRaw] ?? { submittedAt: -1 };
 
@@ -274,18 +275,6 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                 $project: {
                     id: { $toString: "$_id" },
 
-                    isRequiredInstructorApproval: {
-                        $cond: {
-                            if: {
-                                $and: [
-                                    { $eq: ["$status", "SUBMITTED"] },
-                                    { $eq: ["$rule.reward.applyWhen", "ON_APPROVAL"] }
-                                ]
-                            },
-                            then: true,
-                            else: false
-                        }
-                    },
                     activity: {
                         id: { $toString: "$activity._id" },
                         title: { $ifNull: ["$activity.title", ""] },
@@ -294,6 +283,37 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                     },
 
                     deadline: "$rule.deadlineAt",
+
+                    rule: {
+                        isMandatory: "$rule.isMandatory",
+                        allowLateSubmission: "$rule.allowLateSubmission",
+                        lateRewardPolicy: "$rule.lateRewardPolicy",
+
+                        reward: {
+                            enabled: "$rule.reward.enabled",
+                            type: "$rule.reward.type",
+                            value: "$rule.reward.value",
+                            applyWhen: "$rule.reward.applyWhen",
+                            onlyWithinDeadline: "$rule.reward.onlyWithinDeadline",
+                            allowLate: "$rule.reward.allowLate",
+                            lateBehavior: "$rule.reward.lateBehavior",
+                            minHpFloor: "$rule.reward.minHpFloor",
+                            required_percentage: "$rule.reward.required_percentage"
+                        },
+
+                        penalty: {
+                            enabled: "$rule.penalty.enabled",
+                            type: "$rule.penalty.type",
+                            value: "$rule.penalty.value",
+                            applyWhen: "$rule.penalty.applyWhen",
+                            graceMinutes: "$rule.penalty.graceMinutes"
+                        },
+
+                        limits: {
+                            minHp: "$rule.limits.minHp",
+                            maxHp: "$rule.limits.maxHp"
+                        }
+                    },
 
                     submission: {
                         _id: { $toString: "$_id" },
@@ -380,11 +400,14 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         ];
 
         const docs = await this.hpActivitySubmissionCollection.aggregate(pipeline).toArray();
+        console.log("Aggregated student submissions data in repo-> ", docs);
 
-        return plainToInstance(StudentActivitySubmissionsViewDto, docs, {
-            excludeExtraneousValues: true,
-            enableImplicitConversion: true,
-        });
+        // return plainToInstance(StudentActivitySubmissionsViewDto, docs, {
+        //     excludeExtraneousValues: true,
+        //     enableImplicitConversion: true,
+        // });
+
+        return docs;
     }
 
     async list(query: ListSubmissionsQueryDto, opts?: { session?: ClientSession }): Promise<HpActivitySubmission[]> {
