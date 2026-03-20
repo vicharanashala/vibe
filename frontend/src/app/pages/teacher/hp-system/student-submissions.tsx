@@ -193,14 +193,14 @@ function SimplifiedSubmissionCard({ sub, onViewMore }: { sub: HpStudentSubmissio
                     )}
 
                     {/* View More button - wider, shorter, and consistently aligned */}
-                    {/* <Button
+                    <Button
                         variant="default"
                         size="default"
                         onClick={onViewMore}
                         className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold px-6 py-1 h-auto w-100 min-h-[32px]"
                     >
                         View More
-                    </Button> */}
+                    </Button>
                 </div>
 
                 {/* View More button for submissions without attachments - wider, shorter, and consistently aligned */}
