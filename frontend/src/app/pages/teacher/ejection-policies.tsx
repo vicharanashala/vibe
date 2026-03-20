@@ -122,15 +122,18 @@ const {
                 </div>
               </div>
 
-              {isAdmin && selectedCohortId && (
+              {isAdmin && selectedCohortId  && (
                 <Button
                   onClick={handleCreateClick}
+                  disabled={(policies?.length ?? 0) > 0}
                   className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_auto] hover:bg-[length:100%_auto] shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 h-12 px-8 group"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                   <div className="relative flex items-center gap-2">
                     <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
-                    <span className="font-semibold">Create Policy</span>
+                    <span className="font-semibold">{(policies?.length ?? 0) > 0
+        ? "Policy Already Exists"
+        : "Create Policy"}</span>
                   </div>
                 </Button>
               )}

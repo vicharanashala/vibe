@@ -370,6 +370,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   onClose={() => setShowPolicies(false)}
                   courseId={courseId}
                   courseVersionId={versionId}
+                  cohortId={cohortId}
                 />
 
             {variant !== 'available' && supportLink && (() => {

@@ -7,15 +7,17 @@ export function StudentPolicyModal({
   open,
   onClose,
   courseId,
-  courseVersionId
+  courseVersionId,
+  cohortId
 }: {
   open: boolean
   onClose: () => void
   courseId: string
   courseVersionId:string
+  cohortId:string
 }) {
 
-  const { policies, isLoading } = useActivePoliciesForCourse(courseId,courseVersionId)
+  const { policies, isLoading } = useActivePoliciesForCourse(courseId,courseVersionId,cohortId)
   console.log("Policies API response:", policies)
 
   return (
