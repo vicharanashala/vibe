@@ -719,7 +719,7 @@ export default function SubmissionDetailsPage() {
                                             onClick={() => openReasonDialog(submission?.submission?._id || '', 'revert', submission?.activity?.title || '', submission?.hp?.baseHp || 0)}
                                         >
                                             <Undo2 className="h-3.5 w-3.5 mr-1.5" />
-                                            {isReviewing && actionSubId === submission?.submission?._id ? 'Reverting...' : 'Revert Decision'}
+                                            {isReviewing && actionSubId === submission?.submission?._id ? 'Reverting...' : 'Revert'}
                                         </Button>)}
                                             <Button
                                                 variant="destructive"
