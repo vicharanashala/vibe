@@ -15,7 +15,8 @@ export interface ICohortRepository {
      * Returns cohorts from the DB `cohorts` collection for a given course version.
      */
     getCohortsByVersionId(
-        courseVersionId: string
+        courseVersionId: string,
+        isPublic?: boolean
     ): Promise<ICohort[]>;
 
     /**
