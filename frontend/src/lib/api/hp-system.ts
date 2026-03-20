@@ -175,6 +175,37 @@ export interface LedgerListResponse {
     limit: number;
 }
 
+export interface StudentDashboardStats {
+    myStats: {
+        totalHp: number;
+        completedActivities: number;
+        pendingSubmissions: number;
+        completionPercentage: number;
+    };
+    progressTimeline: {
+        date: string;
+        hpChange: number;
+        activitiesCompleted: number;
+    }[];
+    activityBreakdown: {
+        notStarted: number;
+        inProgress: number;
+        submitted: number;
+        approved: number;
+    };
+    upcomingDeadlines: {
+        activityTitle: string;
+        deadlineDate: string;
+        daysLeft: number;
+    }[];
+    recentSubmissions: {
+        activityTitle: string;
+        submittedAt: string;
+        status: string;
+        hpEarned?: number;
+    }[];
+}
+
 export interface HpCohortOverviewStats {
     totalStudents: number;
     totalOverdue: number;
@@ -669,6 +700,48 @@ export const hpApi = {
                 { studentId: 's6', name: 'Fiona Green', email: 'fiona@example.com', completedActivities: 7, hpBalance: 210, completionPercentage: 78, lastActivityDate: '2024-01-05', status: 'on-track' },
                 { studentId: 's7', name: 'George Miller', email: 'george@example.com', completedActivities: 4, hpBalance: 120, completionPercentage: 44, lastActivityDate: '2024-01-04', status: 'at-risk' },
                 { studentId: 's8', name: 'Hannah Davis', email: 'hannah@example.com', completedActivities: 8, hpBalance: 275, completionPercentage: 89, lastActivityDate: '2024-01-07', status: 'on-track' },
+            ]
+        };
+        return { success: true, data: mockStats };
+    },
+
+    getStudentDashboardStats: async (
+        _courseVersionId: string,
+        _cohortName: string,
+    ): Promise<{ success: boolean; data: StudentDashboardStats }> => {
+        // Mock data for student dashboard
+        const mockStats: StudentDashboardStats = {
+            myStats: {
+                totalHp: 275,
+                completedActivities: 8,
+                pendingSubmissions: 3,
+                completionPercentage: 89,
+            },
+            progressTimeline: [
+                { date: '2024-01-01', hpChange: 25, activitiesCompleted: 2 },
+                { date: '2024-01-02', hpChange: -5, activitiesCompleted: 1 },
+                { date: '2024-01-03', hpChange: 30, activitiesCompleted: 1 },
+                { date: '2024-01-04', hpChange: 15, activitiesCompleted: 0 },
+                { date: '2024-01-05', hpChange: 40, activitiesCompleted: 2 },
+                { date: '2024-01-06', hpChange: -10, activitiesCompleted: 1 },
+                { date: '2024-01-07', hpChange: 35, activitiesCompleted: 1 },
+            ],
+            activityBreakdown: {
+                notStarted: 2,
+                inProgress: 3,
+                submitted: 3,
+                approved: 8,
+            },
+            upcomingDeadlines: [
+                { activityTitle: 'Database Schema Design', deadlineDate: '2024-01-15', daysLeft: 3 },
+                { activityTitle: 'Deploy to Cloud', deadlineDate: '2024-01-18', daysLeft: 6 },
+                { activityTitle: 'Midterm Project', deadlineDate: '2024-01-22', daysLeft: 10 },
+            ],
+            recentSubmissions: [
+                { activityTitle: 'Build REST API', submittedAt: '2024-01-07', status: 'approved', hpEarned: 25 },
+                { activityTitle: 'Week 1 Quiz', submittedAt: '2024-01-06', status: 'approved', hpEarned: 15 },
+                { activityTitle: 'Database Design', submittedAt: '2024-01-05', status: 'pending', hpEarned: 0 },
+                { activityTitle: 'API Documentation', submittedAt: '2024-01-04', status: 'rejected', hpEarned: -5 },
             ]
         };
         return { success: true, data: mockStats };
