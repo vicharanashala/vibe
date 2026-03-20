@@ -63,6 +63,7 @@ export interface ISettingRepository {
     seekForwardEnabled: boolean,
     hpSystem: boolean,
     isPublic: boolean,
+    baseHp: number,
     audit: AuditingDto,
     session?: ClientSession,
   ): Promise<UpdateResult | null>;

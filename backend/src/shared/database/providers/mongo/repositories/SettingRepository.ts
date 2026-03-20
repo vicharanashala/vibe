@@ -273,6 +273,7 @@ export class SettingRepository implements ISettingRepository {
     seekForwardEnabled: boolean,
     hpSystem: boolean,
     isPublic: boolean,
+    baseHp: number,
     audit: AuditingDto,
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
@@ -330,6 +331,7 @@ export class SettingRepository implements ISettingRepository {
           'settings.seekForwardEnabled': seekForwardEnabled,
           'settings.hpSystem': hpSystem,
           'settings.isPublic': isPublic,
+          'settings.baseHp': baseHp,
         },
         $push: {
           'settings.audit': audit,

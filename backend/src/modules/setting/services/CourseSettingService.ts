@@ -130,6 +130,7 @@ class CourseSettingService extends BaseService {
         settings.hpSystem = false;
         settings.registration = {isActive: true};
         settings.timeslots = {isActive: false, slots: []};
+        settings.baseHp = 0;
 
         const created = await this.createCourseSettings(
           new CourseSetting({
@@ -159,6 +160,7 @@ class CourseSettingService extends BaseService {
     seekForwardEnabled: boolean,
     hpSystem: boolean,
     isPublic: boolean,
+    baseHp: number,
     userId: string,
   ): Promise<boolean> {
     return this._withTransaction(async session => {
@@ -185,6 +187,7 @@ class CourseSettingService extends BaseService {
         settings.seekForwardEnabled = seekForwardEnabled;
         settings.isPublic = isPublic;
         settings.hpSystem = hpSystem;
+        settings.baseHp = baseHp;
 
         settings.audit = [
           {
@@ -199,6 +202,7 @@ class CourseSettingService extends BaseService {
                 seekForwardEnabled,
                 isPublic,
                 hpSystem,
+                baseHp,
               },
             },
           },
@@ -229,6 +233,7 @@ class CourseSettingService extends BaseService {
         seekForwardEnabled: courseSettings.settings?.seekForwardEnabled,
         isPublic: courseSettings.settings?.isPublic,
         hpSystem: courseSettings.settings?.hpSystem,
+        baseHp: courseSettings.settings?.baseHp,
       };
 
       const afterState = {
@@ -236,7 +241,8 @@ class CourseSettingService extends BaseService {
         linearProgressionEnabled,
         seekForwardEnabled,
         isPublic,
-        hpSystem
+        hpSystem,
+        baseHp,
       };
 
       const audit: AuditingDto = {
@@ -257,6 +263,7 @@ class CourseSettingService extends BaseService {
         seekForwardEnabled,
         hpSystem,
         isPublic,
+        baseHp,
         audit,
         session,
       );

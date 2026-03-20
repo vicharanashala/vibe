@@ -423,6 +423,7 @@ class CourseSetting implements ICourseSetting {
     seekForwardEnabled: boolean;
     hpSystem?: boolean;
     isPublic?: boolean;
+    baseHp?: number;
     registration?: {
       jsonSchema?: any;
       uiSchema?: any;
@@ -455,6 +456,7 @@ class CourseSetting implements ICourseSetting {
         courseSettingsBody?.settings?.seekForwardEnabled ?? false,
       hpSystem: courseSettingsBody?.settings?.hpSystem ?? false,
       isPublic: courseSettingsBody?.settings?.isPublic ?? false,
+      baseHp: courseSettingsBody?.settings?.baseHp ?? 0,
       registration: {
         jsonSchema: courseSettingsBody?.settings?.registration?.jsonSchema,
         uiSchema: courseSettingsBody?.settings?.registration?.uiSchema,

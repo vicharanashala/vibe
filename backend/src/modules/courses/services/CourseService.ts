@@ -60,6 +60,7 @@ class CourseService extends BaseService {
     userId: string,
     cohorts: string[],
     hpSystem: boolean,
+    baseHp: number,
   ): Promise<Course> {
     return this._withTransaction(async session => {
       const createdCourse = await this.courseRepo.create(course, session);
@@ -120,6 +121,7 @@ class CourseService extends BaseService {
           seekForwardEnabled: false,
           isPublic: false,
           hpSystem: hpSystem,
+          baseHp: baseHp,
         },
       };
       const courseSettings = new CourseSetting(defaultSettingsPayload);

@@ -13,6 +13,7 @@ import { Separator } from "./ui/separator"
 import { Switch } from "./ui/switch"
 import { toast } from "sonner"
 import { ChevronDown, Loader2 } from "lucide-react"
+import { Input } from "./ui/input"
 
 enum ProctoringComponent {
   CAMERAMICRO = 'cameraMic',
@@ -61,6 +62,7 @@ export function ProctoringModal({
   const [linearProgressionEnabled, setLinearProgressionEnabled] = useState(true);
   const [seekForwardEnabled, setSeekForwardEnabled] = useState(false);
   const [hpSystemEnabled, setHpSystemEnabled] = useState(false);
+  const [baseHp, setbaseHp] = useState<number>(0);
   const [isPublic, setIsPublic] = useState(false);
   const [isAdditionalSettingsExpanded, setIsAdditionalSettingsExpanded] = useState(false);
   const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(courseVersionId || "")
@@ -75,6 +77,7 @@ export function ProctoringModal({
           setSeekForwardEnabled(result.settings?.seekForwardEnabled ?? false)
           setIsPublic(result.settings?.isPublic ?? false)
           setHpSystemEnabled(result.settings?.hpSystem ?? false)
+          setbaseHp(result.settings?.baseHp ?? 0)
         }
       } catch (err) {
         console.error("Failed to fetch proctoring settings:", err)
@@ -96,7 +99,7 @@ export function ProctoringModal({
 
   const handleSubmit = async () => {
     try {
-      const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled, seekForwardEnabled, isPublic, hpSystemEnabled)
+      const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled, seekForwardEnabled, isPublic, hpSystemEnabled, baseHp)
       if (result != undefined) {
         onSuccess?.();
         onClose();
@@ -220,6 +223,22 @@ export function ProctoringModal({
                       <Switch checked={hpSystemEnabled} onCheckedChange={() => setHpSystemEnabled(prev => !prev)} />
                     </div>
                   </div>
+                  {hpSystemEnabled && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Base HP</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Set the base HP value for students
+                      </p>
+                      <Input
+                        type="number"
+                        value={baseHp}
+                        min={0}
+                        max={100}
+                        onChange={(e) => setbaseHp(Number(e.target.value))}
+                        placeholder="Enter base HP"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
