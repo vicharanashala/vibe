@@ -197,7 +197,7 @@ function SimplifiedSubmissionCard({ sub, onViewMore }: { sub: HpStudentSubmissio
                         variant="default"
                         size="default"
                         onClick={onViewMore}
-                        className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold px-6 py-1 h-auto w-full min-h-[32px]"
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold px-6 py-1 h-auto min-h-[32px]"
                     >
                         View More
                     </Button>
@@ -205,12 +205,12 @@ function SimplifiedSubmissionCard({ sub, onViewMore }: { sub: HpStudentSubmissio
 
                 {/* View More button for submissions without attachments - wider, shorter, and consistently aligned */}
                 {/* {((sub.submission?.attachments?.files?.length || 0) + (sub.submission?.attachments?.images?.length || 0) + (sub.submission?.attachments?.links?.length || 0)) === 0 && (
-                    <div className="flex">
+                    <div className="flex justify-end">
                         <Button
                             variant="default"
                             size="default"
                             onClick={onViewMore}
-                            className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold px-6 py-1 h-auto w-full min-h-[32px]"
+                            className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold px-6 py-1 h-auto min-h-[32px]"
                         >
                             View More
                         </Button>
