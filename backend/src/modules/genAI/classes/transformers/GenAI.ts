@@ -49,6 +49,18 @@ export interface QuestionGenerationParameters {
 	DES?: number;
 	BIN?: number;
 	prompt?: string;
+	smartBloom?: {
+		enabled?: boolean;
+		segmentationStrategy?: 'DEFAULT' | 'CONCEPT_END';
+		distribution?: {
+			knowledge: number;
+			understanding: number;
+			application: number;
+			analysis?: number;
+			evaluation?: number;
+			creation?: number;
+		};
+	};
 }
 
 export interface UploadParameters {
