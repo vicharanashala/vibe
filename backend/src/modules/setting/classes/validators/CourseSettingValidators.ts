@@ -16,6 +16,8 @@ import {
   IsOptional,
   IsObject,
   IsNumber,
+  Min,
+  Max,
 } from 'class-validator';
 import {Type} from 'class-transformer';
 import {
@@ -157,6 +159,17 @@ export class SettingsDto {
     default: false,
   })
   hpSystem?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  @JSONSchema({
+    description: "Indicates the base health points",
+    example: 100,
+    default: 0,
+  })
+  baseHp?: number;
 
   @IsOptional()
   @IsBoolean()
@@ -375,6 +388,15 @@ export class AddCourseProctoringBody {
     default: false,
   })
   isPublic?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @JSONSchema({
+    description: 'Indicated the base Hp',
+    example: 100,
+    default: 0,
+  })
+  baseHp?: number;
 }
 
 // This class represents the validation schema of Parameters for removing proctoring from a course.

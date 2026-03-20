@@ -125,6 +125,7 @@ export class CourseSettingController {
       seekForwardEnabled,
       isPublic,
       hpSystem,
+      baseHp,
     } = body;
     const userId = user._id.toString();
 
@@ -136,6 +137,7 @@ export class CourseSettingController {
       seekForwardEnabled,
       hpSystem,
       isPublic ?? false,
+      baseHp,
       userId,
     );
 

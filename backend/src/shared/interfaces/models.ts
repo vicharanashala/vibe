@@ -563,6 +563,7 @@ export interface ISettings {
   seekForwardEnabled: boolean;
   hpSystem?: boolean;
   isPublic?: boolean;
+  baseHp?: number;
   // registration_settings?: IRegistrationSettings[];
   registration?: {
     jsonSchema?: any;
