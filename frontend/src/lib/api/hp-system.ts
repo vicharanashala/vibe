@@ -109,6 +109,7 @@ export interface HpActivity {
     };
     createdAt: string;
     updatedAt: string;
+    isSubmitted?: boolean;
 }
 
 export interface HpStudent {

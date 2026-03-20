@@ -21,7 +21,8 @@ import {
     Send,
     Image as ImageIcon,
     User,
-    Search
+    Search,
+    AlertCircle
 } from "lucide-react";
 import { HpActivity } from "@/lib/api/hp-system";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -111,6 +112,7 @@ export default function StudentActivities() {
     const [files, setFiles] = useState<File[]>([]);
     const [images, setImages] = useState<File[]>([]);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [submissionFilter, setSubmissionFilter] = useState<"PENDING" | "ALL">("PENDING");
 
     const formatDate = (dateString: string) => {
         try {
@@ -206,10 +208,13 @@ export default function StudentActivities() {
             // Filter by activity types
             const matchesType = selectedActivityTypes.length === 0 || 
                 selectedActivityTypes.includes(activity.activityType);
+
+            const isSubmitted = activity.isSubmitted === true;
+            const matchesSubmission = submissionFilter === "ALL" || !isSubmitted;
             
-            return matchesSearch && matchesType;
+            return matchesSearch && matchesType && matchesSubmission;
         });
-    }, [activities, searchQuery, selectedActivityTypes]);
+    }, [activities, searchQuery, selectedActivityTypes, submissionFilter]);
 
     const paginatedActivities = useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage;
@@ -359,6 +364,23 @@ export default function StudentActivities() {
                             </Select>
                             </div>
                         </div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">Show:</span>
+                              <Badge
+                                variant={submissionFilter === "PENDING" ? "default" : "outline"}
+                                className="cursor-pointer"
+                                onClick={() => setSubmissionFilter("PENDING")}
+                            >
+                                Pending
+                            </Badge>
+                            <Badge
+                                variant={submissionFilter === "ALL" ? "default" : "outline"}
+                                className="cursor-pointer"
+                                onClick={() => setSubmissionFilter("ALL")}
+                            >
+                                All (including submitted)
+                            </Badge>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 gap-6">
@@ -389,7 +411,10 @@ export default function StudentActivities() {
 
                     {activity.rules && (
                     activity.rules.isMandatory ? (
-                    <Badge className="bg-red-600 text-white">
+                    <Badge variant={"destructive"} 
+                     className="text-xs px-2 py-0.5 rounded-full"
+                    >
+                    <AlertCircle className="h-3 w-3" />
                     Mandatory
                     </Badge>
                     ) : (
@@ -457,6 +482,24 @@ export default function StudentActivities() {
                     </div>
 
                     </div>
+                    {activity.isSubmitted && (
+                        <span className="absolute bottom-5 left-8 flex flex-row gap-4 items-center"> 
+                            <Badge variant={activity.isSubmitted ? 'default': 'destructive'}>{activity.isSubmitted ? 'This activity has already been submitted.' : 'Not Submitted'}</Badge>
+                            {/* <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-xs underline text-muted-foreground"
+                                onClick={() =>
+                                navigate({
+                                    to: `/student/hp-system/${courseVersionId}/${cohortName}/submissions`,
+                                    state: { from }
+                                })
+                                }
+                            >
+                                View Submission
+                            </Button> */}
+                        </span>    
+                    )}
                     </Card>
                     ))}
                 </div>
