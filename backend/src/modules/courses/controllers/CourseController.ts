@@ -143,7 +143,7 @@ export class CourseController {
     @Ability(getCourseAbility) {ability, user},
     @Req() req: Request,
   ): Promise<Course> {
-    const {versionName, versionDescription, cohorts, hpSystem} = body;
+    const {versionName, versionDescription, cohorts, hpSystem, baseHp} = body;
     const userId = user._id.toString();
 
     //1. Build subject context for permissions
@@ -160,6 +160,7 @@ export class CourseController {
       userId,
       cohorts,
       hpSystem,
+      baseHp,
     );
     // //3. Create enrollment for the user
     // await this.enrollmentService.enrollUser(

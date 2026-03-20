@@ -129,6 +129,8 @@ export class EnrollmentService extends BaseService {
           'User is already enrolled in this course version',
         );
       }
+      const versionSetting = await this.settingsRepository.getSettingsByVersionIds([new ObjectId(courseVersionId)]);
+      const baseHpValue = versionSetting?.[0]?.settings?.hpSystem === true ? versionSetting?.[0]?.settings?.baseHp ?? 0: 0;
       const enrollmentData = {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
@@ -139,8 +141,8 @@ export class EnrollmentService extends BaseService {
         percentCompleted: 0,
         completedItemsCount: 0,
         ...(cohort ? {cohortId: new ObjectId(cohort)} : {}),
+        ...(role === 'STUDENT'? {hpPoints: baseHpValue}:{})
       };
-
       const createdEnrollment = await this.enrollmentRepo.createEnrollment(
         enrollmentData,
         session,
