@@ -255,6 +255,10 @@ export class ActivitySubmissionsService extends BaseService {
             const finalCourseId = COHORT_OVERRIDES[cohort]?.courseId ?? body.courseId;
             const finalVersionId = COHORT_OVERRIDES[cohort]?.versionId ?? body.courseVersionId;
 
+            console.log(student.id,
+                finalCourseId,
+                finalVersionId,
+                cohort)
             // 3. Fetch Enrollment using the CORRECT (overridden) IDs
             const enrollment = await this.cohortRepository.findEnrollment(
                 student.id,
