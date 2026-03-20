@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pagination } from "@/components/ui/Pagination";
-import { ArrowLeft, Loader2, Link as LinkIcon, FileText, Clock, Edit, Plus, Trash2, Send, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Loader2, Link as LinkIcon, FileText, Clock, Edit, Plus, Trash2, Send } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CourseWithVersions, CourseVersionStats } from "@/lib/api/hp-system";
 
@@ -261,7 +261,7 @@ export default function StudentSubmissions() {
                         </div>
                         
                     <div className="space-y-4">
-                            {paginatedSubmissions.map((sub: any, index: number) => (
+                            {paginatedSubmissions.map((sub: any) => (
                             <Card key={sub.id} className="overflow-hidden">
                                 <CardHeader className="">
                                     <div className="flex justify-between items-start gap-4">
@@ -427,7 +427,7 @@ export default function StudentSubmissions() {
                                             <DialogDescription>{editingSubmission?.activity?.title}</DialogDescription>
                                         </DialogHeader>
 
-                                        <div className="space-y-6 py-4">
+                                        <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto px-1 pr-4 -mr-4">
                                             <div className="space-y-2">
                                                 <Label htmlFor="editTextResponse">Your Response</Label>
                                                 <textarea
@@ -452,21 +452,39 @@ export default function StudentSubmissions() {
                                                     }}
                                                     disabled={isUpdating}
                                                 />
-                                                {editFiles.length > 0 && (
-                                                    <div className="space-y-2 mt-2">
-                                                        {editFiles.map((file, idx) => (
-                                                            <div key={idx} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded border">
-                                                                <div className="flex items-center gap-2 truncate">
-                                                                    <FileText className="h-4 w-4 text-muted-foreground" />
-                                                                    <span className="truncate">{file.name}</span>
-                                                                </div>
-                                                                <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={() => setEditFiles(editFiles.filter((_, i) => i !== idx))}>
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                </Button>
+                                                <div className="flex flex-wrap gap-3 mt-2">
+                                                    {/* Existing Files */}
+                                                    {existingFiles.map((file, idx) => (
+                                                        <div key={`existing-file-${idx}`} className="group relative flex flex-col items-center p-3 bg-muted/30 rounded-lg border w-32">
+                                                            <div className="flex items-center justify-center w-12 h-12 bg-primary/5 rounded mb-2">
+                                                                <FileText className="h-6 w-6 text-primary" />
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                                            <span className="text-[10px] text-center line-clamp-2 px-1 w-full" title={file.name}>{file.name}</span>
+                                                            <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <a href={file.url} target="_blank" rel="noopener noreferrer" className="p-1 bg-background border rounded hover:text-primary">
+                                                                    <Eye className="h-3 w-3" />
+                                                                </a>
+                                                                <button type="button" onClick={() => setExistingFiles(existingFiles.filter((_, i) => i !== idx))} className="p-1 bg-background border rounded text-destructive hover:bg-destructive/10">
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+
+                                                    {/* New Files */}
+                                                    {editFiles.map((file, idx) => (
+                                                        <div key={`new-file-${idx}`} className="group relative flex flex-col items-center p-3 bg-primary/5 rounded-lg border border-primary/20 w-32 border-dashed">
+                                                            <div className="flex items-center justify-center w-12 h-12 bg-primary/10 rounded mb-2">
+                                                                <FileText className="h-6 w-6 text-primary" />
+                                                            </div>
+                                                            <span className="text-[10px] text-center line-clamp-2 px-1 w-full">{file.name}</span>
+                                                            <button type="button" onClick={() => setEditFiles(editFiles.filter((_, i) => i !== idx))} className="absolute top-1 right-1 p-1 bg-background border rounded text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Trash2 className="h-3 w-3" />
+                                                            </button>
+                                                            <span className="absolute top-1 left-1 px-1 bg-primary text-[8px] text-primary-foreground rounded">NEW</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
 
                                             <div className="space-y-3">
@@ -482,21 +500,33 @@ export default function StudentSubmissions() {
                                                     }}
                                                     disabled={isUpdating}
                                                 />
-                                                {editImages.length > 0 && (
-                                                    <div className="space-y-2 mt-2">
-                                                        {editImages.map((img, idx) => (
-                                                            <div key={idx} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded border">
-                                                                <div className="flex items-center gap-2 truncate">
-                                                                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                                                                    <span className="truncate">{img.name}</span>
-                                                                </div>
-                                                                <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={() => setEditImages(editImages.filter((_, i) => i !== idx))}>
+                                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mt-2">
+                                                    {/* Existing Images */}
+                                                    {existingImages.map((img, idx) => (
+                                                        <div key={`existing-img-${idx}`} className="group relative aspect-square rounded-lg border overflow-hidden bg-muted/50">
+                                                            <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
+                                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                                <a href={img.url} target="_blank" rel="noopener noreferrer" className="p-1.5 bg-background rounded-full hover:text-primary">
+                                                                    <Eye className="h-4 w-4" />
+                                                                </a>
+                                                                <button type="button" onClick={() => setExistingImages(existingImages.filter((_, i) => i !== idx))} className="p-1.5 bg-background rounded-full text-destructive hover:bg-red-50">
                                                                     <Trash2 className="h-4 w-4" />
-                                                                </Button>
+                                                                </button>
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                                        </div>
+                                                    ))}
+
+                                                    {/* New Images */}
+                                                    {editImages.map((img, idx) => (
+                                                        <div key={`new-img-${idx}`} className="group relative aspect-square rounded-lg border border-primary/30 overflow-hidden bg-primary/5 border-dashed">
+                                                            <img src={URL.createObjectURL(img)} alt={img.name} className="w-full h-full object-cover" />
+                                                            <button type="button" onClick={() => setEditImages(editImages.filter((_, i) => i !== idx))} className="absolute top-1 right-1 p-1 bg-background/80 backdrop-blur-sm rounded-full text-destructive hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Trash2 className="h-3 w-3" />
+                                                            </button>
+                                                            <span className="absolute top-1 left-1 px-1 bg-primary text-[8px] text-primary-foreground rounded">NEW</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
 
                                             <div className="space-y-3">
