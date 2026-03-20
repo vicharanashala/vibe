@@ -47,6 +47,8 @@ import {
   CohortCreatedMessage,
   CohortUpdatedMessage,
   CohortDeletedMessage,
+  MoveStudentsToCohortBody,
+  MoveStudentsToCohortResponse,
 } from '#courses/classes/validators/CourseVersionValidators.js';
 import {
   CourseVersionActions,
@@ -661,6 +663,20 @@ Accessible to:
       throw new BadRequestError("Cohort name required for creating a cohort");
     }
 
+    // Restricting cohort creation for already existing course versions because these versions are already published and have students enrolled in them
+
+    const restrictedVersionIds = [
+      '6968e12cbf2860d6e39051af',
+      '6970f87e30644cbc74b67150',
+      '697b4e262942654879011c57',
+      '69903415e1930c015760a719',
+      '69942dc6d6d99b252e3a54ff',
+    ];
+
+    if (restrictedVersionIds.includes(versionId)) {
+      throw new BadRequestError('Cohort creation is restricted for this course version');
+    }
+
     const existingVersion = await this.courseVersionService.readCourseVersion(versionId, user._id);
     if(existingVersion.cohortDetails && existingVersion.cohortDetails?.some(cohort=> cohort.name === body.newCohortName)){
       throw new BadRequestError("The requested cohort name already exists in the course version");
@@ -866,6 +882,105 @@ Accessible to:
     })
     return {
       message: `Cohort deleted successfully.`,
+    };
+  }
+
+
+  @OpenAPI({
+    summary: 'Move non cohort students to a cohort in a course version',
+    description:
+      'Move non cohort students to a specific cohort in a course version.',
+  })
+  @Authorized()
+  @Post('/:courseId/versions/:versionId/move-to-cohort')
+  @HttpCode(200)
+  @UseInterceptor(AuditTrailsHandler)
+  @ResponseSchema(MoveStudentsToCohortResponse, {
+    description: 'Students moved to cohort successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid page or limit parameters',
+    statusCode: 400,
+  })
+  async MoveNonCohortStudentsToCohort(
+    @Params() params: ReadCourseVersionCohortsParams,
+    @Body() body: MoveStudentsToCohortBody,
+    @Ability(getCourseVersionAbility) {ability, user},
+    @Req() req: Request,
+  ): Promise<MoveStudentsToCohortResponse> {
+    const { courseId, versionId } = params;
+    const {enrollmentIds, targetCohortId} = body;
+
+    if(!enrollmentIds || enrollmentIds.length <= 0){
+      throw new BadRequestError("enrollmentIds required for moving students to cohort");
+    }
+
+    if(!targetCohortId){
+      throw new BadRequestError("targetCohortId required for moving students to cohort");
+    }
+
+    const courseVersionSubject = subject('CourseVersion', {
+      courseId,
+      versionId,
+    });
+
+    if (!ability.can(CourseVersionActions.Modify, courseVersionSubject)) {
+      throw new ForbiddenError(
+        'You do not have permission to update this course version',
+      );
+    }
+
+    const existingVersion = await this.courseVersionService.readCourseVersion(versionId, user._id);
+
+    if(!existingVersion.cohorts || existingVersion.cohorts.length <= 0){
+      throw new BadRequestError("This courseversion does not have any cohorts to move students to");
+    }
+    const cohortExists = existingVersion.cohorts.some(cohort=> cohort?.toString() === targetCohortId);
+
+    if(!cohortExists){
+      throw new BadRequestError("The requested cohort does not exists in the course version");
+    }
+
+    // Move students to cohort in enrollment collection and get the result before sending response
+    const updatedAllEnrollments = await this.enrollmentService.moveNonCohortStudentsToCohortInEnrollment(enrollmentIds, existingVersion.courseId.toString(), versionId, targetCohortId);
+
+    if(!updatedAllEnrollments){
+      throw new InternalServerError("Failed to move students to cohort, please try again later");
+    }
+
+    // Move students to cohort in background without awaiting the result as we already moved them in enrollment collection 
+    this.enrollmentService.moveRelatedDocumentsToCohort(enrollmentIds, existingVersion.courseId.toString(), versionId, targetCohortId)
+    .catch(err => {
+      console.error("Background cohort processing failed", err);
+    });
+
+    setAuditTrail(req, {
+      category: AuditCategory.COHORT,
+      action: AuditAction.COHORT_MOVE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context:{
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        cohortId: ObjectId.createFromHexString(targetCohortId),
+      },
+      changes:{
+        after:{
+          enrollmentIds: enrollmentIds,
+          cohort: existingVersion.cohorts.find(cohort=> cohort?.toString() === targetCohortId),
+        }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS, 
+      }
+    })
+
+    return {
+      message: `Non-cohort students moved to the specified cohort successfully.`,
     };
   }
 }

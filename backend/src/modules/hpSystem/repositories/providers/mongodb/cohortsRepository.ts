@@ -1,6 +1,6 @@
 import { Course, CourseVersion } from "#root/modules/courses/classes/index.js";
 import { CohortStudentItemDto, CohortStudentsListQueryDto } from "#root/modules/hpSystem/classes/validators/courseAndCohorts.js";
-import { ID } from "#root/modules/hpSystem/constants.js";
+import { COHORT_OVERRIDES, ID } from "#root/modules/hpSystem/constants.js";
 import { ICohortRepository } from "#root/modules/hpSystem/interfaces/ICohortsRepository.js";
 import { ICohort, IEnrollment, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
@@ -8,6 +8,8 @@ import { plainToInstance } from "class-transformer";
 import { CourseWithVersionsDto } from "#root/modules/hpSystem/classes/validators/courseAndCohorts.js";
 import { inject, injectable } from "inversify";
 import { ClientSession, Collection, ObjectId } from "mongodb";
+import { HpActivity, HpLedger } from "#root/modules/hpSystem/models.js";
+import { HpActivitySubmission } from "#root/modules/hpSystem/classes/transformers/ActivitySubmission.js";
 
 @injectable()
 export class CohortRepository implements ICohortRepository {
@@ -16,6 +18,9 @@ export class CohortRepository implements ICohortRepository {
     private enrollmentCollection: Collection<IEnrollment>;
     private cohortsCollection: Collection<ICohort>;
     private courseSettingsCollection: Collection<any>;
+    private hpLedgerCollection: Collection<HpLedger>;
+    private hpActivityCollection: Collection<HpActivity>;
+    private hpActivitySubmissionCollection: Collection<HpActivitySubmission>;
 
     constructor(
         @inject(GLOBAL_TYPES.Database)
@@ -39,6 +44,12 @@ export class CohortRepository implements ICohortRepository {
         this.cohortsCollection = await this.db.getCollection<ICohort>(
             'cohorts',
         );
+        this.hpLedgerCollection = await this.db.getCollection<HpLedger>('hp_ledger');
+        this.hpActivityCollection = await this.db.getCollection<HpActivity>('hp_activities');
+        this.hpActivitySubmissionCollection = await this.db.getCollection<HpActivitySubmission>(
+            'hp_activity_submissions',
+        );
+
     }
 
     async getTotalStudentsCountForCourseVersion(courseVersionId: string): Promise<number> {
@@ -381,24 +392,57 @@ export class CohortRepository implements ICohortRepository {
     }
 
 
+    private async _getCohortMatchConditions(cohort: string, versionId: string): Promise<any[]> {
+        const orConditions: any[] = [{ tag: cohort }];
+
+        if (ObjectId.isValid(cohort)) {
+            orConditions.push({ cohortId: new ObjectId(cohort) });
+            orConditions.push({ cohortId: cohort });
+        } else {
+            const dynamicCohort = await this.cohortsCollection.findOne({ name: cohort, courseVersionId: new ObjectId(versionId) });
+            if (dynamicCohort) {
+                orConditions.push({ cohortId: dynamicCohort._id });
+                orConditions.push({ cohortId: dynamicCohort._id.toString() });
+            }
+        }
+
+        return orConditions;
+    }
+
     async findEnrollment(
         userId: string | ObjectId,
         courseId: string,
         courseVersionId: string,
+        cohort: string,
         session?: ClientSession,
     ): Promise<IEnrollment | null> {
         await this.init();
 
-        return await this.enrollmentCollection.findOne(
-            {
-                userId: { $in: [userId, new ObjectId(userId)] },
-                courseId: { $in: [courseId, new ObjectId(courseId)] },
-                courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
-                isDeleted: { $ne: true },
+        const isOverrideCohort = cohort in COHORT_OVERRIDES;
 
-            },
-            { session }
-        );
+        const query: any = {
+            userId: { $in: [userId, new ObjectId(userId)] },
+            courseId: { $in: [courseId, new ObjectId(courseId)] },
+            courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+            isDeleted: { $ne: true },
+        };
+
+        if (!isOverrideCohort) {
+            const cohortConditions = await this._getCohortMatchConditions(
+                cohort,
+                courseVersionId
+            );
+
+            query.$or = [
+                { cohortId: { $exists: false } },
+                {
+                    cohortId: { $exists: true },
+                    $or: cohortConditions,
+                },
+            ];
+        }
+
+        return await this.enrollmentCollection.findOne(query, { session });
     }
 
     /**
@@ -480,30 +524,49 @@ export class CohortRepository implements ICohortRepository {
         userId: ID,
         courseId: ID,
         courseVersionId: ID,
+        cohort: string,
         amount: number,
         session?: ClientSession,
     ): Promise<boolean> {
         await this.init();
 
+        const isOverrideCohort = cohort in COHORT_OVERRIDES;
+
+        const query: any = {
+            userId: { $in: [userId, new ObjectId(userId)] },
+            courseId: { $in: [courseId, new ObjectId(courseId)] },
+            courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+            isDeleted: { $ne: true },
+        };
+
+        if (!isOverrideCohort) {
+            const cohortConditions = await this._getCohortMatchConditions(
+                cohort,
+                courseVersionId.toString()
+            );
+
+            query.$or = [
+                { cohortId: { $exists: false } },
+                {
+                    cohortId: { $exists: true },
+                    $or: cohortConditions,
+                },
+            ];
+        }
+
         const updateResult = await this.enrollmentCollection.updateOne(
-            {
-                userId: { $in: [userId, new ObjectId(userId)] },
-                courseId: { $in: [courseId, new ObjectId(courseId)] },
-                courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
-                isDeleted: { $ne: true },
-            },
+            query,
             {
                 $set: {
                     hpPoints: amount,
-                    updatedAt: new Date()
-                }
+                    updatedAt: new Date(),
+                },
             },
             { session }
         );
 
         return updateResult.modifiedCount > 0;
     }
-
 
     async getDynamicCoursesWithVersions(session?: ClientSession): Promise<CourseWithVersionsDto[]> {
         await this.init();
@@ -643,5 +706,28 @@ export class CohortRepository implements ICohortRepository {
             .toArray();
 
         return result[0]?.totalHp ?? 0;
+    }
+
+    async updateCohortNameAcrossDB(
+        courseVersionId: string,
+        oldCohortName: string,
+        newCohortName: string,
+    ): Promise<void> {
+        await this.init();
+
+        const filter = {
+            cohort: oldCohortName,
+            courseVersionId: new ObjectId(courseVersionId),
+        };
+
+        const update = {
+            $set: { cohort: newCohortName },
+        };
+
+        await Promise.all([
+            this.hpActivityCollection.updateMany(filter, update),
+            this.hpActivitySubmissionCollection.updateMany(filter, update),
+            this.hpLedgerCollection.updateMany(filter, update),
+        ]);
     }
 }

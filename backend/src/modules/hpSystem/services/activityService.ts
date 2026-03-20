@@ -59,6 +59,7 @@ export class ActivityService extends BaseService {
                     submissionMode: body.submissionMode,
                     externalLink: body.externalLink,
                     attachments: body.attachments ?? [],
+                    required_percentage: body.required_percentage,
 
                     stats: {
                         totalStudents: 0,
@@ -96,13 +97,13 @@ export class ActivityService extends BaseService {
                     ...(body.activityType !== undefined ? { activityType: body.activityType } : {}),
                     ...(body.deadlineAt !== undefined ? { deadlineAt: new Date(body.deadlineAt) } : {}),
                     ...(body.allowLateSubmission !== undefined ? { allowLateSubmission: body.allowLateSubmission } : {}),
-                    ...(body.lateRewardPolicy !== undefined ? { lateRewardPolicy: body.lateRewardPolicy } : {}),
                     ...(body.submissionMode !== undefined ? { submissionMode: body.submissionMode } : {}),
                     ...(body.externalLink !== undefined ? { externalLink: body.externalLink } : {}),
                     ...(body.attachments !== undefined ? { attachments: body.attachments } : {}),
                     ...(body.ruleConfigId !== undefined ? { ruleConfigId: new ObjectId(body.ruleConfigId) } : {}),
                     ...(body.isMandatory !== undefined ? { isMandatory: body.isMandatory } : {}),
                     ...(body.cohort !== undefined ? { cohort: body.cohort } : {}),
+                    ...(body.required_percentage !== undefined ? { required_percentage: body.required_percentage } : {}),
                     updatedAt: new Date(),
                 },
                 session,
@@ -207,7 +208,6 @@ export class ActivityService extends BaseService {
         // if (!enrollment) throw new BadRequestError("Enrollment not found!")
         // const role = enrollment.role;
 
-        console.log("Listing activities with filters:", filters, "by user:", userId);
         return this.activityRepository.listActivities(filters);
     }
 }

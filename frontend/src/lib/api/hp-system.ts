@@ -107,6 +107,7 @@ export interface HpActivity {
         deadlineAt: Date | string;
         allowLateSubmission: boolean;
     };
+    required_percentage?: number;
     createdAt: string;
     updatedAt: string;
 }
@@ -255,17 +256,12 @@ export interface HpRuleConfig {
     isMandatory: boolean;
     deadlineAt?: string;
     allowLateSubmission?: boolean;
-    lateRewardPolicy?: "NONE" | "REWARD_ALLOWED" | "REWARD_DENIED";
     reward?: {
         enabled: boolean;
         type: "ABSOLUTE" | "PERCENTAGE";
         value: number;
         applyWhen: "ON_SUBMISSION" | "ON_APPROVAL";
-        onlyWithinDeadline: boolean;
-        allowLate: boolean;
         lateBehavior: "NO_REWARD" | "REWARD";
-        minHpFloor: number;
-        required_percentage?: number;
     };
     penalty?: {
         enabled: boolean;
@@ -276,8 +272,8 @@ export interface HpRuleConfig {
         runOnce: boolean;
     };
     limits?: {
-        minHp: number;
-        maxHp: number;
+        minHp?: number;
+        maxHp?: number;
     };
     createdAt?: string;
     updatedAt?: string;
@@ -319,8 +315,8 @@ export interface CreateHpActivityPayload {
     status?: "DRAFT" | "PUBLISHED";
     deadlineAt?: string;
     allowLateSubmission?: boolean;
-    lateRewardPolicy?: string;
     attachments?: { name: string; url: string; kind: string }[];
+    required_percentage?: number;
 }
 
 export interface HpStudentSubmissionStats {
@@ -635,12 +631,7 @@ export const hpApi = {
         return apiFetch(`${BASE_URL}/activity-submissions/student/${studentId}/cohort/${cohort}?${params.toString()}`);
     },
 
-    getStudentSubmissionStats: async(
-        studentId: string,
-        cohort: string,
-    ): Promise<{ success: boolean; data: any }> => {
-        return apiFetch(`${BASE_URL}/activity-submissions/stats/student/${studentId}/cohort/${cohort}`);
-    },
+
 
     // Made by Rishabh Shukla
     getCohortActivityStats: async(cohortName: string, activityId: string): Promise<{ data: any }> => {

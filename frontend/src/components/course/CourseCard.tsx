@@ -358,6 +358,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   <Button
                     variant="outline"
                     className="w-full sm:w-auto gap-2"
+                    onClick={() => navigate({ to: `/student/hp-system/${enrollment.courseVersionId}/${enrollment.cohortName}/activities`, state:{from: location.pathname} })}
                   >
                     <Activity className="h-4 w-4" />
                     HP Dashboard

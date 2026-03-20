@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "@tanstack/react-router";
+import { useParams, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
     Select,
@@ -12,9 +11,11 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
     ArrowLeft, ArrowRight, Save, FileText, Settings, Plus, Trash2,
-    Link as LinkIcon, CheckCircle
+    Link as LinkIcon, CheckCircle, Info
 } from "lucide-react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { CreateHpActivityPayload, HpRuleConfig, CourseWithVersions, CourseVersionStats } from "@/lib/api/hp-system";
@@ -31,6 +32,9 @@ export default function CreateHpActivityPage() {
     const isSubmitting = isSubmittingActivity || isSubmittingRules;
 
     const [step, setStep] = useState<1 | 2>(1);
+    
+    const router = useRouterState();
+    let from = router.location.state?.from;
 
     // Find the correct courseId for the given courseVersionId
     const course = courses.find((c: CourseWithVersions) =>
@@ -55,21 +59,22 @@ export default function CreateHpActivityPage() {
     const currentActivityType = watch("activityType");
     const [isVibeMilestoneConfirmOpen, setIsVibeMilestoneConfirmOpen] = useState(false);
     const [pendingActivityType, setPendingActivityType] = useState<string | null>(null);
+    const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
+    const [pendingSaveStatus, setPendingSaveStatus] = useState<"DRAFT" | "PUBLISHED" | null>(null);
+    const [pendingFormData, setPendingFormData] = useState<CreateHpActivityPayload | null>(null);
 
     // ── Step 2: Rule config (local state, matches RuleSettingsDialog) ──
     type RuleConfigFormState = Omit<Partial<HpRuleConfig>, "reward" | "penalty" | "limits"> & {
         reward?: Partial<HpRuleConfig["reward"]>;
         penalty?: Partial<HpRuleConfig["penalty"]>;
         limits?: Partial<HpRuleConfig["limits"]>;
+        required_percentage?: number;
     };
 
     const [ruleConfig, setRuleConfig] = useState<RuleConfigFormState>({
         reward: {
             enabled: true,
-            onlyWithinDeadline: true,
-            allowLate: false,
             lateBehavior: "NO_REWARD",
-            minHpFloor: 0,
         },
         penalty: {
             applyWhen: "AFTER_DEADLINE",
@@ -79,7 +84,6 @@ export default function CreateHpActivityPage() {
     const [ruleErrors, setRuleErrors] = useState<{
         isMandatory?: string;
         allowLateSubmission?: string;
-        lateRewardPolicy?: string;
         deadlineAt?: string;
         rewardType?: string;
         rewardValue?: string;
@@ -111,6 +115,8 @@ export default function CreateHpActivityPage() {
     const handleConfirmVibeMilestone = () => {
         if (pendingActivityType) {
             setValue("activityType", pendingActivityType as any, { shouldDirty: true, shouldValidate: true });
+            setValue("submissionMode", "IN_PLATFORM", { shouldDirty: true, shouldValidate: true });
+            setValue("externalLink", "", { shouldDirty: true, shouldValidate: true });
         }
         setIsVibeMilestoneConfirmOpen(false);
         setPendingActivityType(null);
@@ -119,6 +125,19 @@ export default function CreateHpActivityPage() {
     const handleCloseVibeMilestoneConfirm = () => {
         setIsVibeMilestoneConfirmOpen(false);
         setPendingActivityType(null);
+    };
+
+    const handleSaveClick = (data: CreateHpActivityPayload, status: "DRAFT" | "PUBLISHED") => {
+        setPendingFormData(data);
+        setPendingSaveStatus(status);
+        setIsSaveConfirmOpen(true);
+    };
+
+    const handleConfirmSave = async () => {
+        if (pendingFormData && pendingSaveStatus) {
+            await onSubmit(pendingFormData, pendingSaveStatus);
+            setIsSaveConfirmOpen(false);
+        }
     };
 
     const onSubmit = async (data: CreateHpActivityPayload, status: "DRAFT" | "PUBLISHED") => {
@@ -152,14 +171,10 @@ export default function CreateHpActivityPage() {
                 nextErrors.rewardValue = "Reward value cannot be negative";
             }
             if (ruleConfig.reward?.type === "PERCENTAGE") {
-                if (ruleConfig.limits?.minHp === undefined || Number.isNaN(ruleConfig.limits.minHp)) {
-                    nextErrors.limitsMin = "Minimum HP is required";
-                } else if (ruleConfig.limits.minHp < 0) {
+                if (ruleConfig.limits?.minHp !== undefined && !Number.isNaN(ruleConfig.limits.minHp) && ruleConfig.limits.minHp < 0) {
                     nextErrors.limitsMin = "Minimum HP cannot be negative";
                 }
-                if (ruleConfig.limits?.maxHp === undefined || Number.isNaN(ruleConfig.limits.maxHp)) {
-                    nextErrors.limitsMax = "Maximum HP is required";
-                } else if (ruleConfig.limits.maxHp < 0) {
+                if (ruleConfig.limits?.maxHp !== undefined && !Number.isNaN(ruleConfig.limits.maxHp) && ruleConfig.limits.maxHp < 0) {
                     nextErrors.limitsMax = "Maximum HP cannot be negative";
                 }
                 if (
@@ -174,9 +189,6 @@ export default function CreateHpActivityPage() {
             }
             if (!ruleConfig.reward?.applyWhen) {
                 nextErrors.rewardApplyWhen = "Apply policy is required";
-            }
-            if (!ruleConfig.lateRewardPolicy) {
-                nextErrors.lateRewardPolicy = "Late behavior is required";
             }
             if (ruleConfig.penalty?.enabled === undefined) {
                 nextErrors.penaltyEnabled = "Please select if penalty is enabled";
@@ -215,15 +227,11 @@ export default function CreateHpActivityPage() {
             const maxHp = ruleConfig.limits?.maxHp;
             const nextErrors: { limitsMin?: string; limitsMax?: string } = {};
 
-            if (minHp === undefined || minHp === null || Number.isNaN(minHp)) {
-                nextErrors.limitsMin = "Minimum HP is required";
-            } else if (minHp < 0) {
+            if (minHp !== undefined && minHp !== null && !Number.isNaN(minHp) && minHp < 0) {
                 nextErrors.limitsMin = "Minimum HP cannot be negative";
             }
 
-            if (maxHp === undefined || maxHp === null || Number.isNaN(maxHp)) {
-                nextErrors.limitsMax = "Maximum HP is required";
-            } else if (maxHp < 0) {
+            if (maxHp !== undefined && maxHp !== null && !Number.isNaN(maxHp) && maxHp < 0) {
                 nextErrors.limitsMax = "Maximum HP cannot be negative";
             }
 
@@ -253,7 +261,7 @@ export default function CreateHpActivityPage() {
             status,
             deadlineAt: ruleConfig.deadlineAt,
             allowLateSubmission: ruleConfig.allowLateSubmission,
-            lateRewardPolicy: ruleConfig.lateRewardPolicy,
+            required_percentage: ruleConfig.required_percentage,
         };
 
         try {
@@ -279,17 +287,12 @@ export default function CreateHpActivityPage() {
                 isMandatory: ruleConfig.isMandatory as boolean,
                 deadlineAt: ruleConfig.deadlineAt as string,
                 allowLateSubmission: ruleConfig.allowLateSubmission as boolean,
-                lateRewardPolicy: ruleConfig.lateRewardPolicy as any,
                 reward: {
                     enabled: ruleConfig.reward?.enabled ?? true,
                     type: ruleConfig.reward?.type as any,
                     value: ruleConfig.reward?.value as number,
                     applyWhen: ruleConfig.reward?.applyWhen as any,
-                    onlyWithinDeadline: ruleConfig.reward?.onlyWithinDeadline ?? true,
-                    allowLate: ruleConfig.reward?.allowLate ?? false,
                     lateBehavior: ruleConfig.reward?.lateBehavior ?? "NO_REWARD",
-                    minHpFloor: ruleConfig.reward?.minHpFloor ?? 0,
-                    required_percentage: ruleConfig.reward?.required_percentage,
                 },
                 penalty: {
                     enabled: ruleConfig.penalty?.enabled ?? false,
@@ -300,8 +303,8 @@ export default function CreateHpActivityPage() {
                     runOnce: ruleConfig.penalty?.runOnce ?? true,
                 },
                 limits: {
-                    minHp: ruleConfig.limits?.minHp ?? 0,
-                    maxHp: ruleConfig.limits?.maxHp ?? 1000,
+                    minHp: ruleConfig.limits?.minHp,
+                    maxHp: ruleConfig.limits?.maxHp,
                 },
             };
 
@@ -313,7 +316,7 @@ export default function CreateHpActivityPage() {
             }
 
             // 4. Navigate back
-            navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/activities` });
+            navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/activities`, state:{from} });
         } catch (error: any) {
             console.error("Failed to create activity", error);
             if (error.response) {
@@ -338,7 +341,7 @@ export default function CreateHpActivityPage() {
             <div className="p-8 text-center bg-red-50 border border-red-200 rounded-lg text-red-600">
                 <h3 className="text-lg font-bold">Configuration Error</h3>
                 <p>Could not find the parent course for version ID: {courseVersionId}</p>
-                <Button variant="outline" className="mt-4" onClick={() => navigate({ to: '/teacher/hp-system' })}>Go Back</Button>
+                <Button variant="outline" className="mt-4" onClick={() => navigate({ to: '/teacher/hp-system/$courseVersionId/cohort/$cohortName/activities',state:{from} })}>Go Back</Button>
             </div>
         );
     }
@@ -348,7 +351,7 @@ export default function CreateHpActivityPage() {
         <div className="space-y-6  mx-4 pb-12">
             {/* Header */}
             <div className="flex items-center gap-4 border-b pb-4">
-                <Button variant="outline" size="icon" onClick={() => step === 1 ? navigate({ to: backUrl }) : setStep(1)}>
+                <Button variant="outline" size="icon" onClick={() => step === 1 ? navigate({ to: backUrl, state:{from} }) : setStep(1)}>
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
@@ -410,7 +413,7 @@ export default function CreateHpActivityPage() {
                                         control={control}
                                         rules={{ required: "Activity type is required" }}
                                         render={({ field }) => (
-                                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                                            <Select onValueChange={handleActivityTypeChange} value={field.value || ""}>
                                                 <SelectTrigger className={errors.activityType ? "border-red-500" : ""}>
                                                     <SelectValue placeholder="Select type" />
                                                 </SelectTrigger>
@@ -434,7 +437,11 @@ export default function CreateHpActivityPage() {
                                         control={control}
                                         rules={{ required: "Submission mode is required" }}
                                         render={({ field }) => (
-                                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                                            <Select 
+                                                onValueChange={field.onChange} 
+                                                value={field.value || ""}
+                                                disabled={watch("activityType") === "VIBE_MILESTONE"}
+                                            >
                                                 <SelectTrigger className={errors.submissionMode ? "border-red-500" : ""}>
                                                     <SelectValue placeholder="Select mode" />
                                                 </SelectTrigger>
@@ -446,10 +453,13 @@ export default function CreateHpActivityPage() {
                                         )}
                                     />
                                     {errors.submissionMode && <p className="text-xs text-red-500">{errors.submissionMode.message as string}</p>}
+                                    {watch("activityType") === "VIBE_MILESTONE" && (
+                                        <p className="text-[10px] text-muted-foreground">Vibe platform milestones use in-platform tracking by default.</p>
+                                    )}
                                 </div>
                             </div>
 
-                            {currentSubmissionMode === "EXTERNAL_LINK" && (
+                            {currentSubmissionMode === "EXTERNAL_LINK" && watch("activityType") !== "VIBE_MILESTONE" && (
                                 <div className="space-y-2 pt-2">
                                     <label className="text-sm font-medium">External Reference URL <span className="text-red-500">*</span></label>
                                     <Input
@@ -516,7 +526,7 @@ export default function CreateHpActivityPage() {
 
                     {/* Step 1 Actions */}
                     <div className="flex justify-end gap-4">
-                        <Button type="button" variant="outline" onClick={() => navigate({ to: backUrl })}>
+                        <Button type="button" variant="outline" onClick={() => navigate({ to: backUrl , state:{from}})}>
                             Cancel
                         </Button>
                         <Button type="submit">
@@ -536,34 +546,67 @@ export default function CreateHpActivityPage() {
 
                         <div className="space-y-8">
                             {/* Mandatory Toggle */}
-                            <div className="flex flex-col md:flex-row md:items-center md:justify-between rounded-lg border p-4 shadow-sm gap-3">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between rounded-md border p-4 shadow-sm gap-3 bg-card">
                                 <div className="space-y-0.5">
-                                    <Label className="text-base">Mandatory Activity</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Label className="text-base">Mandatory Activity</Label>
+                                        <TooltipProvider delayDuration={300}>
+                                            <Tooltip>
+                                                <TooltipTrigger type="button" tabIndex={-1}>
+                                                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>Students must complete this to pass the cohort.</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
                                     <p className="text-sm text-muted-foreground">
                                         Students must complete this to pass the cohort.
                                     </p>
                                 </div>
-                                <div className="min-w-[160px] space-y-1">
-                                    <Select
-                                        value={ruleConfig.isMandatory === undefined ? "" : String(ruleConfig.isMandatory)}
-                                        onValueChange={(v: string) => {
-                                            setRuleConfig(prev => ({ ...prev, isMandatory: v === "true" }));
-                                            if (ruleErrors.isMandatory) {
-                                                setRuleErrors(prev => ({ ...prev, isMandatory: undefined }));
-                                            }
-                                        }}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="true">Yes</SelectItem>
-                                            <SelectItem value="false">No</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    {ruleErrors.isMandatory && <p className="text-xs text-red-500">{ruleErrors.isMandatory}</p>}
-                                </div>
+                                <Switch
+                                    checked={ruleConfig.isMandatory ?? false}
+                                    onCheckedChange={(c) => {
+                                        setRuleConfig(prev => ({ ...prev, isMandatory: c }));
+                                        if (ruleErrors.isMandatory) {
+                                            setRuleErrors(prev => ({ ...prev, isMandatory: undefined }));
+                                        }
+                                    }}
+                                />
                             </div>
+
+                            {/* Required Progress Percentage (Milestones Only) */}
+                            {(watch("activityType") === "MILESTONE" || watch("activityType") === "VIBE_MILESTONE") && (
+                                <div className="space-y-4">
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between rounded-md border p-4 shadow-sm gap-3 bg-muted/20">
+                                        <div className="space-y-1">
+                                            <Label className="text-base text-foreground">Required Progress Percentage</Label>
+                                            <p className="text-sm text-muted-foreground">
+                                                Minimum progress percentage required.
+                                            </p>
+                                        </div>
+                                        <div className="w-full md:w-32">
+                                            <div className="relative">
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    max="100"
+                                                    placeholder="100"
+                                                    className="pr-8"
+                                                    value={ruleConfig.required_percentage ?? ""}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value;
+                                                        setRuleConfig(prev => ({
+                                                            ...prev,
+                                                            required_percentage: value === "" ? undefined : parseInt(value)
+                                                        }));
+                                                    }}
+                                                />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Deadline Settings */}
                             <div className="space-y-4">
@@ -587,34 +630,55 @@ export default function CreateHpActivityPage() {
                                         />
                                         {ruleErrors.deadlineAt && <p className="text-xs text-red-500">{ruleErrors.deadlineAt}</p>}
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label>Allow Late Submissions</Label>
-                                        <Select
-                                            value={ruleConfig.allowLateSubmission === undefined ? "" : String(ruleConfig.allowLateSubmission)}
-                                            onValueChange={(v: string) => {
-                                                setRuleConfig(prev => ({ ...prev, allowLateSubmission: v === "true" }));
-                                                if (ruleErrors.allowLateSubmission) {
-                                                    setRuleErrors(prev => ({ ...prev, allowLateSubmission: undefined }));
-                                                }
-                                            }}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="true">Yes</SelectItem>
-                                                <SelectItem value="false">No</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        {ruleErrors.allowLateSubmission && <p className="text-xs text-red-500">{ruleErrors.allowLateSubmission}</p>}
+                                <div className="flex items-center justify-between border p-4 rounded-md shadow-sm bg-card h-full">
+                                    <div className="flex items-center gap-2">
+                                        <Label htmlFor="allow-late" className="cursor-pointer text-base font-semibold">Allow Late Submissions</Label>
+                                        <TooltipProvider delayDuration={300}>
+                                            <Tooltip>
+                                                <TooltipTrigger type="button" tabIndex={-1}>
+                                                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>Enable to accept submissions after the deadline has passed.</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     </div>
+                                    <Switch
+                                        id="allow-late"
+                                        checked={ruleConfig.allowLateSubmission ?? false}
+                                        onCheckedChange={(c) => {
+                                            setRuleConfig(prev => ({ ...prev, allowLateSubmission: c }));
+                                            if (ruleErrors.allowLateSubmission) {
+                                                setRuleErrors(prev => ({ ...prev, allowLateSubmission: undefined }));
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                {ruleErrors.allowLateSubmission && <p className="text-xs text-red-500 px-1">{ruleErrors.allowLateSubmission}</p>}
                                 </div>
                             </div>
 
-                            {/* Reward Settings */}
                             <div className="space-y-4">
-                                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Reward Configuration</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
+                                <div className="flex items-center justify-between border p-4 rounded-md shadow-sm bg-card">
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="text-base font-semibold text-foreground">Reward Configuration</h4>
+                                        <TooltipProvider delayDuration={300}>
+                                            <Tooltip>
+                                                <TooltipTrigger type="button" tabIndex={-1}>
+                                                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>Reward students for completing the activity.</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
+                                    <Switch
+                                        checked={ruleConfig.reward?.enabled || false}
+                                        onCheckedChange={(c) => setRuleConfig(prev => ({
+                                            ...prev,
+                                            reward: { ...(prev.reward || {}), enabled: c } as any
+                                        }))}
+                                    />
+                                </div>
+                                <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20 ${ruleConfig.reward?.enabled === false ? "opacity-60 pointer-events-none" : ""}`}>
                                     <div className="space-y-2">
                                         <Label>Rule Type</Label>
                                         <Select
@@ -660,79 +724,7 @@ export default function CreateHpActivityPage() {
                                         />
                                         {ruleErrors.rewardValue && <p className="text-xs text-red-500">{ruleErrors.rewardValue}</p>}
                                     </div>
-                                    {ruleConfig.reward?.type === "PERCENTAGE" && (
-                                        <>
-                                            <div className="space-y-2">
-                                                <Label>Minimum HP (Cap)</Label>
-                                                <Input
-                                                    type="number"
-                                                    min="0"
-                                                    value={ruleConfig.limits?.minHp ?? ""}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value;
-                                                        setRuleConfig(prev => ({
-                                                            ...prev,
-                                                            limits: {
-                                                                ...(prev.limits || {}),
-                                                                minHp: value === "" ? undefined : parseInt(value)
-                                                            }
-                                                        }));
-                                                        if (ruleErrors.limitsMin) {
-                                                            setRuleErrors(prev => ({ ...prev, limitsMin: undefined }));
-                                                        }
-                                                    }}
-                                                />
-                                                {ruleErrors.limitsMin && <p className="text-xs text-red-500">{ruleErrors.limitsMin}</p>}
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Maximum HP (Cap)</Label>
-                                                <Input
-                                                    type="number"
-                                                    min="0"
-                                                    value={ruleConfig.limits?.maxHp ?? ""}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value;
-                                                        setRuleConfig(prev => ({
-                                                            ...prev,
-                                                            limits: {
-                                                                ...(prev.limits || {}),
-                                                                maxHp: value === "" ? undefined : parseInt(value)
-                                                            }
-                                                        }));
-                                                        if (ruleErrors.limitsMax) {
-                                                            setRuleErrors(prev => ({ ...prev, limitsMax: undefined }));
-                                                        }
-                                                    }}
-                                                />
-                                                {ruleErrors.limitsMax && <p className="text-xs text-red-500">{ruleErrors.limitsMax}</p>}
-                                            </div>
-                                        </>
-                                    )}
-                                    {(watch("activityType") === "MILESTONE" || watch("activityType") === "VIBE_MILESTONE") && (
-                                        <div className="space-y-2">
-                                            <Label>Required Progress Percentage</Label>
-                                            <Input
-                                                type="number"
-                                                min="0"
-                                                max="100"
-                                                placeholder="e.g., 75"
-                                                value={ruleConfig.reward?.required_percentage || ""}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    setRuleConfig(prev => ({
-                                                        ...prev,
-                                                        reward: {
-                                                            ...(prev.reward || {}),
-                                                            required_percentage: value === "" ? undefined : parseInt(value)
-                                                        } as any
-                                                    }));
-                                                }}
-                                            />
-                                            <p className="text-[10px] text-muted-foreground">
-                                                Minimum progress percentage required to earn this milestone reward
-                                            </p>
-                                        </div>
-                                    )}
+
                                     <div className="space-y-2">
                                         <Label>Apply Policy</Label>
                                         <Select
@@ -758,11 +750,33 @@ export default function CreateHpActivityPage() {
                                         {ruleErrors.rewardApplyWhen && <p className="text-xs text-red-500">{ruleErrors.rewardApplyWhen}</p>}
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Late Behavior</Label>
+                                        <Label>Late Reward Behavior</Label>
                                         <Select
-                                            value={ruleConfig.lateRewardPolicy ?? ""}
+                                            value={
+                                                ruleConfig.reward?.lateBehavior === "REWARD"
+                                                    ? "REWARD_ALLOWED"
+                                                    : ruleConfig.reward?.lateBehavior === "NO_REWARD"
+                                                        ? "REWARD_DENIED"
+                                                        : "NONE"
+                                            }
                                             onValueChange={(val: any) => {
-                                                setRuleConfig(prev => ({ ...prev, lateRewardPolicy: val }));
+                                                if (val === "REWARD_ALLOWED") {
+                                                    setRuleConfig(prev => ({
+                                                        ...prev,
+                                                        reward: {
+                                                            ...prev.reward,
+                                                            lateBehavior: "REWARD"
+                                                        }
+                                                    } as any));
+                                                } else {
+                                                    setRuleConfig(prev => ({
+                                                        ...prev,
+                                                        reward: {
+                                                            ...prev.reward,
+                                                            lateBehavior: "NO_REWARD"
+                                                        }
+                                                    } as any));
+                                                }
                                                 if (ruleErrors.lateRewardPolicy) {
                                                     setRuleErrors(prev => ({ ...prev, lateRewardPolicy: undefined }));
                                                 }
@@ -772,12 +786,10 @@ export default function CreateHpActivityPage() {
                                                 <SelectValue placeholder="Select behavior" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="NONE">Deny Reward</SelectItem>
                                                 <SelectItem value="REWARD_ALLOWED">Allow Reward</SelectItem>
-                                                {/* <SelectItem value="REWARD_DENIED">Penalty Apply (No Reward)</SelectItem> */}
+                                                <SelectItem value="REWARD_DENIED">Deny Reward</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        {ruleErrors.lateRewardPolicy && <p className="text-xs text-red-500">{ruleErrors.lateRewardPolicy}</p>}
                                     </div>
                                 </div>
                             </div>
@@ -785,35 +797,33 @@ export default function CreateHpActivityPage() {
                             {/* Penalty Settings */}
                             <div className="space-y-4">
 
-                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                                    <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                                        Penalty Configuration (Late)
-                                    </h4>
-
-                                    <div className="min-w-[160px] space-y-1">
-                                        <Select
-                                            value={ruleConfig.penalty?.enabled === undefined ? "" : String(ruleConfig.penalty.enabled)}
-                                            onValueChange={(v: string) => {
-                                                setRuleConfig(prev => ({
-                                                    ...prev,
-                                                    penalty: { ...(prev.penalty || {}), enabled: v === "true" }
-                                                }));
-                                                if (ruleErrors.penaltyEnabled) {
-                                                    setRuleErrors(prev => ({ ...prev, penaltyEnabled: undefined }));
-                                                }
-                                            }}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="true">Enabled</SelectItem>
-                                                <SelectItem value="false">Disabled</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        {ruleErrors.penaltyEnabled && <p className="text-xs text-red-500">{ruleErrors.penaltyEnabled}</p>}
+                                <div className="flex items-center justify-between border p-4 rounded-md shadow-sm bg-card">
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="text-base font-semibold text-foreground">Penalty Configuration (Late)</h4>
+                                        <TooltipProvider delayDuration={300}>
+                                            <Tooltip>
+                                                <TooltipTrigger type="button" tabIndex={-1}>
+                                                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>Apply a penalty for late completions.</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     </div>
+
+                                    <Switch
+                                        checked={ruleConfig.penalty?.enabled || false}
+                                        onCheckedChange={(c) => {
+                                            setRuleConfig(prev => ({
+                                                ...prev,
+                                                penalty: { ...(prev.penalty || {}), enabled: c }
+                                            }));
+                                            if (ruleErrors.penaltyEnabled) {
+                                                setRuleErrors(prev => ({ ...prev, penaltyEnabled: undefined }));
+                                            }
+                                        }}
+                                    />
                                 </div>
+                                {ruleErrors.penaltyEnabled && <p className="text-xs text-red-500">{ruleErrors.penaltyEnabled}</p>}
 
                                 <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20 ${ruleConfig.penalty?.enabled === false ? "opacity-60 pointer-events-none" : ""
                                     }`}>
@@ -891,6 +901,62 @@ export default function CreateHpActivityPage() {
 
                             </div>
                         </div>
+
+                        {/* HP Limits section */}
+                        {(ruleConfig.reward?.type === "PERCENTAGE" || ruleConfig.penalty?.type === "PERCENTAGE") && (
+                            <div className="space-y-4">
+                                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">HP Limits (Cap)</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
+                                    <div className="space-y-2">
+                                        <Label>Minimum HP (Cap)</Label>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            value={ruleConfig.limits?.minHp ?? ""}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setRuleConfig(prev => ({
+                                                    ...prev,
+                                                    limits: {
+                                                        ...(prev.limits || {}),
+                                                        minHp: value === "" ? undefined : parseInt(value)
+                                                    }
+                                                }));
+                                                if (ruleErrors.limitsMin) {
+                                                    setRuleErrors(prev => ({ ...prev, limitsMin: undefined }));
+                                                }
+                                            }}
+                                        />
+                                        {ruleErrors.limitsMin && <p className="text-xs text-red-500">{ruleErrors.limitsMin}</p>}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Maximum HP (Cap)</Label>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            value={ruleConfig.limits?.maxHp ?? ""}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setRuleConfig(prev => ({
+                                                    ...prev,
+                                                    limits: {
+                                                        ...(prev.limits || {}),
+                                                        maxHp: value === "" ? undefined : parseInt(value)
+                                                    }
+                                                }));
+                                                if (ruleErrors.limitsMax) {
+                                                    setRuleErrors(prev => ({ ...prev, limitsMax: undefined }));
+                                                }
+                                            }}
+                                        />
+                                        {ruleErrors.limitsMax && <p className="text-xs text-red-500">{ruleErrors.limitsMax}</p>}
+                                    </div>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">
+                                    Define lower and upper bounds for HP changes when using percentage-based calculations.
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     {/* Step 2 Actions */}
@@ -898,10 +964,10 @@ export default function CreateHpActivityPage() {
                         <Button type="button" variant="outline" onClick={() => setStep(1)}>
                             <ArrowLeft className="mr-2 h-4 w-4" /> Back
                         </Button>
-                        <Button type="button" variant="secondary" onClick={handleSubmit(data => onSubmit(data, "DRAFT"))} disabled={isSubmitting}>
+                        <Button type="button" variant="secondary" onClick={handleSubmit(data => handleSaveClick(data, "DRAFT"))} disabled={isSubmitting}>
                             <Save className="mr-2 h-4 w-4" /> Save Draft
                         </Button>
-                        <Button type="button" variant="default" onClick={handleSubmit(data => onSubmit(data, "PUBLISHED"))} disabled={isSubmitting}>
+                        <Button type="button" variant="default" onClick={handleSubmit(data => handleSaveClick(data, "PUBLISHED"))} disabled={isSubmitting}>
                             <Save className="mr-2 h-4 w-4" /> Save & Publish
                         </Button>
                     </div>
@@ -916,6 +982,18 @@ export default function CreateHpActivityPage() {
             description="By selecting Vibe Platform Milestone, students who miss the deadline for this activity will automatically receive a penalty. Are you sure you want to continue?"
             confirmText="Confirm"
             cancelText="Cancel"
+        />
+        <ConfirmationModal
+            isOpen={isSaveConfirmOpen}
+            onClose={() => setIsSaveConfirmOpen(false)}
+            onConfirm={handleConfirmSave}
+            title={pendingSaveStatus === "PUBLISHED" ? "Save & Publish Activity" : "Save Activity Draft"}
+            description={pendingSaveStatus === "PUBLISHED" 
+                ? "Are you sure you want to save and publish this activity? It will become immediately visible to students." 
+                : "Are you sure you want to save this activity as a draft? You can publish it later."}
+            confirmText={pendingSaveStatus === "PUBLISHED" ? "Save & Publish" : "Save Draft"}
+            cancelText="Cancel"
+            isLoading={isSubmitting}
         />
         </>
     );

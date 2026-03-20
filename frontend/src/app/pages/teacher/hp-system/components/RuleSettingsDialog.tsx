@@ -19,7 +19,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { HpRuleConfig, HpActivity } from "@/lib/api/hp-system";
-import { useHpRuleConfig, useCreateHpRuleConfig, useUpdateHpRuleConfig, useHpActivities } from "@/hooks/hooks";
+import { useHpRuleConfig, useCreateHpRuleConfig, useUpdateHpRuleConfig, useHpActivities, useUpdateHpActivity } from "@/hooks/hooks";
+import ConfirmationModal from "../../components/confirmation-modal";
 
 interface RuleSettingsDialogProps {
     isOpen: boolean;
@@ -42,6 +43,8 @@ export function RuleSettingsDialog({
         console.log("RuleSettingsDialog props changed:", { isOpen, courseId, courseVersionId, activityId });
     })
 
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
     // Hooks
     const { data: existingConfig, isLoading: fetchLoading, refetch } = useHpRuleConfig(isOpen ? activityId : undefined);
     console.log("Existing config from hook:", existingConfig, "Loading:", fetchLoading);
@@ -49,6 +52,7 @@ export function RuleSettingsDialog({
     const activity = activities.find((a: HpActivity) => a._id === activityId);
     const { mutateAsync: createRuleConfig, isPending: isCreating } = useCreateHpRuleConfig();
     const { mutateAsync: updateRuleConfig, isPending: isUpdating } = useUpdateHpRuleConfig();
+    const { mutateAsync: updateActivity, isPending: isUpdatingActivity } = useUpdateHpActivity();
 
     const loading = fetchLoading || isCreating || isUpdating;
 
@@ -58,11 +62,7 @@ export function RuleSettingsDialog({
         type: "ABSOLUTE",
         value: 10,
         applyWhen: "ON_APPROVAL",
-        onlyWithinDeadline: true,
-        allowLate: false,
         lateBehavior: "NO_REWARD",
-        minHpFloor: 0,
-        required_percentage: undefined,
     };
 
     const defaultPenalty: any = {
@@ -74,51 +74,65 @@ export function RuleSettingsDialog({
         runOnce: true,
     };
 
-    const defaultLimits: any = {
-        minHp: 0,
-        maxHp: 10,
-    };
+    const defaultLimits: any = {};
 
     // Sync fetched config into local state when dialog opens
     useEffect(() => {
         if (isOpen) {
             if (existingConfig) {
-                setConfig(existingConfig);
+                setConfig({
+                    ...existingConfig,
+                    required_percentage: activity?.required_percentage,
+                } as any);
             } else if (!fetchLoading) {
                 // No existing config — set defaults for creation
                 setConfig({
                     isMandatory: true,
                     allowLateSubmission: false,
-                    lateRewardPolicy: "NONE",
                     reward: defaultReward,
                     penalty: defaultPenalty,
                     limits: defaultLimits,
                     deadlineAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-                });
+                    required_percentage: activity?.required_percentage,
+                } as any);
             }
         }
-    }, [isOpen, existingConfig, fetchLoading]);
+    }, [isOpen, existingConfig, fetchLoading, activity]);
 
     const handleSave = async () => {
         if (!config) return;
         try {
+            const rulePayload = { ...config };
+            const required_percentage = (rulePayload as any).required_percentage;
+            delete (rulePayload as any).required_percentage;
+
             if (existingConfig?._id) {
                 console.log("Updating existing config with ID:", existingConfig._id);
-                await updateRuleConfig(activityId, config);
+                await updateRuleConfig(activityId, rulePayload);
             } else {
                 const createPayload: Partial<HpRuleConfig> = {
                     courseId,
                     courseVersionId,
                     activityId,
-                    ...config,
+                    ...rulePayload,
                 };
                 await createRuleConfig(createPayload);
             }
+
+            if (activity && activity.required_percentage !== required_percentage) {
+                await (updateActivity as any)(activityId, { required_percentage });
+            }
+
             refetch();
             onOpenChange(false);
         } catch (error) {
             console.error("Failed to save rule config", error);
         }
+    };
+
+    const handleConfirmSave = async () => {
+        await handleSave();
+        setIsConfirmOpen(false);
     };
 
     return (
@@ -149,6 +163,32 @@ export function RuleSettingsDialog({
                                 onCheckedChange={(c) => setConfig(prev => ({ ...prev, isMandatory: c } as any))}
                             />
                         </div>
+
+                        {/* Required Progress Percentage (Milestones Only) */}
+                        {(activity?.activityType === "MILESTONE" || activity?.activityType === "VIBE_MILESTONE") && (
+                            <div className="flex flex-col md:flex-row md:items-center justify-between rounded-lg border p-4 shadow-sm bg-muted/20">
+                                <div className="space-y-1">
+                                    <Label className="text-base text-foreground">Required Progress Percentage</Label>
+                                    <p className="text-sm text-muted-foreground">
+                                        Minimum progress percentage required.
+                                    </p>
+                                </div>
+                                <div className="w-full md:w-32">
+                                    <div className="relative mt-2 md:mt-0">
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            placeholder="100"
+                                            className="pr-8"
+                                            value={(config as any)?.required_percentage ?? ""}
+                                            onChange={(e) => setConfig(prev => ({ ...prev, required_percentage: e.target.value === "" ? undefined : parseInt(e.target.value) } as any))}
+                                        />
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Deadline Settings */}
                         <div className="space-y-4">
@@ -224,25 +264,7 @@ export function RuleSettingsDialog({
                                     />
                                 </div>
 
-                                {(activity?.activityType === "MILESTONE" || activity?.activityType === "VIBE_MILESTONE") && (
-                                    <div className="space-y-2">
-                                        <Label>Required Progress Percentage</Label>
-                                        <Input
-                                            type="number"
-                                            min="0"
-                                            max="100"
-                                            placeholder="e.g., 75"
-                                            value={config?.reward?.required_percentage || ""}
-                                            onChange={(e) => setConfig(prev => ({
-                                                ...prev,
-                                                reward: { ...(prev?.reward || defaultReward), required_percentage: parseInt(e.target.value) || undefined }
-                                            } as any))}
-                                        />
-                                        <p className="text-[10px] text-muted-foreground">
-                                            Minimum progress percentage required to earn this milestone reward
-                                        </p>
-                                    </div>
-                                )}
+
 
                                 <div className="space-y-2">
                                     <Label>Apply Policy</Label>
@@ -266,8 +288,32 @@ export function RuleSettingsDialog({
                                 <div className="space-y-2">
                                     <Label>Late Reward Behavior</Label>
                                     <Select
-                                        value={config?.lateRewardPolicy || "NONE"}
-                                        onValueChange={(val: any) => setConfig(prev => ({ ...prev, lateRewardPolicy: val } as any))}
+                                        value={
+                                            config?.reward?.lateBehavior === "REWARD"
+                                                ? "REWARD_ALLOWED"
+                                                : config?.reward?.lateBehavior === "NO_REWARD"
+                                                    ? "REWARD_DENIED"
+                                                    : "NONE"
+                                        }
+                                        onValueChange={(val: any) => {
+                                            if (val === "REWARD_ALLOWED") {
+                                                setConfig(prev => ({
+                                                    ...prev,
+                                                    reward: {
+                                                        ...(prev?.reward || defaultReward),
+                                                        lateBehavior: "REWARD"
+                                                    }
+                                                } as any));
+                                            } else {
+                                                setConfig(prev => ({
+                                                    ...prev,
+                                                    reward: {
+                                                        ...(prev?.reward || defaultReward),
+                                                        lateBehavior: "NO_REWARD"
+                                                    }
+                                                } as any));
+                                            }
+                                        }}
                                         disabled={!config?.allowLateSubmission}
                                     >
                                         <SelectTrigger>
@@ -345,9 +391,19 @@ export function RuleSettingsDialog({
 
                 <DialogFooter className="sticky bottom-0 bg-background pt-4 border-t">
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleSave} disabled={loading}>{loading ? "Saving..." : "Save Configuration"}</Button>
+                    <Button onClick={() => setIsConfirmOpen(true)} disabled={loading}>{loading ? "Saving..." : "Save Configuration"}</Button>
                 </DialogFooter>
             </DialogContent>
+            <ConfirmationModal
+                isOpen={isConfirmOpen}
+                onClose={() => setIsConfirmOpen(false)}
+                onConfirm={handleConfirmSave}
+                title="Save Configuration"
+                description="Are you sure you want to save these rules and settings for the activity? These rules will apply to all future submissions."
+                confirmText="Save Configuration"
+                cancelText="Cancel"
+                isLoading={loading}
+            />
         </Dialog>
     );
 }

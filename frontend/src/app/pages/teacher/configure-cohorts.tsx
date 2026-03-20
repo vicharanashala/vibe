@@ -20,6 +20,15 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { AnnouncementType } from "@/types/announcement.types"
 import { AnnouncementModal } from "@/components/announcements/AnnouncementModal"
+import { Ban } from "lucide-react"
+
+const RESTRICTED_VERSION_IDS = [
+  '6968e12cbf2860d6e39051af',
+  '6970f87e30644cbc74b67150',
+  '697b4e262942654879011c57',
+  '69903415e1930c015760a719',
+  '69942dc6d6d99b252e3a54ff',
+];
 
 export default function ConfigureCohorts() {
 
@@ -48,6 +57,8 @@ export default function ConfigureCohorts() {
   const [nextPublicState, setNextPublicState] = useState(false)
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false)
   const [selectedCohortForAnnouncement, setSelectedCohortForAnnouncement] = useState<any>(null)
+
+  const isRestricted = versionId && RESTRICTED_VERSION_IDS.includes(versionId);
 
   useEffect(() => {
     setIsSearching(true);
@@ -191,6 +202,13 @@ export default function ConfigureCohorts() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      {/* Restricting cohort creation for already existing course versions because these versions are already published and have students enrolled in them */}
+      {isRestricted && (
+        <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg flex items-center gap-2 mb-2 animate-in fade-in slide-in-from-top-2 duration-300">
+          <Ban className="h-4 w-4" />
+          <p className="text-sm font-medium">Cohorts cannot be created for this version since the version itself acts as a cohort.</p>
+        </div>
+      )}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">
           Manage Cohorts (Version {cohortsData?.version})
@@ -200,6 +218,7 @@ export default function ConfigureCohorts() {
             setCohortName("")
             setIsCreateOpen(true)
           }}
+          disabled={isRestricted}
         >
           <Plus className="w-4 h-4 mr-2"/>
           Add Cohort

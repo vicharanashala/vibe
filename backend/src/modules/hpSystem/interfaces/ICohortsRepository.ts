@@ -59,6 +59,7 @@ export interface ICohortRepository {
         userId: string | ObjectId,
         courseId: string,
         courseVersionId: string,
+        cohort: string,
         session?: ClientSession,
     ): Promise<IEnrollment | null>
 
@@ -66,6 +67,7 @@ export interface ICohortRepository {
         userId: ID,
         courseId: ID,
         courseVersionId: ID,
+        cohort: string,
         amount: number,
         session?: ClientSession,
     ): Promise<boolean>
@@ -81,4 +83,10 @@ export interface ICohortRepository {
     getTotalHpDistributedByCohort(courseVersionId: string, cohortId: string): Promise<number>
 
     getCohortIdByCohortName(cohortName: string): Promise<string | null>
+
+    updateCohortNameAcrossDB(
+        courseVersionId: string,
+        oldCohortName: string,
+        newCohortName: string,
+    ): Promise<void>
 }

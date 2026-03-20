@@ -264,6 +264,39 @@ class CohortDeletedMessage{
   message!: string;
 }
 
+class MoveStudentsToCohortBody{
+  @JSONSchema({
+    description: 'Array of enrollment IDs to move to the cohort',
+    example: ['66c2b6c9b4e0a3e6c1a93f41', '66c2b72ab4e0a3e6c1a93f8a'],
+    type: 'array',
+    items: {
+      type: 'string',
+    },
+  })
+  @IsArray()
+  @ArrayUnique()
+  @IsMongoId({ each: true })
+  enrollmentIds: string[];
+
+  @IsString()
+  @IsMongoId()
+  @JSONSchema({
+    description: 'ID of the cohort to move students to',
+    example: '69ab1823a7aeadefb1476049',
+    type: 'string',
+  })
+  targetCohortId: string;
+}
+
+class MoveStudentsToCohortResponse{
+  @IsString()
+  @JSONSchema({
+    description: 'Success message',
+    example: 'Students moved to cohort successfully',
+  })
+  message!: string;
+}
+
 class CourseVersionDataResponse {
   @JSONSchema({
     description: 'ID of the course version',
@@ -567,7 +600,9 @@ export {
   NewCohortBody,
   CohortUpdatedMessage,
   CohortCreatedMessage,
-  CohortDeletedMessage
+  CohortDeletedMessage,
+  MoveStudentsToCohortBody,
+  MoveStudentsToCohortResponse
 };
 
 export const COURSEVERSION_VALIDATORS = [
@@ -591,5 +626,7 @@ export const COURSEVERSION_VALIDATORS = [
   NewCohortBody,
   CohortUpdatedMessage,
   CohortCreatedMessage,
-  CohortDeletedMessage
+  CohortDeletedMessage,
+  MoveStudentsToCohortBody,
+  MoveStudentsToCohortResponse
 ];

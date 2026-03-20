@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useParams, useNavigate } from "@tanstack/react-router";
+import { useParams, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useHpCourseVersions, useStudentMySubmissions, useUpdateActivitySubmission } from "@/hooks/hooks";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ import { CourseWithVersions, CourseVersionStats } from "@/lib/api/hp-system";
 export default function StudentSubmissions() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
     const navigate = useNavigate();
+    const router = useRouterState();
+    const from = router.location.state?.from;
     const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
     // Pagination and search state
@@ -193,7 +195,7 @@ export default function StudentSubmissions() {
                     <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/activities` })}
+                        onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/activities`,state:{from} })}
                     >
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
@@ -217,7 +219,7 @@ export default function StudentSubmissions() {
                                 <Button
                                     variant="outline"
                                     className="mt-6"
-                                    onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/activities` })}
+                                    onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/activities`,state:{from} })}
                                 >
                                     View Activities
                                 </Button>
