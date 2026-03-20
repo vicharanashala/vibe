@@ -237,13 +237,13 @@ export class ActivitySubmissionsService extends BaseService {
             }
 
             const ledger = await this.ledgerRepository.findByStudentAndActivityId(activityId, student.id);
-            // if (ledger) {
-            //     throw new BadRequestError(
-            //         activityRuleConfig.reward.applyWhen === "ON_APPROVAL"
-            //             ? "This activity has already been submitted. Please wait for the instructor to review it and credit the HP points."
-            //             : "This activity has already been submitted and the HP points for this activity have already been credited."
-            //     );
-            // } 
+            if (ledger) {
+                throw new BadRequestError(
+                    activityRuleConfig.reward.applyWhen === "ON_APPROVAL"
+                        ? "This activity has already been submitted. Please wait for the instructor to review it and credit the HP points."
+                        : "This activity has already been submitted and the HP points for this activity have already been credited."
+                );
+            } 
 
             const latestSubmissions = await this.activitySubmissionsRepository.getLatestByStudentId(student.id, activityId)
             if (latestSubmissions && latestSubmissions.status !== "REVERTED")
@@ -255,10 +255,7 @@ export class ActivitySubmissionsService extends BaseService {
             const finalCourseId = COHORT_OVERRIDES[cohort]?.courseId ?? body.courseId;
             const finalVersionId = COHORT_OVERRIDES[cohort]?.versionId ?? body.courseVersionId;
 
-            console.log(student.id,
-                finalCourseId,
-                finalVersionId,
-                cohort)
+          
             // 3. Fetch Enrollment using the CORRECT (overridden) IDs
             const enrollment = await this.cohortRepository.findEnrollment(
                 student.id,
