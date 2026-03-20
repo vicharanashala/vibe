@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Pagination } from "@/components/ui/Pagination";
 import { ArrowLeft, Loader2, Link as LinkIcon, FileText, Clock, Edit, Plus, Trash2, Send } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { CourseWithVersions, CourseVersionStats } from "@/lib/api/hp-system";
+import { CourseWithVersions, CourseVersionStats, getEffectiveIds } from "@/lib/api/hp-system";
 
 export default function StudentSubmissions() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
@@ -32,6 +32,7 @@ export default function StudentSubmissions() {
     );
     const { mutateAsync: updateSubmission, isPending: isUpdating } = useUpdateActivitySubmission();
     const { data: courses = [] } = useHpCourseVersions();
+    // courseVersionId is passed from the URL
     const course = courses.find((c: CourseWithVersions) =>
         c.versions.some((v: CourseVersionStats) => v.courseVersionId === courseVersionId)
     );
@@ -138,11 +139,15 @@ export default function StudentSubmissions() {
             return;
         }
 
-        const submissionId = editingSubmission.submission?._id || editingSubmission.id;
-        const activityId = editingSubmission.activity?.id || editingSubmission.activity?._id;
-        const courseId = resolvedCourseId || editingSubmission.activity?.courseId;
+        const submissionId = editingSubmission.submission?._id || editingSubmission.id || editingSubmission._id;
+        const activityId = editingSubmission.activity?.id || editingSubmission.activity?._id || editingSubmission.activityId;
+        
+        // Resolve courseId using the getEffectiveIds utility
+        const effectiveIds = getEffectiveIds(cohortName as string, resolvedCourseId as string, courseVersionId as string);
+        const courseId = effectiveIds.courseId || editingSubmission.activity?.courseId || editingSubmission.courseId || editingSubmission.submission?.courseId;
 
         if (!submissionId || !activityId || !courseId) {
+            console.error("Missing Update Info:", { submissionId, activityId, courseId, editingSubmission, resolvedCourseId });
             setEditError("Missing required information to update this submission.");
             return;
         }
@@ -157,8 +162,18 @@ export default function StudentSubmissions() {
                 payload: {
                     textResponse: editTextResponse.trim() || undefined,
                     links: validLinks.length > 0 ? validLinks : undefined,
-                    files: existingFiles.length > 0 ? existingFiles : undefined,
-                    images: existingImages.length > 0 ? existingImages : undefined,
+                    files: existingFiles.length > 0 ? existingFiles.map((f: any) => ({
+                        fileId: f.fileId || f._id || "unknown",
+                        url: f.url || "",
+                        name: f.name || "File",
+                        mimeType: f.mimeType || "application/pdf",
+                        sizeBytes: typeof f.sizeBytes === "number" ? f.sizeBytes : 0,
+                    })) : undefined,
+                    images: existingImages.length > 0 ? existingImages.map((img: any) => ({
+                        fileId: img.fileId || img._id || "unknown",
+                        url: img.url || "",
+                        name: img.name || "Image"
+                    })) : undefined,
                 },
                 submissionSource: "IN_PLATFORM",
                 files: editFiles.length > 0 ? editFiles : undefined,
@@ -260,10 +275,12 @@ export default function StudentSubmissions() {
                             </div>
                         </div>
                         
-                    <div className="space-y-4">
-                            {paginatedSubmissions.map((sub: any) => (
-                            <Card key={sub.id} className="overflow-hidden">
-                                <CardHeader className="">
+                        <div className="space-y-4">
+                            {paginatedSubmissions.map((sub: any) => {
+                                const containerKey = sub.id || sub._id || sub.submission?._id || Math.random().toString(36);
+                                return (
+                                <Card key={containerKey} className="overflow-hidden">
+                                    <CardHeader className="">
                                     <div className="flex justify-between items-start gap-4">
                                         <div>
                                             <CardTitle className="text-lg">
@@ -607,10 +624,10 @@ export default function StudentSubmissions() {
                                     </DialogContent>
                                 </Dialog>
                             </Card>
-                        ))}
-                    </div>
-                    
-                    {/* Pagination Component */}
+                            )})}
+                        </div>
+                        
+                        {/* Pagination Component */}
                     <Pagination
                         currentPage={currentPage}
                         totalPages={totalPages}
