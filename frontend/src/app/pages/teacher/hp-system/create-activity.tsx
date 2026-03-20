@@ -72,6 +72,8 @@ export default function CreateHpActivityPage() {
     };
 
     const [ruleConfig, setRuleConfig] = useState<RuleConfigFormState>({
+        isMandatory: false,
+        allowLateSubmission: false,
         reward: {
             enabled: true,
             lateBehavior: "NO_REWARD",
@@ -128,10 +130,55 @@ export default function CreateHpActivityPage() {
     };
 
     const handleSaveClick = (data: CreateHpActivityPayload, status: "DRAFT" | "PUBLISHED") => {
-        setPendingFormData(data);
-        setPendingSaveStatus(status);
-        setIsSaveConfirmOpen(true);
-    };
+    const nextErrors: typeof ruleErrors = {};
+
+    if (ruleConfig.isMandatory === undefined) {
+        nextErrors.isMandatory = "Please select if this activity is mandatory";
+    }
+    if (ruleConfig.allowLateSubmission === undefined) {
+        nextErrors.allowLateSubmission = "Please select if late submissions are allowed";
+    }
+    if (ruleConfig.isMandatory && !ruleConfig.deadlineAt) {
+        nextErrors.deadlineAt = "Deadline is required";
+    }
+    if (ruleConfig.reward?.enabled) {
+        if (!ruleConfig.reward?.type) {
+            nextErrors.rewardType = "Reward type is required";
+        }
+        if (ruleConfig.reward?.value === undefined || Number.isNaN(ruleConfig.reward.value)) {
+            nextErrors.rewardValue = "Reward value is required";
+        } else if (ruleConfig.reward.value < 0) {
+            nextErrors.rewardValue = "Reward value cannot be negative";
+        }
+        if (!ruleConfig.reward?.applyWhen) {
+            nextErrors.rewardApplyWhen = "Apply policy is required";
+        }
+    }
+    if (ruleConfig.penalty?.enabled) {
+        if (!ruleConfig.penalty?.type) {
+            nextErrors.penaltyType = "Penalty type is required";
+        }
+        if (ruleConfig.penalty?.value === undefined || Number.isNaN(ruleConfig.penalty.value)) {
+            nextErrors.penaltyValue = "Penalty value is required";
+        } else if (ruleConfig.penalty.value < 0) {
+            nextErrors.penaltyValue = "Penalty value cannot be negative";
+        }
+        if (ruleConfig.penalty?.graceMinutes === undefined || Number.isNaN(ruleConfig.penalty.graceMinutes)) {
+            nextErrors.penaltyGraceMinutes = "Grace period is required";
+        } else if (ruleConfig.penalty.graceMinutes < 0) {
+            nextErrors.penaltyGraceMinutes = "Grace period cannot be negative";
+        }
+    }
+
+    console.log("Errors:", nextErrors);
+    console.log("Config:", ruleConfig);
+    setRuleErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return; // Stop if errors exist
+
+    setPendingFormData(data);
+    setPendingSaveStatus(status);
+    setIsSaveConfirmOpen(true);
+};
 
     const handleConfirmSave = async () => {
         if (pendingFormData && pendingSaveStatus) {
@@ -162,36 +209,35 @@ export default function CreateHpActivityPage() {
             if (ruleConfig.isMandatory && !ruleConfig.deadlineAt) {
                 nextErrors.deadlineAt = "Deadline is required";
             }
-            if (!ruleConfig.reward?.type) {
-                nextErrors.rewardType = "Reward type is required";
-            }
-            if (ruleConfig.reward?.value === undefined || Number.isNaN(ruleConfig.reward.value)) {
-                nextErrors.rewardValue = "Reward value is required";
-            } else if (ruleConfig.reward.value < 0) {
-                nextErrors.rewardValue = "Reward value cannot be negative";
-            }
-            if (ruleConfig.reward?.type === "PERCENTAGE") {
-                if (ruleConfig.limits?.minHp !== undefined && !Number.isNaN(ruleConfig.limits.minHp) && ruleConfig.limits.minHp < 0) {
-                    nextErrors.limitsMin = "Minimum HP cannot be negative";
+           if (ruleConfig.reward?.enabled) {
+                if (!ruleConfig.reward?.type) {
+                    nextErrors.rewardType = "Reward type is required";
                 }
-                if (ruleConfig.limits?.maxHp !== undefined && !Number.isNaN(ruleConfig.limits.maxHp) && ruleConfig.limits.maxHp < 0) {
-                    nextErrors.limitsMax = "Maximum HP cannot be negative";
+                if (ruleConfig.reward?.value === undefined || Number.isNaN(ruleConfig.reward.value)) {
+                    nextErrors.rewardValue = "Reward value is required";
+                } else if (ruleConfig.reward.value < 0) {
+                    nextErrors.rewardValue = "Reward value cannot be negative";
                 }
-                if (
-                    ruleConfig.limits?.minHp !== undefined &&
-                    ruleConfig.limits?.maxHp !== undefined &&
-                    !Number.isNaN(ruleConfig.limits.minHp) &&
-                    !Number.isNaN(ruleConfig.limits.maxHp) &&
-                    ruleConfig.limits.maxHp < ruleConfig.limits.minHp
-                ) {
-                    nextErrors.limitsMax = "Maximum HP must be greater than or equal to Minimum HP";
+                if (ruleConfig.reward?.type === "PERCENTAGE") {
+                    if (ruleConfig.limits?.minHp !== undefined && !Number.isNaN(ruleConfig.limits.minHp) && ruleConfig.limits.minHp < 0) {
+                        nextErrors.limitsMin = "Minimum HP cannot be negative";
+                    }
+                    if (ruleConfig.limits?.maxHp !== undefined && !Number.isNaN(ruleConfig.limits.maxHp) && ruleConfig.limits.maxHp < 0) {
+                        nextErrors.limitsMax = "Maximum HP cannot be negative";
+                    }
+                    if (
+                        ruleConfig.limits?.minHp !== undefined &&
+                        ruleConfig.limits?.maxHp !== undefined &&
+                        !Number.isNaN(ruleConfig.limits.minHp) &&
+                        !Number.isNaN(ruleConfig.limits.maxHp) &&
+                        ruleConfig.limits.maxHp < ruleConfig.limits.minHp
+                    ) {
+                        nextErrors.limitsMax = "Maximum HP must be greater than or equal to Minimum HP";
+                    }
                 }
-            }
-            if (!ruleConfig.reward?.applyWhen) {
-                nextErrors.rewardApplyWhen = "Apply policy is required";
-            }
-            if (ruleConfig.penalty?.enabled === undefined) {
-                nextErrors.penaltyEnabled = "Please select if penalty is enabled";
+                if (!ruleConfig.reward?.applyWhen) {
+                    nextErrors.rewardApplyWhen = "Apply policy is required";
+                }
             }
             if (ruleConfig.penalty?.enabled) {
                 if (!ruleConfig.penalty?.type) {
@@ -287,21 +333,21 @@ export default function CreateHpActivityPage() {
                 isMandatory: ruleConfig.isMandatory as boolean,
                 deadlineAt: ruleConfig.deadlineAt as string,
                 allowLateSubmission: ruleConfig.allowLateSubmission as boolean,
-                reward: {
-                    enabled: ruleConfig.reward?.enabled ?? true,
+                 reward: ruleConfig.reward?.enabled ? {
+                    enabled: true,
                     type: ruleConfig.reward?.type as any,
                     value: ruleConfig.reward?.value as number,
                     applyWhen: ruleConfig.reward?.applyWhen as any,
                     lateBehavior: ruleConfig.reward?.lateBehavior ?? "NO_REWARD",
-                },
-                penalty: {
-                    enabled: ruleConfig.penalty?.enabled ?? false,
+                } : { enabled: false },
+                penalty: ruleConfig.penalty?.enabled ? {
+                    enabled: true,
                     type: (ruleConfig.penalty?.type ?? "ABSOLUTE") as any,
                     value: ruleConfig.penalty?.value ?? 0,
                     applyWhen: (ruleConfig.penalty?.applyWhen ?? "AFTER_DEADLINE") as any,
                     graceMinutes: ruleConfig.penalty?.graceMinutes ?? 0,
                     runOnce: ruleConfig.penalty?.runOnce ?? true,
-                },
+                } : { enabled: false },
                 limits: {
                     minHp: ruleConfig.limits?.minHp,
                     maxHp: ruleConfig.limits?.maxHp,
