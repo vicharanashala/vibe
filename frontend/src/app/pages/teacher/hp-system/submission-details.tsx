@@ -22,8 +22,6 @@ import {
 import type { SubmissionAttachment, HpStudentSubmission } from "@/lib/api/hp-system";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Pagination } from "@/components/ui/Pagination";
-import { DirectionBadge } from "@/app/pages/teacher/hp-system/components/DirectionBadge";
 import {
     Table,
     TableBody,
@@ -32,7 +30,6 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-
 
 const statusConfig = {
     SUBMITTED: { label: "Submitted", variant: "default" as const, icon: CheckCircle, color: "text-green-600" },
@@ -298,10 +295,6 @@ function TransactionSection({ ledgerEntries }: {
     ledgerEntries: any[];
 }) {
 
-    const [filter, setFilter] = useState<'ALL' | 'CREDIT' | 'DEBIT'>('ALL');
-    const [page, setPage] = useState(1);
-    const PAGE_SIZE = 5;
-
     // Convert ObjectId buffers to strings and normalize the data
     const normalizedTransactions = ledgerEntries.map((entry: any) => ({
         ...entry,
@@ -324,18 +317,6 @@ function TransactionSection({ ledgerEntries }: {
         withinDeadline: entry.calc?.withinDeadline,
         deadlineAt: entry.calc?.deadlineAt,
     }));
-
-    // Filter
-    const filteredTransactions = normalizedTransactions.filter((t: any) =>
-        filter === 'ALL' ? true : t.direction === filter
-    );
-
-    // Pagination
-    const totalPages = Math.ceil(filteredTransactions.length / PAGE_SIZE);
-    const paginatedTransactions = filteredTransactions.slice(
-        (page - 1) * PAGE_SIZE,
-        page * PAGE_SIZE
-    );
 
     if (normalizedTransactions.length === 0) {
         return (
@@ -368,21 +349,6 @@ function TransactionSection({ ledgerEntries }: {
                 <CardDescription className="text-base">
                     House Points awarded/credited for this submission
                 </CardDescription>
-
-                {/* Filter Buttons */}
-                <div className="flex gap-2 pt-2">
-                    {(['ALL', 'CREDIT', 'DEBIT'] as const).map((f) => (
-                        <Button
-                            key={f}
-                            size="sm"
-                            variant={filter === f ? 'default' : 'outline'}
-                            onClick={() => { setFilter(f); setPage(1); }}
-                            className="text-xs"
-                        >
-                            {f}
-                        </Button>
-                    ))}
-                </div>
             </CardHeader>
             <CardContent className="p-6">
                 {/* Transaction Table */}
@@ -398,7 +364,7 @@ function TransactionSection({ ledgerEntries }: {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {paginatedTransactions.map((transaction: any, idx: number) => (
+                            {normalizedTransactions.map((transaction: any, idx: number) => (
                                 <TableRow key={idx} className="hover:bg-muted/50 transition-colors">
                                     <TableCell className="text-sm font-medium py-3">
                                         <div className="flex items-center gap-2">
@@ -428,29 +394,28 @@ function TransactionSection({ ledgerEntries }: {
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right py-3">
-                                        <div className={`text-lg font-bold flex items-center justify-end gap-1 ${transaction.direction === 'CREDIT' ? 'text-green-600' : 'text-red-600'}`}>
-                                            <span className="mx-1">
-                                                {transaction.direction === 'CREDIT' ? '+' : '-'}{Math.abs(transaction.hp)}
-                                            </span>
+                                        <div className={`text-lg font-bold flex items-center justify-end gap-1 ${transaction.hp > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {transaction.hp > 0 && <ThumbsUp className="h-4 w-4" />}
+                                            {transaction.hp < 0 && <ThumbsDown className="h-4 w-4" />}
+                                            <span className="mx-1">{transaction.hp > 0 ? '+' : ''}{Math.abs(transaction.hp)}</span>
                                             <Zap className="h-4 w-4 text-yellow-500" />
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-center py-3">
-                                        <DirectionBadge direction={transaction.direction} />
+                                        <Badge
+                                            variant={transaction.direction === 'CREDIT' ? 'default' : 'secondary'}
+                                            className={`text-xs font-semibold px-2 py-1 ${transaction.direction === 'CREDIT' ? 'bg-green-100 text-green-800 border-green-200' :
+                                                'bg-red-100 text-red-800 border-red-200'
+                                                }`}
+                                        >
+                                            {transaction.direction || 'CREDIT'}
+                                        </Badge>
                                     </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
                     </Table>
                 </div>
-
-                {/* Pagination */}
-                <Pagination
-                    currentPage={page}
-                    totalPages={totalPages}
-                    totalDocuments={filteredTransactions.length}
-                    onPageChange={(p) => setPage(p)}
-                />
             </CardContent>
         </Card>
     );
@@ -482,6 +447,7 @@ export default function SubmissionDetailsPage() {
 
     // Find the specific submission
     const submission = submissions?.find((sub: any) => sub.submission?._id === submissionId);
+    console.log("Found submission details: ", submission);
 
     const toggleTextExpansion = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
@@ -503,6 +469,8 @@ export default function SubmissionDetailsPage() {
         pointsToDeduct: number;
     }>({ open: false, subId: '', action: 'revert', activityTitle: '', baseHp: 0, note: '', pointsToDeduct: 0 });
 
+    const [actionType, setActionType] = useState<"approve" | "reject" | "revert" | null>(null);
+
     const openReasonDialog = (subId: string, action: 'revert' | 'restore' | 'approve' | 'reject', activityTitle: string, baseHp: number = 0) => {
         const displayTitle = activityTitle && !isNaN(Number(activityTitle))
             ? `Activity ${activityTitle}`
@@ -513,6 +481,7 @@ export default function SubmissionDetailsPage() {
     const handleConfirmAction = async () => {
         const { subId, action, note, pointsToDeduct } = reasonDialog;
         setReasonDialog({ ...reasonDialog, open: false });
+        setActionType(action); // ✅ IMPORTANT
         setActionSubId(subId);
         try {
             if (action === 'restore') {
@@ -599,6 +568,12 @@ export default function SubmissionDetailsPage() {
                                     <StatusIcon className="h-3 w-3" />
                                     {cfg.label}
                                 </Badge>
+                                {status === "SUBMITTED"  && submission.rule.reward?.applyWhen !== "ON_SUBMISSION" && (
+                                    <Badge variant="outline" className="text-sm font-semibold text-white">
+                                        <Clock className="h-3 w-3 mr-1" />
+                                        Wating for Approval
+                                    </Badge>
+                                )}
                                 {submission?.submission?.isLate && (
                                     <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950/20">
                                         <Timer className="h-3 w-3 mr-1" />
@@ -607,22 +582,12 @@ export default function SubmissionDetailsPage() {
                                 )}
                             </div>
                             <div className="flex items-center gap-2">
-                                {status === 'SUBMITTED' ? (
-                                    <Badge variant="outline" className="text-sm font-semibold text-yellow-600">
-                                        <Clock className="h-3 w-3 mr-1" />
-                                        In Review
-                                    </Badge>
-                                ) : (
-                                    <>
-                                        <Badge variant="outline" className="text-sm font-semibold text-green-600">
-                                            <Zap className="h-3 w-3 mr-1 text-yellow-500" />
-                                            {submission.hp?.currentHp || 0} HP
-                                        </Badge>
+                               
+                        
                                         <Badge variant="outline" className="text-sm text-muted-foreground">
-                                            Base: {submission.hp?.baseHp || 0}
+                                            Activity Points: {submission.rule?.reward?.value || 0}
                                         </Badge>
-                                    </>
-                                )}
+                                    
                             </div>
                         </div>
                     </CardHeader>
@@ -735,27 +700,36 @@ export default function SubmissionDetailsPage() {
                                 <div className="grid grid-cols-1 gap-3">
                                     {status === 'SUBMITTED' && (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                            {submission.isRequiredInstructorApproval && (
+                                            {submission.rule.reward.applyWhen === "ON_APPROVAL" ? (
                                                 <Button
                                                     variant="default"
                                                     size="sm"
                                                     className="shadow-md hover:shadow-lg transition-all duration-200"
-                                                    disabled={isReviewing && actionSubId === submission?.submission?._id}
+                                                    disabled={isReviewing}
                                                     onClick={() => openReasonDialog(submission?.submission?._id || '', 'approve', submission?.activity?.title || '', submission?.hp?.baseHp || 0)}
                                                 >
                                                     <ThumbsUp className="h-3.5 w-3.5 mr-1.5" />
-                                                    {isReviewing && actionSubId === submission?.submission?._id ? 'Approving...' : 'Approve'}
+                                                    {isReviewing && actionType === 'approve' ? 'Approving...' : 'Approve'}
                                                 </Button>
-                                            )}
+                                            ): (<Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="border-2 border-orange-500 text-orange-600 hover:bg-orange-50 dark:border-orange-400 dark:text-orange-400 dark:hover:bg-orange-950/50 shadow-md hover:shadow-lg transition-all duration-200 font-medium w-full"
+                                            disabled={isReviewing && actionSubId === submission?.submission?._id}
+                                            onClick={() => openReasonDialog(submission?.submission?._id || '', 'revert', submission?.activity?.title || '', submission?.hp?.baseHp || 0)}
+                                        >
+                                            <Undo2 className="h-3.5 w-3.5 mr-1.5" />
+                                            {isReviewing && actionSubId === submission?.submission?._id ? 'Reverting...' : 'Revert'}
+                                        </Button>)}
                                             <Button
                                                 variant="destructive"
                                                 size="sm"
                                                 className="shadow-md hover:shadow-lg transition-all duration-200"
-                                                disabled={isReviewing && actionSubId === submission?.submission?._id}
+                                                disabled={isReviewing}
                                                 onClick={() => openReasonDialog(submission?.submission?._id || '', 'reject', submission?.activity?.title || '', submission?.hp?.baseHp || 0)}
                                             >
                                                 <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
-                                                {isReviewing && actionSubId === submission?.submission?._id ? 'Rejecting...' : 'Reject'}
+                                                {isReviewing && actionType === 'reject' ? 'Rejecting...' : 'Reject'}
                                             </Button>
                                         </div>
                                     )}
