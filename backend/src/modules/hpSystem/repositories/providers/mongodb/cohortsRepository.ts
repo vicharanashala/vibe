@@ -405,7 +405,7 @@ export class CohortRepository implements ICohortRepository {
                 orConditions.push({ cohortId: dynamicCohort._id.toString() });
             }
         }
-        console.log("Or Condition: ", orConditions)
+
         return orConditions;
     }
 
@@ -525,17 +525,24 @@ export class CohortRepository implements ICohortRepository {
                 userId: { $in: [userId, new ObjectId(userId)] },
                 courseId: { $in: [courseId, new ObjectId(courseId)] },
                 courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
-                $or: cohortConditions,
                 isDeleted: { $ne: true },
+                $or: [
+                    { cohortId: { $exists: false } },
+                    {
+                        cohortId: { $exists: true },
+                        $or: cohortConditions,
+                    },
+                ],
             },
             {
                 $set: {
                     hpPoints: amount,
-                    updatedAt: new Date()
-                }
+                    updatedAt: new Date(),
+                },
             },
             { session }
         );
+
 
         return updateResult.modifiedCount > 0;
     }
