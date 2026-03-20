@@ -37,6 +37,7 @@ export class SubmissionFileDto {
     mimeType!: string;
 
     @Expose()
+    @ToNumber()
     @IsNumber()
     @IsNotEmpty()
     sizeBytes!: number;
@@ -347,6 +348,10 @@ export class StudentActivitySubmissionsViewDto {
     @Expose()
     @Type(() => StudentSubmissionActivityDto)
     activity!: StudentSubmissionActivityDto;
+
+    @Expose()
+    @IsString()
+    courseId!: string;
 
     @Expose()
     @IsDateString()
