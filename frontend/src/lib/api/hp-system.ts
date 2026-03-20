@@ -290,6 +290,8 @@ export interface HpStudentSubmission {
     feedbacks?: Array<{
         feedback: string;
         feedbackAt: string;
+        username: string;
+        email: string;
     }>;
     submission?: {
         _id: string;
