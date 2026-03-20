@@ -20,6 +20,8 @@ import {
   UpdateEnrollmentProgressResponse,
   BulkUnenrollBody,
   BulkUnenrollResponse,
+  ChangeEnrollmentStatusBody,
+  BulkChangeEnrollmentStatusBody,
 } from '#users/classes/validators/EnrollmentValidators.js';
 import { QuizScoresExportResponseDto } from '../dtos/QuizScoresExportDto.js';
 import { EnrollmentService } from '#users/services/EnrollmentService.js';
@@ -36,12 +38,14 @@ import {
   BadRequestError,
   Body,
   ForbiddenError,
+  NotFoundError,
   Authorized,
   QueryParams,
   Patch,
   Req,
   QueryParam,
   UseInterceptor,
+
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import {
@@ -182,6 +186,11 @@ export class EnrollmentController {
       versionId,
       body.cohortId
     );
+
+    if (!enrollmentData) {
+      throw new NotFoundError('Enrollment not found for the user in the specified course version');
+    }
+
     // Create an enrollment resource object for permission checking
     const enrollmentResource = subject('Enrollment', {
       courseId,
@@ -259,7 +268,7 @@ export class EnrollmentController {
     @Ability(getEnrollmentAbility) { ability, user },
     @Req() req: Request,
   ): Promise<BulkUnenrollResponse> {
-    const { userIds, cohortId} = body;
+    const { userIds, cohortId } = body;
 
     if (!userIds || userIds.length === 0) {
       throw new BadRequestError(
@@ -321,6 +330,138 @@ export class EnrollmentController {
       failureCount: results.failureCount,
       errors: results.errors,
     };
+  }
+
+  @OpenAPI({
+    summary: 'Change enrollment status for a user',
+    description: 'Updates the status (ACTIVE/INACTIVE) of a specific enrollment.',
+  })
+  @Authorized()
+  @Patch('/:userId/enrollments/courses/:courseId/versions/:versionId/status')
+  @UseInterceptor(AuditTrailsHandler)
+  @HttpCode(200)
+  async changeStatus(
+    @Params() params: EnrollmentParams,
+    @Body() body: ChangeEnrollmentStatusBody,
+    @Ability(getEnrollmentAbility) { ability, user },
+    @Req() req: Request,
+  ): Promise<any> {
+    const { userId, courseId, versionId } = params;
+    const { status } = body;
+
+    // Fetch enrollment to get the role for permission checking
+    const enrollmentData = await this.enrollmentService.findAnyEnrollment(
+      userId,
+      courseId,
+      versionId,
+    );
+    if (!enrollmentData) {
+      throw new NotFoundError('Enrollment not found');
+    }
+
+    const enrollmentResource = subject('Enrollment', {
+      courseId,
+      versionId,
+      role: enrollmentData.role,
+    });
+    if (!ability.can(EnrollmentActions.Modify, enrollmentResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to update enrollment status',
+      );
+    }
+
+    const response = await this.enrollmentService.updateStatus(
+      userId,
+      courseId,
+      versionId,
+      status,
+    );
+
+    setAuditTrail(req, {
+      category: AuditCategory.ENROLLMENT,
+      action: status === 'ACTIVE' ? AuditAction.ENROLLMENT_ENABLE : AuditAction.ENROLLMENT_DISABLE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        userId: ObjectId.createFromHexString(userId),
+      },
+      changes: {
+        before: { status: status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' },
+        after: { status },
+      },
+      outcome: { status: OutComeStatus.SUCCESS },
+    });
+
+    return response;
+  }
+
+  @OpenAPI({
+    summary: 'Bulk change enrollment status',
+    description: 'Updates the status (ACTIVE/INACTIVE) of multiple enrollments in a course version.',
+  })
+  @Authorized()
+  @Patch('/enrollments/courses/:courseId/versions/:versionId/bulk-status')
+  @UseInterceptor(AuditTrailsHandler)
+  @HttpCode(200)
+  async bulkChangeStatus(
+    @Param('courseId') courseId: string,
+    @Param('versionId') versionId: string,
+    @Body() body: BulkChangeEnrollmentStatusBody,
+    @Ability(getEnrollmentAbility) { ability, user },
+    @Req() req: Request,
+  ): Promise<any> {
+    const { userIds, status, cohortId } = body;
+
+    if (!userIds || userIds.length === 0) {
+      throw new BadRequestError('User IDs array is required and cannot be empty');
+    }
+
+
+    const enrollmentResource = subject('Enrollment', {
+      courseId,
+      versionId,
+      role: 'STUDENT'
+    });
+    if (!ability.can(EnrollmentActions.Modify, enrollmentResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to update enrollment statuses',
+      );
+    }
+
+    const response = await this.enrollmentService.bulkUpdateStatus(
+      userIds,
+      courseId,
+      versionId,
+      status,
+      cohortId,
+    );
+
+    setAuditTrail(req, {
+      category: AuditCategory.ENROLLMENT,
+      action: status === 'ACTIVE' ? AuditAction.BULK_ENROLLMENT_ENABLE : AuditAction.BULK_ENROLLMENT_DISABLE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+      },
+      changes: {
+        after: { userIds: userIds.map(id => new ObjectId(id)), status },
+      },
+      outcome: { status: OutComeStatus.SUCCESS },
+    });
+
+    return response;
   }
 
   @OpenAPI({
@@ -526,7 +667,8 @@ export class EnrollmentController {
           totalQuizMaxScore: enrollment.totalQuizMaxScore || 0,
           contentCounts: enrollment.contentCounts,
           cohortId: enrollment.cohortId,
-          cohortName: enrollment.cohortName
+          cohortName: enrollment.cohortName,
+          id: enrollment._id,
         }))
         .sort((a, b) => {
           // sort by isDeleted deleted should be at the bottom

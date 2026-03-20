@@ -236,6 +236,15 @@ export class ActivitySubmissionsService extends BaseService {
                 throw new BadRequestError("Activity rule config not found");
             }
 
+            const ledger = await this.ledgerRepository.findByStudentAndActivityId(activityId, student.id);
+            if (ledger) {
+                throw new BadRequestError(
+                    activityRuleConfig.reward.applyWhen === "ON_APPROVAL"
+                        ? "This activity has already been submitted. Please wait for the instructor to review it and credit the HP points."
+                        : "This activity has already been submitted and the HP points for this activity have already been credited."
+                );
+            }
+
             const latestSubmissions = await this.activitySubmissionsRepository.getLatestByStudentId(student.id, activityId)
             if (latestSubmissions && latestSubmissions.status !== "REVERTED")
                 throw new BadRequestError("You have already attended this activity.")
@@ -246,18 +255,23 @@ export class ActivitySubmissionsService extends BaseService {
             const finalCourseId = COHORT_OVERRIDES[cohort]?.courseId ?? body.courseId;
             const finalVersionId = COHORT_OVERRIDES[cohort]?.versionId ?? body.courseVersionId;
 
+            console.log(student.id,
+                finalCourseId,
+                finalVersionId,
+                cohort)
             // 3. Fetch Enrollment using the CORRECT (overridden) IDs
             const enrollment = await this.cohortRepository.findEnrollment(
                 student.id,
                 finalCourseId,
                 finalVersionId,
+                cohort,
                 session
             );
 
-            // if (!enrollment) {
-            //     console.error(`Enrollment check failed for Student: ${student.id} in Course: ${finalCourseId}`);
-            //     throw new BadRequestError(`Student is not enrolled in the required course context for cohort: ${cohort}`);
-            // }
+            if (!enrollment) {
+                console.error(`Enrollment check failed for Student: ${student.id} in Course: ${finalCourseId}`);
+                throw new BadRequestError(`Student is not enrolled in the required course context for cohort: ${cohort}`);
+            }
 
             // Determine if submission is late based on activity rule config deadline
             const deadline = activityRuleConfig?.deadlineAt
@@ -360,12 +374,8 @@ export class ActivitySubmissionsService extends BaseService {
 
             if (activityReward?.enabled && activityReward.applyWhen === "ON_SUBMISSION") {
 
-                // Reward allocation conditions
                 const shouldSkipReward =
-                    isLate && (
-                        activityReward.lateBehavior === "NO_REWARD" ||
-                        activityReward.onlyWithinDeadline === true
-                    ) || activityRuleConfig?.lateRewardPolicy == "REWARD_DENIED"
+                    isLate && activityReward.lateBehavior === "NO_REWARD";
 
                 if (shouldSkipReward) {
                     return;
@@ -382,16 +392,23 @@ export class ActivitySubmissionsService extends BaseService {
                 if (ruleType === "ABSOLUTE") {
                     incrementAmount = rewardValue;
                 } else if (ruleType === "PERCENTAGE") {
-                    const rewardMaxLimit = activityRuleConfig.limits?.maxHp ?? 0;
+                    const rewardMaxLimit = activityRuleConfig.limits?.maxHp;
+                    const rewardMinLimit = activityRuleConfig.limits?.minHp;
 
                     // Calculate percentage reward
                     const calculatedReward = Math.round((totalStudentHpPoints * rewardValue) / 100);
 
-                    // Apply max limit if defined
-                    incrementAmount =
-                        rewardMaxLimit > 0
-                            ? Math.min(calculatedReward, rewardMaxLimit)
-                            : calculatedReward;
+                    let finalReward = calculatedReward;
+
+                    if (rewardMinLimit !== undefined && finalReward < rewardMinLimit) {
+                        finalReward = rewardMinLimit;
+                    }
+
+                    if (rewardMaxLimit !== undefined && finalReward > rewardMaxLimit) {
+                        finalReward = rewardMaxLimit;
+                    }
+
+                    incrementAmount = finalReward;
                 }
 
                 // For transparency in the audit trail, we create a human-readable note about how the reward was calculated
@@ -439,6 +456,7 @@ export class ActivitySubmissionsService extends BaseService {
                         student.id,
                         finalCourseId,
                         finalVersionId,
+                        cohort,
                         totalStudentHpPoints + incrementAmount,
                         session
                     )
@@ -511,7 +529,7 @@ export class ActivitySubmissionsService extends BaseService {
                 uploadedPdfs = uploadResult.uploadedPdfs ?? [];
                 uploadedImages = uploadResult.uploadedImages ?? [];
             }
-            
+
             const payload = {
                 ...basePayload,
                 files: uploadedPdfs.map((x) => ({
@@ -656,7 +674,6 @@ export class ActivitySubmissionsService extends BaseService {
                         totalLateSubmissions: 0,
                         totalPendings: 0,
                         currentHp: 0,
-                        reward: null,
                     },
                 };
             }
@@ -677,13 +694,9 @@ export class ActivitySubmissionsService extends BaseService {
             this.activitySubmissionsRepository.getCountByStudentId(studentId, courseId, courseVersionId),
             this.activitySubmissionsRepository.getLateSubmissionCountByStudentId(studentId, courseId, courseVersionId),
             this.activityRepository.getPendingActivitesCount(studentId, courseId, courseVersionId),
-            this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId),
+            this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId, cohortName),
             this.activityRepository.getLatestActivityByCohortName(cohortName),
         ]);
-
-        const ruleConfig = latestActivity
-            ? await this.ruleConfigService.getByActivityId(latestActivity._id.toString())
-            : null;
 
         const data: StudentActivitySubmissionStatsViewDto = {
             totalActivities,
@@ -691,10 +704,6 @@ export class ActivitySubmissionsService extends BaseService {
             totalLateSubmissions,
             totalPendings: totalPendingActivites,
             currentHp: enrollment?.hpPoints ?? 0,
-            reward: ruleConfig?.reward?.enabled ? {
-                type: ruleConfig.reward.type,
-                value: ruleConfig.reward.value,
-            } : null,
         };
 
         return {
@@ -749,7 +758,7 @@ export class ActivitySubmissionsService extends BaseService {
             const [activityRuleConfig, user, enrollment] = await Promise.all([
                 this.ruleConfigService.getByActivityId(submission.activityId.toString()),
                 this.userRepo.findById(submission.studentId.toString()),
-                this.cohortRepository.findEnrollment(submission.studentId.toString(), courseId, courseVersionId)
+                this.cohortRepository.findEnrollment(submission.studentId.toString(), courseId, courseVersionId, submission.cohort, session)
             ]);
 
             if (!user || !enrollment) throw new BadRequestError(!user ? "Student account missing." : "Enrollment data missing.");
@@ -792,20 +801,11 @@ export class ActivitySubmissionsService extends BaseService {
                 const isLate = deadline && new Date() > deadline;
 
                 // 2. Define the "Hard Block" conditions
-                const isLatePolicyViolated = isLate && (
-                    rewardConfig?.lateBehavior === "NO_REWARD" ||
-                    rewardConfig?.onlyWithinDeadline === true
-                );
-
-                const isGlobalPolicyViolated = activityRuleConfig?.lateRewardPolicy === "REWARD_DENIED";
+                const isLatePolicyViolated = isLate && rewardConfig?.lateBehavior === "NO_REWARD";
 
                 // 3. Throw Detailed Errors
                 if (isLatePolicyViolated) {
                     throw new BadRequestError(`Approval Denied: This submission is late, and the activity policy is set to 'No Reward' for late work.`);
-                }
-
-                if (isGlobalPolicyViolated) {
-                    throw new BadRequestError("Approval Denied: The global course policy for this activity currently denies all late rewards.");
                 }
             }
 
@@ -825,16 +825,23 @@ export class ActivitySubmissionsService extends BaseService {
                     rewardDetailsNote = `Reward Type: ABSOLUTE, Reward HP: ${rewardValue}`;
 
                 } else if (ruleType === "PERCENTAGE") {
-                    const rewardMaxLimit = activityRuleConfig.limits?.maxHp ?? 0;
+                    const rewardMaxLimit = activityRuleConfig.limits?.maxHp;
+                    const rewardMinLimit = activityRuleConfig.limits?.minHp;
 
                     // Calculate percentage reward
                     const calculatedReward = Math.round((totalStudentHpPoints * rewardValue) / 100);
 
-                    // Apply max limit if defined
-                    incrementAmount =
-                        rewardMaxLimit > 0
-                            ? Math.min(calculatedReward, rewardMaxLimit)
-                            : calculatedReward;
+                    let finalReward = calculatedReward;
+
+                    if (rewardMinLimit !== undefined && finalReward < rewardMinLimit) {
+                        finalReward = rewardMinLimit;
+                    }
+
+                    if (rewardMaxLimit !== undefined && finalReward > rewardMaxLimit) {
+                        finalReward = rewardMaxLimit;
+                    }
+
+                    incrementAmount = finalReward;
 
                     rewardDetailsNote = `Reward Type: PERCENTAGE, Base HP: ${totalStudentHpPoints}, Percentage: ${rewardValue}%`;
 
@@ -896,7 +903,7 @@ export class ActivitySubmissionsService extends BaseService {
 
             await Promise.all([
                 ...ledgerPromises,
-                this.cohortRepository.setHPForEnrollment(submission.studentId.toString(), courseId, courseVersionId, finalHpBalance, session)
+                this.cohortRepository.setHPForEnrollment(submission.studentId.toString(), courseId, courseVersionId, submission.cohort, finalHpBalance, session)
             ]);
 
             return { success: true };

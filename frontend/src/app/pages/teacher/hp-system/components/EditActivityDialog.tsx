@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { HpActivity } from "@/lib/api/hp-system";
 import { Trash2, Plus } from "lucide-react";
+import ConfirmationModal from "../../components/confirmation-modal";
 
 interface EditActivityDialogProps {
     isOpen: boolean;
@@ -44,6 +45,8 @@ export function EditActivityDialog({
     onSubmit
 }: EditActivityDialogProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [pendingData, setPendingData] = useState<EditFormValues | null>(null);
 
     const { control, register, handleSubmit, reset, formState: { errors } } = useForm<EditFormValues>({
         defaultValues: {
@@ -71,6 +74,18 @@ export function EditActivityDialog({
             });
         }
     }, [isOpen, activity, reset]);
+
+    const handleSaveClick = (data: EditFormValues) => {
+        setPendingData(data);
+        setIsConfirmOpen(true);
+    };
+
+    const handleConfirmSave = async () => {
+        if (pendingData) {
+            await handleFormSubmit(pendingData);
+            setIsConfirmOpen(false);
+        }
+    };
 
     const handleFormSubmit = async (data: EditFormValues) => {
         if (!activity) return;
@@ -100,7 +115,7 @@ export function EditActivityDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6 py-4">
+                <form onSubmit={handleSubmit(handleSaveClick)} className="space-y-6 py-4">
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label>Title <span className="text-red-500">*</span></Label>
@@ -223,6 +238,16 @@ export function EditActivityDialog({
                     </DialogFooter>
                 </form>
             </DialogContent>
+            <ConfirmationModal
+                isOpen={isConfirmOpen}
+                onClose={() => setIsConfirmOpen(false)}
+                onConfirm={handleConfirmSave}
+                title="Save Changes"
+                description="Are you sure you want to save the changes to this activity? The updates will be visible to students if the activity is published."
+                confirmText="Save Changes"
+                cancelText="Cancel"
+                isLoading={isSubmitting}
+            />
         </Dialog>
     );
 }

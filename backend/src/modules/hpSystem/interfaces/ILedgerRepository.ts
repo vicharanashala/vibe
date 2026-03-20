@@ -18,6 +18,10 @@ export interface ILedgerRepository {
     }>
 
     findByStudentAndSubmissionId(submissionId: string, studentId: string): Promise<HpLedger | null>
+    findByStudentAndActivityId(
+        activityId: string,
+        studentId: string
+    ): Promise<HpLedger | null>
     findPenaltiesByActivityId(activityId: string): Promise<HpLedger[]>
     findRewardsByActivityId(activityId: string): Promise<HpLedger[]>
     findBySubmissionIds(submissionIds: string[]): Promise<HpLedger[]>

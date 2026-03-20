@@ -44,7 +44,7 @@ export class LedgerService extends BaseService {
             throw new BadRequestError("Student not found");
 
         // Try to find enrollment for HP points, but don't fail if not found
-        const enrollment = await this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId)
+        const enrollment = await this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId, cohortName)
         console.log("Enrollment details for student:", studentId, enrollment);
 
         const studentDetails: StudentLedgerDetailsDto = {

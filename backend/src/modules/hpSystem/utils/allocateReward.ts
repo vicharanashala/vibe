@@ -109,16 +109,16 @@ async function processMilestoneRewards(
 ) {
     const { activityRepo, ledgerRepo, cohortRepo, db } = dependencies;
     
-    console.log(`🎯 Processing milestone activity: ${activityConfig.activityId}`);
-    console.log(`📊 Required progress percentage: ${activityConfig.reward.required_percentage}%`);
-    console.log(`💰 Reward type: ${activityConfig.reward.type}, Value: ${activityConfig.reward.value}`);
-
     // Get activity details
     const activity = await activityRepo.findById(activityConfig.activityId.toString());
     if (!activity) {
         console.log(`⚠️ Activity not found: ${activityConfig.activityId}`);
         return;
     }
+    
+    console.log(`🎯 Processing milestone activity: ${activityConfig.activityId}`);
+    console.log(`📊 Required progress percentage: ${activity.required_percentage || 100}%`);
+    console.log(`💰 Reward type: ${activityConfig.reward.type}, Value: ${activityConfig.reward.value}`);
 
     // Get actual course IDs (handle legacy vs new cohort system)
     const { courseId, courseVersionId } = getActualCourseIds(activity);
@@ -147,7 +147,7 @@ async function processMilestoneRewards(
     const studentsNeedingReward = enrolledStudents.filter((student: any) => {
         const studentId = student._id.toString();
         const currentProgress = student.percentCompleted || 0;
-        const requiredProgress = activityConfig.reward.required_percentage;
+        const requiredProgress = activity.required_percentage || 100;
         const hasReward = rewardMap.has(studentId);
         
         // Check progress requirement
@@ -167,14 +167,9 @@ async function processMilestoneRewards(
         const deadline = new Date(activityConfig.deadlineAt);
         const isAfterDeadline = now > deadline;
 
-        if (isAfterDeadline) {
-            if (activityConfig.reward.onlyWithinDeadline) {
-                console.log(`⏰ After deadline and onlyWithinDeadline=true - no reward for ${student.email}`);
-                return false;
-            } else if (activityConfig.reward.lateBehavior === "NO_REWARD") {
-                console.log(`⏰ After deadline and lateBehavior=NO_REWARD - no reward for ${student.email}`);
-                return false;
-            }
+        if (isAfterDeadline && activityConfig.reward.lateBehavior === "NO_REWARD") {
+            console.log(`⏰ After deadline and lateBehavior=NO_REWARD - no reward for ${student.email}`);
+            return false;
         }
 
         console.log(`✅ Student ${student.email} eligible for reward: ${currentProgress}% >= ${requiredProgress}%`);
@@ -233,7 +228,6 @@ async function processStudentReward(
         activityConfig.reward.type,
         activityConfig.reward.value,
         currentHp,
-        activityConfig.reward.minHpFloor,
         activityConfig.limits?.maxHp
     );
 
@@ -265,7 +259,6 @@ function calculateRewardAmount(
     type: "ABSOLUTE" | "PERCENTAGE",
     value: number,
     currentHp: number,
-    minHpFloor: number,
     maxHp?: number
 ): number {
     let rewardAmount: number;
@@ -275,11 +268,6 @@ function calculateRewardAmount(
     } else {
         // PERCENTAGE calculation
         rewardAmount = Math.floor((currentHp * value) / 100);
-        
-        // Apply minimum HP floor
-        if (rewardAmount < minHpFloor) {
-            rewardAmount = minHpFloor;
-        }
     }
 
     // Apply max HP limit if specified

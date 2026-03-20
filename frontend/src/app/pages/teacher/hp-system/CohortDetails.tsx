@@ -1,5 +1,5 @@
 import React from "react";
-import { useParams, useNavigate } from "@tanstack/react-router";
+import { useParams, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,11 +10,15 @@ import { Dashboard } from '@/app/pages/teacher/dashboard';
 
 export default function HpSystemDashboard() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
+    
+    const router = useRouterState();
+    const from = router.location.state?.from;
 
+    const navigate=useNavigate();
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4">
-                <Button variant="outline" size="icon" onClick={() => window.history.back()}>
+                <Button variant="outline" size="icon" onClick={() =>{navigate({ to: `/teacher/hp-system/${courseVersionId}/cohorts` , state:{from}})}}>
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>

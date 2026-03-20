@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "@tanstack/react-router";
+import { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useHpStudentActivities, useSubmitActivity } from "@/hooks/hooks";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +85,9 @@ const DeadlineCountdown = ({ deadline, allowLate }: { deadline: string; allowLat
 export default function StudentActivities() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
     const navigate = useNavigate();
+    
+    const router = useRouterState();
+    const from = router.location.state?.from;
 
         const [currentPage, setCurrentPage] = useState(1);
         const itemsPerPage = 6;
@@ -212,7 +215,7 @@ export default function StudentActivities() {
         <TooltipProvider>
         <div className="container mx-auto p-6 max-w-5xl space-y-6">
             <div className="flex items-center gap-4 mb-6">
-                <Button variant="ghost" size="icon" onClick={() => navigate({ to: '/student/hp-system/cohorts' })}>
+                <Button variant="ghost" size="icon" onClick={() => navigate({ to: from || '/student/hp-system/cohorts' })}>
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
                 <div className="flex-1">
@@ -225,7 +228,7 @@ export default function StudentActivities() {
                     <TooltipTrigger asChild>
                         <Button
                             variant="outline"
-                            onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/submissions` })}
+                            onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/submissions`, state:{from} })}
                         >
                             View My Submissions
                         </Button>
@@ -336,38 +339,23 @@ export default function StudentActivities() {
                                     </div>
                                 )}
 
-                                {activity.submissionMode === 'EXTERNAL_LINK' && activity.externalLink && (
-                                    <div>
-                                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                                            <LinkIcon className="h-4 w-4" />
-                                            External Link
-                                        </h4>
-                                        <a
-                                            href={activity.externalLink}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-2 rounded-lg border border-blue-200/60 bg-blue-50/70 px-3 py-2 text-sm text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-800/60 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
-                                        >
-                                            <LinkIcon className="h-4 w-4" />
-                                            {activity.externalLink}
-                                        </a>
-                                    </div>
-                                )}
-                            </CardContent>
-                                <CardFooter className="border-t bg-muted/10 px-6 py-1">
-                                    <div className="flex w-full items-center justify-end gap-2">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => navigate({
-                                                to: `/student/hp-system/${courseVersionId}/${cohortName}/activities/${activity._id}`
-                                            })}
-                                        >
-                                            View
-                                        </Button>
-                                    </div>
-                            </CardFooter>
-                        </Card>
+                    <Button
+                    className="bg-primary"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                    navigate({
+                    to: `/student/hp-system/${courseVersionId}/${cohortName}/activities/${activity._id}`,state:{from}
+                    })
+                    }
+                    >
+                    View
+                    </Button>
+
+                    </div>
+
+                    </div>
+                    </Card>
                     ))}
 
                                 {activities && activities.length > 0 && (

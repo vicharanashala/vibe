@@ -16,10 +16,6 @@ export type ActivityType =
 
 export type SubmissionMode = "IN_PLATFORM" | "EXTERNAL_LINK";
 
-export type LateRewardPolicy =
-    | "NONE"
-    | "REWARD_ALLOWED"
-    | "REWARD_DENIED";
 
 export type AttachmentKind = "PDF" | "LINK" | "OTHER";
 
@@ -49,6 +45,9 @@ export interface HpActivity {
         url: string;
         kind: AttachmentKind;
     }[];
+
+    // Activity constraints
+    required_percentage?: number;
 
     // Stats
     stats: { // to track submission stats for this activity, updated by a scheduled job that runs every hour
@@ -175,7 +174,6 @@ export interface HpRuleConfig {
 
     deadlineAt: Date;
     allowLateSubmission: boolean;
-    lateRewardPolicy: LateRewardPolicy;
 
     // Reward rule
     reward: {
@@ -183,11 +181,7 @@ export interface HpRuleConfig {
         type: RuleType;
         value: number;
         applyWhen: RewardApplyWhen;
-        onlyWithinDeadline: boolean;
-        allowLate: boolean;
         lateBehavior: LateBehavior;
-        minHpFloor: number;
-        required_percentage?: number;
     };
     
     // students => hpPOints = 50 (shouldn't be -ve)
@@ -205,9 +199,9 @@ export interface HpRuleConfig {
     };
 
     // Safety guards
-    limits: {
-        minHp: number;
-        maxHp: number;
+    limits?: {
+        minHp?: number;
+        maxHp?: number;
     };
 
     createdAt: Date;

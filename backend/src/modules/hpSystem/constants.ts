@@ -43,11 +43,6 @@ export enum SubmissionMode {
   EXTERNAL_LINK = 'EXTERNAL_LINK',
 }
 
-export enum LateRewardPolicy {
-  NONE = 'NONE',
-  REWARD_ALLOWED = 'REWARD_ALLOWED',
-  REWARD_DENIED = 'REWARD_DENIED',
-}
 
 export enum AttachmentKind {
   PDF = 'PDF',
