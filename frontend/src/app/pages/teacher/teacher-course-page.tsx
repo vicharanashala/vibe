@@ -74,9 +74,10 @@ import {
 import type { BreadcrumbItemment } from "@/types/layout.types";
 import AiWorkflow from "./AiWorkflow";
 import AISectionPage from "./AISectionPage";
-type Mode = "default" | "wizard" | "custom";
+type Mode = "default" | "wizard" | "custom" | "ai-module";
 import { logout } from "@/utils/auth";
 import InviteDropdown from "@/components/inviteDropDown";
+import AiModule from "./AiModule";
 import { useQueryClient } from "@tanstack/react-query"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -2081,65 +2082,83 @@ function TeacherCourseContent() {
                                                 </option>
                                                 <option value="csv_upload">Upload CSV</option>
 
-                                              </select>
-                                              <TooltipProvider>
-                                                <Tooltip>
-                                                  <TooltipTrigger asChild>
-                                                    <DropdownMenu>
-                                                      <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                          type="button"
-                                                          className="inline-flex items-center justify-center px-1.5 py-0 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-[10px] gap-0.5 shadow transition-all duration-200 hover:scale-105 hover:shadow-lg hover:from-purple-600 hover:to-indigo-600 focus:outline-none focus:ring-2 focus:ring-purple-400 ml-3"
-                                                          style={{ minWidth: 'unset', height: '1.5rem' }}
-                                                        >
-                                                          <Sparkles className="h-2 w-2" />
-                                                          <span>AI</span>
-                                                        </Button>
-                                                      </DropdownMenuTrigger>
-                                                      <DropdownMenuContent align="start" className="w-40">
-                                                        <DropdownMenuItem
-                                                          className="text-xs cursor-pointer"
-                                                          onClick={() => {
-                                                            setCurrentCourse({
-                                                              courseId,
-                                                              versionId,
-                                                              moduleId: module.moduleId,
-                                                              sectionId: section.sectionId,
-                                                              itemId: null,
-                                                              watchItemId: null,
-                                                            });
-                                                            setMode('custom')
-                                                            // navigate({ to: '/teacher/ai-section' });
-                                                          }}
-                                                        >
-                                                          Custom mode
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                          className="text-xs cursor-pointer"
-                                                          onClick={() => {
-                                                            setCurrentCourse({
-                                                              courseId,
-                                                              versionId,
-                                                              moduleId: module.moduleId,
-                                                              sectionId: section.sectionId,
-                                                              itemId: null,
-                                                              watchItemId: null,
-                                                            });
-                                                            setMode('wizard')
-                                                            // navigate({ to: '/teacher/ai-workflow' });
-                                                          }}
-                                                        >
-                                                          Wizard mode
-                                                        </DropdownMenuItem>
-                                                      </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                  </TooltipTrigger>
-                                                  <TooltipContent side="right" align="center">
-                                                    Generate Section with AI
-                                                  </TooltipContent>
-                                                </Tooltip>
-                                              </TooltipProvider>
-                                            </div>
+                                                </select>
+                                                <TooltipProvider>
+                                                  <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                      <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                          <Button
+                                                            type="button"
+                                                            className="inline-flex items-center justify-center px-1.5 py-0 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-[10px] gap-0.5 shadow transition-all duration-200 hover:scale-105 hover:shadow-lg hover:from-purple-600 hover:to-indigo-600 focus:outline-none focus:ring-2 focus:ring-purple-400 ml-3"
+                                                            style={{ minWidth: 'unset', height: '1.5rem' }}
+                                                          >
+                                                            <Sparkles className="h-2 w-2" />
+                                                            <span>AI</span>
+                                                          </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="start" className="w-40">
+                                                          <DropdownMenuItem
+                                                            className="text-xs cursor-pointer"
+                                                            onClick={() => {
+                                                              setCurrentCourse({
+                                                                courseId,
+                                                                versionId,
+                                                                moduleId: module.moduleId,
+                                                                sectionId: section.sectionId,
+                                                                itemId: null,
+                                                                watchItemId: null,
+                                                              });
+                                                              setMode('custom')
+                                                              // navigate({ to: '/teacher/ai-section' });
+                                                            }}
+                                                          >
+                                                            Custom mode
+                                                          </DropdownMenuItem>
+                                                          <DropdownMenuItem
+                                                            className="text-xs cursor-pointer"
+                                                            onClick={() => {
+                                                              setCurrentCourse({
+                                                                courseId,
+                                                                versionId,
+                                                                moduleId: module.moduleId,
+                                                                sectionId: section.sectionId,
+                                                                itemId: null,
+                                                                watchItemId: null,
+                                                              });
+                                                              setMode('wizard')
+                                                              // navigate({ to: '/teacher/ai-workflow' });
+                                                            }}
+                                                          >
+                                                            Wizard mode
+                                                          </DropdownMenuItem>
+
+                                                           <DropdownMenuItem
+                                                            className="text-xs cursor-pointer"
+                                                            onClick={() => {
+                                                              setCurrentCourse({
+                                                                courseId,
+                                                                versionId,
+                                                                moduleId: module.moduleId,
+                                                                sectionId: section.sectionId,
+                                                                itemId: null,
+                                                                watchItemId: null,
+                                                              });
+                                                              setMode('ai-module')
+                                                              // navigate({ to: '/teacher/ai-module' });
+                                                            }}
+                                                          >
+                                                            AI Module Mode
+                                                          </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                      </DropdownMenu>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="right" align="center">
+                                                      Generate Section with AI
+                                                    </TooltipContent>
+                                                  </Tooltip>
+                                                </TooltipProvider>
+                                              </div>
 
                                           </SidebarMenuSub>
                                         </Reorder.Group>
@@ -2388,7 +2407,7 @@ function TeacherCourseContent() {
               )}
             </div>}
 
-            {mode === "wizard" ? (
+            {mode==="ai-module" ? <AiModule /> : mode === "wizard" ? (
               <AiWorkflow />
             ) : mode === "custom" ? (
               <AISectionPage />

@@ -637,6 +637,7 @@ It returns an empty body with a 200 status code.
   async getWatchTime(
     @Params() params: WatchTimeParams,
     @Ability(getProgressAbility) { ability },
+    @QueryParam('cohortId') cohortId?: string,
   ): Promise<WatchTimeResponse> {
     const { userId, courseId, versionId, itemId, type } = params;
 
@@ -654,12 +655,14 @@ It returns an empty body with a 200 status code.
       itemId,
       courseId,
       versionId,
+      cohortId
     );
 
     if (type === 'QUIZ') {
       const quizMetrics = await this.quizService.getUserMetricsForQuiz(
         userId,
         itemId,
+        cohortId
       );
       if (quizMetrics) {
         return { watchTime, quizMetrics };

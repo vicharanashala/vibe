@@ -124,8 +124,30 @@ export class EnrollmentRepository {
         courseVersionId: {
           $in: [courseVersionId, new ObjectId(courseVersionId)],
         },
-        ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
+        ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {cohortId: null}),
         isDeleted: {$ne: true},
+      },
+      {session},
+    );
+  }
+
+  async findAnyEnrollment(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment | null> {
+    await this.init();
+
+    return await this.enrollmentCollection.findOne(
+      {
+        userId: {$in: [userId, new ObjectId(userId)]},
+        courseId: {$in: [courseId, new ObjectId(courseId)]},
+        courseVersionId: {
+          $in: [courseVersionId, new ObjectId(courseVersionId)],
+        },
+        ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {cohortId: null}),
       },
       {session},
     );
@@ -151,9 +173,7 @@ export class EnrollmentRepository {
         courseVersionId: {$in: [courseVersionObjectId, courseVersionId]},
         status: 'ACTIVE',
         isDeleted: {$ne: true},
-        ...(cohortId
-          ? {cohortId: new ObjectId(cohortId)}
-          : {cohortId: {$exists: false}}),
+        ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {cohortId: null}),
       },
       {session},
     );
@@ -286,9 +306,7 @@ export class EnrollmentRepository {
         userId: {$in: userFilter},
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
-        ...(cohortId
-          ? {cohortId: new ObjectId(cohortId)}
-          : {cohortId: {$exists: false}}),
+        ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {cohortId: null}),
       },
       {
         $set: {
@@ -1673,9 +1691,7 @@ export class EnrollmentRepository {
           userId: {$in: [userId, userIdObj]},
           courseId: {$in: [courseId, courseIdObj]},
           courseVersionId: {$in: [courseVersionId, versionIdObj]},
-          ...(cohortIdObj
-            ? {cohortId: cohortIdObj}
-            : {cohortId: {$exists: false}}),
+          ...(cohortIdObj ? {cohortId: cohortIdObj} : {cohortId: null}),
           role: 'STUDENT',
         },
       },
@@ -1751,6 +1767,16 @@ export class EnrollmentRepository {
                     },
                     {$ne: ['$isDeleted', true]},
                     {$ne: ['$endTime', null]},
+                    ...(cohortIdObj
+                      ? [{$eq: ['$cohortId', cohortIdObj]}]
+                      : [
+                          {
+                            $or: [
+                              {$eq: ['$cohortId', null]},
+                              {$not: ['$cohortId']},
+                            ],
+                          },
+                        ]),
                   ],
                 },
               },
@@ -1800,6 +1826,8 @@ export class EnrollmentRepository {
         courseVersionId,
         'watchHours=',
         result[0].watchHours,
+        'cohortId=',
+        result[0].cohortId,
       );
     }
 
@@ -3539,7 +3567,7 @@ export class EnrollmentRepository {
           userId: new ObjectId(userId),
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
-          ...(cohortId && {cohortId: new ObjectId(cohortId)}),
+          ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {cohortId: null}),
         },
         {session},
       )
@@ -4221,27 +4249,6 @@ export class EnrollmentRepository {
     );
     // console.log("---enrollment------", enrollment);
     return !!enrollment;
-  }
-  async findAnyEnrollment(
-    userId: string | ObjectId,
-    courseId: string,
-    courseVersionId: string,
-    cohortId?: string,
-    session?: ClientSession,
-  ): Promise<IEnrollment | null> {
-    await this.init();
-
-    return await this.enrollmentCollection.findOne(
-      {
-        userId: {$in: [userId, new ObjectId(userId)]},
-        courseId: {$in: [courseId, new ObjectId(courseId)]},
-        courseVersionId: {
-          $in: [courseVersionId, new ObjectId(courseVersionId)],
-        },
-        ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
-      },
-      {session},
-    );
   }
   async moveEnrollmentsToCohort(
     enrollmentIds: string[],
