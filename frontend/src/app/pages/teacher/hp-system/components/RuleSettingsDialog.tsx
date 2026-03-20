@@ -160,7 +160,11 @@ export function RuleSettingsDialog({
                             </div>
                             <Switch
                                 checked={config?.isMandatory || false}
-                                onCheckedChange={(c) => setConfig(prev => ({ ...prev, isMandatory: c } as any))}
+                                onCheckedChange={(c) => setConfig(prev => ({ 
+                                    ...prev, 
+                                    isMandatory: c,
+                                    penalty: !c ? { ...prev?.penalty, enabled: false } : prev?.penalty
+                                } as any))}
                             />
                         </div>
 
@@ -343,9 +347,10 @@ export function RuleSettingsDialog({
                                 <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Penalty Configuration (Late)</h4>
                                 <Switch
                                     checked={config?.penalty?.enabled || false}
+                                    disabled={!config?.isMandatory}
                                     onCheckedChange={(c) => setConfig(prev => ({
                                         ...prev,
-                                        penalty: { ...(prev?.penalty || defaultPenalty), enabled: c }
+                                        penalty: { ...(prev?.penalty || {}), enabled: c }
                                     } as any))}
                                 />
                             </div>
