@@ -5432,7 +5432,6 @@ export function useMyHpLedger(
     enabled: !!courseId && !!courseVersionId && !!cohort,
     refetchOnWindowFocus: false,
   });
-  console.log(query);
 
   return {
     data: query.data?.data || [],
