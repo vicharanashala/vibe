@@ -32,13 +32,11 @@ export class RuleConfigService extends BaseService {
     }
 
     async create(body: CreateHpRuleConfigBody): Promise<HpRuleConfigTransformer> {
-        // Enforce 1 config per activity
         const existing = await this.ruleConfigRepository.findByActivityId(body.activityId);
         if (existing) {
             throw new BadRequestError("Rule config already exists for this activity");
         }
 
-        // Optional consistency guard: penalty only for mandatory
         if (!body.isMandatory && body.penalty?.enabled) {
             throw new BadRequestError("Penalty can be enabled only for mandatory activities");
         }
@@ -51,26 +49,33 @@ export class RuleConfigService extends BaseService {
             activityId: toObjectId(body.activityId, "activityId") as any,
 
             isMandatory: body.isMandatory,
-
             deadlineAt: new Date(body.deadlineAt),
             allowLateSubmission: body.allowLateSubmission,
 
-            reward: {
-                enabled: body.reward.enabled,
-                type: body.reward.type as any,
-                value: body.reward.value, 
-                applyWhen: body.reward.applyWhen as any,
-                lateBehavior: body.reward.lateBehavior as any,
-            },
+            reward: body.reward.enabled
+                ? {
+                    enabled: true,
+                    type: body.reward.type as any,
+                    value: body.reward.value,
+                    applyWhen: body.reward.applyWhen as any,
+                    lateBehavior: body.reward.lateBehavior as any,
+                }
+                : {
+                    enabled: false,
+                },
 
-            penalty: {
-                enabled: body.penalty.enabled,
-                type: body.penalty.type as any,
-                value: body.penalty.value,
-                applyWhen: body.penalty.applyWhen as any,
-                graceMinutes: body.penalty.graceMinutes,
-                // runOnce: body.penalty.runOnce,
-            },
+            penalty: body.penalty.enabled
+                ? {
+                    enabled: true,
+                    type: body.penalty.type as any,
+                    value: body.penalty.value,
+                    applyWhen: body.penalty.applyWhen as any,
+                    graceMinutes: body.penalty.graceMinutes,
+                    // runOnce: body.penalty.runOnce,
+                }
+                : {
+                    enabled: false,
+                },
 
             limits: {
                 minHp: body.limits.minHp,
@@ -94,7 +99,7 @@ export class RuleConfigService extends BaseService {
         if (!existing) {
             throw new NotFoundError("Rule config not found");
         }
-        
+
 
         // Optional consistency guard: penalty only for mandatory
         if (patch.isMandatory === false && patch.penalty?.enabled) {

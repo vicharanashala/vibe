@@ -178,10 +178,10 @@ export interface HpRuleConfig {
     // Reward rule
     reward: {
         enabled: boolean;
-        type: RuleType;
-        value: number;
-        applyWhen: RewardApplyWhen;
-        lateBehavior: LateBehavior;
+        type?: RuleType;
+        value?: number;
+        applyWhen?: RewardApplyWhen;
+        lateBehavior?: LateBehavior;
     };
     
     // students => hpPOints = 50 (shouldn't be -ve)
@@ -191,10 +191,10 @@ export interface HpRuleConfig {
     // Penalty rule 
     penalty: {
         enabled: boolean;
-        type: RuleType;
-        value: number;
-        applyWhen: PenaltyApplyWhen;
-        graceMinutes: number;
+        type?: RuleType;
+        value?: number;
+        applyWhen?: PenaltyApplyWhen;
+        graceMinutes?: number;
         // runOnce: boolean;
     };
 
