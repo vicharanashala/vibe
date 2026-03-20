@@ -84,6 +84,7 @@ export class ActivityRepository implements IActivityRepository {
 
   async listActivities(
     filters: ListActivitiesQuery,
+    userId?: string,
   ): Promise<HpActivityTransformer[]> {
     await this.init();
     const q: any = { isDeleted: { $ne: true } };
@@ -138,6 +139,33 @@ export class ActivityRepository implements IActivityRepository {
             path: '$rules',
             preserveNullAndEmptyArrays: true,
           },
+        },
+
+        {
+          $lookup: {
+            from: "hp_activity_submissions",
+            let: { activityId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$activityId", "$$activityId"] },
+                      ...(userId ? [{ $eq: ["$studentId", new ObjectId(userId)] }] : [])
+                    ]
+                  }
+                }
+              },
+              { $limit: 1 }
+            ],
+            as: "submission"
+          }
+        },
+        {
+          $unwind: {
+            path: "$submission",
+            preserveNullAndEmptyArrays: true
+          }
         },
 
         {
@@ -203,6 +231,8 @@ export class ActivityRepository implements IActivityRepository {
           lastRecomputedAt: doc.stats.lastRecomputedAt,
         };
       }
+
+      activity.isSubmitted = !!doc.submission;
 
       return activity;
     });

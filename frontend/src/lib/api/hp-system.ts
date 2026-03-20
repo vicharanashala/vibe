@@ -110,6 +110,7 @@ export interface HpActivity {
     required_percentage?: number;
     createdAt: string;
     updatedAt: string;
+    isSubmitted?: boolean;
 }
 
 export interface HpStudent {
