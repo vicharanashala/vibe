@@ -369,6 +369,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             {
                 $project: {
                     id: { $toString: "$_id" },
+                    courseId: { $toString: "$courseId" },
 
                     activity: {
                         id: { $toString: "$activity._id" },
