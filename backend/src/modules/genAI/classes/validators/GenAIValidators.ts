@@ -72,6 +72,101 @@ class SegmentationParameters {
   noiseId?: number;
 }
 
+@JSONSchema({ title: 'SmartBloomDistribution' })
+class SmartBloomDistribution {
+  @JSONSchema({
+    title: 'Knowledge Percentage',
+    description: 'Bloom knowledge-level percentage',
+    example: 40,
+    type: 'number',
+  })
+  @IsNotEmpty()
+  @IsNumber()
+  knowledge: number;
+
+  @JSONSchema({
+    title: 'Understanding Percentage',
+    description: 'Bloom understanding-level percentage',
+    example: 35,
+    type: 'number',
+  })
+  @IsNotEmpty()
+  @IsNumber()
+  understanding: number;
+
+  @JSONSchema({
+    title: 'Application Percentage',
+    description: 'Bloom application-level percentage',
+    example: 25,
+    type: 'number',
+  })
+  @IsNotEmpty()
+  @IsNumber()
+  application: number;
+
+  @JSONSchema({
+    title: 'Analysis Percentage',
+    description: 'Bloom analysis-level percentage',
+    example: 0,
+    type: 'number',
+  })
+  @IsOptional()
+  @IsNumber()
+  analysis?: number;
+
+  @JSONSchema({
+    title: 'Evaluation Percentage',
+    description: 'Bloom evaluation-level percentage',
+    example: 0,
+    type: 'number',
+  })
+  @IsOptional()
+  @IsNumber()
+  evaluation?: number;
+
+  @JSONSchema({
+    title: 'Creation Percentage',
+    description: 'Bloom creation-level percentage',
+    example: 0,
+    type: 'number',
+  })
+  @IsOptional()
+  @IsNumber()
+  creation?: number;
+}
+
+@JSONSchema({ title: 'SmartBloomParameters' })
+class SmartBloomParameters {
+  @JSONSchema({
+    title: 'Smart Bloom Enabled',
+    description: 'Enable Smart Bloom mode for question generation',
+    example: true,
+    type: 'boolean',
+  })
+  @IsOptional()
+  enabled?: boolean;
+
+  @JSONSchema({
+    title: 'Segmentation Strategy',
+    description: 'Segmentation strategy for Smart Bloom mode',
+    example: 'CONCEPT_END',
+    enum: ['DEFAULT', 'CONCEPT_END'],
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  segmentationStrategy?: 'DEFAULT' | 'CONCEPT_END';
+
+  @JSONSchema({
+    title: 'Bloom Distribution',
+    description: 'Bloom level distribution for generated questions',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SmartBloomDistribution)
+  distribution?: SmartBloomDistribution;
+}
+
 @JSONSchema({ title: 'QuestionGenerationParameters' })
 class QuestionGenerationParameters {
   @JSONSchema({
@@ -143,6 +238,15 @@ class QuestionGenerationParameters {
   @IsOptional()
   @IsString()
   prompt?: string
+
+  @JSONSchema({
+    title: 'Smart Bloom Parameters',
+    description: 'Smart Bloom mode configuration for question generation',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SmartBloomParameters)
+  smartBloom?: SmartBloomParameters;
 }
 
 @JSONSchema({ title: 'UploadParameters' })

@@ -74,7 +74,8 @@ import {
 import type { BreadcrumbItemment } from "@/types/layout.types";
 import AiWorkflow from "./AiWorkflow";
 import AISectionPage from "./AISectionPage";
-type Mode = "default" | "wizard" | "custom";
+import SmartBloomWorkflow from "./SmartBloomWorkflow";
+type Mode = "default" | "wizard" | "smartBloom" | "custom";
 import { logout } from "@/utils/auth";
 import InviteDropdown from "@/components/inviteDropDown";
 import { useQueryClient } from "@tanstack/react-query"
@@ -2131,6 +2132,22 @@ function TeacherCourseContent() {
                                                         >
                                                           Wizard mode
                                                         </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                          className="text-xs cursor-pointer"
+                                                          onClick={() => {
+                                                            setCurrentCourse({
+                                                              courseId,
+                                                              versionId,
+                                                              moduleId: module.moduleId,
+                                                              sectionId: section.sectionId,
+                                                              itemId: null,
+                                                              watchItemId: null,
+                                                            });
+                                                            setMode('smartBloom')
+                                                          }}
+                                                        >
+                                                          Smart Bloom&apos;s mode
+                                                        </DropdownMenuItem>
                                                       </DropdownMenuContent>
                                                     </DropdownMenu>
                                                   </TooltipTrigger>
@@ -2390,6 +2407,8 @@ function TeacherCourseContent() {
 
             {mode === "wizard" ? (
               <AiWorkflow />
+            ) : mode === "smartBloom" ? (
+              <SmartBloomWorkflow />
             ) : mode === "custom" ? (
               <AISectionPage />
             ) : (
