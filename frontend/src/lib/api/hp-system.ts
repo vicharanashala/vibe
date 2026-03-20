@@ -177,9 +177,42 @@ export interface LedgerListResponse {
     limit: number;
 }
 
+export interface StudentDashboardStats {
+    myStats: {
+        totalHp: number;
+        completedActivities: number;
+        pendingSubmissions: number;
+        completionPercentage: number;
+    };
+    progressTimeline: {
+        date: string;
+        hpChange: number;
+        activitiesCompleted: number;
+    }[];
+    activityBreakdown: {
+        notStarted: number;
+        inProgress: number;
+        submitted: number;
+        approved: number;
+    };
+    upcomingDeadlines: {
+        activityTitle: string;
+        deadlineDate: string;
+        daysLeft: number;
+    }[];
+    recentSubmissions: {
+        activityTitle: string;
+        submittedAt: string;
+        status: string;
+        hpEarned?: number;
+    }[];
+}
+
 export interface HpCohortOverviewStats {
     totalStudents: number;
     totalOverdue: number;
+    activeActivities: number;
+    pendingReviews: number;
     completionRates: {
         activityId: string;
         activityTitle: string;
@@ -187,6 +220,32 @@ export interface HpCohortOverviewStats {
         pendingCount: number;
         revertedCount: number;
         totalAssigned: number;
+    }[];
+    submissionTimeline: {
+        date: string;
+        submitted: number;
+        approved: number;
+        rejected: number;
+    }[];
+    hpDistribution: {
+        range: string;
+        count: number;
+        percentage: number;
+    }[];
+    studentProgress: {
+        completed: number;
+        inProgress: number;
+        notStarted: number;
+    }[];
+    studentPerformance: {
+        studentId: string;
+        name: string;
+        email: string;
+        completedActivities: number;
+        hpBalance: number;
+        completionPercentage: number;
+        lastActivityDate: string;
+        status: 'on-track' | 'at-risk' | 'inactive';
     }[];
 }
 
@@ -597,16 +656,89 @@ export const hpApi = {
         _courseVersionId: string,
         _cohort: string,
     ): Promise<{ success: boolean; data: HpCohortOverviewStats }> => {
-        // Mock data for the overview
+        // Enhanced mock data for the overview
         const mockStats: HpCohortOverviewStats = {
             totalStudents: 45,
             totalOverdue: 12,
+            activeActivities: 12,
+            pendingReviews: 8,
             completionRates: [
                 { activityId: 'a1', activityTitle: 'Build REST API', submittedCount: 40, pendingCount: 3, revertedCount: 2, totalAssigned: 45 },
                 { activityId: 'a2', activityTitle: 'Week 1 Quiz', submittedCount: 45, pendingCount: 0, revertedCount: 0, totalAssigned: 45 },
                 { activityId: 'a3', activityTitle: 'Database Schema Design', submittedCount: 28, pendingCount: 15, revertedCount: 2, totalAssigned: 45 },
                 { activityId: 'a4', activityTitle: 'Deploy to Cloud', submittedCount: 15, pendingCount: 25, revertedCount: 5, totalAssigned: 45 },
                 { activityId: 'a5', activityTitle: 'Midterm Project', submittedCount: 38, pendingCount: 5, revertedCount: 2, totalAssigned: 45 },
+            ],
+            submissionTimeline: [
+                { date: '2024-01-01', submitted: 5, approved: 3, rejected: 0 },
+                { date: '2024-01-02', submitted: 8, approved: 6, rejected: 1 },
+                { date: '2024-01-03', submitted: 12, approved: 8, rejected: 2 },
+                { date: '2024-01-04', submitted: 6, approved: 4, rejected: 0 },
+                { date: '2024-01-05', submitted: 15, approved: 10, rejected: 3 },
+                { date: '2024-01-06', submitted: 9, approved: 7, rejected: 1 },
+                { date: '2024-01-07', submitted: 18, approved: 12, rejected: 4 },
+            ],
+            hpDistribution: [
+                { range: '0-50 HP', count: 5, percentage: 11.1 },
+                { range: '51-100 HP', count: 12, percentage: 26.7 },
+                { range: '101-200 HP', count: 18, percentage: 40.0 },
+                { range: '201-300 HP', count: 7, percentage: 15.6 },
+                { range: '300+ HP', count: 3, percentage: 6.7 },
+            ],
+            studentProgress: [
+                { completed: 15, inProgress: 20, notStarted: 10 },
+            ],
+            studentPerformance: [
+                { studentId: 's1', name: 'Alice Johnson', email: 'alice@example.com', completedActivities: 8, hpBalance: 250, completionPercentage: 89, lastActivityDate: '2024-01-07', status: 'on-track' },
+                { studentId: 's2', name: 'Bob Smith', email: 'bob@example.com', completedActivities: 6, hpBalance: 180, completionPercentage: 67, lastActivityDate: '2024-01-06', status: 'on-track' },
+                { studentId: 's3', name: 'Charlie Brown', email: 'charlie@example.com', completedActivities: 3, hpBalance: 75, completionPercentage: 33, lastActivityDate: '2024-01-03', status: 'at-risk' },
+                { studentId: 's4', name: 'Diana Prince', email: 'diana@example.com', completedActivities: 9, hpBalance: 320, completionPercentage: 100, lastActivityDate: '2024-01-07', status: 'on-track' },
+                { studentId: 's5', name: 'Edward Norton', email: 'edward@example.com', completedActivities: 2, hpBalance: 45, completionPercentage: 22, lastActivityDate: '2023-12-28', status: 'inactive' },
+                { studentId: 's6', name: 'Fiona Green', email: 'fiona@example.com', completedActivities: 7, hpBalance: 210, completionPercentage: 78, lastActivityDate: '2024-01-05', status: 'on-track' },
+                { studentId: 's7', name: 'George Miller', email: 'george@example.com', completedActivities: 4, hpBalance: 120, completionPercentage: 44, lastActivityDate: '2024-01-04', status: 'at-risk' },
+                { studentId: 's8', name: 'Hannah Davis', email: 'hannah@example.com', completedActivities: 8, hpBalance: 275, completionPercentage: 89, lastActivityDate: '2024-01-07', status: 'on-track' },
+            ]
+        };
+        return { success: true, data: mockStats };
+    },
+
+    getStudentDashboardStats: async (
+        _courseVersionId: string,
+        _cohortName: string,
+    ): Promise<{ success: boolean; data: StudentDashboardStats }> => {
+        // Mock data for student dashboard
+        const mockStats: StudentDashboardStats = {
+            myStats: {
+                totalHp: 275,
+                completedActivities: 8,
+                pendingSubmissions: 3,
+                completionPercentage: 89,
+            },
+            progressTimeline: [
+                { date: '2024-01-01', hpChange: 25, activitiesCompleted: 2 },
+                { date: '2024-01-02', hpChange: -5, activitiesCompleted: 1 },
+                { date: '2024-01-03', hpChange: 30, activitiesCompleted: 1 },
+                { date: '2024-01-04', hpChange: 15, activitiesCompleted: 0 },
+                { date: '2024-01-05', hpChange: 40, activitiesCompleted: 2 },
+                { date: '2024-01-06', hpChange: -10, activitiesCompleted: 1 },
+                { date: '2024-01-07', hpChange: 35, activitiesCompleted: 1 },
+            ],
+            activityBreakdown: {
+                notStarted: 2,
+                inProgress: 3,
+                submitted: 3,
+                approved: 8,
+            },
+            upcomingDeadlines: [
+                { activityTitle: 'Database Schema Design', deadlineDate: '2024-01-15', daysLeft: 3 },
+                { activityTitle: 'Deploy to Cloud', deadlineDate: '2024-01-18', daysLeft: 6 },
+                { activityTitle: 'Midterm Project', deadlineDate: '2024-01-22', daysLeft: 10 },
+            ],
+            recentSubmissions: [
+                { activityTitle: 'Build REST API', submittedAt: '2024-01-07', status: 'approved', hpEarned: 25 },
+                { activityTitle: 'Week 1 Quiz', submittedAt: '2024-01-06', status: 'approved', hpEarned: 15 },
+                { activityTitle: 'Database Design', submittedAt: '2024-01-05', status: 'pending', hpEarned: 0 },
+                { activityTitle: 'API Documentation', submittedAt: '2024-01-04', status: 'rejected', hpEarned: -5 },
             ]
         };
         return { success: true, data: mockStats };
@@ -632,6 +764,13 @@ export const hpApi = {
     },
 
 
+    // TODO: Do not remove this function, later we will use it
+    // getStudentSubmissionStats: async(
+    //     studentId: string,
+    //     cohort: string,
+    // ): Promise<{ success: boolean; data: any }> => {
+    //     return apiFetch(`${BASE_URL}/activity-submissions/stats/student/${studentId}/cohort/${cohort}`);
+    // },
 
     // Made by Rishabh Shukla
     getCohortActivityStats: async(cohortName: string, activityId: string): Promise<{ data: any }> => {
