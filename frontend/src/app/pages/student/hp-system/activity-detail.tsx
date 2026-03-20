@@ -202,7 +202,7 @@ export default function StudentActivityDetail() {
                                     <span className="text-muted-foreground">Late Submission:</span>
                                     <span className="font-medium">{activity.rules?.allowLateSubmission ? 'Allowed' : 'Not Allowed'}</span>
                                 </div>
-                                {ruleConfig?.reward && (
+                                {ruleConfig?.reward && activity.rules?.allowLateSubmission && (
                                     <div className="flex items-center gap-2 px-4 py-2 rounded-full border bg-muted/30">
                                         <span className="text-muted-foreground">Late Reward:</span>
                                         <span className="font-medium text-green-600">

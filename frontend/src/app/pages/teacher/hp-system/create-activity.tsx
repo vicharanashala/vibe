@@ -72,11 +72,14 @@ export default function CreateHpActivityPage() {
     };
 
     const [ruleConfig, setRuleConfig] = useState<RuleConfigFormState>({
+        isMandatory: false,
+        allowLateSubmission: false,
         reward: {
             enabled: true,
             lateBehavior: "NO_REWARD",
         },
         penalty: {
+            enabled: false,
             applyWhen: "AFTER_DEADLINE",
             runOnce: true,
         },
@@ -153,12 +156,6 @@ export default function CreateHpActivityPage() {
         const validateRuleConfig = () => {
             const nextErrors: typeof ruleErrors = {};
 
-            if (ruleConfig.isMandatory === undefined) {
-                nextErrors.isMandatory = "Please select if this activity is mandatory";
-            }
-            if (ruleConfig.allowLateSubmission === undefined) {
-                nextErrors.allowLateSubmission = "Please select if late submissions are allowed";
-            }
             if (ruleConfig.isMandatory && !ruleConfig.deadlineAt) {
                 nextErrors.deadlineAt = "Deadline is required";
             }
@@ -292,7 +289,7 @@ export default function CreateHpActivityPage() {
                     type: ruleConfig.reward?.type as any,
                     value: ruleConfig.reward?.value as number,
                     applyWhen: ruleConfig.reward?.applyWhen as any,
-                    lateBehavior: ruleConfig.reward?.lateBehavior ?? "NO_REWARD",
+                    lateBehavior: ruleConfig.allowLateSubmission ? ruleConfig.reward?.lateBehavior : "NO_REWARD"
                 },
                 penalty: {
                     enabled: ruleConfig.penalty?.enabled ?? false,
@@ -564,7 +561,7 @@ export default function CreateHpActivityPage() {
                                     </p>
                                 </div>
                                 <Switch
-                                    checked={ruleConfig.isMandatory ?? false}
+                                    checked={ruleConfig.isMandatory}
                                     onCheckedChange={(c) => {
                                         setRuleConfig(prev => ({ ...prev, isMandatory: c }));
                                         if (ruleErrors.isMandatory) {
@@ -650,9 +647,9 @@ export default function CreateHpActivityPage() {
                                     </div>
                                     <Switch
                                         id="allow-late"
-                                        checked={ruleConfig.allowLateSubmission ?? false}
+                                        checked={ruleConfig.allowLateSubmission}
                                         onCheckedChange={(c) => {
-                                            setRuleConfig(prev => ({ ...prev, allowLateSubmission: c }));
+                                            setRuleConfig(prev => ({ ...prev, allowLateSubmission: c , reward:{ ...prev.reward,lateBehavior:"NO_REWARD"}}));
                                             if (ruleErrors.allowLateSubmission) {
                                                 setRuleErrors(prev => ({ ...prev, allowLateSubmission: undefined }));
                                             }
@@ -759,6 +756,7 @@ export default function CreateHpActivityPage() {
                                     <div className="space-y-2">
                                         <Label>Late Reward Behavior</Label>
                                         <Select
+                                            disabled={!ruleConfig.allowLateSubmission}
                                             value={
                                                 ruleConfig.reward?.lateBehavior === "REWARD"
                                                     ? "REWARD_ALLOWED"
