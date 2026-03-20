@@ -218,6 +218,40 @@ export class EnrollmentService extends BaseService {
     });
   }
 
+  async findAnyEnrollment(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohort?: string
+  ) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const user = await this.userRepo.findById(userId);
+      if (!user) throw new NotFoundError('User not found');
+
+      const course = await this.courseRepo.read(courseId);
+      if (!course) throw new NotFoundError('Course not found');
+
+      const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
+        throw new NotFoundError(
+          'Course version not found or does not belong to this course',
+        );
+      }
+      const existingEnrollment = await this.enrollmentRepo.findAnyEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        cohort,
+        session
+      );
+
+      return existingEnrollment;
+    });
+  }
+
   async findActiveEnrollment(
     userId: string,
     courseId: string,
@@ -349,6 +383,66 @@ export class EnrollmentService extends BaseService {
     );
 
     return results;
+  }
+
+  async updateStatus(
+    userId: string,
+    courseId: string,
+    versionId: string,
+    status: EnrollmentStatus,
+    cohortId?: string,
+  ) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const enrollment = await this.enrollmentRepo.findAnyEnrollment(
+        userId,
+        courseId,
+        versionId,
+        cohortId,
+        session,
+      );
+
+      if (!enrollment) {
+        throw new NotFoundError('Enrollment not found');
+      }
+
+      await this.enrollmentRepo.updateEnrollmentStatus(
+        enrollment._id!.toString(),
+        status,
+        session,
+      );
+
+      return {
+        enrollment: {
+          ...enrollment,
+          status,
+          isDeleted: enrollment.isDeleted ?? false,
+        },
+      };
+    });
+  }
+
+  async bulkUpdateStatus(
+    userIds: string[],
+    courseId: string,
+    versionId: string,
+    status: EnrollmentStatus,
+    cohortId?: string,
+  ) {
+    return this._withTransaction(async (session: ClientSession) => {
+      await this.enrollmentRepo.bulkUpdateEnrollmentStatus(
+        courseId,
+        versionId,
+        userIds,
+        status,
+        cohortId,
+        session,
+      );
+
+      return {
+        success: true,
+        updatedCount: userIds.length,
+      };
+    });
   }
 
   private filterCourseVersions(course: any, enrolledVersionIds: Set<string>) {

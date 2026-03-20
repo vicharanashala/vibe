@@ -62,6 +62,7 @@ const AiWorkflow = () => {
   const [urlError, setUrlError] = useState<string | null>(null); // yt url error
   const [aiJobId, setAiJobId] = useState<string | null>(null);
   const [shouldPoll, setShouldPoll] = useState(false);
+  const [showUploadContent, setShowUploadContent] = useState(false);
   const clearStoredQuestions = () => {
     sessionStorage.removeItem('questions');
   };
@@ -942,6 +943,7 @@ const AiWorkflow = () => {
                     handleShowHandleResult={handleShowHandleResult}
                     isWaitingServer={isWaitingServer}
                     isApprovingTask={isApprovingTask}
+                    setShowUploadContent={setShowUploadContent}
                   />
                 ) : currentJob?.task === "UPLOAD_CONTENT" ? (
                   <UploadContentView
@@ -1436,6 +1438,7 @@ interface QuestionGenerationResultProps {
   updateCurrentJob: (task: "segmentation" | "questionGeneration" | "uploadContent", status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING") => void
   handleShowHandleResult: (task: string) => void
   isWaitingServer: boolean
+  setShowUploadContent: React.Dispatch<React.SetStateAction<boolean>>
 }
 
 interface ProgressiveProgressBarProps {
@@ -1562,7 +1565,7 @@ const ProgressiveProgressBar = ({
   )
 }
 
-const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
+export const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
   isLoading,
   isTaskResultLoading,
   error,
@@ -1582,7 +1585,8 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
   updateCurrentJob,
   handleShowHandleResult,
   isWaitingServer,
-  isApprovingTask
+  isApprovingTask,
+  setShowUploadContent
 }) => {
   useEffect(() => {
     if (questions && questions.length > 0) {
@@ -1904,6 +1908,7 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
   const handleNext = () => {
     const acceptedQuestions = getAcceptedQuestionsFromStorage();
     updateCurrentJob("uploadContent", "WAITING");
+    setShowUploadContent(true);
   }
 
   const handleAddParams = async () => {
@@ -2824,7 +2829,7 @@ const QuestionEditForm = ({ question, onSave, onCancel }: {
   );
 };
 
-const SegmentationView = ({
+export const SegmentationView = ({
   isLoading,
   isTaskResultLoading,
   error,
@@ -2841,7 +2846,8 @@ const SegmentationView = ({
   isWaitingServer,
   isApprovingTask,
   setSegmentationMap,
-  setSegmentationChunks
+  setSegmentationChunks,
+  showSegments
 }: any) => {
 
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -3405,16 +3411,16 @@ const SegmentationView = ({
       ) : hasSegmentationData ? (
         <>
           <div className="flex justify-end mb-4">
-            <Button
+            {!showSegments && <Button
               size="icon"
               variant="outline"
               onClick={handleOpenEditModal}
               className={`p-2 hover:scale-105 transition-transform duration-200 shadow-sm `}
             >
               <Pencil className="h-4 w-4 dark:text-white text-black" />
-            </Button>
+            </Button>}
 
-            <Button
+            {!showSegments && <Button
               variant="outline"
               size="icon"
               className={`ms-4 hover:scale-105 transition-transform duration-200 shadow-sm ${isSettingsOpen && "bg-primary "}`}
@@ -3422,7 +3428,7 @@ const SegmentationView = ({
               aria-pressed={isSettingsOpen}
             >
               <Settings className="w-7 h-7 dark:text-white text-black" />
-            </Button>
+            </Button>}
 
           </div>
           <div className="space-y-3">
@@ -3656,7 +3662,7 @@ const SegmentationView = ({
       <div className="flex items-center justify-between mt-8">
         <div className="flex-1"></div>
         <div className="flex-1 flex justify-center">
-          <Button
+          {!showSegments  && <Button
             onClick={handleConfirm}
             // onClick={()=> handleApproveTask()}
             disabled={isLoading || isWaitingServer || isApprovingTask}
@@ -3680,10 +3686,10 @@ const SegmentationView = ({
                 <CheckCircle className="w-5 h-5" />
               </>
             )}
-          </Button>
+          </Button> }
         </div>
         <div className="flex-1 flex justify-end">
-          {currentJobStatus == "COMPLETED" &&
+          {currentJobStatus == "COMPLETED" && !showSegments &&
             <Button
               variant="secondary"
               onClick={handleNext}
@@ -3710,7 +3716,7 @@ interface UploadContentProps {
   aiJobId: string | null;
 }
 
-const UploadContentView: React.FC<UploadContentProps> = ({
+export const UploadContentView: React.FC<UploadContentProps> = ({
   currentJobStatus,
   uploadParams,
   setUploadParams,

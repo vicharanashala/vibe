@@ -621,8 +621,13 @@ class ProgressRepository {
     if (courseVersionId) {
       query.courseVersionId = new ObjectId(courseVersionId);
     }
-    if(cohortId){
+    if (cohortId) {
       query.cohortId = new ObjectId(cohortId);
+    } else {
+      query.$or = [
+        { cohortId: null },
+        { cohortId: { $exists: false } },
+      ];
     }
     query.isDeleted = { $ne: true };
     const result = await this.watchTimeCollection

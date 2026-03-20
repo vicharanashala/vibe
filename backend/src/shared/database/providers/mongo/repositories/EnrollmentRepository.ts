@@ -142,6 +142,26 @@ export class EnrollmentRepository {
       .toArray();
   }
 
+  async findAnyEnrollment(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment | null> {
+    await this.init();
+
+    return await this.enrollmentCollection.findOne(
+      {
+        userId: { $in: [userId, new ObjectId(userId)] },
+        courseId: { $in: [courseId, new ObjectId(courseId)] },
+        courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
+      },
+      { session },
+    );
+  }
+
   async findActiveEnrollment(
     userId: string | ObjectId,
     courseId: string,
@@ -310,6 +330,51 @@ export class EnrollmentRepository {
     if (result.modifiedCount === 0) {
       throw new NotFoundError('Enrollment not found to delete');
     }
+  }
+
+  async updateEnrollmentStatus(
+    enrollmentId: string,
+    status: EnrollmentStatus,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    const updateData: any = {
+      status,
+      updatedAt: new Date(),
+    };
+
+    await this.enrollmentCollection.updateOne(
+      {_id: new ObjectId(enrollmentId)},
+      {$set: updateData},
+      {session},
+    );
+  }
+
+  async bulkUpdateEnrollmentStatus(
+    courseId: string,
+    versionId: string,
+    userIds: string[],
+    status: EnrollmentStatus,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    const updateData: any = {
+      status,
+      updatedAt: new Date(),
+    };
+
+    const query: any = {
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(versionId),
+      userId: {$in: userIds.map(id => new ObjectId(id))},
+    };
+
+    if (cohortId) {
+      query.cohortId = new ObjectId(cohortId);
+    }
+
+    await this.enrollmentCollection.updateMany(query, {$set: updateData}, {session});
   }
 
   /**
@@ -1704,6 +1769,16 @@ export class EnrollmentRepository {
                     { $in: ['$courseVersionId', [courseVersionId, versionIdObj]] },
                     { $ne: ['$isDeleted', true] },
                     { $ne: ['$endTime', null] },
+                    ...(cohortIdObj ? [{ $eq: ['$cohortId', cohortIdObj] }]
+                        : [
+                            {
+                              $or: [
+                                { $eq: ['$cohortId', null] },
+                                { $not: ['$cohortId'] }
+                              ]
+                            }
+                          ]
+                      )
                   ],
                 },
               },
@@ -1747,7 +1822,7 @@ export class EnrollmentRepository {
       .toArray();
 
     if (result[0]) {
-      console.debug('Student progress detail for user', userId, 'course', courseId, 'version', courseVersionId, 'watchHours=', result[0].watchHours);
+      console.debug('Student progress detail for user', userId, 'course', courseId, 'version', courseVersionId, 'watchHours=', result[0].watchHours, 'cohortId=', result[0].cohortId);
     }
 
     return result[0] || null;
@@ -3444,7 +3519,7 @@ export class EnrollmentRepository {
           userId: new ObjectId(userId),
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
-          ...(cohortId && { cohortId: new ObjectId(cohortId) }),
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : { cohortId: null }),
         },
         { session },
       )
