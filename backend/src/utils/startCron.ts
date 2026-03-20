@@ -11,9 +11,10 @@ export const startCron = () => {
 
     console.log('✅ Delete cron job scheduled successfully');
 
-    // deleteCronService.scheduleProgressUpdateCron();
+    deleteCronService.scheduleProgressUpdateCron();
 
-    // console.log('✅ Progress update cron job scheduled successfully');
+    console.log('✅ Progress update cron job scheduled successfully');
+
   } catch (error) {
     console.error('❌ Failed to initialize delete cron service:', error);
   }
