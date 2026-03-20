@@ -46,7 +46,7 @@ import type { HpStudentSubmission } from "@/lib/api/hp-system";
 
 const statusConfig = {
     SUBMITTED: { label: "Submitted", variant: "default" as const, icon: CheckCircle, color: "text-green-600" },
-    PENDING: { label: "Pending", variant: "secondary" as const, icon: Clock, color: "text-yellow-600" },
+    PENDING: { label: "Wating Approval", variant: "secondary" as const, icon: Clock, color: "text-yellow-600" },
     REVERTED: { label: "Reverted", variant: "destructive" as const, icon: XCircle, color: "text-red-600" },
     APPROVED: { label: "Approved", variant: "default" as const, icon: CheckCircle, color: "text-green-600" },
     REJECTED: { label: "Rejected", variant: "destructive" as const, icon: XCircle, color: "text-red-600" },
@@ -70,10 +70,15 @@ function SimplifiedSubmissionCard({ sub, onViewMore }: { sub: HpStudentSubmissio
     const shouldShowExpandable = textResponse && textResponse.length > 100;
     const displayText = isTextExpanded ? textResponse : textResponse.substring(0, 100);
 
+    console.log("Rendring values of sub here-> ", sub);
+
     const toggleTextExpansion = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
         setIsTextExpanded(!isTextExpanded);
     }, [isTextExpanded]);
+
+    const submissionStatus = sub.submission?.status || "PENDING";
+    const isOnSubmissionReward = sub.rule.reward.applyWhen === "ON_SUBMISSION";
 
     return (
         <Card className={`border-l-4 ${status === 'SUBMITTED' ? 'border-l-green-500' : status === 'REVERTED' ? 'border-l-red-500' : 'border-l-yellow-500'}`}>
@@ -94,39 +99,65 @@ function SimplifiedSubmissionCard({ sub, onViewMore }: { sub: HpStudentSubmissio
                             {sub.submission?.submittedAt && (
                                 <span className="flex items-center gap-1 text-xs">
                                     <Clock className="h-3 w-3" />
-                                    Submitted: {formatDate(sub.submittedAt)}
+                                    Submitted: {(sub.submission?.submittedAt) ? formatDate(sub.submission.submittedAt) : '—'}
                                 </span>
                             )}
                         </CardDescription>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                        {/* HP badges */}
-                        {status === 'SUBMITTED' ? (
+
+                        {/* 1. STATUS BADGE */}
+                        {(submissionStatus === "SUBMITTED" && sub.rule.reward.applyWhen !== "ON_SUBMISSION") && (
                             <Badge variant="outline" className="text-sm font-semibold text-yellow-600">
                                 <Clock className="h-3 w-3 mr-1" />
                                 In Review
                             </Badge>
-                        ) : (
-                            <>
-                                <Badge variant="outline" className="text-sm font-semibold text-green-600">
-                                    <Zap className="h-3 w-3 mr-1 text-yellow-500" />
-                                    {sub.hp?.currentHp || 0} HP
-                                </Badge>
-                                <Badge variant="outline" className="text-sm text-muted-foreground">
-                                    Base: {sub.hp?.baseHp || 0}
-                                </Badge>
-                            </>
                         )}
+
+                        {submissionStatus === "APPROVED" && (
+                            <Badge variant="outline" className="text-sm font-semibold text-green-600">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Approved
+                            </Badge>
+                        )}
+
+                        {submissionStatus === "REJECTED" && (
+                            <Badge variant="destructive" className="flex items-center gap-1">
+                                <XCircle className="h-3 w-3" />
+                                Rejected
+                            </Badge>
+                        )}
+
+                        {submissionStatus === "REVERTED" && (
+                            <Badge variant="destructive" className="flex items-center gap-1">
+                                <RotateCcw className="h-3 w-3" />
+                                Reverted
+                            </Badge>
+                        )}
+
+                        {/* 2. HP BADGE */}
+                        {(isOnSubmissionReward || submissionStatus === "APPROVED") && (
+                            <Badge variant="outline" className="text-sm font-semibold text-green-600">
+                                <Zap className="h-3 w-3 mr-1 text-yellow-500" />
+                                {sub.rule.reward.value} HP
+                            </Badge>
+                        )}
+
+                        {/* 3. BASE / REWARD INFO */}
+                        <Badge variant="outline" className="text-sm text-muted-foreground">
+                            {(isOnSubmissionReward || submissionStatus === "APPROVED")
+                                ? `Activity Reward ${sub.rule.reward.value}`
+                                : `Base ${sub.hp.baseHp}`}
+                        </Badge>
+
+                        {/* 4. LATE FLAG */}
                         {sub.isLate && (
-                            <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950/20 cursor-default">
+                            <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50">
                                 <Timer className="h-3 w-3 mr-1" />
                                 Late
                             </Badge>
                         )}
-                        <Badge variant={cfg.variant} className="flex items-center gap-1">
-                            <StatusIcon className="h-3 w-3" />
-                            {cfg.label}
-                        </Badge>
+
                     </div>
                 </div>
             </CardHeader>
@@ -162,24 +193,24 @@ function SimplifiedSubmissionCard({ sub, onViewMore }: { sub: HpStudentSubmissio
                     )}
 
                     {/* View More button - wider, shorter, and consistently aligned */}
-                    <Button
+                    {/* <Button
                         variant="default"
                         size="default"
                         onClick={onViewMore}
                         className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold px-6 py-1 h-auto w-100 min-h-[32px]"
                     >
                         View More
-                    </Button>
+                    </Button> */}
                 </div>
 
                 {/* View More button for submissions without attachments - wider, shorter, and consistently aligned */}
                 {((sub.submission?.attachments?.files?.length || 0) + (sub.submission?.attachments?.images?.length || 0) + (sub.submission?.attachments?.links?.length || 0)) === 0 && (
-                    <div className="flex justify-end">
+                    <div className="flex">
                         <Button
                             variant="default"
                             size="default"
                             onClick={onViewMore}
-                            className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold px-6 py-1 h-auto min-h-[32px]"
+                            className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold px-6 py-1 h-auto w-full min-h-[32px]"
                         >
                             View More
                         </Button>
@@ -193,12 +224,12 @@ function SimplifiedSubmissionCard({ sub, onViewMore }: { sub: HpStudentSubmissio
 export default function StudentSubmissionsPage() {
     const { courseVersionId, cohortName, studentId } = useParams({ strict: false });
     const navigate = useNavigate();
-    
+
     // Pagination and search state
     const [searchQuery, setSearchQuery] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
-    
+
     const { data: submissions, isLoading: submissionsLoading, error } = useHpStudentSubmissions(
         studentId || "", courseVersionId || "", cohortName || ""
     );
@@ -222,36 +253,37 @@ export default function StudentSubmissionsPage() {
 
 
     const safeSubmissions = submissions ?? [];
-    
+    console.log("Submissions data here-> ", safeSubmissions);
+
     // Filter submissions based on search query with prioritized results
     const filteredSubmissions = useMemo(() => {
         if (!searchQuery.trim()) return safeSubmissions;
-        
+
         const query = searchQuery.toLowerCase();
-        
+
         // Separate submissions into priority groups
         const startsWithMatches: any[] = [];
         const containsMatches: any[] = [];
-        
+
         safeSubmissions.forEach((sub: any) => {
             const title = sub.activity?.title || '';
             const description = sub.activity?.description || '';
-            
+
             const titleStartsWith = title.toLowerCase().startsWith(query);
             const titleContains = title.toLowerCase().includes(query);
             const descriptionContains = description.toLowerCase().includes(query);
-            
+
             if (titleStartsWith) {
                 startsWithMatches.push(sub);
             } else if (titleContains || descriptionContains) {
                 containsMatches.push(sub);
             }
         });
-        
+
         // Return prioritized results: starts with > contains
         return [...startsWithMatches, ...containsMatches];
     }, [safeSubmissions, searchQuery]);
-    
+
     // Pagination logic
     const totalPages = Math.ceil(filteredSubmissions.length / itemsPerPage);
     const paginatedSubmissions = useMemo(() => {
@@ -259,18 +291,18 @@ export default function StudentSubmissionsPage() {
         const endIndex = startIndex + itemsPerPage;
         return filteredSubmissions.slice(startIndex, endIndex);
     }, [filteredSubmissions, currentPage, itemsPerPage]);
-    
+
     // Reset page when search or items per page changes
     const handleSearchChange = (value: string) => {
         setSearchQuery(value);
         setCurrentPage(1);
     };
-    
+
     const handleItemsPerPageChange = (value: string) => {
         setItemsPerPage(Number(value));
         setCurrentPage(1);
     };
-    
+
     const totalActivities = stats?.totalActivities ?? 0;
     const submitted = stats?.totalSubmissions ?? 0;
     const pending = stats?.totalPendings ?? 0;
@@ -305,95 +337,95 @@ export default function StudentSubmissionsPage() {
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
                 </div>
             ) : (
-            <div className="grid gap-4 md:grid-cols-6">
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Total Activities</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold flex items-center gap-2">
-                            <FileText className="h-5 w-5 text-muted-foreground" />
-                            {totalActivities}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Submitted</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-600 flex items-center gap-2">
-                            <CheckCircle className="h-5 w-5" />
-                            {submitted}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Pending</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-yellow-600 flex items-center gap-2">
-                            <Clock className="h-5 w-5" />
-                            {pending}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Late Submissions</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-orange-600 flex items-center gap-2">
-                            <Timer className="h-5 w-5" />
-                            {late}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Current HP</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-600 flex items-center gap-2">
-                            <Zap className="h-5 w-5 text-yellow-500" />
-                            {totalCurrentHp}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                <CardHeader className="pb-2">
-                    <CardDescription>Activity Reward</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {(() => {
-                        if (!stats?.reward) return (
-                            <div className="text-2xl font-bold text-muted-foreground">—</div>
-                        );
-                        const { type, value } = stats.reward;
-                        if (type === "ABSOLUTE") return (
-                            <div className="text-2xl font-bold text-muted-foreground flex items-center gap-2">
+                <div className="grid gap-4 md:grid-cols-6">
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>Total Activities</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold flex items-center gap-2">
+                                <FileText className="h-5 w-5 text-muted-foreground" />
+                                {totalActivities}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>Submitted</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-green-600 flex items-center gap-2">
+                                <CheckCircle className="h-5 w-5" />
+                                {submitted}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>Pending</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-yellow-600 flex items-center gap-2">
+                                <Clock className="h-5 w-5" />
+                                {pending}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>Late Submissions</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-orange-600 flex items-center gap-2">
+                                <Timer className="h-5 w-5" />
+                                {late}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>Current HP</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-green-600 flex items-center gap-2">
                                 <Zap className="h-5 w-5 text-yellow-500" />
-                                {value}
+                                {totalCurrentHp}
                             </div>
-                        );
-                        return (
-                            <div className="flex flex-col gap-0.5">
-                                <div className="text-2xl font-bold text-muted-foreground flex items-center gap-2">
-                                    <Zap className="h-5 w-5 text-yellow-500" />
-                                    {type === "PERCENTAGE" ? `${value}%` : value}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                    of Current HP ({totalCurrentHp})
-                                </div>
-                            </div>
-                        );
-                    })()}
-                </CardContent>
-            </Card>
-            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>Activity Reward</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {(() => {
+                                if (!stats?.reward) return (
+                                    <div className="text-2xl font-bold text-muted-foreground">—</div>
+                                );
+                                const { type, value } = stats.reward;
+                                if (type === "ABSOLUTE") return (
+                                    <div className="text-2xl font-bold text-muted-foreground flex items-center gap-2">
+                                        <Zap className="h-5 w-5 text-yellow-500" />
+                                        {value}
+                                    </div>
+                                );
+                                return (
+                                    <div className="flex flex-col gap-0.5">
+                                        <div className="text-2xl font-bold text-muted-foreground flex items-center gap-2">
+                                            <Zap className="h-5 w-5 text-yellow-500" />
+                                            {type === "PERCENTAGE" ? `${value}%` : value}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            of Current HP ({totalCurrentHp})
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </CardContent>
+                    </Card>
+                </div>
             )}
-            
+
             {/* Search and Pagination Controls */}
             <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
                 <div className="relative w-full max-w-md">
@@ -405,7 +437,7 @@ export default function StudentSubmissionsPage() {
                         className="pl-10"
                     />
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Show:</span>
                     <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
@@ -451,7 +483,7 @@ export default function StudentSubmissionsPage() {
                     />
                 ))}
             </div>
-            
+
             {/* Pagination */}
             {totalPages > 1 && (
                 <Card>

@@ -447,6 +447,7 @@ export default function SubmissionDetailsPage() {
 
     // Find the specific submission
     const submission = submissions?.find((sub: any) => sub.submission?._id === submissionId);
+    console.log("Found submission details: ", submission);
 
     const toggleTextExpansion = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
@@ -468,6 +469,10 @@ export default function SubmissionDetailsPage() {
         pointsToDeduct: number;
     }>({ open: false, subId: '', action: 'revert', activityTitle: '', baseHp: 0, note: '', pointsToDeduct: 0 });
 
+    const [actionType, setActionType] = useState<"approve" | "reject" | "revert" | null>(null);
+
+    const isApprovalMode = submission.rule.reward.applyWhen === "ON_APPROVAL";
+
     const openReasonDialog = (subId: string, action: 'revert' | 'restore' | 'approve' | 'reject', activityTitle: string, baseHp: number = 0) => {
         const displayTitle = activityTitle && !isNaN(Number(activityTitle))
             ? `Activity ${activityTitle}`
@@ -478,6 +483,7 @@ export default function SubmissionDetailsPage() {
     const handleConfirmAction = async () => {
         const { subId, action, note, pointsToDeduct } = reasonDialog;
         setReasonDialog({ ...reasonDialog, open: false });
+        setActionType(action); // ✅ IMPORTANT
         setActionSubId(subId);
         try {
             if (action === 'restore') {
@@ -560,10 +566,10 @@ export default function SubmissionDetailsPage() {
                     <CardHeader>
                         <div className="flex items-start justify-between gap-4">
                             <div className="flex items-center gap-3">
-                                <Badge variant={cfg.variant} className="flex items-center gap-1">
+                                {/* <Badge variant={cfg.variant} className="flex items-center gap-1">
                                     <StatusIcon className="h-3 w-3" />
                                     {cfg.label}
-                                </Badge>
+                                </Badge> */}
                                 {submission?.submission?.isLate && (
                                     <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950/20">
                                         <Timer className="h-3 w-3 mr-1" />
@@ -572,10 +578,10 @@ export default function SubmissionDetailsPage() {
                                 )}
                             </div>
                             <div className="flex items-center gap-2">
-                                {status === 'SUBMITTED' ? (
-                                    <Badge variant="outline" className="text-sm font-semibold text-yellow-600">
-                                        <Clock className="h-3 w-3 mr-1" />
-                                        In Review
+                                {status === 'SUBMITTED' || status === "APPROVED" ? (
+                                    <Badge variant="outline" className={`text-sm font-semibold ${submission?.rule?.reward?.applyWhen === "ON_SUBMISSION" || status === "APPROVED" ? 'text-green-600 border-green-300 bg-green-50' : 'text-yellow-600 border-yellow-300 bg-yellow-50'}`}>
+                                        {submission?.rule?.reward?.applyWhen === "ON_SUBMISSION" || status === "APPROVED" ? <><CheckCircle className="h-3 w-3 mr-1" /> Submitted</> : <> <Clock className="h-3 w-3 mr-1" /> In Review </>}
+
                                     </Badge>
                                 ) : (
                                     <>
@@ -699,29 +705,43 @@ export default function SubmissionDetailsPage() {
                             <CardContent className="pt-0">
                                 <div className="grid grid-cols-1 gap-3">
                                     {status === 'SUBMITTED' && (
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                            {submission.isRequiredInstructorApproval && (
+                                        <div
+                                            className={`grid gap-2 ${isApprovalMode
+                                                    ? "grid-cols-1 sm:grid-cols-2"
+                                                    : "grid-cols-1"
+                                                }`}
+                                        >
+                                            {submission.rule.reward.applyWhen === "ON_APPROVAL" && (
                                                 <Button
                                                     variant="default"
                                                     size="sm"
                                                     className="shadow-md hover:shadow-lg transition-all duration-200"
-                                                    disabled={isReviewing && actionSubId === submission?.submission?._id}
+                                                    disabled={isReviewing}
                                                     onClick={() => openReasonDialog(submission?.submission?._id || '', 'approve', submission?.activity?.title || '', submission?.hp?.baseHp || 0)}
                                                 >
                                                     <ThumbsUp className="h-3.5 w-3.5 mr-1.5" />
-                                                    {isReviewing && actionSubId === submission?.submission?._id ? 'Approving...' : 'Approve'}
+                                                    {isReviewing && actionType === 'approve' ? 'Approving...' : 'Approve'}
                                                 </Button>
                                             )}
-                                            <Button
+                                            {submission.rule.reward.applyWhen === "ON_APPROVAL" ? <Button
                                                 variant="destructive"
                                                 size="sm"
                                                 className="shadow-md hover:shadow-lg transition-all duration-200"
-                                                disabled={isReviewing && actionSubId === submission?.submission?._id}
+                                                disabled={isReviewing}
                                                 onClick={() => openReasonDialog(submission?.submission?._id || '', 'reject', submission?.activity?.title || '', submission?.hp?.baseHp || 0)}
                                             >
                                                 <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
-                                                {isReviewing && actionSubId === submission?.submission?._id ? 'Rejecting...' : 'Reject'}
-                                            </Button>
+                                                {isReviewing && actionType === 'reject' ? 'Rejecting...' : 'Reject'}
+                                            </Button> : <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="border-2 border-orange-500 text-orange-600 hover:bg-orange-50 dark:border-orange-400 dark:text-orange-400 dark:hover:bg-orange-950/50 shadow-md hover:shadow-lg transition-all duration-200 font-medium w-full"
+                                                disabled={isReviewing && actionSubId === submission?.submission?._id}
+                                                onClick={() => openReasonDialog(submission?.submission?._id || '', 'revert', submission?.activity?.title || '', submission?.hp?.baseHp || 0)}
+                                            >
+                                                <Undo2 className="h-3.5 w-3.5 mr-1.5" />
+                                                {isReviewing && actionSubId === submission?.submission?._id ? 'Reverting...' : 'Revert Decision'}
+                                            </Button>}
                                         </div>
                                     )}
                                     {(status === 'APPROVED' || status === 'REJECTED') && (
