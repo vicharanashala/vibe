@@ -1732,6 +1732,7 @@ const handleMoveToCohort = async () => {
                               userId={selectedUser.id}
                               quizId={selectedViewItem}
                               itemName={selectedViewItemName}
+                              cohortId={selectedUser.cohortId}
                             />
                           ) : (
                             <WatchTimeDisplay
@@ -1741,6 +1742,7 @@ const handleMoveToCohort = async () => {
                               courseVersionId={versionId}
                               itemName={selectedViewItemName}
                               itemType={selectedViewItemType}
+                              cohortId={selectedUser.cohortId}
                             />
                           )}
                         </div>
@@ -2982,7 +2984,7 @@ function EnrollmentsTable({
 
                       {/* Progress */}
                       <TableCell className="py-6">
-                        <EnrollmentProgress progress={enrollment.progress || 0} />
+                        <EnrollmentProgress progress={Math.min(enrollment.progress ?? 0, 100)} />
                       </TableCell>
 
                       {/* Assigned Time Slot */}

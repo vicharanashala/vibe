@@ -79,6 +79,7 @@ export class BulkUnenrollBody {
   @IsMongoId({each: true})
   userIds: string[];
 
+  @IsOptional()
   @IsMongoId()
   cohortId?: string
 }

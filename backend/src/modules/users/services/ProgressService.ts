@@ -3168,6 +3168,7 @@ class ProgressService extends BaseService {
     itemId: string,
     courseId?: string,
     courseVersionId?: string,
+    cohortId?: string,
   ): Promise<WatchTime[]> {
     if (courseId && courseVersionId)
       await this.verifyDetails(userId, courseId, courseVersionId);
@@ -3176,6 +3177,7 @@ class ProgressService extends BaseService {
       itemId,
       courseId,
       courseVersionId,
+      cohortId,
     );
 
     if (!watchTime) {
