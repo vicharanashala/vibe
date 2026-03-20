@@ -628,8 +628,9 @@ export const hpApi = {
         studentId: string,
         courseVersionId: string,
         cohort: string,
+        sortOrder: 'asc' | 'desc' = 'desc',
     ): Promise<{ success: boolean; data: any[] }> => {
-        const params = new URLSearchParams({ courseVersionId, cohort });
+        const params = new URLSearchParams({ courseVersionId, cohort, sortOrder });
         // The backend returns { success, data: StudentActivitySubmissionsViewDto[] }
         return apiFetch(`${BASE_URL}/activity-submissions/student/${studentId}/cohort/${cohort}?${params.toString()}`);
     },
