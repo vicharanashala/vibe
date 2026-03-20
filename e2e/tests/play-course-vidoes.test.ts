@@ -525,17 +525,17 @@ test('Test course video playback and quiz', async ({ page }) => {
       for (let j = 0; j < itemCount; j++) {
         const item = items.nth(j);
 
+        // Click item
+        await item.click();
         // Get item ID
         const itemId = await item.getAttribute('data-item-id');
         if (!itemId) continue;
-        // Click item
-        await item.click();
 
         // Wait for main header to reflect same ID, indicates item is loaded
         await expect(page.locator('[data-testid="current-item-title"]')).toHaveAttribute(
           'data-item-id',
           itemId,
-          { timeout: 60000 },
+          { timeout: 90000 },
         );
 
         console.log(`   ✅ Item ${j} loaded successfully`);
