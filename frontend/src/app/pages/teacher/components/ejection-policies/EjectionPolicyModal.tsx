@@ -346,18 +346,7 @@ export const EjectionPolicyModal = ({
               <div className="">
                 
 
-                <div>
-                  <Label htmlFor="priority">Priority</Label>
-                  <Input
-                    id="priority"
-                    type="number"
-                    value={formData.priority}
-                    onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) || 0 })}
-                    min={0}
-                    max={1000}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Higher = executes first</p>
-                </div>
+               
               </div>
 
               <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
@@ -440,7 +429,8 @@ export const EjectionPolicyModal = ({
               </CardContent>
             </Card>
 
-            {/* Missed Deadlines Trigger */}
+            {/* Missed Deadlines Trigger- DO NOT REMOVE THIS CODE ===== WILL NEED LATER 
+           
             <Card className={formData.missedDeadlinesEnabled ? "border-primary/50" : ""}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -491,8 +481,8 @@ export const EjectionPolicyModal = ({
                 )}
               </CardContent>
             </Card>
-
-            {/* Policy Violations Trigger */}
+*/}
+            {/* Policy Violations Trigger 
             <Card className={formData.violationsEnabled ? "border-primary/50" : ""}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -583,6 +573,7 @@ export const EjectionPolicyModal = ({
                 )}
               </CardContent>
             </Card>
+
             <Card className={formData.anomalyEnabled ? "border-primary/50" : ""}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -636,6 +627,7 @@ export const EjectionPolicyModal = ({
                 )}
               </CardContent>
             </Card>
+            */}
           </div>
 
           <Separator />
