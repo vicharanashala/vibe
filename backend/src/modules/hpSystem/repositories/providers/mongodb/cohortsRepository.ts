@@ -476,6 +476,7 @@ export class CohortRepository implements ICohortRepository {
             courseVersionId: string;
             cohortId?: string;
             cohortName?: string;
+            percentCompleted?: number;
         }>
     > {
         await this.init();
@@ -513,6 +514,7 @@ export class CohortRepository implements ICohortRepository {
                         ],
                     },
                     cohortName: "$cohort.name",
+                    percentCompleted: 1,
                 },
             },
         ];

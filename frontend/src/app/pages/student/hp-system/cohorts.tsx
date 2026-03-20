@@ -10,6 +10,35 @@ export default function StudentCohorts() {
     const { data: cohorts, isLoading, error } = useHpStudentCohorts();
     const navigate = useNavigate();
 
+    const getProgressColor = (progress: number) => {
+        if (progress >= 80) return "from-emerald-500 to-emerald-600 dark:from-emerald-400 dark:to-emerald-500"
+        if (progress >= 50) return "from-amber-500 to-amber-600 dark:from-amber-400 dark:to-amber-500"
+        return "from-red-500 to-red-600 dark:from-red-400 dark:to-red-500"
+    }
+
+    const getProgressBg = (progress: number) => {
+        if (progress >= 80) return "bg-emerald-50 dark:bg-emerald-950/30"
+        if (progress >= 50) return "bg-amber-50 dark:bg-amber-950/30"
+        return "bg-red-50 dark:bg-red-950/30"
+    }
+
+    function EnrollmentProgress(props: { progress: number }) {
+        const progress = props.progress;
+        return (
+            <div className={`flex  items-center gap-4 sm:w-75 w-full ${getProgressBg(progress)}`}>
+            <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden shadow-inner">
+                <div
+                className={`h-full rounded-full bg-gradient-to-r ${getProgressColor(progress)}`}
+                style={{
+                    width: `${progress.toFixed(2)}%`,
+                    transition: "width 0.4s cubic-bezier(0.4,0,0.2,1)",
+                }}
+                />
+            </div>
+            </div>
+        )
+    }
+
     // The backend endpoint isn't wired yet so we use mock data from the hook
     if (isLoading) {
         return <div className="p-8 text-center text-muted-foreground flex items-center justify-center min-h-[50vh]">
@@ -111,9 +140,9 @@ export default function StudentCohorts() {
                                     <div className="space-y-2">
                                         <div className="flex justify-between items-center text-sm">
                                             <span className="font-medium text-muted-foreground">Completion</span>
-                                            <span className="font-bold">10%</span>
+                                            <span className="font-bold">{Math.min(cohort.percentCompleted ?? 0, 100)}%</span>
                                         </div>
-                                        <Progress value={10} className="h-2" />
+                                        <EnrollmentProgress progress={Math.min(cohort.percentCompleted ?? 0, 100)} /> 
                                     </div>
                                 </div>
                             </CardContent>
