@@ -1,6 +1,6 @@
 import {Transform, Type, Expose} from 'class-transformer';
 import {ObjectId} from 'mongodb';
-import {PolicyScope, PolicyTriggers, PolicyActions} from '../../types.js';
+import {PolicyTriggers, PolicyActions} from '../../types.js';
 
 export class EjectionPolicy {
   @Transform(({value}) => value?.toString(), {toPlainOnly: true})
@@ -11,7 +11,6 @@ export class EjectionPolicy {
 
   name: string;
   description?: string;
-  scope: PolicyScope;
 
   @Transform(({value}) => value?.toString(), {toPlainOnly: true})
   @Transform(({value}) => (value ? new ObjectId(value) : value), {

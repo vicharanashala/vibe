@@ -12,15 +12,17 @@ export function PolicyAcknowledgementModal({
   onClose,
   courseId,
   courseVersionId,
+  cohortId,
   inviteId
 }: {
   open: boolean;
   onClose: () => void;
   courseId: string;
   courseVersionId: string;
+  cohortId:string;
   inviteId: string;
 }) {
-  const { policies, isLoading } = useActivePoliciesForCourse(courseId, courseVersionId);
+  const { policies, isLoading } = useActivePoliciesForCourse(courseId, courseVersionId, cohortId);
 
   const [isChecked, setIsChecked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);

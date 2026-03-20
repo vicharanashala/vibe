@@ -23,6 +23,7 @@ type Invite = {
   inviteId: string;
   courseId: string;
   courseVersionId: string;
+  cohortId:string;
 };
 
 export default function StudentLayout() {
@@ -41,6 +42,8 @@ export default function StudentLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const invitesRef = useRef<HTMLDivElement | null>(null);
   const [selectedInvite, setSelectedInvite] = useState<Invite|null>(null);
+  console.log('selectedInvite', selectedInvite);
+  
   const { hasNew: hasNewAnnouncements, markSeen: markAnnouncementsSeen } = useNewAnnouncementIndicator();
   // const location = useLocation();
   const [pathname, setPathname] = useState(
@@ -422,6 +425,7 @@ export default function StudentLayout() {
           inviteId={selectedInvite?.inviteId}
           courseId={selectedInvite?.courseId}
           courseVersionId={selectedInvite?.courseVersionId}
+          cohortId={selectedInvite?.cohortId}
         />
       )}
 

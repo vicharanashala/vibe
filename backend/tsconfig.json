@@ -41,5 +41,6 @@
     "skipLibCheck": true,
     "inlineSources": true
   },
-  "exclude": ["build", "dist", "**/*.spec.ts", "**/*.d.ts", "vite.config.ts"]
+  "exclude": ["build", "dist", "**/*.spec.ts", "**/*.d.ts", "vite.config.ts"],
+  "include": ["src/**/*.ts"]
 }

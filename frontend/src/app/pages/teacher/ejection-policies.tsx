@@ -1,47 +1,66 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Shield, Plus, Filter } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Shield, Plus, Filter, Loader2, ChevronDown } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { EjectionPolicyModal } from "@/app/pages/teacher/components/ejection-policies/EjectionPolicyModal";
 import { EjectionPolicyList } from "@/app/pages/teacher/components/ejection-policies/EjectionPolicyList";
 import { useEjectionPolicies } from "@/hooks/ejection-policy-hooks";
-import { useAuthStore } from "@/store/auth-store";
+import { useCourseVersionCohorts } from "@/hooks/hooks";
+import { useCourseStore } from "@/store/course-store";
 import { EjectionPolicy } from "@/types/ejection-policy.types";
-import { useSearch } from "@tanstack/react-router";
-
-type EjectionPolicySearchParams = {
-  courseId?: string;
-  courseVersionId?: string;
-  cohortId?: string;
-};
 
 export default function EjectionPoliciesPage() {
-  const { user } = useAuthStore();
-  const searchParams = useSearch({ strict: false }) as EjectionPolicySearchParams;
-  const courseIdFromUrl = searchParams.courseId;
-  const courseVersionIdFromUrl = searchParams.courseVersionId;
-  const cohortIdFromUrl = searchParams.cohortId;
+  const { currentCourse } = useCourseStore();
+  const courseId = currentCourse?.courseId;
+  const versionId = currentCourse?.versionId;
 
-  const hasCourseContext = !!courseIdFromUrl && !!courseVersionIdFromUrl && !!cohortIdFromUrl;
-
+  const [selectedCohortId, setSelectedCohortId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<EjectionPolicy | null>(null);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
 
-  const isActiveFilter = activeFilter === 'all' ? undefined : activeFilter === 'active';
-
+  // Fetch cohorts for this course version — same hook used in ConfigureCohorts
   const {
-    policies,
-    isLoading,
-    isAdmin,
-  } = useEjectionPolicies(
-    courseIdFromUrl,
-    courseVersionIdFromUrl,
-    cohortIdFromUrl,
-    isActiveFilter,
-    hasCourseContext,
+    data: cohortsData,
+    isLoading: cohortsLoading,
+  } = useCourseVersionCohorts(
+    courseId,
+    versionId ?? "",
+    1,
+    100,   // load all cohorts, no need to paginate here
+    "",
+    "name",
+    "asc",
   );
+
+  const cohorts: any[] = cohortsData?.cohorts ?? [];
+
+  const isActiveFilter =
+    activeFilter === "all" ? undefined : activeFilter === "active";
+
+  const hasCourseContext = !!courseId && !!versionId && !!selectedCohortId;
+
+
+
+// Separate call for actual policies — only fires when cohort is selected
+const {
+  policies,
+  isLoading: policiesLoading,
+  isAdmin
+} = useEjectionPolicies(
+  courseId,
+  versionId ?? undefined,
+  selectedCohortId ?? undefined,
+  isActiveFilter,
+  hasCourseContext,
+);
 
   const handleCreateClick = () => {
     setEditingPolicy(null);
@@ -58,40 +77,57 @@ export default function EjectionPoliciesPage() {
     setEditingPolicy(null);
   };
 
+  // No course context in store at all
+  if (!courseId || !versionId) {
+    return (
+      <div className="flex-1 overflow-auto p-6 bg-gradient-to-br from-background via-background to-muted/20">
+        <div className="max-w-6xl mx-auto">
+          <Card className="border-yellow-200 bg-yellow-50/50 dark:bg-yellow-950/20 p-8 text-center">
+            <Shield className="h-10 w-10 text-yellow-600 mx-auto mb-3" />
+            <p className="text-yellow-800 dark:text-yellow-200 font-medium">
+              No course selected
+            </p>
+            <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+              Navigate to a course version and click "Ejection Policies" to manage policies.
+            </p>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 overflow-auto p-6 bg-gradient-to-br from-background via-background to-muted/20">
       <div className="max-w-6xl mx-auto space-y-8">
 
         {/* Header */}
         <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 rounded-2xl blur-3xl"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 rounded-2xl blur-3xl" />
           <div className="relative bg-card/90 backdrop-blur-sm border border-border/50 rounded-2xl p-8">
             <div className="flex items-center justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-lg"></div>
-                    <div className="relative bg-gradient-to-r from-primary to-accent p-2 rounded-lg">
-                      <Shield className="h-6 w-6 text-primary-foreground" />
-                    </div>
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-lg" />
+                  <div className="relative bg-gradient-to-r from-primary to-accent p-2 rounded-lg">
+                    <Shield className="h-6 w-6 text-primary-foreground" />
                   </div>
-                  <div>
-                    <h1 className="text-3xl font-bold text-foreground">
-                      Ejection Policies
-                    </h1>
-                    <p className="text-muted-foreground mt-1">
-                      Manage automated ejection rules for students
-                    </p>
-                  </div>
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-foreground">
+                    Ejection Policies
+                  </h1>
+                  <p className="text-muted-foreground mt-1">
+                    Manage automated ejection rules for students
+                  </p>
                 </div>
               </div>
 
-              {isAdmin && (
+              {isAdmin && selectedCohortId && (
                 <Button
                   onClick={handleCreateClick}
                   className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_auto] hover:bg-[length:100%_auto] shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 h-12 px-8 group"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                   <div className="relative flex items-center gap-2">
                     <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
                     <span className="font-semibold">Create Policy</span>
@@ -102,50 +138,94 @@ export default function EjectionPoliciesPage() {
           </div>
         </div>
 
-        {/* Filter bar */}
+        {/* Cohort selector + filter bar */}
         <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-muted/20 to-muted/10 rounded-xl blur-sm"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-muted/20 to-muted/10 rounded-xl blur-sm" />
           <div className="relative bg-card/60 backdrop-blur-sm border border-border/50 rounded-xl p-4">
-            <div className="flex items-center justify-end gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <Select value={activeFilter} onValueChange={(v) => setActiveFilter(v as any)}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Policies</SelectItem>
-                  <SelectItem value="active">Active Only</SelectItem>
-                  <SelectItem value="inactive">Inactive Only</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+
+              {/* Cohort selector */}
+              <div className="flex items-center gap-3">
+                <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                {cohortsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading cohorts...
+                  </div>
+                ) : cohorts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No cohorts found for this course version.
+                    Create cohorts first via "Configure Cohorts".
+                  </p>
+                ) : (
+                  <Select
+                    value={selectedCohortId ?? ""}
+                    onValueChange={(val) => setSelectedCohortId(val)}
+                  >
+                    <SelectTrigger className="w-[220px]">
+                      <SelectValue placeholder="Select a cohort" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cohorts.map((cohort: any) => (
+                        <SelectItem key={cohort.id} value={cohort.id}>
+                          {cohort.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              {/* Active filter — only shown once a cohort is selected */}
+              {selectedCohortId && (
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <Select
+                    value={activeFilter}
+                    onValueChange={(v) => setActiveFilter(v as any)}
+                  >
+                    <SelectTrigger className="w-[150px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Policies</SelectItem>
+                      <SelectItem value="active">Active Only</SelectItem>
+                      <SelectItem value="inactive">Inactive Only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Context banner */}
-        {hasCourseContext ? (
-          <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200">
-            <p className="text-sm text-blue-800 dark:text-blue-200">
-              Showing policies for the selected cohort
-            </p>
-          </div>
-        ) : (
-          <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 p-4">
-            <p className="text-sm text-blue-800 dark:text-blue-200">
-              Ejection policies are cohort-specific. Navigate to a cohort to manage its policies.
+        {/* Policy list area */}
+        {!selectedCohortId ? (
+          <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 p-8 text-center">
+            <p className="text-blue-800 dark:text-blue-200 font-medium">
+              Select a cohort above to view or manage its ejection policies.
             </p>
           </Card>
+        ) : (
+          <>
+            <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                Showing policies for:{" "}
+                <strong>
+                  {cohorts.find((c: any) => c.id === selectedCohortId)?.name}
+                </strong>
+              </p>
+            </div>
+
+            <EjectionPolicyList
+              policies={policies}
+              isLoading={policiesLoading}
+              onEdit={handleEditClick}
+              canEdit={isAdmin}
+              canDelete={isAdmin}
+            />
+          </>
         )}
-
-        {/* Policy list */}
-        <EjectionPolicyList
-          policies={policies}
-          isLoading={isLoading}
-          onEdit={handleEditClick}
-          canEdit={isAdmin}
-          canDelete={isAdmin}
-        />
-
       </div>
 
       {/* Create/Edit Modal */}
@@ -153,9 +233,9 @@ export default function EjectionPoliciesPage() {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         editPolicy={editingPolicy}
-        courseId={courseIdFromUrl}
-        courseVersionId={courseVersionIdFromUrl}
-        cohortId={cohortIdFromUrl}
+        courseId={courseId}
+        courseVersionId={versionId ?? undefined}
+        cohortId={selectedCohortId ?? undefined}
         isAdmin={isAdmin}
       />
     </div>

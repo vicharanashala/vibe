@@ -1906,8 +1906,20 @@ function VersionCard({
                 <Button
   variant="outline"
   size="sm"
-  onClick={() => navigate({ to: `/teacher/ejection-policies?courseId=${courseId}&courseVersionId=${versionId}` })}
+  onClick={() => {
+    setCurrentCourse({
+      courseId: courseId,
+      versionId: selectedVersionId ?? null,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null,
+    });
+    storePageAndNavigate("/teacher/ejection-policies");
+  }}
   className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+  disabled={isArchived}
+  title={isArchived ? "Cannot manage policies for archived version" : undefined}
 >
   <Shield className="h-3 w-3 mr-1" />
   Ejection Policies

@@ -3,7 +3,6 @@ import {injectable, inject} from 'inversify';
 import {Collection, ObjectId, ClientSession, Filter} from 'mongodb';
 import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
 import {EjectionPolicy} from '#root/modules/ejectionPolicy/classes/transformers/EjectionPolicy.js';
-import {PolicyScope} from '#root/modules/ejectionPolicy/types.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 
 @injectable()
@@ -33,21 +32,14 @@ export class EjectionPolicyRepository {
 
   private async createIndexes() {
     try {
-      // Index for finding active policies by scope and course
       await this.collection.createIndex(
         {courseId: 1, courseVersionId: 1, cohortId: 1},
         {name: 'course_version_cohort_unique_idx', unique: true},
       );
-
-      // Index for course-specific policies (courseId + courseVersionId)
       await this.collection.createIndex(
         {courseId: 1, courseVersionId: 1, isActive: 1, deletedAt: 1},
         {name: 'course_version_active_deleted_idx'},
       );
-
-      // Index for priority sorting
-      await this.collection.createIndex({priority: -1}, {name: 'priority_idx'});
-
       console.log('✅ EjectionPolicy indexes created');
     } catch (error) {
       console.error('❌ Error creating EjectionPolicy indexes:', error);
@@ -66,7 +58,7 @@ export class EjectionPolicyRepository {
     const doc = {
       name: policy.name,
       description: policy.description,
-      scope: 'course',
+
       courseId: policy.courseId ? new ObjectId(policy.courseId) : null,
       courseVersionId: policy.courseVersionId
         ? new ObjectId(policy.courseVersionId)
@@ -132,6 +124,9 @@ export class EjectionPolicyRepository {
     if (filters.courseVersionId) {
       query.courseVersionId = new ObjectId(filters.courseVersionId);
     }
+    if (filters.cohortId) {
+      query.cohortId = new ObjectId(filters.cohortId);
+    }
 
     if (filters.isActive !== undefined) {
       query.isActive = filters.isActive;
@@ -139,7 +134,7 @@ export class EjectionPolicyRepository {
 
     const docs = await this.collection
       .find(query, {session})
-      .sort({priority: -1})
+      .sort({createdAt: -1})
       .toArray();
 
     return docs.map(doc => this.mapToEjectionPolicy(doc));
@@ -154,6 +149,8 @@ export class EjectionPolicyRepository {
     cohortId: string, // add
     session?: ClientSession,
   ): Promise<EjectionPolicy[]> {
+    await this.init();
+
     const query: Filter<any> = {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
@@ -169,30 +166,6 @@ export class EjectionPolicyRepository {
         .sort({createdAt: -1})
         .toArray()
     ).map(doc => this.mapToEjectionPolicy(doc));
-  }
-
-  /**
-   * Check if active platform-wide policy exists
-   */
-  async hasActivePlatformPolicy(
-    excludePolicyId?: string,
-    session?: ClientSession,
-  ): Promise<boolean> {
-    await this.init();
-
-    const query: Filter<any> = {
-      scope: 'platform',
-      isActive: true,
-      isDeleted: {$ne: true},
-      deletedAt: {$exists: false},
-    };
-
-    if (excludePolicyId) {
-      query._id = {$ne: new ObjectId(excludePolicyId)};
-    }
-
-    const count = await this.collection.countDocuments(query, {session});
-    return count > 0;
   }
 
   /**
@@ -217,6 +190,10 @@ export class EjectionPolicyRepository {
 
     if (updates.courseVersionId) {
       updateDoc.courseVersionId = new ObjectId(updates.courseVersionId);
+    }
+
+    if (updates.cohortId) {
+      updateDoc.cohortId = new ObjectId(updates.cohortId);
     }
 
     // Don't allow updating createdAt or _id
@@ -269,7 +246,6 @@ export class EjectionPolicyRepository {
       _id: doc._id,
       name: doc.name,
       description: doc.description,
-      scope: doc.scope,
       courseId: doc.courseId,
       courseVersionId: doc.courseVersionId,
       cohortId: doc.cohortId,

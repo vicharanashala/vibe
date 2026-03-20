@@ -170,6 +170,8 @@ export function useActivePoliciesForCourse(
     "/ejection-policies/courses/{courseId}/versions/{courseVersionId}/cohorts/{cohortId}/active",
     {
       params: { path: { courseId, courseVersionId,cohortId } }
+    },{
+      enabled: !!courseId && !!courseVersionId && !!cohortId, 
     }
   );
   return {

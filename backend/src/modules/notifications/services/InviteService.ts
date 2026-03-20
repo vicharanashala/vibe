@@ -889,6 +889,7 @@ export class InviteService extends BaseService {
           invite.acceptedAt,
           invite.courseId,
           invite.courseVersionId,
+          invite.cohortId,
           course,
         );
       }),
@@ -917,6 +918,7 @@ export class InviteService extends BaseService {
           invite.acceptedAt,
           invite.courseId,
           invite.courseVersionId,
+          invite.cohortId,
           course,
         );
       }),

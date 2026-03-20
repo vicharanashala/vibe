@@ -14,7 +14,7 @@ export type TriggerType =
   | 'violation'
   | 'anomaly-detection'
   | 'custom';
-export type PolicyScope = 'course';
+
 export type PolicyStatus = 'active' | 'inactive' | 'archived';
 
 export interface InactivityTrigger {

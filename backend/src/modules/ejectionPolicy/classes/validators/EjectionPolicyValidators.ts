@@ -16,7 +16,6 @@ import {
   IsDate,
 } from 'class-validator';
 import {
-  PolicyScope,
   InactivityTrigger,
   MissedDeadlinesTrigger,
   PolicyViolationsTrigger,

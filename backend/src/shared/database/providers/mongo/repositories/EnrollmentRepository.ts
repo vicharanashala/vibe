@@ -29,10 +29,16 @@ import {
   ISubmission,
   IUserQuizMetrics,
 } from '#root/modules/quizzes/interfaces/grading.js';
-import {ItemsGroup, QuizItem} from '#root/modules/courses/classes/index.js';
+import {
+  FeedbackSubmissionItem,
+  ItemsGroup,
+  QuizItem,
+} from '#root/modules/courses/classes/index.js';
 import {AttemptRepository} from '#root/modules/quizzes/repositories/index.js';
 import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
 import {IQuestionBank} from '#root/shared/interfaces/quiz.js';
+import {IProjectSubmission} from '#root/modules/projects/repositories/model.js';
+import {IReport} from '#root/shared/interfaces/reports.js';
 
 @injectable()
 export class EnrollmentRepository {
@@ -119,15 +125,6 @@ export class EnrollmentRepository {
           $in: [courseVersionId, new ObjectId(courseVersionId)],
         },
         ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
-        isDeleted: {$ne: true},
-        userId: {$in: [userId, new ObjectId(userId)]},
-        courseId: {$in: [courseId, new ObjectId(courseId)]},
-        courseVersionId: {
-          $in: [courseVersionId, new ObjectId(courseVersionId)],
-        },
-        ...(cohortId
-          ? {cohortId: new ObjectId(cohortId)}
-          : {cohortId: {$exists: false}}),
         isDeleted: {$ne: true},
       },
       {session},
@@ -4225,7 +4222,232 @@ export class EnrollmentRepository {
     // console.log("---enrollment------", enrollment);
     return !!enrollment;
   }
+  async findAnyEnrollment(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment | null> {
+    await this.init();
 
+    return await this.enrollmentCollection.findOne(
+      {
+        userId: {$in: [userId, new ObjectId(userId)]},
+        courseId: {$in: [courseId, new ObjectId(courseId)]},
+        courseVersionId: {
+          $in: [courseVersionId, new ObjectId(courseVersionId)],
+        },
+        ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
+      },
+      {session},
+    );
+  }
+  async moveEnrollmentsToCohort(
+    enrollmentIds: string[],
+    courseId: string,
+    versionId: string,
+    targetCohortId: string,
+    session?: ClientSession,
+  ): Promise<{modifiedCount: number}> {
+    const objectIds = enrollmentIds.map(id => new ObjectId(id));
+    const courseObjectId = new ObjectId(courseId);
+    const versionObjectId = new ObjectId(versionId);
+    const cohortObjectId = new ObjectId(targetCohortId);
+
+    // 1. Get userIds of selected enrollments
+    const userIds = await this.enrollmentCollection.distinct(
+      'userId',
+      {_id: {$in: objectIds}},
+      {session},
+    );
+
+    // 2. Check if already in target cohort
+    const duplicateUserIds = await this.enrollmentCollection.distinct(
+      'userId',
+      {
+        userId: {$in: userIds},
+        courseId: courseObjectId,
+        courseVersionId: versionObjectId,
+        cohortId: cohortObjectId,
+        isDeleted: {$ne: true},
+      },
+      {session},
+    );
+
+    if (duplicateUserIds.length > 0) {
+      throw new BadRequestError(
+        'Some students are already enrolled in the target cohort',
+      );
+    }
+
+    // 3. Update (no null restriction)
+    const result = await this.enrollmentCollection.updateMany(
+      {
+        _id: {$in: objectIds},
+        courseId: courseObjectId,
+        courseVersionId: versionObjectId,
+        isDeleted: {$ne: true},
+      },
+      {
+        $set: {cohortId: cohortObjectId},
+      },
+      {session},
+    );
+
+    return {
+      modifiedCount: result.modifiedCount ?? 0,
+    };
+  }
+  async moveRelatedDocumentsToCohort(
+    enrollmentIds: string[],
+    courseId: string,
+    versionId: string,
+    targetCohortId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    const objectIds = enrollmentIds.map(id => new ObjectId(id));
+    const courseObjectId = new ObjectId(courseId);
+    const versionObjectId = new ObjectId(versionId);
+    const cohortObjectId = new ObjectId(targetCohortId);
+
+    // 1. Get userIds
+    const userIds = await this.enrollmentCollection.distinct(
+      'userId',
+      {_id: {$in: objectIds}},
+      {session},
+    );
+
+    if (!userIds.length) return;
+
+    const quizIds: ObjectId[] = [];
+    const courseVersion = await this.courseVersionCollection.findOne(
+      {_id: versionObjectId},
+      {session},
+    );
+
+    for (const module of courseVersion.modules) {
+      for (const section of module.sections) {
+        const itemsGroup = await this.itemsGroupCollection.findOne({
+          _id: section.itemsGroupId,
+        });
+
+        for (const item of itemsGroup.items) {
+          if (item.type === 'QUIZ') {
+            quizIds.push(new ObjectId(item._id));
+          }
+        }
+      }
+    }
+
+    // 2. Update related collections
+    await Promise.all([
+      this.progressCollection.updateMany(
+        {
+          userId: {$in: userIds},
+          courseId: courseObjectId,
+          courseVersionId: versionObjectId,
+          isDeleted: {$ne: true},
+          cohortId: null,
+        },
+        {$set: {cohortId: cohortObjectId}},
+        {session},
+      ),
+
+      this.watchTimeCollection.updateMany(
+        {
+          userId: {$in: userIds},
+          courseId: courseObjectId,
+          courseVersionId: versionObjectId,
+          isDeleted: {$ne: true},
+          cohortId: null,
+        },
+        {$set: {cohortId: cohortObjectId}},
+        {session},
+      ),
+
+      this.feedbackCollection.updateMany(
+        {
+          userId: {$in: userIds},
+          courseId: courseObjectId,
+          courseVersionId: versionObjectId,
+          isDeleted: {$ne: true},
+          cohortId: null,
+        },
+        {$set: {cohortId: cohortObjectId}},
+        {session},
+      ),
+
+      this.projectSubmissionCollection.updateMany(
+        {
+          userId: {$in: userIds},
+          courseId: courseObjectId,
+          courseVersionId: versionObjectId,
+          isDeleted: {$ne: true},
+          cohortId: null,
+        },
+        {$set: {cohortId: cohortObjectId}},
+        {session},
+      ),
+
+      this.reportCollection.updateMany(
+        {
+          reportedBy: {$in: userIds},
+          courseId: courseObjectId,
+          versionId: versionObjectId,
+          isDeleted: {$ne: true},
+          cohortId: null,
+        },
+        {$set: {cohortId: cohortObjectId}},
+        {session},
+      ),
+
+      this.userActivityEventCollection.updateMany(
+        {
+          userId: {$in: userIds},
+          courseId: courseObjectId,
+          courseVersionId: versionObjectId,
+          isDeleted: {$ne: true},
+          cohortId: null,
+        },
+        {$set: {cohortId: cohortObjectId}},
+        {session},
+      ),
+
+      this.submissionCollection.updateMany(
+        {
+          userId: {$in: userIds},
+          quizId: {$in: quizIds},
+          isDeleted: {$ne: true},
+          cohortId: null,
+        },
+        {$set: {cohortId: cohortObjectId}},
+        {session},
+      ),
+
+      this.userQuizMetricsCollection.updateMany(
+        {
+          userId: {$in: userIds},
+          quizId: {$in: quizIds},
+          isDeleted: {$ne: true},
+          cohortId: null,
+        },
+        {$set: {cohortId: cohortObjectId}},
+        {session},
+      ),
+
+      this.attemptCollection.updateMany(
+        {
+          userId: {$in: userIds},
+          quizId: {$in: quizIds},
+          isDeleted: {$ne: true},
+          cohortId: null,
+        },
+        {$set: {cohortId: cohortObjectId}},
+        {session},
+      ),
+    ]);
+  }
   async ejectEnrollment(
     enrollmentId: string,
     reason: string,

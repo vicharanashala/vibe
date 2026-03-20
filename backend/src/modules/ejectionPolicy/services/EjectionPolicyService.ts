@@ -7,7 +7,7 @@ import {
 } from 'routing-controllers';
 import {EjectionPolicyRepository} from '../repositories/providers/mongodb/EjectionPolicyRepository.js';
 import {EjectionPolicy} from '../classes/transformers/EjectionPolicy.js';
-import {EJECTION_POLICY_TYPES, PolicyScope} from '../types.js';
+import {EJECTION_POLICY_TYPES} from '../types.js';
 import {BaseService} from '#shared/classes/BaseService.js';
 import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
 import {GLOBAL_TYPES} from '#root/types.js';
@@ -123,6 +123,12 @@ export class EjectionPolicyService extends BaseService {
     courseVersionId: string,
     cohortId: string,
   ): Promise<EjectionPolicy[]> {
+    console.log(
+      'getActivePoliciesForCourse in service==========================',
+    );
+    console.log('cohort id: ', cohortId);
+    console.log('courseId id: ', courseId);
+    console.log('courseVersionId id: ', courseVersionId);
     return await this.policyRepo.findActivePoliciesForCourse(
       courseId,
       courseVersionId,
@@ -163,15 +169,6 @@ export class EjectionPolicyService extends BaseService {
       // Validate updates
       if (updates.triggers || updates.actions) {
         this.validatePolicyData({...existingPolicy, ...updates});
-      }
-
-      // Check for conflicts if scope or courseId is changing
-      if (updates.scope || updates.courseId) {
-        await this.checkPolicyConflicts(
-          {...existingPolicy, ...updates},
-          policyId,
-          session,
-        );
       }
 
       // Update the policy
@@ -233,6 +230,8 @@ export class EjectionPolicyService extends BaseService {
    */
   private validatePolicyData(policy: Partial<EjectionPolicy>): void {
     // Validate triggers
+    console.log('policy;;;;;;;;;;;;;;;;;;;;;;;:', policy);
+
     if (!policy.triggers) {
       throw new BadRequestError(
         'Policy must have at least one trigger configured',
@@ -284,7 +283,7 @@ export class EjectionPolicyService extends BaseService {
       throw new BadRequestError('courseVersionId is required');
     }
     if (!policy.cohortId) {
-      throw new BadRequestError('cohortId is required');
+      throw new BadRequestError('cohortId is REQUIRED');
     }
   }
   /*

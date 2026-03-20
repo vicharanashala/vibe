@@ -35,6 +35,48 @@ export type EjectionPolicyAbility = [
  * - TA: Can view policies for their course versions
  * - STUDENT: Can view policies affecting their course but cannot modify them
  */
+// export function setupEjectionPolicyAbilities(
+//   builder: AbilityBuilder<any>,
+//   user: AuthenticatedUser,
+// ) {
+//   const {can} = builder;
+
+//   if (user.globalRole === 'admin') {
+//     can('manage', 'EjectionPolicy');
+//     return;
+//   }
+
+//   // 🔥 DO NOT block if no enrollments
+
+//   user.enrollments?.forEach(enrollment => {
+//     const courseBounded = {courseId: enrollment.courseId};
+
+//     switch (enrollment.role) {
+//       case 'STUDENT':
+//         can('view', 'EjectionPolicy', courseBounded);
+//         can('view', 'EjectionPolicy', {scope: 'platform'});
+//         break;
+
+//       case 'INSTRUCTOR':
+//         can('view', 'EjectionPolicy', courseBounded);
+//         break;
+
+//       case 'MANAGER':
+//         can('manage', 'EjectionPolicy', courseBounded);
+//         break;
+
+//       case 'TA':
+//         can('view', 'EjectionPolicy', {
+//           courseId: enrollment.courseId,
+//           versionId: enrollment.versionId,
+//         });
+//         break;
+//     }
+//   });
+
+//   // 🔥 Fallback for invite flow
+//   can('view', 'EjectionPolicy');
+// }
 export function setupEjectionPolicyAbilities(
   builder: AbilityBuilder<any>,
   user: AuthenticatedUser,
@@ -46,38 +88,14 @@ export function setupEjectionPolicyAbilities(
     return;
   }
 
-  // 🔥 DO NOT block if no enrollments
-
+  // Non-admins can only view policies for courses they are enrolled in
   user.enrollments?.forEach(enrollment => {
-    const courseBounded = {courseId: enrollment.courseId};
-
-    switch (enrollment.role) {
-      case 'STUDENT':
-        can('view', 'EjectionPolicy', courseBounded);
-        can('view', 'EjectionPolicy', {scope: 'platform'});
-        break;
-
-      case 'INSTRUCTOR':
-        can('view', 'EjectionPolicy', courseBounded);
-        break;
-
-      case 'MANAGER':
-        can('manage', 'EjectionPolicy', courseBounded);
-        break;
-
-      case 'TA':
-        can('view', 'EjectionPolicy', {
-          courseId: enrollment.courseId,
-          versionId: enrollment.versionId,
-        });
-        break;
-    }
+    can('view', 'EjectionPolicy', {courseId: enrollment.courseId});
   });
 
-  // 🔥 Fallback for invite flow
+  // Fallback for invite flow — allow viewing without enrollment
   can('view', 'EjectionPolicy');
 }
-
 /**
  * Get ejection policy abilities for a user - can be directly used by controllers
  */
