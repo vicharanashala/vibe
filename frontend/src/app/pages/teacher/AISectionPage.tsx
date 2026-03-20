@@ -157,38 +157,63 @@ const WORKFLOW_STEPS = [
 const getStepStatus = (jobStatus: any, stepKey: string) => {
   if (!jobStatus) return 'pending';
 
+  // 1. High priority: Check individual task status in global status object
+  if (jobStatus.jobStatus && typeof jobStatus.jobStatus === 'object') {
+     const val = (jobStatus.jobStatus as any)[stepKey];
+     if (val) {
+        const s = val.toLowerCase();
+        if (s === 'completed') return 'completed';
+        if (s === 'failed') return 'failed';
+        if (s === 'stopped') return 'stopped';
+        if (s === 'running') return 'active';
+        if (s === 'waiting' || s === 'pending') return s;
+     }
+  }
+
+  // 2. Medium priority: Job status check & overall progress logic
   const taskToStep: Record<string, string> = {
     'AUDIO_EXTRACTION': 'audioExtraction',
     'TRANSCRIPT_GENERATION': 'transcriptGeneration',
     'SEGMENTATION': 'segmentation',
     'QUESTION_GENERATION': 'questionGeneration',
     'UPLOAD_CONTENT': 'uploadContent',
+    'uploadContent': 'uploadContent',
+    'upload': 'uploadContent',
+    'segmentation': 'segmentation',
+    'transcription': 'transcriptGeneration'
   };
 
-  const currentTaskStep = taskToStep[jobStatus.task] || null;
-
-  if (!currentTaskStep) return 'pending';
+  const jobTask = jobStatus.task;
+  const currentTaskStep = (typeof jobTask === 'string') 
+    ? (taskToStep[jobTask] || taskToStep[jobTask.toUpperCase()] || jobTask) 
+    : null;
 
   const stepOrder = ['audioExtraction', 'transcriptGeneration', 'segmentation', 'questionGeneration', 'uploadContent'];
-
   const stepIndex = stepOrder.indexOf(stepKey);
-  const currentIndex = stepOrder.indexOf(currentTaskStep);
+  const currentIndex = (typeof currentTaskStep === 'string') ? stepOrder.indexOf(currentTaskStep) : -1;
 
-  if (stepIndex === -1 || currentIndex === -1) return 'pending';
+  if (stepIndex === -1) return 'pending';
+
+  if (currentIndex === -1) {
+    // If we can't identify the current task but the job is completed, assume all are completed
+    if (jobStatus.status === 'COMPLETED') return 'completed';
+    return 'pending';
+  }
 
   if (stepIndex < currentIndex) {
     return 'completed';
   } else if (stepIndex > currentIndex) {
+    // If the job itself is COMPLETED, then even future steps in the order should be completed
+    if (jobStatus.status === 'COMPLETED') return 'completed';
     return 'pending';
   } else {
     // Current step
-    let status = jobStatus.status?.toLowerCase() || 'pending';
-    if (status === 'running') return 'active';
-    if (status === 'completed') return 'completed';
-    if (status === 'failed') return 'failed';
-    if (status === 'stopped') return 'stopped';
-    if (status === 'waiting') return 'waiting';
-    if (status === 'working' || status === 'pending') return 'pending';
+    let s = jobStatus.status?.toLowerCase() || 'pending';
+    if (s === 'running') return 'active';
+    if (s === 'completed') return 'completed';
+    if (s === 'failed') return 'failed';
+    if (s === 'stopped') return 'stopped';
+    if (s === 'waiting') return 'waiting';
     return 'pending';
   }
 }
@@ -206,8 +231,8 @@ const Stepper = React.memo(({
   audioExtractionProgress: number
 }) => {
 
-  // Calculate progress based on completed steps
-  const getStepProgress = () => {
+  // Calculate overall progress based on completed steps
+  const getOverallProgress = () => {
     if (!jobStatus) return 0;
     const taskToStep: Record<string, string> = {
       'AUDIO_EXTRACTION': 'audioExtraction',
@@ -239,97 +264,75 @@ const Stepper = React.memo(({
     return Math.min(baseProgress + additionalProgress, 100);
   };
 
-  const progressPercentage = getStepProgress();
+  const getStepProgressValue = (stepKey: string) => {
+    const status = getStepStatus(jobStatus, stepKey);
+    if (status === 'completed') return 100;
+    if (status !== 'active') return 0;
+    
+    if (stepKey === 'audioExtraction') {
+        return Math.round(audioExtractionProgress);
+    }
+    return Math.round(progress);
+  };
 
   return (
-    <div className="relative mb-12 px-1 sm:px-4">
-      {/* Single continuous progress line - Centered with dots */}
-      <div className="absolute left-6 right-6 top-[18px] sm:top-[22px] h-1 bg-gray-200 dark:bg-[#26211E] rounded-full overflow-hidden">
-        {progressPercentage > 0 && (
-          <div 
-            className="h-full bg-gradient-to-r from-[#00D492] to-[#2B7FFF] transition-all duration-500"
-            style={{ width: `${progressPercentage}%` }}
-          />
-        )}
+    <div className="relative mb-12">
+      <div className="flex justify-between items-center relative z-10">
+        {WORKFLOW_STEPS.map((step, idx) => {
+          const status = getStepStatus(jobStatus, step.key);
+          const isActive = status === 'active';
+          const isCompleted = status === 'completed';
+          const stepProgress = getStepProgressValue(step.key);
+
+          return (
+            <div key={step.key} className="flex flex-col items-center flex-1 relative">
+              {/* Connector line */}
+              {idx !== 0 && (
+                <div className="absolute top-[22px] left-[-50%] right-[50%] h-1 bg-gray-200 dark:bg-[#26211E] -z-10">
+                   {isCompleted && <div className="h-full bg-gradient-to-r from-[#00D492] to-[#2B7FFF] w-full" />}
+                   {isActive && <div className="h-full bg-gradient-to-r from-[#00D492] to-[#2B7FFF]" style={{ width: `${stepProgress}%` }} />}
+                </div>
+              )}
+
+              <div className={`
+                w-11 h-11 rounded-[14px] flex items-center justify-center transition-all duration-300
+                ${isActive ? 'bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] text-white scale-110 shadow-lg' : 
+                  isCompleted ? 'bg-emerald-500 text-white' : 
+                  status === 'failed' ? 'bg-red-500 text-white' :
+                  status === 'stopped' ? 'bg-orange-500 text-white' :
+                  status === 'waiting' ? 'bg-purple-500 text-white' :
+                  'bg-gray-100 dark:bg-[#1C1C1E] text-gray-400'}
+              `}>
+                {isCompleted ? <Check className="w-6 h-6" /> : 
+                 status === 'failed' ? <XCircle className="w-6 h-6" /> :
+                 status === 'stopped' ? <PauseCircle className="w-6 h-6" /> :
+                 status === 'waiting' ? <Clock className="w-6 h-6 animate-pulse" /> : 
+                 step.icon}
+              </div>
+
+              <div className="mt-3 flex flex-col items-center">
+                <span className={`text-[11px] font-semibold text-center leading-tight mb-1 ${isActive ? 'text-gray-900 dark:text-white' : 'text-gray-500'}`}>
+                  {step.label}
+                </span>
+                
+                {/* Individual Progress Bar */}
+                <div className="w-16 h-1 bg-gray-100 dark:bg-[#1C1C1E] rounded-full overflow-hidden mb-1">
+                    {(isActive || isCompleted) && (
+                        <div 
+                          className="h-full bg-gradient-to-r from-[#00D492] to-[#2B7FFF] transition-all duration-300"
+                          style={{ width: `${stepProgress}%` }}
+                        />
+                    )}
+                </div>
+                
+                <span className={`text-[9px] font-bold ${isActive ? 'text-[#2B7FFF]' : isCompleted ? 'text-emerald-500' : 'text-gray-400'}`}>
+                  {isCompleted ? '100%' : isActive ? `${stepProgress}%` : status === 'failed' ? 'Failed' : status === 'stopped' ? 'Stopped' : status === 'waiting' ? 'Waiting' : 'Pending'}
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </div>
-      
-      <div className="flex items-start relative z-10 justify-between gap-0.5 sm:gap-2">
-      {WORKFLOW_STEPS.map((step) => {
-        const status = getStepStatus(jobStatus, step.key);
-        const isActive = status === 'active' || (step.key === activeStep && status !== 'completed' && status !== 'failed' && status !== 'stopped');
-
-        return (
-          <React.Fragment key={step.key}>
-            <div className="relative flex flex-col items-center min-w-0 flex-1">
-          <div className="flex flex-col items-center w-full">
-             {/* Step Circle */}
-          <div className={`
-      relative flex items-center justify-center
-      w-9 h-9 sm:w-11 sm:h-11 rounded-[14px] transition-all duration-300 z-10
-      ${status === 'completed' 
-        ? 'bg-[linear-gradient(135deg,_#00D492_0%,_#009966_100%)] text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.1),_0px_10px_15px_-3px_rgba(0,0,0,0.1)]' 
-        : isActive 
-          ? 'bg-[linear-gradient(135deg,_#51A2FF_0%,_#9810FA_100%)] text-white shadow-lg ring-4 ring-blue-200' 
-          : status === 'failed' 
-            ? 'bg-red-500 text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.1),_0px_10px_15px_-3px_rgba(0,0,0,0.1)]' 
-            : status === 'stopped' 
-              ? 'bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.1),_0px_10px_15px_-3px_rgba(0,0,0,0.1)]' 
-              : status === 'waiting'
-                ? 'bg-[linear-gradient(135deg,_#7C3AED_0%,_#C026D3_100%)] text-white shadow-lg'
-                : 'bg-gray-200 dark:bg-[#464545] text-gray-600 dark:text-[#FFFFFF]'}
-    `}>
-                      {status === 'completed' ? (
-                        <CheckCircle className="w-3 h-3 sm:w-6 sm:h-6 dark:text-[#0D0D0D]" />
-                      ) : isActive ? (
-                        <span className="text-xs sm:text-base">{step.icon}</span>
-                      ) : status === 'failed' ? (
-                        <XCircle className="w-3 h-3 sm:w-6 sm:h-6" />
-                      ) : status === 'stopped' ? (
-                        <PauseCircle className="w-3 h-3 sm:w-6 sm:h-6" />
-                      ) : status === 'waiting' ? (
-                        <Clock className="w-3 h-3 sm:w-6 sm:h-6 animate-pulse" />
-                      ) : (
-                        <span className="font-medium text-xs sm:text-base">{step.icon}</span>
-    )}
-    {isActive && <div className="absolute -top-0.5 -right-0.5 sm:-top-1.5 sm:-right-1 bg-[#2B7FFF] rounded-full h-3 w-3 sm:h-5 sm:w-5 flex items-center justify-center"><Loader2 className="w-1.5 h-1.5 sm:w-3 sm:h-3 animate-spin text-white dark:text-[#0D0D0D]" /></div>}
-    {status === 'completed' && <div className="absolute -top-0.5 -right-0.5 sm:-top-1.5 sm:-right-1 bg-[#00BC7D] rounded-full h-3 w-3 sm:h-5 sm:w-5 flex items-center justify-center"><Sparkles className="w-1.5 h-1.5 sm:w-3 sm:h-3 text-white dark:text-[#0D0D0D]" /></div>}
-  </div>
-
-  {/* Step Label */}
-  <div className="mt-1 sm:mt-2 flex flex-col items-center w-full px-0 sm:px-1">
-    <div className={`text-[9px] lg:text-sm sm:text-xs md:text-[10px] font-medium text-center leading-tight max-w-full break-words
-        ${status === 'completed' 
-          ? 'text-[#009966]' 
-          : isActive 
-            ? 'text-[#155DFC]' 
-            : status === 'failed' 
-              ? 'text-red-600' 
-              : status === 'stopped' 
-                ? 'text-[#F54900]' 
-                : status === 'waiting'
-                  ? 'text-purple-600 animate-pulse'
-                  : 'text-[#6A7282] dark:text-[#FFFFFF]'}
-      `}>
-      {step.label}
-    </div>
-
-    {/* Status Text */}
-    <div className="mt-0.5 sm:mt-1 h-3 sm:h-4 text-[9px] sm:text-xs">
-      {isActive && <span className="text-[#2B7FFF] dark:text-blue-400 bg-[#EEF2FF] dark:bg-[#171717] py-0.5 px-1 sm:py-1 sm:px-1.5 rounded-[6px] sm:rounded-[10px] flex gap-0.5 sm:gap-1 items-center"><Zap size={8} className="text-yellow-500 dark:text-yellow-400 sm:w-3.5 sm:h-3.5"/> <span className="hidden lg:inline">Processing</span><span className="sm:hidden">Proc</span></span>}
-      {status === 'completed' && <span className="text-[#00BC7D] dark:text-green-400 bg-[#ECFDF5] dark:bg-[#171717] py-0.5 px-1 sm:py-1 sm:px-1.5 rounded-[6px] sm:rounded-[10px] flex gap-0.5 sm:gap-1 items-center"><Check size={8} className="text-green-600 dark:text-green-400 sm:w-3.5 sm:h-3.5" /> <span className="hidden lg:inline">Complete</span><span className="sm:hidden">Done</span></span>}
-      {status === 'failed' && <span className="text-red-600 dark:text-red-400 bg-[#ffe9ea] dark:bg-[#171717] py-0.5 px-1 sm:py-1 sm:px-1.5 rounded-[6px] sm:rounded-[10px] flex gap-0.5 sm:gap-1 items-center"><X size={8} className="text-red-600 dark:text-red-400 sm:w-3.5 sm:h-3.5" /> <span className="hidden lg:inline">Failed</span><span className="sm:hidden">Fail</span></span>}
-      {status === 'stopped' && <span className="text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-[#171717] py-0.5 px-1 sm:py-1 sm:px-1.5 rounded-[6px] sm:rounded-[10px] flex gap-0.5 sm:gap-1 items-center"><PauseCircle size={8} className="text-orange-600 dark:text-orange-400 sm:w-3.5 sm:h-3.5" /> <span className="hidden lg:inline">Stopped</span><span className="sm:hidden">Stop</span></span>}
-      {status === 'waiting' && <span className="text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-[#171717] py-0.5 px-1 sm:py-1 sm:px-1.5 rounded-[6px] sm:rounded-[10px] flex gap-0.5 sm:gap-1 items-center"><Clock size={8} className="text-purple-600 dark:text-purple-400 sm:w-3.5 sm:h-3.5" /> <span className="hidden lg:inline">Waiting</span><span className="sm:hidden">Wait</span></span>}
-    </div>
-  </div>
-  </div>
-</div>
-
-
-          </React.Fragment>
-        );
-      })}
-    </div>
     </div>
   );
 });
@@ -2036,16 +2039,6 @@ export default function AISectionPage() {
           ),
         }));
         toast.success("Section successfully added to course!");
-        setTimeout(() => {
-          setYoutubeUrl("");
-          setAiJobId(null);
-          setTaskRuns({
-            transcription: [],
-            segmentation: [],
-            question: [],
-            upload: [],
-          });
-        }, 1500);
       }
       await handleRefreshStatus();
     } catch (error) {
@@ -2278,6 +2271,17 @@ export default function AISectionPage() {
         setAudioExtractionProgress(100);
         setEstimatedTimeRemaining('');
         
+        // Stop polling and simulation for this task
+        setShouldPoll(false);
+        setIsLoading(false);
+        setProgress(100);
+
+        if (status.jobStatus?.transcriptGeneration === 'WAITING' || status.jobStatus?.transcriptGeneration === 'PENDING') {
+          // Auto-trigger disabled - waiting for manual confirmation
+          console.log("Audio extraction completed. Waiting for manual transcript generation start.");
+        }
+        toast.success('Audio extraction completed!');
+        
         setTaskRuns(prev => {
           const lastLoadingIdx = [...prev.transcription].reverse().findIndex(run => run.status === 'loading');
           if (lastLoadingIdx === -1) return prev;
@@ -2290,7 +2294,6 @@ export default function AISectionPage() {
             ),
           };
         });
-        toast.success('Audio extraction completed!');
 
         // Auto-trigger disabled - waiting for manual confirmation
       }
@@ -2316,6 +2319,11 @@ export default function AISectionPage() {
             ),
           };
         });
+
+        // Stop polling and simulation for this task
+        setShouldPoll(false);
+        setIsLoading(false);
+        setProgress(100);
 
         if (completedRunId && !manuallyCollapsedItems.includes(completedRunId)) {
           setTimeout(() => {
@@ -2353,6 +2361,10 @@ export default function AISectionPage() {
             ),
           };
         });
+        
+        setShouldPoll(false);
+        setIsLoading(false);
+
         toast.error('Transcription failed. You can try restarting it.');
       }
       if (
@@ -2371,6 +2383,11 @@ export default function AISectionPage() {
             ),
           };
         });
+        
+        setShouldPoll(false);
+        setIsLoading(false);
+        setProgress(100);
+
         toast.success('Segmentation completed!');
       }
 
@@ -2396,6 +2413,10 @@ export default function AISectionPage() {
             ),
           };
         });
+        
+        setShouldPoll(false);
+        setIsLoading(false);
+
         toast.error('Segmentation failed.');
       }
       if (
@@ -2474,9 +2495,14 @@ export default function AISectionPage() {
           });
 
           if (fileUrl && questions.length > 0) {
+            setShouldPoll(false);
+            setIsLoading(false);
+            setProgress(100);
             toast.success(`Questions generated! (${questions.length} questions)`);
           }
         } catch (err) {
+          setShouldPoll(false);
+          setIsLoading(false);
           console.error('Question generation completion handler error:', err);
           toast.error('Questions generated but failed to validate output. Check run details.');
         }
@@ -2510,6 +2536,8 @@ export default function AISectionPage() {
             ),
           };
         });
+        setShouldPoll(false);
+        setIsLoading(false);
         toast.error('Question generation failed. See details in the run output.');
       }
 
@@ -2525,6 +2553,9 @@ export default function AISectionPage() {
             run.status === 'loading' ? { ...run, status: 'done', result: status } : run
           ),
         }));
+        setShouldPoll(false);
+        setIsLoading(false);
+        setProgress(100);
         toast.success('Section uploaded successfully!');
       }
 
@@ -2589,6 +2620,9 @@ export default function AISectionPage() {
     } catch (error) {
       toast.error('Failed to stop task.');
     } finally {
+      setShouldPoll(false);
+      setIsLoading(false);
+      setProgress(0);
       if (task === 'transcription' || !task) {
         setPausedProgress(audioExtractionProgress);
         setPausedStartTime(audioExtractionStartTime);
@@ -3589,8 +3623,8 @@ export default function AISectionPage() {
                             </p>
                             <Button
                               onClick={() => {
-                                // Navigate back to the course view
-                                navigate({ to: "/teacher/courses/view" });
+                                // Navigate back to the course view using absolute path
+                                window.location.href = "/teacher/courses/view";
                               }}
                               className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 btn-beautiful"
                             >
