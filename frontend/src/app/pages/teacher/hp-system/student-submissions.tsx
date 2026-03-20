@@ -181,7 +181,7 @@ function SimplifiedSubmissionCard({ sub, onViewMore }: { sub: HpStudentSubmissio
                 )}
 
                 {/* Attachments count and View More button */}
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-end gap-2">
                     {/* Attachments count - more noticeable and bigger */}
                     {((sub.submission?.attachments?.files?.length || 0) + (sub.submission?.attachments?.images?.length || 0) + (sub.submission?.attachments?.links?.length || 0)) > 0 && (
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-lg border border-border">
@@ -193,6 +193,7 @@ function SimplifiedSubmissionCard({ sub, onViewMore }: { sub: HpStudentSubmissio
                     )}
 
                     {/* View More button - wider, shorter, and consistently aligned */}
+                    {/* <div className="flex justify-end w-full"> */}
                     <Button
                         variant="default"
                         size="default"
@@ -201,6 +202,7 @@ function SimplifiedSubmissionCard({ sub, onViewMore }: { sub: HpStudentSubmissio
                     >
                         View More
                     </Button>
+                    {/* </div> */}
                 </div>
 
                 {/* View More button for submissions without attachments - wider, shorter, and consistently aligned */}
