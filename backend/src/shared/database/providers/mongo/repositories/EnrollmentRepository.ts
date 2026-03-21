@@ -3568,7 +3568,11 @@ export class EnrollmentRepository {
           userId: new ObjectId(userId),
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
-          ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {cohortId: null}),
+          // Only filter by cohortId if explicitly provided
+          ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
+          isDeleted: {$ne: true},
+          isEjected: {$ne: true},
+          status: 'ACTIVE',
         },
         {session},
       )
