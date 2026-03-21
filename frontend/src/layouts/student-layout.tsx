@@ -270,7 +270,7 @@ export default function StudentLayout() {
                 asChild
               >
                 <Link to="/student/hp-system/cohorts">
-                  <span className="relative z-10">Cohorts</span>
+                  <span className="relative z-10">HP System</span>
                 </Link>
               </Button>
 
