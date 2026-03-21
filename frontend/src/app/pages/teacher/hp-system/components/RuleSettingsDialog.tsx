@@ -227,11 +227,29 @@ export function RuleSettingsDialog({
                                     </Label>
                                     <Input
                                         type="datetime-local"
-                                        min={new Date().toISOString().slice(0, 16)}
-                                        value={config?.deadlineAt ? new Date(config.deadlineAt).toISOString().slice(0, 16) : ""}
+                                        min={
+                                            new Date()
+                                                .toLocaleString("sv-SE", { timeZone: "Asia/Kolkata" })
+                                                .slice(0, 16)
+                                                .replace(" ", "T")
+                                            }
+                                        value={
+                                            config?.deadlineAt
+                                                ? new Date(config.deadlineAt)
+                                                    .toLocaleString("sv-SE", { timeZone: "Asia/Kolkata" })
+                                                    .slice(0, 16)
+                                                    .replace(" ", "T")
+                                                : ""
+                                            }
                                         onChange={(e) => {
                                             const val = e.target.value;
-                                            setConfig(prev => ({ ...prev, deadlineAt: val ? new Date(val).toISOString() : undefined } as any));
+
+                                            setConfig(prev => ({
+                                                ...prev,
+                                                deadlineAt: val
+                                                ? new Date(`${val}:00+05:30`).toISOString()
+                                                : undefined
+                                            }));
                                             if (errors.deadlineAt) setErrors({});
                                         }}
                                     />
