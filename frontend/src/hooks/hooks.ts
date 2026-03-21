@@ -5127,13 +5127,14 @@ export function useHpStudentCohorts() {
     queryFn: async () => {
       const res = await hpApi.getStudentCohorts();
       if (!res.success) throw new Error(res.message || 'Failed to load your cohorts');
-      return res.data;
+      return res;
     },
     refetchOnWindowFocus: false,
   });
 
   return {
-    data: query.data || [],
+    data: query.data?.data || [],
+    totalHp: query.data?.totalHp ?? 0,
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,

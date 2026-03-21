@@ -408,7 +408,7 @@ export const hpApi = {
         return apiFetch(`${BASE_URL}/courses-cohorts/cohorts?${params.toString()}`);
     },
 
-    getStudentCohorts: async (): Promise<{ success: boolean; message: string; data: any[] }> => {
+    getStudentCohorts: async (): Promise<{ success: boolean; message: string; data: any[]; totalHp?: number }> => {
         return apiFetch(`${BASE_URL}/courses-cohorts/student-cohorts`);
     },
 
