@@ -108,6 +108,14 @@ export function RuleSettingsDialog({
             setErrors({ deadlineAt: "Deadline is required for mandatory activities" });
             return;
         }
+
+        if (config.deadlineAt) {
+            const deadline = new Date(config.deadlineAt);
+            if (deadline < new Date()) {
+                setErrors({ deadlineAt: "Deadline cannot be in the past" });
+                return;
+            }
+        }
         setErrors({});
 
         try {
