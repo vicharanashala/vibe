@@ -95,7 +95,7 @@ export class ActivityService extends BaseService {
                     ...(body.title !== undefined ? { title: body.title } : {}),
                     ...(body.description !== undefined ? { description: body.description } : {}),
                     ...(body.activityType !== undefined ? { activityType: body.activityType } : {}),
-                    ...(body.deadlineAt !== undefined ? { deadlineAt: new Date(body.deadlineAt) } : {}),
+                    ...(body.deadlineAt !== undefined ? { deadlineAt: body.deadlineAt ? new Date(body.deadlineAt) : null } : {}),
                     ...(body.allowLateSubmission !== undefined ? { allowLateSubmission: body.allowLateSubmission } : {}),
                     ...(body.submissionMode !== undefined ? { submissionMode: body.submissionMode } : {}),
                     ...(body.externalLink !== undefined ? { externalLink: body.externalLink } : {}),

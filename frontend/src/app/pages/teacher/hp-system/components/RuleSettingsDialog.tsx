@@ -99,8 +99,17 @@ export function RuleSettingsDialog({
         }
     }, [isOpen, existingConfig, fetchLoading, activity]);
 
+    const [errors, setErrors] = useState<{ deadlineAt?: string }>({});
+
     const handleSave = async () => {
         if (!config) return;
+
+        if (config.isMandatory && !config.deadlineAt) {
+            setErrors({ deadlineAt: "Deadline is required for mandatory activities" });
+            return;
+        }
+        setErrors({});
+
         try {
             const rulePayload = { ...config };
             const required_percentage = (rulePayload as any).required_percentage;
@@ -208,8 +217,13 @@ export function RuleSettingsDialog({
                                         type="datetime-local"
                                         min={new Date().toISOString().slice(0, 16)}
                                         value={config?.deadlineAt ? new Date(config.deadlineAt).toISOString().slice(0, 16) : ""}
-                                        onChange={(e) => setConfig(prev => ({ ...prev, deadlineAt: new Date(e.target.value).toISOString() } as any))}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setConfig(prev => ({ ...prev, deadlineAt: val ? new Date(val).toISOString() : undefined } as any));
+                                            if (errors.deadlineAt) setErrors({});
+                                        }}
                                     />
+                                    {errors.deadlineAt && <p className="text-xs text-red-500 mt-1">{errors.deadlineAt}</p>}
                                 </div>
 
                                 <div className="space-y-2 flex flex-col justify-end pb-2">

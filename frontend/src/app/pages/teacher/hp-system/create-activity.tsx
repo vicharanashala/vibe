@@ -285,7 +285,7 @@ export default function CreateHpActivityPage() {
                 courseVersionId: courseVersionId,
                 activityId: createdActivityId,
                 isMandatory: ruleConfig.isMandatory as boolean,
-                deadlineAt: ruleConfig.deadlineAt as string,
+                deadlineAt: ruleConfig.deadlineAt as string | undefined,
                 allowLateSubmission: ruleConfig.allowLateSubmission as boolean,
                 reward: {
                     enabled: ruleConfig.reward?.enabled ?? true,

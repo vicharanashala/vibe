@@ -41,6 +41,10 @@ export class RuleConfigService extends BaseService {
             throw new BadRequestError("Penalty can be enabled only for mandatory activities");
         }
 
+        if (body.isMandatory && !body.deadlineAt) {
+            throw new BadRequestError("Deadline is required for mandatory activities");
+        }
+
         const now = new Date();
 
         const doc: HpRuleConfigCreateDoc = {
@@ -49,7 +53,7 @@ export class RuleConfigService extends BaseService {
             activityId: toObjectId(body.activityId, "activityId") as any,
 
             isMandatory: body.isMandatory,
-            deadlineAt: new Date(body.deadlineAt),
+            deadlineAt: body.deadlineAt ? new Date(body.deadlineAt) : undefined,
             allowLateSubmission: body.allowLateSubmission,
 
             reward: body.reward.enabled
@@ -106,12 +110,19 @@ export class RuleConfigService extends BaseService {
             throw new BadRequestError("Penalty can be enabled only for mandatory activities");
         }
 
+        const isMandatory = patch.isMandatory !== undefined ? patch.isMandatory : existing.isMandatory;
+        const deadlineAt = patch.deadlineAt !== undefined ? patch.deadlineAt : existing.deadlineAt;
+
+        if (isMandatory && !deadlineAt) {
+            throw new BadRequestError("Deadline is required for mandatory activities");
+        }
+
         const updatePatch: HpRuleConfigUpdatePatch = {
             updatedAt: new Date(),
         };
 
         if (patch.isMandatory !== undefined) updatePatch.isMandatory = patch.isMandatory;
-        if (patch.deadlineAt !== undefined) updatePatch.deadlineAt = new Date(patch.deadlineAt);
+        if (patch.deadlineAt !== undefined) updatePatch.deadlineAt = patch.deadlineAt ? new Date(patch.deadlineAt) : null as any;
         if (patch.allowLateSubmission !== undefined)
             updatePatch.allowLateSubmission = patch.allowLateSubmission;
 
