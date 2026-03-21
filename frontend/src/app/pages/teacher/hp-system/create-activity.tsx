@@ -644,14 +644,25 @@ export default function CreateHpActivityPage() {
                                         </Label>
                                         <Input
                                             type="datetime-local"
-                                            min={new Date().toISOString().slice(0, 16)}
-                                            value={ruleConfig.deadlineAt ? new Date(ruleConfig.deadlineAt).toISOString().slice(0, 16) : ""}
+                                            min={new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' }).slice(0, 16).replace(' ', 'T')}
+                                            value={ruleConfig.deadlineAt
+                                                ? new Date(ruleConfig.deadlineAt).toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' }).slice(0, 16).replace(' ', 'T')
+                                                : ""}
                                             onChange={(e) => {
                                                 const value = e.target.value;
-                                                setRuleConfig(prev => ({
-                                                    ...prev,
-                                                    deadlineAt: value ? new Date(value).toISOString() : undefined
-                                                }));
+                                                if (value) {
+                                                    // datetime-local value is in IST; append offset to create correct UTC
+                                                    const istIso = `${value}:00+05:30`;
+                                                    setRuleConfig(prev => ({
+                                                        ...prev,
+                                                        deadlineAt: new Date(istIso).toISOString()
+                                                    }));
+                                                } else {
+                                                    setRuleConfig(prev => ({
+                                                        ...prev,
+                                                        deadlineAt: undefined
+                                                    }));
+                                                }
                                                 if (ruleErrors.deadlineAt) {
                                                     setRuleErrors(prev => ({ ...prev, deadlineAt: undefined }));
                                                 }

@@ -529,6 +529,30 @@ export class CohortRepository implements ICohortRepository {
         return (await this.enrollmentCollection.aggregate(pipeline).toArray()) as any;
     }
 
+    async getStudentTotalHpAcrossEnrollments(userId: string): Promise<number> {
+        await this.init();
+        const userObjId = new ObjectId(userId);
+
+        const result = await this.enrollmentCollection.aggregate([
+            {
+                $match: {
+                    userId: { $in: [userId, userObjId] },
+                    role: "STUDENT",
+                    status: "ACTIVE",
+                    isDeleted: { $ne: true },
+                },
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalHp: { $sum: { $ifNull: ["$hpPoints", 0] } },
+                },
+            },
+        ]).toArray();
+
+        return result[0]?.totalHp ?? 0;
+    }
+
     async setHPForEnrollment(
         userId: ID,
         courseId: ID,
