@@ -58,7 +58,7 @@ export function RuleSettingsDialog({
 
     // Default configuration
     const defaultReward: any = {
-        enabled: true,
+        enabled: false,
         type: "ABSOLUTE",
         value: 10,
         applyWhen: "ON_APPROVAL",
@@ -87,7 +87,7 @@ export function RuleSettingsDialog({
             } else if (!fetchLoading) {
                 // No existing config — set defaults for creation
                 setConfig({
-                    isMandatory: true,
+                    isMandatory: false,
                     allowLateSubmission: false,
                     reward: defaultReward,
                     penalty: defaultPenalty,
