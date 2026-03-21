@@ -117,24 +117,42 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
         return { modifiedCount: res.modifiedCount ?? 0 };
     }
 
-    async getAllLateActivities(): Promise<HpRuleConfigTransformer[]> {
+    async getAllMandatoryLateActivities(): Promise<HpRuleConfigTransformer[]> {
         await this.init();
-        
+
         const now = new Date();
-        
-        const docs = await this.hpRuleConfigsCollection.aggregate([
+
+        return await this.hpRuleConfigsCollection.aggregate([
             {
                 $match: {
                     isMandatory: true,
                     "penalty.enabled": true,
-                    allowLateSubmission: { $ne: true },
                     isDeleted: { $ne: true }
+                }
+            },
+            {
+                $lookup: {
+                    from: "hp_activities",
+                    localField: "activityId",
+                    foreignField: "_id",
+                    as: "activity"
+                }
+            },
+            {
+                $unwind: "$activity"
+            },
+            {
+                $match: {
+                    "activity.status": "PUBLISHED"
                 }
             },
             {
                 $addFields: {
                     effectiveDeadline: {
-                        $add: ["$deadlineAt", { $multiply: ["$penalty.graceMinutes", 60000] }]
+                        $add: [
+                            "$deadlineAt",
+                            { $multiply: ["$penalty.graceMinutes", 60000] }
+                        ]
                     }
                 }
             },
@@ -142,18 +160,27 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
                 $match: {
                     effectiveDeadline: { $lt: now }
                 }
+            },
+            {
+                $project: {
+                    activity: 0
+                }
             }
-        ]).toArray();
+        ]).toArray() as HpRuleConfigTransformer[]
 
-        return docs.map(doc => plainToInstance(HpRuleConfigTransformer, doc as HpRuleConfig, {
-            excludeExtraneousValues: true,
-            exposeDefaultValues: true,
-        }));
+        // return docs.map((doc: HpRuleConfigTransformer) => ({
+        //     ...doc,
+        //     _id: doc._id?.toString(),
+        //     courseId: doc.courseId?.toString(),
+        //     courseVersionId: doc.courseVersionId?.toString(),
+        //     activityId: doc.activityId?.toString(),
+        //     createdByTeacherId: doc.createdByTeacherId?.toString()
+        // }));
     }
 
     async getAllMilestoneActivities(): Promise<HpRuleConfigTransformer[]> {
         await this.init();
-        
+
         const docs = await this.hpRuleConfigsCollection.aggregate([
             {
                 $match: {

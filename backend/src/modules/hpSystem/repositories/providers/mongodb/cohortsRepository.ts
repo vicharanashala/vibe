@@ -82,7 +82,7 @@ export class CohortRepository implements ICohortRepository {
         await this.init();
 
         const cohort = await this.cohortsCollection.findOne(
-            { cohortName },
+            { name: cohortName },
             { projection: { _id: 1 } }
         );
 
@@ -217,7 +217,7 @@ export class CohortRepository implements ICohortRepository {
 
     async getStudentsForCohortByVersionAndCohortName(
         courseVersionId: string,
-        cohortName: string
+        cohortId: string
     ): Promise<CohortStudentItemDto[]> {
         await this.init();
 
@@ -225,11 +225,12 @@ export class CohortRepository implements ICohortRepository {
         if (ObjectId.isValid(courseVersionId)) {
             orVersionMatch.push({ courseVersionId: new ObjectId(courseVersionId) });
         }
-
-        const cohortMatch: any = {
+        const cohortMatch = {
             $or: [
-                { tag: cohortName },
-            ],
+                { cohortId: { $exists: false } },
+                { cohortId: null },
+                { cohortId: new ObjectId(cohortId) }
+            ]
         };
 
         const pipeline: any[] = [
@@ -237,9 +238,10 @@ export class CohortRepository implements ICohortRepository {
                 $match: {
                     $and: [
                         { $or: orVersionMatch },
-                        cohortMatch,
-                        // optional: if you only want active enrollments
-                        // { status: "active" },
+                        { status: "ACTIVE" },
+                        { role: 'STUDENT' },
+                        { isDeleted: { $ne: true } },
+                        cohortMatch
                     ],
                 },
             },
@@ -736,5 +738,33 @@ export class CohortRepository implements ICohortRepository {
             this.hpActivitySubmissionCollection.updateMany(filter, update),
             this.hpLedgerCollection.updateMany(filter, update),
         ]);
+    }
+
+    async getCurrentHpPointsByCohortId(
+        studentId: string,
+        courseId: string,
+        courseVersionId: string,
+        cohortId: string,
+        session?: ClientSession
+    ): Promise<number> {
+        await this.init();
+
+        const enrollment = await this.enrollmentCollection.findOne(
+            {
+                userId: new ObjectId(studentId),
+                courseId: new ObjectId(courseId),
+                courseVersionId: new ObjectId(courseVersionId),
+                isDeleted: { $ne: true },
+                $or: [
+                    { cohortId: { $exists: false } },
+                    { cohortId: null },
+                    { cohortId: new ObjectId(cohortId) }
+                ]
+            },
+            { session }
+        );
+
+
+        return enrollment?.hpPoints ?? 0;
     }
 }

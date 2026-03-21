@@ -111,3 +111,8 @@ export const COHORT_OVERRIDES: Record<string, { courseId: string; versionId: str
   RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719" },
   AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
 };
+
+export const LEGACY_COURSE_KEYS = new Set([
+  "000000000000000000000001:000000000000000000000001",
+  "000000000000000000000002:000000000000000000000002",
+]);

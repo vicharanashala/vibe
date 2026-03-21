@@ -230,7 +230,9 @@ export class ActivitySubmissionsService extends BaseService {
             if (!activity) {
                 throw new BadRequestError("Activity not found");
             }
-
+            if (activity.status !== "PUBLISHED")
+                throw new BadRequestError("You can't submit this activity, it is not set to public")
+            
             const activityRuleConfig = await this.ruleConfigService.getByActivityId(activityId);
             if (!activityRuleConfig) {
                 throw new BadRequestError("Activity rule config not found");
@@ -243,7 +245,7 @@ export class ActivitySubmissionsService extends BaseService {
                         ? "This activity has already been submitted. Please wait for the instructor to review it and credit the HP points."
                         : "This activity has already been submitted and the HP points for this activity have already been credited."
                 );
-            } 
+            }
 
             const latestSubmissions = await this.activitySubmissionsRepository.getLatestByStudentId(student.id, activityId)
             // if (latestSubmissions && latestSubmissions.status !== "REVERTED")
@@ -391,17 +393,17 @@ export class ActivitySubmissionsService extends BaseService {
                 } else if (ruleType === "PERCENTAGE") {
                     const rewardMaxLimit = activityRuleConfig.limits?.maxHp;
                     const rewardMinLimit = activityRuleConfig.limits?.minHp;
-                    
+
                     // Calculate percentage reward
                     const calculatedReward = Math.round((totalStudentHpPoints * rewardValue) / 100);
 
                     let finalReward = calculatedReward;
 
-                    if (rewardMinLimit  && finalReward < rewardMinLimit) {
+                    if (rewardMinLimit && finalReward < rewardMinLimit) {
                         finalReward = rewardMinLimit;
                     }
 
-                    if (rewardMaxLimit  && finalReward > rewardMaxLimit) {
+                    if (rewardMaxLimit && finalReward > rewardMaxLimit) {
                         finalReward = rewardMaxLimit;
                     }
 

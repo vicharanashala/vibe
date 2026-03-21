@@ -42,7 +42,7 @@ export interface ICohortRepository {
      */
     getStudentsForCohortByVersionAndCohortName(
         courseVersionId: string,
-        cohortName: string
+        cohortId: string
     ): Promise<CohortStudentItemDto[]>;
 
     /**
@@ -90,4 +90,12 @@ export interface ICohortRepository {
         oldCohortName: string,
         newCohortName: string,
     ): Promise<void>
+
+    getCurrentHpPointsByCohortId(
+        studentId: string,
+        courseId: string,
+        courseVersionId: string,
+        cohortId: string,
+        session?: ClientSession
+    ): Promise<number>
 }
