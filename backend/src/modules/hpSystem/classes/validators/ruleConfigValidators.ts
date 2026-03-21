@@ -100,8 +100,9 @@ export class CreateHpRuleConfigBody {
   @IsBoolean()
   isMandatory!: boolean;
 
+  @IsOptional()
   @IsDateString()
-  deadlineAt!: string;
+  deadlineAt?: string;
 
   @IsBoolean()
   allowLateSubmission!: boolean;
