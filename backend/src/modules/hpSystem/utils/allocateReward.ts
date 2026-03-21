@@ -147,6 +147,11 @@ const processMilestoneRewards = async (
             return false;
         }
 
+        if (!activityConfig.deadlineAt) {
+            console.log("No deadline configured for this activity...")
+            return false
+        }
+
         // Check if the milestone completed after deadline or not
         const isAfterDeadline = Date.now() > activityConfig.deadlineAt.getTime();
 
