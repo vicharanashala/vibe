@@ -9,6 +9,9 @@ import {
   MinLength,
   MaxLength,
   IsDate,
+  IsNumber,
+  IsArray,
+  ArrayMinSize,
 } from 'class-validator';
 
 // ─── Params ───────────────────────────────────────────────────────────────────
@@ -107,4 +110,54 @@ export class ManualEjectionResponse {
   @Expose()
   @JSONSchema({description: 'Timestamp of ejection'})
   ejectedAt: Date;
+}
+
+export class BulkEjectionBody {
+  @IsArray()
+  @IsMongoId({each: true})
+  @ArrayMinSize(1)
+  @JSONSchema({description: 'Array of user IDs to eject'})
+  userIds: string[];
+
+  @IsNotEmpty()
+  @IsString()
+  @MinLength(10)
+  @MaxLength(500)
+  @JSONSchema({description: 'Shared reason applied to all ejections'})
+  reason: string;
+
+  @IsNotEmpty()
+  @IsMongoId()
+  @JSONSchema({description: 'Course ID'})
+  courseId: string;
+
+  @IsNotEmpty()
+  @IsMongoId()
+  @JSONSchema({description: 'Course Version ID'})
+  courseVersionId: string;
+
+  @IsOptional()
+  @IsMongoId()
+  @JSONSchema({description: 'Cohort ID'})
+  cohortId?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  @JSONSchema({description: 'Policy ID'})
+  policyId?: string;
+}
+
+@Expose()
+export class BulkEjectionResponse {
+  @IsNumber()
+  @Expose()
+  successCount: number;
+
+  @IsNumber()
+  @Expose()
+  failureCount: number;
+
+  @IsArray()
+  @Expose()
+  errors: string[];
 }

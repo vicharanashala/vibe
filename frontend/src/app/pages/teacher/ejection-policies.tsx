@@ -9,8 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EjectionPolicyModal } from "@/app/pages/teacher/components/ejection-policies/EjectionPolicyModal";
 import { EjectionPolicyList } from "@/app/pages/teacher/components/ejection-policies/EjectionPolicyList";
+import { EjectionStudentList } from "@/app/pages/teacher/components/ejection-policies/EjectionStudentList";
 import { useEjectionPolicies } from "@/hooks/ejection-policy-hooks";
 import { useCourseVersionCohorts } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
@@ -22,11 +24,12 @@ export default function EjectionPoliciesPage() {
   const versionId = currentCourse?.versionId;
 
   const [selectedCohortId, setSelectedCohortId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"policies" | "students">("policies");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<EjectionPolicy | null>(null);
   const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
 
-  // Fetch cohorts for this course version — same hook used in ConfigureCohorts
+  // Fetch cohorts for this course version
   const {
     data: cohortsData,
     isLoading: cohortsLoading,
@@ -34,33 +37,41 @@ export default function EjectionPoliciesPage() {
     courseId,
     versionId ?? "",
     1,
-    100,   // load all cohorts, no need to paginate here
+    100,
     "",
     "name",
     "asc",
   );
 
   const cohorts: any[] = cohortsData?.cohorts ?? [];
+  const selectedCohort = cohorts.find((c: any) => c.id === selectedCohortId);
 
   const isActiveFilter =
     activeFilter === "all" ? undefined : activeFilter === "active";
 
   const hasCourseContext = !!courseId && !!versionId && !!selectedCohortId;
+  const hasMinimumContext = !!courseId && !!versionId;
 
+  // Separate call just to resolve isAdmin — fires as soon as course+version available
+  const { isAdmin } = useEjectionPolicies(
+    courseId,
+    versionId ?? undefined,
+    undefined,
+    undefined,
+    hasMinimumContext,
+  );
 
-
-// Separate call for actual policies — only fires when cohort is selected
-const {
-  policies,
-  isLoading: policiesLoading,
-  isAdmin
-} = useEjectionPolicies(
-  courseId,
-  versionId ?? undefined,
-  selectedCohortId ?? undefined,
-  isActiveFilter,
-  hasCourseContext,
-);
+  // Policy list — only fires once cohort is selected
+  const {
+    policies,
+    isLoading: policiesLoading,
+  } = useEjectionPolicies(
+    courseId,
+    versionId ?? undefined,
+    selectedCohortId ?? undefined,
+    isActiveFilter,
+    hasCourseContext,
+  );
 
   const handleCreateClick = () => {
     setEditingPolicy(null);
@@ -77,7 +88,7 @@ const {
     setEditingPolicy(null);
   };
 
-  // No course context in store at all
+  // No course context in store
   if (!courseId || !versionId) {
     return (
       <div className="flex-1 overflow-auto p-6 bg-gradient-to-br from-background via-background to-muted/20">
@@ -117,23 +128,21 @@ const {
                     Ejection Policies
                   </h1>
                   <p className="text-muted-foreground mt-1">
-                    Manage automated ejection rules for students
+                    Manage ejection rules and student status
                   </p>
                 </div>
               </div>
 
-              {isAdmin && selectedCohortId  && (
+              {/* Create button — only on policies tab, only admins, only when cohort selected */}
+              {isAdmin && selectedCohortId && activeTab === "policies" && (
                 <Button
                   onClick={handleCreateClick}
-                  disabled={(policies?.length ?? 0) > 0}
                   className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_auto] hover:bg-[length:100%_auto] shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 h-12 px-8 group"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                   <div className="relative flex items-center gap-2">
                     <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
-                    <span className="font-semibold">{(policies?.length ?? 0) > 0
-        ? "Policy Already Exists"
-        : "Create Policy"}</span>
+                    <span className="font-semibold">Create Policy</span>
                   </div>
                 </Button>
               )}
@@ -141,46 +150,77 @@ const {
           </div>
         </div>
 
-        {/* Cohort selector + filter bar */}
+        {/* Cohort selector */}
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-muted/20 to-muted/10 rounded-xl blur-sm" />
           <div className="relative bg-card/60 backdrop-blur-sm border border-border/50 rounded-xl p-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+              {cohortsLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading cohorts...
+                </div>
+              ) : cohorts.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No cohorts found. Create cohorts first via "Configure Cohorts".
+                </p>
+              ) : (
+                <Select
+                  value={selectedCohortId ?? ""}
+                  onValueChange={(val) => {
+                    setSelectedCohortId(val);
+                    setActiveTab("policies");
+                  }}
+                >
+                  <SelectTrigger className="w-[220px]">
+                    <SelectValue placeholder="Select a cohort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cohorts.map((cohort: any) => (
+                      <SelectItem key={cohort.id} value={cohort.id}>
+                        {cohort.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
+        </div>
 
-              {/* Cohort selector */}
-              <div className="flex items-center gap-3">
-                <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-                {cohortsLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading cohorts...
-                  </div>
-                ) : cohorts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No cohorts found for this course version.
-                    Create cohorts first via "Configure Cohorts".
-                  </p>
-                ) : (
-                  <Select
-                    value={selectedCohortId ?? ""}
-                    onValueChange={(val) => setSelectedCohortId(val)}
-                  >
-                    <SelectTrigger className="w-[220px]">
-                      <SelectValue placeholder="Select a cohort" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {cohorts.map((cohort: any) => (
-                        <SelectItem key={cohort.id} value={cohort.id}>
-                          {cohort.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
+        {/* No cohort selected placeholder */}
+        {!selectedCohortId ? (
+          <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 p-8 text-center">
+            <p className="text-blue-800 dark:text-blue-200 font-medium">
+              Select a cohort above to view or manage its ejection policies and students.
+            </p>
+          </Card>
+        ) : (
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as "policies" | "students")}
+          >
+            {/* Tab bar + filter */}
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <TabsList className="h-11 bg-muted/40 backdrop-blur-sm border border-border/50 p-1 rounded-xl">
+                <TabsTrigger
+                  value="policies"
+                  className="rounded-lg text-sm font-semibold text-muted-foreground transition-all duration-200 data-[state=active]:bg-background/80 data-[state=active]:text-foreground data-[state=active]:shadow-sm px-6"
+                >
+                  <Shield className="h-4 w-4 mr-2" />
+                  Policies
+                </TabsTrigger>
+                <TabsTrigger
+                  value="students"
+                  className="rounded-lg text-sm font-semibold text-muted-foreground transition-all duration-200 data-[state=active]:bg-background/80 data-[state=active]:text-foreground data-[state=active]:shadow-sm px-6"
+                >
+                  Students
+                </TabsTrigger>
+              </TabsList>
 
-              {/* Active filter — only shown once a cohort is selected */}
-              {selectedCohortId && (
+              {/* Filter — only on policies tab */}
+              {activeTab === "policies" && (
                 <div className="flex items-center gap-2">
                   <Filter className="h-4 w-4 text-muted-foreground" />
                   <Select
@@ -199,35 +239,34 @@ const {
                 </div>
               )}
             </div>
-          </div>
-        </div>
 
-        {/* Policy list area */}
-        {!selectedCohortId ? (
-          <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 p-8 text-center">
-            <p className="text-blue-800 dark:text-blue-200 font-medium">
-              Select a cohort above to view or manage its ejection policies.
-            </p>
-          </Card>
-        ) : (
-          <>
-            <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-800 dark:text-blue-200">
-                Showing policies for:{" "}
-                <strong>
-                  {cohorts.find((c: any) => c.id === selectedCohortId)?.name}
-                </strong>
-              </p>
-            </div>
+            {/* Policies tab */}
+            <TabsContent value="policies" className="mt-4">
+              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  Showing policies for cohort:{" "}
+                  <strong>{selectedCohort?.name}</strong>
+                </p>
+              </div>
+              <EjectionPolicyList
+                policies={policies}
+                isLoading={policiesLoading}
+                onEdit={handleEditClick}
+                canEdit={isAdmin}
+                canDelete={isAdmin}
+              />
+            </TabsContent>
 
-            <EjectionPolicyList
-              policies={policies}
-              isLoading={policiesLoading}
-              onEdit={handleEditClick}
-              canEdit={isAdmin}
-              canDelete={isAdmin}
-            />
-          </>
+            {/* Students tab */}
+            <TabsContent value="students" className="mt-4">
+              <EjectionStudentList
+                courseId={courseId}
+                courseVersionId={versionId}
+                cohortId={selectedCohortId}
+                cohortName={selectedCohort?.name ?? ""}
+              />
+            </TabsContent>
+          </Tabs>
         )}
       </div>
 

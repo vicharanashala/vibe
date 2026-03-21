@@ -222,12 +222,7 @@ export class EjectionPolicyController {
     @Ability(getEjectionPolicyAbility) {ability, user},
   ): Promise<PoliciesListResponse> {
     // Check if user has access to this course version
-    console.log(
-      'getActivePoliciesForCourse in controller==========================',
-    );
-    console.log('cohort id: ', cohortId);
-    console.log('courseId id: ', courseId);
-    console.log('courseVersionId id: ', courseVersionId);
+
     if (user.roles !== 'admin') {
       const courseContext = {courseId, courseVersionId};
       const policySubject = subject('EjectionPolicy', courseContext);

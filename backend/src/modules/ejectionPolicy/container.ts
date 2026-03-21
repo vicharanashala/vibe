@@ -5,6 +5,8 @@ import {EjectionPolicyRepository} from './repositories/providers/mongodb/Ejectio
 import {EjectionPolicyController} from './controllers/EjectionPolicyController.js';
 import {ManualEjectionService} from './services/ManualEjectionService.js';
 import {ManualEjectionController} from './controllers/ManualEjectionController.js';
+import {ReinstatementService} from './services/ReinstatementService.js';
+import {ReinstatementController} from './controllers/ReinstatementController.js';
 
 export const ejectionPolicyContainerModule = new ContainerModule(options => {
   // Repositories
@@ -28,4 +30,11 @@ export const ejectionPolicyContainerModule = new ContainerModule(options => {
     .inSingletonScope();
 
   options.bind(ManualEjectionController).toSelf().inSingletonScope();
+
+  options
+    .bind(EJECTION_POLICY_TYPES.ReinstatementService)
+    .to(ReinstatementService)
+    .inSingletonScope();
+
+  options.bind(ReinstatementController).toSelf().inSingletonScope();
 });

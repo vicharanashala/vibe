@@ -9,6 +9,8 @@ import {
   ForbiddenError,
   UseInterceptor,
   Req,
+  QueryParams,
+  Get,
 } from 'routing-controllers';
 import {injectable, inject} from 'inversify';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
@@ -34,7 +36,17 @@ import {
   ManualEjectionParams,
   ManualEjectionBody,
   ManualEjectionResponse,
+  BulkEjectionResponse,
+  BulkEjectionBody,
 } from '../classes/validators/ManualEjectionValidators.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
+import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
+import {
+  EjectionStudentResponse,
+  EjectionStudentsListResponse,
+  EjectionStudentsParams,
+  EjectionStudentsQuery,
+} from '../classes/index.js';
 
 @OpenAPI({tags: ['Manual Ejection']})
 @JsonController('/ejections', {transformResponse: true})
@@ -43,6 +55,8 @@ export class ManualEjectionController {
   constructor(
     @inject(EJECTION_POLICY_TYPES.ManualEjectionService)
     private readonly manualEjectionService: ManualEjectionService,
+    @inject(USERS_TYPES.EnrollmentService)
+    private readonly enrollmentService: EnrollmentService,
   ) {}
 
   @Authorized()
@@ -134,5 +148,157 @@ export class ManualEjectionController {
       },
       {enableImplicitConversion: true},
     );
+  }
+
+  @Authorized()
+  @Get(
+    '/courses/:courseId/versions/:courseVersionId/cohorts/:cohortId/students',
+  )
+  @HttpCode(200)
+  @ResponseSchema(EjectionStudentsListResponse, {
+    description: 'Students in cohort with ejection metadata',
+    statusCode: 200,
+  })
+  @OpenAPI({
+    summary: 'Get students for ejection management',
+    description:
+      'Returns all students in a cohort with ejection status, history, and last active date. ' +
+      'Admin only. Designed for the manual ejection UI and future auto-ejection engine.',
+  })
+  async getStudentsForEjection(
+    @Params() params: EjectionStudentsParams,
+    @QueryParams() query: EjectionStudentsQuery,
+    @Ability(getEjectionPolicyAbility) {user},
+  ): Promise<EjectionStudentsListResponse> {
+    if (user.roles !== 'admin') {
+      throw new ForbiddenError(
+        'Only administrators can access ejection student data',
+      );
+    }
+
+    const {courseId, courseVersionId, cohortId} = params;
+
+    const {students, totalDocuments, totalPages} =
+      await this.enrollmentService.getStudentsForEjectionPage(
+        courseId,
+        courseVersionId,
+        cohortId,
+        query.page,
+        query.limit,
+        query.search ?? '',
+      );
+
+    const now = new Date();
+
+    const mapped: EjectionStudentResponse[] = students.map(s => {
+      const lastActiveAt = s.lastActiveAt ? new Date(s.lastActiveAt) : null;
+      const daysSinceLastActive = lastActiveAt
+        ? Math.floor(
+            (now.getTime() - lastActiveAt.getTime()) / (1000 * 60 * 60 * 24),
+          )
+        : null;
+
+      // ejectionStatus logic — T-05 will extend this
+      let ejectionStatus: 'active' | 'ejected' | 'warning' = 'active';
+      if (s.isEjected) {
+        ejectionStatus = 'ejected';
+      } else if (daysSinceLastActive !== null && daysSinceLastActive >= 20) {
+        // Soft warning threshold — T-05 will make this policy-driven
+        ejectionStatus = 'warning';
+      }
+
+      return plainToClass(
+        EjectionStudentResponse,
+        {
+          enrollmentId: s._id?.toString(),
+          userId: s.userId?.toString(),
+          name:
+            `${s.user?.firstName ?? ''} ${s.user?.lastName ?? ''}`.trim() ||
+            'Unknown',
+          email: s.user?.email ?? '',
+          enrollmentDate: s.enrollmentDate,
+          percentCompleted: s.percentCompleted ?? 0,
+          isEjected: s.isEjected ?? false,
+          ejectionStatus,
+          lastActiveAt: lastActiveAt ?? undefined,
+          daysSinceLastActive: daysSinceLastActive ?? undefined,
+          ejectionHistory: s.ejectionHistory ?? [],
+        },
+        {enableImplicitConversion: true},
+      );
+    });
+
+    return {
+      students: mapped,
+      totalDocuments,
+      totalPages,
+      currentPage: query.page,
+    };
+  }
+
+  @Authorized()
+  @Post('/bulk')
+  @UseInterceptor(AuditTrailsHandler)
+  @HttpCode(200)
+  @ResponseSchema(BulkEjectionResponse, {
+    description: 'Bulk ejection result',
+    statusCode: 200,
+  })
+  @OpenAPI({
+    summary: 'Bulk eject learners',
+    description:
+      'Ejects multiple learners at once with a shared reason. Admin only.',
+  })
+  async bulkEjectLearners(
+    @Body() body: BulkEjectionBody,
+    @Ability(getEjectionPolicyAbility) {user},
+    @Req() req: Request,
+  ): Promise<BulkEjectionResponse> {
+    if (user.roles !== 'admin') {
+      throw new ForbiddenError('Only administrators can bulk eject learners');
+    }
+
+    const result = await this.manualEjectionService.bulkEjectLearners(
+      body.userIds,
+      body.courseId,
+      body.courseVersionId,
+      body.reason,
+      user._id.toString(),
+      body.cohortId,
+      body.policyId,
+    );
+
+    setAuditTrail(req, {
+      category: AuditCategory.ENROLLMENT,
+      action: AuditAction.BULK_ENROLLMENT_REMOVE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName ?? ''}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        courseId: ObjectId.createFromHexString(body.courseId),
+        courseVersionId: ObjectId.createFromHexString(body.courseVersionId),
+      },
+      changes: {
+        after: {
+          ejectedCount: result.successCount,
+          reason: body.reason,
+        },
+      },
+      outcome: {
+        status:
+          result.failureCount === 0
+            ? OutComeStatus.SUCCESS
+            : result.successCount === 0
+              ? OutComeStatus.FAILED
+              : OutComeStatus.PARTIAL,
+      },
+    });
+
+    return plainToClass(BulkEjectionResponse, result, {
+      enableImplicitConversion: true,
+    });
   }
 }

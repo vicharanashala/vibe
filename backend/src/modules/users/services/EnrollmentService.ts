@@ -2124,7 +2124,7 @@ export class EnrollmentService extends BaseService {
         );
       }
 
-      const enrollment = await this.enrollmentRepo.findActiveEnrollment(
+      const enrollment = await this.enrollmentRepo.findActiveStudentEnrollment(
         userId,
         courseId,
         courseVersionId,
@@ -2138,16 +2138,13 @@ export class EnrollmentService extends BaseService {
         );
       }
 
-      // Soft-deletes progress and watchtime — data is preserved for reinstatement
-      await this.progressService.unenrollUser(
-        userId,
-        courseId,
-        courseVersionId,
-        enrollment._id.toString(),
-        cohortId,
-        session,
-      );
+      if ((enrollment as any).isEjected) {
+        throw new BadRequestError(
+          'This learner is already ejected from this course',
+        );
+      }
 
+      // Only update the enrollment document — do NOT touch progress or watchtime
       const ejectedEnrollment = await this.enrollmentRepo.ejectEnrollment(
         enrollment._id.toString(),
         reason,
@@ -2161,6 +2158,80 @@ export class EnrollmentService extends BaseService {
       }
 
       return {enrollment: ejectedEnrollment};
+    });
+  }
+
+  async getStudentsForEjectionPage(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+    page: number,
+    limit: number,
+    search: string = '',
+  ): Promise<{students: any[]; totalDocuments: number; totalPages: number}> {
+    const {students, totalDocuments} =
+      await this.enrollmentRepo.getStudentsForEjectionPage(
+        courseId,
+        courseVersionId,
+        cohortId,
+        page,
+        limit,
+        search,
+        // no session — read-only, no transaction needed
+      );
+
+    return {
+      students,
+      totalDocuments,
+      totalPages: Math.ceil(totalDocuments / limit),
+    };
+  }
+
+  async reinstateUser(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    reinstatedBy: string,
+    cohortId?: string,
+  ): Promise<{enrollment: IEnrollment}> {
+    return this._withTransaction(async (session: ClientSession) => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        courseVersionId,
+        session,
+      );
+
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'This course version is archived, cannot reinstate users',
+        );
+      }
+
+      const enrollment = await this.enrollmentRepo.findEjectedEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId,
+        session,
+      );
+
+      if (!enrollment) {
+        throw new NotFoundError(
+          'No ejected enrollment found for this user in the specified course version',
+        );
+      }
+
+      const reinstatedEnrollment =
+        await this.enrollmentRepo.reinstateEnrollment(
+          enrollment._id.toString(),
+          reinstatedBy,
+          session,
+        );
+
+      if (!reinstatedEnrollment) {
+        throw new NotFoundError('Failed to reinstate enrollment');
+      }
+
+      return {enrollment: reinstatedEnrollment};
     });
   }
 }

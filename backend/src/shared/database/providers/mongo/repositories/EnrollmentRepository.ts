@@ -173,7 +173,8 @@ export class EnrollmentRepository {
         courseVersionId: {$in: [courseVersionObjectId, courseVersionId]},
         status: 'ACTIVE',
         isDeleted: {$ne: true},
-        ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {cohortId: null}),
+        isEjected: {$ne: true},
+        ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
       },
       {session},
     );
@@ -4455,11 +4456,200 @@ export class EnrollmentRepository {
       ),
     ]);
   }
+
   async ejectEnrollment(
     enrollmentId: string,
     reason: string,
     ejectedBy: string,
     policyId?: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment | null> {
+    await this.init();
+
+    const historyEntry: any = {
+      ejectedAt: new Date(),
+      ejectionReason: reason,
+      ejectedBy: new ObjectId(ejectedBy),
+      ...(policyId ? {policyId: new ObjectId(policyId)} : {}),
+    };
+    const existing = await this.enrollmentCollection.findOne(
+      {_id: new ObjectId(enrollmentId)},
+      {session},
+    );
+
+    const result = await this.enrollmentCollection.findOneAndUpdate(
+      {
+        _id: new ObjectId(enrollmentId),
+        isDeleted: {$ne: true}, // must not be deleted
+        isEjected: {$ne: true}, // must not already be ejected
+      },
+      {
+        $set: {
+          status: 'INACTIVE' as EnrollmentStatus,
+          isEjected: true,
+          updatedAt: new Date(),
+          // DO NOT set isDeleted — ejection is reversible
+        },
+        $push: {ejectionHistory: historyEntry},
+      },
+      {returnDocument: 'after', session},
+    );
+
+    return result;
+  }
+  async findActiveStudentEnrollment(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment | null> {
+    await this.init();
+
+    return await this.enrollmentCollection.findOne(
+      {
+        userId: {$in: [new ObjectId(userId), userId]},
+        courseId: {$in: [new ObjectId(courseId), courseId]},
+        courseVersionId: {
+          $in: [new ObjectId(courseVersionId), courseVersionId],
+        },
+        role: 'STUDENT', //addition
+        status: 'ACTIVE',
+        isDeleted: {$ne: true},
+        isEjected: {$ne: true},
+        ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
+      },
+      {session},
+    );
+  }
+
+  async getStudentsForEjectionPage(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+    page: number,
+    limit: number,
+    search: string = '',
+    session?: ClientSession,
+  ): Promise<{
+    students: any[];
+    totalDocuments: number;
+  }> {
+    await this.init();
+
+    const skip = (page - 1) * limit;
+
+    const matchStage: any = {
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      cohortId: new ObjectId(cohortId),
+      isDeleted: {$ne: true},
+      role: 'STUDENT',
+    };
+
+    const pipeline: any[] = [
+      {$match: matchStage},
+
+      // Join user details
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      {$unwind: {path: '$user', preserveNullAndEmptyArrays: true}},
+
+      // Join last active date from watchTime
+      {
+        $lookup: {
+          from: 'watchTime',
+          let: {
+            uid: '$userId',
+            cid: '$courseId',
+            vid: '$courseVersionId',
+            coId: '$cohortId',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    {$eq: ['$userId', '$$uid']},
+                    {$eq: ['$courseId', '$$cid']},
+                    {$eq: ['$courseVersionId', '$$vid']},
+                    {$eq: ['$cohortId', '$$coId']},
+                    {$ne: ['$isDeleted', true]},
+                  ],
+                },
+              },
+            },
+            {$sort: {startTime: -1}},
+            {$limit: 1},
+            {$project: {startTime: 1}},
+          ],
+          as: 'lastActivity',
+        },
+      },
+
+      // Search filter
+      ...(search
+        ? [
+            {
+              $match: {
+                $or: [
+                  {'user.firstName': {$regex: search, $options: 'i'}},
+                  {'user.lastName': {$regex: search, $options: 'i'}},
+                  {'user.email': {$regex: search, $options: 'i'}},
+                ],
+              },
+            },
+          ]
+        : []),
+
+      // Project only what the ejection page needs
+      {
+        $project: {
+          _id: 1,
+          userId: 1,
+          status: 1,
+          isEjected: 1,
+          ejectionHistory: 1,
+          enrollmentDate: 1,
+          percentCompleted: 1,
+          cohortId: 1,
+          'user._id': 1,
+          'user.firstName': 1,
+          'user.lastName': 1,
+          'user.email': 1,
+          lastActiveAt: {
+            $arrayElemAt: ['$lastActivity.startTime', 0],
+          },
+        },
+      },
+
+      {$sort: {enrollmentDate: -1}},
+    ];
+
+    const [data, countResult] = await Promise.all([
+      this.enrollmentCollection
+        .aggregate([...pipeline, {$skip: skip}, {$limit: limit}])
+        .toArray(),
+      this.enrollmentCollection
+        .aggregate([...pipeline, {$count: 'total'}])
+        .toArray(),
+    ]);
+
+    return {
+      students: data,
+      totalDocuments: countResult[0]?.total ?? 0,
+    };
+  }
+
+  async reinstateEnrollment(
+    enrollmentId: string,
+    reinstatedBy: string,
     session?: ClientSession,
   ): Promise<IEnrollment | null> {
     await this.init();
@@ -4473,43 +4663,59 @@ export class EnrollmentRepository {
       throw new NotFoundError('Enrollment not found');
     }
 
-    if (existing.isEjected === true) {
-      throw new BadRequestError(
-        'This learner is already ejected from this course',
-      );
+    if (!existing.isEjected) {
+      throw new BadRequestError('This learner is not currently ejected');
     }
 
-    if (existing.isDeleted === true) {
-      throw new BadRequestError(
-        'This enrollment has been deleted and cannot be ejected',
-      );
-    }
-
-    const historyEntry: any = {
-      ejectedAt: new Date(),
-      ejectionReason: reason,
-      ejectedBy: new ObjectId(ejectedBy),
-      ...(policyId ? {policyId: new ObjectId(policyId)} : {}),
-    };
-
+    // Add reinstatedAt + reinstatedBy to the last ejection history entry
+    // that doesn't already have a reinstatedAt
     const result = await this.enrollmentCollection.findOneAndUpdate(
       {
         _id: new ObjectId(enrollmentId),
-        status: 'ACTIVE',
+        isEjected: true,
         isDeleted: {$ne: true},
-        isEjected: {$ne: true},
       },
       {
         $set: {
-          status: 'INACTIVE' as EnrollmentStatus,
-          isEjected: true,
+          status: 'ACTIVE' as EnrollmentStatus,
+          isEjected: false,
           updatedAt: new Date(),
+          // Update the last history entry that hasn't been reinstated yet
+          'ejectionHistory.$[last].reinstatedAt': new Date(),
+          'ejectionHistory.$[last].reinstatedBy': new ObjectId(reinstatedBy),
         },
-        $push: {ejectionHistory: historyEntry},
       },
-      {returnDocument: 'after', session},
+      {
+        returnDocument: 'after',
+        arrayFilters: [{'last.reinstatedAt': {$exists: false}}],
+        session,
+      },
     );
 
     return result;
+  }
+  async findEjectedEnrollment(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment | null> {
+    await this.init();
+
+    return await this.enrollmentCollection.findOne(
+      {
+        userId: {$in: [new ObjectId(userId), userId]},
+        courseId: {$in: [new ObjectId(courseId), courseId]},
+        courseVersionId: {
+          $in: [new ObjectId(courseVersionId), courseVersionId],
+        },
+        role: 'STUDENT',
+        isEjected: true,
+        isDeleted: {$ne: true},
+        ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
+      },
+      {session},
+    );
   }
 }

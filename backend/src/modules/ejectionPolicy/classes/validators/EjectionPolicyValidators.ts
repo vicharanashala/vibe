@@ -14,6 +14,7 @@ import {
   Min,
   IsArray,
   IsDate,
+  IsInt,
 } from 'class-validator';
 import {
   InactivityTrigger,
@@ -479,4 +480,174 @@ export class DeletePolicyResponse {
     example: '507f1f77bcf86cd799439011',
   })
   policyId: string;
+}
+// ─── Params ───────────────────────────────────────────────────────────────────
+
+export class EjectionStudentsParams {
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({description: 'Course ID'})
+  courseId: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({description: 'Course Version ID'})
+  courseVersionId: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({description: 'Cohort ID'})
+  cohortId: string;
+}
+
+// ─── Query ────────────────────────────────────────────────────────────────────
+
+export class EjectionStudentsQuery {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @JSONSchema({type: 'integer', minimum: 1})
+  page: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @JSONSchema({type: 'integer', minimum: 1})
+  limit: number = 20;
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({type: 'string', description: 'Search by name or email'})
+  search?: string;
+}
+
+// ─── Response ─────────────────────────────────────────────────────────────────
+
+class EjectionHistoryEntryResponse {
+  @IsDate()
+  @Type(() => Date)
+  @Expose()
+  ejectedAt: Date;
+
+  @IsString()
+  @Expose()
+  ejectionReason: string;
+
+  @IsString()
+  @Expose()
+  @Transform(({value}) => value?.toString())
+  ejectedBy: string;
+
+  @IsOptional()
+  @IsString()
+  @Expose()
+  @Transform(({value}) => value?.toString())
+  policyId?: string;
+
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  @Expose()
+  reinstatedAt?: Date;
+
+  @IsOptional()
+  @IsString()
+  @Expose()
+  @Transform(({value}) => value?.toString())
+  reinstatedBy?: string;
+}
+
+@Expose()
+export class EjectionStudentResponse {
+  @IsString()
+  @Expose()
+  @Transform(({value}) => value?.toString())
+  @JSONSchema({description: 'Enrollment ID'})
+  enrollmentId: string;
+
+  @IsString()
+  @Expose()
+  @Transform(({value}) => value?.toString())
+  @JSONSchema({description: 'User ID'})
+  userId: string;
+
+  @IsString()
+  @Expose()
+  @JSONSchema({description: 'Full name'})
+  name: string;
+
+  @IsString()
+  @Expose()
+  @JSONSchema({description: 'Email'})
+  email: string;
+
+  @IsDate()
+  @Type(() => Date)
+  @Expose()
+  @JSONSchema({description: 'Enrollment date'})
+  enrollmentDate: Date;
+
+  @IsNumber()
+  @Expose()
+  @JSONSchema({description: 'Course completion percentage'})
+  percentCompleted: number;
+
+  @IsBoolean()
+  @Expose()
+  @JSONSchema({description: 'Whether the student is currently ejected'})
+  isEjected: boolean;
+
+  @IsString()
+  @Expose()
+  @JSONSchema({
+    description: 'Status: active | ejected | warning',
+    enum: ['active', 'ejected', 'warning'],
+  })
+  ejectionStatus: 'active' | 'ejected' | 'warning';
+
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  @Expose()
+  @JSONSchema({description: 'Last time the student was active in the course'})
+  lastActiveAt?: Date;
+
+  @IsOptional()
+  @IsInt()
+  @Expose()
+  @JSONSchema({
+    description:
+      'Days since last activity — used for inactivity trigger preview',
+  })
+  daysSinceLastActive?: number;
+
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => EjectionHistoryEntryResponse)
+  @Expose()
+  @JSONSchema({description: 'Full ejection history for this student'})
+  ejectionHistory: EjectionHistoryEntryResponse[];
+}
+
+@Expose()
+export class EjectionStudentsListResponse {
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => EjectionStudentResponse)
+  @Expose()
+  students: EjectionStudentResponse[];
+
+  @IsInt()
+  @Expose()
+  totalDocuments: number;
+
+  @IsInt()
+  @Expose()
+  totalPages: number;
+
+  @IsInt()
+  @Expose()
+  currentPage: number;
 }

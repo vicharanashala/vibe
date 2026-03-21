@@ -1,90 +1,66 @@
 import 'reflect-metadata';
 import {injectable, inject} from 'inversify';
-import {ForbiddenError} from 'routing-controllers';
-import {EJECTION_POLICY_TYPES} from '../types.js';
-import {EjectionPolicyService} from './EjectionPolicyService.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
 
-export interface ManualEjectionResult {
+export interface ReinstatementResult {
   enrollmentId: string;
   userId: string;
   courseId: string;
   courseVersionId: string;
-  reason: string;
-  ejectedAt: Date;
+  reinstatedAt: Date;
 }
 
 @injectable()
-export class ManualEjectionService {
+export class ReinstatementService {
   constructor(
-    @inject(EJECTION_POLICY_TYPES.EjectionPolicyService)
-    private readonly policyService: EjectionPolicyService,
-
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
   ) {}
 
-  async ejectLearner(
+  async reinstateLearner(
     userId: string,
     courseId: string,
     courseVersionId: string,
-    reason: string,
-    ejectedBy: string,
+    reinstatedBy: string,
     cohortId?: string,
-    policyId?: string,
-  ): Promise<ManualEjectionResult> {
-    // If a policyId is provided, validate it exists and is active
-    if (policyId) {
-      const policy = await this.policyService.getPolicyById(policyId);
-      if (!policy.isActive) {
-        throw new ForbiddenError(
-          'The specified policy is not active and cannot be used for ejection',
-        );
-      }
-    }
-
-    const {enrollment} = await this.enrollmentService.ejectUser(
+  ): Promise<ReinstatementResult> {
+    const {enrollment} = await this.enrollmentService.reinstateUser(
       userId,
       courseId,
       courseVersionId,
-      reason,
-      ejectedBy,
+      reinstatedBy,
       cohortId,
-      policyId,
     );
 
-    const lastEntry = (enrollment.ejectionHistory as any[]).at(-1);
+    // Get the last history entry for reinstatedAt
+    const history = (enrollment as any).ejectionHistory ?? [];
+    const lastEntry = history.at(-1);
 
     return {
       enrollmentId: enrollment._id.toString(),
       userId,
       courseId,
       courseVersionId,
-      reason,
-      ejectedAt: lastEntry.ejectedAt,
+      reinstatedAt: lastEntry?.reinstatedAt ?? new Date(),
     };
   }
 
-  async bulkEjectLearners(
+  async bulkReinstateLearners(
     userIds: string[],
     courseId: string,
     courseVersionId: string,
-    reason: string,
-    ejectedBy: string,
+    reinstatedBy: string,
     cohortId?: string,
-    policyId?: string,
   ): Promise<{successCount: number; failureCount: number; errors: string[]}> {
     const results = await Promise.allSettled(
       userIds.map(userId =>
-        this.ejectLearner(
+        this.reinstateLearner(
           userId,
           courseId,
           courseVersionId,
-          reason,
-          ejectedBy,
+          reinstatedBy,
           cohortId,
-          policyId,
         ),
       ),
     );

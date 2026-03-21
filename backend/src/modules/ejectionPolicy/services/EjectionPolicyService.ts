@@ -123,12 +123,6 @@ export class EjectionPolicyService extends BaseService {
     courseVersionId: string,
     cohortId: string,
   ): Promise<EjectionPolicy[]> {
-    console.log(
-      'getActivePoliciesForCourse in service==========================',
-    );
-    console.log('cohort id: ', cohortId);
-    console.log('courseId id: ', courseId);
-    console.log('courseVersionId id: ', courseVersionId);
     return await this.policyRepo.findActivePoliciesForCourse(
       courseId,
       courseVersionId,

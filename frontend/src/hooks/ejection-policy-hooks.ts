@@ -2,21 +2,20 @@ import { queryClient } from "@/lib/client";
 import { api } from "@/lib/openapi";
 import { components } from '@/types/schema';
 
+// const STUDENT_LIST_KEY = 'get /ejections/courses/{courseId}/versions/{courseVersionId}/cohorts/{cohortId}/students';
+
 // GET /ejection-policies
 export function useEjectionPolicies(
-
   courseId?: string,
   courseVersionId?: string,
-  cohortId?:string,
+  cohortId?: string,
   isActive?: boolean,
   enabled: boolean = true
 ) {
   const params: any = {};
-
-  
   if (courseId) params.courseId = courseId;
   if (courseVersionId) params.courseVersionId = courseVersionId;
-  if (cohortId) params.cohortId = cohortId; 
+  if (cohortId) params.cohortId = cohortId;
   if (isActive !== undefined) params.active = isActive;
 
   const result = api.useQuery(
@@ -26,121 +25,44 @@ export function useEjectionPolicies(
     { enabled }
   );
 
-  const policies = result.data?.policies ?? [];
-  const isAdmin = result.data?.isAdmin ?? false;
-
   return {
     ...result,
-    policies,
-    isAdmin,
-    error: result.error
-      ? result.error.message || "Failed to load policies"
-      : null,
+    policies: result.data?.policies ?? [],
+    isAdmin: result.data?.isAdmin ?? false,
+    error: result.error ? result.error.message || "Failed to load policies" : null,
   };
 }
 
 // POST /ejection-policies
-export function useCreateEjectionPolicy(): {
-  mutate: (variables: { body: components['schemas']['CreateEjectionPolicyBody'] }) => void,
-  mutateAsync: (variables: { body: components['schemas']['CreateEjectionPolicyBody'] }) => Promise<components['schemas']['EjectionPolicyResponse']>,
-  data: components['schemas']['EjectionPolicyResponse'] | undefined,
-  error: string | null,
-  isPending: boolean,
-  isSuccess: boolean,
-  isError: boolean,
-  isIdle: boolean,
-  reset: () => void,
-  status: 'idle' | 'pending' | 'success' | 'error'
-} {
+export function useCreateEjectionPolicy() {
   const result = api.useMutation("post", "/ejection-policies", {
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["get", "/ejection-policies"],
-      });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["get", "/ejection-policies"] }),
   });
-  return {
-    ...result,
-    error: result.error ? (result.error.message || 'Policy creation failed') : null
-  };
+  return { ...result, error: result.error ? result.error.message || 'Policy creation failed' : null };
 }
 
 // PUT /ejection-policies/{policyId}
-export function useUpdateEjectionPolicy(): {
-  mutate: (variables: { params: { path: { policyId: string } }, body: components['schemas']['UpdateEjectionPolicyBody'] }) => void,
-  mutateAsync: (variables: { params: { path: { policyId: string } }, body: components['schemas']['UpdateEjectionPolicyBody'] }) => Promise<components['schemas']['EjectionPolicyResponse']>,
-  data: components['schemas']['EjectionPolicyResponse'] | undefined,
-  error: string | null,
-  isPending: boolean,
-  isSuccess: boolean,
-  isError: boolean,
-  isIdle: boolean,
-  reset: () => void,
-  status: 'idle' | 'pending' | 'success' | 'error'
-} {
+export function useUpdateEjectionPolicy() {
   const result = api.useMutation("put", "/ejection-policies/{policyId}", {
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["get", "/ejection-policies"],
-      });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["get", "/ejection-policies"] }),
   });
-  return {
-    ...result,
-    error: result.error ? (result.error.message || 'Policy update failed') : null
-  };
+  return { ...result, error: result.error ? result.error.message || 'Policy update failed' : null };
 }
 
 // DELETE /ejection-policies/{policyId}
-export function useDeleteEjectionPolicy(): {
-  mutate: (variables: { params: { path: { policyId: string } } }) => void,
-  mutateAsync: (variables: { params: { path: { policyId: string } } }) => Promise<components['schemas']['DeletePolicyResponse']>,
-  data: components['schemas']['DeletePolicyResponse'] | undefined,
-  error: string | null,
-  isPending: boolean,
-  isSuccess: boolean,
-  isError: boolean,
-  isIdle: boolean,
-  reset: () => void,
-  status: 'idle' | 'pending' | 'success' | 'error'
-} {
+export function useDeleteEjectionPolicy() {
   const result = api.useMutation("delete", "/ejection-policies/{policyId}", {
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["get", "/ejection-policies"],
-      });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["get", "/ejection-policies"] }),
   });
-  return {
-    ...result,
-    error: result.error ? (result.error.message || 'Policy deletion failed') : null
-  };
+  return { ...result, error: result.error ? result.error.message || 'Policy deletion failed' : null };
 }
 
 // POST /ejection-policies/{policyId}/toggle
-export function useTogglePolicyStatus(): {
-  mutate: (variables: { params: { path: { policyId: string } } }) => void,
-  mutateAsync: (variables: { params: { path: { policyId: string } } }) => Promise<components['schemas']['EjectionPolicyResponse']>,
-  data: components['schemas']['EjectionPolicyResponse'] | undefined,
-  error: string | null,
-  isPending: boolean,
-  isSuccess: boolean,
-  isError: boolean,
-  isIdle: boolean,
-  reset: () => void,
-  status: 'idle' | 'pending' | 'success' | 'error'
-} {
+export function useTogglePolicyStatus() {
   const result = api.useMutation("post", "/ejection-policies/{policyId}/toggle", {
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["get", "/ejection-policies"],
-      });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["get", "/ejection-policies"] }),
   });
-  return {
-    ...result,
-    error: result.error ? (result.error.message || 'Policy toggle failed') : null
-  };
+  return { ...result, error: result.error ? result.error.message || 'Policy toggle failed' : null };
 }
 
 // GET /ejection-policies/{policyId}
@@ -148,36 +70,113 @@ export function useEjectionPolicy(policyId: string) {
   const result = api.useQuery("get", "/ejection-policies/{policyId}", {
     params: { path: { policyId } }
   });
-  return {
-    ...result,
-    error: result.error ? (result.error.message || 'Failed to load policy') : null
-  };
+  return { ...result, error: result.error ? result.error.message || 'Failed to load policy' : null };
 }
 
-// GET /ejection-policies/courses/{courseId}/versions/{courseVersionId}/active
+// GET active policies for course version cohort
 export function useActivePoliciesForCourse(
   courseId: string,
   courseVersionId: string,
-  cohortId: string,  
-): {
-  policies: components['schemas']['EjectionPolicyResponse'][];
-  isLoading: boolean;
-  isError: boolean;
-  error: string | null;
-} {
+  cohortId: string,
+) {
   const result = api.useQuery(
     "get",
     "/ejection-policies/courses/{courseId}/versions/{courseVersionId}/cohorts/{cohortId}/active",
-    {
-      params: { path: { courseId, courseVersionId,cohortId } }
-    },{
-      enabled: !!courseId && !!courseVersionId && !!cohortId, 
-    }
+    { params: { path: { courseId, courseVersionId, cohortId } } },
+    { enabled: !!courseId && !!courseVersionId && !!cohortId },
   );
   return {
     policies: (result.data as any)?.policies ?? [],
     isLoading: result.isLoading,
     isError: result.isError,
-    error: result.error ? (result.error.message || 'Failed to load active policies') : null
+    error: result.error ? result.error.message || 'Failed to load active policies' : null,
   };
+}
+
+// Helper — invalidates the student list regardless of pagination/search params
+function invalidateStudentList() {
+  queryClient.invalidateQueries({
+    predicate: (query) =>
+      Array.isArray(query.queryKey) &&
+      query.queryKey[0] === 'get' &&
+      typeof query.queryKey[1] === 'string' &&
+      (query.queryKey[1] as string).includes('/ejections/courses/'),
+  });
+}
+
+// GET students for ejection page
+export function useEjectionStudents(
+  courseId: string,
+  courseVersionId: string,
+  cohortId: string,
+  page: number = 1,
+  limit: number = 20,
+  search: string = '',
+  statusFilter: 'all' | 'ejected' | 'active' = 'all',
+  enabled: boolean = true,
+) {
+  const result = api.useQuery(
+    'get',
+    '/ejections/courses/{courseId}/versions/{courseVersionId}/cohorts/{cohortId}/students',
+    {
+      params: {
+        path: { courseId, courseVersionId, cohortId },
+        query: {
+          page,
+          limit,
+          ...(search ? { search } : {}),
+          ...(statusFilter !== 'all' ? { statusFilter } : {}),
+        },
+      },
+    },
+    { enabled: enabled && !!courseId && !!courseVersionId && !!cohortId },
+  );
+
+  return {
+    ...result,
+    students: (result.data as any)?.students ?? [],
+    totalDocuments: (result.data as any)?.totalDocuments ?? 0,
+    totalPages: (result.data as any)?.totalPages ?? 0,
+    currentPage: (result.data as any)?.currentPage ?? 1,
+  };
+}
+
+// POST /ejections/courses/:courseId/versions/:courseVersionId/users/:userId
+export function useManualEject() {
+  const result = api.useMutation(
+    'post',
+    '/ejections/courses/{courseId}/versions/{courseVersionId}/users/{userId}',
+    { onSuccess: invalidateStudentList },
+  );
+  return { ...result, error: result.error ? result.error.message || 'Failed to eject student' : null };
+}
+
+// POST /ejections/bulk
+export function useBulkEject() {
+  const result = api.useMutation(
+    'post',
+    '/ejections/bulk',
+    { onSuccess: invalidateStudentList },
+  );
+  return { ...result, error: result.error ? result.error.message || 'Failed to bulk eject students' : null };
+}
+
+// POST /reinstatements/courses/:courseId/versions/:courseVersionId/users/:userId
+export function useReinstate() {
+  const result = api.useMutation(
+    'post',
+    '/reinstatements/courses/{courseId}/versions/{courseVersionId}/users/{userId}',
+    { onSuccess: invalidateStudentList },
+  );
+  return { ...result, error: result.error ? result.error.message || 'Failed to reinstate student' : null };
+}
+
+// POST /reinstatements/bulk
+export function useBulkReinstate() {
+  const result = api.useMutation(
+    'post',
+    '/reinstatements/bulk',
+    { onSuccess: invalidateStudentList },
+  );
+  return { ...result, error: result.error ? result.error.message || 'Failed to bulk reinstate students' : null };
 }
