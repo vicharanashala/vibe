@@ -45,6 +45,13 @@ export class RuleConfigService extends BaseService {
             throw new BadRequestError("Deadline is required for mandatory activities");
         }
 
+        if (body.deadlineAt) {
+            const deadline = new Date(body.deadlineAt);
+            if (deadline < new Date()) {
+                throw new BadRequestError("Deadline cannot be in the past");
+            }
+        }
+
         const now = new Date();
 
         const doc: HpRuleConfigCreateDoc = {
@@ -111,6 +118,13 @@ export class RuleConfigService extends BaseService {
 
         if (isMandatory && !deadlineAt) {
             throw new BadRequestError("Deadline is required for mandatory activities");
+        }
+
+        if (patch.deadlineAt) {
+            const newDeadline = new Date(patch.deadlineAt);
+            if (newDeadline < new Date()) {
+                throw new BadRequestError("Deadline cannot be in the past");
+            }
         }
 
         const updatePatch: HpRuleConfigUpdatePatch = {

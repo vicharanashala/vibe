@@ -161,6 +161,11 @@ export default function CreateHpActivityPage() {
             }
             if (ruleConfig.isMandatory && !ruleConfig.deadlineAt) {
                 nextErrors.deadlineAt = "Deadline is required";
+            } else if (ruleConfig.deadlineAt) {
+                const deadline = new Date(ruleConfig.deadlineAt);
+                if (deadline < new Date()) {
+                    nextErrors.deadlineAt = "Deadline cannot be in the past";
+                }
             }
             if (!ruleConfig.reward?.type) {
                 nextErrors.rewardType = "Reward type is required";
