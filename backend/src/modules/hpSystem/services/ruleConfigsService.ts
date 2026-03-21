@@ -38,7 +38,7 @@ export class RuleConfigService extends BaseService {
         }
 
         if (!body.isMandatory && body.penalty?.enabled) {
-            throw new BadRequestError("Penalty can be enabled only for mandatory activities");
+            body.penalty.enabled = false;
         }
 
         if (body.isMandatory && !body.deadlineAt) {
@@ -105,10 +105,6 @@ export class RuleConfigService extends BaseService {
         }
 
 
-        // Optional consistency guard: penalty only for mandatory
-        if (patch.isMandatory === false && patch.penalty?.enabled) {
-            throw new BadRequestError("Penalty can be enabled only for mandatory activities");
-        }
 
         const isMandatory = patch.isMandatory !== undefined ? patch.isMandatory : existing.isMandatory;
         const deadlineAt = patch.deadlineAt !== undefined ? patch.deadlineAt : existing.deadlineAt;
@@ -120,6 +116,15 @@ export class RuleConfigService extends BaseService {
         const updatePatch: HpRuleConfigUpdatePatch = {
             updatedAt: new Date(),
         };
+
+        // Optional consistency guard: penalty only for mandatory
+        if (patch.isMandatory === false) {
+            if (patch.penalty) {
+                patch.penalty.enabled = false;
+            } else if (existing.penalty?.enabled) {
+                updatePatch.penalty = { ...existing.penalty, enabled: false } as any;
+            }
+        }
 
         if (patch.isMandatory !== undefined) updatePatch.isMandatory = patch.isMandatory;
         if (patch.deadlineAt !== undefined) updatePatch.deadlineAt = patch.deadlineAt ? new Date(patch.deadlineAt) : null as any;

@@ -566,7 +566,11 @@ export default function CreateHpActivityPage() {
                                 <Switch
                                     checked={ruleConfig.isMandatory ?? false}
                                     onCheckedChange={(c) => {
-                                        setRuleConfig(prev => ({ ...prev, isMandatory: c }));
+                                        setRuleConfig(prev => ({ 
+                                            ...prev, 
+                                            isMandatory: c,
+                                            penalty: !c ? { ...prev.penalty, enabled: false } : prev.penalty
+                                        }));
                                         if (ruleErrors.isMandatory) {
                                             setRuleErrors(prev => ({ ...prev, isMandatory: undefined }));
                                         }
@@ -820,6 +824,7 @@ export default function CreateHpActivityPage() {
 
                                     <Switch
                                         checked={ruleConfig.penalty?.enabled || false}
+                                        disabled={!ruleConfig.isMandatory}
                                         onCheckedChange={(c) => {
                                             setRuleConfig(prev => ({
                                                 ...prev,
