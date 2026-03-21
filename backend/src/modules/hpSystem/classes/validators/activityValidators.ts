@@ -142,6 +142,16 @@ export class ListActivitiesQuery {
     status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
 
     @IsOptional()
+    @IsEnum(["ASSIGNMENT", "MILESTONE", "EXTERNAL_IMPORT", "VIBE_MILESTONE", "OTHER"], {
+        message: "activityType must be one of ASSIGNMENT, MILESTONE, EXTERNAL_IMPORT, VIBE_MILESTONE, OTHER ",
+    })
+    activityType?: | "ASSIGNMENT"
+        | "MILESTONE"
+        | "EXTERNAL_IMPORT"
+        | "VIBE_MILESTONE"
+        | "OTHER";
+
+    @IsOptional()
     @IsMongoId({ message: "createdByTeacherId must be a valid MongoDB ObjectId" })
     createdByTeacherId?: string;
 
