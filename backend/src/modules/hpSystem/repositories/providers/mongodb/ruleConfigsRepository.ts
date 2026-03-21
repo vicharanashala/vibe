@@ -143,7 +143,8 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
             },
             {
                 $match: {
-                    "activity.status": "PUBLISHED"
+                    "activity.status": "PUBLISHED",
+                    "activity.activityType": "ASSIGNMENT"
                 }
             },
             {
