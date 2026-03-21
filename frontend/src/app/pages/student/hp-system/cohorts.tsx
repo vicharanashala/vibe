@@ -92,7 +92,7 @@ export default function StudentCohorts() {
                         <CheckCircle2 className="h-4 w-4 text-green-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">0</div>
+                        <div className="text-2xl font-bold">{cohorts?.filter(c => (c.percentCompleted ?? 0) >= 100).length || 0}</div>
                         <p className="text-xs text-muted-foreground mt-1">
                             Cohorts fully finished
                         </p>
@@ -139,7 +139,7 @@ export default function StudentCohorts() {
                                 <div className="space-y-4 pt-4 border-t">
                                     <div className="space-y-2">
                                         <div className="flex justify-between items-center text-sm">
-                                            <span className="font-medium text-muted-foreground">Completion</span>
+                                            <span className="font-medium text-muted-foreground">Activities Completion</span>
                                             <span className="font-bold">{Math.min(cohort.percentCompleted ?? 0, 100)}%</span>
                                         </div>
                                         <EnrollmentProgress progress={Math.min(cohort.percentCompleted ?? 0, 100)} /> 

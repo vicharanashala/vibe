@@ -7,6 +7,7 @@ import { HP_SYSTEM_TYPES } from "../types.js";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { ActivityRepository } from "../repositories/index.js";
 import { BadRequestError } from "routing-controllers";
+import { IActivitySubmissionRepository } from "../interfaces/IActivitySubmissionRepository.js";
 
 
 @injectable()
@@ -21,6 +22,9 @@ export class CohortsService extends BaseService {
 
         @inject(HP_SYSTEM_TYPES.activityRepository)
         private readonly activityRepository: ActivityRepository,
+
+        @inject(HP_SYSTEM_TYPES.activitySubmissionsRepository)
+        private readonly activitySubmissionsRepository: IActivitySubmissionRepository,
 
         @inject(GLOBAL_TYPES.SettingRepo)
         private readonly settingsRepository: ISettingRepository,
@@ -511,13 +515,7 @@ export class CohortsService extends BaseService {
                             );
                             console.log("matched--", matched);
                             studentCohorts.push(
-                                ...matched.map(c => ({
-                                    ...c,
-                                    percentCompleted:
-                                    versionEnrollments.find(
-                                        e => e.cohortName?.toLowerCase() === c.cohortName.toLowerCase()
-                                    )?.percentCompleted ?? 0
-                                }))
+                                ...matched
                             );
                         }
                     }
@@ -529,10 +527,29 @@ export class CohortsService extends BaseService {
             // Note: _fetchDbCohorts already filters dynamic ones if we pass isPublic: true
             // Wait, I should update the call to _fetchDbCohorts in listStudentCohorts as well.
 
+            const completedActivitiesCounts = await this.activitySubmissionsRepository.getCompletedActivitiesCountByStudentId(userId);
+
+            const finalCohorts = studentCohorts.map(cohort => {
+                let completedCount = 0;
+                const match = completedActivitiesCounts.find(c => c.cohort?.toLowerCase() === cohort.cohortName?.toLowerCase());
+                if (match) {
+                    completedCount = match.count;
+                }
+                const publishedActivities = cohort.stats?.publishedActivities || 0;
+                let percentCompleted = 0;
+                if (publishedActivities > 0) {
+                    percentCompleted = Number(((completedCount / publishedActivities) * 100).toFixed(2));
+                }
+                return {
+                    ...cohort,
+                    percentCompleted
+                };
+            });
+
             return {
                 success: true,
                 message: "Cohorts fetched successfully",
-                data: studentCohorts,
+                data: finalCohorts,
                 meta: {
                     totalRecords: studentCohorts.length,
                     totalPages: 1,

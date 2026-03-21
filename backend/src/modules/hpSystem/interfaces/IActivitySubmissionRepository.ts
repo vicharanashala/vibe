@@ -55,6 +55,8 @@ export interface IActivitySubmissionRepository {
 
     updateFeedbackById(id: string, feedback: SubmissionFeedbackItem, session?: ClientSession): Promise<boolean>
 
+    getCompletedActivitiesCountByStudentId(studentId: string): Promise<Array<{ cohort: string, count: number }>>
+
     getCohortActivityStats(cohortName: string, activityId: string, session?: ClientSession): Promise<{
         totalSubmissions: number;
         approvedCount: number;

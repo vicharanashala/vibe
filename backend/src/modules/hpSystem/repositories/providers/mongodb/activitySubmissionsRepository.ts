@@ -588,6 +588,64 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         });
     }
 
+    async getCompletedActivitiesCountByStudentId(studentId: string): Promise<Array<{ cohort: string, count: number }>> {
+        await this.init();
+        
+        return await this.hpActivitySubmissionCollection.aggregate([
+            {
+                $match: {
+                    studentId: new ObjectId(studentId),
+                    status: { $in: ["SUBMITTED", "APPROVED"] },
+                    isDeleted: { $ne: true }
+                }
+            },
+            {
+                $lookup: {
+                    from: "hp_ledger",
+                    let: { submissionId: "$_id", activityId: "$activityId" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $or: [
+                                        { $eq: ["$submissionId", "$$submissionId"] },
+                                        { $eq: ["$activityId", "$$activityId"] }
+                                    ]
+                                },
+                                // Ensure it's for the same student
+                                studentId: new ObjectId(studentId)
+                            }
+                        },
+                        { $sort: { createdAt: -1 } },
+                        { $limit: 1 }
+                    ],
+                    as: "latestLedger"
+                }
+            },
+            {
+                $unwind: "$latestLedger"
+            },
+            {
+                $match: {
+                    "latestLedger.direction": "CREDIT"
+                }
+            },
+            {
+                $group: {
+                    _id: { cohort: "$cohort" },
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    cohort: "$_id.cohort",
+                    count: 1
+                }
+            }
+        ]).toArray() as any;
+    }
+
     async updateFeedbackById(id: string, feedback: SubmissionFeedbackItem, session?: ClientSession): Promise<boolean> {
         await this.init();
 
