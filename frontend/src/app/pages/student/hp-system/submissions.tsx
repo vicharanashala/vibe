@@ -131,11 +131,9 @@ export default function StudentSubmissions() {
         setEditError(null);
 
         const validLinks = editLinks.filter(l => l.url.trim() !== "");
-        const hasAttachments = editFiles.length > 0 || editImages.length > 0 || existingFiles.length > 0 || existingImages.length > 0 || validLinks.length > 0;
         const hasText = editTextResponse.trim() !== "";
-
-        if (!hasText || !hasAttachments) {
-            setEditError("Please provide a text response AND at least one attachment (file, image, or link).");
+        if (!hasText) {
+            setEditError("Please provide a text response.");
             return;
         }
 
@@ -461,15 +459,23 @@ export default function StudentSubmissions() {
 
                                         <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto px-1 pr-4 -mr-4">
                                             <div className="space-y-2">
-                                                <Label htmlFor="editTextResponse">Your Response</Label>
+                                                <Label htmlFor="editTextResponse" className="flex justify-between items-center">
+                                                    <span>Your Response</span>
+                                                    <span className={`text-[10px] font-medium ${editTextResponse.length > 5000 ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
+                                                        {editTextResponse.length}/5000 characters
+                                                    </span>
+                                                </Label>
                                                 <textarea
                                                     id="editTextResponse"
-                                                    className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                    className={`flex min-h-[120px] w-full rounded-md border ${editTextResponse.length > 5000 ? 'border-red-500 focus-visible:ring-red-500' : 'border-input'} bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}
                                                     placeholder="Write your response here..."
                                                     value={editTextResponse}
                                                     onChange={(e) => setEditTextResponse(e.target.value)}
                                                     disabled={isUpdating}
                                                 />
+                                                {editTextResponse.length > 5000 && (
+                                                    <p className="text-[11px] text-red-500 font-medium">Character limit exceeded. Response should be limited to 5000 characters.</p>
+                                                )}
                                             </div>
 
                                             <div className="space-y-3">
@@ -621,7 +627,7 @@ export default function StudentSubmissions() {
                                             </Button>
                                             <Button
                                                 onClick={handleUpdateSubmission}
-                                                disabled={isUpdating || !editTextResponse.trim() || (editFiles.length === 0 && editImages.length === 0 && existingFiles.length === 0 && existingImages.length === 0 && editLinks.every(l => !l.url.trim()))}
+                                                disabled={isUpdating || !editTextResponse.trim() || editTextResponse.length > 5000}
                                             >
                                                 {isUpdating ? (
                                                     <>

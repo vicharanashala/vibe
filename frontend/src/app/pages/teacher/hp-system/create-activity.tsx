@@ -72,12 +72,21 @@ export default function CreateHpActivityPage() {
     };
 
     const [ruleConfig, setRuleConfig] = useState<RuleConfigFormState>({
+        isMandatory: false,
+        allowLateSubmission: false,
         reward: {
-            enabled: true,
+            enabled: false,
+            type: "ABSOLUTE",
+            value: 0,
+            applyWhen: "ON_APPROVAL",
             lateBehavior: "NO_REWARD",
         },
         penalty: {
+            enabled: false,
+            type: "PERCENTAGE",
+            value: 5,
             applyWhen: "AFTER_DEADLINE",
+            graceMinutes: 0,
             runOnce: true,
         },
     });
@@ -94,6 +103,7 @@ export default function CreateHpActivityPage() {
         penaltyType?: string;
         penaltyValue?: string;
         penaltyGraceMinutes?: string;
+        lateRewardPolicy?: string;
     }>({});
 
     const goToStep2 = async () => {
@@ -161,34 +171,43 @@ export default function CreateHpActivityPage() {
             }
             if (ruleConfig.isMandatory && !ruleConfig.deadlineAt) {
                 nextErrors.deadlineAt = "Deadline is required";
-            }
-            if (!ruleConfig.reward?.type) {
-                nextErrors.rewardType = "Reward type is required";
-            }
-            if (ruleConfig.reward?.value === undefined || Number.isNaN(ruleConfig.reward.value)) {
-                nextErrors.rewardValue = "Reward value is required";
-            } else if (ruleConfig.reward.value < 0) {
-                nextErrors.rewardValue = "Reward value cannot be negative";
-            }
-            if (ruleConfig.reward?.type === "PERCENTAGE") {
-                if (ruleConfig.limits?.minHp !== undefined && !Number.isNaN(ruleConfig.limits.minHp) && ruleConfig.limits.minHp < 0) {
-                    nextErrors.limitsMin = "Minimum HP cannot be negative";
-                }
-                if (ruleConfig.limits?.maxHp !== undefined && !Number.isNaN(ruleConfig.limits.maxHp) && ruleConfig.limits.maxHp < 0) {
-                    nextErrors.limitsMax = "Maximum HP cannot be negative";
-                }
-                if (
-                    ruleConfig.limits?.minHp !== undefined &&
-                    ruleConfig.limits?.maxHp !== undefined &&
-                    !Number.isNaN(ruleConfig.limits.minHp) &&
-                    !Number.isNaN(ruleConfig.limits.maxHp) &&
-                    ruleConfig.limits.maxHp < ruleConfig.limits.minHp
-                ) {
-                    nextErrors.limitsMax = "Maximum HP must be greater than or equal to Minimum HP";
+            } else if (ruleConfig.deadlineAt) {
+                const deadline = new Date(ruleConfig.deadlineAt);
+                if (deadline < new Date()) {
+                    nextErrors.deadlineAt = "Deadline cannot be in the past";
                 }
             }
-            if (!ruleConfig.reward?.applyWhen) {
-                nextErrors.rewardApplyWhen = "Apply policy is required";
+            if (ruleConfig.reward?.enabled) {
+                if (!ruleConfig.reward?.type) {
+                    nextErrors.rewardType = "Reward type is required";
+                }
+                if (ruleConfig.reward?.value === undefined || Number.isNaN(ruleConfig.reward.value)) {
+                    nextErrors.rewardValue = "Reward value is required";
+                } else if (ruleConfig.reward.value < 0) {
+                    nextErrors.rewardValue = "Reward value cannot be negative";
+                }
+
+                if (ruleConfig.reward?.type === "PERCENTAGE") {
+                    if (ruleConfig.limits?.minHp !== undefined && !Number.isNaN(ruleConfig.limits.minHp) && ruleConfig.limits.minHp < 0) {
+                        nextErrors.limitsMin = "Minimum HP cannot be negative";
+                    }
+                    if (ruleConfig.limits?.maxHp !== undefined && !Number.isNaN(ruleConfig.limits.maxHp) && ruleConfig.limits.maxHp < 0) {
+                        nextErrors.limitsMax = "Maximum HP cannot be negative";
+                    }
+                    if (
+                        ruleConfig.limits?.minHp !== undefined &&
+                        ruleConfig.limits?.maxHp !== undefined &&
+                        !Number.isNaN(ruleConfig.limits.minHp) &&
+                        !Number.isNaN(ruleConfig.limits.maxHp) &&
+                        ruleConfig.limits.maxHp < ruleConfig.limits.minHp
+                    ) {
+                        nextErrors.limitsMax = "Maximum HP must be greater than or equal to Minimum HP";
+                    }
+                }
+
+                if (!ruleConfig.reward?.applyWhen) {
+                    nextErrors.rewardApplyWhen = "Apply policy is required";
+                }
             }
             if (ruleConfig.penalty?.enabled === undefined) {
                 nextErrors.penaltyEnabled = "Please select if penalty is enabled";
@@ -285,7 +304,7 @@ export default function CreateHpActivityPage() {
                 courseVersionId: courseVersionId,
                 activityId: createdActivityId,
                 isMandatory: ruleConfig.isMandatory as boolean,
-                deadlineAt: ruleConfig.deadlineAt as string,
+                deadlineAt: ruleConfig.deadlineAt as string | undefined,
                 allowLateSubmission: ruleConfig.allowLateSubmission as boolean,
                 reward: {
                     enabled: ruleConfig.reward?.enabled ?? true,
@@ -566,7 +585,11 @@ export default function CreateHpActivityPage() {
                                 <Switch
                                     checked={ruleConfig.isMandatory ?? false}
                                     onCheckedChange={(c) => {
-                                        setRuleConfig(prev => ({ ...prev, isMandatory: c }));
+                                        setRuleConfig(prev => ({ 
+                                            ...prev, 
+                                            isMandatory: c,
+                                            penalty: !c ? { ...prev.penalty, enabled: false } : prev.penalty
+                                        }));
                                         if (ruleErrors.isMandatory) {
                                             setRuleErrors(prev => ({ ...prev, isMandatory: undefined }));
                                         }
@@ -820,6 +843,7 @@ export default function CreateHpActivityPage() {
 
                                     <Switch
                                         checked={ruleConfig.penalty?.enabled || false}
+                                        disabled={!ruleConfig.isMandatory}
                                         onCheckedChange={(c) => {
                                             setRuleConfig(prev => ({
                                                 ...prev,

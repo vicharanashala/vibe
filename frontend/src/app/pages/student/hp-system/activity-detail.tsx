@@ -339,17 +339,25 @@ export default function StudentActivityDetail() {
                         <DialogDescription>{activity.title}</DialogDescription>
                     </DialogHeader>
 
-                        <div className="space-y-6 py-4">
+                        <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto px-1">
                             <div className="space-y-2">
-                                <Label htmlFor="textResponse">Your Response</Label>
+                                <Label htmlFor="textResponse" className="flex justify-between items-center">
+                                    <span>Your Response</span>
+                                    <span className={`text-[10px] font-medium ${textResponse.length > 5000 ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
+                                        {textResponse.length}/5000 characters
+                                    </span>
+                                </Label>
                                 <textarea
                                     id="textResponse"
-                                    className="flex min-h-[220px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className={`flex min-h-[220px] w-full rounded-md border ${textResponse.length > 5000 ? 'border-red-500 focus-visible:ring-red-500' : 'border-input'} bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}
                                     placeholder="Write your response here..."
                                     value={textResponse}
                                     onChange={(e) => setTextResponse(e.target.value)}
                                     disabled={isSubmitting}
                                 />
+                                {textResponse.length > 5000 && (
+                                    <p className="text-[11px] text-red-500 font-medium">Character limit exceeded. Response should be limited to 5000 characters.</p>
+                                )}
                             </div>
 
                             <div className="space-y-3">
@@ -436,7 +444,7 @@ export default function StudentActivityDetail() {
                             <Button variant="outline" onClick={() => setSubmitDialogOpen(false)} disabled={isSubmitting}>Cancel</Button>
                             <Button
                                 onClick={handleSubmit}
-                                disabled={isSubmitting || !textResponse.trim()}
+                                disabled={isSubmitting || !textResponse.trim() || textResponse.length > 5000}
                             >
                                 {isSubmitting ? (
                                     <><Loader2 className="h-4 w-4 animate-spin mr-2" />Submitting...</>
