@@ -94,8 +94,9 @@ export class RuleConfigService extends BaseService {
             throw new BadRequestError("ruleConfigId is not a valid ObjectId");
         }
 
+        console.log("patch.deadlineAt: ", patch.deadlineAt)
         const existing = await this.ruleConfigRepository.findById(ruleConfigId);
-        console.log("Existing rule config:", existing);
+
         if (!existing) {
             throw new NotFoundError("Rule config not found");
         }

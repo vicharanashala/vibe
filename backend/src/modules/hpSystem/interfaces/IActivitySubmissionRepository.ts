@@ -61,4 +61,5 @@ export interface IActivitySubmissionRepository {
         rejectedCount: number;
         revertedCount: number;
     }>
+    listSubmissionsBeforeDeadline(activityId: string): Promise<HpActivitySubmission[]>
 }

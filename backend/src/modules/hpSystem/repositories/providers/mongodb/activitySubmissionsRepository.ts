@@ -1,7 +1,7 @@
 import { SubmissionFeedbackItem } from "#root/modules/hpSystem/classes/transformers/ActivitySubmission.js";
 import { FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsViewDto, SubmissionPayloadDto } from "#root/modules/hpSystem/classes/validators/activitySubmissionValidators.js";
 import { IActivitySubmissionRepository } from "#root/modules/hpSystem/interfaces/IActivitySubmissionRepository.js";
-import { HpActivitySubmission, SubmissionSource, SubmissionStatus } from "#root/modules/hpSystem/models.js";
+import { HpActivitySubmission, HpRuleConfig, SubmissionSource, SubmissionStatus } from "#root/modules/hpSystem/models.js";
 import { ID, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { plainToInstance } from "class-transformer";
@@ -12,6 +12,7 @@ import { NotFoundError } from "routing-controllers";
 @injectable()
 export class ActivitySubmissionsRepository implements IActivitySubmissionRepository {
     private hpActivitySubmissionCollection: Collection<HpActivitySubmission>;
+    private hpRuleConfigsCollection!: Collection<HpRuleConfig>;
 
     constructor(
         @inject(GLOBAL_TYPES.Database)
@@ -22,6 +23,8 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         this.hpActivitySubmissionCollection = await this.db.getCollection<HpActivitySubmission>(
             'hp_activity_submissions',
         );
+        this.hpRuleConfigsCollection =
+            await this.db.getCollection<HpRuleConfig>("hp_activity_rules");
     }
 
 
@@ -201,7 +204,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             {
                 $lookup: {
                     from: "users",
-                    let: { 
+                    let: {
                         teacherIds: {
                             $setUnion: [
                                 {
@@ -545,6 +548,32 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             .sort(sortStage)
             .skip(skip)
             .limit(limit)
+            .toArray();
+    }
+
+    async listSubmissionsBeforeDeadline(activityId: string): Promise<HpActivitySubmission[]> {
+        await this.init();
+
+        const ruleConfig = await this.hpRuleConfigsCollection.findOne({
+            activityId: new ObjectId(activityId),
+            isDeleted: { $ne: true }
+        });
+
+        if (!ruleConfig) {
+            return [];
+        }
+
+        const graceMinutes = ruleConfig.penalty?.graceMinutes ?? 0;
+
+        const effectiveDeadline = new Date(
+            ruleConfig.deadlineAt.getTime() + graceMinutes * 60000
+        );
+
+        return this.hpActivitySubmissionCollection
+            .find({
+                activityId: new ObjectId(activityId),
+                createdAt: { $lte: effectiveDeadline }
+            })
             .toArray();
     }
 

@@ -1,92 +1,128 @@
 import { getContainer } from "#root/bootstrap/loadModules.js"
 import { ActivityRepository, ActivitySubmissionsRepository, LedgerRepository, RuleConfigsRepository } from "../repositories/index.js";
 import { HP_SYSTEM_TYPES } from "../types.js";
-import { HpLedger, RuleType } from "../models.js";
-import { 
-    HpReasonCode, 
-    HpLedgerEventType, 
+import { HpActivity, HpLedger, RuleType } from "../models.js";
+import {
+    HpReasonCode,
+    HpLedgerEventType,
     HpLedgerDirection,
-    COHORT_OVERRIDES
+    COHORT_OVERRIDES,
+    LEGACY_COURSE_KEYS
 } from "../constants.js";
 import { ObjectId, ClientSession } from "mongodb";
-import { MongoDatabase } from "#root/shared/index.js";
+import { IUser, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
+import { HpActivityTransformer } from "../classes/transformers/Activity.js";
+import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
+import { HpPenaltyRule, HpRuleConfigTransformer, HpRuleLimits } from "../classes/transformers/RuleConfigs.js";
+import { CohortStudentItemDto } from "../classes/validators/courseAndCohorts.js";
+import { HpActivitySubmission } from "../classes/transformers/ActivitySubmission.js";
 
-// Helper function to resolve course IDs (handle legacy vs new cohort system)
-function getActualCourseIds(activity: any) {
-    const isLegacyCourse = activity.courseId === "0000000000000001" && 
-                          activity.courseVersionId === "00000000000002";
-    
+// Helper function to resolve course IDs (handle legacy and new cohort system)
+
+const getActualCourseIds = (activity: HpActivityTransformer) => {
+    const key = `${activity.courseId}:${activity.courseVersionId}`;
+    const isLegacyCourse = LEGACY_COURSE_KEYS.has(key);
+
     if (isLegacyCourse) {
         const override = COHORT_OVERRIDES[activity.cohort];
+
         if (!override) {
-            throw new Error(`No cohort override found for: ${activity.cohort}`);
+            throw new Error(`No cohort override found for cohort: ${activity.cohort}`);
         }
+
         return {
             courseId: override.courseId,
-            courseVersionId: override.versionId
+            courseVersionId: override.versionId,
         };
     }
-    
+
     return {
         courseId: activity.courseId,
-        courseVersionId: activity.courseVersionId
+        courseVersionId: activity.courseVersionId,
     };
-}
+};
 
-export const allocatePenality = async () => {
+export const allocatePenalty = async (): Promise<void> => {
     const container = getContainer();
 
     const activityRepo = container.get<ActivityRepository>(HP_SYSTEM_TYPES.activityRepository);
     const activityConfigsRepo = container.get<RuleConfigsRepository>(HP_SYSTEM_TYPES.ruleConfigsRepository);
     const activitySubmissionRepo = container.get<ActivitySubmissionsRepository>(HP_SYSTEM_TYPES.activitySubmissionsRepository);
     const ledgerRepo = container.get<LedgerRepository>(HP_SYSTEM_TYPES.ledgerRepository);
-    const cohortRepo = container.get<any>(HP_SYSTEM_TYPES.cohortRepository);
+    const cohortRepo = container.get<CohortRepository>(HP_SYSTEM_TYPES.cohortRepository);
     const db = container.get<MongoDatabase>(GLOBAL_TYPES.Database);
 
-    console.log('🔍 Starting penalty allocation cron job...');
+    console.log("🔍 Starting penalty allocation cron job...");
 
     try {
-        // Phase 1: Get all late activities with mandatory penalties
-        const lateActivities = await activityConfigsRepo.getAllLateActivities();
-        console.log(`📋 Found ${lateActivities.length} activities with passed deadlines and enabled penalties`);
+        const lateMandatoryActivities = await activityConfigsRepo.getAllMandatoryLateActivities();
 
-        if (lateActivities.length === 0) {
-            console.log('✅ No activities require penalty processing');
+
+        console.log(`📋 Found ${lateMandatoryActivities.length} activities with passed deadlines and enabled penalties`);
+
+        if (!lateMandatoryActivities.length) {
+            console.log("✅ No activities require penalty processing");
             return;
         }
 
-        // Process each activity
-        for (const activityConfig of lateActivities) {
-            await processActivityPenalties(activityConfig, {
-                activityRepo,
-                activitySubmissionRepo,
-                ledgerRepo,
-                cohortRepo,
-                db
-            });
+        type PenaltyProcessingDeps = {
+            activityRepo: ActivityRepository;
+            activitySubmissionRepo: ActivitySubmissionsRepository;
+            ledgerRepo: LedgerRepository;
+            cohortRepo: CohortRepository;
+            db: MongoDatabase;
+        };
+
+        const deps: PenaltyProcessingDeps = {
+            activityRepo,
+            activitySubmissionRepo,
+            ledgerRepo,
+            cohortRepo,
+            db,
+        };
+
+        let successCount = 0;
+        let skippedCount = 0;
+        let failureCount = 0;
+
+        for (const activityConfig of lateMandatoryActivities) {
+            console.log("activityConfig: ", lateMandatoryActivities)
+
+            try {
+                const isNotSkipped = await processActivityPenalties(activityConfig, deps);
+
+                isNotSkipped ? successCount++ : skippedCount++;
+            } catch (error) {
+                failureCount++;
+                console.error(
+                    `❌ Failed processing penalties for activityConfig ${activityConfig._id?.toString?.() ?? "unknown"}:`,
+                    error
+                );
+            }
         }
 
-        console.log('✅ Penalty allocation cron job completed successfully');
-
+        console.log(
+            `✅ Penalty allocation cron job completed.Skipped: ${skippedCount} Success: ${successCount}, Failed: ${failureCount}`
+        );
     } catch (error) {
-        console.error('❌ Penalty allocation failed:', error);
+        console.error("❌ Penalty allocation failed:", error);
         throw error;
     }
 };
 
-async function processActivityPenalties(
-    activityConfig: any,
+const processActivityPenalties = async (
+    activityConfig: HpRuleConfigTransformer,
     repositories: {
         activityRepo: ActivityRepository;
         activitySubmissionRepo: ActivitySubmissionsRepository;
         ledgerRepo: LedgerRepository;
-        cohortRepo: any;
+        cohortRepo: CohortRepository;
         db: MongoDatabase;
     }
-) {
+): Promise<boolean> => {
     const { activityRepo, activitySubmissionRepo, ledgerRepo, cohortRepo, db } = repositories;
-    
+
     console.log(`🎯 Processing activity ${activityConfig.activityId}`);
 
     // Get activity details
@@ -97,85 +133,97 @@ async function processActivityPenalties(
     }
 
     // Get actual course IDs (handle legacy vs new cohort system)
-    const { courseId, courseVersionId } = getActualCourseIds(activity);
+    const { courseVersionId } = getActualCourseIds(activity);
+
+
+    // <<<<<<<<<<<<<<<<<<<< CHANGE THIS WHIEN UPDATING COHORT NAME TO COHORT ID IN THE DB >>>>>>>>>>>>>>>
+    const cohortId = await cohortRepo.getCohortIdByCohortName(activity.cohort);
 
     // Get enrolled students for this course/cohort
     const enrolledStudents = await cohortRepo.getStudentsForCohortByVersionAndCohortName(
         courseVersionId.toString(),
-        activity.cohort
+        cohortId.toString()
     );
+    if (!enrolledStudents || enrolledStudents.length) return false
+
 
     // Batch fetch all submissions and existing penalties upfront
-    const [allSubmissions, existingPenalties] = await Promise.all([
+    const [allSubmissionsBeforeDeadline, existingPenalties] = await Promise.all([
         // Get all submissions for this activity
-        activitySubmissionRepo.list({ activityId: activity._id.toString() }).catch(() => []),
+        activitySubmissionRepo.listSubmissionsBeforeDeadline(activity._id.toString()).catch(() => []),
         // Get all existing penalties for this activity  
         ledgerRepo.findPenaltiesByActivityId(activity._id.toString()).catch(() => [])
     ]);
 
     // Create lookup maps for O(1) access
-    const submissionMap = new Map<string, any>(
-        allSubmissions.map((sub: any) => [sub.studentId.toString(), sub] as [string, any])
+    const submissionMap = new Map<string, HpActivitySubmission>(
+        allSubmissionsBeforeDeadline.map((sub) => [sub.studentId.toString(), sub] as [string, HpActivitySubmission])
     );
-    const penaltyMap = new Map<string, any>(
-        existingPenalties.map((penalty: any) => [penalty.studentId.toString(), penalty] as [string, any])
+    console.log("submissionMap: ", submissionMap)
+    const penaltyMap = new Map<string, HpLedger>(
+        existingPenalties.map((penalty) => [penalty.studentId.toString(), penalty] as [string, HpLedger])
     );
+    console.log("penaltyMap: ", penaltyMap)
 
     // Filter students who actually need penalties (this is the optimization!)
-    const studentsNeedingPenalty = enrolledStudents.filter((student: any) => {
+    const studentsNeedingPenalty = enrolledStudents.filter((student: CohortStudentItemDto) => {
         const studentId = student._id.toString();
         const hasSubmitted = submissionMap.has(studentId);
         const hasPenalty = penaltyMap.has(studentId);
-        
+
         if (hasSubmitted || hasPenalty) {
             return false;
         }
-        
+
         return true; // This student needs penalty
     });
 
     if (studentsNeedingPenalty.length === 0) {
-        return;
+        return false
     }
 
     // Process only the students who need penalties
     const batchSize = 10; // Process in parallel batches
     for (let i = 0; i < studentsNeedingPenalty.length; i += batchSize) {
         const batch = studentsNeedingPenalty.slice(i, i + batchSize);
-        
-        const batchPromises = batch.map(student => 
+
+        const batchPromises = batch.map(student =>
             processStudentPenalty(student, activity, activityConfig, repositories)
         );
-        
+
         await Promise.all(batchPromises);
     }
 
+
     console.log(`✅ Activity ${activity._id}: ${studentsNeedingPenalty.length} penalties processed`);
+    return true
 }
 
 async function processStudentPenalty(
-    student: any,
-    activity: any,
-    activityConfig: any,
+    student: CohortStudentItemDto,
+    activity: HpActivityTransformer,
+    activityConfig: HpRuleConfigTransformer,
     repositories: {
         activitySubmissionRepo: ActivitySubmissionsRepository;
         ledgerRepo: LedgerRepository;
-        cohortRepo: any;
+        cohortRepo: CohortRepository;
         db: MongoDatabase;
     }
 ) {
     const { ledgerRepo, cohortRepo, db } = repositories;
-    
     const client = await db.getClient();
     const session = client.startSession();
+
+    const cohortId = await cohortRepo.getCohortIdByCohortName(activity.cohort)
 
     try {
         await session.withTransaction(async () => {
             // Get current HP points
-            const currentHp = await cohortRepo.getCurrentHpPoints(
+            const currentHp = await cohortRepo.getCurrentHpPointsByCohortId(
                 student._id,
                 activity.courseId.toString(),
                 activity.courseVersionId.toString(),
+                cohortId,
                 session
             );
 
@@ -193,22 +241,21 @@ async function processStudentPenalty(
 
             // Apply penalty
             const newHp = Math.max(0, currentHp - penaltyAmount);
-            const minHp = activityConfig.limits?.minHp || 0;
-            const finalHp = Math.max(minHp, newHp);
 
             // Update enrollment HP
-            // const hpUpdated = await cohortRepo.setHPForEnrollment(
-            //     student._id,
-            //     activity.courseId.toString(),
-            //     activity.courseVersionId.toString(),
-            //     finalHp,
-            //     session
-            // );
+            const hpUpdated = await cohortRepo.setHPForEnrollment(
+                student._id,
+                activity.courseId.toString(),
+                activity.courseVersionId.toString(),
+                activity.cohort,
+                newHp,
+                session
+            );
 
 
-            // if (!hpUpdated) {
-            //     throw new Error(`Failed to update HP for student ${student._id}`);
-            // }
+            if (!hpUpdated) {
+                throw new Error(`Failed to update HP for student ${student._id}`);
+            }
 
             // Create ledger entry
             const ledgerEntry: Omit<HpLedger, "_id" | "createdAt"> = {
@@ -240,9 +287,9 @@ async function processStudentPenalty(
                 }
             };
 
-            // await ledgerRepo.create(ledgerEntry, session);
+            await ledgerRepo.create(ledgerEntry, session);
 
-            console.log(`💰 Applied penalty of ${penaltyAmount} HP to student ${student.email}. New HP: ${finalHp}`);
+            console.log(`💰 Applied penalty of ${penaltyAmount} HP to student ${student.email}. New HP: ${newHp}`);
 
         });
     } catch (error) {
@@ -253,22 +300,36 @@ async function processStudentPenalty(
     }
 }
 
-function calculatePenaltyAmount(
+const calculatePenaltyAmount = (
     currentHp: number,
-    penalty: any,
-    limits: any
-): number {
+    penalty: HpPenaltyRule,
+    limits: HpRuleLimits
+): number => {
+
     if (penalty.type === "ABSOLUTE") {
         return penalty.value;
     } else if (penalty.type === "PERCENTAGE") {
-        const percentageAmount = currentHp * (penalty.value / 100);
-        
-        // Apply minHP limit
-        const minHp = limits?.minHp || 0;
-        const maxAllowedPenalty = Math.max(0, currentHp - minHp);
-        
-        return Math.min(percentageAmount, maxAllowedPenalty);
+
+        const penaltyMaxLimit = limits?.maxHp;
+        const penaltyMinLimit = limits?.minHp;
+
+        // Calculate percentage reward
+        const calculatedReward = Math.round((currentHp * penalty.value) / 100);
+
+        let finalReward = calculatedReward;
+
+        if (penaltyMinLimit && finalReward < penaltyMinLimit) {
+            finalReward = penaltyMinLimit;
+        }
+
+        if (penaltyMaxLimit && finalReward > penaltyMaxLimit) {
+            finalReward = penaltyMaxLimit;
+        }
+
+        return finalReward;
     }
-    
+
     return 0;
 }
+
+
