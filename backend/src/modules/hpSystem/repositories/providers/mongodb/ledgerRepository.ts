@@ -261,7 +261,7 @@ export class LedgerRepository implements ILedgerRepository {
 
         return await this.hpLedgerCollection.find({
             activityId: new ObjectId(activityId),
-            "calc.reasonCode": "SUBMISSION_REWARD"
+            "calc.reasonCode": "MILESTONE_REWARD"
         }).toArray();
     }
 

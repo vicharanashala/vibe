@@ -23,6 +23,11 @@ export interface IActivityRepository {
         createdByTeacherId?: string;
     }, role?: EnrollmentRole): Promise<HpActivityTransformer[]>;
 
+    listActivityIds(query: {
+        status?: string;
+        activityType?: string;
+    }): Promise<string[]>
+
     publishActivity(
         activityId: string,
         teacherId: string,

@@ -257,6 +257,7 @@ export class CohortRepository implements ICohortRepository {
             {
                 $project: {
                     _id: { $toString: "$user._id" },
+                    enrollmentId: { $toString: "$_id" },
                     email: "$user.email",
                     name: {
                         $trim: {

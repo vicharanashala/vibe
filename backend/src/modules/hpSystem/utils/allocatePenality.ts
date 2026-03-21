@@ -17,31 +17,9 @@ import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepos
 import { HpPenaltyRule, HpRuleConfigTransformer, HpRuleLimits } from "../classes/transformers/RuleConfigs.js";
 import { CohortStudentItemDto } from "../classes/validators/courseAndCohorts.js";
 import { HpActivitySubmission } from "../classes/transformers/ActivitySubmission.js";
+import { getActualCourseIds } from "./getActualCourseId.js";
 
-// Helper function to resolve course IDs (handle legacy and new cohort system)
 
-const getActualCourseIds = (activity: HpActivityTransformer) => {
-    const key = `${activity.courseId}:${activity.courseVersionId}`;
-    const isLegacyCourse = LEGACY_COURSE_KEYS.has(key);
-
-    if (isLegacyCourse) {
-        const override = COHORT_OVERRIDES[activity.cohort];
-
-        if (!override) {
-            throw new Error(`No cohort override found for cohort: ${activity.cohort}`);
-        }
-
-        return {
-            courseId: override.courseId,
-            courseVersionId: override.versionId,
-        };
-    }
-
-    return {
-        courseId: activity.courseId,
-        courseVersionId: activity.courseVersionId,
-    };
-};
 
 export const allocatePenalty = async (): Promise<void> => {
     const container = getContainer();
@@ -144,7 +122,7 @@ const processActivityPenalties = async (
         courseVersionId.toString(),
         cohortId.toString()
     );
-    if (!enrolledStudents || enrolledStudents.length) return false
+    if (!enrolledStudents || enrolledStudents.length == 0) return false
 
 
     // Batch fetch all submissions and existing penalties upfront
@@ -159,11 +137,9 @@ const processActivityPenalties = async (
     const submissionMap = new Map<string, HpActivitySubmission>(
         allSubmissionsBeforeDeadline.map((sub) => [sub.studentId.toString(), sub] as [string, HpActivitySubmission])
     );
-    console.log("submissionMap: ", submissionMap)
     const penaltyMap = new Map<string, HpLedger>(
         existingPenalties.map((penalty) => [penalty.studentId.toString(), penalty] as [string, HpLedger])
     );
-    console.log("penaltyMap: ", penaltyMap)
 
     // Filter students who actually need penalties (this is the optimization!)
     const studentsNeedingPenalty = enrolledStudents.filter((student: CohortStudentItemDto) => {
@@ -242,11 +218,13 @@ async function processStudentPenalty(
             // Apply penalty
             const newHp = Math.max(0, currentHp - penaltyAmount);
 
+            const { courseId, courseVersionId } = getActualCourseIds(activity);
+
             // Update enrollment HP
             const hpUpdated = await cohortRepo.setHPForEnrollment(
-                student._id,
-                activity.courseId.toString(),
-                activity.courseVersionId.toString(),
+                student._id.toString(),
+                courseId,
+                courseVersionId,
                 activity.cohort,
                 newHp,
                 session
@@ -256,11 +234,11 @@ async function processStudentPenalty(
             if (!hpUpdated) {
                 throw new Error(`Failed to update HP for student ${student._id}`);
             }
-
+            const penaltyNote = `Penalty applied for missing deadline of mandatory activity "${activity.title}". Deducted ${penaltyAmount} HP. Deadline: ${activityConfig.deadlineAt.toISOString()}.`;
             // Create ledger entry
             const ledgerEntry: Omit<HpLedger, "_id" | "createdAt"> = {
-                courseId: new ObjectId(activity.courseId),
-                courseVersionId: new ObjectId(activity.courseVersionId),
+                courseId: new ObjectId(activity.courseId.toString()),
+                courseVersionId: new ObjectId(activity.courseVersionId.toString()),
                 cohort: activity.cohort,
                 studentId: new ObjectId(student._id),
                 studentEmail: student.email,
@@ -281,9 +259,9 @@ async function processStudentPenalty(
                 },
                 links: null,
                 meta: {
-                    triggeredBy: "JOB",
+                    triggeredBy: "SYSTEM_AUTOMATION",
                     triggeredByUserId: null,
-                    note: "Penalty for missing mandatory activity deadline"
+                    note: penaltyNote
                 }
             };
 

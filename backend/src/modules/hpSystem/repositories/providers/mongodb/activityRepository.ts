@@ -238,6 +238,23 @@ export class ActivityRepository implements IActivityRepository {
     });
   }
 
+  async listActivityIds(query: {
+    status?: string;
+    activityType?: string;
+  }): Promise<string[]> {
+    await this.init();
+
+    const q: any = {};
+    if (query.status) q.status = query.status;
+    if (query.activityType) q.activityType = query.activityType;
+
+    const docs = await this.hpActivityCollection
+      .find(q, { projection: { _id: 1 } })
+      .toArray();
+
+    return docs.map(doc => doc._id.toString());
+  }
+
   async publishActivity(
     activityId: string,
     teacherId: string,

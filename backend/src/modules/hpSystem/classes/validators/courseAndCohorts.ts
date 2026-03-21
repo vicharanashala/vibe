@@ -266,6 +266,10 @@ export class CohortStudentItemDto {
 
     @Expose()
     @IsString()
+    enrollmentId!: string;
+
+    @Expose()
+    @IsString()
     name!: string;
 
     @Expose()
