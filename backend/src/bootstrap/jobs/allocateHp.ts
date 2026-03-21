@@ -9,7 +9,7 @@ cron.schedule(
     '*/5 * * * *',
     // "*/5 * * * * *",
     async () => {
-
+ 
         try {
             const ENABLE_HP_JOB = appConfig.ENABLE_HP_JOB;
             if (ENABLE_HP_JOB) {

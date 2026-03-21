@@ -272,7 +272,7 @@ export class CohortRepository implements ICohortRepository {
                     completionPercentage: {
                         $ifNull: ["$percentCompleted", 0],
                     },
-                    totalHp: { $literal: 0 },
+                    totalHp: { $ifNull: ["$hpPoints", 0] },
                 },
             },
             { $sort: { name: 1 } },
