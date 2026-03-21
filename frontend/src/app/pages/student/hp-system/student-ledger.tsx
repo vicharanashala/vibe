@@ -46,7 +46,7 @@ export default function StudentLedgerPage() {
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
     // 1. Get student's cohorts so we can call getMyLedger with valid IDs
-    const { data: cohorts = [], isLoading: isLoadingCohorts } = useHpStudentCohorts();
+    const { data: cohorts = [], totalHp, isLoading: isLoadingCohorts } = useHpStudentCohorts();
 
     // Pick the first cohort for the API call (backend returns ALL transactions regardless)
     const firstCohort = cohorts[0];
@@ -188,7 +188,7 @@ export default function StudentLedgerPage() {
                     <div className="text-right">
                         <div className="flex items-center gap-2 text-3xl font-bold">
                             <Zap className="h-7 w-7 text-yellow-500" />
-                            {studentDetails?.hpPoints ?? 0}
+                            {totalHp}
                         </div>
                         <div className="text-sm text-muted-foreground">Current Total HP</div>
                     </div>

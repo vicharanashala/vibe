@@ -527,7 +527,10 @@ export class CohortsService extends BaseService {
             // Note: _fetchDbCohorts already filters dynamic ones if we pass isPublic: true
             // Wait, I should update the call to _fetchDbCohorts in listStudentCohorts as well.
 
-            const completedActivitiesCounts = await this.activitySubmissionsRepository.getCompletedActivitiesCountByStudentId(userId);
+            const [completedActivitiesCounts, totalHp] = await Promise.all([
+                this.activitySubmissionsRepository.getCompletedActivitiesCountByStudentId(userId),
+                this.cohortRepository.getStudentTotalHpAcrossEnrollments(userId),
+            ]);
 
             const finalCohorts = studentCohorts.map(cohort => {
                 let completedCount = 0;
@@ -550,6 +553,7 @@ export class CohortsService extends BaseService {
                 success: true,
                 message: "Cohorts fetched successfully",
                 data: finalCohorts,
+                totalHp,
                 meta: {
                     totalRecords: studentCohorts.length,
                     totalPages: 1,
