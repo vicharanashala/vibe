@@ -58,7 +58,7 @@ export function RuleSettingsDialog({
 
     // Default configuration
     const defaultReward: any = {
-        enabled: true,
+        enabled: false,
         type: "ABSOLUTE",
         value: 10,
         applyWhen: "ON_APPROVAL",
@@ -87,7 +87,7 @@ export function RuleSettingsDialog({
             } else if (!fetchLoading) {
                 // No existing config — set defaults for creation
                 setConfig({
-                    isMandatory: true,
+                    isMandatory: false,
                     allowLateSubmission: false,
                     reward: defaultReward,
                     penalty: defaultPenalty,
@@ -99,8 +99,25 @@ export function RuleSettingsDialog({
         }
     }, [isOpen, existingConfig, fetchLoading, activity]);
 
+    const [errors, setErrors] = useState<{ deadlineAt?: string }>({});
+
     const handleSave = async () => {
         if (!config) return;
+
+        if (config.isMandatory && !config.deadlineAt) {
+            setErrors({ deadlineAt: "Deadline is required for mandatory activities" });
+            return;
+        }
+
+        if (config.deadlineAt) {
+            const deadline = new Date(config.deadlineAt);
+            if (deadline < new Date()) {
+                setErrors({ deadlineAt: "Deadline cannot be in the past" });
+                return;
+            }
+        }
+        setErrors({});
+
         try {
             const rulePayload = { ...config };
             const required_percentage = (rulePayload as any).required_percentage;
@@ -160,7 +177,11 @@ export function RuleSettingsDialog({
                             </div>
                             <Switch
                                 checked={config?.isMandatory || false}
-                                onCheckedChange={(c) => setConfig(prev => ({ ...prev, isMandatory: c } as any))}
+                                onCheckedChange={(c) => setConfig(prev => ({ 
+                                    ...prev, 
+                                    isMandatory: c,
+                                    penalty: !c ? { ...prev?.penalty, enabled: false } : prev?.penalty
+                                } as any))}
                             />
                         </div>
 
@@ -208,8 +229,13 @@ export function RuleSettingsDialog({
                                         type="datetime-local"
                                         min={new Date().toISOString().slice(0, 16)}
                                         value={config?.deadlineAt ? new Date(config.deadlineAt).toISOString().slice(0, 16) : ""}
-                                        onChange={(e) => setConfig(prev => ({ ...prev, deadlineAt: new Date(e.target.value).toISOString() } as any))}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setConfig(prev => ({ ...prev, deadlineAt: val ? new Date(val).toISOString() : undefined } as any));
+                                            if (errors.deadlineAt) setErrors({});
+                                        }}
                                     />
+                                    {errors.deadlineAt && <p className="text-xs text-red-500 mt-1">{errors.deadlineAt}</p>}
                                 </div>
 
                                 <div className="space-y-2 flex flex-col justify-end pb-2">
@@ -343,9 +369,10 @@ export function RuleSettingsDialog({
                                 <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Penalty Configuration (Late)</h4>
                                 <Switch
                                     checked={config?.penalty?.enabled || false}
+                                    disabled={!config?.isMandatory}
                                     onCheckedChange={(c) => setConfig(prev => ({
                                         ...prev,
-                                        penalty: { ...(prev?.penalty || defaultPenalty), enabled: c }
+                                        penalty: { ...(prev?.penalty || {}), enabled: c }
                                     } as any))}
                                 />
                             </div>

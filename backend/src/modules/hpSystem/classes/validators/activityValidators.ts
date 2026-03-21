@@ -38,8 +38,9 @@ export class CreateActivityBody {
     status!: ActivityStatus
 
     // Timing
+    @IsOptional()
     @IsDateString()
-    deadlineAt!: string; // ISO
+    deadlineAt?: string; // ISO
 
     @IsBoolean()
     allowLateSubmission!: boolean;

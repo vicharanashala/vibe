@@ -149,9 +149,10 @@ export class HpRuleConfigTransformer {
     isMandatory: boolean;
 
     @Expose()
+    @IsOptional()
     @Type(() => Date)
     @JSONSchema({ title: "Deadline At", type: "string", format: "date-time" })
-    deadlineAt: Date;
+    deadlineAt?: Date;
 
     @Expose()
     @IsBoolean()

@@ -38,37 +38,43 @@ export class HpRewardRuleDto {
   @IsBoolean()
   enabled!: boolean;
 
+  @IsOptional()
   @IsEnum(RuleTypeEnum)
-  type!: RuleTypeEnum;
+  type?: RuleTypeEnum;
 
+  @IsOptional()
   @IsNumber()
-  value!: number;
+  value?: number;
 
+  @IsOptional()
   @IsEnum(RewardApplyWhenEnum)
-  applyWhen!: RewardApplyWhenEnum;
+  applyWhen?: RewardApplyWhenEnum;
 
-
-
+  @IsOptional()
   @IsEnum(LateBehaviorEnum)
-  lateBehavior!: LateBehaviorEnum;
+  lateBehavior?: LateBehaviorEnum;
 }
 
 export class HpPenaltyRuleDto {
   @IsBoolean()
   enabled!: boolean;
 
+  @IsOptional()
   @IsEnum(RuleTypeEnum)
-  type!: RuleTypeEnum;
+  type?: RuleTypeEnum;
 
+  @IsOptional()
   @IsNumber()
-  value!: number;
+  value?: number;
 
+  @IsOptional()
   @IsEnum(PenaltyApplyWhenEnum)
-  applyWhen!: PenaltyApplyWhenEnum;
+  applyWhen?: PenaltyApplyWhenEnum;
 
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  graceMinutes!: number;
+  graceMinutes?: number;
 
   @IsOptional()
   @IsBoolean()
@@ -100,8 +106,9 @@ export class CreateHpRuleConfigBody {
   @IsBoolean()
   isMandatory!: boolean;
 
+  @IsOptional()
   @IsDateString()
-  deadlineAt!: string;
+  deadlineAt?: string;
 
   @IsBoolean()
   allowLateSubmission!: boolean;

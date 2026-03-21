@@ -38,7 +38,18 @@ export class RuleConfigService extends BaseService {
         }
 
         if (!body.isMandatory && body.penalty?.enabled) {
-            throw new BadRequestError("Penalty can be enabled only for mandatory activities");
+            body.penalty.enabled = false;
+        }
+
+        if (body.isMandatory && !body.deadlineAt) {
+            throw new BadRequestError("Deadline is required for mandatory activities");
+        }
+
+        if (body.deadlineAt) {
+            const deadline = new Date(body.deadlineAt);
+            if (deadline < new Date()) {
+                throw new BadRequestError("Deadline cannot be in the past");
+            }
         }
 
         const now = new Date();
@@ -49,7 +60,7 @@ export class RuleConfigService extends BaseService {
             activityId: toObjectId(body.activityId, "activityId") as any,
 
             isMandatory: body.isMandatory,
-            deadlineAt: new Date(body.deadlineAt),
+            deadlineAt: body.deadlineAt ? new Date(body.deadlineAt) : undefined,
             allowLateSubmission: body.allowLateSubmission,
 
             reward: body.reward.enabled
@@ -102,17 +113,36 @@ export class RuleConfigService extends BaseService {
         }
 
 
-        // Optional consistency guard: penalty only for mandatory
-        if (patch.isMandatory === false && patch.penalty?.enabled) {
-            throw new BadRequestError("Penalty can be enabled only for mandatory activities");
+
+        const isMandatory = patch.isMandatory !== undefined ? patch.isMandatory : existing.isMandatory;
+        const deadlineAt = patch.deadlineAt !== undefined ? patch.deadlineAt : existing.deadlineAt;
+
+        if (isMandatory && !deadlineAt) {
+            throw new BadRequestError("Deadline is required for mandatory activities");
+        }
+
+        if (patch.deadlineAt) {
+            const newDeadline = new Date(patch.deadlineAt);
+            if (newDeadline < new Date()) {
+                throw new BadRequestError("Deadline cannot be in the past");
+            }
         }
 
         const updatePatch: HpRuleConfigUpdatePatch = {
             updatedAt: new Date(),
         };
 
+        // Optional consistency guard: penalty only for mandatory
+        if (patch.isMandatory === false) {
+            if (patch.penalty) {
+                patch.penalty.enabled = false;
+            } else if (existing.penalty?.enabled) {
+                updatePatch.penalty = { ...existing.penalty, enabled: false } as any;
+            }
+        }
+
         if (patch.isMandatory !== undefined) updatePatch.isMandatory = patch.isMandatory;
-        if (patch.deadlineAt !== undefined) updatePatch.deadlineAt = new Date(patch.deadlineAt);
+        if (patch.deadlineAt !== undefined) updatePatch.deadlineAt = patch.deadlineAt ? new Date(patch.deadlineAt) : null as any;
         if (patch.allowLateSubmission !== undefined)
             updatePatch.allowLateSubmission = patch.allowLateSubmission;
 
