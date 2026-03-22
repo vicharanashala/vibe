@@ -79,10 +79,15 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
         const doc = await this.hpRuleConfigsCollection.findOne({
             activityId: new ObjectId(activityId), isDeleted: { $ne: true },
         });
-        return plainToInstance(HpRuleConfigTransformer, doc as HpRuleConfig, {
-            excludeExtraneousValues: true,
-            exposeDefaultValues: true,
-        });
+        const result = {
+            ...doc,
+            _id: doc._id?.toString(),
+            courseId: doc.courseId?.toString(),
+            courseVersionId: doc.courseVersionId?.toString(),
+            activityId: doc.activityId?.toString(),
+        };
+
+        return result as HpRuleConfigTransformer;
     }
 
     async softDeleteByActivityId(
