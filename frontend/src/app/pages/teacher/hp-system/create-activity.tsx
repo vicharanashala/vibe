@@ -104,6 +104,7 @@ export default function CreateHpActivityPage() {
         penaltyValue?: string;
         penaltyGraceMinutes?: string;
         lateRewardPolicy?: string;
+        requiredPercentage?: string;
     }>({});
 
     const goToStep2 = async () => {
@@ -119,6 +120,14 @@ export default function CreateHpActivityPage() {
             setIsVibeMilestoneConfirmOpen(true);
             return;
         }
+        // Reset rule config defaults when switching away from VIBE_MILESTONE
+        if (currentActivityType === "VIBE_MILESTONE" && value !== "VIBE_MILESTONE") {
+            setRuleConfig(prev => ({
+                ...prev,
+                isMandatory: false,
+                allowLateSubmission: false,
+            }));
+        }
         setValue("activityType", value as any, { shouldDirty: true, shouldValidate: true });
     };
 
@@ -127,6 +136,13 @@ export default function CreateHpActivityPage() {
             setValue("activityType", pendingActivityType as any, { shouldDirty: true, shouldValidate: true });
             setValue("submissionMode", "IN_PLATFORM", { shouldDirty: true, shouldValidate: true });
             setValue("externalLink", "", { shouldDirty: true, shouldValidate: true });
+            // Auto-set rule config for VIBE_MILESTONE
+            setRuleConfig(prev => ({
+                ...prev,
+                isMandatory: true,
+                allowLateSubmission: false,
+                reward: { ...(prev.reward || {}), applyWhen: "ON_SUBMISSION" },
+            }));
         }
         setIsVibeMilestoneConfirmOpen(false);
         setPendingActivityType(null);
@@ -160,16 +176,18 @@ export default function CreateHpActivityPage() {
             console.error("Invalid ObjectId format discovered:", { courseId, courseVersionId });
         }
 
+        const isVibeMilestone = data.activityType === "VIBE_MILESTONE";
+
         const validateRuleConfig = () => {
             const nextErrors: typeof ruleErrors = {};
 
-            if (ruleConfig.isMandatory === undefined) {
+            if (!isVibeMilestone && ruleConfig.isMandatory === undefined) {
                 nextErrors.isMandatory = "Please select if this activity is mandatory";
             }
-            if (ruleConfig.allowLateSubmission === undefined) {
+            if (!isVibeMilestone && ruleConfig.allowLateSubmission === undefined) {
                 nextErrors.allowLateSubmission = "Please select if late submissions are allowed";
             }
-            if (ruleConfig.isMandatory && !ruleConfig.deadlineAt) {
+            if ((isVibeMilestone || ruleConfig.isMandatory) && !ruleConfig.deadlineAt) {
                 nextErrors.deadlineAt = "Deadline is required";
             } else if (ruleConfig.deadlineAt) {
                 const deadline = new Date(ruleConfig.deadlineAt);
@@ -187,23 +205,7 @@ export default function CreateHpActivityPage() {
                     nextErrors.rewardValue = "Reward value cannot be negative";
                 }
 
-                if (ruleConfig.reward?.type === "PERCENTAGE") {
-                    if (ruleConfig.limits?.minHp !== undefined && !Number.isNaN(ruleConfig.limits.minHp) && ruleConfig.limits.minHp < 0) {
-                        nextErrors.limitsMin = "Minimum HP cannot be negative";
-                    }
-                    if (ruleConfig.limits?.maxHp !== undefined && !Number.isNaN(ruleConfig.limits.maxHp) && ruleConfig.limits.maxHp < 0) {
-                        nextErrors.limitsMax = "Maximum HP cannot be negative";
-                    }
-                    if (
-                        ruleConfig.limits?.minHp !== undefined &&
-                        ruleConfig.limits?.maxHp !== undefined &&
-                        !Number.isNaN(ruleConfig.limits.minHp) &&
-                        !Number.isNaN(ruleConfig.limits.maxHp) &&
-                        ruleConfig.limits.maxHp < ruleConfig.limits.minHp
-                    ) {
-                        nextErrors.limitsMax = "Maximum HP must be greater than or equal to Minimum HP";
-                    }
-                }
+
 
                 if (!ruleConfig.reward?.applyWhen) {
                     nextErrors.rewardApplyWhen = "Apply policy is required";
@@ -227,46 +229,35 @@ export default function CreateHpActivityPage() {
                     nextErrors.penaltyGraceMinutes = "Grace period cannot be negative";
                 }
             }
+            if (ruleConfig.required_percentage !== undefined && !Number.isNaN(ruleConfig.required_percentage)) {
+                if (ruleConfig.required_percentage < 0 || ruleConfig.required_percentage > 100) {
+                    nextErrors.requiredPercentage = "Required percentage must be between 0 and 100";
+                }
+            }
+
+            if (ruleConfig.reward?.type === "PERCENTAGE" || ruleConfig.penalty?.type === "PERCENTAGE") {
+                if (ruleConfig.limits?.minHp !== undefined && !Number.isNaN(ruleConfig.limits.minHp) && ruleConfig.limits.minHp < 0) {
+                    nextErrors.limitsMin = "Minimum HP cannot be negative";
+                }
+                if (ruleConfig.limits?.maxHp !== undefined && !Number.isNaN(ruleConfig.limits.maxHp) && ruleConfig.limits.maxHp < 0) {
+                    nextErrors.limitsMax = "Maximum HP cannot be negative";
+                }
+                if (
+                    ruleConfig.limits?.minHp !== undefined &&
+                    ruleConfig.limits?.maxHp !== undefined &&
+                    !Number.isNaN(ruleConfig.limits.minHp) &&
+                    !Number.isNaN(ruleConfig.limits.maxHp) &&
+                    ruleConfig.limits.maxHp < ruleConfig.limits.minHp
+                ) {
+                    nextErrors.limitsMax = "Maximum HP must be greater than or equal to Minimum HP";
+                }
+            }
 
             setRuleErrors(nextErrors);
             return Object.keys(nextErrors).length === 0;
         };
 
         if (!validateRuleConfig()) {
-            return;
-        }
-
-        const validateRewardLimits = () => {
-            if (ruleConfig.reward?.type !== "PERCENTAGE") {
-                setRuleErrors(prev => ({ ...prev, limitsMin: undefined, limitsMax: undefined }));
-                return true;
-            }
-
-            const minHp = ruleConfig.limits?.minHp;
-            const maxHp = ruleConfig.limits?.maxHp;
-            const nextErrors: { limitsMin?: string; limitsMax?: string } = {};
-
-            if (minHp !== undefined && minHp !== null && !Number.isNaN(minHp) && minHp < 0) {
-                nextErrors.limitsMin = "Minimum HP cannot be negative";
-            }
-
-            if (maxHp !== undefined && maxHp !== null && !Number.isNaN(maxHp) && maxHp < 0) {
-                nextErrors.limitsMax = "Maximum HP cannot be negative";
-            }
-
-            if (minHp !== undefined && maxHp !== undefined && !Number.isNaN(minHp) && !Number.isNaN(maxHp) && maxHp < minHp) {
-                nextErrors.limitsMax = "Maximum HP must be greater than or equal to Minimum HP";
-            }
-
-            setRuleErrors(prev => ({
-                ...prev,
-                limitsMin: nextErrors.limitsMin,
-                limitsMax: nextErrors.limitsMax,
-            }));
-            return Object.keys(nextErrors).length === 0;
-        };
-
-        if (!validateRewardLimits()) {
             return;
         }
 
@@ -564,7 +555,14 @@ export default function CreateHpActivityPage() {
                         </div>
 
                         <div className="space-y-8">
-                            {/* Mandatory Toggle */}
+                            {/* Mandatory Toggle — hidden for VIBE_MILESTONE */}
+                            {currentActivityType === "VIBE_MILESTONE" ? (
+                                <div className="rounded-md border p-4 shadow-sm bg-muted/30">
+                                    <p className="text-sm text-muted-foreground">
+                                        <span className="font-medium text-foreground">Vibe Platform Milestones</span> are always mandatory with no late submissions allowed. These settings are auto-configured.
+                                    </p>
+                                </div>
+                            ) : (
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between rounded-md border p-4 shadow-sm gap-3 bg-card">
                                 <div className="space-y-0.5">
                                     <div className="flex items-center gap-2">
@@ -596,6 +594,7 @@ export default function CreateHpActivityPage() {
                                     }}
                                 />
                             </div>
+                            )}
 
                             {/* Required Progress Percentage (Milestones Only) */}
                             {(watch("activityType") === "MILESTONE" || watch("activityType") === "VIBE_MILESTONE") && (
@@ -622,10 +621,14 @@ export default function CreateHpActivityPage() {
                                                             ...prev,
                                                             required_percentage: value === "" ? undefined : parseInt(value)
                                                         }));
+                                                        if (ruleErrors.requiredPercentage) {
+                                                            setRuleErrors(prev => ({ ...prev, requiredPercentage: undefined }));
+                                                        }
                                                     }}
                                                 />
                                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
                                             </div>
+                                            {ruleErrors.requiredPercentage && <p className="text-xs text-red-500">{ruleErrors.requiredPercentage}</p>}
                                         </div>
                                     </div>
                                 </div>
@@ -638,7 +641,7 @@ export default function CreateHpActivityPage() {
                                     <div className="space-y-2">
                                         <Label>
                                             Deadline Date & Time
-                                            {!ruleConfig.isMandatory && (
+                                            {!ruleConfig.isMandatory && currentActivityType !== "VIBE_MILESTONE" && (
                                                 <span className="text-muted-foreground text-xs ml-1">(Optional)</span>
                                             )}
                                         </Label>
@@ -670,6 +673,8 @@ export default function CreateHpActivityPage() {
                                         />
                                         {ruleErrors.deadlineAt && <p className="text-xs text-red-500">{ruleErrors.deadlineAt}</p>}
                                     </div>
+                                {/* Allow Late Submissions — hidden for VIBE_MILESTONE */}
+                                {currentActivityType !== "VIBE_MILESTONE" && (
                                 <div className="flex items-center justify-between border p-4 rounded-md shadow-sm bg-card h-full">
                                     <div className="flex items-center gap-2">
                                         <Label htmlFor="allow-late" className="cursor-pointer text-base font-semibold">Allow Late Submissions</Label>
@@ -693,6 +698,7 @@ export default function CreateHpActivityPage() {
                                         }}
                                     />
                                 </div>
+                                )}
                                 {ruleErrors.allowLateSubmission && <p className="text-xs text-red-500 px-1">{ruleErrors.allowLateSubmission}</p>}
                                 </div>
                             </div>
@@ -766,6 +772,7 @@ export default function CreateHpActivityPage() {
                                         {ruleErrors.rewardValue && <p className="text-xs text-red-500">{ruleErrors.rewardValue}</p>}
                                     </div>
 
+                                    {currentActivityType !== "VIBE_MILESTONE" && (
                                     <div className="space-y-2">
                                         <Label>Apply Policy</Label>
                                         <Select
@@ -790,6 +797,8 @@ export default function CreateHpActivityPage() {
                                         </Select>
                                         {ruleErrors.rewardApplyWhen && <p className="text-xs text-red-500">{ruleErrors.rewardApplyWhen}</p>}
                                     </div>
+                                    )}
+                                    {ruleConfig.allowLateSubmission && (
                                     <div className="space-y-2">
                                         <Label>Late Reward Behavior</Label>
                                         <Select
@@ -832,6 +841,7 @@ export default function CreateHpActivityPage() {
                                             </SelectContent>
                                         </Select>
                                     </div>
+                                    )}
                                 </div>
                                 )}
                             </div>
