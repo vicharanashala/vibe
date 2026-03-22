@@ -143,7 +143,7 @@ export function RuleSettingsDialog({
 
             if (existingConfig?._id) {
                 console.log("Updating existing config with ID:", existingConfig._id);
-                await updateRuleConfig(activityId, rulePayload);
+                await updateRuleConfig(existingConfig._id, rulePayload);
             } else {
                 const createPayload: Partial<HpRuleConfig> = {
                     courseId,

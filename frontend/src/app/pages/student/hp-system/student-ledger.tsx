@@ -119,7 +119,7 @@ export default function StudentLedgerPage() {
         return filteredLedger.slice(startIndex, endIndex);
     }, [filteredLedger, currentPage, itemsPerPage]);
 
-    const totalPages = Math.ceil(filteredLedger.length / itemsPerPage);
+    const totalPages = Math.ceil(filteredLedger?.length / itemsPerPage);
 
     const handleSearchChange = (value: string) => {
         setSearchQuery(value);
@@ -210,7 +210,7 @@ export default function StudentLedgerPage() {
                 <div className="flex items-center justify-center py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                 </div>
-            ) : ledger.length === 0 ? (
+            ) : ledger?.length === 0 ? (
                 <div className="text-center py-12 border-2 border-dashed rounded-lg text-muted-foreground">
                     No HP transactions found yet.
                 </div>
@@ -267,62 +267,62 @@ export default function StudentLedgerPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {paginatedLedger.map((entry: any) => (
-                                        <TableRow key={entry._id}>
-                                            <TableCell>
-                                                <div className="font-medium max-w-[200px] truncate">
-                                                    {activityMap[entry.activityTitle] || entry.activityTitle || 'Manual Adjustment'}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline" className="font-normal text-xs">
-                                                    {entry.cohort || '—'}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline" className="font-normal uppercase text-[10px]">
-                                                    {entry.eventType}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell><DirectionBadge direction={entry.direction} /></TableCell>
-                                            <TableCell className="text-right">
-                                                <span className={`font-semibold ${entry.direction === 'CREDIT' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                    {entry.direction === 'CREDIT' ? '+' : '-'}{entry.amount}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell>
-                                                <span className="text-sm text-muted-foreground">
-                                                    {formatDate(entry.calc?.deadlineAt)}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                                    <Calendar className="h-3.5 w-3.5" />
-                                                    <span>{formatDate(entry.createdAt)}</span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="text-center">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => setSelectedEntry(entry)}
-                                                >
-                                                    View more
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
-
-                    {/* Pagination Component */}
-                    <Pagination
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        totalDocuments={filteredLedger.length}
-                        onPageChange={setCurrentPage}
-                    />
+                                    <TableRow key={entry._id}>
+                                        <TableCell>
+                                            <div className="font-medium max-w-[200px] truncate">
+                                                {activityMap[entry.activityTitle] || entry.activityTitle || 'Manual Adjustment'}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline" className="font-normal text-xs">
+                                                {entry.cohort || '—'}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline" className="font-normal uppercase text-[10px]">
+                                                {entry.eventType}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell><DirectionBadge direction={entry.direction} /></TableCell>
+                                        <TableCell className="text-right">
+                                            <span className={`font-semibold ${entry.direction === 'CREDIT' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                {entry.direction === 'CREDIT' ? '+' : '-'}{entry.amount}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="text-sm text-muted-foreground">
+                                                {formatDate(entry.calc?.deadlineAt)}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                                <Calendar className="h-3.5 w-3.5" />
+                                                <span>{formatDate(entry.createdAt)}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setSelectedEntry(entry)}
+                                            >
+                                                View more
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+                
+                {/* Pagination Component */}
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalDocuments={filteredLedger?.length}
+                    onPageChange={setCurrentPage}
+                />
                 </>
             )}
 

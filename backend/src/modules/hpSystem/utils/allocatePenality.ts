@@ -120,7 +120,7 @@ const processActivityPenalties = async (
     // Get enrolled students for this course/cohort
     const enrolledStudents = await cohortRepo.getStudentsForCohortByVersionAndCohortName(
         courseVersionId.toString(),
-        cohortId.toString()
+        cohortId
     );
     if (!enrolledStudents || enrolledStudents.length == 0) return false
 
