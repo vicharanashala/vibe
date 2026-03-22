@@ -36,6 +36,7 @@ type EditFormValues = {
     description: string;
     activityType: string;
     submissionMode: string;
+    externalLink?: string;
     attachments: { name: string; url: string; kind: 'PDF' | 'LINK' | 'OTHER' }[];
 };
 
@@ -49,12 +50,13 @@ export function EditActivityDialog({
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [pendingData, setPendingData] = useState<EditFormValues | null>(null);
 
-    const { control, register, handleSubmit, reset, setError, formState: { errors } } = useForm<EditFormValues>({
+    const { control, register, handleSubmit, reset, setError, watch, setValue, formState: { errors } } = useForm<EditFormValues>({
         defaultValues: {
             title: "",
             description: "",
             activityType: "ASSIGNMENT",
             submissionMode: "IN_PLATFORM",
+            externalLink: "",
             attachments: []
         }
     });
@@ -71,6 +73,7 @@ export function EditActivityDialog({
                 description: activity.description || "",
                 activityType: activity.activityType || "ASSIGNMENT",
                 submissionMode: activity.submissionMode || "IN_PLATFORM",
+                externalLink: activity.externalLink || "",
                 attachments: activity.attachments || []
             });
         }
@@ -177,16 +180,21 @@ export function EditActivityDialog({
                                     name="activityType"
                                     control={control}
                                     render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value}>
+                                        <Select 
+                                            onValueChange={(value) => {
+                                                field.onChange(value);
+                                                if (value === "VIBE_MILESTONE") {
+                                                    setValue("submissionMode", "IN_PLATFORM", { shouldValidate: true });
+                                                }
+                                            }} 
+                                            value={field.value}
+                                        >
                                             <SelectTrigger className={errors.activityType ? "border-red-500" : ""}>
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="ASSIGNMENT">Assignment</SelectItem>
-                                                <SelectItem value="MILESTONE">Milestone</SelectItem>
-                                                <SelectItem value="EXTERNAL_IMPORT">External Import</SelectItem>
                                                 <SelectItem value="VIBE_MILESTONE">Vibe Platform Milestone</SelectItem>
-                                                <SelectItem value="OTHER">Other</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     )}
@@ -200,24 +208,48 @@ export function EditActivityDialog({
                                     name="submissionMode"
                                     control={control}
                                     render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value}>
+                                        <Select 
+                                            onValueChange={field.onChange} 
+                                            value={field.value}
+                                            disabled={watch("activityType") === "VIBE_MILESTONE"}
+                                        >
                                             <SelectTrigger className={errors.submissionMode ? "border-red-500" : ""}>
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="IN_PLATFORM">In-Platform Uploads</SelectItem>
                                                 <SelectItem value="EXTERNAL_LINK">External Link</SelectItem>
-                                                <SelectItem value="VIBE_AUTO">Automatic (Vibe Integration)</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     )}
                                 />
                                 {errors.submissionMode && <p className="text-xs text-red-500">{errors.submissionMode.message}</p>}
+                                {watch("activityType") === "VIBE_MILESTONE" && (
+                                    <p className="text-[10px] text-muted-foreground mt-1">Vibe platform milestones use in-platform tracking by default.</p>
+                                )}
                             </div>
 
                             <div className="space-y-2 sm:col-span-2">
                                 {/* Deadline moved to Rule Settings dialog */}
                             </div>
+
+                            {watch("submissionMode") === "EXTERNAL_LINK" && (
+                                <div className="space-y-2 sm:col-span-2">
+                                    <Label>External Link <span className="text-red-500">*</span></Label>
+                                    <Input
+                                        placeholder="https://..."
+                                        {...register("externalLink", {
+                                            required: "External link is required",
+                                            pattern: {
+                                                value: /^https?:\/\/.+/,
+                                                message: "Must be a valid URL starting with http:// or https://"
+                                            }
+                                        })}
+                                        className={errors.externalLink ? "border-red-500" : ""}
+                                    />
+                                    {errors.externalLink && <p className="text-xs text-red-500">{errors.externalLink.message}</p>}
+                                </div>
+                            )}
                         </div>
                     </div>
 
