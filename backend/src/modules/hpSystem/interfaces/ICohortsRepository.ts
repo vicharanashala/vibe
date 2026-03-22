@@ -98,4 +98,6 @@ export interface ICohortRepository {
         cohortId: string,
         session?: ClientSession
     ): Promise<number>
+
+    getCourseVersionNameById(versionId: string): Promise<string>
 }

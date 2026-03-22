@@ -396,7 +396,12 @@ export interface HpStudentSubmissionStats {
         value: number;
     } | null;
 }
-
+export type HpCohortsResponse = {
+    success: boolean;
+    message: string;
+    data: CohortStats[];
+    courseVersionName: string;
+};
 // ─── API Functions ───────────────────────────────────────────
 
 export const hpApi = {
@@ -407,7 +412,7 @@ export const hpApi = {
         return apiFetch(`${BASE_URL}/courses-cohorts/courses/versions`);
     },
 
-    getCohorts: async (courseVersionId: string): Promise<{ success: boolean; message: string; data: CohortStats[] }> => {
+    getCohorts: async (courseVersionId: string): Promise<HpCohortsResponse> => {
         const params = new URLSearchParams({ courseVersionId });
         return apiFetch(`${BASE_URL}/courses-cohorts/cohorts?${params.toString()}`);
     },
