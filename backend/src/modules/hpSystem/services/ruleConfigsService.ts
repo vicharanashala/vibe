@@ -39,122 +39,123 @@ export class RuleConfigService extends BaseService {
     async create(body: CreateHpRuleConfigBody): Promise<HpRuleConfigTransformer> {
         // return this._withTransaction(async (session) => {
 
-            try {
-                const existing = await this.ruleConfigRepository.findByActivityId(body.activityId);
-                if (existing) {
-                    throw new BadRequestError("Rule config already exists for this activity");
+        try {
+            const existing = await this.ruleConfigRepository.findByActivityId(body.activityId);
+            if (existing) {
+                throw new BadRequestError("Rule config already exists for this activity");
+            }
+
+            // Enforce VIBE_MILESTONE constraints
+            const activity = await this.activityRepository.findById(body.activityId);
+
+            if (!activity) {
+                throw new BadRequestError("The selected activity could not be found.");
+            }
+
+            const isVibeMilestone = activity.activityType === "VIBE_MILESTONE";
+            const isMandatory = body.isMandatory === true;
+            const hasReward = body.reward?.enabled === true;
+            const hasPenalty = body.penalty?.enabled === true;
+
+            if (isVibeMilestone) {
+                body.isMandatory = true;
+                body.allowLateSubmission = false;
+
+                if (hasReward) {
+                    body.reward.applyWhen = "ON_MILESTONE_COMPLETION" as RewardApplyWhenEnum;
+                    body.reward.lateBehavior === "NO_REWARD"
                 }
 
-                // Enforce VIBE_MILESTONE constraints
-                const activity = await this.activityRepository.findById(body.activityId);
-
-                if (!activity) {
-                    throw new BadRequestError("The selected activity could not be found.");
-                }
-
-                const isVibeMilestone = activity.activityType === "VIBE_MILESTONE";
-                const isMandatory = body.isMandatory === true;
-                const hasReward = body.reward?.enabled === true;
-                const hasPenalty = body.penalty?.enabled === true;
-
-                if (isVibeMilestone) {
-                    body.isMandatory = true;
-                    body.allowLateSubmission = false;
-
-                    if (hasReward) {
-                        body.reward.applyWhen = "ON_MILESTONE_COMPLETION" as RewardApplyWhenEnum;
-                    }
-
-                    if (!body.deadlineAt) {
-                        throw new BadRequestError(
-                            "A deadline is required for Vibe Milestone activities."
-                        );
-                    }
-                }
-
-                if (hasReward && body.reward.type === "PERCENTAGE" && (body.reward.value < 0 || body.reward.value > 100)) {
-                    throw new BadRequestError("Reward percentage must be between 0 and 100.");
-                }
-
-                if (hasPenalty && body.penalty.type === "PERCENTAGE" && (body.penalty.value < 0 || body.penalty.value > 100)) {
-                    throw new BadRequestError("Penalty percentage must be between 0 and 100.");
-                }
-
-                if (isMandatory && !hasPenalty) {
+                if (!body.deadlineAt) {
                     throw new BadRequestError(
-                        "Penalty cannot be disabled for mandatory activities."
+                        "A deadline is required for Vibe Milestone activities."
                     );
                 }
+            }
 
-                if (isMandatory && !body.deadlineAt) {
-                    throw new BadRequestError(
-                        "A deadline is required for mandatory activities."
-                    );
+            if (hasReward && body.reward.type === "PERCENTAGE" && (body.reward.value < 0 || body.reward.value > 100)) {
+                throw new BadRequestError("Reward percentage must be between 0 and 100.");
+            }
+
+            if (hasPenalty && body.penalty.type === "PERCENTAGE" && (body.penalty.value < 0 || body.penalty.value > 100)) {
+                throw new BadRequestError("Penalty percentage must be between 0 and 100.");
+            }
+
+            if (isMandatory && !hasPenalty) {
+                throw new BadRequestError(
+                    "Penalty cannot be disabled for mandatory activities."
+                );
+            }
+
+            if (isMandatory && !body.deadlineAt) {
+                throw new BadRequestError(
+                    "A deadline is required for mandatory activities."
+                );
+            }
+
+            if (body.deadlineAt) {
+                const deadline = new Date(body.deadlineAt);
+
+                if (isNaN(deadline.getTime())) {
+                    throw new BadRequestError("The provided deadline is invalid.");
                 }
 
-                if (body.deadlineAt) {
-                    const deadline = new Date(body.deadlineAt);
-
-                    if (isNaN(deadline.getTime())) {
-                        throw new BadRequestError("The provided deadline is invalid.");
-                    }
-
-                    if (deadline < new Date()) {
-                        throw new BadRequestError("The deadline cannot be set in the past.");
-                    }
+                if (deadline < new Date()) {
+                    throw new BadRequestError("The deadline cannot be set in the past.");
                 }
-                const now = new Date();
+            }
+            const now = new Date();
 
-                const doc: HpRuleConfigCreateDoc = {
-                    courseId: toObjectId(body.courseId, "courseId") as any,
-                    courseVersionId: toObjectId(body.courseVersionId, "courseVersionId") as any,
-                    activityId: toObjectId(body.activityId, "activityId") as any,
+            const doc: HpRuleConfigCreateDoc = {
+                courseId: toObjectId(body.courseId, "courseId") as any,
+                courseVersionId: toObjectId(body.courseVersionId, "courseVersionId") as any,
+                activityId: toObjectId(body.activityId, "activityId") as any,
 
-                    isMandatory: body.isMandatory,
-                    deadlineAt: body.deadlineAt ? new Date(body.deadlineAt) : undefined,
-                    allowLateSubmission: body.allowLateSubmission,
+                isMandatory: body.isMandatory,
+                deadlineAt: body.deadlineAt ? new Date(body.deadlineAt) : undefined,
+                allowLateSubmission: body.allowLateSubmission,
 
-                    reward: body.reward.enabled
-                        ? {
-                            enabled: true,
-                            type: body.reward.type as any,
-                            value: body.reward.value,
-                            applyWhen: body.reward.applyWhen as any,
-                            lateBehavior: body.reward.lateBehavior as any,
-                        }
-                        : {
-                            enabled: false,
-                        },
-
-                    penalty: body.penalty.enabled
-                        ? {
-                            enabled: true,
-                            type: body.penalty.type as RuleType,
-                            value: body.penalty.value,
-                            applyWhen: body.penalty.applyWhen as PenaltyApplyWhen,
-                            graceMinutes: body.penalty.graceMinutes,
-                            // runOnce: body.penalty.runOnce,
-                        }
-                        : {
-                            enabled: false,
-                        },
-
-                    limits: {
-                        minHp: body.limits.minHp,
-                        maxHp: body.limits.maxHp,
+                reward: body.reward.enabled
+                    ? {
+                        enabled: true,
+                        type: body.reward.type as any,
+                        value: body.reward.value,
+                        applyWhen: body.reward.applyWhen as any,
+                        lateBehavior: body.reward.lateBehavior as any,
+                    }
+                    : {
+                        enabled: false,
                     },
 
-                    createdAt: now,
-                    updatedAt: now,
-                };
+                penalty: body.penalty.enabled
+                    ? {
+                        enabled: true,
+                        type: body.penalty.type as RuleType,
+                        value: body.penalty.value,
+                        applyWhen: body.penalty.applyWhen as PenaltyApplyWhen,
+                        graceMinutes: body.penalty.graceMinutes,
+                        // runOnce: body.penalty.runOnce,
+                    }
+                    : {
+                        enabled: false,
+                    },
 
-                return this.ruleConfigRepository.createRuleConfig(doc);
-            } catch (error) {
-                if (body.activityId) {
-                    await this.activityRepository.deleteById(body.activityId);
-                }
-                throw error;
+                limits: {
+                    minHp: body.limits.minHp,
+                    maxHp: body.limits.maxHp,
+                },
+
+                createdAt: now,
+                updatedAt: now,
+            };
+
+            return this.ruleConfigRepository.createRuleConfig(doc);
+        } catch (error) {
+            if (body.activityId) {
+                await this.activityRepository.deleteById(body.activityId);
             }
+            throw error;
+        }
         // })
     }
 
@@ -189,6 +190,7 @@ export class RuleConfigService extends BaseService {
                 patch.allowLateSubmission = false;
                 if (hasReward) {
                     patch.reward.applyWhen = "ON_MILESTONE_COMPLETION" as RewardApplyWhenEnum;
+                    patch.reward.lateBehavior === "NO_REWARD"
                 }
                 if (!patch.deadlineAt) {
                     throw new BadRequestError(
