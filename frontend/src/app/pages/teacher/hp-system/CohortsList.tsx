@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, ArrowLeft, Loader2, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useHpCohorts } from "@/hooks/hooks";
+import { CohortStats } from "@/lib/api/hp-system";
 
 export default function HpSystemCohorts() {
     const { courseVersionId } = useParams({ strict: false });
@@ -10,16 +11,19 @@ export default function HpSystemCohorts() {
     const router = useRouterState();
     const from = router.location.state?.from;
 
-    const { data: cohorts, isLoading, error } = useHpCohorts(courseVersionId as string);
+    const { data, isLoading, error } = useHpCohorts(courseVersionId as string);
+
+    const courseVersionName = data?.courseVersionName ?? "";
+    const cohorts = data?.data ?? [];
 
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4">
-                <Button variant="outline" size="icon" onClick={() => navigate({ to: from || "/teacher/hp-system" }) }>
+                <Button variant="outline" size="icon" onClick={() => navigate({ to: from || "/teacher/hp-system" })}>
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Cohorts for Version {courseVersionId}</h2>
+                    <h2 className="text-2xl font-bold tracking-tight">Cohorts for Version: {courseVersionName || "N/A"}</h2>
                     <p className="text-muted-foreground">Select a cohort to manage its activities.</p>
                 </div>
             </div>
@@ -51,7 +55,7 @@ export default function HpSystemCohorts() {
                                 to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(
                                     c.cohortName
                                 )}/activities`,
-                                state:{from}
+                                state: { from }
                             })
                         }
                     >

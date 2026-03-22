@@ -37,7 +37,7 @@ export class RuleConfigService extends BaseService {
     }
 
     async create(body: CreateHpRuleConfigBody): Promise<HpRuleConfigTransformer> {
-        return this._withTransaction(async (session) => {
+        // return this._withTransaction(async (session) => {
 
             try {
                 const existing = await this.ruleConfigRepository.findByActivityId(body.activityId);
@@ -79,7 +79,7 @@ export class RuleConfigService extends BaseService {
                 if (hasPenalty && body.penalty.type === "PERCENTAGE" && (body.penalty.value < 0 || body.penalty.value > 100)) {
                     throw new BadRequestError("Penalty percentage must be between 0 and 100.");
                 }
-                
+
                 if (isMandatory && !hasPenalty) {
                     throw new BadRequestError(
                         "Penalty cannot be disabled for mandatory activities."
@@ -148,14 +148,14 @@ export class RuleConfigService extends BaseService {
                     updatedAt: now,
                 };
 
-                return this.ruleConfigRepository.createRuleConfig(doc, session);
+                return this.ruleConfigRepository.createRuleConfig(doc);
             } catch (error) {
                 if (body.activityId) {
-                    await this.activityRepository.deleteById(body.activityId, session);
+                    await this.activityRepository.deleteById(body.activityId);
                 }
                 throw error;
             }
-        })
+        // })
     }
 
     async update(ruleConfigId: string, patch: UpdateHpRuleConfigBody): Promise<HpRuleConfigTransformer> {

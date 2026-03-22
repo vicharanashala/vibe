@@ -248,13 +248,23 @@ export class CohortsService extends BaseService {
             const enrolledVersionIds = new Set(instructorEnrollments.map(e => e.courseVersionId));
             const enrolledCohortIds = new Set(instructorEnrollments.map(e => e.cohortId).filter(Boolean));
 
+            let courseVersionName = "";
+
+
+
             if (query.courseVersionId) {
                 const isGeneralInstructorForVersion = instructorEnrollments.some(e =>
                     e.courseVersionId === query.courseVersionId && !e.cohortId
                 );
 
+                if (query.courseVersionId == "000000000000000000000001")
+                    courseVersionName = "Pinternship"
+                if (query.courseVersionId == "000000000000000000000002")
+                    courseVersionName = "Vinternship"
+
                 // 1. Fetch hardcoded cohorts for this version
                 const fetched = await this._handleExisitingCohorts(query.courseVersionId);
+
                 if (fetched) {
                     const hardcodedMappings = [
                         { pseudoVersionId: "000000000000000000000001", cohortName: "Euclideans", cohortVersionId: "6968e12cbf2860d6e39051af" },
@@ -263,6 +273,7 @@ export class CohortsService extends BaseService {
                         { pseudoVersionId: "000000000000000000000002", cohortName: "RSAians", cohortVersionId: "69903415e1930c015760a719" },
                         { pseudoVersionId: "000000000000000000000002", cohortName: "AKSians", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
                     ];
+
 
                     const filteredFetched = fetched.filter(c => {
                         const mapping = hardcodedMappings.find(m => m.cohortName === c.cohortName);
@@ -284,11 +295,14 @@ export class CohortsService extends BaseService {
 
                 cohorts.push(...dbCohorts);
             }
+            if (!courseVersionName)
+                courseVersionName = await this.cohortRepository.getCourseVersionNameById(query.courseVersionId);
 
             return {
                 success: true,
                 message: "Cohorts fetched successfully",
                 data: cohorts,
+                courseVersionName,
                 meta: {
                     totalRecords: cohorts.length,
                     totalPages: 1,

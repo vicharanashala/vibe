@@ -792,4 +792,19 @@ export class CohortRepository implements ICohortRepository {
 
         return enrollment?.hpPoints ?? 0;
     }
+
+    async getCourseVersionNameById(versionId: string): Promise<string> {
+        await this.init();
+
+        const doc = await this.courseVersionCollection.findOne(
+            { _id: new ObjectId(versionId) },
+            { projection: { version: 1 } }
+        );
+
+        if (!doc) {
+            throw new Error("Course version not found");
+        }
+
+        return doc.version;
+    }
 }
