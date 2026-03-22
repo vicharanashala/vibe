@@ -232,10 +232,10 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
                                             {sub.feedbacks.length !== 1 ? "s" : ""}
                                             <ChevronDown
                                                 className={`ml-2 h-4 w-4 transition-transform ${document
-                                                        .getElementById(`feedback-panel-${sub.submission?._id}`)
-                                                        ?.classList.contains("hidden")
-                                                        ? ""
-                                                        : "rotate-180"
+                                                    .getElementById(`feedback-panel-${sub.submission?._id}`)
+                                                    ?.classList.contains("hidden")
+                                                    ? ""
+                                                    : "rotate-180"
                                                     }`}
                                             />
                                         </Button>
@@ -433,10 +433,13 @@ function TransactionSection({ ledgerEntries }: {
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right py-3">
-                                        <div className={`text-lg font-bold flex items-center justify-end gap-1 ${transaction.hp > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                            {transaction.hp > 0 && <ThumbsUp className="h-4 w-4" />}
-                                            {transaction.hp < 0 && <ThumbsDown className="h-4 w-4" />}
-                                            <span className="mx-1">{transaction.hp > 0 ? '+' : ''}{Math.abs(transaction.hp)}</span>
+                                        <div className={`text-lg font-bold flex items-center justify-end gap-1 ${transaction.eventType == "CREDIT" ? 'text-green-600' : 'text-red-600'}`}>
+                                            {transaction.eventType == "CREDIT" && <ThumbsUp className="h-4 w-4 " />}
+                                            {transaction.eventType == "DEBIT" && <ThumbsDown className="h-4 w-4" />}
+                                            {/* <span className="mx-1">{transaction.eventType == "CREDIT" ? '+' : ''}{Math.abs(transaction.hp)}</span> */}
+                                            <span className={`font-semibold ${transaction.direction === 'CREDIT' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                {transaction.direction === 'CREDIT' ? '+' : '-'}{transaction.hp}
+                                            </span>
                                             <Zap className="h-4 w-4 text-yellow-500" />
                                         </div>
                                     </TableCell>
