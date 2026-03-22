@@ -21,7 +21,8 @@ import {
     Search,
     Clock,
     Calendar,
-    Flame
+    Flame,
+    Eye
 } from "lucide-react";
 import { HpActivity } from "@/lib/api/hp-system";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -301,12 +302,21 @@ export default function StudentActivities() {
                         <TooltipTrigger asChild>
                             <Button
                                 variant="outline"
-                                onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/submissions`, state: { from } })}
+                                className="flex items-center gap-2"
+                                onClick={() =>
+                                    navigate({
+                                        to: `/student/hp-system/${courseVersionId}/${cohortName}/submissions`,
+                                        state: { from }
+                                    })
+                                }
                             >
-
+                                <Eye className="h-4 w-4" />
+                                View Submissions
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent>View all your submitted activities and their status</TooltipContent>
+                        <TooltipContent>
+                            View all your submitted activities and their status
+                        </TooltipContent>
                     </Tooltip>
                 </div>
 
