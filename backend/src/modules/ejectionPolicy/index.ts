@@ -11,6 +11,7 @@ import {EJECTION_POLICY_VALIDATORS} from './classes/validators/index.js';
 import {currentUserChecker} from '#root/shared/functions/currentUserChecker.js';
 import {ManualEjectionController} from './controllers/ManualEjectionController.js';
 import {ReinstatementController} from './controllers/ReinstatementController.js';
+import {AutoEjectionController} from './controllers/AutoEjectionController.js';
 // Container modules that this module depends on
 export const ejectionPolicyContainerModules: ContainerModule[] = [
   sharedContainerModule,
@@ -24,6 +25,7 @@ export const ejectionPolicyModuleControllers: Function[] = [
   EjectionPolicyController,
   ManualEjectionController,
   ReinstatementController,
+  AutoEjectionController,
 ];
 
 // Validators exported by this module

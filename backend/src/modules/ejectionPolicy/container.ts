@@ -7,7 +7,8 @@ import {ManualEjectionService} from './services/ManualEjectionService.js';
 import {ManualEjectionController} from './controllers/ManualEjectionController.js';
 import {ReinstatementService} from './services/ReinstatementService.js';
 import {ReinstatementController} from './controllers/ReinstatementController.js';
-
+import {AutoEjectionEngine} from './services/AutoEjectionEngine.js';
+import {AutoEjectionController} from './controllers/AutoEjectionController.js';
 export const ejectionPolicyContainerModule = new ContainerModule(options => {
   // Repositories
   options
@@ -37,4 +38,7 @@ export const ejectionPolicyContainerModule = new ContainerModule(options => {
     .inSingletonScope();
 
   options.bind(ReinstatementController).toSelf().inSingletonScope();
+
+  options.bind(AutoEjectionEngine).toSelf().inSingletonScope();
+  options.bind(AutoEjectionController).toSelf().inSingletonScope();
 });

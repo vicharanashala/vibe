@@ -4473,7 +4473,10 @@ export class EnrollmentRepository {
     const historyEntry: any = {
       ejectedAt: new Date(),
       ejectionReason: reason,
-      ejectedBy: new ObjectId(ejectedBy),
+      // ejectedBy: new ObjectId(ejectedBy),
+      ejectedBy: ObjectId.isValid(ejectedBy)
+        ? new ObjectId(ejectedBy)
+        : ejectedBy,
       ...(policyId ? {policyId: new ObjectId(policyId)} : {}),
     };
     const existing = await this.enrollmentCollection.findOne(
