@@ -136,6 +136,8 @@ function SimplifiedSubmissionCard({ sub, onViewMore }: { sub: HpStudentSubmissio
                         )}
 
                         {/* 2. HP BADGE */}
+                    {sub.rule.reward.enabled ? (
+                        <>
                         {(isOnSubmissionReward || submissionStatus === "APPROVED") && (
                             <Badge variant="outline" className="text-sm font-semibold text-green-600">
                                 <Zap className="h-3 w-3 mr-1 text-yellow-500" />
@@ -149,7 +151,10 @@ function SimplifiedSubmissionCard({ sub, onViewMore }: { sub: HpStudentSubmissio
                             Activity Reward {sub.rule.reward.value}
 
                         </Badge>
-
+                        </>
+                    ) : (
+                        <Badge variant={"outline"} className="text-sm text-muted-foreground">No Reward</Badge>
+                    )}
                         {/* 4. LATE FLAG */}
                         {sub.isLate && (
                             <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50">

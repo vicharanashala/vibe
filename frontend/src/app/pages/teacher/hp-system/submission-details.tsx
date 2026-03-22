@@ -622,10 +622,13 @@ export default function SubmissionDetailsPage() {
                             </div>
                             <div className="flex items-center gap-2">
 
-
+                            {submission.rule.reward.enabled ? (
                                 <Badge variant="outline" className="text-sm text-muted-foreground">
                                     Activity Points: {submission.rule?.reward?.value || 0}
                                 </Badge>
+                            ) : (
+                                <Badge variant="outline" className="text-sm text-muted-foreground">No Reward</Badge>
+                            )}
 
                             </div>
                         </div>
@@ -739,7 +742,7 @@ export default function SubmissionDetailsPage() {
                                 <div className="grid grid-cols-1 gap-3">
                                     {status === 'SUBMITTED' && (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                            {submission.rule.reward.applyWhen === "ON_APPROVAL" ? (
+                                            {submission.rule.reward.applyWhen === "ON_APPROVAL" || !submission.rule.reward.enabled ? (
                                                 <Button
                                                     variant="default"
                                                     size="sm"
@@ -818,10 +821,11 @@ export default function SubmissionDetailsPage() {
                 )}
 
                 {/* Related Transactions */}
+{submission?.rule.reward.enabled ? (
                 <TransactionSection
                     ledgerEntries={submission?.ledgerEntries || []}
                 />
-
+) : (<></>)}
                 {/* Reason Dialog */}
                 <Dialog open={reasonDialog.open} onOpenChange={(open) => setReasonDialog({ ...reasonDialog, open })}>
                     <DialogContent>

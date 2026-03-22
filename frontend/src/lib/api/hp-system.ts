@@ -309,6 +309,15 @@ export interface HpStudentSubmission {
     };
     safetyStatus?: 'safe' | 'unsafe';
     isRequiredInstructorApproval?: boolean;
+    rule: {
+        reward: {
+            enabled: boolean;
+            type?: "ABSOLUTE" | "PERCENTAGE";
+            value?: number;
+            applyWhen?: "ON_SUBMISSION" | "ON_APPROVAL";
+            lateBehavior?: "NO_REWARD" | "REWARD";
+        };
+    };
 }
 
 export interface HpRuleConfig {
