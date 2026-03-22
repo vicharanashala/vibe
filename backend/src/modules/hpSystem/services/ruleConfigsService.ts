@@ -2,7 +2,7 @@ import { BaseService, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { inject, injectable } from "inversify";
 import { HP_SYSTEM_TYPES } from "../types.js";
-import { RuleConfigsRepository } from "../repositories/index.js";
+import { ActivityRepository, RuleConfigsRepository } from "../repositories/index.js";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { HpRuleConfigTransformer } from "../classes/transformers/RuleConfigs.js";
 import { ObjectId } from "mongodb";
@@ -27,6 +27,9 @@ export class RuleConfigService extends BaseService {
 
         @inject(HP_SYSTEM_TYPES.ruleConfigsRepository)
         private readonly ruleConfigRepository: RuleConfigsRepository,
+
+        @inject(HP_SYSTEM_TYPES.activityRepository)
+        private readonly activityRepository: ActivityRepository,
     ) {
         super(mongoDatabase);
     }
@@ -35,6 +38,19 @@ export class RuleConfigService extends BaseService {
         const existing = await this.ruleConfigRepository.findByActivityId(body.activityId);
         if (existing) {
             throw new BadRequestError("Rule config already exists for this activity");
+        }
+
+        // Enforce VIBE_MILESTONE constraints
+        const activity = await this.activityRepository.findById(body.activityId);
+        if (activity?.activityType === "VIBE_MILESTONE") {
+            body.isMandatory = true;
+            body.allowLateSubmission = false;
+            if (body.reward?.enabled) {
+                body.reward.applyWhen = "ON_SUBMISSION" as any;
+            }
+            if (!body.deadlineAt) {
+                throw new BadRequestError("Deadline is required for Vibe Platform Milestone activities");
+            }
         }
 
         if (!body.isMandatory && body.penalty?.enabled) {
@@ -112,7 +128,15 @@ export class RuleConfigService extends BaseService {
             throw new NotFoundError("Rule config not found");
         }
 
-
+        // Enforce VIBE_MILESTONE constraints on update
+        const activity = await this.activityRepository.findById(existing.activityId.toString());
+        if (activity?.activityType === "VIBE_MILESTONE") {
+            patch.isMandatory = true;
+            patch.allowLateSubmission = false;
+            if (patch.reward?.enabled) {
+                patch.reward.applyWhen = "ON_SUBMISSION" as any;
+            }
+        }
 
         const isMandatory = patch.isMandatory !== undefined ? patch.isMandatory : existing.isMandatory;
         const deadlineAt = patch.deadlineAt !== undefined ? patch.deadlineAt : existing.deadlineAt;
