@@ -167,8 +167,8 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
                                     {
                                         $cond: [
                                             { $eq: ["$activity.activityType", "VIBE_MILESTONE"] },
-                                            2, // 2 minutes grace for milestone
-                                            "$penalty.graceMinutes" // normal grace
+                                            { $add: ["$penalty.graceMinutes", 2] }, // milestone = existing + 2 minutes
+                                            "$penalty.graceMinutes"
                                         ]
                                     },
                                     60000
