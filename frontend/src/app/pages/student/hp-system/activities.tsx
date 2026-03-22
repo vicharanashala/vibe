@@ -219,7 +219,6 @@ export default function StudentActivities() {
     // Pagination logic
     const filteredActivities = useMemo(() => {
         if (!activities) return [];
-
         return activities.filter((activity: HpActivity) => {
             const matchesSearch = activity.title?.toLowerCase().includes(searchQuery.toLowerCase());
 
