@@ -232,7 +232,7 @@ export class ActivitySubmissionsService extends BaseService {
             }
             if (activity.status !== "PUBLISHED")
                 throw new BadRequestError("You can't submit this activity, it is not set to public")
-            
+
             const activityRuleConfig = await this.ruleConfigService.getByActivityId(activityId);
             if (!activityRuleConfig) {
                 throw new BadRequestError("Activity rule config not found");
@@ -407,7 +407,7 @@ export class ActivitySubmissionsService extends BaseService {
                         finalReward = rewardMaxLimit;
                     }
 
-                    incrementAmount = finalReward;
+                    incrementAmount = Math.max(0, finalReward);
                 }
 
                 // For transparency in the audit trail, we create a human-readable note about how the reward was calculated
@@ -846,7 +846,7 @@ export class ActivitySubmissionsService extends BaseService {
                         finalReward = rewardMaxLimit;
                     }
 
-                    incrementAmount = finalReward;
+                    incrementAmount = Math.max(0, finalReward);
 
                     rewardDetailsNote = `Reward Type: PERCENTAGE, Base HP: ${totalStudentHpPoints}, Percentage: ${rewardValue}%`;
 
@@ -875,7 +875,9 @@ export class ActivitySubmissionsService extends BaseService {
                 if (originalLedger && originalLedger.direction == "CREDIT") {
                     rewardToUndo = originalLedger.amount ?? 0;
                     const hpBeforeReversal = finalHpBalance;
-                    finalHpBalance -= rewardToUndo;
+                    // finalHpBalance -= rewardToUndo;
+                    finalHpBalance = Math.max(0, finalHpBalance - rewardToUndo);
+
 
                     // First Ledger: The Reversal
                     ledgerPromises.push(this.ledgerRepository.create(
@@ -888,7 +890,8 @@ export class ActivitySubmissionsService extends BaseService {
                     const penaltyAmount = Number(body.pointsToDeduct) ?? 0;
                     if (penaltyAmount > 0) {
                         const hpBeforePenalty = finalHpBalance;
-                        finalHpBalance -= penaltyAmount;
+                        // finalHpBalance -= penaltyAmount;
+                        finalHpBalance = Math.max(0, finalHpBalance - penaltyAmount);
 
                         // Second Ledger: The Penalty
                         ledgerPromises.push(this.ledgerRepository.create(

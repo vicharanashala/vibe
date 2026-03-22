@@ -592,7 +592,7 @@ export class CohortRepository implements ICohortRepository {
             query,
             {
                 $set: {
-                    hpPoints: amount,
+                    hpPoints: Math.max(0, amount),
                     updatedAt: new Date(),
                 },
             },

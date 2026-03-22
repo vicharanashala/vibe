@@ -304,7 +304,7 @@ const calculatePenaltyAmount = (
             finalReward = penaltyMaxLimit;
         }
 
-        return finalReward;
+        return Math.max(0, finalReward);
     }
 
     return 0;
