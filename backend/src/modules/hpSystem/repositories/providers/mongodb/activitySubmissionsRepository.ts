@@ -515,7 +515,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         await this.init();
 
         const page = query.page ?? 1;
-        const limit = query.limit ?? 0; 
+        const limit = query.limit ?? 0;
         const skip = limit > 0 ? (page - 1) * limit : 0;
 
         const sortOrder = query.sortOrder === "desc" ? -1 : 1;
@@ -598,21 +598,23 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         return await this.hpActivitySubmissionCollection.findOne({ studentId: new ObjectId(studentId), activityId: new ObjectId(activityId) }, { sort: { createdAt: -1 } })
     }
 
-    async getCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number> {
+    async getCountByStudentId(studentId: string, courseId: string, courseVersionId: string, cohortName: string): Promise<number> {
         await this.init();
         return await this.hpActivitySubmissionCollection.countDocuments({
             studentId: new ObjectId(studentId),
             courseId: new ObjectId(courseId),
             courseVersionId: new ObjectId(courseVersionId),
+            cohort: cohortName
         });
     }
 
-    async getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number> {
+    async getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string, cohortName: string): Promise<number> {
         await this.init();
         return await this.hpActivitySubmissionCollection.countDocuments({
             studentId: new ObjectId(studentId),
             courseId: new ObjectId(courseId),
             courseVersionId: new ObjectId(courseVersionId),
+            cohort: cohortName,
             isLate: true
         });
     }

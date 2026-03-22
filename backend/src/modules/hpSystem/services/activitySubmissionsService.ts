@@ -493,7 +493,7 @@ export class ActivitySubmissionsService extends BaseService {
                     "This submission cannot be updated because it has already been reviewed or approved by the instructor."
                 );
             }
-            
+
             const basePayload = {
                 textResponse: body.payload?.textResponse ?? "",
                 links: body.payload?.links ?? [],
@@ -699,9 +699,9 @@ export class ActivitySubmissionsService extends BaseService {
             latestActivity,
         ] = await Promise.all([
             this.activityRepository.getCountByCohortName(cohortName),
-            this.activitySubmissionsRepository.getCountByStudentId(studentId, courseId, courseVersionId),
-            this.activitySubmissionsRepository.getLateSubmissionCountByStudentId(studentId, courseId, courseVersionId),
-            this.activityRepository.getPendingActivitesCount(studentId, courseId, courseVersionId),
+            this.activitySubmissionsRepository.getCountByStudentId(studentId, courseId, courseVersionId, cohortName),
+            this.activitySubmissionsRepository.getLateSubmissionCountByStudentId(studentId, courseId, courseVersionId, cohortName),
+            this.activityRepository.getPendingActivitesCount(studentId, courseId, courseVersionId, cohortName),
             this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId, cohortName),
             this.activityRepository.getLatestActivityByCohortName(cohortName),
         ]);
