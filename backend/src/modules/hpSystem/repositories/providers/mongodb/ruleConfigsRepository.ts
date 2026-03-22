@@ -66,7 +66,7 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
         const activityId = new ObjectId(ruleConfigId);
         console.log("Finding rule config by ID:", activityId);
         const doc = await this.hpRuleConfigsCollection.findOne({
-            activityId, isDeleted: { $ne: true },
+            _id: new ObjectId(ruleConfigId), isDeleted: { $ne: true },
         });
         return plainToInstance(HpRuleConfigTransformer, doc as HpRuleConfig, {
             excludeExtraneousValues: true,
