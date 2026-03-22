@@ -34,7 +34,8 @@ export class LedgerRepository implements ILedgerRepository {
 
     async listByStudentId(
         studentId: string,
-        filter: FilterQueryDto
+        filter: FilterQueryDto,
+        cohortName: string,
     ): Promise<{
         data: HpLedgerTransformer[];
         total: number;
@@ -73,7 +74,7 @@ export class LedgerRepository implements ILedgerRepository {
 
             this.hpLedgerCollection.aggregate([
 
-                { $match: query },
+                { $match: { ...query, cohort: cohortName } },
 
                 {
                     $lookup: {
@@ -158,8 +159,10 @@ export class LedgerRepository implements ILedgerRepository {
 
             ]).toArray(),
 
-            this.hpLedgerCollection.countDocuments(query)
-
+            this.hpLedgerCollection.countDocuments({
+                ...query,
+                cohort: cohortName
+            })
         ]);
 
         const data = docs.map((doc) => ({
