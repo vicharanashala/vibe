@@ -267,6 +267,17 @@ export default function StudentActivities() {
     //     setCurrentPage(1); // Reset to first page when filtering
     // };
 
+    const getActivityTypeName = (type: string) => {
+        switch (type) {
+            case "VIBE_MILESTONE":
+                return "milestone";
+            case "ASSIGNMENT":
+                return "assignment";
+            default:
+                return "activity";
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="p-8 text-center text-muted-foreground flex items-center justify-center min-h-[50vh]">
@@ -399,79 +410,6 @@ export default function StudentActivities() {
                             </div>
                         </div>
 
-                        {/* <div className="grid grid-cols-1 gap-4">
-                            {paginatedActivities.map((activity: HpActivity) => (
-                                <Card
-                                    key={activity._id}
-                                    className="group relative overflow-hidden rounded-xl border bg-card p-0 shadow-sm transition-all hover:border-primary/50 hover:shadow-md"
-                                >
-                                    <div className="flex items-center justify-between gap-6 px-6 py-5">
-                                        <div className="flex-1 min-w-0 space-y-1.5">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="font-semibold text-base" title={activity.title}>
-                                                    {truncateText(activity.title, 70)}
-                                                </span>
-                                                <Badge variant="secondary" className="text-xs">
-                                                    {getActivityTypeLabel(activity.activityType)}
-                                                </Badge>
-                                                {activity.isSubmitted && (
-                                                    <Badge variant="default" className="text-xs">Submitted</Badge>
-                                                )}
-                                            </div>
-                                            {activity.description && (
-                                                <p className="text-sm text-muted-foreground" title={activity.description}>
-                                                    {truncateText(activity.description, 85)}
-                                                </p>
-                                            )}
-                                            <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-border/50">
-                                                {activity.createdAt && (
-                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                        <Calendar className="h-3.5 w-3.5 opacity-70" />
-                                                        <span>
-                                                            <span className="font-medium text-foreground/80">Created:</span>{" "}
-                                                            {formatDate(activity.createdAt)}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                {activity.rules?.deadlineAt && (
-                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                        <Clock className="h-3.5 w-3.5 opacity-70 text-orange-500" />
-                                                        <span>
-                                                            <span className="font-medium text-foreground/80">Deadline:</span>{" "}
-                                                            <span className="text-foreground font-medium">{formatDate(activity.rules.deadlineAt.toString())}</span>
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-4 shrink-0">
-                                            {activity.rules?.deadlineAt && (
-                                                <div className="text-sm font-semibold">
-                                                    <DeadlineCountdown
-                                                        deadline={activity.rules.deadlineAt.toString()}
-                                                        allowLate={activity.rules.allowLateSubmission ?? true}
-                                                    />
-                                                </div>
-                                            )}
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() =>
-                                                    navigate({
-                                                        to: `/student/hp-system/${courseVersionId}/${cohortName}/activities/${activity._id}`,
-                                                        state: { from }
-                                                    })
-                                                }
-                                            >
-                                                View
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </Card>
-                            ))}
-                        </div> */}
-
                         {(() => {
                             const milestones = paginatedActivities.filter(
                                 (a: HpActivity) => a.activityType === "VIBE_MILESTONE"
@@ -480,6 +418,26 @@ export default function StudentActivities() {
                                 (a: HpActivity) => a.activityType !== "VIBE_MILESTONE"
                             );
                             console.log("Milestones: ", milestones)
+                            console.log("others", others)
+
+                            const hasActivities = activities?.length > 0;
+                            const hasFilteredActivities = filteredActivities.length > 0;
+                            const hasMilestones = milestones.length > 0;
+                            const hasOthers = others.length > 0;
+
+                            if (!hasActivities) {
+                                return <p>No activities exist</p>;
+                            }
+
+                            if (!hasFilteredActivities) {
+                                return (
+                                    <p>
+                                        {submissionFilter === "PENDING"
+                                            ? `No pending ${getActivityTypeName(selectedActivityType)} found...`
+                                            : `No ${getActivityTypeName(selectedActivityType)} activities found for selected filter...`}
+                                    </p>
+                                );
+                            }
 
                             return (
                                 <>
