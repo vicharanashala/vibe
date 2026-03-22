@@ -18,7 +18,10 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
     });
     if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || `Request failed (${res.status})`);
+        const err: any = new Error(errData.message || `Request failed (${res.status})`);
+        err.response = { json: async () => errData };
+        err.data = errData;
+        throw err;
     }
     return res.json();
 }
@@ -476,7 +479,10 @@ export const hpApi = {
             });
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.message || `Request failed (${res.status})`);
+                const err: any = new Error(errData.message || `Request failed (${res.status})`);
+                err.response = { json: async () => errData };
+                err.data = errData;
+                throw err;
             }
             return res.json();
         }
@@ -558,7 +564,10 @@ export const hpApi = {
             });
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.message || `Request failed (${res.status})`);
+                const err: any = new Error(errData.message || `Request failed (${res.status})`);
+                err.response = { json: async () => errData };
+                err.data = errData;
+                throw err;
             }
             return res.json();
         }

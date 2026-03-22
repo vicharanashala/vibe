@@ -21,6 +21,7 @@ import {
 import { HpRuleConfig, HpActivity } from "@/lib/api/hp-system";
 import { useHpRuleConfig, useCreateHpRuleConfig, useUpdateHpRuleConfig, useHpActivities, useUpdateHpActivity } from "@/hooks/hooks";
 import ConfirmationModal from "../../components/confirmation-modal";
+import { toast } from "sonner";
 
 interface RuleSettingsDialogProps {
     isOpen: boolean;
@@ -99,23 +100,40 @@ export function RuleSettingsDialog({
         }
     }, [isOpen, existingConfig, fetchLoading, activity]);
 
-    const [errors, setErrors] = useState<{ deadlineAt?: string }>({});
+    const [errors, setErrors] = useState<{ deadlineAt?: string; penaltyEnabled?: string; requiredPercentage?: string }>({});
 
     const handleSave = async () => {
         if (!config) return;
 
+        let hasError = false;
+        const nextErrors: any = {};
+
         if (config.isMandatory && !config.deadlineAt) {
-            setErrors({ deadlineAt: "Deadline is required for mandatory activities" });
+            nextErrors.deadlineAt = "Deadline is required for mandatory activities";
+            hasError = true;
+        } else if (config.deadlineAt) {
+            const deadline = new Date(config.deadlineAt);
+            if (deadline < new Date()) {
+                nextErrors.deadlineAt = "Deadline cannot be in the past";
+                hasError = true;
+            }
+        }
+
+        if (config.isMandatory && !config.penalty?.enabled) {
+            nextErrors.penaltyEnabled = "Penalty cannot be disabled for mandatory activities.";
+            hasError = true;
+        }
+
+        if (activity?.activityType === "VIBE_MILESTONE" && ((config as any).required_percentage === undefined || Number.isNaN((config as any).required_percentage))) {
+            nextErrors.requiredPercentage = "Required percentage must be provided for a Vibe Milestone activity.";
+            hasError = true;
+        }
+
+        if (hasError) {
+            setErrors(nextErrors);
             return;
         }
 
-        if (config.deadlineAt) {
-            const deadline = new Date(config.deadlineAt);
-            if (deadline < new Date()) {
-                setErrors({ deadlineAt: "Deadline cannot be in the past" });
-                return;
-            }
-        }
         setErrors({});
 
         try {
@@ -142,8 +160,19 @@ export function RuleSettingsDialog({
 
             refetch();
             onOpenChange(false);
-        } catch (error) {
+            toast.success("Rule configuration saved successfully");
+        } catch (error: any) {
             console.error("Failed to save rule config", error);
+            if (error.response) {
+                try {
+                    const detail = await error.response.json();
+                    toast.error(detail.message || "Failed to save configuration due to validation errors.");
+                } catch (e) {
+                    toast.error("Failed to save configuration.");
+                }
+            } else {
+                toast.error(error.message || "Failed to save configuration.");
+            }
         }
     };
 
@@ -203,10 +232,16 @@ export function RuleSettingsDialog({
                                             placeholder="100"
                                             className="pr-8"
                                             value={(config as any)?.required_percentage ?? ""}
-                                            onChange={(e) => setConfig(prev => ({ ...prev, required_percentage: e.target.value === "" ? undefined : parseInt(e.target.value) } as any))}
+                                            onChange={(e) => {
+                                                setConfig(prev => ({ ...prev, required_percentage: e.target.value === "" ? undefined : parseInt(e.target.value) } as any));
+                                                if (errors.requiredPercentage) {
+                                                    setErrors(prev => ({ ...prev, requiredPercentage: undefined }));
+                                                }
+                                            }}
                                         />
                                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
                                     </div>
+                                    {errors.requiredPercentage && <p className="text-xs text-red-500 mt-1">{errors.requiredPercentage}</p>}
                                 </div>
                             </div>
                         )}
@@ -387,13 +422,13 @@ export function RuleSettingsDialog({
                                 <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Penalty Configuration (Late)</h4>
                                 <Switch
                                     checked={config?.penalty?.enabled || false}
-                                    disabled={!config?.isMandatory}
                                     onCheckedChange={(c) => setConfig(prev => ({
                                         ...prev,
                                         penalty: { ...(prev?.penalty || {}), enabled: c }
                                     } as any))}
                                 />
                             </div>
+                            {errors.penaltyEnabled && <p className="text-xs text-red-500 mt-1">{errors.penaltyEnabled}</p>}
                             {config?.penalty?.enabled && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
                                 <div className="space-y-2">

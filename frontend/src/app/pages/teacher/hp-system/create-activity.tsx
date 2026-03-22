@@ -18,6 +18,7 @@ import {
     Link as LinkIcon, CheckCircle, Info
 } from "lucide-react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
+import { toast } from "sonner";
 import { CreateHpActivityPayload, HpRuleConfig, CourseWithVersions, CourseVersionStats } from "@/lib/api/hp-system";
 import { useCreateHpActivity, useCreateHpRuleConfig, useHpCourseVersions } from "@/hooks/hooks";
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal";
@@ -43,7 +44,7 @@ export default function CreateHpActivityPage() {
     const courseId = course?.courseId;
 
     // ── Step 1: Activity form ──
-    const { control, register, handleSubmit, watch, trigger, formState: { errors }, setValue } = useForm<CreateHpActivityPayload>({
+    const { control, register, handleSubmit, watch, trigger, formState: { errors }, setValue, setError } = useForm<CreateHpActivityPayload>({
         defaultValues: {
             title: "",
             description: "",
@@ -214,6 +215,9 @@ export default function CreateHpActivityPage() {
             if (ruleConfig.penalty?.enabled === undefined) {
                 nextErrors.penaltyEnabled = "Please select if penalty is enabled";
             }
+            if (ruleConfig.isMandatory && !ruleConfig.penalty?.enabled) {
+                nextErrors.penaltyEnabled = "Penalty cannot be disabled for mandatory activities.";
+            }
             if (ruleConfig.penalty?.enabled) {
                 if (!ruleConfig.penalty?.type) {
                     nextErrors.penaltyType = "Penalty type is required";
@@ -229,6 +233,10 @@ export default function CreateHpActivityPage() {
                     nextErrors.penaltyGraceMinutes = "Grace period cannot be negative";
                 }
             }
+            if (isVibeMilestone && (ruleConfig.required_percentage === undefined || Number.isNaN(ruleConfig.required_percentage))) {
+                nextErrors.requiredPercentage = "Required percentage must be provided for a Vibe Milestone activity.";
+            }
+
             if (ruleConfig.required_percentage !== undefined && !Number.isNaN(ruleConfig.required_percentage)) {
                 if (ruleConfig.required_percentage < 0 || ruleConfig.required_percentage > 100) {
                     nextErrors.requiredPercentage = "Required percentage must be between 0 and 100";
@@ -322,7 +330,16 @@ export default function CreateHpActivityPage() {
                 await createRuleConfig(rulePayload);
             } catch (ruleError: any) {
                 console.error("Rule config creation failed:", ruleError);
-                // Don't block navigation – activity was created, rule config just failed
+                if (ruleError.response) {
+                    try {
+                        const detail = await ruleError.response.json();
+                        toast.error(`Activity created, but rules failed: ${detail.message || "Validation Error"}`);
+                    } catch (e) {
+                         toast.error("Activity created, but rules failed.");
+                    }
+                } else {
+                    toast.error(ruleError.message || "Activity created, but rules failed.");
+                }
             }
 
             // 4. Navigate back
@@ -333,9 +350,45 @@ export default function CreateHpActivityPage() {
                 try {
                     const detail = await error.response.json();
                     console.error("Backend Error Detail JSON:", detail);
+                    
+                    if (detail.errors && Array.isArray(detail.errors)) {
+                        let hasFieldErrors = false;
+                        const validFormFields = ["title", "description", "activityType", "submissionMode", "externalLink", "attachments"];
+                        const nextRuleErrors: any = { ...ruleErrors };
+
+                        detail.errors.forEach((err: any) => {
+                            if (err.property) {
+                                const message = err.constraints ? Object.values(err.constraints).join(", ") : "Validation failed";
+                                
+                                if (validFormFields.includes(err.property)) {
+                                    setError(err.property as any, { type: "server", message });
+                                    hasFieldErrors = true;
+                                } else {
+                                    // Map to ruleErrors
+                                    nextRuleErrors[err.property] = message;
+                                    hasFieldErrors = true;
+                                }
+                            }
+                        });
+                        
+                        setRuleErrors(nextRuleErrors);
+
+                        if (!hasFieldErrors && detail.message) {
+                            toast.error(detail.message);
+                        } else if (hasFieldErrors) {
+                            toast.error("Please check the form for validation errors.");
+                        }
+                    } else if (detail.message) {
+                        toast.error(detail.message);
+                    } else {
+                        toast.error("An unexpected error occurred during creation.");
+                    }
                 } catch (e) {
                     console.error("Could not parse backend error JSON");
+                    toast.error("Failed to create activity. Please try again.");
                 }
+            } else {
+                toast.error(error.message || "Failed to create activity. Please try again.");
             }
         }
     };
@@ -410,9 +463,10 @@ export default function CreateHpActivityPage() {
                                 <label className="text-sm font-medium">Description</label>
                                 <Textarea
                                     placeholder="Describe the expectations for this activity..."
-                                    className="min-h-[120px]"
+                                    className={`min-h-[120px] ${errors.description ? "border-red-500" : ""}`}
                                     {...register("description")}
                                 />
+                                {errors.description && <p className="text-xs text-red-500">{errors.description.message as string}</p>}
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -515,6 +569,7 @@ export default function CreateHpActivityPage() {
                                             {...register(`attachments.${index}.name` as const, { required: "Name is required" })}
                                             className={errors.attachments?.[index]?.name ? "border-red-500" : ""}
                                         />
+                                        {errors.attachments?.[index]?.name && <p className="text-xs text-red-500">{errors.attachments[index]?.name?.message as string}</p>}
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-xs font-medium uppercase text-muted-foreground">
@@ -525,6 +580,7 @@ export default function CreateHpActivityPage() {
                                             {...register(`attachments.${index}.url` as const, { required: "URL is required" })}
                                             className={errors.attachments?.[index]?.url ? "border-red-500" : ""}
                                         />
+                                        {errors.attachments?.[index]?.url && <p className="text-xs text-red-500">{errors.attachments[index]?.url?.message as string}</p>}
                                     </div>
                                     <Button type="button" variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => remove(index)}>
                                         <Trash2 className="h-4 w-4" />
