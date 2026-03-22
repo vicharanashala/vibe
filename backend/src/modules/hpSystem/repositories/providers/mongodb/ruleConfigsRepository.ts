@@ -79,9 +79,10 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
         const doc = await this.hpRuleConfigsCollection.findOne({
             activityId: new ObjectId(activityId), isDeleted: { $ne: true },
         });
+        if (!doc) return null;
         const result = {
             ...doc,
-            _id: doc._id?.toString(),
+            _id: doc?._id?.toString(),
             courseId: doc.courseId?.toString(),
             courseVersionId: doc.courseVersionId?.toString(),
             activityId: doc.activityId?.toString(),
