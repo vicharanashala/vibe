@@ -127,6 +127,7 @@ export class ActivityRepository implements IActivityRepository {
                   isMandatory: 1,
                   deadlineAt: 1,
                   allowLateSubmission: 1,
+                  required_percentage: 1
                 },
               },
             ],
@@ -205,6 +206,7 @@ export class ActivityRepository implements IActivityRepository {
       activity.submissionMode = doc.submissionMode;
       activity.externalLink = doc.externalLink;
       activity.attachments = doc.attachments;
+      activity.required_percentage = doc.rules.required_percentage
 
       if (doc.instructor) {
         const firstName = doc.instructor.firstName || '';

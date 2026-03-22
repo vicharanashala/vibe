@@ -578,166 +578,166 @@ export default function StudentActivityDetail() {
                         )}
 
                         {/* Rules */}
-                       <div className="space-y-4">
-    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Rules & Configuration</p>
+                        <div className="space-y-4">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Rules & Configuration</p>
 
-    {/* Basic Rules Pills */}
-    <div className="flex flex-wrap gap-2 text-sm">
-        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border bg-muted/30 text-xs">
-            <span className="text-muted-foreground">Mandatory</span>
-            <span className="font-medium">{activity.rules?.isMandatory ? 'Yes' : 'No'}</span>
-        </div>
-        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border bg-muted/30 text-xs">
-            <span className="text-muted-foreground">Late Submission</span>
-            <span className="font-medium">{activity.rules?.allowLateSubmission ? 'Allowed' : 'Not Allowed'}</span>
-        </div>
-        {ruleConfig?.reward && (
-            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border bg-muted/30 text-xs">
-                <span className="text-muted-foreground">Late Reward</span>
-                <span className={`font-medium ${ruleConfig.reward.lateBehavior === "REWARD" ? "text-green-600" : "text-red-500"}`}>
-                    {ruleConfig.reward.lateBehavior === "REWARD" ? "Allowed" : "Denied"}
-                </span>
-            </div>
-        )}
-    </div>
+                            {/* Basic Rules Pills */}
+                            <div className="flex flex-wrap gap-2 text-sm">
+                                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border bg-muted/30 text-xs">
+                                    <span className="text-muted-foreground">Mandatory</span>
+                                    <span className="font-medium">{activity.rules?.isMandatory ? 'Yes' : 'No'}</span>
+                                </div>
+                                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border bg-muted/30 text-xs">
+                                    <span className="text-muted-foreground">Late Submission</span>
+                                    <span className="font-medium">{activity.rules?.allowLateSubmission ? 'Allowed' : 'Not Allowed'}</span>
+                                </div>
+                                {ruleConfig?.reward && (
+                                    <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border bg-muted/30 text-xs">
+                                        <span className="text-muted-foreground">Late Reward</span>
+                                        <span className={`font-medium ${ruleConfig.reward.lateBehavior === "REWARD" ? "text-green-600" : "text-red-500"}`}>
+                                            {ruleConfig.reward.lateBehavior === "REWARD" ? "Allowed" : "Denied"}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
 
-    {/* Reward Config */}
-    {ruleConfig?.reward?.enabled && (
-        <div className="rounded-lg border border-green-200 bg-green-50 dark:border-green-800/40 dark:bg-green-950/20 px-5 py-4 space-y-3">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-400 uppercase tracking-wide">
-                <Star className="h-3.5 w-3.5" />
-                Reward
-            </div>
-            <div className="flex flex-wrap gap-8 text-sm">
-                <div>
-                    <div className="text-xs text-green-600 dark:text-green-500 mb-1 uppercase tracking-wide">HP Points</div>
-                    <div className="font-medium text-green-800 dark:text-green-200 text-2xl">{ruleConfig.reward.value}{ruleConfig.reward.type === 'PERCENTAGE' ? '%' : ' pts'}</div>
-                </div>
-                <div>
-                    <div className="text-xs text-green-600 dark:text-green-500 mb-1 uppercase tracking-wide">Reward Type</div>
-                    <div className="font-medium text-green-800 dark:text-green-200">{ruleConfig.reward.type}</div>
-                </div>
-                <div>
-                    <div className="text-xs text-green-600 dark:text-green-500 mb-1 uppercase tracking-wide">Apply When</div>
-                    <div className="font-medium text-green-800 dark:text-green-200">{ruleConfig.reward.applyWhen.replace('_', ' ')}</div>
-                </div>
-            </div>
+                            {/* Reward Config */}
+                            {ruleConfig?.reward?.enabled && (
+                                <div className="rounded-lg border border-green-200 bg-green-50 dark:border-green-800/40 dark:bg-green-950/20 px-5 py-4 space-y-3">
+                                    <div className="flex items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-400 uppercase tracking-wide">
+                                        <Star className="h-3.5 w-3.5" />
+                                        Reward
+                                    </div>
+                                    <div className="flex flex-wrap gap-8 text-sm">
+                                        <div>
+                                            <div className="text-xs text-green-600 dark:text-green-500 mb-1 uppercase tracking-wide">HP Points</div>
+                                            <div className="font-medium text-green-800 dark:text-green-200 text-2xl">{ruleConfig.reward.value}{ruleConfig.reward.type === 'PERCENTAGE' ? '%' : ' pts'}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-xs text-green-600 dark:text-green-500 mb-1 uppercase tracking-wide">Reward Type</div>
+                                            <div className="font-medium text-green-800 dark:text-green-200">{ruleConfig.reward.type}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-xs text-green-600 dark:text-green-500 mb-1 uppercase tracking-wide">Apply When</div>
+                                            <div className="font-medium text-green-800 dark:text-green-200">{ruleConfig.reward.applyWhen.replace('_', ' ')}</div>
+                                        </div>
+                                    </div>
 
-            {/* HP Limits — Reward context */}
-            {ruleConfig?.limits && (
-                <div className="flex items-start gap-1.5 pt-1 border-t border-green-200 dark:border-green-800/40 mt-1">
-                    <Info className="h-3.5 w-3.5 text-green-600 dark:text-green-500 mt-0.5 shrink-0" />
-                    <p className="text-xs text-green-700 dark:text-green-400 leading-relaxed">
-                        {ruleConfig.reward.type === 'PERCENTAGE' ? (
-                            <>
-                                The calculated reward ({ruleConfig.reward.value}% of your current HP) will be{' '}
-                                <span className="font-medium">capped at {ruleConfig.limits.maxHp} pts</span> and will{' '}
-                                never drop below <span className="font-medium">{ruleConfig.limits.minHp} pts</span>,
-                                regardless of the percentage result.
-                            </>
-                        ) : (
-                            <>
-                                Your HP after this reward will be kept between{' '}
-                                <span className="font-medium">{ruleConfig.limits.minHp} pts</span> and{' '}
-                                <span className="font-medium">{ruleConfig.limits.maxHp} pts</span>.
-                            </>
-                        )}
-                    </p>
-                    {ruleConfig.reward.type === 'PERCENTAGE' && (
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <button className="shrink-0 ml-auto">
-                                    <HelpCircle className="h-3.5 w-3.5 text-green-500 dark:text-green-500 hover:text-green-700 dark:hover:text-green-300 transition-colors" />
-                                </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs text-xs">
-                                The {ruleConfig.reward.value}% reward is calculated from your current HP balance.
-                                The final value will not exceed <strong>{ruleConfig.limits.maxHp} pts</strong> (max)
-                                and will not fall below <strong>{ruleConfig.limits.minHp} pts</strong> (min),
-                                even if the percentage calculation gives a different result.
-                            </TooltipContent>
-                        </Tooltip>
-                    )}
-                </div>
-            )}
-        </div>
-    )}
+                                    {/* HP Limits — Reward context */}
+                                    {ruleConfig?.limits && (
+                                        <div className="flex items-start gap-1.5 pt-1 border-t border-green-200 dark:border-green-800/40 mt-1">
+                                            <Info className="h-3.5 w-3.5 text-green-600 dark:text-green-500 mt-0.5 shrink-0" />
+                                            <p className="text-xs text-green-700 dark:text-green-400 leading-relaxed">
+                                                {ruleConfig.reward.type === 'PERCENTAGE' ? (
+                                                    <>
+                                                        The calculated reward ({ruleConfig.reward.value}% of your current HP) will be{' '}
+                                                        <span className="font-medium">capped at {ruleConfig.limits.maxHp} pts</span> and will{' '}
+                                                        never drop below <span className="font-medium">{ruleConfig.limits.minHp} pts</span>,
+                                                        regardless of the percentage result.
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        Your HP after this reward will be kept between{' '}
+                                                        <span className="font-medium">{ruleConfig.limits.minHp} pts</span> and{' '}
+                                                        <span className="font-medium">{ruleConfig.limits.maxHp} pts</span>.
+                                                    </>
+                                                )}
+                                            </p>
+                                            {ruleConfig.reward.type === 'PERCENTAGE' && (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <button className="shrink-0 ml-auto">
+                                                            <HelpCircle className="h-3.5 w-3.5 text-green-500 dark:text-green-500 hover:text-green-700 dark:hover:text-green-300 transition-colors" />
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top" className="max-w-xs text-xs">
+                                                        The {ruleConfig.reward.value}% reward is calculated from your current HP balance.
+                                                        The final value will not exceed <strong>{ruleConfig.limits.maxHp} pts</strong> (max)
+                                                        and will not fall below <strong>{ruleConfig.limits.minHp} pts</strong> (min),
+                                                        even if the percentage calculation gives a different result.
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
-    {/* Penalty Config */}
-    {ruleConfig?.penalty?.enabled && (
-        <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-800/40 dark:bg-red-950/20 px-5 py-4 space-y-3">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-red-700 dark:text-red-400 uppercase tracking-wide">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                Penalty
-            </div>
-            <div className="flex flex-wrap gap-8 text-sm">
-                <div>
-                    <div className="text-xs text-red-600 dark:text-red-500 mb-1 uppercase tracking-wide">Penalty Value</div>
-                    <div className="font-medium text-red-800 dark:text-red-200 text-2xl">{ruleConfig.penalty.value}{ruleConfig.penalty.type === 'PERCENTAGE' ? '%' : ' pts'}</div>
-                </div>
-                <div>
-                    <div className="text-xs text-red-600 dark:text-red-500 mb-1 uppercase tracking-wide">Penalty Type</div>
-                    <div className="font-medium text-red-800 dark:text-red-200">{ruleConfig.penalty.type}</div>
-                </div>
-                <div>
-                    <div className="text-xs text-red-600 dark:text-red-500 mb-1 uppercase tracking-wide">Grace Period</div>
-                    <div className="font-medium text-red-800 dark:text-red-200">{ruleConfig.penalty.graceMinutes} mins</div>
-                </div>
-            </div>
+                            {/* Penalty Config */}
+                            {ruleConfig?.penalty?.enabled && (
+                                <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-800/40 dark:bg-red-950/20 px-5 py-4 space-y-3">
+                                    <div className="flex items-center gap-1.5 text-xs font-medium text-red-700 dark:text-red-400 uppercase tracking-wide">
+                                        <AlertTriangle className="h-3.5 w-3.5" />
+                                        Penalty
+                                    </div>
+                                    <div className="flex flex-wrap gap-8 text-sm">
+                                        <div>
+                                            <div className="text-xs text-red-600 dark:text-red-500 mb-1 uppercase tracking-wide">Penalty Value</div>
+                                            <div className="font-medium text-red-800 dark:text-red-200 text-2xl">{ruleConfig.penalty.value}{ruleConfig.penalty.type === 'PERCENTAGE' ? '%' : ' pts'}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-xs text-red-600 dark:text-red-500 mb-1 uppercase tracking-wide">Penalty Type</div>
+                                            <div className="font-medium text-red-800 dark:text-red-200">{ruleConfig.penalty.type}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-xs text-red-600 dark:text-red-500 mb-1 uppercase tracking-wide">Grace Period</div>
+                                            <div className="font-medium text-red-800 dark:text-red-200">{ruleConfig.penalty.graceMinutes} mins</div>
+                                        </div>
+                                    </div>
 
-            {/* HP Limits — Penalty context */}
-            {ruleConfig?.limits && (
-                <div className="flex items-start gap-1.5 pt-1 border-t border-red-200 dark:border-red-800/40 mt-1">
-                    <Info className="h-3.5 w-3.5 text-red-500 dark:text-red-400 mt-0.5 shrink-0" />
-                    <p className="text-xs text-red-700 dark:text-red-400 leading-relaxed">
-                        {ruleConfig.penalty.type === 'PERCENTAGE' ? (
-                            <>
-                                The calculated deduction ({ruleConfig.penalty.value}% of your current HP) will be{' '}
-                                <span className="font-medium">capped at {ruleConfig.limits.maxHp} pts</span> and your
-                                HP will <span className="font-medium">never go below {ruleConfig.limits.minHp} pts</span>,
-                                even if the percentage result exceeds that.
-                            </>
-                        ) : (
-                            <>
-                                After this penalty, your HP will not fall below{' '}
-                                <span className="font-medium">{ruleConfig.limits.minHp} pts</span> and will remain
-                                within the allowed range of{' '}
-                                <span className="font-medium">{ruleConfig.limits.maxHp} pts</span> maximum.
-                            </>
-                        )}
-                    </p>
-                    {ruleConfig.penalty.type === 'PERCENTAGE' && (
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <button className="shrink-0 ml-auto">
-                                    <HelpCircle className="h-3.5 w-3.5 text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors" />
-                                </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs text-xs">
-                                The {ruleConfig.penalty.value}% deduction is calculated from your current HP balance.
-                                The final deduction will not exceed <strong>{ruleConfig.limits.maxHp} pts</strong> (max)
-                                and your HP will never drop below <strong>{ruleConfig.limits.minHp} pts</strong> (min),
-                                regardless of the percentage result.
-                            </TooltipContent>
-                        </Tooltip>
-                    )}
-                </div>
-            )}
-        </div>
-    )}
+                                    {/* HP Limits — Penalty context */}
+                                    {ruleConfig?.limits && (
+                                        <div className="flex items-start gap-1.5 pt-1 border-t border-red-200 dark:border-red-800/40 mt-1">
+                                            <Info className="h-3.5 w-3.5 text-red-500 dark:text-red-400 mt-0.5 shrink-0" />
+                                            <p className="text-xs text-red-700 dark:text-red-400 leading-relaxed">
+                                                {ruleConfig.penalty.type === 'PERCENTAGE' ? (
+                                                    <>
+                                                        The calculated deduction ({ruleConfig.penalty.value}% of your current HP) will be{' '}
+                                                        <span className="font-medium">capped at {ruleConfig.limits.maxHp} pts</span> and your
+                                                        HP will <span className="font-medium">never go below {ruleConfig.limits.minHp} pts</span>,
+                                                        even if the percentage result exceeds that.
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        After this penalty, your HP will not fall below{' '}
+                                                        <span className="font-medium">{ruleConfig.limits.minHp} pts</span> and will remain
+                                                        within the allowed range of{' '}
+                                                        <span className="font-medium">{ruleConfig.limits.maxHp} pts</span> maximum.
+                                                    </>
+                                                )}
+                                            </p>
+                                            {ruleConfig.penalty.type === 'PERCENTAGE' && (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <button className="shrink-0 ml-auto">
+                                                            <HelpCircle className="h-3.5 w-3.5 text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors" />
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top" className="max-w-xs text-xs">
+                                                        The {ruleConfig.penalty.value}% deduction is calculated from your current HP balance.
+                                                        The final deduction will not exceed <strong>{ruleConfig.limits.maxHp} pts</strong> (max)
+                                                        and your HP will never drop below <strong>{ruleConfig.limits.minHp} pts</strong> (min),
+                                                        regardless of the percentage result.
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
-    {/* HP Limits — standalone fallback (only shown if neither reward nor penalty is present) */}
-    {ruleConfig?.limits && !ruleConfig?.reward?.enabled && !ruleConfig?.penalty?.enabled && (
-        <div className="flex items-start gap-1.5 rounded-lg border bg-muted/20 px-4 py-3">
-            <Info className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
-            <p className="text-xs text-muted-foreground leading-relaxed">
-                Your HP balance for this activity will be kept between{' '}
-                <span className="font-medium text-foreground">{ruleConfig.limits.minHp} pts</span> (min) and{' '}
-                <span className="font-medium text-foreground">{ruleConfig.limits.maxHp} pts</span> (max).
-            </p>
-        </div>
-    )}
-</div>
+                            {/* HP Limits — standalone fallback (only shown if neither reward nor penalty is present) */}
+                            {ruleConfig?.limits && !ruleConfig?.reward?.enabled && !ruleConfig?.penalty?.enabled && (
+                                <div className="flex items-start gap-1.5 rounded-lg border bg-muted/20 px-4 py-3">
+                                    <Info className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                        Your HP balance for this activity will be kept between{' '}
+                                        <span className="font-medium text-foreground">{ruleConfig.limits.minHp} pts</span> (min) and{' '}
+                                        <span className="font-medium text-foreground">{ruleConfig.limits.maxHp} pts</span> (max).
+                                    </p>
+                                </div>
+                            )}
+                        </div>
 
 
                         {/* Attachments */}
