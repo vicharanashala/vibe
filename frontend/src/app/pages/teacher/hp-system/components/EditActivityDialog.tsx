@@ -35,6 +35,7 @@ type EditFormValues = {
     description: string;
     activityType: string;
     submissionMode: string;
+    externalLink?: string;
     attachments: { name: string; url: string; kind: 'PDF' | 'LINK' | 'OTHER' }[];
 };
 
@@ -48,12 +49,15 @@ export function EditActivityDialog({
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [pendingData, setPendingData] = useState<EditFormValues | null>(null);
 
-    const { control, register, handleSubmit, reset, formState: { errors } } = useForm<EditFormValues>({
+    const [savedModeBeforeVibe, setSavedModeBeforeVibe] = useState<string | null>(null);
+
+    const { control, register, handleSubmit, reset, watch, setValue, getValues, formState: { errors } } = useForm<EditFormValues>({
         defaultValues: {
             title: "",
             description: "",
             activityType: "ASSIGNMENT",
             submissionMode: "IN_PLATFORM",
+            externalLink: "",
             attachments: []
         }
     });
@@ -70,8 +74,10 @@ export function EditActivityDialog({
                 description: activity.description || "",
                 activityType: activity.activityType || "ASSIGNMENT",
                 submissionMode: activity.submissionMode || "IN_PLATFORM",
+                externalLink: activity.externalLink || "",
                 attachments: activity.attachments || []
             });
+            setSavedModeBeforeVibe(null);
         }
     }, [isOpen, activity, reset]);
 
@@ -95,6 +101,7 @@ export function EditActivityDialog({
                 ...data,
                 activityType: data.activityType as any,
                 submissionMode: data.submissionMode as any,
+                externalLink: data.submissionMode === "EXTERNAL_LINK" ? data.externalLink : "",
                 attachments: data.attachments?.map(att => ({ ...att, kind: att.kind || "LINK" })),
             });
             onOpenChange(false);
@@ -141,16 +148,28 @@ export function EditActivityDialog({
                                     name="activityType"
                                     control={control}
                                     render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value}>
+                                        <Select onValueChange={(value) => {
+                                            const currentMode = getValues("submissionMode");
+                                            const currentType = getValues("activityType");
+                                            field.onChange(value);
+                                            if (value === "VIBE_MILESTONE") {
+                                                if (currentMode !== "IN_PLATFORM") {
+                                                    setSavedModeBeforeVibe(currentMode);
+                                                }
+                                                setValue("submissionMode", "IN_PLATFORM", { shouldDirty: true, shouldValidate: true });
+                                            } else {
+                                                if (currentType === "VIBE_MILESTONE" && savedModeBeforeVibe) {
+                                                    setValue("submissionMode", savedModeBeforeVibe, { shouldDirty: true, shouldValidate: true });
+                                                    setSavedModeBeforeVibe(null);
+                                                }
+                                            }
+                                        }} value={field.value}>
                                             <SelectTrigger>
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="ASSIGNMENT">Assignment</SelectItem>
-                                                <SelectItem value="MILESTONE">Milestone</SelectItem>
-                                                <SelectItem value="EXTERNAL_IMPORT">External Import</SelectItem>
                                                 <SelectItem value="VIBE_MILESTONE">Vibe Platform Milestone</SelectItem>
-                                                <SelectItem value="OTHER">Other</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     )}
@@ -163,19 +182,37 @@ export function EditActivityDialog({
                                     name="submissionMode"
                                     control={control}
                                     render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value}>
+                                        <Select onValueChange={field.onChange} value={field.value} disabled={watch("activityType") === "VIBE_MILESTONE"}>
                                             <SelectTrigger>
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="IN_PLATFORM">In-Platform Uploads</SelectItem>
                                                 <SelectItem value="EXTERNAL_LINK">External Link</SelectItem>
-                                                <SelectItem value="VIBE_AUTO">Automatic (Vibe Integration)</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     )}
                                 />
+                                {watch("activityType") === "VIBE_MILESTONE" && (
+                                    <p className="text-[10px] text-muted-foreground mt-1">Vibe platform milestones use in-platform tracking by default.</p>
+                                )}
                             </div>
+
+                            {watch("submissionMode") === "EXTERNAL_LINK" && watch("activityType") !== "VIBE_MILESTONE" && (
+                                <div className="space-y-2 sm:col-span-2">
+                                    <Label>External Reference URL <span className="text-red-500">*</span></Label>
+                                    <Input
+                                        type="url"
+                                        placeholder="https://docs.google.com/..."
+                                        {...register("externalLink", {
+                                            required: watch("submissionMode") === "EXTERNAL_LINK" ? "Link is required" : false
+                                        })}
+                                        className={errors.externalLink ? "border-red-500" : ""}
+                                    />
+                                    {errors.externalLink && <p className="text-xs text-red-500">{errors.externalLink.message}</p>}
+                                    <p className="text-xs text-muted-foreground">The resource students should visit to complete this activity.</p>
+                                </div>
+                            )}
 
                             <div className="space-y-2 sm:col-span-2">
                                 {/* Deadline moved to Rule Settings dialog */}
