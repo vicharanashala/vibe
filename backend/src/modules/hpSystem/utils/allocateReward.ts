@@ -266,7 +266,7 @@ const calculateRewardAmount = (
             finalReward = rewardMaxLimit;
         }
 
-        return finalReward;
+        return Math.max(0,finalReward);
     }
 
     return 0;
