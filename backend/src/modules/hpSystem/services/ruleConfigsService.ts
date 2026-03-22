@@ -72,14 +72,14 @@ export class RuleConfigService extends BaseService {
                     }
                 }
 
-                if (hasReward && body.reward.type === "PERCENTAGE" && body.reward.value <= 0) {
-                    throw new BadRequestError("Reward percentage must be greater than 0.");
+                if (hasReward && body.reward.type === "PERCENTAGE" && (body.reward.value < 0 || body.reward.value > 100)) {
+                    throw new BadRequestError("Reward percentage must be between 0 and 100.");
                 }
 
-                if (hasPenalty && body.penalty.type === "PERCENTAGE" && body.penalty.value <= 0) {
-                    throw new BadRequestError("Penalty percentage must be greater than 0.");
+                if (hasPenalty && body.penalty.type === "PERCENTAGE" && (body.penalty.value < 0 || body.penalty.value > 100)) {
+                    throw new BadRequestError("Penalty percentage must be between 0 and 100.");
                 }
-
+                
                 if (isMandatory && !hasPenalty) {
                     throw new BadRequestError(
                         "Penalty cannot be disabled for mandatory activities."
@@ -197,13 +197,14 @@ export class RuleConfigService extends BaseService {
                 }
             }
 
-            if (hasReward && patch.reward.type === "PERCENTAGE" && patch.reward.value <= 0) {
-                throw new BadRequestError("Reward percentage must be greater than 0.");
+            if (hasReward && patch.reward.type === "PERCENTAGE" && (patch.reward.value < 0 || patch.reward.value > 100)) {
+                throw new BadRequestError("Reward percentage must be between 0 and 100.");
             }
 
-            if (hasPenalty && patch.penalty.type === "PERCENTAGE" && patch.penalty.value <= 0) {
-                throw new BadRequestError("Penalty percentage must be greater than 0.");
+            if (hasPenalty && patch.penalty.type === "PERCENTAGE" && (patch.penalty.value < 0 || patch.penalty.value > 100)) {
+                throw new BadRequestError("Penalty percentage must be between 0 and 100.");
             }
+
 
             const isMandatory = patch.isMandatory !== undefined ? patch.isMandatory : existing.isMandatory;
             const deadlineAt = patch.deadlineAt !== undefined ? patch.deadlineAt : existing.deadlineAt;

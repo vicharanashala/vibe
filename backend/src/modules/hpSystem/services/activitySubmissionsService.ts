@@ -493,6 +493,7 @@ export class ActivitySubmissionsService extends BaseService {
                     "This submission cannot be updated because it has already been reviewed or approved by the instructor."
                 );
             }
+            
             const basePayload = {
                 textResponse: body.payload?.textResponse ?? "",
                 links: body.payload?.links ?? [],
