@@ -206,7 +206,7 @@ export class ActivityRepository implements IActivityRepository {
       activity.submissionMode = doc.submissionMode;
       activity.externalLink = doc.externalLink;
       activity.attachments = doc.attachments;
-      activity.required_percentage = doc.rules.required_percentage
+      activity.required_percentage = doc.rules?.required_percentage
 
       if (doc.instructor) {
         const firstName = doc.instructor.firstName || '';
