@@ -305,13 +305,14 @@ async function processStudentPenalty(
 
     try {
         await session.withTransaction(async () => {
-            const currentHp = await cohortRepo.getCurrentHpPointsByCohortId(
-                student._id,
-                activity.courseId.toString(),
-                activity.courseVersionId.toString(),
-                cohortId,
-                session
-            );
+            const currentHp = student.totalHp || 0;
+            // await cohortRepo.getCurrentHpPointsByCohortId(
+            //     student._id,
+            //     activity.courseId.toString(),
+            //     activity.courseVersionId.toString(),
+            //     cohortId,
+            //     session
+            // );
 
             const penaltyAmount = calculatePenaltyAmount(
                 currentHp,
