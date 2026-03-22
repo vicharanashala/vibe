@@ -9,15 +9,15 @@ cron.schedule(
     '*/5 * * * *',
     // "*/5 * * * * *",
     async () => {
- 
+
         try {
             const ENABLE_HP_JOB = appConfig.ENABLE_HP_JOB;
             if (ENABLE_HP_JOB) {
                 console.log('Cron job started for hp system checks...');
                 try {
                     console.log('⚡ Running penalty allocation job...');
-                    await allocatePenalty(); 
-                    console.log('✅ Penalty allocation job completed'); 
+                    await allocatePenalty();
+                    console.log('✅ Penalty allocation job completed');
 
                     console.log('🎯 About to run milestone reward allocation job...');
                     await allocateReward();
