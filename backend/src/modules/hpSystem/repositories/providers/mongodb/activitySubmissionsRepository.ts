@@ -118,9 +118,8 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         await this.init();
 
         const page = query.page ?? 1;
-        const limit = query.limit ?? 20;
-        const skip = (page - 1) * limit;
-
+        const limit = query.limit ?? 0;
+        const skip = limit > 0 ? (page - 1) * limit : 0;
         const search = query.search?.trim();
         const searchRegex = search
             ? new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")
@@ -497,7 +496,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             // 8) sort + paginate
             { $sort: sortStage },
             { $skip: skip },
-            { $limit: limit },
+            ...(limit > 0 ? [{ $limit: limit }] : []),
         ];
 
         const docs = await this.hpActivitySubmissionCollection.aggregate(pipeline).toArray();
@@ -515,8 +514,8 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         await this.init();
 
         const page = query.page ?? 1;
-        const limit = query.limit ?? 20;
-        const skip = (page - 1) * limit;
+        const limit = query.limit ?? 0; 
+        const skip = limit > 0 ? (page - 1) * limit : 0;
 
         const sortOrder = query.sortOrder === "desc" ? -1 : 1;
         const sortByRaw = (query.sortBy ?? "submittedAt").trim();
