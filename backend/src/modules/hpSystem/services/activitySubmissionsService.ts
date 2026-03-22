@@ -16,6 +16,7 @@ import { ClientSession, ObjectId } from "mongodb";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { SubmissionFeedbackItem } from "../classes/transformers/ActivitySubmission.js";
 import { COHORT_OVERRIDES, ID } from "../constants.js";
+import { ISettingRepository } from "#root/shared/database/interfaces/ISettingRepository.js";
 
 
 @injectable()
@@ -49,6 +50,7 @@ export class ActivitySubmissionsService extends BaseService {
         private readonly activityRepository: ActivityRepository,
 
         @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
+        @inject(GLOBAL_TYPES.SettingRepo) private readonly settingRepository: ISettingRepository,
 
     ) {
         super(mongoDatabase);
@@ -396,8 +398,13 @@ export class ActivitySubmissionsService extends BaseService {
                     const rewardMaxLimit = activityRuleConfig.limits?.maxHp;
                     const rewardMinLimit = activityRuleConfig.limits?.minHp;
 
-                    // Calculate percentage reward
-                    const calculatedReward = Math.round((totalStudentHpPoints * rewardValue) / 100);
+                    // Fetch course base HP from settings for percentage calculation baseline
+                    const courseSettings = await this.settingRepository.readCourseSettings(finalCourseId, finalVersionId, session);
+                    const courseBaseHp = courseSettings?.settings?.baseHp ?? 100;
+
+                    // Calculate percentage reward using current HP, or base HP if current is 0
+                    const calculationBase = totalStudentHpPoints > 0 ? totalStudentHpPoints : courseBaseHp;
+                    const calculatedReward = Math.round((calculationBase * rewardValue) / 100);
 
                     let finalReward = calculatedReward;
 
@@ -759,13 +766,16 @@ export class ActivitySubmissionsService extends BaseService {
                 courseVersionId = override.versionId;
             }
 
-            const [activityRuleConfig, user, enrollment] = await Promise.all([
+            const [activityRuleConfig, user, enrollment, courseSettings] = await Promise.all([
                 this.ruleConfigService.getByActivityId(submission.activityId.toString()),
                 this.userRepo.findById(submission.studentId.toString()),
-                this.cohortRepository.findEnrollment(submission.studentId.toString(), courseId, courseVersionId, submission.cohort, session)
+                this.cohortRepository.findEnrollment(submission.studentId.toString(), courseId, courseVersionId, submission.cohort, session),
+                this.settingRepository.readCourseSettings(courseId, courseVersionId, session)
             ]);
 
             if (!user || !enrollment) throw new BadRequestError(!user ? "Student account missing." : "Enrollment data missing.");
+
+            const baseHpValue = courseSettings?.settings?.baseHp ?? 100;
 
             // 2. Flags & Config
             const rewardConfig = activityRuleConfig?.reward;
@@ -789,8 +799,8 @@ export class ActivitySubmissionsService extends BaseService {
                 throw new BadRequestError("This activity requires approval. Only APPROVE/REJECT is allowed.");
             }
 
-            if (isApprove && (currentStatus === "APPROVED" || (currentStatus === "SUBMITTED" && rewardConfig?.applyWhen !== "ON_APPROVAL"))) {
-                throw new BadRequestError("Conflict: Points already granted. Use REVERT or REJECT.");
+            if (isApprove && currentStatus === "APPROVED") {
+                throw new BadRequestError("Conflict: This submission is already approved.");
             }
 
             if (isReject && body.pointsToDeduct !== undefined && body.pointsToDeduct > baseHp) {
@@ -822,33 +832,38 @@ export class ActivitySubmissionsService extends BaseService {
             if (isApprove) {
                 const rewardValue = rewardConfig?.value ?? 0;
                 let rewardDetailsNote = "";
-
                 let incrementAmount = 0;
-                if (ruleType === "ABSOLUTE") {
-                    incrementAmount = rewardValue;
-                    rewardDetailsNote = `Reward Type: ABSOLUTE, Reward HP: ${rewardValue}`;
 
-                } else if (ruleType === "PERCENTAGE") {
-                    const rewardMaxLimit = activityRuleConfig.limits?.maxHp;
-                    const rewardMinLimit = activityRuleConfig.limits?.minHp;
+                // Prevention of double-rewarding for ON_SUBMISSION activities
+                if (rewardConfig?.applyWhen === "ON_SUBMISSION") {
+                    incrementAmount = 0;
+                    rewardDetailsNote = "Reward already applied on submission.";
+                } else {
+                    if (ruleType === "ABSOLUTE") {
+                        incrementAmount = rewardValue;
+                        rewardDetailsNote = `Reward Type: ABSOLUTE, Reward HP: ${rewardValue}`;
 
-                    // Calculate percentage reward
-                    const calculatedReward = Math.round((totalStudentHpPoints * rewardValue) / 100);
+                    } else if (ruleType === "PERCENTAGE") {
+                        const rewardMaxLimit = activityRuleConfig.limits?.maxHp;
+                        const rewardMinLimit = activityRuleConfig.limits?.minHp;
 
-                    let finalReward = calculatedReward;
+                        // Calculate percentage reward using current HP, or base HP if current is 0
+                        const calculationBase = totalStudentHpPoints > 0 ? totalStudentHpPoints : baseHpValue;
+                        const calculatedReward = Math.round((calculationBase * rewardValue) / 100);
 
-                    if (rewardMinLimit && finalReward < rewardMinLimit) {
-                        finalReward = rewardMinLimit;
+                        let finalReward = calculatedReward;
+
+                        if (rewardMinLimit && finalReward < rewardMinLimit) {
+                            finalReward = rewardMinLimit;
+                        }
+
+                        if (rewardMaxLimit && finalReward > rewardMaxLimit) {
+                            finalReward = rewardMaxLimit;
+                        }
+
+                        incrementAmount = Math.max(0, finalReward);
+                        rewardDetailsNote = `Reward Type: PERCENTAGE, Base HP: ${calculationBase}${totalStudentHpPoints === 0 ? " (from course settings)" : ""}, Percentage: ${rewardValue}%`;
                     }
-
-                    if (rewardMaxLimit && finalReward > rewardMaxLimit) {
-                        finalReward = rewardMaxLimit;
-                    }
-
-                    incrementAmount = Math.max(0, finalReward);
-
-                    rewardDetailsNote = `Reward Type: PERCENTAGE, Base HP: ${totalStudentHpPoints}, Percentage: ${rewardValue}%`;
-
                 }
 
                 const finalTeacherNote = teacherNote

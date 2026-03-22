@@ -334,6 +334,15 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                         $switch: {
                             branches: [
                                 { case: { $eq: ["$status", "APPROVED"] }, then: "$baseHp" },
+                                { 
+                                    case: { 
+                                        $and: [
+                                            { $eq: ["$status", "SUBMITTED"] },
+                                            { $eq: ["$rule.reward.applyWhen", "ON_SUBMISSION"] }
+                                        ] 
+                                    }, 
+                                    then: "$baseHp" 
+                                },
                                 { case: { $eq: ["$status", "REVERTED"] }, then: 0 },
                                 { case: { $eq: ["$status", "REJECTED"] }, then: 0 },
                                 { case: { $eq: ["$status", "SUBMITTED"] }, then: 0 },
