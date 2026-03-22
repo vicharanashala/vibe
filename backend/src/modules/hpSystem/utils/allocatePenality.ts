@@ -345,7 +345,7 @@ async function processStudentPenalty(
                     percentage: activityConfig.penalty.type === "PERCENTAGE" ? activityConfig.penalty.value : undefined,
                     absolutePoints: activityConfig.penalty.type === "ABSOLUTE" ? activityConfig.penalty.value : undefined,
                     baseHpAtTime: currentHp,
-                    computedAmount: penaltyAmount,
+                    computedAmount: newHp,
                     deadlineAt: activityConfig.deadlineAt,
                     withinDeadline: false,
                     reasonCode: HpReasonCode.MISSED_DEADLINE_PENALTY
