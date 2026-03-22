@@ -662,33 +662,29 @@ export class ActivitySubmissionsService extends BaseService {
             throw new BadRequestError("Student not found");
         }
 
-        let courseId: string;
-        let courseVersionId: string;
 
-        const override = COHORT_OVERRIDES[cohortName];
+        // if (override) {
+        //     courseId = override.courseId;
+        //     courseVersionId = override.versionId;
+        // } else {
+        const latestActivity = await this.activityRepository.getLatestActivityByCohortName(cohortName);
 
-        if (override) {
-            courseId = override.courseId;
-            courseVersionId = override.versionId;
-        } else {
-            const latestActivity = await this.activityRepository.getLatestActivityByCohortName(cohortName);
-
-            if (!latestActivity) {
-                return {
-                    success: true,
-                    data: {
-                        totalActivities: 0,
-                        totalSubmissions: 0,
-                        totalLateSubmissions: 0,
-                        totalPendings: 0,
-                        currentHp: 0,
-                    },
-                };
-            }
-
-            courseId = latestActivity.courseId.toString();
-            courseVersionId = latestActivity.courseVersionId.toString();
+        if (!latestActivity) {
+            return {
+                success: true,
+                data: {
+                    totalActivities: 0,
+                    totalSubmissions: 0,
+                    totalLateSubmissions: 0,
+                    totalPendings: 0,
+                    currentHp: 0,
+                },
+            };
         }
+
+        const courseId = latestActivity.courseId.toString();
+        const courseVersionId = latestActivity.courseVersionId.toString();
+        // }
 
         const [
             totalActivities,
@@ -696,7 +692,6 @@ export class ActivitySubmissionsService extends BaseService {
             totalLateSubmissions,
             totalPendingActivites,
             enrollment,
-            latestActivity,
         ] = await Promise.all([
             this.activityRepository.getCountByCohortName(cohortName),
             this.activitySubmissionsRepository.getCountByStudentId(studentId, courseId, courseVersionId, cohortName),
@@ -719,6 +714,7 @@ export class ActivitySubmissionsService extends BaseService {
             data,
         };
     }
+
 
     async listMySubmissions(studentId: string, query: FilterQueryDto, cohortName?: string): Promise<any> {
         const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined, undefined, cohortName);
