@@ -5690,13 +5690,19 @@ export function useHpStudentSubmissionStats(
     });
 }
 
-export function useStudentMySubmissions(courseVersionId: string, cohort: string) {
+export function useStudentMySubmissions(courseVersionId: string, cohort: string, page: number, limit: number) {
   return useQuery({
-    queryKey: ['studentMySubmissions', courseVersionId, cohort],
+    queryKey: ['studentMySubmissions', courseVersionId, cohort, page, limit],
     queryFn: async () => {
-      const res = await hpApi.getStudentMySubmissions(courseVersionId, cohort);
+        const stringPage = page.toString();
+      const stringLimit = limit.toString();
+      const res = await hpApi.getStudentMySubmissions(courseVersionId, cohort, stringPage, stringLimit);
+    
       if (!res.success) throw new Error("Failed to fetch current student submissions");
-      return res.data;
+      return {
+        data: res.data,
+        meta: res.meta
+      };
     },
     enabled: !!courseVersionId && !!cohort,
   });

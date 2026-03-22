@@ -587,9 +587,11 @@ export const hpApi = {
 
     getStudentMySubmissions: async (
         courseVersionId: string,
-        cohort: string
+        cohort: string,
+        page: string,
+        limit: string
     ): Promise<{ success: boolean; data: any[] }> => {
-        const params = new URLSearchParams({ courseVersionId, cohort });
+        const params = new URLSearchParams({ courseVersionId, cohort, page, limit });
         // The teacher list endpoint returns the submissions according to the query.
         // It relies on the token if we had a specific student endpoint, but we can reuse the generic list one 
         // if the backend filters it by the token's user ID.

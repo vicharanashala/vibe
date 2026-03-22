@@ -45,7 +45,10 @@ export interface IActivitySubmissionRepository {
         courseId?: string,
         courseVersionId?: string,
         cohortName?: string
-    ): Promise<StudentActivitySubmissionsViewDto[]>
+    ): Promise<{
+        data: any[];
+        total: number;
+    }>
 
     getLatestByStudentId(studentId: string, activityId: string): Promise<HpActivitySubmission>
 

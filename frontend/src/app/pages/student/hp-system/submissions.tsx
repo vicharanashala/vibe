@@ -28,8 +28,11 @@ export default function StudentSubmissions() {
 
     const { data: submissions, isLoading, error } = useStudentMySubmissions(
         courseVersionId as string,
-        cohortName as string
+        cohortName as string,
+        currentPage as number,
+        itemsPerPage as number
     );
+    console.log("Fetched submissions data in component-> ", submissions);
     const { mutateAsync: updateSubmission, isPending: isUpdating } = useUpdateActivitySubmission();
     const { data: courses = [] } = useHpCourseVersions();
     // courseVersionId is passed from the URL
@@ -61,20 +64,20 @@ export default function StudentSubmissions() {
     };
 
     // Pagination logic
-    const filteredSubmissions = useMemo(() => {
-        if (!submissions) return [];
-        return submissions.filter((sub: any) =>
-            sub.activity?.title?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-    }, [submissions, searchQuery]);
+    // const filteredSubmissions = useMemo(() => {
+    //     if (!submissions) return [];
+    //     return submissions.filter((sub: any) =>
+    //         sub.activity?.title?.toLowerCase().includes(searchQuery.toLowerCase())
+    //     );
+    // }, [submissions, searchQuery]);
 
-    const paginatedSubmissions = useMemo(() => {
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        return filteredSubmissions.slice(startIndex, endIndex);
-    }, [filteredSubmissions, currentPage, itemsPerPage]);
+    // const paginatedSubmissions = useMemo(() => {
+    //     const startIndex = (currentPage - 1) * itemsPerPage;
+    //     const endIndex = startIndex + itemsPerPage;
+    //     return filteredSubmissions.slice(startIndex, endIndex);
+    // }, [filteredSubmissions, currentPage, itemsPerPage]);
 
-    const totalPages = Math.ceil(filteredSubmissions.length / itemsPerPage);
+    const totalPages = Math.ceil(submissions?.data?.total / itemsPerPage);
 
     const handleSearchChange = (value: string) => {
         setSearchQuery(value);
@@ -220,7 +223,7 @@ export default function StudentSubmissions() {
                     </div>
                 </div>
 
-                {(!submissions || submissions.length === 0) ? (
+                {(!submissions || submissions.data.data.length === 0) ? (
                     <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
                         <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
                         <h3 className="text-lg font-medium">No Submissions Found</h3>
@@ -274,7 +277,7 @@ export default function StudentSubmissions() {
                         </div>
                         
                         <div className="space-y-4">
-                            {paginatedSubmissions.map((sub: any) => {
+                            {submissions?.data?.data.map((sub: any) => {
                                 const containerKey = sub.id || sub._id || sub.submission?._id || Math.random().toString(36);
                                 return (
                                 <Card key={containerKey} className="overflow-hidden">
@@ -652,7 +655,7 @@ export default function StudentSubmissions() {
                     <Pagination
                         currentPage={currentPage}
                         totalPages={totalPages}
-                        totalDocuments={filteredSubmissions.length}
+                        totalDocuments={submissions.total}
                         onPageChange={setCurrentPage}
                     />
                 </>

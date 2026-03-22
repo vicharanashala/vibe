@@ -603,13 +603,13 @@ export class ActivitySubmissionsService extends BaseService {
         }));
     }
 
-    async listStudentCohortWiseSubmssions(teacherId: string, studentId: string, query: FilterQueryDto, cohortName: string): Promise<StudentActivitySubmissionsResponseDto> {
+    async listStudentCohortWiseSubmssions(teacherId: string, studentId: string, query: FilterQueryDto, cohortName: string): Promise<{success: boolean, data: any[], meta: any}> {
 
         const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined,
             undefined, cohortName);
 
         // Get ledger data for all submissions
-        const submissionIds = submissions.map(sub => sub.submission?._id).filter(Boolean);
+        const submissionIds = submissions.data.map(sub => sub.submission?._id).filter(Boolean);
         const ledgerEntries = submissionIds.length > 0
             ? await this.ledgerRepository.findBySubmissionIds(submissionIds)
             : [];
@@ -627,7 +627,7 @@ export class ActivitySubmissionsService extends BaseService {
         });
 
         // Attach ledger data to each submission
-        const submissionsWithLedger = submissions.map(submission => {
+        const submissionsWithLedger = submissions.data.map(submission => {
             const submissionId = submission.submission?._id;
             const relatedLedgerEntries = ledgerMap.get(submissionId) || [];
 
@@ -641,7 +641,7 @@ export class ActivitySubmissionsService extends BaseService {
             success: true,
             data: submissionsWithLedger,
             meta: {
-                total: submissions.length,
+                total: submissions.total,
                 page: query.page ?? 1,
                 limit: query.limit ?? 20,
             },
@@ -719,16 +719,16 @@ export class ActivitySubmissionsService extends BaseService {
         };
     }
 
-    async listMySubmissions(studentId: string, query: FilterQueryDto, cohortName?: string): Promise<any> {
+    async listMySubmissions(studentId: string, query: FilterQueryDto, cohortName?: string): Promise<{ success: boolean; data: any; meta: any }> {
         const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined, undefined, cohortName);
 
         return {
             success: true,
             data: submissions,
             meta: {
-                total: submissions.length,
+                total: submissions.total,
                 page: query.page ?? 1,
-                limit: query.limit ?? 20,
+                limit: query.limit ?? 10,
             },
         };
     }
