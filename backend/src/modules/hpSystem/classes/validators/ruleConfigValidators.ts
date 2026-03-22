@@ -20,6 +20,7 @@ export enum RuleTypeEnum {
 export enum RewardApplyWhenEnum {
   ON_SUBMISSION = "ON_SUBMISSION",
   ON_APPROVAL = "ON_APPROVAL",
+  ON_MILESTONE_COMPLETION = "ON_MILESTONE_COMPLETION",
 }
 
 export enum LateBehaviorEnum {

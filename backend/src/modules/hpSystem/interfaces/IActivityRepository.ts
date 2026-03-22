@@ -15,6 +15,8 @@ export interface IActivityRepository {
 
     findById(activityId: string): Promise<HpActivityTransformer | null>;
 
+    deleteById(activityId: string, session?: ClientSession): Promise<void>
+
     listActivities(filters: {
         courseId?: string;
         courseVersionId?: string;

@@ -127,7 +127,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             : null;
 
         const sortOrder = query.sortOrder === "desc" ? -1 : 1;
-        console.log("Received sortBy value in repo-> ", query.sortOrder);
+
         const sortByRaw = (query.sortBy ?? "submittedAt").trim();
 
         // allowlist sort keys
@@ -379,6 +379,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                         title: { $ifNull: ["$activity.title", ""] },
                         description: { $ifNull: ["$activity.description", ""] },
                         activityType: { $ifNull: ["$activity.activityType", "OTHER"] },
+                        required_percentage: "activity.required_percentage"
                     },
 
                     deadline: "$rule.deadlineAt",
@@ -397,7 +398,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                             allowLate: "$rule.reward.allowLate",
                             lateBehavior: "$rule.reward.lateBehavior",
                             minHpFloor: "$rule.reward.minHpFloor",
-                            required_percentage: "$rule.reward.required_percentage"
+                            // required_percentage: "$rule.reward.required_percentage"
                         },
 
                         penalty: {
@@ -619,7 +620,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
 
     async getCompletedActivitiesCountByStudentId(studentId: string): Promise<Array<{ cohort: string, count: number }>> {
         await this.init();
-        
+
         return await this.hpActivitySubmissionCollection.aggregate([
             {
                 $match: {

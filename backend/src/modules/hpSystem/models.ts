@@ -155,7 +155,7 @@ export interface HpActivitySubmission {
 
 export type RuleType = "ABSOLUTE" | "PERCENTAGE";
 
-export type RewardApplyWhen = "ON_SUBMISSION" | "ON_APPROVAL";
+export type RewardApplyWhen = "ON_SUBMISSION" | "ON_APPROVAL" | "ON_MILESTONE_COMPLETION";
 
 export type LateBehavior = "NO_REWARD" | "REWARD";
 

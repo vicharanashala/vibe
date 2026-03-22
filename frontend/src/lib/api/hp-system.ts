@@ -90,7 +90,7 @@ export interface HpActivity {
     activityType: "ASSIGNMENT" | "MILESTONE" | "EXTERNAL_IMPORT" | "VIBE_MILESTONE" | "OTHER";
     submissionMode: "IN_PLATFORM" | "EXTERNAL_LINK";
     externalLink?: string;
-    required_percentage?: number;
+    // required_percentage?: number;
     attachments?: {
         name: string;
         url: string;
