@@ -74,6 +74,8 @@ export default function StudentSubmissions() {
         return filteredSubmissions.slice(startIndex, endIndex);
     }, [filteredSubmissions, currentPage, itemsPerPage]);
 
+    console.log("PaginatedSubmissions -> ", paginatedSubmissions)
+
     const totalPages = Math.ceil(filteredSubmissions.length / itemsPerPage);
 
     const handleSearchChange = (value: string) => {
@@ -292,7 +294,7 @@ export default function StudentSubmissions() {
 
                                         <div className="flex flex-col items-end gap-2">
                                             <div className="flex items-center flex-row gap-8 mb-2">
-                                                <SubmissionStatusBadge className="min-w-[140px] text-base py-1" status={sub.submission.status} />
+                                                <SubmissionStatusBadge className="min-w-[140px] text-base py-1" status={sub.submission.status} rule = {sub.rule.reward.applyWhen}/>
                                                 {sub.hp && (
                                                     <div className="bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20">
                                                         <span className="font-medium text-base">{sub.hp.currentHp || 0}/{sub.hp.baseHp || 0} HP</span>
@@ -433,12 +435,12 @@ export default function StudentSubmissions() {
                                             </div>
                                         )}
 
-                                        <Button
+                                        {sub.submission.status !== "APPROVED"  ? (sub.rule.reward.applyWhen === "ON_SUBMISSION" ? (null): ( <Button
                                             onClick={() => openEditDialog(sub)
                                             }
                                         >
                                             Edit
-                                        </Button>
+                                        </Button>)): (null)}
                                     </CardContent>
                                 )}
 
