@@ -232,6 +232,8 @@ export class ActivitySubmissionsService extends BaseService {
             }
             if (activity.status !== "PUBLISHED")
                 throw new BadRequestError("You can't submit this activity, it is not set to public")
+            if (activity.activityType !== "ASSIGNMENT")
+                throw new BadRequestError("You can't submit this activity")
 
             const activityRuleConfig = await this.ruleConfigService.getByActivityId(activityId);
             if (!activityRuleConfig) {

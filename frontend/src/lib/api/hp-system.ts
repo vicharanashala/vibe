@@ -90,6 +90,7 @@ export interface HpActivity {
     activityType: "ASSIGNMENT" | "MILESTONE" | "EXTERNAL_IMPORT" | "VIBE_MILESTONE" | "OTHER";
     submissionMode: "IN_PLATFORM" | "EXTERNAL_LINK";
     externalLink?: string;
+    required_percentage?: number;
     attachments?: {
         name: string;
         url: string;
@@ -261,11 +262,11 @@ export interface SubmissionAttachment {
 }
 
 export interface InstructorFeedback {
-  decision?: string;
-  reviewerName?: string;
-  reviewerEmail?: string;
-  reviewedAt?: string;
-  note?: string;
+    decision?: string;
+    reviewerName?: string;
+    reviewerEmail?: string;
+    reviewedAt?: string;
+    note?: string;
 }
 
 export interface HpStudentSubmission {
@@ -794,12 +795,12 @@ export const hpApi = {
     // },
 
     // Made by Rishabh Shukla
-    getCohortActivityStats: async(cohortName: string, activityId: string): Promise<{ data: any }> => {
-        return apiFetch(`${BASE_URL}/activity-submissions/stats/cohort/${cohortName}/activity/${activityId}`);        
+    getCohortActivityStats: async (cohortName: string, activityId: string): Promise<{ data: any }> => {
+        return apiFetch(`${BASE_URL}/activity-submissions/stats/cohort/${cohortName}/activity/${activityId}`);
     },
 
     // Made by Rishabh Shukla
-    getCohortActivityStatsMap: async(cohortName: string, courseVersionId: string): Promise<{ success: boolean; data: any }> => {
+    getCohortActivityStatsMap: async (cohortName: string, courseVersionId: string): Promise<{ success: boolean; data: any }> => {
         return apiFetch(`${BASE_URL}/activity-submissions/stats/cohort/${cohortName}/courseVersion/${courseVersionId}`);
     },
 

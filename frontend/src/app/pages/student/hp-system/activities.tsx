@@ -111,7 +111,9 @@ export default function StudentActivities() {
     const [searchQuery, setSearchQuery] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
-    const [selectedActivityTypes, setSelectedActivityTypes] = useState<string[]>([]);
+    const ACTIVITY_TYPE_OPTIONS = ["ASSIGNMENT", "VIBE_MILESTONE"] as const;
+
+    const [selectedActivityType, setSelectedActivityType] = useState<string>("ASSIGNMENT");
 
     const { data: activities, isLoading, error, refetch } = useHpStudentActivities(
         courseVersionId as string,
@@ -216,20 +218,18 @@ export default function StudentActivities() {
     // Pagination logic
     const filteredActivities = useMemo(() => {
         if (!activities) return [];
+
         return activities.filter((activity: HpActivity) => {
-            // Search by title only
             const matchesSearch = activity.title?.toLowerCase().includes(searchQuery.toLowerCase());
 
-            // Filter by activity types
-            const matchesType = selectedActivityTypes.length === 0 ||
-                selectedActivityTypes.includes(activity.activityType);
+            const matchesType = activity.activityType === selectedActivityType;
 
             const isSubmitted = activity.isSubmitted === true;
             const matchesSubmission = submissionFilter === "ALL" || !isSubmitted;
 
             return matchesSearch && matchesType && matchesSubmission;
         });
-    }, [activities, searchQuery, selectedActivityTypes, submissionFilter]);
+    }, [activities, searchQuery, selectedActivityType, submissionFilter]);
 
     const paginatedActivities = useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage;
@@ -256,16 +256,16 @@ export default function StudentActivities() {
         setCurrentPage(1); // Reset to first page when changing items per page
     };
 
-    const handleActivityTypeToggle = (type: string) => {
-        setSelectedActivityTypes(prev => {
-            if (prev.includes(type)) {
-                return prev.filter(t => t !== type);
-            } else {
-                return [...prev, type];
-            }
-        });
-        setCurrentPage(1); // Reset to first page when filtering
-    };
+    // const handleActivityTypeToggle = (type: string) => {
+    //     setSelectedActivityTypes(prev => {
+    //         if (prev.includes(type)) {
+    //             return prev.filter(t => t !== type);
+    //         } else {
+    //             return [...prev, type];
+    //         }
+    //     });
+    //     setCurrentPage(1); // Reset to first page when filtering
+    // };
 
     if (isLoading) {
         return (
@@ -303,7 +303,7 @@ export default function StudentActivities() {
                                 variant="outline"
                                 onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/submissions`, state: { from } })}
                             >
-                                View My Submissions
+
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>View all your submitted activities and their status</TooltipContent>
@@ -337,9 +337,9 @@ export default function StudentActivities() {
                             <div className="flex flex-wrap items-center gap-3">
                                 {/* Activity Type Filter */}
                                 <Select
-                                    value={selectedActivityTypes.length === 1 ? selectedActivityTypes[0] : "ALL"}
+                                    value={selectedActivityType}
                                     onValueChange={(v) => {
-                                        setSelectedActivityTypes(v === "ALL" ? [] : [v]);
+                                        setSelectedActivityType(v);
                                         setCurrentPage(1);
                                     }}
                                 >
@@ -347,8 +347,7 @@ export default function StudentActivities() {
                                         <SelectValue placeholder="Activity Type" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="ALL">All Types</SelectItem>
-                                        {activityTypes.map((type) => (
+                                        {ACTIVITY_TYPE_OPTIONS.map((type) => (
                                             <SelectItem key={type} value={type}>
                                                 {getActivityTypeLabel(type)}
                                             </SelectItem>
@@ -391,14 +390,13 @@ export default function StudentActivities() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-4">
+                        {/* <div className="grid grid-cols-1 gap-4">
                             {paginatedActivities.map((activity: HpActivity) => (
                                 <Card
                                     key={activity._id}
                                     className="group relative overflow-hidden rounded-xl border bg-card p-0 shadow-sm transition-all hover:border-primary/50 hover:shadow-md"
                                 >
                                     <div className="flex items-center justify-between gap-6 px-6 py-5">
-                                        {/* Left: Info */}
                                         <div className="flex-1 min-w-0 space-y-1.5">
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <span className="font-semibold text-base" title={activity.title}>
@@ -438,7 +436,6 @@ export default function StudentActivities() {
                                             </div>
                                         </div>
 
-                                        {/* Right: Countdown + View */}
                                         <div className="flex items-center gap-4 shrink-0">
                                             {activity.rules?.deadlineAt && (
                                                 <div className="text-sm font-semibold">
@@ -464,7 +461,178 @@ export default function StudentActivities() {
                                     </div>
                                 </Card>
                             ))}
-                        </div>
+                        </div> */}
+
+                        {(() => {
+                            const milestones = paginatedActivities.filter(
+                                (a: HpActivity) => a.activityType === "VIBE_MILESTONE"
+                            );
+                            const others = paginatedActivities.filter(
+                                (a: HpActivity) => a.activityType !== "VIBE_MILESTONE"
+                            );
+                            console.log("Milestones: ", milestones)
+
+                            return (
+                                <>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                                        {milestones.map((activity: HpActivity) => (
+                                            <Card
+                                                key={activity._id}
+                                                className="group relative overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:border-primary/50 hover:shadow-md min-h-[280px] sm:min-h-[300px] flex flex-col"
+                                            >
+                                                <div className="flex flex-col justify-between h-full p-4 sm:p-5">
+                                                    {/* Top: title + badges */}
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-start gap-2 flex-wrap">
+                                                            <span
+                                                                className="font-semibold text-sm sm:text-base leading-snug break-words"
+                                                                title={activity.title}
+                                                            >
+                                                                {truncateText(activity.title, 40)}
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            <Badge variant="secondary" className="text-[10px] sm:text-xs">
+                                                                {getActivityTypeLabel(activity.activityType)}
+                                                            </Badge>
+
+                                                            {activity.isSubmitted && (
+                                                                <Badge variant="default" className="text-[10px] sm:text-xs">
+                                                                    Submitted
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+
+                                                        {activity.description && (
+                                                            <p
+                                                                className="text-[11px] sm:text-xs text-muted-foreground break-words"
+                                                                title={activity.description}
+                                                            >
+                                                                {truncateText(activity.description, 60)}
+                                                            </p>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Middle: required percentage */}
+                                                    {activity.required_percentage != null && (
+                                                        <div className="flex flex-col items-center justify-center flex-1 py-4">
+                                                            <span className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-primary leading-none text-center">
+                                                                {activity.required_percentage ?? "N/A"}%
+                                                            </span>
+                                                            <span className="text-[10px] sm:text-xs text-muted-foreground mt-1 font-medium uppercase tracking-wide text-center">
+                                                                Required
+                                                            </span>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Bottom: deadline + view */}
+                                                    <div className="space-y-2">
+                                                        {activity.rules?.deadlineAt && (
+                                                            <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-muted-foreground flex-wrap">
+                                                                <Clock className="h-3.5 w-3.5 text-orange-500 opacity-70 shrink-0" />
+                                                                <DeadlineCountdown
+                                                                    deadline={activity.rules.deadlineAt.toString()}
+                                                                    allowLate={activity.rules.allowLateSubmission ?? true}
+                                                                />
+                                                            </div>
+                                                        )}
+
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="w-full"
+                                                            onClick={() =>
+                                                                navigate({
+                                                                    to: `/student/hp-system/${courseVersionId}/${cohortName}/activities/${activity._id}`,
+                                                                    state: { from }
+                                                                })
+                                                            }
+                                                        >
+                                                            View
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </Card>
+                                        ))}
+                                    </div>
+
+                                    {others.length > 0 && (
+                                        <div className="grid grid-cols-1 gap-4">
+                                            {others.map((activity: HpActivity) => (
+                                                <Card
+                                                    key={activity._id}
+                                                    className="group relative overflow-hidden rounded-xl border bg-card p-0 shadow-sm transition-all hover:border-primary/50 hover:shadow-md"
+                                                >
+                                                    <div className="flex items-center justify-between gap-6 px-6 py-5">
+                                                        <div className="flex-1 min-w-0 space-y-1.5">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <span className="font-semibold text-base" title={activity.title}>
+                                                                    {truncateText(activity.title, 70)}
+                                                                </span>
+                                                                <Badge variant="secondary" className="text-xs">
+                                                                    {getActivityTypeLabel(activity.activityType)}
+                                                                </Badge>
+                                                                {activity.isSubmitted && (
+                                                                    <Badge variant="default" className="text-xs">Submitted</Badge>
+                                                                )}
+                                                            </div>
+                                                            {activity.description && (
+                                                                <p className="text-sm text-muted-foreground" title={activity.description}>
+                                                                    {truncateText(activity.description, 85)}
+                                                                </p>
+                                                            )}
+                                                            <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-border/50">
+                                                                {activity.createdAt && (
+                                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                                        <Calendar className="h-3.5 w-3.5 opacity-70" />
+                                                                        <span>
+                                                                            <span className="font-medium text-foreground/80">Created:</span>{" "}
+                                                                            {formatDate(activity.createdAt)}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                                {activity.rules?.deadlineAt && (
+                                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                                        <Clock className="h-3.5 w-3.5 opacity-70 text-orange-500" />
+                                                                        <span>
+                                                                            <span className="font-medium text-foreground/80">Deadline:</span>{" "}
+                                                                            <span className="text-foreground font-medium">{formatDate(activity.rules.deadlineAt.toString())}</span>
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-4 shrink-0">
+                                                            {activity.rules?.deadlineAt && (
+                                                                <div className="text-sm font-semibold">
+                                                                    <DeadlineCountdown
+                                                                        deadline={activity.rules.deadlineAt.toString()}
+                                                                        allowLate={activity.rules.allowLateSubmission ?? true}
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() =>
+                                                                    navigate({
+                                                                        to: `/student/hp-system/${courseVersionId}/${cohortName}/activities/${activity._id}`,
+                                                                        state: { from }
+                                                                    })
+                                                                }
+                                                            >
+                                                                View
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </Card>
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
 
                         {/* Pagination Component */}
                         <Pagination
