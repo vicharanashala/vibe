@@ -147,12 +147,33 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
                     // "activity.activityType": "ASSIGNMENT"
                 }
             },
+            // {
+            //     $addFields: {
+            //         effectiveDeadline: {
+            //             $add: [
+            //                 "$deadlineAt",
+            //                 { $multiply: ["$penalty.graceMinutes", 60000] }
+            //             ]
+            //         }
+            //     }
+            // },
             {
                 $addFields: {
                     effectiveDeadline: {
                         $add: [
                             "$deadlineAt",
-                            { $multiply: ["$penalty.graceMinutes", 60000] }
+                            {
+                                $multiply: [
+                                    {
+                                        $cond: [
+                                            { $eq: ["$activity.activityType", "VIBE_MILESTONE"] },
+                                            2, // 2 minutes grace for milestone
+                                            "$penalty.graceMinutes" // normal grace
+                                        ]
+                                    },
+                                    60000
+                                ]
+                            }
                         ]
                     }
                 }
