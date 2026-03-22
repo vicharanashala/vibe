@@ -271,6 +271,85 @@ const calculateRewardAmount = (
     return 0;
 };
 
+// const applyStudentReward = async (
+//     student: CohortStudentItemDto,
+//     activity: HpActivityTransformer,
+//     activityConfig: HpRuleConfigTransformer,
+//     rewardAmount: number,
+//     newHp: number,
+//     note: string,
+//     dependencies: { ledgerRepo: LedgerRepository; cohortRepo: CohortRepository; db: MongoDatabase }
+// ) => {
+//     const { ledgerRepo, cohortRepo, db } = dependencies;
+//     const studentId = student._id.toString();
+
+//     const client = await db.getClient();
+//     const session = client.startSession();
+
+//     try {
+//         await session.withTransaction(async () => {
+//             // Get actual course IDs (handle legacy vs new cohort system)
+//             const { courseId, courseVersionId } = getActualCourseIds(activity);
+
+//             // Update student HP using repository method
+//             const hpUpdated = await cohortRepo.setHPForEnrollment(
+//                 studentId.toString(),
+//                 courseId.toString(),
+//                 courseVersionId.toString(),
+//                 activity.cohort,
+//                 newHp,
+//                 session
+//             );
+
+//             if (!hpUpdated) {
+//                 throw new Error(`Failed to update HP for student ${studentId}`);
+//             }
+
+//             // Create ledger entry
+//             const ledgerEntry: Omit<HpLedger, "_id" | "createdAt"> = {
+//                 courseId: new ObjectId(activity.courseId),
+//                 courseVersionId: new ObjectId(activity.courseVersionId),
+//                 cohort: activity.cohort || "",
+//                 studentId: new ObjectId(studentId),
+//                 studentEmail: student.email,
+//                 activityId: new ObjectId(activity._id),
+//                 submissionId: null,
+//                 eventType: HpLedgerEventType.CREDIT,
+//                 direction: HpLedgerDirection.CREDIT,
+//                 amount: rewardAmount,
+//                 calc: {
+//                     ruleType: activityConfig.reward.type as RuleType,
+//                     percentage: activityConfig.reward.type === "PERCENTAGE" ? activityConfig.reward.value : undefined,
+//                     absolutePoints: activityConfig.reward.type === "ABSOLUTE" ? activityConfig.reward.value : undefined,
+//                     baseHpAtTime: newHp - rewardAmount,
+//                     computedAmount: rewardAmount,
+//                     deadlineAt: activityConfig.deadlineAt,
+//                     withinDeadline: new Date() <= new Date(activityConfig.deadlineAt),
+//                     reasonCode: HpReasonCode.MILESTONE_REWARD
+//                 },
+//                 links: null,
+//                 meta: {
+//                     triggeredBy: "SYSTEM_AUTOMATION",
+//                     triggeredByUserId: null,
+//                     note
+//                 }
+//             };
+
+//             await ledgerRepo.create(ledgerEntry, session);
+
+//             console.log(`💾 Ledger entry created for reward: ${rewardAmount} HP`);
+//         });
+
+//         console.log(`✅ Transaction completed successfully`);
+//     } catch (error) {
+//         console.error(`❌ Failed to apply reward for student ${studentId}:`, error);
+//         throw error;
+//     } finally {
+//         await session.endSession();
+//     }
+// }
+
+
 const applyStudentReward = async (
     student: CohortStudentItemDto,
     activity: HpActivityTransformer,
@@ -288,24 +367,8 @@ const applyStudentReward = async (
 
     try {
         await session.withTransaction(async () => {
-            // Get actual course IDs (handle legacy vs new cohort system)
             const { courseId, courseVersionId } = getActualCourseIds(activity);
 
-            // Update student HP using repository method
-            const hpUpdated = await cohortRepo.setHPForEnrollment(
-                studentId.toString(),
-                courseId.toString(),
-                courseVersionId.toString(),
-                activity.cohort,
-                newHp,
-                session
-            );
-
-            if (!hpUpdated) {
-                throw new Error(`Failed to update HP for student ${studentId}`);
-            }
-
-            // Create ledger entry
             const ledgerEntry: Omit<HpLedger, "_id" | "createdAt"> = {
                 courseId: new ObjectId(activity.courseId),
                 courseVersionId: new ObjectId(activity.courseVersionId),
@@ -335,7 +398,28 @@ const applyStudentReward = async (
                 }
             };
 
-            await ledgerRepo.create(ledgerEntry, session);
+            try {
+                await ledgerRepo.create(ledgerEntry, session);
+            } catch (error: any) {
+                if (error?.code === 11000) {
+                    console.log(`⚠️ Reward already exists for student ${studentId} and activity ${activity._id}`);
+                    return;
+                }
+                throw error;
+            }
+
+            const hpUpdated = await cohortRepo.setHPForEnrollment(
+                studentId,
+                courseId.toString(),
+                courseVersionId.toString(),
+                activity.cohort,
+                newHp,
+                session
+            );
+
+            if (!hpUpdated) {
+                throw new Error(`Failed to update HP for student ${studentId}`);
+            }
 
             console.log(`💾 Ledger entry created for reward: ${rewardAmount} HP`);
         });
@@ -347,4 +431,4 @@ const applyStudentReward = async (
     } finally {
         await session.endSession();
     }
-}
+};
