@@ -499,26 +499,28 @@ export default function StudentActivityDetail() {
                                 <span className="text-xs font-medium text-red-700 dark:text-red-400">Deadline Passed</span>
                             </div>
                         ) : null}
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    onClick={() => setSubmitDialogOpen(true)}
-                                    disabled={!canSubmit || isAlreadySubmitted}
-                                    size="sm"
-                                    className="disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <Send className="h-4 w-4 mr-2" />
-                                    Submit
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                {activity.isSubmitted
-                                    ? "Already submitted"
-                                    : isExpired && !allowLate
-                                        ? "Deadline has passed — submission closed"
-                                        : "Submit your work to earn HP points"}
-                            </TooltipContent>
-                        </Tooltip>
+                        {activity.activityType == "ASSIGNMENT" &&
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        onClick={() => setSubmitDialogOpen(true)}
+                                        disabled={!canSubmit || isAlreadySubmitted}
+                                        size="sm"
+                                        className="disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <Send className="h-4 w-4 mr-2" />
+                                        Submit
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    {activity.isSubmitted
+                                        ? "Already submitted"
+                                        : isExpired && !allowLate
+                                            ? "Deadline has passed — submission closed"
+                                            : "Submit your work to earn HP points"}
+                                </TooltipContent>
+                            </Tooltip>
+                        }
                     </div>
                 </div>
 
