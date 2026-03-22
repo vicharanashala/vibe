@@ -94,6 +94,10 @@ export class ChangeEnrollmentStatusBody {
   @IsEnum(['ACTIVE', 'INACTIVE'])
   @IsNotEmpty()
   status: EnrollmentStatus;
+
+  @IsOptional()
+  @IsMongoId()
+  cohortId?: string;
 }
 
 export class BulkChangeEnrollmentStatusBody {
