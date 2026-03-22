@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useHpStudentCohorts, useMyHpLedger, useHpActivities } from "@/hooks/hooks";
-import { getEffectiveIds } from "@/lib/api/hp-system";
+import { getEffectiveIds, hpApi } from "@/lib/api/hp-system";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +35,7 @@ import {
     Search,
 } from "lucide-react";
 import { DirectionBadge } from "@/app/pages/teacher/hp-system/components/DirectionBadge";
+import { useQueries } from "@tanstack/react-query";
 
 export default function StudentLedgerPage() {
     const navigate = useNavigate();
@@ -70,10 +71,19 @@ export default function StudentLedgerPage() {
     });
 
     // Fetch activities from all cohorts to build complete activity map
-    const activityQueries = cohortQueries.map((query) => {
-        return useHpActivities(query.versionId, query.cohortName);
+    const activityQueries = useQueries({
+        queries: cohortQueries.map((query) => ({
+            queryKey: ["hp-activities", query.versionId, query.cohortName],
+            queryFn: async () => {
+                const res = await hpApi.getActivities(query.versionId, query.cohortName);
+                if (!res.success) {
+                    throw new Error(res.message || "Failed to load activities");
+                }
+                return res.data ?? [];
+            },
+            enabled: !!query.versionId && !!query.cohortName,
+        })),
     });
-
     // Combine all activities from all cohorts
     const allActivities = activityQueries.reduce((acc: any[], queryResult) => {
         if (queryResult.data) {
@@ -98,8 +108,8 @@ export default function StudentLedgerPage() {
         return ledger.filter((entry: any) => {
             const activityName = entry.activityTitle || 'Manual Adjustment';
             return activityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                   entry.cohort?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                   entry.eventType?.toLowerCase().includes(searchQuery.toLowerCase());
+                entry.cohort?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                entry.eventType?.toLowerCase().includes(searchQuery.toLowerCase());
         });
     }, [ledger, searchQuery]);
 
@@ -217,7 +227,7 @@ export default function StudentLedgerPage() {
                                 className="pl-10"
                             />
                         </div>
-                        
+
                         <div className="flex items-center gap-2">
                             <span className="text-sm text-muted-foreground">Show:</span>
                             <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
@@ -257,62 +267,62 @@ export default function StudentLedgerPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {paginatedLedger.map((entry: any) => (
-                                    <TableRow key={entry._id}>
-                                        <TableCell>
-                                            <div className="font-medium max-w-[200px] truncate">
-                                                {activityMap[entry.activityTitle] || entry.activityTitle || 'Manual Adjustment'}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className="font-normal text-xs">
-                                                {entry.cohort || '—'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className="font-normal uppercase text-[10px]">
-                                                {entry.eventType}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell><DirectionBadge direction={entry.direction} /></TableCell>
-                                        <TableCell className="text-right">
-                                            <span className={`font-semibold ${entry.direction === 'CREDIT' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                {entry.direction === 'CREDIT' ? '+' : '-'}{entry.amount}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="text-sm text-muted-foreground">
-                                                {formatDate(entry.calc?.deadlineAt)}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                                <Calendar className="h-3.5 w-3.5" />
-                                                <span>{formatDate(entry.createdAt)}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => setSelectedEntry(entry)}
-                                            >
-                                                View more
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-                
-                {/* Pagination Component */}
-                <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    totalDocuments={filteredLedger.length}
-                    onPageChange={setCurrentPage}
-                />
+                                        <TableRow key={entry._id}>
+                                            <TableCell>
+                                                <div className="font-medium max-w-[200px] truncate">
+                                                    {activityMap[entry.activityTitle] || entry.activityTitle || 'Manual Adjustment'}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className="font-normal text-xs">
+                                                    {entry.cohort || '—'}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className="font-normal uppercase text-[10px]">
+                                                    {entry.eventType}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell><DirectionBadge direction={entry.direction} /></TableCell>
+                                            <TableCell className="text-right">
+                                                <span className={`font-semibold ${entry.direction === 'CREDIT' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                    {entry.direction === 'CREDIT' ? '+' : '-'}{entry.amount}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className="text-sm text-muted-foreground">
+                                                    {formatDate(entry.calc?.deadlineAt)}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                                    <Calendar className="h-3.5 w-3.5" />
+                                                    <span>{formatDate(entry.createdAt)}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setSelectedEntry(entry)}
+                                                >
+                                                    View more
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+
+                    {/* Pagination Component */}
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalDocuments={filteredLedger.length}
+                        onPageChange={setCurrentPage}
+                    />
                 </>
             )}
 
@@ -372,9 +382,9 @@ export default function StudentLedgerPage() {
                                     <div className="flex items-center gap-2 text-sm bg-muted/50 p-2 rounded-md">
                                         <User className="h-4 w-4 text-muted-foreground" />
                                         <span className="font-medium">{selectedEntry.meta?.triggeredBy || 'SYSTEM'}</span>
-                                       <span className="text-xs text-muted-foreground">
-                                            ({selectedEntry.meta?.triggeredBy === 'SYSTEM' 
-                                                ? 'Automated' 
+                                        <span className="text-xs text-muted-foreground">
+                                            ({selectedEntry.meta?.triggeredBy === 'SYSTEM'
+                                                ? 'Automated'
                                                 : selectedEntry.meta?.triggeredByUserName || selectedEntry.meta?.triggeredByUserId || 'Automated'
                                             })
                                         </span>

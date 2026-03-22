@@ -126,19 +126,27 @@ const processActivityPenalties = async (
 
 
     // Batch fetch all submissions and existing penalties upfront
-    const [allSubmissionsBeforeDeadline, existingPenalties] = await Promise.all([
+    const [allSubmissionsBeforeDeadline, existingPenalties, existingMilestoneRewards] = await Promise.all([
         // Get all submissions for this activity
         activitySubmissionRepo.listSubmissionsBeforeDeadline(activity._id.toString()).catch(() => []),
         // Get all existing penalties for this activity  
-        ledgerRepo.findPenaltiesByActivityId(activity._id.toString()).catch(() => [])
+        ledgerRepo.findPenaltiesByActivityId(activity._id.toString()).catch(() => []),
+
+        // Get all existing penalties for this activity  
+        ledgerRepo.findAllExisitingMilestoneRewards(activity._id.toString()).catch(() => [])
     ]);
 
     // Create lookup maps for O(1) access
     const submissionMap = new Map<string, HpActivitySubmission>(
         allSubmissionsBeforeDeadline.map((sub) => [sub.studentId.toString(), sub] as [string, HpActivitySubmission])
     );
+
     const penaltyMap = new Map<string, HpLedger>(
         existingPenalties.map((penalty) => [penalty.studentId.toString(), penalty] as [string, HpLedger])
+    );
+
+    const milestoneRewardsMap = new Map<string, HpLedger>(
+        existingMilestoneRewards.map((reward) => [reward.studentId.toString(), reward] as [string, HpLedger])
     );
 
     // Filter students who actually need penalties (this is the optimization!)
@@ -146,8 +154,9 @@ const processActivityPenalties = async (
         const studentId = student._id.toString();
         const hasSubmitted = submissionMap.has(studentId);
         const hasPenalty = penaltyMap.has(studentId);
+        const hasMilestoneReward = milestoneRewardsMap.has(studentId);
 
-        if (hasSubmitted || hasPenalty) {
+        if (hasSubmitted || hasPenalty || hasMilestoneReward) {
             return false;
         }
 

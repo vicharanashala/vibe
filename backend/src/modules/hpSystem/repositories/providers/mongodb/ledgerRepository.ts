@@ -259,6 +259,15 @@ export class LedgerRepository implements ILedgerRepository {
         }).toArray();
     }
 
+    async findAllExisitingMilestoneRewards(activityId: string): Promise<HpLedger[]> {
+        await this.init();
+
+        return await this.hpLedgerCollection.find({
+            activityId: new ObjectId(activityId),
+            "calc.reasonCode": "MILESTONE_REWARD"
+        }).toArray();
+    }
+
     async findRewardsByActivityId(activityId: string): Promise<HpLedger[]> {
         await this.init();
 
