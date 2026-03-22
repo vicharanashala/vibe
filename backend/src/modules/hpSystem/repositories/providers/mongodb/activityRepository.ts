@@ -391,6 +391,7 @@ export class ActivityRepository implements IActivityRepository {
     studentId: string,
     courseId: string,
     courseVersionId: string,
+    cohortName: string,
   ): Promise<number> {
     await this.init();
 
@@ -401,6 +402,7 @@ export class ActivityRepository implements IActivityRepository {
             courseId: new ObjectId(courseId),
             courseVersionId: new ObjectId(courseVersionId),
             isDeleted: { $ne: true },
+            cohort: cohortName
           },
         },
         {
