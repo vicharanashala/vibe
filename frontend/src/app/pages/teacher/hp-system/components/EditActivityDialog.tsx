@@ -22,6 +22,7 @@ import {
 import { HpActivity } from "@/lib/api/hp-system";
 import { Trash2, Plus } from "lucide-react";
 import ConfirmationModal from "../../components/confirmation-modal";
+import { toast } from "sonner";
 
 interface EditActivityDialogProps {
     isOpen: boolean;
@@ -48,7 +49,7 @@ export function EditActivityDialog({
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [pendingData, setPendingData] = useState<EditFormValues | null>(null);
 
-    const { control, register, handleSubmit, reset, formState: { errors } } = useForm<EditFormValues>({
+    const { control, register, handleSubmit, reset, setError, formState: { errors } } = useForm<EditFormValues>({
         defaultValues: {
             title: "",
             description: "",
@@ -98,8 +99,42 @@ export function EditActivityDialog({
                 attachments: data.attachments?.map(att => ({ ...att, kind: att.kind || "LINK" })),
             });
             onOpenChange(false);
-        } catch (error) {
+            toast.success("Activity updated successfully");
+        } catch (error: any) {
             console.error("Failed to update activity", error);
+            if (error.response) {
+                try {
+                    const detail = await error.response.json();
+                    
+                    if (detail.errors && Array.isArray(detail.errors)) {
+                        let hasFieldErrors = false;
+                        const validFormFields = ["title", "description", "activityType", "submissionMode", "externalLink", "attachments"];
+
+                        detail.errors.forEach((err: any) => {
+                            if (err.property && validFormFields.includes(err.property)) {
+                                const message = err.constraints ? Object.values(err.constraints).join(", ") : "Validation failed";
+                                setError(err.property as any, { type: "server", message });
+                                hasFieldErrors = true;
+                            }
+                        });
+                        
+                        if (!hasFieldErrors && detail.message) {
+                            toast.error(detail.message);
+                        } else if (hasFieldErrors) {
+                            toast.error("Please check the form for validation errors.");
+                        }
+                    } else if (detail.message) {
+                        toast.error(detail.message);
+                    } else {
+                        toast.error("An unexpected error occurred during update.");
+                    }
+                } catch (e) {
+                    console.error("Could not parse backend error JSON");
+                    toast.error("Failed to update activity. Please try again.");
+                }
+            } else {
+                toast.error(error.message || "Failed to update activity. Please try again.");
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -130,8 +165,9 @@ export function EditActivityDialog({
                             <Label>Description</Label>
                             <Textarea
                                 {...register("description")}
-                                className="min-h-[100px]"
+                                className={`min-h-[100px] ${errors.description ? "border-red-500" : ""}`}
                             />
+                            {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -142,7 +178,7 @@ export function EditActivityDialog({
                                     control={control}
                                     render={({ field }) => (
                                         <Select onValueChange={field.onChange} value={field.value}>
-                                            <SelectTrigger>
+                                            <SelectTrigger className={errors.activityType ? "border-red-500" : ""}>
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -155,6 +191,7 @@ export function EditActivityDialog({
                                         </Select>
                                     )}
                                 />
+                                {errors.activityType && <p className="text-xs text-red-500">{errors.activityType.message}</p>}
                             </div>
 
                             <div className="space-y-2">
@@ -164,7 +201,7 @@ export function EditActivityDialog({
                                     control={control}
                                     render={({ field }) => (
                                         <Select onValueChange={field.onChange} value={field.value}>
-                                            <SelectTrigger>
+                                            <SelectTrigger className={errors.submissionMode ? "border-red-500" : ""}>
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -175,6 +212,7 @@ export function EditActivityDialog({
                                         </Select>
                                     )}
                                 />
+                                {errors.submissionMode && <p className="text-xs text-red-500">{errors.submissionMode.message}</p>}
                             </div>
 
                             <div className="space-y-2 sm:col-span-2">
@@ -204,16 +242,22 @@ export function EditActivityDialog({
                                     <div key={field.id} className="flex items-start gap-2 items-center bg-muted/40 p-2 rounded-md border">
                                         <input type="hidden" value="LINK" {...register(`attachments.${index}.kind` as const)} />
                                         <div className="grid grid-cols-2 gap-2 flex-1">
-                                            <Input
-                                                placeholder="Link Name (e.g. Instructions)"
-                                                {...register(`attachments.${index}.name` as const, { required: true })}
-                                                className="h-8 text-sm"
-                                            />
-                                            <Input
-                                                placeholder="URL (https://...)"
-                                                {...register(`attachments.${index}.url` as const, { required: true })}
-                                                className="h-8 text-sm"
-                                            />
+                                            <div className="space-y-1">
+                                                <Input
+                                                    placeholder="Link Name (e.g. Instructions)"
+                                                    {...register(`attachments.${index}.name` as const, { required: "Name is required" })}
+                                                    className={`h-8 text-sm ${errors.attachments?.[index]?.name ? "border-red-500" : ""}`}
+                                                />
+                                                {errors.attachments?.[index]?.name && <p className="text-[10px] text-red-500">{errors.attachments[index]?.name?.message}</p>}
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Input
+                                                    placeholder="URL (https://...)"
+                                                    {...register(`attachments.${index}.url` as const, { required: "URL is required" })}
+                                                    className={`h-8 text-sm ${errors.attachments?.[index]?.url ? "border-red-500" : ""}`}
+                                                />
+                                                {errors.attachments?.[index]?.url && <p className="text-[10px] text-red-500">{errors.attachments[index]?.url?.message}</p>}
+                                            </div>
                                         </div>
                                         <Button
                                             type="button"
