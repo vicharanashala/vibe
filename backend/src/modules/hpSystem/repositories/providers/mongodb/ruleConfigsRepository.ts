@@ -21,9 +21,9 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
             await this.db.getCollection<HpRuleConfig>("hp_activity_rules");
     }
 
-    async createRuleConfig(input: Omit<HpRuleConfig, "_id">): Promise<HpRuleConfigTransformer> {
+    async createRuleConfig(input: Omit<HpRuleConfig, "_id">, session?: ClientSession): Promise<HpRuleConfigTransformer> {
         await this.init();
-        const result = await this.hpRuleConfigsCollection.insertOne(input as any);
+        const result = await this.hpRuleConfigsCollection.insertOne(input as HpRuleConfig, { session });
 
         const created = await this.hpRuleConfigsCollection.findOne({
             _id: result.insertedId, isDeleted: { $ne: true },
@@ -43,7 +43,7 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
                 HpRuleConfig,
                 "_id" | "courseId" | "courseVersionId" | "activityId" | "createdAt"
             >
-        >
+        >, session?: ClientSession
     ): Promise<HpRuleConfigTransformer | null> {
         await this.init();
         const activityId = new ObjectId(ruleConfigId);
@@ -53,7 +53,7 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
                 activityId, isDeleted: { $ne: true },
             },
             { $set: patch },
-            { returnDocument: "after" }
+            { returnDocument: "after", session }
         );
         return plainToInstance(HpRuleConfigTransformer, result as HpRuleConfig, {
             excludeExtraneousValues: true,

@@ -127,7 +127,6 @@ export class ActivityRepository implements IActivityRepository {
                   isMandatory: 1,
                   deadlineAt: 1,
                   allowLateSubmission: 1,
-                  required_percentage: 1
                 },
               },
             ],
@@ -206,7 +205,7 @@ export class ActivityRepository implements IActivityRepository {
       activity.submissionMode = doc.submissionMode;
       activity.externalLink = doc.externalLink;
       activity.attachments = doc.attachments;
-      activity.required_percentage = doc.rules?.required_percentage
+      activity.required_percentage = doc?.required_percentage
 
       if (doc.instructor) {
         const firstName = doc.instructor.firstName || '';
@@ -435,5 +434,9 @@ export class ActivityRepository implements IActivityRepository {
       .toArray();
 
     return result[0]?.pendingCount ?? 0;
+  }
+
+  async deleteById(activityId: string, session?: ClientSession): Promise<void> {
+    await this.hpActivityCollection.deleteOne({ _id: new ObjectId(activityId) }, { session })
   }
 }
