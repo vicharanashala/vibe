@@ -33,7 +33,7 @@ export const allocatePenalty = async (): Promise<void> => {
 
     console.log("🔍 Starting penalty allocation cron job...");
 
-    try {
+    try { 
         const lateMandatoryActivities = await activityConfigsRepo.getAllMandatoryLateActivities();
 
 

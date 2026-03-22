@@ -7,7 +7,7 @@ import {
     HpLedgerEventType,
     HpLedgerDirection,
     COHORT_OVERRIDES
-} from "../constants.js";
+} from "../constants.js"; 
 import { ObjectId, ClientSession } from "mongodb";
 import { MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
@@ -150,14 +150,14 @@ const processMilestoneRewards = async (
             console.log("No deadline configured for this activity...")
             return false
         }
-
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // Check if the milestone completed after deadline or not
-        const isAfterDeadline = Date.now() > activityConfig.deadlineAt.getTime();
+        // const isAfterDeadline = Date.now() > activityConfig.deadlineAt.getTime();
 
-        if (isAfterDeadline && activityConfig.reward.lateBehavior === "NO_REWARD") {
-            console.log(`⏰ After deadline and lateBehavior=NO_REWARD - no reward for ${student.email}`);
-            return false;
-        }
+        // if (isAfterDeadline && activityConfig.reward.lateBehavior === "NO_REWARD") {
+        //     console.log(`⏰ After deadline and lateBehavior=NO_REWARD - no reward for ${student.email}`);
+        //     return false;
+        // }
 
         console.log(`✅ Student ${student.email} eligible for reward: ${currentProgress}% >= ${requiredProgress}%`);
         return true; // This student needs reward

@@ -15,13 +15,16 @@ cron.schedule(
             if (ENABLE_HP_JOB) {
                 console.log('Cron job started for hp system checks...');
                 try {
-                    console.log('⚡ Running penalty allocation job...');
-                    await allocatePenalty();
-                    console.log('✅ Penalty allocation job completed');
 
                     console.log('🎯 About to run milestone reward allocation job...');
                     await allocateReward();
                     console.log('✅ Milestone reward allocation job completed');
+
+                    console.log('⚡ Running penalty allocation job...');
+                    await allocatePenalty();
+                    console.log('✅ Penalty allocation job completed');
+
+
                 } catch (error) {
                     console.error('❌ HP allocation job failed:', error);
                 }
