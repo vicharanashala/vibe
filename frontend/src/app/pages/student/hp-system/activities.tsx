@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useHpStudentActivities, useSubmitActivity } from "@/hooks/hooks";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -12,36 +12,42 @@ import { Pagination } from "@/components/ui/Pagination";
 import {
     FileText,
     Link as LinkIcon,
-    Clock,
     ArrowLeft,
-    Paperclip,
     Plus,
     Trash2,
     Loader2,
     Send,
     Image as ImageIcon,
-    User,
     Search,
-    AlertCircle
+    Clock,
+    Calendar,
+    Flame
 } from "lucide-react";
 import { HpActivity } from "@/lib/api/hp-system";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+// Helper for character-count truncation
+const truncateText = (text: string | null | undefined, maxLength: number = 70) => {
+    if (!text) return "";
+    return text.length > maxLength ? text.substring(0, maxLength).trim() + "..." : text;
+};
+
 // Countdown timer component for deadline display
 const DeadlineCountdown = ({ deadline, allowLate }: { deadline: string; allowLate: boolean }) => {
-    const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; isExpired: boolean }>(() => {
+    const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number; isExpired: boolean }>(() => {
         const now = new Date().getTime();
         const deadlineTime = new Date(deadline).getTime();
         const diff = deadlineTime - now;
 
         if (diff <= 0) {
-            return { days: 0, hours: 0, minutes: 0, isExpired: true };
+            return { days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true };
         }
 
         return {
             days: Math.floor(diff / (1000 * 60 * 60 * 24)),
             hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
             minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+            seconds: Math.floor((diff % (1000 * 60)) / 1000),
             isExpired: false
         };
     });
@@ -53,35 +59,44 @@ const DeadlineCountdown = ({ deadline, allowLate }: { deadline: string; allowLat
             const diff = deadlineTime - now;
 
             if (diff <= 0) {
-                setTimeLeft({ days: 0, hours: 0, minutes: 0, isExpired: true });
+                setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true });
                 clearInterval(timer);
             } else {
                 setTimeLeft({
                     days: Math.floor(diff / (1000 * 60 * 60 * 24)),
                     hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
                     minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+                    seconds: Math.floor((diff % (1000 * 60)) / 1000),
                     isExpired: false
                 });
             }
-        }, 60000); // Update every minute
+        }, 1000); // Update every second
 
         return () => clearInterval(timer);
     }, [deadline]);
 
     if (timeLeft.isExpired) {
         return (
-            <span className={`font-medium ${allowLate ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>
-                {allowLate ? 'Deadline passed (late submission allowed)' : 'Deadline passed'}
-            </span>
+            <div className={`flex items-center gap-1.5 text-sm font-medium ${allowLate ? 'text-amber-600 dark:text-amber-500' : 'text-destructive'}`}>
+                <Clock className="h-4 w-4" />
+                <span>{allowLate ? 'Late Submission' : 'Deadline Passed'}</span>
+            </div>
         );
     }
 
+    const isUrgent = timeLeft.days === 0 && timeLeft.hours < 12;
+
     return (
-        <span className="font-medium text-orange-600 dark:text-orange-400">
-            {timeLeft.days > 0 && `${timeLeft.days}d `}
-            {timeLeft.hours > 0 && `${timeLeft.hours}h `}
-            {timeLeft.minutes}m left
-        </span>
+        <div className={`flex items-center gap-1.5 text-sm font-medium ${isUrgent ? 'text-orange-600 dark:text-orange-500' : 'text-emerald-600 dark:text-emerald-500'}`}>
+            <Clock className="h-4 w-4" />
+            <div className="flex items-baseline gap-1 font-mono tracking-tight">
+                {timeLeft.days > 0 && <span>{timeLeft.days}d</span>}
+                {timeLeft.hours > 0 && <span>{timeLeft.hours}h</span>}
+                <span>{timeLeft.minutes}m</span>
+                <span className="opacity-70">{timeLeft.seconds}s</span>
+            </div>
+            <span className="text-xs font-normal opacity-70">left</span>
+        </div>
     );
 };
 
@@ -318,35 +333,45 @@ export default function StudentActivities() {
                                 />
                             </div>
 
-                            {/* Activity Type Filters and Items Per Page */}
-                            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-                                {/* Activity Type Filters */}
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="text-sm text-muted-foreground">Activity Types:</span>
-                                    {activityTypes.map((type) => (
-                                        <Badge
-                                            key={type}
-                                            variant={selectedActivityTypes.includes(type) ? "default" : "outline"}
-                                            className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
-                                            onClick={() => handleActivityTypeToggle(type)}
-                                        >
-                                            {getActivityTypeLabel(type)}
-                                        </Badge>
-                                    ))}
-                                    {selectedActivityTypes.length > 0 && (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => setSelectedActivityTypes([])}
-                                            className="text-xs h-6 px-2 text-muted-foreground hover:text-foreground"
-                                        >
-                                            Clear filters
-                                        </Button>
-                                    )}
-                                </div>
+                            {/* Filters Row */}
+                            <div className="flex flex-wrap items-center gap-3">
+                                {/* Activity Type Filter */}
+                                <Select
+                                    value={selectedActivityTypes.length === 1 ? selectedActivityTypes[0] : "ALL"}
+                                    onValueChange={(v) => {
+                                        setSelectedActivityTypes(v === "ALL" ? [] : [v]);
+                                        setCurrentPage(1);
+                                    }}
+                                >
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue placeholder="Activity Type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ALL">All Types</SelectItem>
+                                        {activityTypes.map((type) => (
+                                            <SelectItem key={type} value={type}>
+                                                {getActivityTypeLabel(type)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                {/* Submission Filter */}
+                                <Select
+                                    value={submissionFilter}
+                                    onValueChange={(v) => setSubmissionFilter(v as "PENDING" | "ALL")}
+                                >
+                                    <SelectTrigger className="w-[200px]">
+                                        <SelectValue placeholder="Submissions" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="PENDING">Pending Only</SelectItem>
+                                        <SelectItem value="ALL">All (incl. submitted)</SelectItem>
+                                    </SelectContent>
+                                </Select>
 
                                 {/* Items Per Page */}
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 ml-auto">
                                     <span className="text-sm text-muted-foreground">Show:</span>
                                     <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
                                         <SelectTrigger className="w-[80px]">
@@ -364,142 +389,79 @@ export default function StudentActivities() {
                                     </Select>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm text-muted-foreground">Show:</span>
-                                <Badge
-                                    variant={submissionFilter === "PENDING" ? "default" : "outline"}
-                                    className="cursor-pointer"
-                                    onClick={() => setSubmissionFilter("PENDING")}
-                                >
-                                    Pending
-                                </Badge>
-                                <Badge
-                                    variant={submissionFilter === "ALL" ? "default" : "outline"}
-                                    className="cursor-pointer"
-                                    onClick={() => setSubmissionFilter("ALL")}
-                                >
-                                    All (including submitted)
-                                </Badge>
-                            </div>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-6">
+                        <div className="grid grid-cols-1 gap-4">
                             {paginatedActivities.map((activity: HpActivity) => (
                                 <Card
                                     key={activity._id}
-                                    className="relative overflow-hidden rounded-xl border bg-card shadow-sm hover:shadow-md transition-all"
+                                    className="group relative overflow-hidden rounded-xl border bg-card p-0 shadow-sm transition-all hover:border-primary/50 hover:shadow-md"
                                 >
-                                    <div className="absolute left-0 top-0 h-full w-1 bg-emerald-500" />
-
-                                    <div className="flex items-start justify-between gap-6 px-6 py-5 pl-8">
-                                        <div className="flex flex-col gap-2 flex-1 min-w-0">
-
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <CardTitle className="text-base font-semibold">
-                                                    {activity.title}
-                                                </CardTitle>
-
-                                                <Badge variant="secondary">
+                                    <div className="flex items-center justify-between gap-6 px-6 py-5">
+                                        {/* Left: Info */}
+                                        <div className="flex-1 min-w-0 space-y-1.5">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-semibold text-base" title={activity.title}>
+                                                    {truncateText(activity.title, 70)}
+                                                </span>
+                                                <Badge variant="secondary" className="text-xs">
                                                     {getActivityTypeLabel(activity.activityType)}
                                                 </Badge>
-
-                                                <Badge variant="outline">
-                                                    {activity.submissionMode === 'EXTERNAL_LINK'
-                                                        ? 'External Link'
-                                                        : 'In Platform'}
-                                                </Badge>
-
-                                                {activity.rules && (
-                                                    activity.rules.isMandatory ? (
-                                                        <Badge variant={"destructive"}
-                                                            className="text-xs px-2 py-0.5 rounded-full"
-                                                        >
-                                                            <AlertCircle className="h-3 w-3" />
-                                                            Mandatory
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge variant="outline">
-                                                            Optional
-                                                        </Badge>
-                                                    )
+                                                {activity.isSubmitted && (
+                                                    <Badge variant="default" className="text-xs">Submitted</Badge>
                                                 )}
-
                                             </div>
-                                            <p className="text-sm text-muted-foreground line-clamp-2">
-                                                {activity.description}
-                                            </p>
-                                            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                                            {activity.description && (
+                                                <p className="text-sm text-muted-foreground" title={activity.description}>
+                                                    {truncateText(activity.description, 85)}
+                                                </p>
+                                            )}
+                                            <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-border/50">
                                                 {activity.createdAt && (
-                                                    <div className="flex items-center gap-1">
-                                                        <Clock className="h-3.5 w-3.5" />
-                                                        <span>Created {formatDate(activity.createdAt)}</span>
+                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                        <Calendar className="h-3.5 w-3.5 opacity-70" />
+                                                        <span>
+                                                            <span className="font-medium text-foreground/80">Created:</span>{" "}
+                                                            {formatDate(activity.createdAt)}
+                                                        </span>
                                                     </div>
                                                 )}
-                                                {activity.instructorName && (
-                                                    <div className="flex items-center gap-1">
-                                                        <User className="h-3.5 w-3.5" />
-                                                        <span>By: {activity.instructorName}</span>
+                                                {activity.rules?.deadlineAt && (
+                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                        <Clock className="h-3.5 w-3.5 opacity-70 text-orange-500" />
+                                                        <span>
+                                                            <span className="font-medium text-foreground/80">Deadline:</span>{" "}
+                                                            <span className="text-foreground font-medium">{formatDate(activity.rules.deadlineAt.toString())}</span>
+                                                        </span>
                                                     </div>
                                                 )}
                                             </div>
                                         </div>
-                                        <div className="flex flex-col items-end gap-3 shrink-0">
+
+                                        {/* Right: Countdown + View */}
+                                        <div className="flex items-center gap-4 shrink-0">
                                             {activity.rules?.deadlineAt && (
-                                                <div className="text-right text-xs text-muted-foreground">
-
-                                                    <div className="flex items-center justify-end gap-1 text-orange-600">
-                                                        <Clock className="h-3.5 w-3.5" />
-                                                        <span className="font-medium">Deadline</span>
-                                                    </div>
-
-                                                    <div className="text-sm font-medium text-foreground">
-                                                        {formatDate(activity.rules.deadlineAt.toString())}
-                                                    </div>
-
-                                                    <div className="text-[11px] text-orange-500">
-                                                        <DeadlineCountdown
-                                                            deadline={activity.rules.deadlineAt.toString()}
-                                                            allowLate={activity.rules.allowLateSubmission ?? true}
-                                                        />
-                                                    </div>
-
+                                                <div className="text-sm font-semibold">
+                                                    <DeadlineCountdown
+                                                        deadline={activity.rules.deadlineAt.toString()}
+                                                        allowLate={activity.rules.allowLateSubmission ?? true}
+                                                    />
                                                 </div>
                                             )}
-
                                             <Button
-                                                className="bg-primary"
                                                 size="sm"
                                                 variant="outline"
                                                 onClick={() =>
                                                     navigate({
-                                                        to: `/student/hp-system/${courseVersionId}/${cohortName}/activities/${activity._id}`, state: { from }
+                                                        to: `/student/hp-system/${courseVersionId}/${cohortName}/activities/${activity._id}`,
+                                                        state: { from }
                                                     })
                                                 }
                                             >
                                                 View
                                             </Button>
-
                                         </div>
-
                                     </div>
-                                    {activity.isSubmitted && (
-                                        <span className="absolute bottom-5 left-8 flex flex-row gap-4 items-center">
-                                            <Badge variant={activity.isSubmitted ? 'default' : 'destructive'}>{activity.isSubmitted ? 'This activity has already been submitted.' : 'Not Submitted'}</Badge>
-                                            {/* <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-xs underline text-muted-foreground"
-                                onClick={() =>
-                                navigate({
-                                    to: `/student/hp-system/${courseVersionId}/${cohortName}/submissions`,
-                                    state: { from }
-                                })
-                                }
-                            >
-                                View Submission
-                            </Button> */}
-                                        </span>
-                                    )}
                                 </Card>
                             ))}
                         </div>
