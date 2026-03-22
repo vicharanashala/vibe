@@ -73,7 +73,6 @@ const processMilestoneRewards = async (
     dependencies: ProcessRewardDependencies
 ) => {
     const { activityRepo, ledgerRepo, cohortRepo, db } = dependencies;
-
     // Get activity details
     const activity = await activityRepo.findById(activityConfig.activityId.toString());
     if (!activity) {
@@ -103,12 +102,12 @@ const processMilestoneRewards = async (
     // <<<<<<<<<<<<<<<<<<<< CHANGE THIS WHIEN UPDATING COHORT NAME TO COHORT ID IN THE DB >>>>>>>>>>>>>>>
     const cohortId = await cohortRepo.getCohortIdByCohortName(activity.cohort);
 
+
     // Get enrolled students for this course/version
     const enrolledStudents = await cohortRepo.getStudentsForCohortByVersionAndCohortName(
         courseVersionId.toString(),
-        cohortId.toString()
+        cohortId
     );
-
 
     if (!enrolledStudents || enrolledStudents.length == 0) return false
 
@@ -207,7 +206,7 @@ const processStudentReward = async (
 
     const studentId = student._id.toString();
 
-    console.log(`\n🎓 Processing student: ${studentId}, ==> Current progress: ${student.completionPercentage || 0}%`);
+    console.log(`\n🎓 Processing student: ${student.email}, ==> Current progress: ${student.completionPercentage || 0}%`);
 
     // Calculate reward amount
     const currentHp = student.totalHp || 0;
@@ -217,10 +216,10 @@ const processStudentReward = async (
         activityConfig.limits
     );
 
-    if (rewardAmount <= 0) {
-        console.log(`💰 Reward amount is 0 or negative - skipping`);
-        return;
-    }
+    // if (rewardAmount <= 0) {
+    //     console.log(`💰 Reward amount is 0 or negative - skipping`);
+    //     return;
+    // }
 
     const newHp = currentHp + rewardAmount;
 
@@ -266,7 +265,7 @@ const calculateRewardAmount = (
             finalReward = rewardMaxLimit;
         }
 
-        return Math.max(0,finalReward);
+        return Math.max(0, finalReward);
     }
 
     return 0;
