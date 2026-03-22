@@ -385,7 +385,7 @@ const applyStudentReward = async (
                     percentage: activityConfig.reward.type === "PERCENTAGE" ? activityConfig.reward.value : undefined,
                     absolutePoints: activityConfig.reward.type === "ABSOLUTE" ? activityConfig.reward.value : undefined,
                     baseHpAtTime: student.totalHp ?? 0,
-                    computedAmount: student.totalHp + rewardAmount,
+                    computedAmount: newHp,
                     deadlineAt: activityConfig.deadlineAt,
                     withinDeadline: new Date() <= new Date(activityConfig.deadlineAt),
                     reasonCode: HpReasonCode.MILESTONE_REWARD
