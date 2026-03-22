@@ -5121,6 +5121,31 @@ export function useHpCohorts(courseVersionId: string) {
   };
 }
 
+export function useCourseDetails(versionId?: string) {
+  const query = useQuery({
+    queryKey: ['course-details', versionId],
+    queryFn: async () => {
+      if (!versionId) return null;
+
+      const res = await hpApi.getCourseDetails(versionId);
+
+      if (!res.success) {
+        throw new Error(res.message || "Failed to fetch course details");
+      }
+
+      return res.data;
+    },
+    enabled: !!versionId, 
+    staleTime: 5 * 60 * 1000, 
+  });
+
+  return {
+    data: query.data,
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+  };
+}
+
 export function useHpStudentCohorts() {
   const query = useQuery({
     queryKey: ['hp-student-cohorts'],
@@ -5132,6 +5157,7 @@ export function useHpStudentCohorts() {
     refetchOnWindowFocus: false,
   });
 
+  
   return {
     data: query.data?.data || [],
     totalHp: query.data?.totalHp ?? 0,

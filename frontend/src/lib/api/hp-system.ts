@@ -398,10 +398,14 @@ export interface HpStudentSubmissionStats {
 export const hpApi = {
 
     // ── Courses & Cohorts (mock backend) ──────────────────────
-
+    
     getCourseVersions: async (): Promise<{ success: boolean; data: CourseWithVersions[] }> => {
         return apiFetch(`${BASE_URL}/courses-cohorts/courses/versions`);
     },
+
+    getCourseDetails: async (versionId: string) => {
+    return apiFetch(`${BASE_URL}/courses-cohorts/course/${versionId}/details`);
+},
 
     getCohorts: async (courseVersionId: string): Promise<{ success: boolean; message: string; data: CohortStats[] }> => {
         const params = new URLSearchParams({ courseVersionId });
