@@ -439,6 +439,7 @@ export class ActivityRepository implements IActivityRepository {
   }
 
   async deleteById(activityId: string, session?: ClientSession): Promise<void> {
+    await this.init()
     await this.hpActivityCollection.deleteOne({ _id: new ObjectId(activityId) }, { session })
   }
 }
