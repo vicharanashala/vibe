@@ -43,6 +43,22 @@ export class CloudStorageService {
     return filename;
   }
 
+  async uploadAvatar(
+    file: Express.Multer.File,
+    userId: string,
+  ): Promise<string> {
+    const ext = file.mimetype.split('/')[1];
+    const filename = `avatars/${userId}.${ext}`;
+    const bucket = this.googleStorage.bucket(this.anomalyBucketName);
+    const gcsFile = bucket.file(filename);
+    await gcsFile.save(file.buffer, {
+      metadata: {contentType: file.mimetype},
+      public: true,
+    });
+    return `https://storage.googleapis.com/${this.anomalyBucketName}/${filename}`;
+  }
+
+
   /**
    * Delete anomaly from cloud storage
    */
