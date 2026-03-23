@@ -47,6 +47,9 @@ import { SETTING_TYPES } from '#root/modules/setting/types.js';
 import { CourseSettingService } from '#root/modules/setting/index.js';
 import { getContainer } from '#root/bootstrap/loadModules.js';
 
+const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
+const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
+
 @injectable()
 class ProgressService extends BaseService {
   private getCourseSettingService(): CourseSettingService {
@@ -91,6 +94,36 @@ class ProgressService extends BaseService {
     private readonly database: MongoDatabase, // inject the database provider
   ) {
     super(database);
+  }
+
+  private async calculateGuruSetuProgress(
+    userId: string,
+    courseVersionId: string,
+  ): Promise<{ percentCompleted: number; completedItemsCount: number }> {
+    const feedbackItems = await this.itemRepo.getFeedbackItems(courseVersionId);
+    const totalFeedbackItems = feedbackItems.length;
+
+    if (totalFeedbackItems === 0) return { percentCompleted: 0, completedItemsCount: 0 };
+
+    const feedbackSubmissions = await this.feedbackRepository.getAllByUserAndVersionId(
+      userId,
+      courseVersionId,
+    );
+
+    const submittedItemIds = new Set(
+      feedbackSubmissions.map(s => s.feedbackFormId.toString())
+    );
+
+    const completedCount = feedbackItems.filter(item =>
+      submittedItemIds.has(item._id.toString())
+    ).length;
+
+    const percentCompleted = parseFloat(((completedCount / totalFeedbackItems) * 100).toFixed(2));
+
+    return {
+      percentCompleted,
+      completedItemsCount: completedCount,
+    };
   }
 
   /**
@@ -393,6 +426,22 @@ class ProgressService extends BaseService {
 
     let percentCompleted = 0;
     let totalCompletedItemsCount = 0;
+
+    // Guru Setu Progress Override
+    if (courseId === GURU_SETU_COURSE_ID && courseVersionId === GURU_SETU_VERSION_ID) {
+      const guruProgress = await this.calculateGuruSetuProgress(userId, courseVersionId);
+      percentCompleted = guruProgress.percentCompleted;
+      totalCompletedItemsCount = guruProgress.completedItemsCount;
+
+      await this.enrollmentRepo.updateProgressPercentById(
+        enrollment._id.toString(),
+        percentCompleted,
+        totalCompletedItemsCount,
+        cohort,
+        session,
+      );
+      return;
+    }
 
     if (!isReset) {
       // const totalItems =
@@ -1597,6 +1646,11 @@ class ProgressService extends BaseService {
     itemId: string,
     cohortId?: string,
   ): Promise<string> {
+    // Guru Setu Progress Override
+    if (courseId === GURU_SETU_COURSE_ID && courseVersionId === GURU_SETU_VERSION_ID) {
+      await this.updateEnrollmentProgressPercent(userId, courseId, courseVersionId, undefined, false, undefined, undefined, cohortId);
+    }
+
     // console.log(`Starting item tracking for user ${userId}, course ${courseId}, version ${courseVersionId}, item ${itemId}, cohort ${cohortId}`);
     return this._withTransaction(async session => {
 
@@ -1657,7 +1711,7 @@ class ProgressService extends BaseService {
           courseId,
           courseVersionId,
         );
-      if (!linearProgressionEnabled) {
+      if (!linearProgressionEnabled && (courseId !== GURU_SETU_COURSE_ID || courseVersionId !== GURU_SETU_VERSION_ID)) {
         const newProgress: Partial<IProgress> = {
           completed: isItemCompleted,
           currentModule: moduleId,
@@ -1962,6 +2016,13 @@ class ProgressService extends BaseService {
     nextItemId?: string,
     cohortId?: string,
   ): Promise<void> {
+    // Guru Setu Progress Override - The progress update is solely determined by 
+    // the completion of feedback forms, which is handled in updateEnrollmentProgressPercent.
+    // However, we still want to allow the user to advance through the course items normally.
+    // If the user wants to bypass the updateProgress call entirely, they can, but a partial bypass
+    // might be better if they still want to track "currentItem".
+    // According to the requirement: "Disable or bypass the updateProgress call".
+    
     // console.log(`Stopping item tracking for user ${userId}, course ${courseId}, version ${courseVersionId}, item ${itemId}, cohort ${cohortId}`);
     // Fetch course version, progress, item, and linear progression setting in parallel
     const [courseVersion, progress, item, linearProgressionEnabled] = await Promise.all([
@@ -2197,26 +2258,30 @@ class ProgressService extends BaseService {
 
       const percentCompleted = Math.min(100, parseFloat(rawPercent.toFixed(2)));
 
-      await this.enrollmentRepo.updateProgressPercentById(
-        enrollment._id.toString(),
-        percentCompleted,
-        completedCourseItemsCount,
-        cohortId,
-      );
+      if (courseId !== GURU_SETU_COURSE_ID || courseVersionId !== GURU_SETU_VERSION_ID) {
+        await this.enrollmentRepo.updateProgressPercentById(
+          enrollment._id.toString(),
+          percentCompleted,
+          completedCourseItemsCount,
+          cohortId,
+        );
+      }
 
       if (percentCompleted > 99) {
         await this.recalculateStudentProgress(userId, courseId, courseVersionId, cohortId);
       }
 
       // Update progress in a transaction
-      await this.progressRepository.updateProgress( // pending
-        userId,
-        courseId,
-        courseVersionId,
-        newProgress,
-        cohortId,
-        session,
-      );
+      if (courseId !== GURU_SETU_COURSE_ID || courseVersionId !== GURU_SETU_VERSION_ID) {
+        await this.progressRepository.updateProgress( // pending
+          userId,
+          courseId,
+          courseVersionId,
+          newProgress,
+          cohortId,
+          session,
+        );
+      }
     });
   }
 
