@@ -46,11 +46,11 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
         >, session?: ClientSession
     ): Promise<HpRuleConfigTransformer | null> {
         await this.init();
-        const activityId = new ObjectId(ruleConfigId);
+        const _id = new ObjectId(ruleConfigId);
 
         const result = await this.hpRuleConfigsCollection.findOneAndUpdate(
             {
-                activityId, isDeleted: { $ne: true },
+                _id, isDeleted: { $ne: true },
             },
             { $set: patch },
             { returnDocument: "after", session }
@@ -63,15 +63,19 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
 
     async findById(ruleConfigId: string): Promise<HpRuleConfigTransformer | null> {
         await this.init();
-        const activityId = new ObjectId(ruleConfigId);
-        console.log("Finding rule config by ID:", activityId);
         const doc = await this.hpRuleConfigsCollection.findOne({
             _id: new ObjectId(ruleConfigId), isDeleted: { $ne: true },
         });
-        return plainToInstance(HpRuleConfigTransformer, doc as HpRuleConfig, {
-            excludeExtraneousValues: true,
-            exposeDefaultValues: true,
-        });
+        if (!doc) return null;
+        const result = {
+            ...doc,
+            _id: doc._id?.toString(),
+            courseId: doc.courseId?.toString(),
+            courseVersionId: doc.courseVersionId?.toString(),
+            activityId: doc.activityId?.toString(),
+        };
+
+        return result as HpRuleConfigTransformer;
     }
 
     async findByActivityId(activityId: string): Promise<HpRuleConfigTransformer | null> {

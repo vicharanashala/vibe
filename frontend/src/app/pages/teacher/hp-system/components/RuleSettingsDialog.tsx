@@ -28,6 +28,7 @@ interface RuleSettingsDialogProps {
     onOpenChange: (open: boolean) => void;
     courseId: string;
     courseVersionId: string;
+    cohortName: string;
     activityId: string;
 }
 
@@ -36,6 +37,7 @@ export function RuleSettingsDialog({
     onOpenChange,
     courseId,
     courseVersionId,
+    cohortName,
     activityId,
 }: RuleSettingsDialogProps) {
     const [config, setConfig] = useState<Partial<HpRuleConfig> | null>(null);
@@ -49,7 +51,7 @@ export function RuleSettingsDialog({
     // Hooks
     const { data: existingConfig, isLoading: fetchLoading, refetch } = useHpRuleConfig(isOpen ? activityId : undefined);
     console.log("Existing config from hook:", existingConfig, "Loading:", fetchLoading);
-    const { data: activities = [] } = useHpActivities(courseVersionId, "", "", "");
+    const { data: activities = [] } = useHpActivities(courseVersionId, cohortName, "", "");
     const activity = activities.find((a: HpActivity) => a._id === activityId);
     const { mutateAsync: createRuleConfig, isPending: isCreating } = useCreateHpRuleConfig();
     const { mutateAsync: updateRuleConfig, isPending: isUpdating } = useUpdateHpRuleConfig();
@@ -100,7 +102,7 @@ export function RuleSettingsDialog({
         }
     }, [isOpen, existingConfig, fetchLoading, activity]);
 
-    const [errors, setErrors] = useState<{ deadlineAt?: string; penaltyEnabled?: string; requiredPercentage?: string }>({});
+    const [errors, setErrors] = useState<{ deadlineAt?: string; penaltyEnabled?: string; requiredPercentage?: string; maxHp?: string }>({});
 
     const handleSave = async () => {
         if (!config) return;
@@ -126,6 +128,15 @@ export function RuleSettingsDialog({
 
         if (activity?.activityType === "VIBE_MILESTONE" && ((config as any).required_percentage === undefined || Number.isNaN((config as any).required_percentage))) {
             nextErrors.requiredPercentage = "Required percentage must be provided for a Vibe Milestone activity.";
+            hasError = true;
+        }
+
+        if (
+            config.limits?.minHp !== undefined &&
+            config.limits?.maxHp !== undefined &&
+            config.limits.maxHp <= config.limits.minHp
+        ) {
+            nextErrors.maxHp = "Maximum HP must be greater than Minimum HP.";
             hasError = true;
         }
 
@@ -196,7 +207,8 @@ export function RuleSettingsDialog({
                 ) : (
                     <div className="space-y-8 py-4">
 
-                        {/* Mandatory Toggle */}
+                        {/* Mandatory Toggle — hidden for VIBE_MILESTONE (always mandatory) */}
+                        {activity?.activityType !== "VIBE_MILESTONE" && (
                         <div className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
                             <div className="space-y-0.5">
                                 <Label className="text-base">Mandatory Activity</Label>
@@ -213,6 +225,7 @@ export function RuleSettingsDialog({
                                 } as any))}
                             />
                         </div>
+                        )}
 
                         {/* Required Progress Percentage (Milestones Only) */}
                         {(activity?.activityType === "MILESTONE" || activity?.activityType === "VIBE_MILESTONE") && (
@@ -291,6 +304,8 @@ export function RuleSettingsDialog({
                                     {errors.deadlineAt && <p className="text-xs text-red-500 mt-1">{errors.deadlineAt}</p>}
                                 </div>
 
+                                {/* Allow Late — hidden for VIBE_MILESTONE */}
+                                {activity?.activityType !== "VIBE_MILESTONE" && (
                                 <div className="space-y-2 flex flex-col justify-end pb-2">
                                     <div className="flex items-center gap-2">
                                         <Switch
@@ -301,6 +316,7 @@ export function RuleSettingsDialog({
                                         <Label htmlFor="allow-late">Allow Late Submissions</Label>
                                     </div>
                                 </div>
+                                )}
                             </div>
                         </div>
 
@@ -352,6 +368,8 @@ export function RuleSettingsDialog({
 
 
 
+                                {/* Apply Policy — hidden for VIBE_MILESTONE */}
+                                {activity?.activityType !== "VIBE_MILESTONE" && (
                                 <div className="space-y-2">
                                     <Label>Apply Policy</Label>
                                     <Select
@@ -370,7 +388,10 @@ export function RuleSettingsDialog({
                                         </SelectContent>
                                     </Select>
                                 </div>
+                                )}
 
+                                {/* Late Reward Behavior — only shown when allow late is ON */}
+                                {config?.allowLateSubmission && (
                                 <div className="space-y-2">
                                     <Label>Late Reward Behavior</Label>
                                     <Select
@@ -400,7 +421,6 @@ export function RuleSettingsDialog({
                                                 } as any));
                                             }
                                         }}
-                                        disabled={!config?.allowLateSubmission}
                                     >
                                         <SelectTrigger>
                                             <SelectValue />
@@ -411,8 +431,8 @@ export function RuleSettingsDialog({
                                             <SelectItem value="REWARD_DENIED">Deny Reward</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    {!config?.allowLateSubmission && <p className="text-[10px] text-muted-foreground">Enable Late Submissions to configure late behavior.</p>}
                                 </div>
+                                )}
                             </div>
                             )}
                         </div>
@@ -502,6 +522,7 @@ export function RuleSettingsDialog({
                                                 limits: { ...(prev?.limits || {}), maxHp: e.target.value === "" ? undefined : parseInt(e.target.value) }
                                             } as any))}
                                         />
+                                        {errors.maxHp && <p className="text-xs text-red-500 mt-1">{errors.maxHp}</p>}
                                     </div>
                                 </div>
                                 <p className="text-[10px] text-muted-foreground">

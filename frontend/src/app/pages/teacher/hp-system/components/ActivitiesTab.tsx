@@ -580,6 +580,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                 onOpenChange={setIsRulesOpen}
                 courseId={courseId}
                 courseVersionId={courseVersionId}
+                cohortName={cohortName}
                 activityId={selectedActivityId}
             />
 

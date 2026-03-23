@@ -218,7 +218,7 @@ export function EditActivityDialog({
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="IN_PLATFORM">In-Platform Uploads</SelectItem>
-                                                <SelectItem value="EXTERNAL_LINK">External Link</SelectItem>
+                                                {/* <SelectItem value="EXTERNAL_LINK">External Link</SelectItem> */}
                                             </SelectContent>
                                         </Select>
                                     )}
