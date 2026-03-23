@@ -194,7 +194,7 @@ export function EditActivityDialog({
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="ASSIGNMENT">Assignment</SelectItem>
-                                                <SelectItem value="VIBE_MILESTONE">Vibe Platform Milestone</SelectItem>
+                                                {/* <SelectItem value="VIBE_MILESTONE">Vibe Platform Milestone</SelectItem> */}
                                             </SelectContent>
                                         </Select>
                                     )}
