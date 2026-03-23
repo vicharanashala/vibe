@@ -973,6 +973,16 @@ const lastCalledRef = useRef<number>(0);
 
   if (!isVisible) return null;
 
+// Helper function
+const getHeaderColor = () => {
+  if (isAnomaliesDetected) {
+    if (penaltyPoints > 50) return "bg-red-600"; 
+    return "bg-yellow-600";  
+  }
+  return "bg-green-600"; 
+};
+
+
   const videoHeight = size.height - 30; // Always maintain video height for AI detection
   const containerHeight = isCollapsed ? 34 : size.height; // Just header height when collapsed
 
@@ -1029,21 +1039,31 @@ const lastCalledRef = useRef<number>(0);
 
       {/* Grace period status display */}
       {isInGracePeriod && (
-         <div className="absolute top-1 left-1 bg-blue-600 text-white px-2 py-1 rounded text-xs z-50">
-          ⏳ Calibrating: {Math.ceil(remainingGrace / 1000)}s
-        </div>
+        <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center z-50">
+          <div className="bg-blue-600 text-white px-3 py-1 rounded text-xs">
+            ⏳ Calibrating: {Math.ceil(remainingGrace / 1000)}s
+          </div>
+       </div>
       )}
 
-      {/* Header - Anomaly state */}
+      {/* Header - Dynamic color (Red/Yellow/Green) based on anomaly state */}
       {isAnomaliesDetected && (
-        <div className={`bg-red-600 text-white px-3 py-1 flex justify-between items-center text-sm min-h-[34px]`}>
+        <div className={`${getHeaderColor()} text-white px-3 py-1 flex justify-between items-center text-sm min-h-[34px]`}>
           <div className="flex items-center space-x-2 flex-1 min-w-0">
             <span className="font-medium truncate">
-              {isThumbsUpChallenge
-                ? `👍 Show Thumbs Up: ${thumbsUpCountdown}s`
-                : `⚠️ ${isCollapsed ? `${penaltyType || 'Anomalies'} (${penaltyPoints})` : 'Detected Anomalies!'}`
-              }
+              {isAnomaliesDetected ? (
+                isThumbsUpChallenge
+                  ? `👍 Show Thumbs Up: ${thumbsUpCountdown}s`
+                  : `⚠️ ${isCollapsed ? `${penaltyType || 'Anomalies'} (${penaltyPoints})` : 'Detected Anomalies!'}`
+              ) : (
+                `☑️ ${isCollapsed ? `All Clear (${penaltyPoints})` : 'All Clear'}`
+              )}
             </span>
+            {!isAnomaliesDetected && !isCollapsed && recognizedFaces.length > 0 && (
+              <span className="text-xs opacity-90">
+                | Recognized: {recognizedFaces.filter(f => f.isMatch).map(f => f.label).join(', ') || 'Unknown'}
+              </span>
+            )}
           </div>
           <div className="flex items-center space-x-1 flex-shrink-0">
             <Button
@@ -1064,44 +1084,6 @@ const lastCalledRef = useRef<number>(0);
                 setIsPoppedOut(!isPoppedOut);
               }}
               className="h-6 w-6 p-0 text-white hover:bg-current hover:text-white flex-shrink-0"
-            >
-              {isPoppedOut ? <SquareArrowOutDownLeft className="h-3 w-3" /> : <PictureInPicture2 className="h-3 w-3" />}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Header - Normal state */}
-      {!isAnomaliesDetected && (
-        <div className="bg-green-600 text-white px-3 py-1 flex justify-between items-center text-sm">
-          <div className="flex items-center space-x-2 flex-1">
-            <span className="font-medium">☑️ {isCollapsed ? `All Clear (${penaltyPoints})` : 'All Clear'}</span>
-            {/* Face Recognition Status */}
-            {!isCollapsed && recognizedFaces.length > 0 && (
-              <span className="text-xs opacity-90">
-                | Recognized: {recognizedFaces.filter(f => f.isMatch).map(f => f.label).join(', ') || 'Unknown'}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center space-x-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleCollapse}
-              className="h-6 w-6 p-0 text-white hover:bg-green-700 hover:text-white"
-              title={isCollapsed ? 'Expand' : 'Collapse'}
-            >
-              {isCollapsed ? <ChevronUp className="h-3 w-3" /> :<ChevronDown className="h-3 w-3" />}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                setIsPoppedOut(!isPoppedOut);
-              }}
-              className="h-6 w-6 p-0 text-white hover:bg-current hover:text-white"
             >
               {isPoppedOut ? <SquareArrowOutDownLeft className="h-3 w-3" /> : <PictureInPicture2 className="h-3 w-3" />}
             </Button>
