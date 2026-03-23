@@ -10,6 +10,7 @@ import {EjectionPolicyRepository} from '../repositories/providers/mongodb/Ejecti
 import {ManualEjectionService} from './ManualEjectionService.js';
 import {EjectionPolicy} from '../classes/transformers/EjectionPolicy.js';
 import {IEnrollment} from '#root/shared/interfaces/models.js';
+import {NotificationService} from '#root/modules/notifications/services/NotificationService.js';
 
 // Run at 2:00 AM every day by default — can be overridden
 const DEFAULT_CRON_SCHEDULE = '0 2 * * *';
@@ -26,6 +27,9 @@ export class AutoEjectionEngine extends BaseService {
 
     @inject(EJECTION_POLICY_TYPES.ManualEjectionService)
     private readonly ejectionService: ManualEjectionService,
+
+    @inject(EJECTION_POLICY_TYPES.NotificationService)
+    private readonly notificationService: NotificationService,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
@@ -224,11 +228,19 @@ export class AutoEjectionEngine extends BaseService {
     }
 
     if (daysSinceActive >= thresholdDays - warningDays) {
-      // Student is in the warning zone — T-03 will send notification
-      // For now just log it
       console.log(
-        `[AutoEjectionEngine] Warning zone: student ${student.userId} — inactive ${daysSinceActive} days (warning threshold: ${thresholdDays - warningDays})`,
+        `[AutoEjectionEngine] Warning: student ${student.userId} inactive ${daysSinceActive} days`,
       );
+
+      await this.notificationService.notifyInactivityWarning(
+        student.userId.toString(),
+        student.courseId.toString(),
+        student.courseVersionId.toString(),
+        daysSinceActive,
+        thresholdDays,
+        student.cohortId?.toString(),
+      );
+
       return 'warned';
     }
 

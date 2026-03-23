@@ -4,7 +4,8 @@ export type NotificationType =
   | 'ejection'
   | 'reinstatement'
   | 'policy_created'
-  | 'policy_updated';
+  | 'policy_updated'
+  | 'inactivity_warning';
 
 export interface INotification {
   _id?: ObjectId | string;
