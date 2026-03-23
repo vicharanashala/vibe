@@ -225,7 +225,7 @@ export class GenAIService extends BaseService {
               ...job.uploadParameters,
               ...this.removeUndefined(parameters as Partial<UploadParameters>),
             },
-          }, session);
+          });
         }
         const result = await this.uploadContent(jobId, jobState);
         return result;
@@ -367,56 +367,56 @@ export class GenAIService extends BaseService {
   // }
 
   async getTaskStatus(
-  jobId: string,
-  type: TaskType,
-): Promise<any> {
-  return this._withTransaction(async session => {
+    jobId: string,
+    type: TaskType,
+  ): Promise<any> {
+    return this._withTransaction(async session => {
 
-    const taskData = await this.genAIRepository.getTaskDataByJobId(
-      jobId,
-      session,
-    );
+      const taskData = await this.genAIRepository.getTaskDataByJobId(
+        jobId,
+        session,
+      );
 
-    if (!taskData) {
-      return {
-        task: type,
-        status: "WAITING",
-        message: "Job not initialized yet"
-      };
-    }
+      if (!taskData) {
+        return {
+          task: type,
+          status: "WAITING",
+          message: "Job not initialized yet"
+        };
+      }
 
-    let result;
+      let result;
 
-    switch (type) {
-      case TaskType.AUDIO_EXTRACTION:
-        result = taskData.audioExtraction;
-        break;
-      case TaskType.TRANSCRIPT_GENERATION:
-        result = taskData.transcriptGeneration;
-        break;
-      case TaskType.SEGMENTATION:
-        result = taskData.segmentation;
-        break;
-      case TaskType.QUESTION_GENERATION:
-        result = taskData.questionGeneration;
-        break;
-      case TaskType.UPLOAD_CONTENT:
-        result = taskData.uploadContent;
-        break;
-      default:
-        throw new BadRequestError(`Invalid task type: ${type}`);
-    }
+      switch (type) {
+        case TaskType.AUDIO_EXTRACTION:
+          result = taskData.audioExtraction;
+          break;
+        case TaskType.TRANSCRIPT_GENERATION:
+          result = taskData.transcriptGeneration;
+          break;
+        case TaskType.SEGMENTATION:
+          result = taskData.segmentation;
+          break;
+        case TaskType.QUESTION_GENERATION:
+          result = taskData.questionGeneration;
+          break;
+        case TaskType.UPLOAD_CONTENT:
+          result = taskData.uploadContent;
+          break;
+        default:
+          throw new BadRequestError(`Invalid task type: ${type}`);
+      }
 
-    if (!result) {
-      return {
-        task: type,
-        status: "WAITING"
-      };
-    }
+      if (!result) {
+        return {
+          task: type,
+          status: "WAITING"
+        };
+      }
 
-    return result;
-  });
-}
+      return result;
+    });
+  }
 
   async editSegmentMap(
     jobId: string,

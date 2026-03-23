@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { aiSectionAPI, connectToLiveStatusUpdates, JobStatus, getApiUrl } from "@/lib/genai-api";
+import { aiSectionAPI, JobStatus, getApiUrl } from "@/lib/genai-api";
 import {
   Accordion,
   AccordionContent,
@@ -27,8 +27,6 @@ import {
   FileText,
   ListChecks,
   MessageSquareText,
-  Workflow,
-  Info,
   Brain,
   Eye,
   EyeOff,
@@ -43,12 +41,14 @@ import {
   FileMusic,
   Upload,
   Share,
-  BookOpen
+  BookOpen,
+  RotateCcw
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useCourseStore } from "@/store/course-store";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 
 // Enhanced question types to match backend
 type QuestionType = 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'ORDER_THE_LOTS' | 'NUMERIC_ANSWER_TYPE' | 'DESCRIPTIVE';
@@ -57,7 +57,7 @@ interface TaskRun {
   id: string;
   timestamp: Date;
   status: "loading" | "done" | "failed" | "stopped";
-  result?: JobStatus;
+  result?: any;
   parameters?: Record<string, unknown>;
 }
 
@@ -110,12 +110,13 @@ interface VideoData {
 }
 
 type QuestionGenParams = {
- 
+  model?: string;
   SOL: number;
   SML: number;
   NAT: number;
   DES: number;
-  BIN:number;
+  BIN: number;
+  numberOfQuestions: number;
   prompt: string;
 };
 
@@ -186,71 +187,64 @@ const getStepStatus = (jobStatus: any, stepKey: string) => {
     if (status === 'completed') return 'completed';
     if (status === 'failed') return 'failed';
     if (status === 'stopped') return 'stopped';
-    if (status === 'waiting' || status === 'pending') return 'pending';
+    if (status === 'waiting') return 'waiting';
+    if (status === 'working' || status === 'pending') return 'pending';
     return 'pending';
   }
 }
 
 
-const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
-
-  const activeStep = React.useMemo(() => {
-    if (!jobStatus) return null;
-
-    if (jobStatus.task === 'AUDIO_EXTRACTION') {
-      return 'audioExtraction';
-    }
-    if (jobStatus.task === 'TRANSCRIPT_GENERATION') {
-      return 'transcriptGeneration';
-    }
-    if (jobStatus.task === 'SEGMENTATION') {
-      return 'segmentation';
-    }
-    if (jobStatus.task === 'QUESTION_GENERATION') {
-      return 'questionGeneration';
-    }
-    if (jobStatus.task === 'UPLOAD_CONTENT') {
-      return 'uploadContent';
-    }
-
-    return 'transcription';
-  }, [jobStatus]);
+const Stepper = React.memo(({
+  jobStatus,
+  activeStep,
+  progress,
+  audioExtractionProgress
+}: {
+  jobStatus: any,
+  activeStep: string | null,
+  progress: number,
+  audioExtractionProgress: number
+}) => {
 
   // Calculate progress based on completed steps
   const getStepProgress = () => {
-    const stepOrder = [
-      'transcription',
-      'audioExtraction',
-      'transcriptGeneration',
-      'segmentation',
-      'questionGeneration',
-      'uploadContent'
-    ];
-  
-    // Find the last completed step
-    let lastCompletedIndex = -1;
+    if (!jobStatus) return 0;
+    const taskToStep: Record<string, string> = {
+      'AUDIO_EXTRACTION': 'audioExtraction',
+      'TRANSCRIPT_GENERATION': 'transcriptGeneration',
+      'SEGMENTATION': 'segmentation',
+      'QUESTION_GENERATION': 'questionGeneration',
+      'UPLOAD_CONTENT': 'uploadContent',
+    };
+    const stepOrder = ['audioExtraction', 'transcriptGeneration', 'segmentation', 'questionGeneration', 'uploadContent'];
+    const currentTaskStep = taskToStep[jobStatus.task] || null;
+    if (!currentTaskStep) return 0;
+
+    const currentIndex = stepOrder.indexOf(currentTaskStep);
+    if (currentIndex === -1) return 0;
+
+    // Base progress from completed steps: 4 intervals for 5 steps = 25% each
+    const baseProgress = currentIndex * 25;
     
-    stepOrder.forEach((step, index) => {
-      const status = getStepStatus(jobStatus, step);
-      if (status === 'completed') {
-        lastCompletedIndex = index;
-      }
-    });
-    
-    // Only show progress for completed steps
-    if (lastCompletedIndex >= 0) {
-      return ((lastCompletedIndex + 1) / stepOrder.length) * 100;
+    // Add partial progress of the current step (max 25% towards next dot)
+    let stepPartialProgress = 0;
+    if (jobStatus.task === 'AUDIO_EXTRACTION') {
+      stepPartialProgress = audioExtractionProgress;
+    } else {
+      stepPartialProgress = progress;
     }
     
-    return 0;
+    const additionalProgress = (stepPartialProgress / 100) * 25;
+    
+    return Math.min(baseProgress + additionalProgress, 100);
   };
 
   const progressPercentage = getStepProgress();
 
   return (
     <div className="relative mb-12 px-1 sm:px-4">
-      {/* Single continuous progress line */}
-      <div className="absolute left-0 top-5 w-full h-[3px] bg-gray-300 dark:bg-[#FCFDFF] overflow-hidden">
+      {/* Single continuous progress line - Centered with dots */}
+      <div className="absolute left-6 right-6 top-[18px] sm:top-[22px] h-1 bg-gray-200 dark:bg-[#26211E] rounded-full overflow-hidden">
         {progressPercentage > 0 && (
           <div 
             className="h-full bg-gradient-to-r from-[#00D492] to-[#2B7FFF] transition-all duration-500"
@@ -260,61 +254,61 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
       </div>
       
       <div className="flex items-start relative z-10 justify-between gap-0.5 sm:gap-2">
-      {WORKFLOW_STEPS.map((step, idx) => {
+      {WORKFLOW_STEPS.map((step) => {
         const status = getStepStatus(jobStatus, step.key);
-        const isCurrent = step.key === activeStep;
-        const isLast = idx === WORKFLOW_STEPS.length - 1;
-        const isCompleted = status === 'completed';
-        const isFailed = status === 'failed';
-        const isStopped = status === 'stopped';
-        const isActive = status === 'active' || (isCurrent && !isCompleted && !isFailed && !isStopped);
-        const isUpcoming = !isCompleted && !isActive && !isFailed && !isStopped;
+        const isActive = status === 'active' || (step.key === activeStep && status !== 'completed' && status !== 'failed' && status !== 'stopped');
 
         return (
           <React.Fragment key={step.key}>
             <div className="relative flex flex-col items-center min-w-0 flex-1">
           <div className="flex flex-col items-center w-full">
              {/* Step Circle */}
-           <div className={`
+          <div className={`
       relative flex items-center justify-center
       w-9 h-9 sm:w-11 sm:h-11 rounded-[14px] transition-all duration-300 z-10
-      ${isCompleted 
+      ${status === 'completed' 
         ? 'bg-[linear-gradient(135deg,_#00D492_0%,_#009966_100%)] text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.1),_0px_10px_15px_-3px_rgba(0,0,0,0.1)]' 
         : isActive 
           ? 'bg-[linear-gradient(135deg,_#51A2FF_0%,_#9810FA_100%)] text-white shadow-lg ring-4 ring-blue-200' 
-          : isFailed 
+          : status === 'failed' 
             ? 'bg-red-500 text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.1),_0px_10px_15px_-3px_rgba(0,0,0,0.1)]' 
-            : isStopped 
+            : status === 'stopped' 
               ? 'bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.1),_0px_10px_15px_-3px_rgba(0,0,0,0.1)]' 
-              : 'bg-gray-200 dark:bg-[#464545] text-gray-600 dark:text-[#FFFFFF]'}
+              : status === 'waiting'
+                ? 'bg-[linear-gradient(135deg,_#7C3AED_0%,_#C026D3_100%)] text-white shadow-lg'
+                : 'bg-gray-200 dark:bg-[#464545] text-gray-600 dark:text-[#FFFFFF]'}
     `}>
-                      {isCompleted ? (
+                      {status === 'completed' ? (
                         <CheckCircle className="w-3 h-3 sm:w-6 sm:h-6 dark:text-[#0D0D0D]" />
                       ) : isActive ? (
                         <span className="text-xs sm:text-base">{step.icon}</span>
-                      ) : isFailed ? (
+                      ) : status === 'failed' ? (
                         <XCircle className="w-3 h-3 sm:w-6 sm:h-6" />
-                      ) : isStopped ? (
+                      ) : status === 'stopped' ? (
                         <PauseCircle className="w-3 h-3 sm:w-6 sm:h-6" />
+                      ) : status === 'waiting' ? (
+                        <Clock className="w-3 h-3 sm:w-6 sm:h-6 animate-pulse" />
                       ) : (
                         <span className="font-medium text-xs sm:text-base">{step.icon}</span>
     )}
     {isActive && <div className="absolute -top-0.5 -right-0.5 sm:-top-1.5 sm:-right-1 bg-[#2B7FFF] rounded-full h-3 w-3 sm:h-5 sm:w-5 flex items-center justify-center"><Loader2 className="w-1.5 h-1.5 sm:w-3 sm:h-3 animate-spin text-white dark:text-[#0D0D0D]" /></div>}
-    {isCompleted && <div className="absolute -top-0.5 -right-0.5 sm:-top-1.5 sm:-right-1 bg-[#00BC7D] rounded-full h-3 w-3 sm:h-5 sm:w-5 flex items-center justify-center"><Sparkles className="w-1.5 h-1.5 sm:w-3 sm:h-3 text-white dark:text-[#0D0D0D]" /></div>}
+    {status === 'completed' && <div className="absolute -top-0.5 -right-0.5 sm:-top-1.5 sm:-right-1 bg-[#00BC7D] rounded-full h-3 w-3 sm:h-5 sm:w-5 flex items-center justify-center"><Sparkles className="w-1.5 h-1.5 sm:w-3 sm:h-3 text-white dark:text-[#0D0D0D]" /></div>}
   </div>
 
   {/* Step Label */}
   <div className="mt-1 sm:mt-2 flex flex-col items-center w-full px-0 sm:px-1">
     <div className={`text-[9px] lg:text-sm sm:text-xs md:text-[10px] font-medium text-center leading-tight max-w-full break-words
-        ${isCompleted 
+        ${status === 'completed' 
           ? 'text-[#009966]' 
           : isActive 
             ? 'text-[#155DFC]' 
-            : isFailed 
+            : status === 'failed' 
               ? 'text-red-600' 
-              : isStopped 
+              : status === 'stopped' 
                 ? 'text-[#F54900]' 
-                : 'text-[#6A7282] dark:text-[#FFFFFF]'}
+                : status === 'waiting'
+                  ? 'text-purple-600 animate-pulse'
+                  : 'text-[#6A7282] dark:text-[#FFFFFF]'}
       `}>
       {step.label}
     </div>
@@ -322,24 +316,16 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
     {/* Status Text */}
     <div className="mt-0.5 sm:mt-1 h-3 sm:h-4 text-[9px] sm:text-xs">
       {isActive && <span className="text-[#2B7FFF] dark:text-blue-400 bg-[#EEF2FF] dark:bg-[#171717] py-0.5 px-1 sm:py-1 sm:px-1.5 rounded-[6px] sm:rounded-[10px] flex gap-0.5 sm:gap-1 items-center"><Zap size={8} className="text-yellow-500 dark:text-yellow-400 sm:w-3.5 sm:h-3.5"/> <span className="hidden lg:inline">Processing</span><span className="sm:hidden">Proc</span></span>}
-      {isCompleted && <span className="text-[#00BC7D] dark:text-green-400 bg-[#ECFDF5] dark:bg-[#171717] py-0.5 px-1 sm:py-1 sm:px-1.5 rounded-[6px] sm:rounded-[10px] flex gap-0.5 sm:gap-1 items-center"><Check size={8} className="text-green-600 dark:text-green-400 sm:w-3.5 sm:h-3.5" /> <span className="hidden lg:inline">Complete</span><span className="sm:hidden">Done</span></span>}
-      {isFailed && <span className="text-red-600 dark:text-red-400 bg-[#ffe9ea] dark:bg-[#171717] py-0.5 px-1 sm:py-1 sm:px-1.5 rounded-[6px] sm:rounded-[10px] flex gap-0.5 sm:gap-1 items-center"><X size={8} className="text-red-600 dark:text-red-400 sm:w-3.5 sm:h-3.5" /> <span className="hidden lg:inline">Failed</span><span className="sm:hidden">Fail</span></span>}
-      {isStopped && <span className="text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-[#171717] py-0.5 px-1 sm:py-1 sm:px-1.5 rounded-[6px] sm:rounded-[10px] flex gap-0.5 sm:gap-1 items-center"><PauseCircle size={8} className="text-orange-600 dark:text-orange-400 sm:w-3.5 sm:h-3.5" /> <span className="hidden lg:inline">Stopped</span><span className="sm:hidden">Stop</span></span>}
+      {status === 'completed' && <span className="text-[#00BC7D] dark:text-green-400 bg-[#ECFDF5] dark:bg-[#171717] py-0.5 px-1 sm:py-1 sm:px-1.5 rounded-[6px] sm:rounded-[10px] flex gap-0.5 sm:gap-1 items-center"><Check size={8} className="text-green-600 dark:text-green-400 sm:w-3.5 sm:h-3.5" /> <span className="hidden lg:inline">Complete</span><span className="sm:hidden">Done</span></span>}
+      {status === 'failed' && <span className="text-red-600 dark:text-red-400 bg-[#ffe9ea] dark:bg-[#171717] py-0.5 px-1 sm:py-1 sm:px-1.5 rounded-[6px] sm:rounded-[10px] flex gap-0.5 sm:gap-1 items-center"><X size={8} className="text-red-600 dark:text-red-400 sm:w-3.5 sm:h-3.5" /> <span className="hidden lg:inline">Failed</span><span className="sm:hidden">Fail</span></span>}
+      {status === 'stopped' && <span className="text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-[#171717] py-0.5 px-1 sm:py-1 sm:px-1.5 rounded-[6px] sm:rounded-[10px] flex gap-0.5 sm:gap-1 items-center"><PauseCircle size={8} className="text-orange-600 dark:text-orange-400 sm:w-3.5 sm:h-3.5" /> <span className="hidden lg:inline">Stopped</span><span className="sm:hidden">Stop</span></span>}
+      {status === 'waiting' && <span className="text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-[#171717] py-0.5 px-1 sm:py-1 sm:px-1.5 rounded-[6px] sm:rounded-[10px] flex gap-0.5 sm:gap-1 items-center"><Clock size={8} className="text-purple-600 dark:text-purple-400 sm:w-3.5 sm:h-3.5" /> <span className="hidden lg:inline">Waiting</span><span className="sm:hidden">Wait</span></span>}
     </div>
   </div>
   </div>
 </div>
 
 
-            {/* Connecting Line */}
-            {/* {!isLast && (
-              <div className="flex-1 h-1 mx-2 bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full transition-all duration-500 ${isCompleted ? 'bg-green-500' : 'bg-transparent'}`}
-                  style={{ width: isCompleted ? '100%' : '0%' }}
-                />
-              </div>
-            )} */}
           </React.Fragment>
         );
       })}
@@ -360,7 +346,1121 @@ const formatTime = (seconds: number): string => {
 };
 
 
+// Helper to fetch transcript file from fileUrl
+const fetchTranscriptFromUrl = async (url: string) => {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Failed to fetch transcript file');
+  const data = await response.json();
+  if (Array.isArray(data.chunks)) {
+    // Join all text chunks for display
+    return data.chunks.map((chunk: { text: string }) => chunk.text).join('\n');
+  }
+  // Fallback to raw JSON
+  return JSON.stringify(data, null, 2);
+};
+
+
+// Helper to fetch segmentation file from fileUrl
+const fetchSegmentationFromUrl = async (url: string) => {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Failed to fetch segmentation file');
+  const data = await response.json();
+  // Assume data.segments or data.chunks or similar
+  if (Array.isArray(data.segments)) {
+    return data.segments;
+  }
+  if (Array.isArray(data.chunks)) {
+    // fallback for chunked format
+    return data.chunks;
+  }
+  return data;
+};
+
+
+// Helper to map status to icon and color
+const getStatusIcon = (status: string) => {
+  switch (status) {
+    case 'loading':
+    case 'RUNNING':
+      return <TooltipProvider><Tooltip><TooltipTrigger asChild><span><Loader2 className="animate-spin text-blue-500" /></span></TooltipTrigger><TooltipContent>Running</TooltipContent></Tooltip></TooltipProvider>;
+    case 'done':
+    case 'COMPLETED':
+      return <TooltipProvider><Tooltip><TooltipTrigger asChild><span><CheckCircle className="text-green-600" /></span></TooltipTrigger><TooltipContent>Completed</TooltipContent></Tooltip></TooltipProvider>;
+    case 'FAILED':
+    case 'failed':
+      return <TooltipProvider><Tooltip><TooltipTrigger asChild><span><XCircle className="text-red-600" /></span></TooltipTrigger><TooltipContent>Failed</TooltipContent></Tooltip></TooltipProvider>;
+    case 'stopped':
+    case 'STOPPED':
+      return <TooltipProvider><Tooltip><TooltipTrigger asChild><span><PauseCircle className="text-orange-500" /></span></TooltipTrigger><TooltipContent>Stopped</TooltipContent></Tooltip></TooltipProvider>;
+    case 'WAITING':
+    case 'PENDING':
+      return <TooltipProvider><Tooltip><TooltipTrigger asChild><span><PauseCircle className="text-yellow-500" /></span></TooltipTrigger><TooltipContent>Waiting/Pending</TooltipContent></Tooltip></TooltipProvider>;
+    default:
+      return <TooltipProvider><Tooltip><TooltipTrigger asChild><span><Play className="text-gray-400" /></span></TooltipTrigger><TooltipContent>Unknown</TooltipContent></Tooltip></TooltipProvider>;
+  }
+};
+
+const TaskAccordionInternal = ({
+  task,
+  runs,
+  title,
+  acceptedRunId,
+  handleRefreshStatus,
+  aiJobStatus,
+  aiJobId,
+  handleAcceptRun,
+  canRunTask,
+  handleTask,
+  localParams,
+  setLocalParams,
+  localSegParams,
+  setLocalSegParams,
+  rerunParams,
+  setRerunParams,
+  progress,
+  handleStartTranscription,
+  // Props previously captured from closure:
+  audioExtractionStatus,
+  audioExtractionProgress,
+  setCurrentUiStep,
+  getStatusIcon,
+}: any) => {
+  const fields = ["model", "SOL", "SML", "NAT", "DES", "BIN", "numberOfQuestions"];
+  const segFields = [
+    { key: 'lam', type: 'number' },
+    { key: 'runs', type: 'number' },
+  ];
+
+  const handleParamChange = useCallback((
+    field: string,
+    value: string | number
+  ) => {
+    setLocalParams((prev: any) => ({
+      ...prev,
+      [field]: value
+    }));
+  }, [setLocalParams]);
+
+  return (
+    <div className="bg-white dark:bg-[#1A1A1C] border border-gray-200 dark:border-[#2D2D2F] rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          <div className={`p-3 rounded-xl bg-gradient-to-br ${
+            task === 'transcription' ? 'from-blue-500/10 to-blue-600/10 text-blue-600' :
+            task === 'segmentation' ? 'from-purple-500/10 to-purple-600/10 text-purple-600' :
+            task === 'question' ? 'from-orange-500/10 to-orange-600/10 text-orange-600' :
+            'from-green-500/10 to-green-600/10 text-green-600'
+          }`}>
+            {task === 'transcription' && <FileText className="w-6 h-6" />}
+            {task === 'segmentation' && <Layers className="w-6 h-6" />}
+            {task === 'question' && <Brain className="w-6 h-6" />}
+            {task === 'upload' && <UploadCloud className="w-6 h-6" />}
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h3>
+            {task === 'transcription' && (
+              <div className="flex items-center gap-2 mt-1">
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                  audioExtractionStatus === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                  audioExtractionStatus === 'processing' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 animate-pulse' :
+                  'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                }`}>
+                  {audioExtractionStatus === 'processing' ? 'Processing Audio...' : 
+                   audioExtractionStatus === 'completed' ? 'Audio Ready' : 
+                   audioExtractionStatus === 'paused' ? 'Paused' : 'Waiting'}
+                </span>
+                {audioExtractionStatus === 'processing' && (
+                  <span className="text-xs text-blue-600 dark:text-blue-400 font-bold">{Math.round(audioExtractionProgress)}%</span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Button 
+            size="sm"
+            variant="outline"
+            onClick={handleRefreshStatus}
+            className="rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Task Progress (if active) */}
+      {((task === 'transcription' && audioExtractionStatus === 'processing') || 
+        ((aiJobStatus?.status === 'RUNNING' || aiJobStatus?.status === 'PENDING') && (
+          (task === 'transcription' && (aiJobStatus?.task === 'TRANSCRIPT_GENERATION' || aiJobStatus?.jobStatus?.transcriptGeneration === 'RUNNING')) ||
+          (task === 'segmentation' && (aiJobStatus?.task === 'SEGMENTATION' || aiJobStatus?.jobStatus?.segmentation === 'RUNNING')) ||
+          (task === 'question' && (aiJobStatus?.task === 'QUESTION_GENERATION' || aiJobStatus?.jobStatus?.questionGeneration === 'RUNNING'))
+        ))) && (
+        <div className="mb-6 bg-gray-50 dark:bg-[#252527] rounded-xl p-4 border border-gray-100 dark:border-[#2D2D2F]">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-medium text-gray-600 dark:text-[#a8a29e]">Current Progress</span>
+            <span className="text-sm font-bold text-gray-900 dark:text-white">
+              {task === 'transcription' && audioExtractionStatus === 'processing' ? Math.round(audioExtractionProgress) : Math.round(progress)}%
+            </span>
+          </div>
+          <Progress value={task === 'transcription' && audioExtractionStatus === 'processing' ? audioExtractionProgress : progress} className="h-2 rounded-full" />
+        </div>
+      )}
+
+      {/* Setup Parameters (if no runs yet) */}
+      {runs.length === 0 && (
+        <div className="space-y-4">
+          {task === 'transcription' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-500">Language</label>
+                <select 
+                  value={rerunParams.language}
+                  onChange={(e) => setRerunParams((prev: any) => ({ ...prev, language: e.target.value }))}
+                  className="w-full bg-gray-50 dark:bg-[#252527] border border-gray-200 dark:border-[#2D2D2F] rounded-xl px-4 py-2.5 text-sm"
+                >
+                  <option value="en">English</option>
+                  <option value="hi">Hindi</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-500">Model</label>
+                <select 
+                  value={rerunParams.modelSize}
+                  onChange={(e) => setRerunParams((prev: any) => ({ ...prev, modelSize: e.target.value }))}
+                  className="w-full bg-gray-50 dark:bg-[#252527] border border-gray-200 dark:border-[#2D2D2F] rounded-xl px-4 py-2.5 text-sm"
+                >
+                  <option value="default">Default</option>
+                  <option value="large-v3">Large-v3 (Accurate)</option>
+                  <option value="medium">Medium</option>
+                  <option value="small">Small (Fast)</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {task === 'segmentation' && (
+            <div className="grid grid-cols-2 gap-4">
+              {segFields.map(f => (
+                <div key={f.key} className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-500 uppercase">{f.key}</label>
+                  <Input 
+                    type="number"
+                    value={localSegParams[f.key]}
+                    onChange={(e) => setLocalSegParams((prev: any) => ({ ...prev, [f.key]: Number(e.target.value) }))}
+                    className="bg-gray-50 dark:bg-[#252527] border-gray-200 dark:border-[#2D2D2F]"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {task === 'question' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                {fields.filter(f => f !== 'model' && f !== 'prompt').map(f => (
+                  <div key={f} className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase">{f}</label>
+                    <Input 
+                      type="number"
+                      value={localParams[f]}
+                      onChange={(e) => handleParamChange(f, Number(e.target.value))}
+                      className="h-9 text-xs bg-gray-50 dark:bg-[#252527] border-gray-200 dark:border-[#2D2D2F]"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-500">System Prompt</label>
+                <Textarea 
+                  value={localParams.prompt}
+                  onChange={(e) => handleParamChange('prompt', e.target.value)}
+                  className="min-h-[80px] text-sm bg-gray-50 dark:bg-[#252527] border-gray-200 dark:border-[#2D2D2F]"
+                />
+              </div>
+            </div>
+          )}
+
+          <Button
+            onClick={() => handleTask(task, localSegParams, localParams)}
+            disabled={!canRunTask(task) || (task === 'transcription' && audioExtractionStatus === 'processing')}
+            className="w-full py-6 rounded-2xl bg-gradient-to-r from-[#00D492] to-[#2B7FFF] text-white font-bold shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all disabled:opacity-50"
+          >
+            {task === 'transcription' && audioExtractionStatus === 'processing' ? (
+              <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Extracting Audio...</span>
+            ) : (
+              <span className="flex items-center gap-2"><Zap className="w-5 h-5" /> Start {title}</span>
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* Existing Runs */}
+      {runs.length > 0 && (
+        <Accordion type="multiple" value={runs.map((r: any) => r.id)} className="space-y-3">
+          {runs.map((run: any, index: number) => (
+            <AccordionItem key={run.id} value={run.id} className="border border-gray-200 dark:border-[#2D2D2F] rounded-xl overflow-hidden bg-gray-50/30 dark:bg-[#1A1A1C]/30">
+              <AccordionTrigger className="px-4 py-3 hover:bg-gray-100/50 dark:hover:bg-gray-800/30">
+                <div className="flex items-center gap-3 w-full text-left">
+                  <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-[10px] font-bold">
+                    {index + 1}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm">Run #{index + 1}</span>
+                      {acceptedRunId === run.id && (
+                        <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase">Accepted</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mr-4">
+                    {getStatusIcon(run.status)}
+                  </div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4 pt-2 border-t border-gray-200 dark:border-[#2D2D2F]">
+                {run.status === "done" && (
+                  <div className="space-y-4">
+                    {task === "segmentation" ? (
+                      <>
+                        <RunSegmentationSection 
+                          aiJobId={aiJobId} 
+                          run={run} 
+                          acceptedRunId={acceptedRunId} 
+                          onAccept={() => handleAcceptRun(task, run.id)} 
+                          runIndex={index}
+                          aiJobStatus={aiJobStatus}
+                        />
+                      </>
+                    ) : task === "question" ? (
+                      <RunQuestionSection aiJobId={aiJobId} run={run} acceptedRunId={acceptedRunId} onAccept={() => handleAcceptRun(task, run.id)} runIndex={index} />
+                    ) : (
+                      <RunTranscriptSection aiJobId={aiJobId} run={run} acceptedRunId={acceptedRunId} onAccept={() => handleAcceptRun(task, run.id)} runIndex={index} />
+                    )}
+                    
+                    {acceptedRunId !== run.id && (
+                      <Button 
+                        onClick={() => handleAcceptRun(task, run.id)}
+                        className="w-full mt-4 bg-gray-900 dark:bg-white dark:text-gray-900 font-bold py-2 rounded-xl text-sm"
+                      >
+                        Accept This Version
+                      </Button>
+                    )}
+                  </div>
+                )}
+                {run.status === "loading" && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 text-xs rounded-lg border border-blue-100 dark:border-blue-900/20">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>
+                        {task === 'transcription' && audioExtractionStatus === 'processing' ? 'Extracting audio from video...' :
+                         task === 'transcription' && audioExtractionStatus === 'completed' && aiJobStatus?.jobStatus?.transcriptGeneration === 'RUNNING' ? 'Transcribing content...' :
+                         task === 'transcription' && audioExtractionStatus === 'completed' && aiJobStatus?.jobStatus?.transcriptGeneration === 'FAILED' ? 'Transcription failed in backend. Please retry.' :
+                         task === 'transcription' && audioExtractionStatus === 'completed' ? 'Audio ready. Waiting for transcription to start...' :
+                         'Processing task...'}
+                      </span>
+                    </div>
+                    {task === 'transcription' && audioExtractionStatus === 'completed' && aiJobStatus?.jobStatus?.transcriptGeneration !== 'RUNNING' && aiJobStatus?.jobStatus?.transcriptGeneration !== 'COMPLETED' && (
+                      <Button 
+                        onClick={() => handleStartTranscription && handleStartTranscription()}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl text-sm flex items-center justify-center gap-2"
+                      >
+                        <Zap className="w-4 h-4" /> {aiJobStatus?.jobStatus?.transcriptGeneration === 'FAILED' ? 'Retry Transcription' : 'Start Transcription Now'}
+                      </Button>
+                    )}
+                  </div>
+                )}
+                {run.status === "failed" && (
+                  <div className="space-y-4">
+                    <div className="p-3 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 text-xs rounded-lg border border-red-100 dark:border-red-900/20">
+                      <div className="font-semibold">This run failed. Try restarting the task.</div>
+                      {run.result?.error && (
+                        <div className="mt-1 text-[11px] text-red-700 dark:text-red-300 whitespace-pre-wrap">
+                          {typeof run.result.error === 'string' ? run.result.error : JSON.stringify(run.result.error)}
+                        </div>
+                      )}
+                    </div>
+                    <Button 
+                      onClick={() => {
+                        if (task === 'transcription') {
+                          handleStartTranscription && handleStartTranscription();
+                        } else {
+                          handleTask(task, localSegParams, localParams);
+                        }
+                      }}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-xl text-sm flex items-center justify-center gap-2"
+                    >
+                      <RotateCcw className="w-4 h-4" /> Restart {title}
+                    </Button>
+                  </div>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      )}
+
+      {/* Start Next Task Shortcut */}
+      {runs.some((r: any) => r.id === acceptedRunId) && task !== 'upload' && (
+        <div className="mt-6 pt-6 border-t border-gray-100 dark:border-[#2D2D2F]">
+          <Button
+            onClick={() => {
+              const nextStep = task === 'transcription' ? 2 : task === 'segmentation' ? 3 : 4;
+              setCurrentUiStep(nextStep);
+            }}
+            className="w-full py-4 rounded-xl bg-gray-900 hover:bg-black dark:bg-white dark:text-gray-900 text-white font-bold flex items-center justify-center gap-2 shadow-md transition-all"
+          >
+            Continue to {task === 'transcription' ? 'Segmentation' : task === 'segmentation' ? 'Question Generation' : 'Publish'} <Play className="w-3 h-3 fill-current" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TaskAccordion = React.memo(TaskAccordionInternal);
+
+// Component to edit questions
+const QuestionEditForm = ({ question, onSave, onCancel }: {
+  question: any;
+  onSave: (edited: any) => void;
+  onCancel: () => void;
+}) => {
+  const typeMap: Record<string, string> = {
+    SOL: 'SELECT_ONE_IN_LOT',
+    MUL: 'SELECT_MANY_IN_LOT',
+  };
+
+  const normalized = React.useMemo(() => {
+    if ('question' in question && typeof question.question === 'object') {
+      const mappedType = typeMap[question.question.type] || question.question.type;
+      return {
+        ...question.question,
+        type: mappedType,
+        solution: question.solution,
+      };
+    }
+    return {
+      ...question,
+      type: typeMap[question.type] || question.type,
+    };
+  }, [question]);
+
+  const initialOptions = React.useMemo(() => {
+    if (normalized.solution) {
+      const correct = normalized.solution.correctLotItems
+        ? normalized.solution.correctLotItems.map((opt: any) => ({ text: opt.text, explaination: opt.explaination, correct: true }))
+        : normalized.solution.correctLotItem
+          ? [{ text: normalized.solution.correctLotItem.text, explaination: normalized.solution.correctLotItem.explaination, correct: true }]
+          : [];
+      const incorrect = normalized.solution.incorrectLotItems
+        ? normalized.solution.incorrectLotItems.map((opt: any) => ({ text: opt.text, explaination: opt.explaination, correct: false }))
+        : [];
+      return [...correct, ...incorrect];
+    }
+    if (Array.isArray(normalized.options)) {
+      let correctIndices: number[] = [];
+      if (normalized.type === 'SELECT_ONE_IN_LOT' && typeof normalized.correctAnswer === 'number') {
+        correctIndices = [normalized.correctAnswer];
+      } else if (normalized.type === 'SELECT_MANY_IN_LOT' && Array.isArray(normalized.correctAnswer)) {
+        correctIndices = normalized.correctAnswer;
+      }
+      return normalized.options.map((opt: string, idx: number) => ({
+        text: opt,
+        explaination: '',
+        correct: correctIndices.includes(idx),
+      }));
+    }
+    return [];
+  }, [normalized]);
+
+  const [questionText, setQuestionText] = React.useState(normalized.text || normalized.question || '');
+  const [options, setOptions] = React.useState(initialOptions);
+
+  React.useEffect(() => {
+    setQuestionText(normalized.text || normalized.question || '');
+    setOptions(initialOptions);
+  }, [normalized, initialOptions]);
+
+  const handleOptionText = (idx: number, value: string) => setOptions((opts: any[]) => opts.map((o, i) => i === idx ? { ...o, text: value } : o));
+  const handleOptionExplain = (idx: number, value: string) => setOptions((opts: any[]) => opts.map((o, i) => i === idx ? { ...o, explaination: value } : o));
+  const handleCorrect = (idx: number, checked: boolean) => {
+    setOptions((opts: any[]) => opts.map((o, i) =>
+      normalized.type === 'SELECT_ONE_IN_LOT'
+        ? { ...o, correct: i === idx }
+        : i === idx ? { ...o, correct: checked } : o
+    ));
+  };
+  const handleAddOption = () => setOptions((opts: any[]) => [...opts, { text: '', explaination: '', correct: false }]);
+  const handleRemoveOption = (idx: number) => setOptions((opts: any[]) => opts.filter((_, i) => i !== idx));
+
+  const canSave = questionText.trim() && options.length >= 2 && options.every((o: any) => o.text.trim()) && options.some((o: any) => o.correct);
+
+  const buildSolution = () => {
+    const correctOpts = options.filter((o: any) => o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination.trim() || "Nil" }));
+    const incorrectOpts = options.filter((o: any) => !o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination.trim() || "Nil" }));
+    if (normalized.type === 'SELECT_ONE_IN_LOT') {
+      return {
+        correctLotItem: correctOpts[0] || { text: '', explaination: '' },
+        incorrectLotItems: incorrectOpts,
+      };
+    } else if (normalized.type === 'SELECT_MANY_IN_LOT') {
+      return {
+        correctLotItems: correctOpts,
+        incorrectLotItems: incorrectOpts,
+      };
+    }
+    return undefined;
+  };
+
+  return (
+    <div className="space-y-4 max-h-[80vh] overflow-y-auto">
+      <div>
+        <Label htmlFor="question-text">Question Text</Label>
+        <Textarea
+          id="question-text"
+          value={questionText}
+          onChange={e => setQuestionText(e.target.value)}
+          placeholder="Enter question text"
+          className="mt-1"
+        />
+      </div>
+      <div>
+        <Label>Options</Label>
+        <div className="space-y-2 mt-2 max-h-[50vh] overflow-y-auto pr-2">
+          {options.map((option: any, idx: number) => (
+            <div key={idx} className="flex flex-col gap-1 border rounded p-2 bg-background">
+              <div className="flex items-center gap-2">
+                {normalized.type === 'SELECT_ONE_IN_LOT' ? (
+                  <input type="radio" checked={option.correct} onChange={() => handleCorrect(idx, true)} />
+                ) : (
+                  <input type="checkbox" checked={option.correct} onChange={e => handleCorrect(idx, e.target.checked)} />
+                )}
+                <Input
+                  value={option.text}
+                  onChange={e => handleOptionText(idx, e.target.value)}
+                  placeholder={`Option ${idx + 1}`}
+                  className="flex-1"
+                />
+                <Button variant="ghost" size="sm" onClick={() => handleRemoveOption(idx)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+              </div>
+              <Textarea
+                value={option.explaination}
+                onChange={e => handleOptionExplain(idx, e.target.value)}
+                placeholder="Explanation for this option (why correct/incorrect)"
+                className="mt-1"
+                rows={2}
+              />
+            </div>
+          ))}
+          <Button variant="outline" size="sm" onClick={handleAddOption} className="w-full"><Plus className="h-4 w-4 mr-2" />Add Option</Button>
+        </div>
+      </div>
+      <div className="flex gap-2 pt-4">
+        <Button onClick={() => {
+          const solution = buildSolution();
+          onSave({ text: questionText, solution });
+        }} className="flex-1" disabled={!canSave}>
+          <Save className="h-4 w-4 mr-2" />
+          Save Changes
+        </Button>
+        <Button variant="outline" onClick={onCancel} className="flex-1">
+          <X className="h-4 w-4 mr-2" />
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+// Component to show transcript for a run
+function RunTranscriptSection({ aiJobId, run, acceptedRunId, onAccept, runIndex = 0 }: { aiJobId: string | null, run: TaskRun, acceptedRunId?: string, onAccept: () => void, runIndex?: number }) {
+  const [showTranscript, setShowTranscript] = useState(false);
+  const [transcript, setTranscript] = useState<string>("");
+  const [transcriptChunks, setTranscriptChunks] = useState<{ text: string }[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editChunks, setEditChunks] = useState<{ timestamp: [number, number]; text: string }[]>([]);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  const handleShowTranscript = async () => {
+    if (!aiJobId) return;
+    if (!showTranscript) {
+      setLoading(true);
+      setError("");
+      try {
+        const token = localStorage.getItem('firebase-auth-token');
+        const url = getApiUrl(`/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`);
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error('Failed to fetch task status');
+        const arr = await res.json();
+        if (Array.isArray(arr) && arr.length > runIndex && arr[runIndex].fileUrl) {
+          const transcriptRes = await fetch(arr[runIndex].fileUrl);
+          if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
+          const data = await transcriptRes.json();
+          if (Array.isArray(data.chunks)) {
+            setTranscriptChunks(data.chunks);
+            setTranscript(data.chunks.map((chunk: { text: string }) => chunk.text).join(' '));
+          } else {
+            setTranscriptChunks(null);
+            setTranscript(typeof data === 'string' ? data : JSON.stringify(data));
+          }
+        } else {
+          setTranscriptChunks(null);
+          setTranscript('Transcript file URL not found.');
+        }
+      } catch (e: any) {
+        setTranscriptChunks(null);
+        setTranscript(e.message || 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    }
+    setShowTranscript(v => !v);
+  };
+
+  useEffect(() => {
+    if (editModalOpen && aiJobId) {
+      setEditLoading(true);
+      setEditError('');
+      (async () => {
+        try {
+          const token = localStorage.getItem('firebase-auth-token');
+          const url = getApiUrl(`/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`);
+          const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+          if (!res.ok) throw new Error('Failed to fetch task status');
+          const arr = await res.json();
+          if (Array.isArray(arr) && arr.length > runIndex && arr[runIndex].fileUrl) {
+            const transcriptRes = await fetch(arr[runIndex].fileUrl);
+            if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
+            const data = await transcriptRes.json();
+            if (Array.isArray(data.chunks)) {
+              setEditChunks(data.chunks.map((chunk: any) => ({ ...chunk })));
+            } else {
+              setEditError('Transcript format not recognized.');
+            }
+          } else {
+            setEditError('Transcript file URL not found.');
+          }
+        } catch (e: any) {
+          setEditError(e.message || 'Unknown error');
+        } finally {
+          setEditLoading(false);
+        }
+      })();
+    }
+  }, [editModalOpen, aiJobId, runIndex]);
+
+  const handleSaveEditTranscript = async () => {
+    if (!aiJobId) return;
+    try {
+      setEditLoading(true);
+      setEditError('');
+      if (typeof aiSectionAPI.editTranscriptData === 'function') {
+        await aiSectionAPI.editTranscriptData(aiJobId, runIndex, { chunks: editChunks });
+        toast.success('Transcript updated successfully!');
+        setEditModalOpen(false);
+      } else {
+        setEditError('Transcript editing API not available.');
+      }
+    } catch (e: any) {
+      setEditError(e.message || 'Failed to update transcript');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  return (
+    <>
+     {showTranscript && (
+      <>
+      <div className="flex items-center justify-between mt-4">
+        <p className="flex items-center gap-2"><MessageSquare color="#AD46FF" size={16}/> <span className="text-[#1E2939] text-sm dark:text-[#C6D2E1]">Generated Transcript</span></p>
+        <p className="flex items-center gap-2"><CircleCheckBig color="#009966" size={14}/> <span className="text-[#009966] text-xs">AI processing complete</span></p>
+      </div>
+        <div className="bg-[linear-gradient(135deg,_rgba(255,255,255,0.8)_0%,_rgba(249,250,251,0.8)_100%)] backdrop-blur-md dark:bg-[linear-gradient(135deg,_rgba(58,58,61,0.8)_0%,_rgba(42,42,45,0.8)_100%)] text-gray-900 dark:text-[#F9FBFF] p-3 rounded-[14px] max-h-48 overflow-y-auto text-sm border border-[#E5E7EB] dark:border-gray-700 mt-2">
+          {loading && <div className="mt-2">Loading...</div>}
+          {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
+          {!loading && !error && (
+            <div className="flex lg:flex-nowrap flex-wrap-reverse items-start justify-between gap-1.5">
+              <div className="mt-2 whitespace-pre-line text-[#1E2939] dark:text-[#F9FBFF] leading-[22.75px] text-[13px]">
+                {transcriptChunks
+                  ? transcriptChunks.map((chunk: { text: string }) => chunk.text).join(' ')
+                  : transcript}
+              </div>
+                <div className="bg-[#DBEAFE] text-[#1447E6] rounded-[9px] text-[10px] py-1.5 px-2 w-full max-w-max min-w-max dark:bg-[]">
+                AI Generated
+              </div>
+            </div>
+          )}
+        </div>
+        </>
+      )}
+    <div className="space-y-2 flex lg:flex-nowrap flex-wrap gap-2.5 items-center justify-center mt-4">
+      <Button size="sm" variant="secondary" onClick={handleShowTranscript} className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] dark:text-[#a8a29e] font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+        {showTranscript ? <EyeOff /> : <Eye />}
+        {showTranscript ? 'Hide Transcript' : 'Show Transcript'}
+      </Button>
+      <Button size="sm" variant="outline" onClick={() => setEditModalOpen(true)} className="bg-transparent dark:bg-[#0D0D0D] border border-[#DAB2FF] dark:border-[#350067] text-[#9810FA] dark:test-[#A329FB] font-medium px-4 py-2 rounded-[12px] shadow-md hover:bg-transparent hover:shadow-lg hover:text-[#9810FA] transition-all duration-300 transform hover:scale-105 btn-beautiful">
+        <Pencil />
+        Edit
+      </Button>
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Transcript</DialogTitle>
+          </DialogHeader>
+          {editLoading && <div>Loading transcript...</div>}
+          {editError && <div className="text-red-500">{editError}</div>}
+          {!editLoading && !editError && (
+            <div className="space-y-3 max-h-80 overflow-y-auto">
+              {editChunks.map((chunk, idx) => (
+                <div key={idx} className="flex flex-col gap-1 border-b pb-2">
+                  <div className="text-xs text-gray-400">
+                    Segment: {formatTime(chunk.timestamp[0])} - {formatTime(chunk.timestamp[1])}
+                  </div>
+                  <textarea
+                    className="w-full p-2 rounded border"
+                    value={chunk.text}
+                    onChange={e => {
+                      const newChunks = [...editChunks];
+                      newChunks[idx].text = e.target.value;
+                      setEditChunks(newChunks);
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          <DialogFooter className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setEditModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveEditTranscript} disabled={editLoading}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {acceptedRunId !== run.id && (
+        <Button
+          size="sm"
+          onClick={onAccept}
+          className="mb-2 bg-[linear-gradient(90deg,_#00D492_0%,_#009966_100%)] text-white dark:text-[#0D0D0D] rounded-[12px]"
+        >
+          <Check />
+          Accept & Continue
+          <Sparkles />
+        </Button>
+      )}
+    </div>
+    </>
+  );
+}
+
+// Component to show segmentation for a run
+function RunSegmentationSection({ aiJobId, run, acceptedRunId, onAccept, runIndex = 0, aiJobStatus }: { aiJobId: string | null, run: TaskRun, acceptedRunId?: string, onAccept: () => void, runIndex?: number, aiJobStatus: JobStatus | null }) {
+  const [showSegmentation, setShowSegmentation] = useState(false);
+  const [segments, setSegments] = useState<any[]>([]);
+  const [segmentationMap, setSegmentationMap] = useState<number[] | null>(null);
+  const [segmentationChunks, setSegmentationChunks] = useState<any[][] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editSegMap, setEditSegMap] = useState<number[]>([]);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState("");
+
+  const [editTranscriptChunks, setEditTranscriptChunks] = useState<any[]>([]);
+
+  const formatTime = (seconds: number): string => {
+    if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const parseTimeToSeconds = (time: string): number => {
+    if (!time) return 0;
+    const cleaned = time.replace(/\[|\]/g, '').trim().replace(',', '.');
+    if (cleaned.includes(':')) {
+      const [mStr, sStr] = cleaned.split(':');
+      const m = parseInt(mStr || '0', 10);
+      const s = parseInt(sStr || '0', 10);
+      return (isNaN(m) ? 0 : m * 60) + (isNaN(s) ? 0 : s);
+    }
+    const sOnly = parseInt(cleaned, 10);
+    return isNaN(sOnly) ? 0 : sOnly;
+  };
+  const formatTimeInput = (value: string): string => {
+    const digits = value.replace(/\D/g, '').slice(0, 4);
+    if (!digits) return '';
+    if (digits.length <= 2) return digits;
+    return `${digits.slice(0, -2)}:${digits.slice(-2)}`;
+  };
+  const formatTimeDot = (seconds: number): string => {
+    const mm = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const ss = Math.floor(seconds % 60).toString().padStart(2, '0');
+    return `${mm}.${ss}`;
+  };
+
+  const handleShowSegmentation = async () => {
+    if (!aiJobId) return;
+    if (!showSegmentation) {
+      setLoading(true);
+      setError("");
+      try {
+        const token = localStorage.getItem('firebase-auth-token');
+        const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error('Failed to fetch task status');
+        const arr = await res.json();
+        const segData = Array.isArray(arr) && arr.length > runIndex ? arr[runIndex] : arr[0];
+        if (segData && segData.segmentationMap && Array.isArray(segData.segmentationMap)) {
+          setSegmentationMap(segData.segmentationMap);
+          
+          let fileUrl = segData.transcriptFileUrl;
+          if (!fileUrl && aiJobStatus?.transcriptGeneration) {
+            const trans = aiJobStatus.transcriptGeneration;
+            if (Array.isArray(trans) && trans.length > 0) {
+              fileUrl = trans[trans.length - 1].fileUrl;
+            }
+          }
+
+          if (fileUrl) {
+            const transcriptRes = await fetch(fileUrl);
+            if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
+            const transcriptData = await transcriptRes.json();
+            const chunks = Array.isArray(transcriptData.chunks) ? transcriptData.chunks : [];
+            const grouped: any[][] = [];
+            let segStart = 0;
+            for (let i = 0; i < segData.segmentationMap.length; ++i) {
+              const segEnd = segData.segmentationMap[i];
+              const segChunks = chunks.filter((chunk: any) => chunk.timestamp[0] >= segStart && chunk.timestamp[0] < segEnd);
+              grouped.push(segChunks);
+              segStart = segEnd;
+            }
+            setSegmentationChunks(grouped);
+          } else {
+            setSegmentationChunks([]);
+          }
+        } else if (segData && segData.fileUrl) {
+          const response = await fetch(segData.fileUrl);
+          if (!response.ok) throw new Error('Failed to fetch segmentation file');
+          const data = await response.json();
+          if (Array.isArray(data.segments)) {
+            setSegments(data.segments);
+          } else if (Array.isArray(data.chunks)) {
+            setSegments(data.chunks);
+          } else {
+            setSegments(data);
+          }
+        }
+      } catch (e: any) {
+        setError(e.message || 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    }
+    setShowSegmentation(v => !v);
+  };
+
+  const handleOpenEditModal = async () => {
+    if (!aiJobId) return;
+    setEditLoading(true);
+    setEditError("");
+    setEditModalOpen(true);
+    try {
+      const token = localStorage.getItem('firebase-auth-token');
+      const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
+      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Failed to fetch segmentation status');
+      const arr = await res.json();
+      if (Array.isArray(arr) && arr.length > 0 && arr[0].segmentationMap) {
+        const normalized = (arr[0].segmentationMap as any[]).map(v => parseTimeToSeconds(String(v)));
+        setEditSegMap(normalized);
+
+        let fileUrl = arr[0].transcriptFileUrl;
+        if (!fileUrl && aiJobStatus?.transcriptGeneration) {
+          const trans = aiJobStatus.transcriptGeneration;
+          if (Array.isArray(trans) && trans.length > 0) {
+            fileUrl = trans[trans.length - 1].fileUrl;
+          }
+        }
+
+        if (fileUrl) {
+          const transcriptRes = await fetch(fileUrl);
+          setEditTranscriptChunks((await transcriptRes.json()).chunks || []);
+        } else {
+          setEditTranscriptChunks([]);
+        }
+      }
+    } catch (e: any) {
+      setEditError(e.message || 'Unknown error');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleSaveEditSeg = async () => {
+    if (!aiJobId) return;
+    setEditLoading(true);
+    try {
+      await editSegmentMap(aiJobId, editSegMap.map(s => Number(formatTimeDot(s))), 0);
+      toast.success('Segment map updated successfully!');
+      setEditModalOpen(false);
+      // Refresh UI
+      setShowSegmentation(false);
+      handleShowSegmentation();
+    } catch (e: any) {
+      setEditError(e.message || 'Failed to update segment map');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  return (
+    <>
+    {showSegmentation && (
+        <div className="mt-4 space-y-4">
+          {loading && <div>Loading...</div>}
+          {error && <div className="text-red-600">{error}</div>}
+          {!loading && !error && segmentationMap && segmentationChunks && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between mt-4">
+                <p className="flex items-center gap-2"><Layers color="#00C950" size={20}/> <span className="text-[#1E2939] text-sm font-bold dark:text-[#C6D2E1]">Generated Segments</span></p>
+                <p className="flex items-center gap-2"><CircleCheckBig color="#009966" size={14}/> <span className="text-[#009966] text-xs">AI processing complete</span></p>
+              </div>
+              {segmentationMap.map((end, idx) => {
+                const start = idx === 0 ? 0 : segmentationMap[idx - 1];
+                const segChunks = segmentationChunks[idx] || [];
+                return (
+                  <div key={idx} className="bg-[linear-gradient(135deg,_rgba(255,255,255,0.8)_0%,_rgba(249,250,251,0.8)_100%)] dark:bg-[linear-gradient(135deg,_rgba(13,13,13,0.7)_0%,_rgba(13,13,13,0.7)_100%)] backdrop-blur-md border border-[#E5E7EB] dark:border-[#1F2228] p-3 rounded-[12px]">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-white h-7 w-7 flex items-center justify-center bg-[linear-gradient(135deg,_#05DF72_0%,_#2B7FFF_100%)] shadow-[0px_4px_12px_rgba(0,0,0,0.1)] rounded-[10px]">{idx + 1}</span>
+                      <p className="flex gap-2.5 items-center text-[#6A7282] dark:text-[#F4F8FF]">
+                        <Clock size={12}/>{start.toFixed(2)}s - Duration: {end.toFixed(2)}s
+                      </p>
+                    </div>
+                    <div className="text-xs text-[#4A5565] dark:text-[#F0F4FA] mt-2.5">
+                      {segChunks.map((c: any) => c.text).join(' ')}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {!loading && !error && segments.length > 0 && !segmentationMap && (
+             <div className="space-y-2">
+             {segments.map((seg, idx) => (
+               <div key={idx} className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+                 <div className="font-bold text-xs mb-1">Section {idx + 1}</div>
+                 <div className="text-sm">{seg.text || JSON.stringify(seg)}</div>
+               </div>
+             ))}
+           </div>
+          )}
+        </div>
+      )}
+    <div className="flex lg:flex-nowrap flex-wrap gap-2.5 justify-center mt-4">
+      <Button size="sm" variant="secondary" onClick={handleShowSegmentation} className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] dark:text-[#a8a29e] font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg btn-beautiful" disabled={run.status !== 'done'}>
+        {showSegmentation ? <EyeOff /> : <Eye />} {showSegmentation ? 'Hide' : 'Show'} Segmentation
+      </Button>
+      {run.status === 'done' && (
+        <Button size="sm" variant="outline" onClick={handleOpenEditModal} className="bg-transparent dark:bg-[#0D0D0D] border border-[#7BF1A8] text-[#00A63E] font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg btn-beautiful">
+          <Pencil /> Edit Segments
+        </Button>
+      )}
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Edit Segments</DialogTitle></DialogHeader>
+          {editLoading && <div>Loading...</div>}
+          {!editLoading && !editError && (
+            <div className="space-y-3 max-h-80 overflow-y-auto">
+              {editSegMap.map((value, idx) => {
+                const start = idx === 0 ? 0 : editSegMap[idx - 1];
+                const end = value;
+                const segChunks = editTranscriptChunks.filter(chunk => 
+                  chunk.timestamp && 
+                  typeof chunk.timestamp[0] === 'number' && 
+                  chunk.timestamp[0] >= start && 
+                  chunk.timestamp[0] < end
+                );
+                const segText = segChunks.map(chunk => chunk.text).join(' ');
+                return (
+                  <div key={idx} className="flex flex-col gap-1 border-b pb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400">Segment {idx + 1} end:</span>
+                      <Input type="text" value={formatTime(value)} onChange={e => {
+                        const newMap = [...editSegMap];
+                        newMap[idx] = parseTimeToSeconds(formatTimeInput(e.target.value));
+                        setEditSegMap(newMap);
+                      }} className="w-24" />
+                      <Button variant="ghost" size="sm" onClick={() => setEditSegMap(editSegMap.filter((_, i) => i !== idx))} disabled={editSegMap.length <= 1}><Trash2 className="h-4 w-4"/></Button>
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 bg-gray-50 dark:bg-gray-800 p-2 rounded">
+                      {segText || "No text in this segment"}
+                    </div>
+                  </div>
+                );
+              })}
+              <Button variant="outline" size="sm" onClick={() => setEditSegMap([...editSegMap, editSegMap[editSegMap.length - 1] + 10])} className="w-full"><Plus className="h-4 w-4 mr-2"/>Add Segment</Button>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveEditSeg} disabled={editLoading}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {acceptedRunId !== run.id && (
+        <Button size="sm" onClick={onAccept} className="bg-[linear-gradient(90deg,_#00D492_0%,_#009966_100%)] text-white dark:text-[#0D0D0D] rounded-[12px]">
+          <Check /> Accept This Run <Sparkles />
+        </Button>
+      )}
+    </div>
+    </>
+  );
+}
+
+// Component to show questions for a question generation run
+function RunQuestionSection({ aiJobId, run, acceptedRunId, onAccept, runIndex = 0 }: { aiJobId: string | null, run: TaskRun, acceptedRunId?: string, onAccept: () => void, runIndex?: number }) {
+  const [showQuestions, setShowQuestions] = useState(false);
+  const [questionsByRun, setQuestionsByRun] = useState<{ [runId: string]: any[] }>({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editQuestion, setEditQuestion] = useState<any>(null);
+
+  useEffect(() => {
+    setQuestionsByRun(prev => { if (prev[run.id]) { const next = { ...prev }; delete next[run.id]; return next; } return prev; });
+  }, [run.result, run.status, run.id]);
+
+  const questions = questionsByRun[run.id] || [];
+
+  const handleShowQuestions = async () => {
+    if (!aiJobId) return;
+    if (!showQuestions && !questionsByRun[run.id]) {
+      setLoading(true);
+      setError("");
+      try {
+        const token = localStorage.getItem('firebase-auth-token');
+        const url = getApiUrl(`/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`);
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+        const arr = await res.json();
+        const dataRes = await fetch(arr[runIndex]?.fileUrl || arr[0]?.fileUrl);
+        const data = await dataRes.json();
+        setQuestionsByRun(prev => ({ ...prev, [run.id]: Array.isArray(data) ? data : (data.segments || []) }));
+      } catch (e: any) {
+        setError(e.message || 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    }
+    setShowQuestions(v => !v);
+  };
+
+  const handleDeleteQuestion = async (idxToDelete: number) => {
+    if (!window.confirm('Are you sure you want to delete this question?')) return;
+    
+    const updated = questions.filter((_, i) => i !== idxToDelete);
+    if (aiJobId && typeof aiSectionAPI.editQuestionData === 'function') {
+      try {
+        await aiSectionAPI.editQuestionData(aiJobId, updated, runIndex);
+        setQuestionsByRun(prev => ({ ...prev, [run.id]: updated }));
+        toast.success('Question deleted successfully');
+      } catch (err) {
+        console.error('Failed to delete question:', err);
+        toast.error('Failed to delete question');
+      }
+    }
+  };
+
+  if (run.status !== 'done') return <div className="flex items-center gap-2 text-blue-400"><Loader2 className="animate-spin" /> Generating questions...</div>;
+
+  return (
+    <div className="space-y-2">
+      {showQuestions && (
+        <>
+        <div className="flex items-center justify-between mt-4">
+         <p className="flex items-center gap-2"><BookOpen color="#AD46FF" size={20}/> <span className="text-[#1E2939] text-[15px] font-bold dark:text-[#C6D2E1]">Generated Questions</span></p>
+         <p className="flex items-center gap-2"><CircleCheckBig color="#009966" size={14}/> <span className="text-[#009966] text-xs">AI generation complete</span></p>
+        </div>
+        <div className="text-gray-900 dark:text-[#F9FBFF] p-[18px] max-h-96 overflow-y-auto text-sm mt-2">
+          {loading && <div>Loading...</div>}
+          {error && <div className="text-red-600">{error}</div>}
+          {!loading && !error && (
+            <ol className="mt-2 space-y-4">
+              {questions.map((q: any, idx: number) => (
+                <li key={idx} className="border border-[#E5E7EB] dark:bg-[#151516] dark:border-[#1F2228] rounded-[12px] p-[18px]">
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2.5">
+                      <div className="font-semibold bg-gradient-to-br from-[#C27AFF] to-[#615FFF] w-[28px] h-[28px] flex items-center justify-center rounded-[8px] text-white">{idx + 1}</div>
+                      <div className="bg-[#F3E8FF] text-[#9810FA] px-[6px] py-[4px] rounded-[8px]">{q.questionType || q.question?.type || 'N/A'}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="secondary" onClick={() => { setEditingIdx(idx); setEditQuestion(q); setEditModalOpen(true); }} className="btn-beautiful"><Edit className="w-4 h-4" /> Edit</Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleDeleteQuestion(idx)} className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="w-4 h-4" /> Delete</Button>
+                    </div>
+                  </div>
+                  <div className="text-[13px] font-medium pt-[12px] pb-[14px]">{q.question?.text}</div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+        </>
+      )}
+      <div className="w-full flex items-center justify-center gap-2 mt-4">
+        <Button size="sm" variant="secondary" onClick={handleShowQuestions} className="btn-beautiful">
+          {showQuestions ? <EyeOff /> : <Eye />} {showQuestions ? 'Hide' : 'Show'} Questions
+        </Button>
+        {acceptedRunId !== run.id && (
+          <Button size="sm" onClick={onAccept} className="bg-[linear-gradient(90deg,_#00D492_0%,_#009966_100%)] text-white dark:text-[#0D0D0D] rounded-[12px]">
+            <Check /> Accept This Version <Sparkles />
+          </Button>
+        )}
+      </div>
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Edit Question</DialogTitle></DialogHeader>
+          {editQuestion && <QuestionEditForm question={editQuestion} onSave={async (edited) => {
+            const updated = questions.map((q, i) => i === editingIdx ? { ...q, question: { ...q.question, text: edited.text }, solution: edited.solution } : q);
+            if (aiJobId && typeof aiSectionAPI.editQuestionData === 'function') {
+              await aiSectionAPI.editQuestionData(aiJobId, updated, runIndex);
+              setQuestionsByRun(prev => ({ ...prev, [run.id]: updated }));
+            }
+            setEditModalOpen(false);
+          }} onCancel={() => setEditModalOpen(false)} />}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+
+async function editSegmentMap(jobId: string, segmentMap: number[], index: number): Promise<void> {
+  const token = localStorage.getItem('firebase-auth-token');
+  const url = getApiUrl(`/genai/jobs/${jobId}/edit/segment-map`);
+  const body = JSON.stringify({ segmentMap, index });
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body,
+  });
+  if (res.status === 200) return;
+  let errMsg = 'Unknown error';
+  try { errMsg = (await res.json()).message || errMsg; } catch { }
+  if (res.status === 400) throw new Error('Bad request: ' + errMsg);
+  if (res.status === 403) throw new Error('Forbidden: ' + errMsg);
+  if (res.status === 404) throw new Error('Job not found: ' + errMsg);
+  throw new Error(errMsg);
+}
+
 export default function AISectionPage() {
+  const { currentCourse } = useCourseStore();
   // AI Section workflow state
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [aiJobId, setAiJobId] = useState<string | null>(null);
@@ -377,6 +1477,10 @@ export default function AISectionPage() {
   const [manuallyCollapsedItems, setManuallyCollapsedItems] = useState<string[]>([]);
   const [isCreatingJob, setIsCreatingJob] = useState(false);
   const [currentUiStep, setCurrentUiStep] = useState(0);
+  const [shouldPoll, setShouldPoll] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
+
   // // Drag and drop handlers for ORDER_THE_LOTS questions (unchanged)
   // const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
   //   e.dataTransfer.setData('text/plain', index.toString());
@@ -402,13 +1506,7 @@ export default function AISectionPage() {
   // New: Track current AI job status for manual refresh
   const [aiJobStatus, setAiJobStatus] = useState<JobStatus | null>(null);
   const [aiJobDate, setAiJobDate] = useState<any | null>(null);
-  const [aiWorkflowStep, setAiWorkflowStep] = useState<'idle' | 'audio_extraction' | 'audio_extraction_done' | 'transcription' | 'transcription_done' | 'error'>('idle');
-  // New: Track if approveContinueTask has been called for current job's WAITING state
-  const [approvedForCurrentJob, setApprovedForCurrentJob] = useState(false);
-  // New: Track if continue+start for transcript has been triggered for the current job
-  const [transcriptStartedForCurrentJob, setTranscriptStartedForCurrentJob] = useState(false);
-  // New: Parameters for rerun
-  const [rerunParams, setRerunParams] = useState({ language: 'en', model: 'default' });
+  const [rerunParams, setRerunParams] = useState({ language: 'en', modelSize: 'large' });
 
   const [audioExtractionProgress, setAudioExtractionProgress] = useState(0);
   type AudioExtractionStatus = 'ready' | 'processing' | 'completed' | 'failed' | 'paused';
@@ -448,14 +1546,46 @@ export default function AISectionPage() {
 
   // Add state for question generation parameters
   const [questionGenParams, setQuestionGenParams] = useState<QuestionGenParams>({
-   
-    SOL: 2,
+    model: "gpt-4o",
+    SOL: 10,
     SML: 0,
     NAT: 0,
     DES: 0,
-    BIN:0,
+    BIN: 0,
+    numberOfQuestions: 10,
     prompt: `Focus on conceptual understanding\n- Test comprehension of key ideas, principles, and relationships discussed in the content\n- Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content\n- The answer of questions should be present within the content, but not directly quoted\n- make all the options roughly the same length\n- Set isParameterized to false unless the question uses variables\n- Do not mention the word 'transcript' for giving references, use the word 'video' instead`
   });
+
+  const [questionsPerQuiz, setQuestionsPerQuiz] = useState(1);
+
+  // Local parameter states for editing before running tasks
+  const [localParams, setLocalParams] = useState<QuestionGenParams>({ ...questionGenParams });
+  const [localSegParams, setLocalSegParams] = useState({ ...segParams });
+  const [videoItemBaseName, setVideoItemBaseName] = useState("video_item");
+  const [quizItemBaseName, setQuizItemBaseName] = useState("quiz_item");
+
+  // Define activeStep for Stepper
+  const activeStep = React.useMemo(() => {
+    if (!aiJobStatus) return null;
+
+    if (aiJobStatus.task === 'AUDIO_EXTRACTION') {
+      return 'audioExtraction';
+    }
+    if (aiJobStatus.task === 'TRANSCRIPT_GENERATION') {
+      return 'transcriptGeneration';
+    }
+    if (aiJobStatus.task === 'SEGMENTATION') {
+      return 'segmentation';
+    }
+    if (aiJobStatus.task === 'QUESTION_GENERATION') {
+      return 'questionGeneration';
+    }
+    if (aiJobStatus.task === 'UPLOAD_CONTENT') {
+      return 'uploadContent';
+    }
+
+    return null;
+  }, [aiJobStatus]);
 
   // AI Section Handlers
   const isValidYouTubeUrl = (url: string): boolean => {
@@ -548,37 +1678,91 @@ export default function AISectionPage() {
       return;
     }
     setUrlError(null);
-    // Get courseId and versionId from store
-    const { currentCourse } = useCourseStore.getState();
+
     if (!currentCourse?.courseId || !currentCourse?.versionId) {
       toast.error("Missing course or version information");
       return;
     }
 
+    const isValidMongoId = (id: string): boolean => /^[a-fA-F0-9]{24}$/.test(id);
+    if (!isValidMongoId(currentCourse.courseId) || !isValidMongoId(currentCourse.versionId)) {
+      toast.error("Invalid course/version ID format. Please reopen the AI modal and try again.");
+      return;
+    }
+
+    if (currentCourse.moduleId && !isValidMongoId(currentCourse.moduleId)) {
+      toast.error("Invalid module ID format. Please reselect the section and try again.");
+      return;
+    }
+    if (currentCourse.sectionId && !isValidMongoId(currentCourse.sectionId)) {
+      toast.error("Invalid section ID format. Please reselect the section and try again.");
+      return;
+    }
+
     setIsCreatingJob(true);
     try {
-      const { jobId } = await aiSectionAPI.createJob({
-        videoUrl: youtubeUrl,
+      const jobParams: Parameters<typeof aiSectionAPI.createJob>[0] = {
+        videoUrl: youtubeUrl.trim(),
         courseId: currentCourse.courseId,
         versionId: currentCourse.versionId,
-        moduleId: currentCourse.moduleId,
-        sectionId: currentCourse.sectionId,
+        moduleId: currentCourse.moduleId || undefined,
+        sectionId: currentCourse.sectionId || undefined,
         videoItemBaseName: 'video_item',
         quizItemBaseName: 'quiz_item',
-      });
+        segmentationParameters: {
+          lam: 4.5,
+          runs: 25,
+          noiseId: -1,
+        },
+        questionGenerationParameters: {
+          SOL: 10,
+          SML: 0,
+          NAT: 0,
+          DES: 0,
+          prompt: `Focus on conceptual understanding\n- Test comprehension of key ideas, principles, and relationships discussed in the content\n- Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content\n- The answer of questions should be present within the content, but not directly quoted\n- Make all the options roughly the same length\n- Set isParameterized to false unless the question uses variables\n- Do not mention the word 'transcript' for giving references, use the word 'video' instead`,
+          numberOfQuestions: 10,
+        },
+      };
+      console.debug('Creating AI job with params', jobParams);
+
+      let jobId: string | null = null;
+      let lastError: any = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const result = await aiSectionAPI.createJob(jobParams);
+          jobId = result.jobId;
+          break;
+        } catch (err: any) {
+          lastError = err;
+          if (attempt === 0) {
+            console.warn('Create AI job attempt failed, retrying once', err);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
+
+      if (!jobId) {
+        throw lastError ?? new Error('Unknown error while creating AI job');
+      }
+
       setAiJobId(jobId);
       toast.success("AI job created successfully!");
-      setCurrentUiStep(1); // Move to the first step (transcription)
-      // Do NOT start audio extraction here. Wait for user to click Transcription button.
-    } catch (error) {
-      toast.error("Failed to create AI job. Please try again.");
+      setCurrentUiStep(1); // Move to first step
+    } catch (error: any) {
+      const message = error?.message || (typeof error === 'string' ? error : 'Unknown error');
+      if (message.includes('timeout') || message.includes('ECONNABORTED')) {
+        toast.error('AI job timed out while connecting to backend AI service. Please retry in a moment.');
+      } else {
+        toast.error(`Failed to create AI job: ${message}`);
+      }
+      console.error('Create AI job error', error);
     } finally {
       setIsCreatingJob(false);
     }
   };
 
   // Refactored handleTask for transcription (no polling)
-  const handleTask = async (task: keyof typeof taskRuns, segParams: any, questionGenParams: any) => {
+  const handleTask = async (task: keyof typeof taskRuns, segParams: any, taskParams: any) => {
 
     if (!aiJobId) {
       toast.error("Please create an AI job first");
@@ -592,12 +1776,29 @@ export default function AISectionPage() {
       parameters: task === "segmentation" ? { ...segParams } : undefined,
     };
     try {
+      if (task !== "transcription") {
+        if (task === 'question') {
+          sessionStorage.removeItem('questions');
+        }
+        
+        // Only approve continue if the task is currently in PENDING state
+        // to avoid incorrect state transitions in the production backend
+        const isPending = (
+          (task === 'segmentation' && aiJobStatus?.jobStatus?.segmentation === 'PENDING') ||
+          (task === 'question' && aiJobStatus?.jobStatus?.questionGeneration === 'PENDING') ||
+          (task === 'upload' && aiJobStatus?.jobStatus?.uploadContent === 'PENDING')
+        );
+
+        if (isPending) {
+          await aiSectionAPI.approveContinueTask(aiJobId);
+        }
+      }
+
       if (task === "transcription") {
         const hasStoppedRun = taskRuns.transcription.some(r => r.status === 'stopped');
         if (hasStoppedRun) {
           setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
-          await aiSectionAPI.postJobTask(aiJobId, 'AUDIO_EXTRACTION');
-          setAiWorkflowStep('audio_extraction');
+          await aiSectionAPI.postJobTask(aiJobId, 'AUDIO_EXTRACTION', {}, 1);
           
           setAudioExtractionStatus('processing');
           setAudioExtractionProgress(pausedProgress);
@@ -605,6 +1806,9 @@ export default function AISectionPage() {
           setEstimatedTimeRemaining('');
           
           toast.success("Transcription restarted");
+          setIsLoading(true);
+          setProgress(0);
+          setShouldPoll(true);
           await handleRefreshStatus();
           return;
         }
@@ -612,8 +1816,10 @@ export default function AISectionPage() {
         if (aiJobStatus?.jobStatus?.transcriptGeneration === 'COMPLETED') {
           // Rerun transcription with selected parameters
           await aiSectionAPI.rerunJobTask(aiJobId, 'TRANSCRIPT_GENERATION', rerunParams);
-          setAiWorkflowStep('transcription');
           toast.success("Transcription rerun started.");
+          setIsLoading(true);
+          setProgress(0);
+          setShouldPoll(true);
           setTaskRuns(prev => ({
             ...prev,
             transcription: [...prev.transcription, {
@@ -628,8 +1834,7 @@ export default function AISectionPage() {
         }
         // Only start audio extraction, do not poll
         setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
-        await aiSectionAPI.postJobTask(aiJobId, 'AUDIO_EXTRACTION');
-        setAiWorkflowStep('audio_extraction');
+        await aiSectionAPI.postJobTask(aiJobId, 'AUDIO_EXTRACTION', {}, 0);
         
         setAudioExtractionStatus('processing');
         setAudioExtractionProgress(audioExtractionStatus === 'paused' ? pausedProgress : 0);
@@ -637,6 +1842,9 @@ export default function AISectionPage() {
         setEstimatedTimeRemaining('');
         
         toast.success("Audio extraction started.");
+        setIsLoading(true);
+        setProgress(0);
+        setShouldPoll(true);
         setTaskRuns(prev => ({
           ...prev,
           [task]: prev[task].map(run =>
@@ -647,17 +1855,20 @@ export default function AISectionPage() {
         return;
       }
       let taskType = "";
-      let params: Record<string, any> | undefined = undefined;
+      let localParams: Record<string, any> | undefined = undefined;
       switch (task) {
         case "segmentation": {
           taskType = "SEGMENTATION";
-          const hasStoppedRun = taskRuns.segmentation.some(r => r.status === 'stopped');
-          if (hasStoppedRun) {
+          const hasFailedOrStoppedRun = taskRuns.segmentation.some(r => r.status === 'failed' || r.status === 'stopped');
+          if (hasFailedOrStoppedRun) {
             setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
+            localParams = { lam: segParams.lam, runs: segParams.runs, noiseId: segParams.noiseId };
             await aiSectionAPI.approveContinueTask(aiJobId);
-            params = { lam: segParams.lam, runs: segParams.runs, noiseId: segParams.noiseId };
-            await aiSectionAPI.postJobTask(aiJobId, taskType, params, 0);
+            await aiSectionAPI.rerunJobTask(aiJobId, taskType, localParams, 0);
             toast.success("Segmentation restarted.");
+            setIsLoading(true);
+            setProgress(0);
+            setShouldPoll(true);
             await handleRefreshStatus();
             return;
           }
@@ -674,40 +1885,148 @@ export default function AISectionPage() {
             ...prev,
             segmentation: [...prev.segmentation, newRun]
           }));
-          // Approve transcript before starting segmentation
-          await aiSectionAPI.approveContinueTask(aiJobId);
-          // Find the accepted transcript run index (0-based)
-          const acceptedTranscriptId = acceptedRuns.transcription;
-          // Always use usePrevious = 0 as per user request
-          const usePrevious = 0;
           // Always use the latest values from segParams for the payload
-          params = { lam: segParams.lam, runs: segParams.runs, noiseId: segParams.noiseId };
-          await aiSectionAPI.postJobTask(aiJobId, taskType, params, usePrevious);
+          localParams = { lam: segParams.lam, runs: segParams.runs, noiseId: segParams.noiseId };
+          await aiSectionAPI.postJobTask(aiJobId, taskType, localParams, 0);
+          setIsLoading(true);
+          setProgress(0);
+          setShouldPoll(true);
           await handleRefreshStatus();
           return;
         }
         case "question":
           taskType = "QUESTION_GENERATION";
-          const hasStoppedQuestionRun = taskRuns.question.some(r => r.status === 'stopped');
-          if (hasStoppedQuestionRun) {
-            setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
-            params = { ...questionGenParams };
-            await aiSectionAPI.postJobTask(aiJobId, taskType, params);
-            toast.success("Question generation restarted.");
-            await handleRefreshStatus();
-            return;
+          const isCompleted = aiJobStatus?.jobStatus?.questionGeneration === 'COMPLETED';
+
+          setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
+
+          try {
+            const jobData = (await aiSectionAPI.getJobStatus(aiJobId!)) as any;
+            const segmentationRuns = Array.isArray(jobData.segmentation) ? jobData.segmentation : [];
+            let segMap: number[] | undefined = undefined;
+            let transcriptUrl: string | undefined = undefined;
+
+            for (let i = segmentationRuns.length - 1; i >= 0; i--) {
+              const run = segmentationRuns[i];
+              if (!segMap && Array.isArray(run?.segmentationMap) && run.segmentationMap.length > 0) {
+                segMap = run.segmentationMap;
+              }
+              if (!transcriptUrl && typeof run?.transcriptFileUrl === 'string') {
+                transcriptUrl = run.transcriptFileUrl;
+              }
+              if (segMap && transcriptUrl) break;
+            }
+
+            if ((!segMap || segMap.length === 0) || !transcriptUrl) {
+              const segTaskRes = await aiSectionAPI.getTaskStatus(aiJobId, 'SEGMENTATION');
+              if (Array.isArray(segTaskRes)) {
+                for (let i = segTaskRes.length - 1; i >= 0; i--) {
+                  const run = segTaskRes[i] as any;
+                  if (!segMap && Array.isArray(run?.segmentationMap) && run.segmentationMap.length > 0) {
+                    segMap = run.segmentationMap;
+                  }
+                  if (!transcriptUrl && typeof run?.transcriptFileUrl === 'string') {
+                    transcriptUrl = run.transcriptFileUrl;
+                  }
+                  if (segMap && transcriptUrl) break;
+                }
+              }
+            }
+
+            if (!transcriptUrl) {
+              const lastTranscript = jobData.transcriptGeneration?.[jobData.transcriptGeneration?.length - 1];
+              transcriptUrl = lastTranscript?.fileUrl;
+            }
+            if (!transcriptUrl) {
+              const transTaskRes = await aiSectionAPI.getTaskStatus(aiJobId, 'TRANSCRIPT_GENERATION');
+              if (Array.isArray(transTaskRes) && transTaskRes.length > 0) {
+                const lastTrans = transTaskRes[transTaskRes.length - 1] as any;
+                transcriptUrl = lastTrans?.fileUrl || transcriptUrl;
+              }
+            }
+
+            if (!segMap || segMap.length === 0) {
+              const hasSegmentation = segmentationRuns.length > 0 || (await aiSectionAPI.getTaskStatus(aiJobId, 'SEGMENTATION')).length > 0;
+              throw new Error(
+                hasSegmentation
+                  ? 'Cannot generate questions: segmentation map missing or invalid. Please re-run segmentation or edit the segment map before retrying question generation.'
+                  : 'Cannot generate questions: segmentation has not been run yet. Please run segmentation first and then retry question generation.',
+              );
+            }
+
+            if (!transcriptUrl) {
+              throw new Error('Could not find transcript file URL for question generation. Please ensure transcription and segmentation are complete.');
+            }
+
+            await aiSectionAPI.editSegmentMap(aiJobId, segMap);
+
+            if (!transcriptUrl) {
+              const lastTranscript = jobData.transcriptGeneration?.[jobData.transcriptGeneration?.length - 1];
+              transcriptUrl = lastTranscript?.fileUrl;
+            }
+            if (!transcriptUrl) {
+              const transTaskRes = await aiSectionAPI.getTaskStatus(aiJobId, 'TRANSCRIPT_GENERATION');
+              if (Array.isArray(transTaskRes) && transTaskRes.length > 0) {
+                transcriptUrl = transTaskRes[transTaskRes.length - 1]?.fileUrl || transcriptUrl;
+              }
+            }
+            if (!transcriptUrl) {
+              throw new Error('Could not find transcript file URL for question generation. Please ensure transcription and segmentation are complete.');
+            }
+
+            const effectivePrompt = taskParams?.prompt?.trim() || questionGenParams.prompt || "";
+            if (!effectivePrompt) {
+              throw new Error('Question generation prompt is empty. Please provide a prompt.');
+            }
+
+            const finalQnParams: Record<string, any> = {
+              SOL: Number(taskParams?.SOL ?? 0),
+              SML: Number(taskParams?.SML ?? 0),
+              NAT: Number(taskParams?.NAT ?? 0),
+              DES: Number(taskParams?.DES ?? 0),
+              BIN: Number(taskParams?.BIN ?? 0),
+              prompt: effectivePrompt,
+            };
+            const qnTypes = ['SOL', 'SML', 'NAT', 'DES', 'BIN'];
+            const totalRequested = qnTypes.reduce(
+              (sum, type) => sum + (Number(finalQnParams[type] ?? 0) || 0),
+              0,
+            );
+            if (totalRequested === 0) {
+              finalQnParams.NAT = Number(taskParams?.numberOfQuestions || 10);
+            }
+
+            // Keep transcript file URL for the AI server to use
+            finalQnParams.transcriptFileUrl = transcriptUrl;
+
+            if (isCompleted) {
+              await aiSectionAPI.rerunJobTask(aiJobId, 'QUESTION_GENERATION', finalQnParams, 0);
+              toast.success('Question generation re-run started.');
+            } else {
+              await aiSectionAPI.approveContinueTask(aiJobId);
+              await aiSectionAPI.approveStartTask(aiJobId, {
+                type: 'QUESTION_GENERATION',
+                parameters: finalQnParams,
+              });
+              toast.success('Question generation started.');
+            }
+          } catch (e: any) {
+            console.error('Failed to prepare or start question generation:', e);
+            throw new Error(e?.message || 'Failed to start question generation.');
           }
-          params = { ...questionGenParams };
           break;
 
         case "upload":
-          taskType = "UPLOAD_TO_COURSE";
+          taskType = "UPLOAD_CONTENT";
+          setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
+          await aiSectionAPI.postJobTask(aiJobId, taskType, taskParams || {}, 0);
           break;
         default:
           throw new Error(`Unknown task: ${task}`);
       }
-      setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
-      await aiSectionAPI.postJobTask(aiJobId, taskType, params);
+      setIsLoading(true);
+      setProgress(0);
+      setShouldPoll(true);
 
       if (task === "upload") {
         setTaskRuns(prev => ({
@@ -730,13 +2049,52 @@ export default function AISectionPage() {
       }
       await handleRefreshStatus();
     } catch (error) {
+      if (task === "upload") {
+        console.warn("Upload content might have deadlocked but succeeded. Verifying status...");
+        try {
+          // Wait longer (5s) for the DB to settle
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          const status = await aiSectionAPI.getJobStatus(aiJobId!) as any;
+          const uploadStatus = status.jobStatus?.uploadContent;
+          const hasResults = Array.isArray(status.uploadContent) && status.uploadContent.length > 0;
+
+          if (uploadStatus === "COMPLETED" || hasResults) {
+            setTaskRuns(prev => ({
+              ...prev,
+              [task]: prev[task].map(run =>
+                run.id === runId ? { ...run, status: "done", result: status } : run
+              ),
+            }));
+            toast.success("Section verified as uploaded successfully!");
+            setAiJobStatus(status);
+            setIsLoading(false);
+            setShouldPoll(false);
+            return;
+          } else if (uploadStatus === "RUNNING" || uploadStatus === "PENDING") {
+            console.info("Upload detected as active on server. Proceeding with polling.");
+            setTaskRuns(prev => ({
+              ...prev,
+              [task]: prev[task].map(run =>
+                run.id === runId ? { ...run, status: "loading", result: status } : run
+              ),
+            }));
+            setAiJobStatus(status);
+            setShouldPoll(true);
+            setIsLoading(true);
+            toast.info("Upload is processing in the background...");
+            return;
+          }
+        } catch (innerError) {
+          console.error("Failed to verify status after upload error:", innerError);
+        }
+      }
+
       setTaskRuns(prev => ({
         ...prev,
         [task]: prev[task].map(run =>
           run.id === runId ? { ...run, status: "failed" } : run
         ),
       }));
-      setAiWorkflowStep('error');
       toast.error(`Task ${task} failed: ${error instanceof Error ? error.message : "Unknown error"}`);
       await handleRefreshStatus();
     }
@@ -778,47 +2136,7 @@ export default function AISectionPage() {
   };
 
   // Helper to map status to icon and color
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'loading':
-      case 'RUNNING':
-        return <TooltipProvider><Tooltip><TooltipTrigger asChild><span><Loader2 className="animate-spin text-blue-500" /></span></TooltipTrigger><TooltipContent>Running</TooltipContent></Tooltip></TooltipProvider>;
-      case 'done':
-      case 'COMPLETED':
-        return <TooltipProvider><Tooltip><TooltipTrigger asChild><span><CheckCircle className="text-green-600" /></span></TooltipTrigger><TooltipContent>Completed</TooltipContent></Tooltip></TooltipProvider>;
-      case 'FAILED':
-      case 'failed':
-        return <TooltipProvider><Tooltip><TooltipTrigger asChild><span><XCircle className="text-red-600" /></span></TooltipTrigger><TooltipContent>Failed</TooltipContent></Tooltip></TooltipProvider>;
-      case 'stopped':
-      case 'STOPPED':
-        return <TooltipProvider><Tooltip><TooltipTrigger asChild><span><PauseCircle className="text-orange-500" /></span></TooltipTrigger><TooltipContent>Stopped</TooltipContent></Tooltip></TooltipProvider>;
-      case 'WAITING':
-      case 'PENDING':
-        return <TooltipProvider><Tooltip><TooltipTrigger asChild><span><PauseCircle className="text-yellow-500" /></span></TooltipTrigger><TooltipContent>Waiting/Pending</TooltipContent></Tooltip></TooltipProvider>;
-      default:
-        return <TooltipProvider><Tooltip><TooltipTrigger asChild><span><Play className="text-gray-400" /></span></TooltipTrigger><TooltipContent>Unknown</TooltipContent></Tooltip></TooltipProvider>;
-    }
-  };
 
-  // Helper to map workflow step to user-friendly message
-  const getWorkflowStepMessage = (step: string) => {
-    switch (step) {
-      case 'transcription_done':
-        return 'Transcription Completed';
-      case 'audio_extraction_done':
-        return 'Audio Extraction Completed';
-      case 'transcription':
-        return 'Transcription In Progress';
-      case 'audio_extraction':
-        return 'Audio Extraction In Progress';
-      case 'idle':
-        return 'Idle';
-      case 'error':
-        return 'Error';
-      default:
-        return step;
-    }
-  };
 
   const getCurrentActiveRunNumber = (taskType: keyof TaskRuns): number => {
     const runs = taskRuns[taskType];
@@ -831,803 +2149,7 @@ export default function AISectionPage() {
     return runs.indexOf(latestRun) + 1;
   };
 
-  const TaskAccordion = React.memo(({
-    task,
-    title,
-    jobStatus,
-    taskRuns,
-    acceptedRuns,
-    aiJobId,
-    aiJobStatus: accordionAiJobStatus,
-    segParams,
-    questionGenParams,
-    rerunParams,
-    handleTask,
-    handleAcceptRun,
-    canRunTask,
-    setTaskRuns,
-    setQuestionGenParams,
-    setSegParams,
-    setRerunParams,
-    handleStartTranscription,
-    getStatusIcon,
-    handleStopTask,
-    expandedAccordionItems,
-    setExpandedAccordionItems,
-  }: {
-    task: keyof typeof taskRuns;
-    title: string;
-    jobStatus?: any;
-    taskRuns: TaskRuns;
-    acceptedRuns: Partial<Record<keyof TaskRuns, string>>;
-    aiJobId: string | null;
-    aiJobStatus: any;
-    segParams: { lam: number; runs: number; noiseId: number };
-    questionGenParams: QuestionGenParams;
-    rerunParams: { language: string; model: string };
-    handleTask: (task: keyof TaskRuns, segParams: any, questionGenParams: any) => Promise<void>;
-    handleAcceptRun: (task: keyof TaskRuns, runId: string) => Promise<void>;
-    canRunTask: (task: keyof TaskRuns) => boolean;
-    setTaskRuns: React.Dispatch<React.SetStateAction<TaskRuns>>;
-    setQuestionGenParams: React.Dispatch<React.SetStateAction<QuestionGenParams>>;
-    setSegParams: React.Dispatch<React.SetStateAction<{ lam: number; runs: number; noiseId: number }>>;
-    setRerunParams: React.Dispatch<React.SetStateAction<{ language: string; model: string }>>;
-    handleStartTranscription: () => Promise<void>;
-    getStatusIcon: (status: string) => React.ReactNode;
-    handleStopTask: (task: keyof TaskRuns) => Promise<void>;
-    expandedAccordionItems: string[];
-    setExpandedAccordionItems: React.Dispatch<React.SetStateAction<string[]>>;
-  }) => {
-    const runs = taskRuns[task];
-    const acceptedRunId = acceptedRuns[task];
-    const { currentCourse } = useCourseStore();
-    // Add state for upload parameters
-    const [videoItemBaseName, setVideoItemBaseName] = useState("video_item");
-    const [quizItemBaseName, setQuizItemBaseName] = useState("quiz_item");
-    const [questionsPerQuiz, setQuestionsPerQuiz] = useState(1);
 
-    const [localParams, setLocalParams] = useState(questionGenParams);
-
-    const [localSegParams, setLocalSegParams] = useState(segParams);
-
-    const fields = React.useMemo<(keyof Pick<QuestionGenParams, "SOL" | "SML" | "NAT" | "DES">)[]>(() =>
-      ["SOL", "SML", "NAT", "DES"],
-      [],);
-
-    const segFields: { key: "lam" | "runs" | "noiseId", type: 'float' | "int" }[] = [
-      { key: 'lam', type: 'float' },
-      { key: 'runs', type: 'int' },
-      { key: 'noiseId', type: 'int' }
-    ];
-
-    const handleSegParamChange = useCallback(
-      <K extends keyof typeof segParams>(field: K, value: typeof segParams[K]) => {
-        setLocalSegParams(prev => ({
-          ...prev,
-          [field]: value
-        }));
-      },
-      []
-    );
-
-    const handleParamChange = useCallback(<K extends keyof QuestionGenParams>(
-      field: K,
-      value: QuestionGenParams[K]
-    ) => {
-      setLocalParams(prev => ({
-        ...prev,
-        [field]: value
-      }));
-    }, []);
-
-    return (
-      <div className="space-y-[28px]">
-        {/* Always show transcription parameter inputs for 'transcription' task */}
-        {task === 'transcription' && audioExtractionStatus !== 'completed' && (
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 lg:gap-5 mb-4">
-            <div className="flex-1 flex flex-col items-start min-w-0">
-              <label className="mb-2.5 flex items-center text-sm font-medium text-gray-700 dark:text-[#a8a29e]">
-                <span className="w-2 h-2 bg-blue-500 rounded-full mr-2 flex-shrink-0"></span>
-                <span className="truncate">Processing Language</span>
-              </label>
-              <select
-                value={rerunParams.language}
-                onChange={e => setRerunParams(p => ({ ...p, language: e.target.value }))}
-                className="w-full px-3 sm:px-4 py-2 rounded-full border border-gray-200 dark:border-[#26211E] bg-white dark:bg-[#202020] shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
-              >
-                <option value="en">English</option>
-                <option value="hi">Hindi</option>
-              </select>
-            </div>
-            {/* <div className="flex-1 flex flex-col items-start min-w-0">
-              <label className="mb-2.5 flex items-center text-sm font-medium text-gray-700 dark:text-[#a8a29e]">
-                <span className="w-2 h-2 bg-purple-500 rounded-full mr-2 flex-shrink-0"></span>
-                <span className="truncate">AI Model</span>
-              </label>
-              <select
-                value={rerunParams.model}
-                onChange={e => setRerunParams(p => ({ ...p, model: e.target.value }))}
-                className="w-full px-3 sm:px-4 py-2 rounded-full border border-gray-200 dark:border-[#26211E] bg-white dark:bg-[#202020] shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
-              >
-                <option value="default">default</option>
-               
-              </select>
-            </div> */}
-          </div>
-        )}
-        {task === 'transcription' && (
-          (accordionAiJobStatus?.jobStatus?.audioExtraction === 'COMPLETED' ||
-           (accordionAiJobStatus?.task === 'AUDIO_EXTRACTION' && accordionAiJobStatus?.status === 'COMPLETED'))
-        ) && (
-          <div className="w-full mb-6 shadow-sm">
-
-            <div className="rounded-xl border border-emerald-200 dark:border-[#0E7145] bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-[#171717] dark:from-[#171717] dark:to-[#171717]">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
-                <div>
-                  <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
-                  <CheckCircle className="w-5 h-5 text-white dark:text-[#0D0D0D]" />
-                </div>
-                </div>
-              <div>
-                  <div>Audio Extraction</div>
-                  <div className="flex lg:flex-nowrap flex-wrap items-center gap-3">
-                  <span className="text-xs text-emerald-600">Run {getCurrentActiveRunNumber('transcription')}</span>
-                  <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
-                  <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white dark:text-[#0D0D0D] font-medium">Complete</span>
-                  <span className="text-sm text-emerald-700 font-medium">100% complete</span>
-                </div>
-                </div>
-                </div>
-                
-              </div>
-              <div className="rounded-lg border border-emerald-100 dark:border-transparent bg-white/60 dark:bg-[#464545] backdrop-blur-md p-4">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 text-sm">
-                  <div>
-                    <div className="text-gray-500 dark:text-[#FAFCFF]">Duration</div>
-                    <div className="text-gray-800 font-medium dark:text-[#FAFCFF]">12:48 minutes</div>
-                  </div>
-                  <div>
-                    <div className="text-gray-500 dark:text-[#FAFCFF]">Quality</div>
-                    <div className="text-gray-800 font-medium dark:text-[#FAFCFF]">High (320kbps)</div>
-                  </div>
-                  <div>
-                    <div className="text-gray-500 dark:text-[#FAFCFF]">Format</div>
-                    <div className="text-gray-800 font-medium dark:text-[#FAFCFF]">MP3</div>
-                  </div>
-                  <div>
-                    <div className="text-gray-500 dark:text-[#FAFCFF]">File Size</div>
-                    <div className="text-gray-800 font-medium dark:text-[#FAFCFF]">29.4 MB</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 rounded-lg border border-emerald-200 dark:border-[#171717] bg-emerald-50 dark:bg-[#171717] p-4 text-sm text-[#007A55] dark:text-[#00B277] shadow-sm">
-              <div className="flex flex-col items-center gap-2 justify-center text-center">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4" />
-                  <div className="font-medium">Audio extraction completed successfully!</div>
-                </div>
-                <div>Ready to proceed with AI-powered transcription</div>
-              </div>
-            </div>
-
-          </div>
-        )}
-        {/* Always show question generation parameter inputs for 'question' task */}
-        {task === 'question' && (
-          <div className="flex flex-col gap-2 mb-2">
-            <div className="flex flex-row gap-2">
-              {/* <div className="flex-1 flex flex-col">
-                <label>Model:</label>
-                <Input
-                  type="text"
-                  value={localParams.model}
-                  onChange={e => handleParamChange("model", e.target.value)}
-                  className="w-full dark:bg-[#0D0D0DCC]"
-                />
-              </div> */}
-              {fields.map(field => (
-                <div key={field} className="flex-1 flex flex-col">
-                  <label>{field}:</label>
-                  <Input
-                    key={`input-${field}`}
-                    type="number"
-                    min={0}
-                    value={localParams[field]}
-                    onChange={e => handleParamChange(field, Number(e.target.value))}
-                    className="w-full dark:bg-[#0D0D0DCC]"
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-col mt-2">
-              <label>prompt:</label>
-              <Textarea
-                value={localParams.prompt}
-                onChange={e => setLocalParams(p => ({ ...p, prompt: e.target.value }))}
-                className="w-full min-h-[80px] dark:bg-[#0D0D0DCC]"
-              />
-            </div>
-          </div>
-        )}
-        {/* Upload to Course input fields */}
-        {task === 'upload' && (
-          <div className="flex flex-col gap-2 mb-2">
-            <label className="font-medium">Video Item Base Name</label>
-            <Input
-              value={videoItemBaseName}
-              onChange={e => setVideoItemBaseName(e.target.value)}
-              placeholder="video_item"
-              className="w-full"
-            />
-            <label className="font-medium">Quiz Item Base Name</label>
-            <Input
-              value={quizItemBaseName}
-              onChange={e => setQuizItemBaseName(e.target.value)}
-              placeholder="quiz_item"
-              className="w-full"
-            />
-            <label className="font-medium">Questions Per Quiz</label>
-            <Input
-              type="number"
-              min={1}
-              value={questionsPerQuiz}
-              onChange={e => setQuestionsPerQuiz(Number(e.target.value))}
-              className="w-full"
-            />
-          </div>
-        )}
-
-        {task === 'transcription' && (
-          <>
-            {audioExtractionStatus !== 'completed' && (
-            <div className="w-full p-5 rounded-lg border border-[#FFD6A7] dark:border-[#202020] mb-4 bg-[linear-gradient(135deg,_#e0fff4_0%,_#f3e7ff_100%)] dark:bg-[linear-gradient(135deg,_#202020_0%,_#202020_100%)] flex items-start gap-4">
-              <div className="flex items-start gap-4 w-full">
-             
-            <div>
-              <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] text-white">
-                <FileText className="w-6 h-6 text-white dark:text-[#0D0D0D]" />
-              </div>
-            </div>
-          
-       
-            <div className="flex flex-col justify-center w-full">
-          
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className="font-semibold text-gray-900 dark:text-[#a8a29e] text-lg">Audio Extraction</span>
-                      <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-orange-500 text-white dark:text-[#0D0D0D] font-medium">
-                        {audioExtractionStatus === 'processing' ? 'Processing' : 
-                         (audioExtractionStatus as AudioExtractionStatus) === 'completed' ? 'Completed' :
-                         audioExtractionStatus === 'failed' ? 'Failed' : 
-                         audioExtractionStatus === 'paused' ? 'Paused' :
-                         taskRuns.transcription.some(r => r.status === 'stopped') ? 'Stopped' : 'Ready'}
-                      </span>
-              </div>
-
-               
-                    {/* {aiJobId && (
-            runs.some(r => r.status === "loading") ||
-            runs.some(r => r.status === "stopped") ||
-            (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.audioExtraction === 'RUNNING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'PENDING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'WAITING') && accordionAiJobStatus?.jobStatus?.audioExtraction !== 'FAILED') ||
-            (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'RUNNING' || accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'PENDING' || accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'WAITING') && accordionAiJobStatus?.jobStatus?.transcriptGeneration !== 'FAILED') ||
-            (task === 'segmentation' && (accordionAiJobStatus?.jobStatus?.segmentation === 'RUNNING' || accordionAiJobStatus?.jobStatus?.segmentation === 'PENDING' || accordionAiJobStatus?.jobStatus?.segmentation === 'WAITING') && accordionAiJobStatus?.jobStatus?.segmentation !== 'FAILED') ||
-            (task === 'question' && (accordionAiJobStatus?.jobStatus?.questionGeneration === 'RUNNING' || accordionAiJobStatus?.jobStatus?.questionGeneration === 'PENDING' || accordionAiJobStatus?.jobStatus?.questionGeneration === 'WAITING') && accordionAiJobStatus?.jobStatus?.questionGeneration !== 'FAILED') ||
-            (task === 'upload' && (accordionAiJobStatus?.jobStatus?.uploadContent === 'RUNNING' || accordionAiJobStatus?.jobStatus?.uploadContent === 'PENDING' || accordionAiJobStatus?.jobStatus?.uploadContent === 'WAITING') && accordionAiJobStatus?.jobStatus?.uploadContent !== 'FAILED')
-          ) && (
-              <Button
-                onClick={() => handleStopTask(task)}
-                variant="outline"
-                disabled={runs.some(r => r.status === "stopped")}
-                className="bg-red-50 dark:bg-[#464545] border-red-300 dark:border-[#4F0000] text-[#FF020E] hover:bg-red-100 hover:border-red-400 font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <XCircle className="w-4 h-4 mr-2" />
-                {runs.some(r => r.status === "stopped") ? "Task Stopped" : "Stop Task"}
-              </Button>
-            )} */}
-                    {(audioExtractionStatus as AudioExtractionStatus) === 'completed' && (
-                      <Button
-                        onClick={handleStartTranscription}
-                        size="sm"
-                        className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-4 py-2 rounded-lg shadow-md hover:shadow-lg"
-                      >
-                        Start Transcription Task
-                      </Button>
-                    )}
-                  </div>
-
-           
-                  <div className="flex lg:flex-nowrap flex-wrap items-center text-sm text-gray-600 dark:text-[#FBFDFF] lg:mb-0 mb-1">
-                <div className="flex items-center">
-                <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                <span>Run {getCurrentActiveRunNumber('transcription')}</span>
-                </div>
-              <div>
-              <span className="mx-2">•</span>
-              <span>{audioExtractionStartTime ? audioExtractionStartTime.toLocaleTimeString() : new Date().toLocaleTimeString()}</span>
-              </div>
-                    {audioExtractionStatus !== 'ready' && audioExtractionStatus !== 'failed' && (
-                      <div>
-                        <span className="mx-2">✨</span>
-                        <span>{Math.round((audioExtractionStatus as AudioExtractionStatus) === 'completed' ? 100 : audioExtractionProgress)}% complete</span>
-                      </div>
-                    )}
-              </div>
-
-               
-                  {audioExtractionStatus !== 'ready' && audioExtractionStatus !== 'failed' && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700 dark:text-[#F8FAFD]">Extraction Progress</span>
-                        <span className="text-sm font-medium text-blue-600">{Math.round((audioExtractionStatus as AudioExtractionStatus) === 'completed' ? 100 : audioExtractionProgress)}%</span>
-                      </div>
-                      
-                      <div className="w-full bg-gray-200 dark:bg-[#464545] rounded-full h-2 overflow-hidden">
-                        <div  
-                          className="bg-gray-800 dark:bg-[#FFFFFF] h-2 rounded-full transition-all duration-300 ease-out"
-                          style={{ width: `${(audioExtractionStatus as AudioExtractionStatus) === 'completed' ? 100 : audioExtractionProgress}%` }}
-                        ></div>
-                      </div>
-                      
-                      {audioExtractionStatus === 'processing' && (
-                        <div className="text-sm text-gray-600 dark:text-[#FDFEFF]">
-                          Estimated time remaining: {estimatedTimeRemaining}
-                        </div>
-                      )}
-          </div>
-                  )}
-                </div>
-              </div>
-            </div>
-        )}
-            {audioExtractionStatus === 'processing' && (
-              <div className="w-full p-5 rounded-lg border border-[#BEDBFF] dark:border-[#181818] bg-[#EEF2FF] dark:bg-[#181818] shadow-sm">
-                <div className="flex items-center justify-center gap-4">
-                  
-                  <div className="flex flex-col">
-                 <div className="flex items-center justify-center">
-                 <div className="w-8 h-8 flex items-center justify-center">
-                    <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
-                  </div>
-                    <span className="font-medium text-blue-600 text-base">Processing Audio</span>
-                 </div>
-                    <span className="text-sm text-blue-500 mt-4">
-                      Our advanced algorithms are carefully extracting high-quality audio from your video...
-                    </span>
-                    <div className="flex items-center gap-1 mt-[18px] justify-center">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-        {task === 'segmentation' && aiJobStatus?.task === 'SEGMENTATION' && aiJobStatus?.status === 'COMPLETED' && (
-            <div className="w-full rounded-xl border border-emerald-200 dark:border-[#0E7145] bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-[#171717] dark:from-[#171717] dark:to-[#171717]">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
-                  <div>
-                    <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
-                      <CheckCircle className="w-5 h-5 text-white dark:text-[#0D0D0D]" />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2.5">
-                      <div>AI Segmentation</div>
-                      <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white dark:text-[#0D0D0D] font-medium">Complete</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-emerald-600">Run {getCurrentActiveRunNumber('segmentation')}</span>
-                      <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-        )}
-       
-        {task === 'transcription' && (
-          (accordionAiJobStatus?.jobStatus?.transcription === 'COMPLETED' ||
-            (accordionAiJobStatus?.task === 'TRANSCRIPT_GENERATION' && accordionAiJobStatus?.status === 'COMPLETED'))
-          ) ? (
-            <div className="rounded-xl border border-emerald-200 dark:border-[#0E7145] bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-[#171717] dark:from-[#171717] dark:to-[#171717]">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
-                  <div>
-                    <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
-                      <CheckCircle className="w-5 h-5 text-white dark:text-[#0D0D0D]" />
-                    </div>
-                  </div>
-                <div>
-                  <div className="flex items-center gap-2.5">
-                    <div>AI Transcription</div>
-                    <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white dark:text-[#0D0D0D] font-medium">Complete</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-emerald-600">Run {getCurrentActiveRunNumber('transcription')}</span>
-                    <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
-                  </div>
-                </div>
-                </div>
-              </div>
-            </div>
-          ):(
-        <div className={`flex lg:flex-nowrap flex-wrap items-center gap-3 justify-center`}>
-          {task === 'transcription' && accordionAiJobStatus?.status === 'COMPLETED' && accordionAiJobStatus?.task === 'AUDIO_EXTRACTION' ? (
-            <Button
-              onClick={handleStartTranscription}
-              variant="default"
-              disabled={accordionAiJobStatus?.status !== 'COMPLETED' || accordionAiJobStatus?.task !== 'AUDIO_EXTRACTION'}
-              className="px-6 py-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white dark:text-[#0D0D0D] font-semibold shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              < Play />
-              Start Transcription Task
-              <Sparkles/>
-            </Button>
-          ) : (
-          <Button
-            onClick={async () => {
-              setQuestionGenParams(localParams);
-              setSegParams(localSegParams);
-              if (task === 'upload') {
-                // Use values from store and input fields
-                if (!aiJobId) return;
-                if (!currentCourse?.courseId || !currentCourse?.versionId || !currentCourse?.moduleId || !currentCourse?.sectionId) {
-                  toast.error('Missing course/module/section info');
-                  return;
-                }
-                const params = {
-                  courseId: currentCourse.courseId,
-                  versionId: currentCourse.versionId,
-                  moduleId: currentCourse.moduleId,
-                  sectionId: currentCourse.sectionId,
-                  videoItemBaseName,
-                  quizItemBaseName,
-                  questionsPerQuiz,
-                };
-                setTaskRuns(prev => ({ ...prev, upload: [...prev.upload, { id: `run-${Date.now()}-${Math.random()}`, timestamp: new Date(), status: 'loading', parameters: params }] }));
-                try {
-                  await aiSectionAPI.postJobTask(aiJobId, 'UPLOAD_CONTENT', params);
-                  setTaskRuns(prev => ({ ...prev, upload: prev.upload.map(run => run.status === 'loading' ? { ...run, status: 'done' } : run) }));
-                  toast.success('Section successfully uploaded to course!');
-                } catch (error) {
-                  setTaskRuns(prev => ({ ...prev, upload: prev.upload.map(run => run.status === 'loading' ? { ...run, status: 'failed' } : run) }));
-                  toast.error('Upload to course failed.');
-                }
-                return;
-              }
-              if (runs.some(r => r.status === 'stopped')) {
-                if (!aiJobId) {
-                  toast.error("No AI job ID available");
-                  return;
-                }
-                const runId = `run-${Date.now()}-${Math.random()}`;
-                const newRun: TaskRun = {
-                  id: runId,
-                  timestamp: new Date(),
-                  status: "loading",
-                  parameters: task === "segmentation" ? { ...localSegParams } : task === "question" ? { ...localParams } : task === "transcription" ? { ...rerunParams } : undefined,
-                };
-                setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
-                try {
-                  let taskType: string;
-                  switch (task) {
-                    case "transcription":
-                      taskType = "AUDIO_EXTRACTION";
-                      break;
-                    case "segmentation":
-                      taskType = "SEGMENTATION";
-                      break;
-                    case "question":
-                      taskType = "QUESTION_GENERATION";
-                      break;
-                    case "upload":
-                      taskType = "UPLOAD_CONTENT";
-                      break;
-                    default:
-                      throw new Error(`Unsupported task type: ${task}`);
-                  }
-                  const response = await aiSectionAPI.rerunJobTask(aiJobId, taskType, newRun.parameters);
-                  if (!response.ok) {
-                    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-                  }
-                  toast.success(`${title} restarted.`);
-                  await handleRefreshStatus();
-                } catch (error) {
-                  setTaskRuns(prev => ({
-                    ...prev,
-                    [task]: prev[task].map(run => run.id === runId ? { ...run, status: "failed" } : run),
-                  }));
-                  toast.error(`Failed to restart ${title}: ${error instanceof Error ? error.message : "Unknown error"}`);
-                }
-                return;
-              }
-              handleTask(task, localSegParams, localParams);
-            }}
-            disabled={!canRunTask(task) || runs.some(r => r.status === "loading")}
-            className="flex items-center justify-between gap-2 bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white dark:text-[#0D0D0D] font-semibold px-4 sm:px-6 py-3 rounded-full shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Play />
-            {runs.some(r => r.status === 'stopped') ? `Restart ${title}` :  `Start ${title}`}
-            <Sparkles />
-          </Button>
-          )}
-          {aiJobId && (
-            runs.some(r => r.status === "loading") ||
-            runs.some(r => r.status === "stopped") ||
-            (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.audioExtraction === 'RUNNING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'PENDING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'WAITING') && accordionAiJobStatus?.jobStatus?.audioExtraction !== 'FAILED') ||
-            (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'RUNNING' || accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'PENDING' || accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'WAITING') && accordionAiJobStatus?.jobStatus?.transcriptGeneration !== 'FAILED') ||
-            (task === 'segmentation' && (accordionAiJobStatus?.jobStatus?.segmentation === 'RUNNING' || accordionAiJobStatus?.jobStatus?.segmentation === 'PENDING' || accordionAiJobStatus?.jobStatus?.segmentation === 'WAITING') && accordionAiJobStatus?.jobStatus?.segmentation !== 'FAILED') ||
-            (task === 'question' && (accordionAiJobStatus?.jobStatus?.questionGeneration === 'RUNNING' || accordionAiJobStatus?.jobStatus?.questionGeneration === 'PENDING' || accordionAiJobStatus?.jobStatus?.questionGeneration === 'WAITING') && accordionAiJobStatus?.jobStatus?.questionGeneration !== 'FAILED') ||
-            (task === 'upload' && (accordionAiJobStatus?.jobStatus?.uploadContent === 'RUNNING' || accordionAiJobStatus?.jobStatus?.uploadContent === 'PENDING' || accordionAiJobStatus?.jobStatus?.uploadContent === 'WAITING') && accordionAiJobStatus?.jobStatus?.uploadContent !== 'FAILED')
-          ) && (
-              <Button
-                onClick={() => handleStopTask(task)}
-                variant="outline"
-                disabled={runs.some(r => r.status === "stopped")}
-                className="bg-red-50 border-red-300 text-red-700 hover:bg-red-100 hover:border-red-400 font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <XCircle className="w-4 h-4 mr-2" />
-                {runs.some(r => r.status === "stopped") ? "Task Stopped" : "Stop Task"}
-              </Button>
-            )}
-           {task === 'segmentation' && (
-            <div className="flex flex-col sm:flex-row gap-3 items-center ml-0 sm:ml-4 bg-gray-100 dark:bg-gray-800/60 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700">
-              {segFields.map(({ key, type }) => (
-                <div key={key} className="flex flex-col items-start min-w-0 flex-1">
-                  <label
-                    htmlFor={`seg-${key}`}
-                    className="text-[11px] font-semibold mb-1 text-gray-700 dark:text-[#a8a29e]"
-                  >
-                    {key}
-                  </label>
-                  <input
-                    id={`seg-${key}`}
-                    type="text"
-                    value={localSegParams[key as keyof typeof segParams]}
-                    onChange={(e) => handleSegParamChange(key, type === 'float'
-                      ? parseFloat(e.target.value) || 0
-                      : parseInt(e.target.value) || 0)}
-                    className="w-20 h-9 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-[#a8a29e] focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                    style={{ fontSize: '15px' }}
-                  />
-                </div>
-              ))}
-            </div>
-         )}
-          {/* Add Re-run Transcription button */}
-          {task === 'transcription' && jobStatus?.task === 'TRANSCRIPT_GENERATION' && jobStatus?.status === 'COMPLETED' && (
-            <Button
-              variant="outline"
-              onClick={async () => {
-                if (!aiJobId) return;
-                try {
-                  const params = rerunParams;
-                  await aiSectionAPI.rerunJobTask(aiJobId, 'TRANSCRIPT_GENERATION', params);
-                  toast.success('Transcription rerun started.');
-                  setTaskRuns(prev => ({
-                    ...prev,
-                    transcription: [
-                      ...prev.transcription,
-                      {
-                        id: `run-${Date.now()}-${Math.random()}`,
-                        timestamp: new Date(),
-                        status: "loading",
-                        parameters: { ...params }
-                      }
-                    ]
-                  }));
-                } catch (e: any) {
-                  toast.error('Failed to rerun transcription.');
-                }
-              }}
-              disabled={runs.some(r => r.status === "loading")}
-              className="flex-1"
-            >
-              Re-run Transcription
-            </Button>
-          )}
-          {/* Add Re-run Question Generation button */}
-          {task === 'question' && jobStatus?.task === 'QUESTION_GENERATION' && jobStatus?.status === 'COMPLETED' && (
-            <Button
-              variant="outline"
-              onClick={async () => {
-                if (!aiJobId) return;
-                try {
-                  // Use the current values from the parameter inputs
-                  // const params = questionGenParams;
-
-                  await aiSectionAPI.rerunJobTask(aiJobId, 'QUESTION_GENERATION', localParams);
-                  toast.success('Question generation rerun started.');
-                  setTaskRuns(prev => ({
-                    ...prev,
-                    question: [
-                      ...prev.question,
-                      {
-                        id: `run-${Date.now()}-${Math.random()}`,
-                        timestamp: new Date(),
-                        status: "loading",
-                        parameters: { ...localParams }
-                      }
-                    ]
-                  }));
-                } catch (e: any) {
-                  toast.error('Failed to rerun question generation.');
-                }
-              }}
-              disabled={runs.some(r => r.status === "loading")}
-              className="flex-1"
-            >
-              Re-run Question Generation
-            </Button>
-          )}
-
-          {task === 'segmentation' && jobStatus?.task === 'SEGMENTATION' && jobStatus?.status === 'COMPLETED' && (
-            <Button
-              variant="outline"
-              onClick={async () => {
-                if (!aiJobId) return;
-                try {
-                  // Always use the latest values from segParams for the payload
-
-                  const params = { lam: localSegParams.lam, runs: localSegParams.runs, noiseId: localSegParams.noiseId };
-                  await aiSectionAPI.rerunJobTask(aiJobId, 'SEGMENTATION', params);
-                  toast.success('Segmentation rerun started.');
-                  setTaskRuns(prev => ({
-                    ...prev,
-                    segmentation: [
-                      ...prev.segmentation,
-                      {
-                        id: `run-${Date.now()}-${Math.random()}`,
-                        timestamp: new Date(),
-                        status: "loading",
-                        parameters: { ...params }
-                      }
-                    ]
-                  }));
-                } catch (e: any) {
-                  toast.error('Failed to rerun segmentation.');
-                }
-              }}
-              disabled={runs.some(r => r.status === "loading")}
-              className="flex-1"
-            >
-              Re-run Segmentation
-            </Button>
-          )}
-        </div>
-        )}     
-
-        {runs.length > 0 && (
-          <Accordion
-            type="multiple"
-            collapsible
-            value={expandedAccordionItems}
-            onValueChange={(newValue) => {
-              const currentlyExpanded = expandedAccordionItems;
-              const newlyCollapsed = currentlyExpanded.filter(id => !newValue.includes(id));
-              const newlyExpanded = newValue.filter(id => !currentlyExpanded.includes(id));
-
-              if (newlyCollapsed.length > 0) {
-                setManuallyCollapsedItems(prev => {
-                  const updated = [...prev, ...newlyCollapsed];
-                  return updated;
-                });
-              }
-
-              if (newlyExpanded.length > 0) {
-                setManuallyCollapsedItems(prev => prev.filter(id => !newlyExpanded.includes(id)));
-              }
-
-              setExpandedAccordionItems(newValue);
-            }}
-            className="w-full"
-          >
-            {runs.map((run: any, index) => {
-              // Declare segParamsNodes for this run
-              const segParamsNodes: React.ReactNode[] =
-                task === "segmentation" && run.parameters
-                  ? [
-                    run.parameters.lam !== undefined ? (<span key="lam"><strong>Lambda:</strong> {run.parameters.lam}</span>) : undefined,
-                    run.parameters.runs !== undefined ? (<span key="runs"><strong>Runs:</strong> {run.parameters.runs}</span>) : undefined,
-                    run.parameters.noiseId !== undefined ? (<span key="noiseId"><strong>Noise ID:</strong> {run.parameters.noiseId}</span>) : undefined,
-                  ].filter((x): x is React.ReactElement => x != null)
-                  : [];
-              // --- Fix for readable parameters display for question task ---
-              let readableParams: React.ReactNode = null;
-              if (task === "question" && run.parameters && typeof run.parameters === 'object') {
-                const paramKeys = Object.keys(run.parameters);
-                const mainKeys = ["model", "SOL", "SML", "NAT", "DES"];
-                const promptKey = paramKeys.find(k => k.toLowerCase() === "prompt");
-                readableParams = (
-                  <div className="text-sm text-gray-600 dark:text-[#a8a29e] mb-2">
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2.5rem', marginBottom: '0.5rem' }}>
-                      {mainKeys.map(key =>
-                        key in run.parameters ? (
-                          <div key={key}><strong>{key}:</strong> {run.parameters[key]}</div>
-                        ) : null
-                      )}
-                    </div>
-                    {promptKey && (
-                      <div style={{ marginTop: '0.5rem' }}>
-                        <strong>prompt:</strong> {run.parameters[promptKey]}
-                      </div>
-                    )}
-                  </div>
-                );
-              }
-              return (
-                <AccordionItem key={run.id} value={run.id} className="border rounded my-2 last:border-b dark:bg-[#202020]">
-                  <AccordionTrigger className="flex items-center gap-2 px-2 py-1">
-                    <span>Run {index + 1}</span>
-                    <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{run.timestamp.toLocaleTimeString()}</span>
-                    {getStatusIcon(run.status)}
-                    {acceptedRunId === run.id && <span className="text-blue-500">Accepted</span>}
-                  </AccordionTrigger>
-                  <AccordionContent className="px-2 pb-2">
-                    {run.parameters && (
-                      <div className="text-sm text-gray-600 dark:text-[#F2F8FF] flex flex-wrap gap-4 mb-2">
-                        {task === "segmentation" ? segParamsNodes : readableParams || (
-                          <span><strong>Parameters:</strong> {JSON.stringify(run.parameters)}</span>
-                        )}
-                      </div>
-                    )}
-                    {run.status === "done" && (
-                      task === "segmentation"
-                        ? <>
-                          <RunSegmentationSection aiJobId={aiJobId} run={run} acceptedRunId={acceptedRunId} onAccept={() => handleAcceptRun(task, run.id)} runIndex={index} />
-                          <EditSegmentsModalButton aiJobId={aiJobId} run={run} runIndex={index} />
-                        </>
-                        : task === "question"
-                          ? <RunQuestionSection aiJobId={aiJobId} run={run} acceptedRunId={acceptedRunId} onAccept={() => handleAcceptRun(task, run.id)} runIndex={index} />
-                          : <RunTranscriptSection aiJobId={aiJobId} run={run} acceptedRunId={acceptedRunId} onAccept={() => handleAcceptRun(task, run.id)} runIndex={index} />
-                    )}
-                    {run.status === "failed" && (
-                      <div className="text-sm text-red-600 dark:text-red-500">
-                        This run failed. Try running the task again.
-                      </div>
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
-              );
-            })}
-          </Accordion>
-        )}
-        <div className="flex items-center justify-center text-[#6A7282] dark:text-[#FFFFFF] text-[11px]">
-        {/* {currentUiStep <= 2 && ( */}
-          <>
-          {(currentUiStep === 1 && aiJobStatus === null) &&
-            <span>Extracts audio from uploaded files (video or audio) for further processing.</span>
-          }
-          {(currentUiStep === 1 && aiJobStatus?.task === "AUDIO_EXTRACTION") &&
-            (aiJobStatus?.status === "COMPLETED" || aiJobStatus?.status === "RUNNING") && (
-              <span>Extracts audio from uploaded files (video or audio) for further processing.</span>
-            )
-          }
-          {aiJobStatus?.task === "TRANSCRIPT_GENERATION" &&
-            (aiJobStatus?.status === "COMPLETED" || aiJobStatus?.status === "RUNNING") && (
-              <span>Converts extracted audio into accurate text transcripts.</span>
-            )}
-            {aiJobStatus?.task === "SEGMENTATION" &&
-            (<span>Breaks down the transcript into logical sections or chunks.</span>)}
-            {aiJobStatus?.task === "QUESTION_GENERATION" &&
-            (<span>Automatically generates relevant questions from the segmented transcript.</span>)}
-            {aiJobStatus?.task === "UPLOAD_CONTENT" &&
-            (<span>Saves and uploads the processed content with questions for later use.</span> )}
-            </>
-           {/* )} */}
-           {/* {currentUiStep >= 2 && aiJobStatus?.task == "SEGMENTATION" && (
-              WORKFLOW_STEPS.find(s => s.key === task)?.explanation || WORKFLOW_STEPS[0].explanation
-            )} */}
-        </div>
-      </div>
-    );
-  });
 
   // const getDifficultyColor = (difficulty: Question['difficulty']): string => {
   //   switch (difficulty) {
@@ -1703,167 +2225,7 @@ export default function AISectionPage() {
   //   }));
   // };
 
-  // Question Edit Form Component
-  const QuestionEditForm = ({ question, onSave, onCancel }: {
-    question: any;
-    onSave: (edited: any) => void;
-    onCancel: () => void;
-  }) => {
 
-
-    // Normalize question object to handle both flat and nested (with .question and .solution)
-    const typeMap: Record<string, string> = {
-      SOL: 'SELECT_ONE_IN_LOT',
-      MUL: 'SELECT_MANY_IN_LOT',
-      // Add more mappings if needed
-    };
-
-    const normalized = React.useMemo(() => {
-      if ('question' in question && typeof question.question === 'object') {
-        const mappedType = typeMap[question.question.type] || question.question.type;
-        return {
-          ...question.question,
-          type: mappedType,
-          solution: question.solution,
-        };
-      }
-      // If already flat, also map type
-      return {
-        ...question,
-        type: typeMap[question.type] || question.type,
-      };
-    }, [question]);
-
-    const initialOptions = React.useMemo(() => {
-      if (normalized.solution) {
-        // Handle both correctLotItem (single correct) and correctLotItems (multiple correct)
-        const correct = normalized.solution.correctLotItems
-          ? normalized.solution.correctLotItems.map((opt: any) => ({ text: opt.text, explaination: opt.explaination, correct: true }))
-          : normalized.solution.correctLotItem
-            ? [{ text: normalized.solution.correctLotItem.text, explaination: normalized.solution.correctLotItem.explaination, correct: true }]
-            : [];
-        const incorrect = normalized.solution.incorrectLotItems
-          ? normalized.solution.incorrectLotItems.map((opt: any) => ({ text: opt.text, explaination: opt.explaination, correct: false }))
-          : [];
-        // Combine (correct first, then incorrect)
-        return [...correct, ...incorrect];
-      }
-      // fallback: if options array exists (for generated questions)
-      if (Array.isArray(normalized.options)) {
-        let correctIndices: number[] = [];
-        if (normalized.type === 'SELECT_ONE_IN_LOT' && typeof normalized.correctAnswer === 'number') {
-          correctIndices = [normalized.correctAnswer];
-        } else if (normalized.type === 'SELECT_MANY_IN_LOT' && Array.isArray(normalized.correctAnswer)) {
-          correctIndices = normalized.correctAnswer;
-        }
-        return normalized.options.map((opt: string, idx: number) => ({
-          text: opt,
-          explaination: '',
-          correct: correctIndices.includes(idx),
-        }));
-      }
-      return [];
-    }, [normalized]);
-
-    const [questionText, setQuestionText] = React.useState(normalized.text || normalized.question || '');
-    const [options, setOptions] = React.useState(initialOptions);
-
-    // Sync state with normalized question
-    React.useEffect(() => {
-      setQuestionText(normalized.text || normalized.question || '');
-      setOptions(initialOptions);
-    }, [normalized, initialOptions]);
-
-    const handleOptionText = (idx: number, value: string) => setOptions((opts: any[]) => opts.map((o, i) => i === idx ? { ...o, text: value } : o));
-    const handleOptionExplain = (idx: number, value: string) => setOptions((opts: any[]) => opts.map((o, i) => i === idx ? { ...o, explaination: value } : o));
-    const handleCorrect = (idx: number, checked: boolean) => {
-      setOptions((opts: any[]) => opts.map((o, i) =>
-        normalized.type === 'SELECT_ONE_IN_LOT'
-          ? { ...o, correct: i === idx }
-          : i === idx ? { ...o, correct: checked } : o
-      ));
-    };
-    const handleAddOption = () => setOptions((opts: any[]) => [...opts, { text: '', explaination: '', correct: false }]);
-    const handleRemoveOption = (idx: number) => setOptions((opts: any[]) => opts.filter((_, i) => i !== idx));
-
-    const canSave = questionText.trim() && options.length >= 2 && options.every((o: any) => o.text.trim()) && options.some((o: any) => o.correct);
-
-    const buildSolution = () => {
-      const correctOpts = options.filter((o: any) => o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination.trim() || "Nil" }));
-      const incorrectOpts = options.filter((o: any) => !o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination.trim() || "Nil" }));
-      if (normalized.type === 'SELECT_ONE_IN_LOT') {
-        return {
-          correctLotItem: correctOpts[0] || { text: '', explaination: '' },
-          incorrectLotItems: incorrectOpts,
-        };
-      } else if (normalized.type === 'SELECT_MANY_IN_LOT') {
-        return {
-          correctLotItems: correctOpts,
-          incorrectLotItems: incorrectOpts,
-        };
-      }
-      return undefined;
-    };
-
-    return (
-      <div className="space-y-4 max-h-[80vh] overflow-y-auto">
-        <div>
-          <Label htmlFor="question-text">Question Text</Label>
-          <Textarea
-            id="question-text"
-            value={questionText}
-            onChange={e => setQuestionText(e.target.value)}
-            placeholder="Enter question text"
-            className="mt-1"
-          />
-        </div>
-        <div>
-          <Label>Options</Label>
-          <div className="space-y-2 mt-2 max-h-[50vh] overflow-y-auto pr-2">
-            {options.map((option: any, idx: number) => (
-              <div key={idx} className="flex flex-col gap-1 border rounded p-2 bg-background">
-                <div className="flex items-center gap-2">
-                  {normalized.type === 'SELECT_ONE_IN_LOT' ? (
-                    <input type="radio" checked={option.correct} onChange={() => handleCorrect(idx, true)} />
-                  ) : (
-                    <input type="checkbox" checked={option.correct} onChange={e => handleCorrect(idx, e.target.checked)} />
-                  )}
-                  <Input
-                    value={option.text}
-                    onChange={e => handleOptionText(idx, e.target.value)}
-                    placeholder={`Option ${idx + 1}`}
-                    className="flex-1"
-                  />
-                  <Button variant="ghost" size="sm" onClick={() => handleRemoveOption(idx)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                </div>
-                <Textarea
-                  value={option.explaination}
-                  onChange={e => handleOptionExplain(idx, e.target.value)}
-                  placeholder="Explanation for this option (why correct/incorrect)"
-                  className="mt-1"
-                  rows={2}
-                />
-              </div>
-            ))}
-            <Button variant="outline" size="sm" onClick={handleAddOption} className="w-full"><Plus className="h-4 w-4 mr-2" />Add Option</Button>
-          </div>
-        </div>
-        <div className="flex gap-2 pt-4">
-          <Button onClick={() => {
-            const solution = buildSolution();
-            onSave({ text: questionText, solution });
-          }} className="flex-1" disabled={!canSave}>
-            <Save className="h-4 w-4 mr-2" />
-            Save Changes
-          </Button>
-          <Button variant="outline" onClick={onCancel} className="flex-1">
-            <X className="h-4 w-4 mr-2" />
-            Cancel
-          </Button>
-        </div>
-      </div>
-    );
-  };
 
   // Track previous job status for transition detection
   const prevJobStatusRef = useRef<any>(null);
@@ -1876,15 +2238,46 @@ export default function AISectionPage() {
   const handleRefreshStatus = async () => {
     if (!aiJobId) return;
     try {
-      // const status = await aiSectionAPI.getJobStatus(aiJobId);
-      // setAiJobStatus(status);
-      const status: any = aiJobStatus;
-      const prevJobStatus = prevJobStatusRef.current;
-      // Only show toast if transitioning to COMPLETED and not on first mount
+      const status = await aiSectionAPI.getJobStatus(aiJobId) as any;
+
+      // Enrich status with detailed task runs if a task failed
+      const failedTask = Object.entries(status.jobStatus || {}).find(([_, s]) => s === 'FAILED')?.[0];
+      if (failedTask) {
+        try {
+          const taskType = failedTask === 'transcriptGeneration' ? 'TRANSCRIPT_GENERATION'
+            : failedTask === 'segmentation' ? 'SEGMENTATION'
+              : failedTask === 'questionGeneration' ? 'QUESTION_GENERATION'
+                : failedTask.toUpperCase();
+          const runs = await aiSectionAPI.getTaskStatus(aiJobId, taskType);
+          status[failedTask] = runs;
+        } catch (e) {
+          console.error(`Failed to fetch task details for ${failedTask}:`, e);
+        }
+      }
+      
+      setAiJobStatus(status);
+      
+      const js = status?.jobStatus as any || {};
+
+      // Sync Audio Extraction status from sub-task if available
+      if (js.audioExtraction === 'RUNNING') {
+        setAudioExtractionStatus('processing');
+      } else if (js.audioExtraction === 'COMPLETED') {
+        setAudioExtractionStatus('completed');
+        setAudioExtractionProgress(100);
+        setEstimatedTimeRemaining('');
+      }
+
+      // 1. Audio Extraction completion (more robust check)
       if (
         didMountRef.current &&
-        status?.task === 'AUDIO_EXTRACTION' && status?.status === 'COMPLETED'
+        js.audioExtraction === 'COMPLETED' &&
+        prevJobStatusRef.current?.jobStatus?.audioExtraction !== 'COMPLETED'
       ) {
+        setAudioExtractionStatus('completed');
+        setAudioExtractionProgress(100);
+        setEstimatedTimeRemaining('');
+        
         setTaskRuns(prev => {
           const lastLoadingIdx = [...prev.transcription].reverse().findIndex(run => run.status === 'loading');
           if (lastLoadingIdx === -1) return prev;
@@ -1898,10 +2291,15 @@ export default function AISectionPage() {
           };
         });
         toast.success('Audio extraction completed!');
+
+        // Auto-trigger disabled - waiting for manual confirmation
       }
+
+      // 2. Transcript Generation completion (more robust check)
       if (
         didMountRef.current &&
-        status?.task === 'TRANSCRIPT_GENERATION' && status?.status === 'COMPLETED'
+        js.transcriptGeneration === 'COMPLETED' &&
+        prevJobStatusRef.current?.jobStatus?.transcriptGeneration !== 'COMPLETED'
       ) {
         let completedRunId: string | null = null;
         setTaskRuns(prev => {
@@ -1932,9 +2330,35 @@ export default function AISectionPage() {
         }
         toast.success('Transcription completed!');
       }
+
+      // Handle failures for Transcription
       if (
         didMountRef.current &&
-        status?.task === 'SEGMENTATION' && status?.status === 'COMPLETED'
+        js.transcriptGeneration === 'FAILED' &&
+        prevJobStatusRef.current?.jobStatus?.transcriptGeneration !== 'FAILED'
+      ) {
+        setTaskRuns(prev => {
+          const lastLoadingIdx = [...prev.transcription].reverse().findIndex(run => run.status === 'loading');
+          if (lastLoadingIdx === -1) return prev;
+          const idxToUpdate = prev.transcription.length - 1 - lastLoadingIdx;
+          
+          // Get the detailed error from enriched status
+          const runsHistory = (status as any).transcriptGeneration || [];
+          const lastRunDetails = runsHistory[runsHistory.length - 1];
+
+          return {
+            ...prev,
+            transcription: prev.transcription.map((run, idx) =>
+              idx === idxToUpdate ? { ...run, status: 'failed', result: { ...run.result, error: lastRunDetails?.error } as any } : run
+            ),
+          };
+        });
+        toast.error('Transcription failed. You can try restarting it.');
+      }
+      if (
+        didMountRef.current &&
+        js.segmentation === 'COMPLETED' &&
+        prevJobStatusRef.current?.jobStatus?.segmentation !== 'COMPLETED'
       ) {
         setTaskRuns(prev => {
           const lastLoadingIdx = [...prev.segmentation].reverse().findIndex(run => run.status === 'loading');
@@ -1949,62 +2373,201 @@ export default function AISectionPage() {
         });
         toast.success('Segmentation completed!');
       }
+
+      // Handle failures for Segmentation
       if (
         didMountRef.current &&
-        status?.task === 'QUESTION_GENERATION' && status?.status === 'COMPLETED'
+        js.segmentation === 'FAILED' &&
+        prevJobStatusRef.current?.jobStatus?.segmentation !== 'FAILED'
       ) {
-        // Fetch QUESTION_GENERATION task status for fileUrl
-        const token = localStorage.getItem('firebase-auth-token');
-        const backendUrl = getApiUrl(`/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`);
-        let res = await fetch(backendUrl, { headers: { 'Authorization': `Bearer ${token}` } });
-        if (!res.ok) {
-          res = await fetch(backendUrl, { headers: { 'Authorization': `Bearer ${token}` } });
-        }
-        if (res.ok) {
+        setTaskRuns(prev => {
+          const lastLoadingIdx = [...prev.segmentation].reverse().findIndex(run => run.status === 'loading');
+          if (lastLoadingIdx === -1) return prev;
+          const idxToUpdate = prev.segmentation.length - 1 - lastLoadingIdx;
+          
+          // Get the detailed error from enriched status
+          const runsHistory = (status as any).segmentation || [];
+          const lastRunDetails = runsHistory[runsHistory.length - 1];
+
+          return {
+            ...prev,
+            segmentation: prev.segmentation.map((run, idx) =>
+              idx === idxToUpdate ? { ...run, status: 'failed', result: { ...run.result, error: lastRunDetails?.error } as any } : run
+            ),
+          };
+        });
+        toast.error('Segmentation failed.');
+      }
+      if (
+        didMountRef.current &&
+        js.questionGeneration === 'COMPLETED' &&
+        prevJobStatusRef.current?.jobStatus?.questionGeneration !== 'COMPLETED'
+      ) {
+        try {
+          const token = localStorage.getItem('firebase-auth-token');
+          const backendUrl = getApiUrl(`/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`);
+          const res = await fetch(backendUrl, { headers: { Authorization: `Bearer ${token}` } });
+          if (!res.ok) {
+            throw new Error('Failed to fetch question generation task status from backend.');
+          }
           const arr = await res.json();
+          const fileUrl = Array.isArray(arr) && arr.length > 0 ? arr[arr.length - 1]?.fileUrl : null;
+
+          const questions = [] as any[];
+          let questionFetchError = '';
+          if (fileUrl) {
+            try {
+              const qRes = await fetch(fileUrl);
+              if (!qRes.ok) {
+                questionFetchError = `Failed to fetch question output file: ${qRes.status} ${qRes.statusText}`;
+              } else {
+                const data = await qRes.json();
+                if (Array.isArray(data)) {
+                  questions.push(...data);
+                } else if (Array.isArray(data.segments)) {
+                  data.segments.forEach((seg: any) => {
+                    if (Array.isArray(seg.questions)) questions.push(...seg.questions);
+                  });
+                  if (Array.isArray(data.questions)) questions.push(...data.questions);
+                } else if (Array.isArray(data.questionsData)) {
+                  questions.push(...data.questionsData);
+                } else if (Array.isArray(data.questions)) {
+                  questions.push(...data.questions);
+                } else {
+                  questionFetchError = 'Question output format not recognized.';
+                }
+              }
+            } catch (err) {
+              questionFetchError = `Failed to fetch or parse question output file: ${err}`;
+            }
+          } else {
+            questionFetchError = 'No question output file URL found.';
+          }
+
           setTaskRuns(prev => {
             const lastLoadingIdx = [...prev.question].reverse().findIndex(run => run.status === 'loading');
             const lastDoneIdx = [...prev.question].reverse().findIndex(run => run.status === 'done');
-            let idxToUpdate = lastLoadingIdx !== -1 ? prev.question.length - 1 - lastLoadingIdx : (lastDoneIdx !== -1 ? prev.question.length - 1 - lastDoneIdx : -1);
+            let idxToUpdate = lastLoadingIdx !== -1 ? prev.question.length - 1 - lastLoadingIdx : lastDoneIdx !== -1 ? prev.question.length - 1 - lastDoneIdx : -1;
             if (idxToUpdate === -1) return prev;
+
+            if (!fileUrl || questions.length === 0) {
+              const errMsg = questionFetchError || 'No questions were generated in the output file.';
+              toast.error(`Question generation completed but no valid questions were generated. ${errMsg}`);
+              return {
+                ...prev,
+                question: prev.question.map((run, idx) =>
+                  idx === idxToUpdate
+                    ? { ...run, status: 'failed', result: { ...run.result, error: errMsg, questionTaskStatus: arr } }
+                    : run
+                ),
+              };
+            }
+
             return {
               ...prev,
-              question: prev.question.map((run, idx) => {
-                if (idx === idxToUpdate) {
-                  const { id, timestamp, result, parameters } = run;
-                  return { id, timestamp, status: 'done', result: { ...result, questionTaskStatus: arr }, parameters } as TaskRun;
-                }
-                return run;
-              }),
+              question: prev.question.map((run, idx) =>
+                idx === idxToUpdate
+                  ? { ...run, status: 'done', result: { ...run.result, questionTaskStatus: arr, questionCount: questions.length } }
+                  : run
+              ),
             };
           });
-          toast.success('Questions generated!');
+
+          if (fileUrl && questions.length > 0) {
+            toast.success(`Questions generated! (${questions.length} questions)`);
+          }
+        } catch (err) {
+          console.error('Question generation completion handler error:', err);
+          toast.error('Questions generated but failed to validate output. Check run details.');
         }
       }
-      // Always update previous job status at the end
-      prevJobStatusRef.current = status?.status;
-      // Mark didMount after first fetch
+
+      // Handle failures for Question Generation
+      if (
+        didMountRef.current &&
+        js.questionGeneration === 'FAILED' &&
+        prevJobStatusRef.current?.jobStatus?.questionGeneration !== 'FAILED'
+      ) {
+        setTaskRuns(prev => {
+          const lastLoadingIdx = [...prev.question].reverse().findIndex(run => run.status === 'loading');
+          if (lastLoadingIdx === -1) return prev;
+          const idxToUpdate = prev.question.length - 1 - lastLoadingIdx;
+
+          const runsHistory = (status as any).questionGeneration || [];
+          const lastRunDetails = runsHistory[runsHistory.length - 1] || {};
+
+          let errorMessage = lastRunDetails?.error || lastRunDetails?.message || 'Question generation failed with no detailed error.';
+          if (typeof errorMessage === 'object') {
+            errorMessage = JSON.stringify(errorMessage, null, 2);
+          }
+
+          return {
+            ...prev,
+            question: prev.question.map((run, idx) =>
+              idx === idxToUpdate
+                ? { ...run, status: 'failed', result: { ...run.result, error: errorMessage } as any }
+                : run
+            ),
+          };
+        });
+        toast.error('Question generation failed. See details in the run output.');
+      }
+
+      // 3. Upload Content completion
+      if (
+        didMountRef.current &&
+        js.uploadContent === 'COMPLETED' &&
+        prevJobStatusRef.current?.jobStatus?.uploadContent !== 'COMPLETED'
+      ) {
+        setTaskRuns(prev => ({
+          ...prev,
+          upload: prev.upload.map(run =>
+            run.status === 'loading' ? { ...run, status: 'done', result: status } : run
+          ),
+        }));
+        toast.success('Section uploaded successfully!');
+      }
+
+      // Safeguard for deadlock false-failure/stuck WAITING
+      const isUploadTask = status.task === "UPLOAD_CONTENT" || status.task === "uploadContent" || status.task === "upload";
+      const hasUploadResults = Array.isArray(status.uploadContent) && status.uploadContent.length > 0;
+
+      if (isUploadTask && (js.uploadContent === 'FAILED' || js.uploadContent === 'WAITING') && (hasUploadResults)) {
+        console.warn("Server reported FAILED/WAITING for upload, but we have server results. Likely deadlock false-positive. Ignoring server status.");
+        if (hasUploadResults) {
+          setTaskRuns(prev => ({
+            ...prev,
+            upload: prev.upload.map(run =>
+              run.status === 'loading' ? { ...run, status: 'done', result: status } : run
+            ),
+          }));
+          setAiJobStatus(status);
+          setShouldPoll(false);
+          setIsLoading(false);
+          setProgress(100);
+        }
+        return;
+      }
+      if (status?.status === 'COMPLETED' || status?.status === 'FAILED' || status?.status === 'STOPPED') {
+        setProgress(100);
+        setTimeout(() => setIsLoading(false), 500);
+        setShouldPoll(false);
+        
+        if (status?.status === 'FAILED') {
+          toast.error('A step failed.');
+        }
+        if (status?.status === 'STOPPED') {
+          toast.info('A step was stopped.');
+        }
+      }
+
+      // Update reference for next call
+      prevJobStatusRef.current = status;
       if (!didMountRef.current) didMountRef.current = true;
-      if (status?.task === 'TRANSCRIPT_GENERATION' && status?.status === 'COMPLETED') {
-        setAiWorkflowStep('transcription_done');
-        return;
-      }
-      if (status?.task === 'AUDIO_EXTRACTION' && status?.status === 'COMPLETED') {
-        setAiWorkflowStep('audio_extraction_done');
-        return;
-      }
-      if ((status?.task === 'AUDIO_EXTRACTION' && status?.status === 'FAILED') || (status?.task === 'TRANSCRIPT_GENERATION' && status?.status === 'FAILED')) {
-        setAiWorkflowStep('error');
-        toast.error('A step failed.');
-        return;
-      }
-      if ((status?.task === 'AUDIO_EXTRACTION' && status?.status === 'STOPPED') || (status?.task === 'TRANSCRIPT_GENERATION' && status?.status === 'STOPPED')) {
-        setAiWorkflowStep('idle');
-        toast.info('A step was stopped. You can restart it.');
-        return;
-      }
+
     } catch (error) {
-      setAiWorkflowStep('error');
+      setShouldPoll(false);
+      setIsLoading(false);
       toast.error('Failed to refresh status.');
     }
   };
@@ -2019,11 +2582,11 @@ export default function AISectionPage() {
       const response: any = await aiSectionAPI.stopJobTask(aiJobId);
       if (response?.ok) {
         toast.success('Stopped task successfully.');
+        setShouldPoll(false);
       } else {
         toast.error('Failed to stop task.');
       }
     } catch (error) {
-      setAiWorkflowStep('error');
       toast.error('Failed to stop task.');
     } finally {
       if (task === 'transcription' || !task) {
@@ -2114,1195 +2677,144 @@ export default function AISectionPage() {
   };
 
   useEffect(() => {
-    if (!aiJobId) return;
-
-    // const es = connectToLiveStatusUpdates(aiJobId, (incoming) => {
-
-    //   setAiJobStatus((prev) => {
-    //     let next: any = incoming ? { ...incoming } : incoming;
-    //     const failing = optimisticFailedTaskRef.current;
-    //     if (next && failing) {
-    //       const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
-    //       const setTop = (taskStr: string) => { next.task = taskStr; next.status = 'FAILED'; };
-    //       switch (failing) {
-    //         case 'AUDIO_EXTRACTION':
-    //           setTop('AUDIO_EXTRACTION');
-    //           ensureJobStatus();
-    //           next.jobStatus.audioExtraction = 'FAILED';
-    //           break;
-    //         case 'TRANSCRIPT_GENERATION':
-    //           setTop('TRANSCRIPT_GENERATION');
-    //           ensureJobStatus();
-    //           next.jobStatus.transcriptGeneration = 'FAILED';
-    //           break;
-    //         case 'SEGMENTATION':
-    //           setTop('SEGMENTATION');
-    //           ensureJobStatus();
-    //           next.jobStatus.segmentation = 'FAILED';
-    //           break;
-    //         case 'QUESTION_GENERATION':
-    //           setTop('QUESTION_GENERATION');
-    //           ensureJobStatus();
-    //           next.jobStatus.questionGeneration = 'FAILED';
-    //           break;
-    //         case 'UPLOAD_CONTENT':
-    //           setTop('UPLOAD_CONTENT');
-    //           ensureJobStatus();
-    //           next.jobStatus.uploadContent = 'FAILED';
-    //           break;
-    //       }
-    //     }
-    //     if (next?.status === 'FAILED' || next?.status === 'STOPPED') {
-    //       optimisticFailedTaskRef.current = null;
-    //     }
-
-    //     if (next?.task === 'AUDIO_EXTRACTION') {
-    //       if (next?.status === 'RUNNING') {
-    //         setAudioExtractionStatus('processing');
-    //       }
-    //       if (next?.status === 'COMPLETED') {
-    //         setAudioExtractionStatus('completed');
-    //         setAudioExtractionProgress(100);
-    //         setEstimatedTimeRemaining('');
-    //       }
-    //       if (next?.status === 'STOPPED') {
-    //         setAudioExtractionStatus('ready');
-    //         setAudioExtractionProgress(0);
-    //         setEstimatedTimeRemaining('');
-    //       }
-    //     }
-
-    //     if (next?.task === 'TRANSCRIPT_GENERATION' && next?.status === 'COMPLETED') {
-    //       setTimeout(() => {
-    //         setTaskRuns((prevTaskRuns: any) => {
-    //           const lastLoadingIdx = [...prevTaskRuns.transcription].reverse().findIndex(run => run.status === 'loading');
-    //           if (lastLoadingIdx === -1) {
-    //             return prevTaskRuns;
-    //           }
-
-    //           const idxToUpdate = prevTaskRuns.transcription.length - 1 - lastLoadingIdx;
-    //           const updatedRun = prevTaskRuns.transcription[idxToUpdate];
-    //           const completedRunId = updatedRun.id;
-
-    //           const updatedTaskRuns = {
-    //             ...prevTaskRuns,
-    //             transcription: prevTaskRuns.transcription.map((run: any, idx: number) =>
-    //               idx === idxToUpdate ? { ...run, status: 'done', result: next } : run
-    //             ),
-    //           };
-
-    //           if (completedRunId && !manuallyCollapsedItems.includes(completedRunId)) {
-
-    //             setExpandedAccordionItems(prevExpanded => {
-    //               if (!prevExpanded.includes(completedRunId)) {
-    //                 const newExpanded = [...prevExpanded, completedRunId];
-    //                 return newExpanded;
-    //               }
-    //               return prevExpanded;
-    //             });
-    //           } else {
-    //             console.log('Live update: Not expanding accordion - completedRunId:', completedRunId, 'manuallyCollapsed:', manuallyCollapsedItems.includes(completedRunId));
-    //           }
-
-    //           return updatedTaskRuns;
-    //         });
-    //         toast.success('Transcription completed!');
-    //       }, 50);
-    //     }
-
-    //     return next;
-    //   });
-    // });
-    // return () => es.close();
-
+    if (!aiJobId || !shouldPoll) return;
 
     const interval=setInterval(()=>{
       handleRefreshStatus();
     },5000);
 
     return () => clearInterval(interval);
-  }, [aiJobId, manuallyCollapsedItems]);
+  }, [aiJobId, manuallyCollapsedItems, shouldPoll]);
 
+  // Mock progress % bar (Added to match AiWorkflow.tsx)
   useEffect(() => {
-    if (!aiJobStatus) return;
+    let interval: NodeJS.Timeout | null = null;
+    let slowInterval: NodeJS.Timeout | null = null;
 
-    handleRefreshStatus();
-  }, [aiJobStatus])
+    if (isLoading) {
+      interval = setInterval(() => {
+        setProgress((prev: number) => {
+          if (prev >= 99.99) {
+            if (interval) clearInterval(interval);
+            return 99.99;
+          }
+
+          let increment: number;
+          if (prev >= 90) {
+            if (interval) clearInterval(interval);
+
+            slowInterval = setInterval(() => {
+              setProgress((p: number) => {
+                if (p >= 95) {
+                  if (slowInterval) clearInterval(slowInterval);
+                  return 95; // Cap at 95% to leave room for the final 100% jump
+                }
+                return p + 0.1;
+              });
+            }, 5000);
+
+            return 90;
+          } else {
+            increment = Math.max(0.2, (99.99 - prev) / 25);
+            if (prev >= 85) {
+              increment = Math.max(0.05, increment / 3);
+            }
+            // Estimate based on task complexity
+            if (aiJobStatus?.task === "TRANSCRIPT_GENERATION" || aiJobStatus?.task === "QUESTION_GENERATION") {
+              increment = Math.max(0.05, increment / 2);
+            }
+            return Math.min(prev + increment, 90);
+          }
+        });
+      }, 1600);
+    } else {
+      // Don't reset to 0 immediately to allow for final 100% jump if needed
+      // Actually per AiWorkflow.tsx:
+      // setProgress(0);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+      if (slowInterval) clearInterval(slowInterval);
+    };
+  }, [isLoading, aiJobStatus?.task]);
+
+  // useEffect(() => {
+  //   if (!aiJobStatus) return;
+
+  //   handleRefreshStatus();
+  // }, [aiJobStatus])
 
   // New: Manual trigger for transcript generation
-  const handleStartTranscription = async () => {
+  const handleStartTranscription = async (isAuto = false) => {
     if (!aiJobId) return;
+
     try {
-      let status = await aiSectionAPI.getJobStatus(aiJobId);
+      let status = await aiSectionAPI.getJobStatus(aiJobId) as any;
+
+      // Enrich status with detailed task runs if a task failed
+      const failedTask = Object.entries(status.jobStatus || {}).find(([_, s]) => s === 'FAILED')?.[0];
+      if (failedTask) {
+        try {
+          const taskType = failedTask === 'transcriptGeneration' ? 'TRANSCRIPT_GENERATION'
+            : failedTask === 'segmentation' ? 'SEGMENTATION'
+              : failedTask === 'questionGeneration' ? 'QUESTION_GENERATION'
+                : failedTask.toUpperCase();
+          const runs = await aiSectionAPI.getTaskStatus(aiJobId, taskType);
+          status[failedTask] = runs;
+        } catch (e) {
+          console.error(`Failed to fetch task details for ${failedTask}:`, e);
+        }
+      }
       setAiJobDate(status?.createdAt);
+      
+      const startTask = async () => {
+        await aiSectionAPI.postJobTask(aiJobId, 'TRANSCRIPT_GENERATION', rerunParams);
+        if (!isAuto) toast.success('Transcript generation started.');
+        setIsLoading(true);
+        setProgress(0);
+        setShouldPoll(true);
+        await handleRefreshStatus();
+      };
+
+      const rerunTask = async () => {
+        await aiSectionAPI.rerunJobTask(aiJobId, 'TRANSCRIPT_GENERATION', rerunParams);
+        if (!isAuto) toast.success('Transcript generation restarted.');
+        setIsLoading(true);
+        setProgress(0);
+        setShouldPoll(true);
+        await handleRefreshStatus();
+      };
+
       if (status.jobStatus?.transcriptGeneration === 'PENDING') {
         await aiSectionAPI.approveContinueTask(aiJobId);
-        toast.success('Approved transcript task.');
+        if (!isAuto) toast.success('Approved transcript task.');
         // Immediately check status and start if now WAITING
         status = await aiSectionAPI.getJobStatus(aiJobId);
-        if (status.jobStatus?.transcriptGeneration === 'WAITING') {
-          await aiSectionAPI.postJobTask(aiJobId, 'TRANSCRIPT_GENERATION');
-          setAiWorkflowStep('transcription');
-          toast.success('Transcript generation started.');
-          await handleRefreshStatus();
-        } else {
+        if (status.jobStatus?.transcriptGeneration === 'WAITING' || status.jobStatus?.transcriptGeneration === 'PENDING') {
+          await startTask();
+        } else if (!isAuto) {
           toast.info('Transcript generation is not ready to start yet.');
         }
       } else if (status.jobStatus?.transcriptGeneration === 'WAITING') {
-        await aiSectionAPI.postJobTask(aiJobId, 'TRANSCRIPT_GENERATION');
-        setAiWorkflowStep('transcription');
-        toast.success('Transcript generation started.');
-        await handleRefreshStatus();
-      } else {
-        toast.info('Transcript generation is not ready to start.');
+        await startTask();
+      } else if (status.jobStatus?.transcriptGeneration === 'FAILED') {
+        await rerunTask();
+      } else if (!isAuto) {
+        toast.info(`Transcript generation is not ready to start. Status: ${status.jobStatus?.transcriptGeneration}`);
       }
     } catch (error) {
-      setAiWorkflowStep('error');
-      toast.error('Failed to start transcript generation.');
+      if (!isAuto) toast.error('Failed to start transcript generation.');
       await handleRefreshStatus();
     }
   };
 
-  // Helper to fetch transcript file from fileUrl
-  const fetchTranscriptFromUrl = async (url: string) => {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Failed to fetch transcript file');
-    const data = await response.json();
-    if (Array.isArray(data.chunks)) {
-      // Join all text chunks for display
-      return data.chunks.map((chunk: { text: string }) => chunk.text).join('\n');
-    }
-    // Fallback to raw JSON
-    return JSON.stringify(data, null, 2);
-  };
-
-  // Helper to fetch transcriptGeneration task status and get fileUrl
-  const fetchTranscriptForRun = async (jobId: string, setTranscript: (t: string) => void, setLoading: (b: boolean) => void, setError: (e: string) => void) => {
-    setLoading(true);
-    setError("");
-    try {
-      const token = localStorage.getItem('firebase-auth-token');
-      const url = getApiUrl(`/genai/${jobId}/tasks/TRANSCRIPT_GENERATION/status`);
-      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-      if (!res.ok) throw new Error('Failed to fetch task status');
-      const arr = await res.json();
-      if (Array.isArray(arr) && arr.length > 0 && arr[0].fileUrl) {
-        const transcript = await fetchTranscriptFromUrl(arr[0].fileUrl);
-        setTranscript(transcript);
-      } else {
-        setError('Transcript file URL not found.');
-      }
-    } catch (e: any) {
-      setError(e.message || 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Helper to fetch segmentation file from fileUrl
-  const fetchSegmentationFromUrl = async (url: string) => {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Failed to fetch segmentation file');
-    const data = await response.json();
-    // Assume data.segments or data.chunks or similar
-    if (Array.isArray(data.segments)) {
-      return data.segments;
-    }
-    if (Array.isArray(data.chunks)) {
-      // fallback for chunked format
-      return data.chunks;
-    }
-    return data;
-  };
-
-  // Helper to fetch segmentation task status and get fileUrl
-  const fetchSegmentationForRun = async (jobId: string, setSegments: (s: any[]) => void, setLoading: (b: boolean) => void, setError: (e: string) => void) => {
-    setLoading(true);
-    setError("");
-    try {
-      const token = localStorage.getItem('firebase-auth-token');
-      const url = getApiUrl(`/genai/${jobId}/tasks/SEGMENTATION/status`);
-      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-      if (!res.ok) throw new Error('Failed to fetch task status');
-      const arr = await res.json();
-      if (Array.isArray(arr) && arr.length > 0 && arr[0].fileUrl) {
-        const segments = await fetchSegmentationFromUrl(arr[0].fileUrl);
-        setSegments(segments);
-      } else {
-        setError('Segmentation file URL not found.');
-      }
-    } catch (e: any) {
-      setError(e.message || 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Component to show transcript for a run
-  function RunTranscriptSection({ aiJobId, run, acceptedRunId, onAccept, runIndex = 0 }: { aiJobId: string | null, run: TaskRun, acceptedRunId?: string, onAccept: () => void, runIndex?: number }) {
-    const [showTranscript, setShowTranscript] = useState(false);
-    const [transcript, setTranscript] = useState<string>("");
-    const [transcriptChunks, setTranscriptChunks] = useState<{ text: string }[] | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
-    // Edit modal state
-    const [editModalOpen, setEditModalOpen] = useState(false);
-    const [editChunks, setEditChunks] = useState<{ timestamp: [number, number]; text: string }[]>([]);
-    const [editLoading, setEditLoading] = useState(false);
-    const [editError, setEditError] = useState('');
-
-    const handleShowTranscript = async () => {
-      if (!aiJobId) return;
-      if (!showTranscript) {
-        setLoading(true);
-        setError("");
-        try {
-          // Fetch transcript status as before
-          const token = localStorage.getItem('firebase-auth-token');
-          const url = getApiUrl(`/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`);
-          const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-          if (!res.ok) throw new Error('Failed to fetch task status');
-          const arr = await res.json();
-          if (Array.isArray(arr) && arr.length > runIndex && arr[runIndex].fileUrl) {
-            const transcriptRes = await fetch(arr[runIndex].fileUrl);
-            if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
-            const data = await transcriptRes.json();
-            if (Array.isArray(data.chunks)) {
-              setTranscriptChunks(data.chunks);
-              setTranscript(data.chunks.map((chunk: { text: string }) => chunk.text).join(' '));
-            } else {
-              setTranscriptChunks(null);
-              setTranscript(typeof data === 'string' ? data : JSON.stringify(data));
-            }
-          } else {
-            setTranscriptChunks(null);
-            setTranscript('Transcript file URL not found.');
-          }
-        } catch (e: any) {
-          setTranscriptChunks(null);
-          setTranscript(e.message || 'Unknown error');
-        } finally {
-          setLoading(false);
-        }
-      }
-      setShowTranscript(v => !v);
-    };
-
-    // Fetch transcript chunks when modal opens
-    useEffect(() => {
-      if (editModalOpen && aiJobId) {
-        setEditLoading(true);
-        setEditError('');
-        (async () => {
-          try {
-            const token = localStorage.getItem('firebase-auth-token');
-            const url = getApiUrl(`/genai/${aiJobId}/tasks/TRANSCRIPT_GENERATION/status`);
-            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-            if (!res.ok) throw new Error('Failed to fetch task status');
-            const arr = await res.json();
-            if (Array.isArray(arr) && arr.length > runIndex && arr[runIndex].fileUrl) {
-              const transcriptRes = await fetch(arr[runIndex].fileUrl);
-              if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
-              const data = await transcriptRes.json();
-              if (Array.isArray(data.chunks)) {
-                setEditChunks(data.chunks.map((chunk: any) => ({ ...chunk })));
-              } else {
-                setEditError('Transcript format not recognized.');
-              }
-            } else {
-              setEditError('Transcript file URL not found.');
-            }
-          } catch (e: any) {
-            setEditError(e.message || 'Unknown error');
-          } finally {
-            setEditLoading(false);
-          }
-        })();
-      }
-    }, [editModalOpen, aiJobId, runIndex]);
-
-    // Handler for saving edited transcript
-    const handleSaveEditTranscript = async () => {
-      if (!aiJobId) return;
-      try {
-        setEditLoading(true);
-        setEditError('');
-        if (typeof aiSectionAPI.editTranscriptData === 'function') {
-          await aiSectionAPI.editTranscriptData(aiJobId, runIndex, { chunks: editChunks });
-          toast.success('Transcript updated successfully!');
-          setEditModalOpen(false);
-        } else {
-          setEditError('Transcript editing API not available.');
-        }
-      } catch (e: any) {
-        setEditError(e.message || 'Failed to update transcript');
-      } finally {
-        setEditLoading(false);
-      }
-    };
-
-    return (
-      <>
-       {showTranscript && (
-        <>
-        <div className="flex items-center justify-between mt-4">
-          <p className="flex items-center gap-2"><MessageSquare color="#AD46FF" size={16}/> <span className="text-[#1E2939] text-sm dark:text-[#C6D2E1]">Generated Transcript</span></p>
-          <p className="flex items-center gap-2"><CircleCheckBig color="#009966" size={14}/> <span className="text-[#009966] text-xs">AI processing complete</span></p>
-        </div>
-          <div className="bg-[linear-gradient(135deg,_rgba(255,255,255,0.8)_0%,_rgba(249,250,251,0.8)_100%)] backdrop-blur-md dark:bg-[linear-gradient(135deg,_rgba(58,58,61,0.8)_0%,_rgba(42,42,45,0.8)_100%)] text-gray-900 dark:text-[#F9FBFF] p-3 rounded-[14px] max-h-48 overflow-y-auto text-sm border border-[#E5E7EB] dark:border-gray-700 mt-2">
-            {loading && <div className="mt-2">Loading...</div>}
-            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
-            {!loading && !error && (
-              <div className="flex lg:flex-nowrap flex-wrap-reverse items-start justify-between gap-1.5">
-                <div className="mt-2 whitespace-pre-line text-[#1E2939] dark:text-[#F9FBFF] leading-[22.75px] text-[13px]">
-                  {transcriptChunks
-                    ? transcriptChunks.map((chunk: { text: string }) => chunk.text).join(' ')
-                    : transcript}
-                </div>
-                  <div className="bg-[#DBEAFE] text-[#1447E6] rounded-[9px] text-[10px] py-1.5 px-2 w-full max-w-max min-w-max dark:bg-[]">
-                  AI Generated
-                </div>
-              </div>
-            )}
-          </div>
-          </>
-        )}
-      <div className="space-y-2 flex lg:flex-nowrap flex-wrap gap-2.5 items-center justify-center mt-4">
-        <Button size="sm" variant="secondary" onClick={handleShowTranscript} className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] dark:text-[#a8a29e] font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
-          {showTranscript ? <EyeOff /> : <Eye />}
-          {showTranscript ? 'Hide Transcript' : 'Show Transcript'}
-        </Button>
-        {/* Edit button for transcript run */}
-        <Button size="sm" variant="outline" onClick={() => setEditModalOpen(true)} className="bg-transparent dark:bg-[#0D0D0D] border border-[#DAB2FF] dark:border-[#350067] text-[#9810FA] dark:test-[#A329FB] font-medium px-4 py-2 rounded-[12px] shadow-md hover:bg-transparent hover:shadow-lg hover:text-[#9810FA] transition-all duration-300 transform hover:scale-105 btn-beautiful">
-          <Pencil />
-          Edit
-        </Button>
-        {/* Edit Modal */}
-        <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Edit Transcript</DialogTitle>
-            </DialogHeader>
-            {editLoading && <div>Loading transcript...</div>}
-            {editError && <div className="text-red-500">{editError}</div>}
-            {!editLoading && !editError && (
-              <div className="space-y-3 max-h-80 overflow-y-auto">
-                {editChunks.map((chunk, idx) => (
-                  <div key={idx} className="flex flex-col gap-1 border-b pb-2">
-                    <div className="text-xs text-gray-400">
-                      Segment: {formatTime(chunk.timestamp[0])} - {formatTime(chunk.timestamp[1])}
-                    </div>
-                    <textarea
-                      className="w-full p-2 rounded border"
-                      value={chunk.text}
-                      onChange={e => {
-                        const newChunks = [...editChunks];
-                        newChunks[idx].text = e.target.value;
-                        setEditChunks(newChunks);
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-            <DialogFooter className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => setEditModalOpen(false)}>Cancel</Button>
-              <Button onClick={handleSaveEditTranscript} disabled={editLoading}>Save</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        {acceptedRunId !== run.id && (
-          <Button
-            size="sm"
-            onClick={onAccept}
-            className="mb-2 bg-[linear-gradient(90deg,_#00D492_0%,_#009966_100%)] text-white dark:text-[#0D0D0D] rounded-[12px]"
-          >
-            <Check />
-            Accept & Continue
-            <Sparkles />
-          </Button>
-        )}
-      </div>
-      </>
-    );
-  }
-
-  // Component to show segmentation for a run
-  function RunSegmentationSection({ aiJobId, run, acceptedRunId, onAccept, runIndex = 0 }: { aiJobId: string | null, run: TaskRun, acceptedRunId?: string, onAccept: () => void, runIndex?: number }) {
-    const [showSegmentation, setShowSegmentation] = useState(false);
-    const [segments, setSegments] = useState<any[]>([]);
-    const [segmentationMap, setSegmentationMap] = useState<number[] | null>(null);
-    const [segmentationChunks, setSegmentationChunks] = useState<any[][] | null>(null); // array of arrays of transcript chunks per segment
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
-    // Edit modal state for segment boundaries
-    const [editModalOpen, setEditModalOpen] = useState(false);
-    const [editSegMap, setEditSegMap] = useState<number[]>([]);
-    const [editLoading, setEditLoading] = useState(false);
-    const [editError, setEditError] = useState("");
-    // Add state for transcriptChunks in the edit modal
-    const [editTranscriptChunks, setEditTranscriptChunks] = useState<{ timestamp: [number, number], text: string }[]>([]);
-
-    const formatTime = (seconds: number): string => {
-      if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
-    };
-    const parseTimeToSeconds = (time: string): number => {
-      if (!time) return 0;
-      const cleaned = time.replace(/\[|\]/g, '').trim().replace(',', '.');
-      if (cleaned.includes(':')) {
-        const [mStr, sStr] = cleaned.split(':');
-        const m = parseInt(mStr || '0', 10);
-        const s = parseInt(sStr || '0', 10);
-        if (isNaN(m)) return 0;
-        if (isNaN(s)) return m * 60;
-        return m * 60 + s;
-      }
-      if (cleaned.includes('.')) {
-        const [mStr, sStrRaw] = cleaned.split('.');
-        const sStr = (sStrRaw || '').slice(0, 2);
-        const m = parseInt(mStr || '0', 10);
-        const s = parseInt(sStr || '0', 10);
-        if (isNaN(m)) return 0;
-        if (isNaN(s)) return m * 60;
-        return m * 60 + s;
-      }
-      const sOnly = parseInt(cleaned, 10);
-      return isNaN(sOnly) ? 0 : sOnly;
-    };
-    const formatTimeInput = (value: string): string => {
-      const digits = value.replace(/\D/g, '').slice(0, 4);
-      if (!digits) return '';
-      if (digits.length <= 2) return digits;
-      const minutes = digits.slice(0, -2);
-      const seconds = digits.slice(-2);
-      return `${minutes}:${seconds}`;
-    };
-    const formatTimeDot = (seconds: number): string => {
-      const mins = Math.floor(Math.max(0, seconds) / 60);
-      const secs = Math.floor(Math.max(0, seconds) % 60);
-      const mm = mins.toString().padStart(2, '0');
-      const ss = secs.toString().padStart(2, '0');
-      return `${mm}.${ss}`;
-    };
-
-    const handleShowSegmentation = async () => {
-      if (!aiJobId) return;
-      if (!showSegmentation) {
-        setLoading(true);
-        setError("");
-        try {
-          const token = localStorage.getItem('firebase-auth-token');
-          const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
-          const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-          if (!res.ok) throw new Error('Failed to fetch task status');
-          const arr = await res.json();
-          // Use the correct run index for this run, just like transcript section
-          const segArrIdx = typeof runIndex === 'number' ? runIndex : 0;
-          const segData = Array.isArray(arr) && arr.length > segArrIdx ? arr[segArrIdx] : arr[0];
-          if (segData && segData.segmentationMap && Array.isArray(segData.segmentationMap) && segData.transcriptFileUrl) {
-            setSegmentationMap(segData.segmentationMap);
-            // Fetch transcript JSON
-            const transcriptRes = await fetch(segData.transcriptFileUrl);
-            if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
-            const transcriptData = await transcriptRes.json();
-            const chunks = Array.isArray(transcriptData.chunks) ? transcriptData.chunks : [];
-            // Group transcript chunks by segment
-            const segMap = segData.segmentationMap;
-            const grouped: any[][] = [];
-            let segStart = 0;
-            for (let i = 0; i < segMap.length; ++i) {
-              const segEnd = segMap[i];
-              // Chunks whose timestamp[0] >= segStart and < segEnd
-              const segChunks = chunks.filter((chunk: { timestamp: [number, number], text: string }) =>
-                chunk.timestamp &&
-                typeof chunk.timestamp[0] === 'number' &&
-                chunk.timestamp[0] >= segStart &&
-                chunk.timestamp[0] < segEnd
-              );
-              grouped.push(segChunks);
-              segStart = segEnd;
-            }
-            setSegmentationChunks(grouped);
-          } else if (segData && segData.fileUrl) {
-            // fallback: fetch segments from fileUrl as before
-            const segs = await fetchSegmentationFromUrl(segData.fileUrl);
-            setSegments(segs);
-            setSegmentationMap(null);
-            setSegmentationChunks(null);
-          } else {
-            setError('Segmentation data not found.');
-            setSegmentationChunks(null);
-          }
-        } catch (e: any) {
-          setError(e.message || 'Unknown error');
-          setSegmentationChunks(null);
-        } finally {
-          setLoading(false);
-        }
-      }
-      setShowSegmentation(v => !v);
-    };
-
-    // Edit modal logic
-    const handleOpenEditModal = async () => {
-      if (!aiJobId) return;
-      setEditLoading(true);
-      setEditError("");
-      setEditModalOpen(true);
-      try {
-        const token = localStorage.getItem('firebase-auth-token');
-        const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
-        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-        if (!res.ok) throw new Error('Failed to fetch segmentation status');
-        const arr = await res.json();
-        if (Array.isArray(arr) && arr.length > 0 && arr[0].segmentationMap && arr[0].transcriptFileUrl) {
-          const normalized: number[] = (arr[0].segmentationMap as any[]).map((v: any) => {
-            if (typeof v === 'number') return parseTimeToSeconds(String(v));
-            if (typeof v === 'string') return parseTimeToSeconds(v);
-            return 0;
-          });
-          setEditSegMap(normalized);
-          // Fetch transcript chunks
-          const transcriptRes = await fetch(arr[0].transcriptFileUrl);
-          if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
-          const transcriptData = await transcriptRes.json();
-          setEditTranscriptChunks(Array.isArray(transcriptData.chunks) ? transcriptData.chunks : []);
-        } else {
-          setEditError('Segmentation map or transcript not found.');
-          setEditSegMap([]);
-          setEditTranscriptChunks([]);
-        }
-      } catch (e: any) {
-        setEditError(e.message || 'Unknown error');
-        setEditSegMap([]);
-        setEditTranscriptChunks([]);
-      } finally {
-        setEditLoading(false);
-      }
-    };
-
-    const handleEditSegChange = (idx: number, value: string) => {
-      const masked = formatTimeInput(value);
-      let seconds = parseTimeToSeconds(masked);
-      const newMap = [...editSegMap];
-      const prevEnd = idx > 0 ? newMap[idx - 1] : 0;
-      const nextEnd = idx < newMap.length - 1 ? newMap[idx + 1] : Number.POSITIVE_INFINITY;
-      seconds = Math.max(prevEnd + 1, Math.min(seconds, nextEnd - 1));
-      newMap[idx] = Math.max(0, seconds);
-      setEditSegMap(newMap);
-    };
-    const handleAddSeg = () => {
-      const newMap = [...editSegMap];
-      const prev = newMap.length === 0 ? 0 : newMap[newMap.length - 1];
-      newMap.push(prev + 10);
-      setEditSegMap(newMap);
-    };
-    const handleRemoveSeg = (idx: number) => {
-      if (editSegMap.length <= 1) return;
-      const newMap = [...editSegMap];
-      newMap.splice(idx, 1);
-      setEditSegMap(newMap);
-    };
-    const handleSaveEditSeg = async () => {
-      if (!aiJobId) return;
-      setEditLoading(true);
-      setEditError("");
-      try {
-        // Use index 0 for the backend (fixes 500 error)
-        const payloadNumbers = editSegMap.map(s => Number(formatTimeDot(s)));
-        await editSegmentMap(aiJobId, payloadNumbers, 0);
-        toast.success('Segment map updated successfully!');
-        setEditModalOpen(false);
-      } catch (e: any) {
-        setEditError(e.message || 'Failed to update segment map');
-      } finally {
-        setEditLoading(false);
-      }
-    };
-
-    return (
-      <>
-      {showSegmentation && (
-          <div className="mt-4 space-y-4">
-            {loading && <div className="mt-2">Loading...</div>}
-            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
-            {/* Enhanced display: segmentationMap + transcript chunks */}
-            {!loading && !error && segmentationMap && segmentationMap.length > 0 && segmentationChunks && (
-              <>
-              <div className="flex items-center justify-between mt-4">
-                <p className="flex items-center gap-2"><Layers color="#00C950" size={20}/> <span className="text-[#1E2939] text-sm font-bold dark:text-[#C6D2E1]">Generated Segments</span></p>
-                <p className="flex items-center gap-2"><CircleCheckBig color="#009966" size={14}/> <span className="text-[#009966] text-xs">AI processing complete</span></p>
-              </div>
-              <div className="space-y-2">
-                {segmentationMap.map((end, idx) => {
-                  const start = idx === 0 ? 0 : segmentationMap[idx - 1];
-                  const segChunks = segmentationChunks[idx] || [];
-                  return (
-                    <div key={idx} className="bg-[linear-gradient(135deg,_rgba(255,255,255,0.8)_0%,_rgba(249,250,251,0.8)_100%)] dark:bg-[linear-gradient(135deg,_rgba(13,13,13,0.7)_0%,_rgba(13,13,13,0.7)_100%)] backdrop-blur-md border border-[#E5E7EB] dark:border-[#1F2228] p-3 rounded-[12px]">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-white h-7 w-7 flex items-center justify-center bg-[linear-gradient(135deg,_#05DF72_0%,_#2B7FFF_100%)] shadow-[0px_4px_12px_rgba(0,0,0,0.1)] rounded-[10px]">{idx + 1}</span>
-                        <p className="flex gap-2.5 items-center">
-                          <span className="flex items-center gap-1 text-[#6A7282] dark:text-[#F4F8FF]"><Clock size={12}/>{start.toFixed(2)}s </span>
-                          <span className="text-[#6A7282] dark:text-[#F6F9FF]">Duration: {end.toFixed(2)}s</span>
-                        </p>
-                      </div>
-                      {segChunks.length > 0 ? (
-                        <div className="text-xs text-[#4A5565] dark:text-[#F0F4FA] mt-2.5">
-                          {(segChunks as { text: string }[]).map((chunk: { text: string }) => chunk.text).join(' ')}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-              </>
-            )}
-            {/* Fallback: old display if no segmentationMap+chunks */}
-            {!loading && !error && (!segmentationMap || segmentationMap.length === 0 || !segmentationChunks) && segments.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {segments.map((seg, idx) => (
-                  <div key={idx} className="bg-white rounded-xl border border-gray-200 dark:border-[#26211E] p-4 shadow-sm">
-                    <div className="flex items-start justify-between mb-2">
-                    <div><b>Segment {idx + 1}</b> ({seg.startTime ?? seg.timestamp?.[0]}s - {seg.endTime ?? seg.timestamp?.[1]}s)</div>
-                    </div>
-                    <div className="text-xs text-gray-600 dark:text-[#a8a29e]">{seg.text}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {!loading && !error && (!segmentationMap || segmentationMap.length === 0) && segments.length === 0 && <div className="mt-2">No segments found.</div>}
-          </div>
-        )}
-      <div className="flex lg:flex-nowrap flex-wrap gap-2.5 justify-center mt-4">
-        <div>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={handleShowSegmentation}
-            className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] dark:text-[#a8a29e] font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
-            disabled={run.status !== 'done'}
-          >
-            {showSegmentation ? <EyeOff /> : <Eye />}
-            {showSegmentation ? 'Hide Segmentation' : 'Show Segmentation'}
-          </Button>
-          {/* Edit button for segmentation run */}
-          {/* <Button
-            size="sm"
-            variant="outline"
-            onClick={handleOpenEditModal}
-            className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
-            disabled={run.status !== 'done'}
-          >
-            Edit
-          </Button> */}
-        </div>
-        {/* Edit Modal */}
-        <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Edit Segments</DialogTitle>
-            </DialogHeader>
-            {editLoading && <div>Loading segmentation map...</div>}
-            {editError && <div className="text-red-500">{editError}</div>}
-            {!editLoading && !editError && (
-              <div className="space-y-3 max-h-80 overflow-y-auto">
-                {editSegMap.map((value, idx) => {
-                  const start = idx === 0 ? 0 : editSegMap[idx - 1];
-                  const end = value;
-                  const segChunks = editTranscriptChunks.filter(chunk =>
-                    chunk.timestamp &&
-                    typeof chunk.timestamp[0] === 'number' &&
-                    chunk.timestamp[0] >= start &&
-                    chunk.timestamp[0] < end
-                  );
-                  const segText = segChunks.map(chunk => chunk.text).join(' ');
-                  return (
-                    <div key={idx} className="flex flex-col gap-1 border-b pb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-400">Segment {idx + 1} end:</span>
-                        <Input
-                          type="text"
-                          placeholder="0:00"
-                          maxLength={5}
-                          value={formatTime(value)}
-                          onChange={e => handleEditSegChange(idx, e.target.value)}
-                          className="w-24"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveSeg(idx)}
-                          className="text-destructive hover:text-destructive"
-                          disabled={editSegMap.length <= 1}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <div className="text-xs text-gray-600 dark:text-[#a8a29e] bg-gray-100 dark:bg-gray-800 rounded p-2 mt-1">
-                        {segText}
-                      </div>
-                    </div>
-                  );
-                })}
-                <Button variant="outline" size="sm" onClick={handleAddSeg} className="w-full"><Plus className="h-4 w-4 mr-2" />Add Segment</Button>
-              </div>
-            )}
-            <DialogFooter className="flex justify-end gap-2 mt-4">
-              <Button
-                variant="outline"
-                onClick={() => setEditModalOpen(false)}
-                className="bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSaveEditSeg}
-                disabled={editLoading}
-                className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
-              >
-                Save
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        {run.status === 'done' && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleOpenEditModal}
-            className="bg-transparent dark:bg-[#0D0D0D] border border-[#7BF1A8] dark:border-[#7BF1A8] text-[#00A63E] font-medium px-4 py-2 rounded-[12px] shadow-md hover:bg-transparent hover:text-[#00A63E] hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
-          >
-            <Pencil />
-            Edit Segments
-          </Button>
-        )}
-        {acceptedRunId !== run.id && (
-          <Button
-            size="sm"
-            onClick={onAccept}
-            className="bg-[linear-gradient(90deg,_#00D492_0%,_#009966_100%)] text-white dark:text-[#0D0D0D] rounded-[12px]"
-          >
-            <Check />
-            Accept This Run
-            <Sparkles />
-          </Button>
-        )}
-      </div>
-      </>
-    );
-  }
 
 
-  // When triggering question generation, use the accepted segmentation run index
-  const handleStartQuestionGeneration = async () => {
-    if (!aiJobId) return;
-    // Find the accepted segmentation run index and ensure it is completed
-    const acceptedSegmentationId = acceptedRuns.segmentation;
-    let valid = false;
-    if (acceptedSegmentationId) {
-      const idx = taskRuns.segmentation.findIndex(run => run.id === acceptedSegmentationId);
-      if (idx !== -1) {
-        const run = taskRuns.segmentation[idx];
-        if (run.status === 'done') {
-          valid = true;
-        }
-      }
-    }
-    if (!valid) {
-      toast.error('Please accept a completed segmentation run before generating questions.');
-      return;
-    }
-    try {
-      const hasQuestionRun = taskRuns.question && taskRuns.question.length > 0;
-      const params = {
-        model: questionGenParams.model,
-        SOL: Number(questionGenParams.SOL),
-        SML: Number(questionGenParams.SML),
-        NAT: Number(questionGenParams.NAT),
-        DES: Number(questionGenParams.DES),
-        prompt: questionGenParams.prompt
-      };
-      if (hasQuestionRun) {
-        // Rerun logic
-        await aiSectionAPI.rerunJobTask(aiJobId, 'QUESTION_GENERATION', params);
-        toast.success('Question generation rerun started.');
-      } else {
-        // First run logic
-        await aiSectionAPI.approveStartTask(aiJobId, {
-          type: 'QUESTION_GENERATION',
-          parameters: params
-        });
-        toast.success('Question generation started.');
-      }
-      setTaskRuns(prev => ({
-        ...prev,
-        question: [
-          ...prev.question,
-          {
-            id: `run-${Date.now()}-${Math.random()}`,
-            timestamp: new Date(),
-            status: "loading",
-            parameters: { ...questionGenParams }
-          }
-        ]
-      }));
-    } catch (e: any) {
-      toast.error('Failed to start question generation.');
-    }
-  };
 
-  // Component to show questions for a question generation run
-  function RunQuestionSection({ aiJobId, run, acceptedRunId, onAccept, runIndex = 0 }: { aiJobId: string | null, run: TaskRun, acceptedRunId?: string, onAccept: () => void, runIndex?: number }) {
-    const [showQuestions, setShowQuestions] = useState(false);
-    const [questionsByRun, setQuestionsByRun] = useState<{ [runId: string]: any[] }>({});
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
-    const [editingIdx, setEditingIdx] = useState<number | null>(null);
-    const [editModalOpen, setEditModalOpen] = useState(false);
-    const [editQuestion, setEditQuestion] = useState<any>(null);
 
-    // Clear cached questions when run.result or run.status changes (e.g., after refresh)
-    useEffect(() => {
-      setQuestionsByRun(prev => {
-        if (prev[run.id]) {
-          const newObj = { ...prev };
-          delete newObj[run.id];
-          return newObj;
-        }
-        return prev;
-      });
-    }, [run.result, run.status, run.id]);
-
-    const questions = questionsByRun[run.id] || [];
-
-    const handleShowQuestions = async () => {
-      if (!aiJobId) return;
-      if (!showQuestions && !questionsByRun[run.id]) {
-        setLoading(true);
-        setError("");
-        try {
-          // Fetch question generation status for this run
-          const token = localStorage.getItem('firebase-auth-token');
-          const url = getApiUrl(`/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`);
-          const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-          if (!res.ok) throw new Error('Failed to fetch task status');
-          const arr = await res.json();
-          // Use runIndex if available, else fallback to 0
-          const idx = typeof runIndex === 'number' ? runIndex : 0;
-          if (Array.isArray(arr) && arr.length > idx && arr[idx]?.fileUrl) {
-            const questionsRes = await fetch(arr[idx].fileUrl);
-            if (!questionsRes.ok) throw new Error('Failed to fetch questions file');
-            const data = await questionsRes.json();
-            let questionsArr = [];
-            if (Array.isArray(data)) {
-              questionsArr = data.filter((q: any) => typeof q === 'object' && q !== null && q.question);
-            } else if (data.segments && Array.isArray(data.segments)) {
-              questionsArr = data.segments;
-            } else {
-              setError('Questions format not recognized.');
-            }
-            setQuestionsByRun(prev => ({ ...prev, [run.id]: questionsArr }));
-          } else {
-            setQuestionsByRun(prev => ({ ...prev, [run.id]: [] }));
-            setError('Questions file URL not found.');
-          }
-        } catch (e: any) {
-          setQuestionsByRun(prev => ({ ...prev, [run.id]: [] }));
-          setError(e.message || 'Unknown error');
-        } finally {
-          setLoading(false);
-        }
-      }
-      setShowQuestions(v => !v);
-    };
-
-    if (run.status !== 'done') {
-      return <div className="flex items-center gap-2 text-blue-400"><Loader2 className="animate-spin" /> Generating questions...</div>;
-    }
-
-    const segmentIds = Array.from(new Set(questions.map((q: any) => q.segmentId).filter((sid: any) => typeof sid === 'number'))).sort((a, b) => a - b);
-
-    return (
-      <div className="space-y-2">
-        {showQuestions && (
-          <>
-          <div className="flex items-center justify-between mt-4">
-           <p className="flex items-center gap-2"><BookOpen color="#AD46FF" size={20}/> <span className="text-[#1E2939] text-[15px] font-bold dark:text-[#C6D2E1]">Generated Questions</span></p>
-           <p className="flex items-center gap-2"><CircleCheckBig color="#009966" size={14}/> <span className="text-[#009966] text-xs">AI generation complete</span></p>
-          </div>
-          <div className="text-gray-900 dark:text-[#F9FBFF] p-[18px] max-h-96 overflow-y-auto text-sm mt-2">
-            {loading && <div className="mt-2">Loading...</div>}
-            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
-            {!loading && !error && questions.length > 0 && (
-              <ol className="mt-2 space-y-4">
-                {questions.map((q: any, idx: number) => {
-                  let segIdx = segmentIds.findIndex((sid: any) => sid === q.segmentId);
-                  let segStart = segIdx === 0 ? 0 : segmentIds[segIdx - 1];
-                  let segEnd = q.segmentId;
-                  return (
-                    <li key={q.question?.text || idx} className="border border-[#E5E7EB] dark:bg-[#151516] dark:border-[#1F2228] rounded-[12px] p-[18px]">
-                      <div>
-                        <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-2.5">
-                          <div className="font-semibold bg-gradient-to-br from-[#C27AFF] to-[#615FFF] w-[28px] h-[28px] flex items-center justify-center rounded-[8px] text-[#ffffff] dark:text-[#000000]">{idx + 1}</div>
-                          <div className="bg-[#F3E8FF] text-[#9810FA] px-[6px] py-[4px] rounded-[8px]">{q.questionType || q.question?.type || 'N/A'}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            Segment: {typeof segStart === 'number' && typeof segEnd === 'number' ? `${segStart}–${segEnd}s` : 'N/A'}
-                          </div>
-                        </div>
-                        <Button className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] dark:text-[#a8a29e] font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful" size="sm" variant="secondary" onClick={() => { setEditingIdx(idx); setEditQuestion(JSON.parse(JSON.stringify(q))); setEditModalOpen(true); }}>
-                          <Edit className="w-4 h-4" /> Edit
-                        </Button>
-                        </div>
-                        <div className="flex-1 text-[13px] text-[#1E2939] dark:text-[#C6D2E1] font-medium leading-[21px] pt-[12px] pb-[14px]">{q.question?.text}</div>
-                      </div>
-                      {q.solution && (
-                        <div className="space-y-2.5">
-                          {q.solution.incorrectLotItems?.map((opt: any, oIdx: number) => (
-                            <div 
-                              key={`inc-${oIdx}`} 
-                              className="flex items-center gap-1 p-2 rounded-[9px] bg-[#F8FAFC] dark:bg-[#3A3A3D] text-[#364153] dark:text-[#F7F9FD]"
-                            >
-                              <div className="flex items-center justify-center w-5 h-5 dark:border-gray-500">
-                                <span className="text-[14px] text-[#364153] dark:text-[#F7F9FD]">{String.fromCharCode(65 + oIdx)}</span>
-                              </div>
-                              <span className="text-gray-700 dark:text-gray-300">{opt.text}</span>
-                            </div>
-                          ))}
-                          
-                          {q.solution.correctLotItems?.map((opt: any, oIdx: number) => {
-                            const optionIndex = (q.solution.incorrectLotItems?.length || 0) + oIdx;
-                            return (
-                              <div 
-                                key={`cor-${oIdx}`} 
-                                className="flex items-center gap-3 p-2 rounded bg-[#B9F8CF] dark:bg-green-900/20 border border-green-200 dark:border-green-800"
-                              >
-                                <div className="flex items-center justify-center w-5 h-5">
-                                  <span className="text-[14px] text-[#016630] dark:text-[#141615]">{String.fromCharCode(65 + optionIndex)}</span>
-                                </div>
-                                <span className="text-[#016630] dark:text-green-300 font-semibold">{opt.text}</span>
-                                <span className="text-[#016630] dark:text-green-400 font-bold">✓</span>
-                              </div>
-                            );
-                          })}
-                          
-                          {q.solution.correctLotItem && (
-                            <div className="flex items-center gap-3 p-2 rounded-[9px] bg-[#DBEAFE] text-[#016630] dark:bg-[#21F4B1] border border-[#B9F8CF] dark:border-[#0A5D27]">
-                              <div className="flex items-center justify-center w-5 h-5">
-                                <span className="text-[14px] text-[#016630] dark:text-[#141615]">
-                                  {String.fromCharCode(65 + (q.solution.incorrectLotItems?.length || 0))}
-                                </span>
-                              </div>
-                              <span className="text-[#016630] dark:text-[#141615]">{q.solution.correctLotItem.text}</span>
-                              <span className="text-[#016630] dark:text-[#141615] font-bold">✓</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {q.question?.hint && <div className="mt-2.5 text-xs text-[#6A7282] dark:text-[#F6F9FF] mb-1 bg-[#ECFDF5] dark:bg-transparent p-[8px] rounded-[4px] font-medium"><span className="font-bold">Hint:</span> {q.question.hint}</div>}
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
-            {!loading && !error && questions.length === 0 && <div className="mt-2">No questions found.</div>}
-          </div>
-          </>
-        )}
-        <div className="w-full flex lg:flex-nowrap flex-wrap items-center justify-center gap-2 mt-4">
-        <Button size="sm" variant="secondary" onClick={handleShowQuestions} className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] dark:text-[#a8a29e] font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
-          {showQuestions ? <EyeOff /> : <Eye />}
-          {showQuestions ? 'Hide Questions' : 'Show Questions'}
-        </Button>
-        {/* Export PDF Button: appears below Show Questions, opens print-friendly HTML in new tab */}
-        <Button
-          size="sm"
-          variant="outline"
-          className="bg-transparent dark:bg-[#0D0D0D] border border-[#DAB2FF] dark:border-[#350067] text-[#9810FA] font-medium px-4 py-2 rounded-[12px] shadow-md hover:bg-transparent hover:shadow-lg hover:text-[#9810FA] transition-all duration-300 transform hover:scale-105 btn-beautiful"
-          onClick={async () => {
-            if (!aiJobId) return;
-            try {
-              // Fetch question generation status for this run
-              const token = localStorage.getItem('firebase-auth-token');
-              const url = getApiUrl(`/genai/${aiJobId}/tasks/QUESTION_GENERATION/status`);
-              const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-              if (!res.ok) throw new Error('Failed to fetch task status');
-              const arr = await res.json();
-              const idx = typeof runIndex === 'number' ? runIndex : 0;
-              if (Array.isArray(arr) && arr.length > idx && arr[idx]?.fileUrl) {
-                // Fetch the JSON content
-                const questionsRes = await fetch(arr[idx].fileUrl);
-                if (!questionsRes.ok) throw new Error('Failed to fetch questions file');
-                const data = await questionsRes.json();
-                let questionsArr = [];
-                if (Array.isArray(data)) {
-                  questionsArr = data.filter((q: any) => typeof q === 'object' && q !== null && q.question);
-                } else if (data.segments && Array.isArray(data.segments)) {
-                  questionsArr = data.segments.flatMap((seg: any) => seg.questions || []);
-                } else {
-                  toast.error('Questions format not recognized.');
-                  return;
-                }
-                if (!questionsArr.length) {
-                  toast.error('No questions found to export.');
-                  return;
-                }
-                // Build HTML with ViBe logo and gradient heading
-                let html = `<html><head><title>ViBe</title><style>
-                  body { font-family: Arial, sans-serif; background: #f8f9fa; color: #222; }
-                  .vibe-header { text-align: center; margin-top: 24px; margin-bottom: 18px; }
-                  .vibe-logo { width: 48px; height: 48px; border-radius: 10px; box-shadow: 0 2px 8px #0002; margin-bottom: 8px; background: #fff; border: 1.5px solid #c084fc; object-fit: contain; display: block; margin-left: auto; margin-right: auto; }
-                  .vibe-title { font-size: 1.2em; font-weight: 600; letter-spacing: 0.5px; margin-top: 6px; }
-                  .vibe-vibe {
-                    font-weight: bold;
-                    background: linear-gradient(90deg, #c084fc 0%, #fca4a6 100%);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
-                    color: transparent;
-                  }
-                  @media print {
-                    .vibe-vibe {
-                      background: none !important;
-                      -webkit-background-clip: initial !important;
-                      -webkit-text-fill-color: initial !important;
-                      background-clip: initial !important;
-                      color: #c084fc !important;
-                    }
-                  }
-                  .question-block { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #0001; margin: 18px auto; padding: 18px 24px; max-width: 700px; }
-                  .question-title { font-weight: bold; font-size: 1.1em; margin-bottom: 8px; }
-                  .option { margin-left: 24px; margin-bottom: 2px; }
-                  .option.correct { color: #218838; font-weight: bold; }
-                  .option.incorrect { color: #c82333; }
-                  .hint { margin-left: 24px; color: #0056b3; font-style: italic; margin-top: 4px; }
-                  .answer-label { font-weight: bold; color: #218838; }
-                </style></head><body>`;
-                html += `<div class='vibe-header'>
-                  <img src='/img/vibe_logo_img.ico' class='vibe-logo' alt='ViBe Logo' />
-                  <div class='vibe-title'>Generated Questions with <span class='vibe-vibe'>ViBe</span></div>
-                </div>`;
-                questionsArr.forEach((q: any, i: number) => {
-                  html += `<div class='question-block'><div class='question-title'>${i + 1}. ${q.question?.text || q.question || ''}</div>`;
-                  // Gather options and mark correct/incorrect
-                  let options: { text: string, correct: boolean }[] = [];
-                  // For new format (solution.correctLotItem/correctLotItems/incorrectLotItems)
-                  if (q.solution) {
-                    if (Array.isArray(q.solution.correctLotItems)) {
-                      options = options.concat(q.solution.correctLotItems.map((o: any) => ({ text: o.text, correct: true })));
-                    }
-                    if (q.solution.correctLotItem) {
-                      options.push({ text: q.solution.correctLotItem.text, correct: true });
-                    }
-                    if (Array.isArray(q.solution.incorrectLotItems)) {
-                      options = options.concat(q.solution.incorrectLotItems.map((o: any) => ({ text: o.text, correct: false })));
-                    }
-                  }
-                  // Fallback to question.options if no solution
-                  if ((!options.length) && (q.question?.options || q.options)) {
-                    const opts = q.question?.options || q.options || [];
-                    // Try to infer correct answer index/indices
-                    let correctIndices: number[] = [];
-                    if (typeof q.question?.correctAnswer === 'number') correctIndices = [q.question.correctAnswer];
-                    else if (Array.isArray(q.question?.correctAnswer)) correctIndices = q.question.correctAnswer;
-                    else if (typeof q.correctAnswer === 'number') correctIndices = [q.correctAnswer];
-                    else if (Array.isArray(q.correctAnswer)) correctIndices = q.correctAnswer;
-                    options = opts.map((text: string, idx: number) => ({ text, correct: correctIndices.includes(idx) }));
-                  }
-                  // Render options
-                  if (options.length) {
-                    options.forEach((opt, j) => {
-                      html += `<div class='option ${opt.correct ? 'correct' : 'incorrect'}'>${String.fromCharCode(65 + j)}. ${opt.text}</div>`;
-                    });
-                  }
-                  // Hint
-                  if (q.question?.hint || q.hint) {
-                    html += `<div class='hint'><b>Hint:</b> ${q.question?.hint || q.hint}</div>`;
-                  }
-                  html += `</div>`;
-                });
-                html += `</body></html>`;
-                // Open new window and print
-                const printWindow = window.open('', '_blank');
-                if (printWindow) {
-                  printWindow.document.write(html);
-                  printWindow.document.close();
-                  printWindow.focus();
-                  setTimeout(() => {
-                    printWindow.print();
-                  }, 500);
-                }
-              } else {
-                toast.error('Questions file URL not found for this run.');
-              }
-            } catch (e: any) {
-              toast.error(e.message || 'Failed to export PDF');
-            }
-          }}
-        >
-          <Share />
-          Export PDF
-        </Button>
-        
-        {acceptedRunId !== run.id && (
-          <Button
-            size="sm"
-            onClick={onAccept}
-            className="mb-2 bg-[linear-gradient(90deg,_#00D492_0%,_#009966_100%)] text-white dark:text-[#0D0D0D] rounded-[12px]"
-          >
-            <Check />
-            Accept & Continue
-            <Sparkles />
-          </Button>
-        )}
-        </div>
-        {/* Edit Question Modal */}
-        <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Edit Question</DialogTitle>
-            </DialogHeader>
-            {editQuestion && (
-              <QuestionEditForm
-                question={editQuestion}
-                onSave={async (edited) => {
-                  if (!aiJobId || typeof aiSectionAPI.editQuestionData !== 'function') return;
-                  try {
-                    // Deep clone the original questions array
-                    const originalQuestions = questionsByRun[run.id] || [];
-                    const updatedQuestions = originalQuestions.map((q, idx) => {
-                      if (idx !== editingIdx) return q;
-                      return {
-                        ...q,
-                        question: {
-                          ...q.question,
-                          text: edited.text, // explicitly update text
-                        },
-                        solution: edited.solution, // replace solution entirely
-                      };
-                    });
-                    await aiSectionAPI.editQuestionData(aiJobId, updatedQuestions, runIndex);
-                    setQuestionsByRun(prev => ({
-                      ...prev,
-                      [run.id]: updatedQuestions
-                    }));
-                    setEditModalOpen(false);
-                  } catch (e) {
-                    toast.error('Question Updated.');
-                    setEditModalOpen(false);
-                  }
-                }}
-                onCancel={() => setEditModalOpen(false)}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
-      </div>
-    );
-  }
 
   const YoutubeIcon = () => (
     <svg 
@@ -3477,7 +2989,12 @@ export default function AISectionPage() {
             </p>
           </div>
           {/* Stepper */}
-          <Stepper jobStatus={aiJobStatus} />
+          <Stepper 
+            jobStatus={aiJobStatus} 
+            activeStep={activeStep}
+            progress={progress}
+            audioExtractionProgress={audioExtractionProgress}
+          />
             {aiJobStatus && (
               <div className="flex items-center gap-2.5 shadow-xl backdrop-blur bg-white/80 dark:bg-[#464545] border border-gray-200 dark:border-[#26211E] rounded-[14px] py-2.5 px-4 w-max mb-3.5 text-sm text-gray-900 dark:text-[#a8a29e]">
                 <div className={`w-2.5 h-2.5 rounded-full ${
@@ -3633,30 +3150,54 @@ export default function AISectionPage() {
                           </Tooltip>
                         </TooltipProvider> */}
                       </div>
-                      <TaskAccordion
-                        task="transcription"
-                        title="Audio Extraction"
-                        jobStatus={aiJobStatus?.status}
-                        taskRuns={taskRuns}
-                        acceptedRuns={acceptedRuns}
-                        aiJobId={aiJobId}
-                        aiJobStatus={aiJobStatus}
-                        segParams={segParams}
-                        questionGenParams={questionGenParams}
-                        rerunParams={rerunParams}
-                        handleTask={handleTask}
-                        handleAcceptRun={handleAcceptRun}
-                        canRunTask={canRunTask}
-                        setTaskRuns={setTaskRuns}
-                        setQuestionGenParams={setQuestionGenParams}
-                        setSegParams={setSegParams}
-                        setRerunParams={setRerunParams}
-                        handleStartTranscription={handleStartTranscription}
-                        getStatusIcon={getStatusIcon}
-                        handleStopTask={handleStopTask}
-                        expandedAccordionItems={expandedAccordionItems}
-                        setExpandedAccordionItems={setExpandedAccordionItems}
-                      />
+                        <TaskAccordion
+                          task="transcription"
+                          title="Transcription"
+                          jobStatus={aiJobStatus}
+                          runs={taskRuns.transcription}
+                          taskRuns={taskRuns}
+                          acceptedRuns={acceptedRuns}
+                          aiJobId={aiJobId}
+                          aiJobStatus={aiJobStatus}
+                          handleAcceptRun={handleAcceptRun}
+                          localParams={localParams}
+                          setLocalParams={setLocalParams}
+                          localSegParams={localSegParams}
+                          setLocalSegParams={setLocalSegParams}
+                          rerunParams={rerunParams}
+                          videoItemBaseName={videoItemBaseName}
+                          setVideoItemBaseName={setVideoItemBaseName}
+                          quizItemBaseName={quizItemBaseName}
+                          setQuizItemBaseName={setQuizItemBaseName}
+                          questionsPerQuiz={questionsPerQuiz}
+                          setQuestionsPerQuiz={setQuestionsPerQuiz}
+                          acceptedRunId={acceptedRuns.transcription}
+                          handleTask={handleTask}
+                          handleStartTranscription={handleStartTranscription}
+                          handleRefreshStatus={handleRefreshStatus}
+                          handleStopTask={handleStopTask}
+                          canRunTask={canRunTask}
+                          expandedAccordionItems={expandedAccordionItems}
+                          setExpandedAccordionItems={setExpandedAccordionItems}
+                          manuallyCollapsedItems={manuallyCollapsedItems}
+                          setManuallyCollapsedItems={setManuallyCollapsedItems}
+                          currentCourse={currentCourse}
+                          audioExtractionStatus={audioExtractionStatus}
+                          audioExtractionProgress={audioExtractionProgress}
+                          audioExtractionStartTime={audioExtractionStartTime}
+                          estimatedTimeRemaining={estimatedTimeRemaining}
+                          getCurrentActiveRunNumber={getCurrentActiveRunNumber}
+                          getStatusIcon={getStatusIcon}
+                          setIsLoading={setIsLoading}
+                          setProgress={setProgress}
+                          setShouldPoll={setShouldPoll}
+                          setQuestionGenParams={setQuestionGenParams}
+                          setSegParams={setSegParams}
+                          setRerunParams={setRerunParams}
+                          currentUiStep={currentUiStep}
+                          setCurrentUiStep={setCurrentUiStep}
+                          progress={progress}
+                        />
                       {acceptedRuns.transcription && (
                         <div className="flex justify-center mt-4">
                           <Button className="bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white dark:text-[#0D0D0D]" onClick={() => setCurrentUiStep(2)}>Next Step</Button>
@@ -3683,26 +3224,50 @@ export default function AISectionPage() {
                         <TaskAccordion
                           task="segmentation"
                           title="Segmentation"
-                          jobStatus={aiJobStatus?.status}
+                          jobStatus={aiJobStatus}
+                          runs={taskRuns.segmentation}
                           taskRuns={taskRuns}
                           acceptedRuns={acceptedRuns}
                           aiJobId={aiJobId}
                           aiJobStatus={aiJobStatus}
-                          segParams={segParams}
-                          questionGenParams={questionGenParams}
-                          rerunParams={rerunParams}
-                          handleTask={handleTask}
                           handleAcceptRun={handleAcceptRun}
+                          localParams={localParams}
+                          setLocalParams={setLocalParams}
+                          localSegParams={localSegParams}
+                          setLocalSegParams={setLocalSegParams}
+                          rerunParams={rerunParams}
+                          videoItemBaseName={videoItemBaseName}
+                          setVideoItemBaseName={setVideoItemBaseName}
+                          quizItemBaseName={quizItemBaseName}
+                          setQuizItemBaseName={setQuizItemBaseName}
+                          questionsPerQuiz={questionsPerQuiz}
+                          setQuestionsPerQuiz={setQuestionsPerQuiz}
+                          acceptedRunId={acceptedRuns.segmentation}
+                          handleTask={handleTask}
+                          handleStartTranscription={handleStartTranscription}
+                          handleRefreshStatus={handleRefreshStatus}
+                          handleStopTask={handleStopTask}
                           canRunTask={canRunTask}
-                          setTaskRuns={setTaskRuns}
+                          expandedAccordionItems={expandedAccordionItems}
+                          setExpandedAccordionItems={setExpandedAccordionItems}
+                          manuallyCollapsedItems={manuallyCollapsedItems}
+                          setManuallyCollapsedItems={setManuallyCollapsedItems}
+                          currentCourse={currentCourse}
+                          audioExtractionStatus={audioExtractionStatus}
+                          audioExtractionProgress={audioExtractionProgress}
+                          audioExtractionStartTime={audioExtractionStartTime}
+                          estimatedTimeRemaining={estimatedTimeRemaining}
+                          getCurrentActiveRunNumber={getCurrentActiveRunNumber}
+                          getStatusIcon={getStatusIcon}
+                          setIsLoading={setIsLoading}
+                          setProgress={setProgress}
+                          setShouldPoll={setShouldPoll}
                           setQuestionGenParams={setQuestionGenParams}
                           setSegParams={setSegParams}
                           setRerunParams={setRerunParams}
-                          handleStartTranscription={handleStartTranscription}
-                          getStatusIcon={getStatusIcon}
-                          handleStopTask={handleStopTask}
-                          expandedAccordionItems={expandedAccordionItems}
-                          setExpandedAccordionItems={setExpandedAccordionItems}
+                          currentUiStep={currentUiStep}
+                          setCurrentUiStep={setCurrentUiStep}
+                          progress={progress}
                         />
                         {acceptedRuns.segmentation && currentUiStep === 2 && (
                           <div className="flex justify-end mt-4">
@@ -3767,26 +3332,50 @@ export default function AISectionPage() {
                         <TaskAccordion
                           task="question"
                           title="Question Generation"
-                          jobStatus={aiJobStatus?.status}
+                          jobStatus={aiJobStatus}
+                          runs={taskRuns.question}
                           taskRuns={taskRuns}
                           acceptedRuns={acceptedRuns}
                           aiJobId={aiJobId}
                           aiJobStatus={aiJobStatus}
-                          segParams={segParams}
-                          questionGenParams={questionGenParams}
-                          rerunParams={rerunParams}
-                          handleTask={handleTask}
                           handleAcceptRun={handleAcceptRun}
+                          localParams={localParams}
+                          setLocalParams={setLocalParams}
+                          localSegParams={localSegParams}
+                          setLocalSegParams={setLocalSegParams}
+                          rerunParams={rerunParams}
+                          videoItemBaseName={videoItemBaseName}
+                          setVideoItemBaseName={setVideoItemBaseName}
+                          quizItemBaseName={quizItemBaseName}
+                          setQuizItemBaseName={setQuizItemBaseName}
+                          questionsPerQuiz={questionsPerQuiz}
+                          setQuestionsPerQuiz={setQuestionsPerQuiz}
+                          acceptedRunId={acceptedRuns.question}
+                          handleTask={handleTask}
+                          handleStartTranscription={handleStartTranscription}
+                          handleRefreshStatus={handleRefreshStatus}
+                          handleStopTask={handleStopTask}
                           canRunTask={canRunTask}
-                          setTaskRuns={setTaskRuns}
+                          expandedAccordionItems={expandedAccordionItems}
+                          setExpandedAccordionItems={setExpandedAccordionItems}
+                          manuallyCollapsedItems={manuallyCollapsedItems}
+                          setManuallyCollapsedItems={setManuallyCollapsedItems}
+                          currentCourse={currentCourse}
+                          audioExtractionStatus={audioExtractionStatus}
+                          audioExtractionProgress={audioExtractionProgress}
+                          audioExtractionStartTime={audioExtractionStartTime}
+                          estimatedTimeRemaining={estimatedTimeRemaining}
+                          getCurrentActiveRunNumber={getCurrentActiveRunNumber}
+                          getStatusIcon={getStatusIcon}
+                          setIsLoading={setIsLoading}
+                          setProgress={setProgress}
+                          setShouldPoll={setShouldPoll}
                           setQuestionGenParams={setQuestionGenParams}
                           setSegParams={setSegParams}
                           setRerunParams={setRerunParams}
-                          handleStartTranscription={handleStartTranscription}
-                          getStatusIcon={getStatusIcon}
-                          handleStopTask={handleStopTask}
-                          expandedAccordionItems={expandedAccordionItems}
-                          setExpandedAccordionItems={setExpandedAccordionItems}
+                          currentUiStep={currentUiStep}
+                          setCurrentUiStep={setCurrentUiStep}
+                          progress={progress}
                         />
                         {acceptedRuns.question && (
                           <div className="flex justify-end mt-4">
@@ -3806,26 +3395,46 @@ export default function AISectionPage() {
                   <TaskAccordion
                     task="upload"
                     title="Upload to Course"
-                    jobStatus={aiJobStatus?.status}
+                    jobStatus={aiJobStatus}
                     taskRuns={taskRuns}
                     acceptedRuns={acceptedRuns}
                     aiJobId={aiJobId}
                     aiJobStatus={aiJobStatus}
-                    segParams={segParams}
-                    questionGenParams={questionGenParams}
+                    onAcceptRun={handleAcceptRun}
+                    localParams={localParams}
+                    setLocalParams={setLocalParams}
+                    localSegParams={localSegParams}
+                    setLocalSegParams={setLocalSegParams}
                     rerunParams={rerunParams}
+                    videoItemBaseName={videoItemBaseName}
+                    setVideoItemBaseName={setVideoItemBaseName}
+                    quizItemBaseName={quizItemBaseName}
+                    setQuizItemBaseName={setQuizItemBaseName}
+                    questionsPerQuiz={questionsPerQuiz}
+                    setQuestionsPerQuiz={setQuestionsPerQuiz}
+                    acceptedRunId={acceptedRuns.upload}
                     handleTask={handleTask}
-                    handleAcceptRun={handleAcceptRun}
+                    handleStartTranscription={handleStartTranscription}
+                    handleRefreshStatus={handleRefreshStatus}
+                    handleStopTask={handleStopTask}
                     canRunTask={canRunTask}
-                    setTaskRuns={setTaskRuns}
+                    expandedAccordionItems={expandedAccordionItems}
+                    setExpandedAccordionItems={setExpandedAccordionItems}
+                    manuallyCollapsedItems={manuallyCollapsedItems}
+                    setManuallyCollapsedItems={setManuallyCollapsedItems}
+                    currentCourse={currentCourse}
+                    audioExtractionStatus={audioExtractionStatus}
+                    audioExtractionProgress={audioExtractionProgress}
+                    audioExtractionStartTime={audioExtractionStartTime}
+                    estimatedTimeRemaining={estimatedTimeRemaining}
+                    getCurrentActiveRunNumber={getCurrentActiveRunNumber}
+                    getStatusIcon={getStatusIcon}
+                    setIsLoading={setIsLoading}
+                    setProgress={setProgress}
+                    setShouldPoll={setShouldPoll}
                     setQuestionGenParams={setQuestionGenParams}
                     setSegParams={setSegParams}
                     setRerunParams={setRerunParams}
-                    handleStartTranscription={handleStartTranscription}
-                    getStatusIcon={getStatusIcon}
-                    handleStopTask={handleStopTask}
-                    expandedAccordionItems={expandedAccordionItems}
-                    setExpandedAccordionItems={setExpandedAccordionItems}
                   />
                 </div>
                   )} */}
@@ -3920,6 +3529,36 @@ export default function AISectionPage() {
 
                               toast.success('Section successfully uploaded to course!');
                             } catch (error) {
+                              console.warn("Publish might have deadlocked but succeeded. Verifying status...");
+                              try {
+                                // Wait longer (5s) for the DB to settle
+                                await new Promise(resolve => setTimeout(resolve, 5000));
+                                const status = await aiSectionAPI.getJobStatus(aiJobId!) as any;
+                                const uploadStatus = status.jobStatus?.uploadContent;
+                                const hasResults = Array.isArray(status.uploadContent) && status.uploadContent.length > 0;
+
+                                if (uploadStatus === "COMPLETED" || hasResults) {
+                                  setTaskRuns(prev => ({
+                                    ...prev,
+                                    upload: prev.upload.map(run =>
+                                      run.status === 'loading' ? { ...run, status: 'done', result: status } : run
+                                    )
+                                  }));
+                                  toast.success('Section verified as uploaded successfully!');
+                                  setAiJobStatus(status);
+                                  return;
+                                } else if (uploadStatus === "RUNNING" || uploadStatus === "PENDING") {
+                                  console.info("Upload detected as active on server. Proceeding with polling.");
+                                  setAiJobStatus(status);
+                                  setShouldPoll(true);
+                                  setIsLoading(true);
+                                  toast.info("Upload is processing in the background...");
+                                  return;
+                                }
+                              } catch (innerError) {
+                                console.error("Failed to verify status after upload error:", innerError);
+                              }
+                              
                               setTaskRuns(prev => ({
                                 ...prev,
                                 upload: prev.upload.map(run =>
@@ -3998,206 +3637,7 @@ export default function AISectionPage() {
   );
 }
 
-function EditSegmentsModalButton({ aiJobId, run, runIndex }: { aiJobId: string | null, run: TaskRun, runIndex: number }) {
-  const [open, setOpen] = useState(false);
-  const [segmentMap, setSegmentMap] = useState<number[]>([]);
-  const [segmentTexts, setSegmentTexts] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
 
-  // Always fetch latest segmentation status and transcript when modal opens
-  useEffect(() => {
-    async function fetchSegmentationData() {
-      if (!aiJobId) return;
-      setLoading(true);
-      setError('');
-      try {
-        const token = localStorage.getItem('firebase-auth-token');
-        const url = getApiUrl(`/genai/${aiJobId}/tasks/SEGMENTATION/status`);
-        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-        if (!res.ok) throw new Error('Failed to fetch segmentation status');
-        const arr = await res.json();
-        if (Array.isArray(arr) && arr.length > 0 && arr[runIndex]?.segmentationMap && arr[runIndex]?.transcriptFileUrl) {
-          const segMap = arr[runIndex].segmentationMap;
-          setSegmentMap([...segMap]);
-          // Fetch transcript JSON and group by segment
-          const transcriptRes = await fetch(arr[runIndex].transcriptFileUrl);
-          if (!transcriptRes.ok) throw new Error('Failed to fetch transcript file');
-          const transcriptData = await transcriptRes.json();
-          const chunks = Array.isArray(transcriptData.chunks) ? transcriptData.chunks : [];
-          const texts: string[] = [];
-          let segStart = 0;
-          for (let i = 0; i < segMap.length; ++i) {
-            const segEnd = segMap[i];
-            // Chunks whose timestamp[0] >= segStart and < segEnd
-            const segChunks = chunks.filter((chunk: { timestamp: [number, number], text: string }) =>
-              chunk.timestamp &&
-              typeof chunk.timestamp[0] === 'number' &&
-              chunk.timestamp[0] >= segStart &&
-              chunk.timestamp[0] < segEnd
-            );
-            texts.push(segChunks.map((chunk: { text: string }) => chunk.text).join(' '));
-            segStart = segEnd;
-          }
-          setSegmentTexts(texts);
-        } else {
-          setError('Segmentation data or transcript not found.');
-          setSegmentMap([]);
-          setSegmentTexts([]);
-        }
-      } catch (e: any) {
-        setError(e.message || 'Unknown error');
-        setSegmentMap([]);
-        setSegmentTexts([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-    if (open) {
-      fetchSegmentationData();
-    }
-  }, [open, aiJobId, runIndex]);
 
-  const handleSegmentChange = (idx: number, value: string) => {
-    const newMap = [...segmentMap];
-    newMap[idx] = parseFloat(value);
-    setSegmentMap(newMap);
-  };
-
-  const handleAddSegment = (idx: number) => {
-    const newMap = [...segmentMap];
-    const prev = idx === 0 ? 0 : newMap[idx - 1];
-    const next = newMap[idx] ?? (prev + 10);
-    const newEnd = prev + (next - prev) / 2;
-    newMap.splice(idx, 0, newEnd);
-    setSegmentMap(newMap);
-    // No change to segmentTexts
-  };
-
-  const handleRemoveSegment = (idx: number) => {
-    if (segmentMap.length <= 1) return;
-    const newMap = [...segmentMap];
-    newMap.splice(idx, 1);
-    setSegmentMap(newMap);
-    // No change to segmentTexts
-  };
-
-  const handleEdit = async () => {
-    if (!aiJobId) return;
-    setLoading(true);
-    setError('');
-    setSuccess(false);
-    try {
-      const token = localStorage.getItem('firebase-auth-token');
-      const url = getApiUrl(`/genai/jobs/${aiJobId}/edit/segment-map`);
-      const backendUrl = getApiUrl(`/genai/jobs/${aiJobId}/edit/segment-map`);
-      const body = {
-        segmentMap: segmentMap,
-        index: 0,
-      };
-      let res = await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(body)
-      });
-      if (!res.ok) {
-        res = await fetch(backendUrl, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(body)
-        });
-      }
-      if (!res.ok) throw new Error('Failed to update segment map');
-      setSuccess(true);
-      setError('');
-    } catch (e: any) {
-      setError(e.message || 'Failed to update segment map');
-      setSuccess(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Edit Segment Map</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          {segmentMap.map((value, idx) => (
-            <div key={idx} className="flex items-center space-x-4">
-              <Input
-                type="number"
-                step="0.01"
-                min={0}
-                max={1}
-                value={value}
-                onChange={e => handleSegmentChange(idx, e.target.value)}
-                className="w-20"
-              />
-              {/* Display segment text as read-only (not editable) */}
-              <Input
-                type="text"
-                value={segmentTexts[idx] || ''}
-                readOnly
-                className="flex-1 bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
-                tabIndex={-1}
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handleRemoveSegment(idx)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => handleAddSegment(segmentMap.length)}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-        <DialogFooter>
-          <Button type="submit" onClick={handleEdit}>
-            Save changes
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// Add this function at the top-level (inside the component, before RunSegmentationSection):
-async function editSegmentMap(jobId: string, segmentMap: number[], index: number): Promise<void> {
-  const token = localStorage.getItem('firebase-auth-token');
-  const url = getApiUrl(`/genai/jobs/${jobId}/edit/segment-map`);
-  const body = JSON.stringify({ segmentMap, index });
-  const res = await fetch(url, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body,
-  });
-  if (res.status === 200) return;
-  let errMsg = 'Unknown error';
-  try { errMsg = (await res.json()).message || errMsg; } catch { }
-  if (res.status === 400) throw new Error('Bad request: ' + errMsg);
-  if (res.status === 403) throw new Error('Forbidden: ' + errMsg);
-  if (res.status === 404) throw new Error('Job not found: ' + errMsg);
-  throw new Error(errMsg);
-}
 
 
