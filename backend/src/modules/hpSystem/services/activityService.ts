@@ -108,15 +108,24 @@ export class ActivityService extends BaseService {
                     "Invalid activity type. Only 'ASSIGNMENT' and 'VIBE_MILESTONE' activities can be created."
                 );
 
-            if (body.activityType === "VIBE_MILESTONE" && !body.deadlineAt)
-                throw new BadRequestError(
-                    "Deadline is required when creating a Vibe Milestone activity."
-                );
+            const effectiveActivityType = body.activityType ?? existing.activityType;
 
-            if (body.activityType === "VIBE_MILESTONE" && !body.required_percentage)
-                throw new BadRequestError(
-                    "Required percentage must be provided for a Vibe Milestone activity."
-                );
+            if (effectiveActivityType === "VIBE_MILESTONE") {
+                // Deadline lives in the rule config, not the activity document
+                const ruleConfig = await this.ruleConfigRepository.findByActivityId(activityId);
+                const hasDeadline = body.deadlineAt || ruleConfig?.deadlineAt;
+                const hasPercentage = body.required_percentage || existing.required_percentage;
+
+                if (!hasDeadline)
+                    throw new BadRequestError(
+                        "Deadline is required when creating a Vibe Milestone activity."
+                    );
+
+                if (!hasPercentage)
+                    throw new BadRequestError(
+                        "Required percentage must be provided for a Vibe Milestone activity."
+                    );
+            }
 
             const updated = await this.activityRepository.updateActivityById(
                 activityId,
