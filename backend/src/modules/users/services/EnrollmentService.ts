@@ -764,7 +764,7 @@ export class EnrollmentService extends BaseService {
 
       return enrollments.map(enr => {
         const versionIdStr = enr.courseVersionId.toString();
-        const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
+        const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}-${enr.cohortId?.toString() || ''}`;
         const versionItemGroups = versionToItemGroups.get(versionIdStr) || [];
         const versionQuizIds = quizInfo.filter(quiz =>
           versionItemGroups.includes(quiz._id.toString()),
@@ -786,7 +786,7 @@ export class EnrollmentService extends BaseService {
             enr._id.toString(),
             calculatedPercent,
             completedCount,
-            enr.cohort,
+            enr.cohortId?.toString(),
           );
 
           enr.percentCompleted = calculatedPercent;

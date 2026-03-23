@@ -43,6 +43,7 @@ import {
   QueryParams,
   UseInterceptor,
   Req,
+  QueryParam,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
@@ -329,6 +330,7 @@ class QuizController {
   async getUserMetrices(
     @Params() params: GetUserMatricesParams,
     @Ability(getQuizAbility) {ability},
+    @QueryParam('cohortId') cohortId?: string,
   ): Promise<UserQuizMetricsResponse> {
     const {quizId, userId} = params;
     const courseInfo = await this.itemService.getCourseAndVersionByItemId(
@@ -346,7 +348,7 @@ class QuizController {
       );
     }
 
-    return await this.quizService.getUserMetricsForQuiz(userId, quizId);
+    return await this.quizService.getUserMetricsForQuiz(userId, quizId, cohortId);
   }
 
   @OpenAPI({

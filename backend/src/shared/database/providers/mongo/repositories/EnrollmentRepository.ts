@@ -293,7 +293,7 @@ export class EnrollmentRepository {
         userId: { $in: userFilter },
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
       },
       {
         $set: {
@@ -1675,7 +1675,7 @@ export class EnrollmentRepository {
           userId: { $in: [userId, userIdObj] },
           courseId: { $in: [courseId, courseIdObj] },
           courseVersionId: { $in: [courseVersionId, versionIdObj] },
-          ...(cohortIdObj ? { cohortId: cohortIdObj } : {}),
+          ...(cohortIdObj ? { cohortId: cohortIdObj } : {cohortId: null}),
           role: 'STUDENT',
         },
       },
@@ -1746,6 +1746,16 @@ export class EnrollmentRepository {
                     { $in: ['$courseVersionId', [courseVersionId, versionIdObj]] },
                     { $ne: ['$isDeleted', true] },
                     { $ne: ['$endTime', null] },
+                    ...(cohortIdObj ? [{ $eq: ['$cohortId', cohortIdObj] }]
+                        : [
+                            {
+                              $or: [
+                                { $eq: ['$cohortId', null] },
+                                { $not: ['$cohortId'] }
+                              ]
+                            }
+                          ]
+                      )
                   ],
                 },
               },
@@ -1789,7 +1799,7 @@ export class EnrollmentRepository {
       .toArray();
 
     if (result[0]) {
-      console.debug('Student progress detail for user', userId, 'course', courseId, 'version', courseVersionId, 'watchHours=', result[0].watchHours);
+      console.debug('Student progress detail for user', userId, 'course', courseId, 'version', courseVersionId, 'watchHours=', result[0].watchHours, 'cohortId=', result[0].cohortId);
     }
 
     return result[0] || null;
@@ -3486,7 +3496,7 @@ export class EnrollmentRepository {
           userId: new ObjectId(userId),
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
-          ...(cohortId && { cohortId: new ObjectId(cohortId) }),
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : { cohortId: null }),
         },
         { session },
       )

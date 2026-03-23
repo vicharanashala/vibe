@@ -2210,14 +2210,14 @@ export function useCancelInvite(): {
 
 // GET /users/{id}/watchTime/item/itemId
 
-export function useWatchTimeByItemId(userId: string, courseId: string, courseVersionId: string, itemId: string, type: string): {
+export function useWatchTimeByItemId(userId: string, courseId: string, courseVersionId: string, itemId: string, type: string, cohortId?: string): {
   data: undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
   const result = api.useQuery("get", "/users/{id}/watchTime/course/{courseId}/version/{courseVersionId}/item/{itemId}/type/{type}", {
-    params: { path: { id: userId, courseId: courseId, courseVersionId: courseVersionId, itemId: itemId, type: type } }
+    params: { path: { id: userId, courseId: courseId, courseVersionId: courseVersionId, itemId: itemId, type: type }, query: { cohortId } }
   }, { enabled: !!userId && !!itemId && !!type },);
 
   return {
@@ -2263,6 +2263,27 @@ export function useWatchtimeTotal(): {
     refetch: result.refetch
   };
 }
+
+// GenAI hook;
+// GET  /:id/tasks/:type/status
+export function useGenAIResponse():{
+  data: any;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery("get", "/{id}/tasks/{type}/status" as any, {
+    params: { path: {id, type} }
+  })
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch GenAI response') : null,
+    refetch: result.refetch
+  }
+}
+
+
 
 
 // --- AnomalyController Hooks ---
@@ -2628,7 +2649,8 @@ interface IAttemptDetails {
 // GET /quizzes/{quizId}/user/{userId}
 export function useUserQuizMetrics(
   quizId: string,
-  userId: string
+  userId: string,
+  cohortId?: string
 ): {
   data: UserQuizMetricsResponse | undefined;
   isLoading: boolean;
@@ -2639,7 +2661,7 @@ export function useUserQuizMetrics(
     "get",
     "/quizzes/quiz/{quizId}/user/{userId}",
     {
-      params: { path: { quizId, userId } },
+      params: { path: { quizId, userId }, query: { cohortId } },
     },
     {
       enabled: !!quizId && !!userId,
