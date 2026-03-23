@@ -415,6 +415,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
       if (allProctorsDisabled) {
         setShowProctorDialog(false);
         setAllProctorsDisabled(true);
+        setReadyToDetect(true);
       }
     }
     fetch();

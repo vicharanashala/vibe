@@ -107,7 +107,7 @@ class ProgressRepository {
         courseVersionId: new ObjectId(courseVersionId),
         endTime: { $exists: true, $ne: null },
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
       },
       { session },
     );
@@ -166,7 +166,7 @@ class ProgressRepository {
           userId: new ObjectId(userId),
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
-          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
           itemId: new ObjectId(itemId),
           endTime: { $exists: true, $ne: null },
           isDeleted: { $ne: true },
@@ -586,7 +586,7 @@ class ProgressRepository {
       {
         _id: new ObjectId(watchTimeId),
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
       },
       { $set: { endTime: new Date() } },
       { returnDocument: 'after', session },
@@ -621,8 +621,13 @@ class ProgressRepository {
     if (courseVersionId) {
       query.courseVersionId = new ObjectId(courseVersionId);
     }
-    if(cohortId){
+    if (cohortId) {
       query.cohortId = new ObjectId(cohortId);
+    } else {
+      query.$or = [
+        { cohortId: null },
+        { cohortId: { $exists: false } },
+      ];
     }
     query.isDeleted = { $ne: true };
     const result = await this.watchTimeCollection

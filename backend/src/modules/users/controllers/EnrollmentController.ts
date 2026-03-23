@@ -347,13 +347,14 @@ export class EnrollmentController {
     @Req() req: Request,
   ): Promise<any> {
     const { userId, courseId, versionId } = params;
-    const { status } = body;
+    const { status, cohortId } = body;
 
     // Fetch enrollment to get the role for permission checking
     const enrollmentData = await this.enrollmentService.findAnyEnrollment(
       userId,
       courseId,
       versionId,
+      cohortId,
     );
     if (!enrollmentData) {
       throw new NotFoundError('Enrollment not found');
@@ -375,6 +376,7 @@ export class EnrollmentController {
       courseId,
       versionId,
       status,
+      cohortId,
     );
 
     setAuditTrail(req, {

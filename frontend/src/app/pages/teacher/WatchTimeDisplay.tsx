@@ -16,6 +16,7 @@ export function WatchTimeDisplay({
   courseVersionId,
   itemName,
   itemType,
+  cohortId,
 }: {
   userId: string
   itemId: string
@@ -23,9 +24,10 @@ export function WatchTimeDisplay({
   courseVersionId: string
   itemName?: string
   itemType?: string
+  cohortId?: string
 }) {
   console.log(`Fetching watch time for User: ${userId}, Item: ${itemId}, Course: ${courseId}, Version: ${courseVersionId}, Type: ${itemType}`)
-  const { data: watchTimeData, isLoading, error} = useWatchTimeByItemId(userId, courseId, courseVersionId, itemId, itemType?.toUpperCase() || "");
+  const { data: watchTimeData, isLoading, error} = useWatchTimeByItemId(userId, courseId, courseVersionId, itemId, itemType?.toUpperCase() || "", cohortId);
 
   if (isLoading) {
     return (
