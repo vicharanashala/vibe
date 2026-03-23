@@ -54,7 +54,7 @@ export class ActivityController {
     return { success: true, data: doc };
   }
 
-  @OpenAPI({ summary: "Publish an activity" })
+  @OpenAPI({ summary: "Publish an activity" }) 
   @Post("/:id/publish")
   @Authorized()
   @HttpCode(201)
