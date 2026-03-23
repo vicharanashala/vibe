@@ -87,3 +87,28 @@ export interface RejectedStudentRegistrationNotification {
   };
   courseName?: string;
 }
+
+ 
+export type SystemNotificationType =
+  | 'ejection'
+  | 'reinstatement'
+  | 'policy_created'
+  | 'policy_updated';
+ 
+export interface SystemNotification {
+  _id: string;
+  type: SystemNotificationType;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+  courseId?: string;
+  courseVersionId?: string;
+  cohortId?: string;
+  policyId?: string;
+}
+ 
+export interface SystemNotificationsResponse {
+  notifications: SystemNotification[];
+  unreadCount: number;
+}

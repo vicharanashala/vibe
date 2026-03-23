@@ -19,6 +19,8 @@ import { ApprovedRegistrationNotification } from "@/types/notification.types"
 import { useRef, useEffect } from "react"
 import logo from "../../public/img/vibe_logo_img.ico"
 import { PolicyAcknowledgementModal } from "@/app/pages/student/components/policies/PolicyAcknowledgementModal"
+import { useGetSystemNotifications, useMarkSystemNotificationAsRead, useMarkAllSystemNotificationsAsRead } from "@/hooks/system-notification-hooks"
+import { SystemNotification } from "@/types/notification.types";
 type Invite = {
   inviteId: string;
   courseId: string;
@@ -42,7 +44,7 @@ export default function StudentLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const invitesRef = useRef<HTMLDivElement | null>(null);
   const [selectedInvite, setSelectedInvite] = useState<Invite|null>(null);
-  console.log('selectedInvite', selectedInvite);
+  const [systemNotifications, setSystemNotifications] = useState<SystemNotification[]>([])
   
   const { hasNew: hasNewAnnouncements, markSeen: markAnnouncementsSeen } = useNewAnnouncementIndicator();
   // const location = useLocation();
@@ -105,7 +107,15 @@ export default function StudentLayout() {
   const handleGoBack = () => {
     window.history.back()
   }
-
+  const { notifications: fetchedSystemNotifications, unreadCount: systemUnreadCount } =
+  useGetSystemNotifications(user?.uid || '', false, !!user?.uid);
+const { mutate: markSystemRead } = useMarkSystemNotificationAsRead();
+const { mutate: markAllSystemRead } = useMarkAllSystemNotificationsAsRead();
+useEffect(() => {
+  if (fetchedSystemNotifications) {
+    setSystemNotifications(fetchedSystemNotifications);
+  }
+}, [fetchedSystemNotifications]);
   useEffect(() => {
     if (!isAuthReady || !user) return;
 
@@ -299,17 +309,29 @@ export default function StudentLayout() {
                 >
                   <Bell className="h-4 w-4" />
                   <span className="hidden sm:block ml-2">Notifications</span>
-                  {(pendingInvites.length > 0 || approvedNotificationsList.length > 0 || (pendingStudentRegistrations?.length ?? 0) > 0 || localRejectedRegistrations.length > 0) && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />}
+                  {(pendingInvites.length > 0 || approvedNotificationsList.length > 0 || (pendingStudentRegistrations?.length ?? 0) > 0 || localRejectedRegistrations.length > 0|| systemUnreadCount > 0) && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />}
                 </Button>
 
                 {showInvites && <InviteDropdown
                  setShowInvites={setShowInvites}
-                onRejectClick={(invite) => {
-  setSelectedInvite(null);
-  setShowInvites(false);
-}}
-                selectedInvite={selectedInvite}
-                setSelectedInvite={setSelectedInvite}
+                  onRejectClick={(invite) => {
+                    setSelectedInvite(null);
+                    setShowInvites(false);
+                  }}
+                  systemNotifications={systemNotifications}
+                  onMarkSystemRead={(id) => {
+                    markSystemRead({ params: { path: { notificationId: id,
+ } } });
+                    setSystemNotifications(prev =>
+                      prev.map(n => n._id === id ? { ...n, read: true } : n)
+                    );
+                  }}
+                  onMarkAllSystemRead={() => {
+                    markAllSystemRead({});
+                    setSystemNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                  }}
+                  selectedInvite={selectedInvite}
+                  setSelectedInvite={setSelectedInvite}
                   setPendingInvites={setPendingInvites}
                   pendingInvites={pendingInvites}
                   approvedNotifications={approvedNotificationsList}
