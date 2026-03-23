@@ -334,14 +334,14 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                         $switch: {
                             branches: [
                                 { case: { $eq: ["$status", "APPROVED"] }, then: "$baseHp" },
-                                { 
-                                    case: { 
+                                {
+                                    case: {
                                         $and: [
                                             { $eq: ["$status", "SUBMITTED"] },
                                             { $eq: ["$rule.reward.applyWhen", "ON_SUBMISSION"] }
-                                        ] 
-                                    }, 
-                                    then: "$baseHp" 
+                                        ]
+                                    },
+                                    then: "$baseHp"
                                 },
                                 { case: { $eq: ["$status", "REVERTED"] }, then: 0 },
                                 { case: { $eq: ["$status", "REJECTED"] }, then: 0 },
@@ -510,7 +510,6 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         ];
 
         const docs = await this.hpActivitySubmissionCollection.aggregate(pipeline).toArray();
-        console.log("Aggregated student submissions data in repo-> ", docs);
 
         // return plainToInstance(StudentActivitySubmissionsViewDto, docs, {
         //     excludeExtraneousValues: true,

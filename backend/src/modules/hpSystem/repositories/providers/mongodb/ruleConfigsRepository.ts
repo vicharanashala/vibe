@@ -240,16 +240,16 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
                     "activity.status": "PUBLISHED"
                 }
             },
-            // {
-            //     $addFields: {
-            //         effectiveDeadline: "$deadlineAt"
-            //     }
-            // },
-            // {
-            //     $match: {
-            //         effectiveDeadline: { $gte: now }
-            //     }
-            // },
+            {
+                $addFields: {
+                    effectiveDeadline: "$deadlineAt"
+                }
+            },
+            {
+                $match: {
+                    effectiveDeadline: { $lte: now }
+                }
+            },
             {
                 $project: {
                     activity: 0
