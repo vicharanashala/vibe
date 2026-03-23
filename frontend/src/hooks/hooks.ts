@@ -5399,6 +5399,19 @@ export function useCreateHpRuleConfig() {
   };
 }
 
+export function useCreateActivityWithRule() {
+  return useMutation({
+    mutationFn: async (payload: {
+      activity: CreateHpActivityPayload;
+      ruleConfig: Partial<HpRuleConfig>;
+    }) => {
+      const res = await hpApi.createActivityWithRule(payload);
+      if (!res.success) throw new Error(res.message || "Failed to create Activity");
+      return res.data;
+    },
+  });
+}
+
 export function useUpdateHpRuleConfig() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
