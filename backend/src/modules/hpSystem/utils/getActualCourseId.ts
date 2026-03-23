@@ -1,5 +1,3 @@
-// Helper function to resolve course IDs (handle legacy and new cohort system)
-
 import { HpActivityTransformer } from "../classes/transformers/Activity.js";
 import { COHORT_OVERRIDES, LEGACY_COURSE_KEYS } from "../constants.js";
 
