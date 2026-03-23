@@ -21,12 +21,14 @@ import {
 import { HpRuleConfig, HpActivity } from "@/lib/api/hp-system";
 import { useHpRuleConfig, useCreateHpRuleConfig, useUpdateHpRuleConfig, useHpActivities, useUpdateHpActivity } from "@/hooks/hooks";
 import ConfirmationModal from "../../components/confirmation-modal";
+import { toast } from "sonner";
 
 interface RuleSettingsDialogProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     courseId: string;
     courseVersionId: string;
+    cohortName: string;
     activityId: string;
 }
 
@@ -35,6 +37,7 @@ export function RuleSettingsDialog({
     onOpenChange,
     courseId,
     courseVersionId,
+    cohortName,
     activityId,
 }: RuleSettingsDialogProps) {
     const [config, setConfig] = useState<Partial<HpRuleConfig> | null>(null);
@@ -48,7 +51,7 @@ export function RuleSettingsDialog({
     // Hooks
     const { data: existingConfig, isLoading: fetchLoading, refetch } = useHpRuleConfig(isOpen ? activityId : undefined);
     console.log("Existing config from hook:", existingConfig, "Loading:", fetchLoading);
-    const { data: activities = [] } = useHpActivities(courseVersionId, "", "", "");
+    const { data: activities = [] } = useHpActivities(courseVersionId, cohortName, "", "");
     const activity = activities.find((a: HpActivity) => a._id === activityId);
     const { mutateAsync: createRuleConfig, isPending: isCreating } = useCreateHpRuleConfig();
     const { mutateAsync: updateRuleConfig, isPending: isUpdating } = useUpdateHpRuleConfig();
@@ -99,23 +102,49 @@ export function RuleSettingsDialog({
         }
     }, [isOpen, existingConfig, fetchLoading, activity]);
 
-    const [errors, setErrors] = useState<{ deadlineAt?: string }>({});
+    const [errors, setErrors] = useState<{ deadlineAt?: string; penaltyEnabled?: string; requiredPercentage?: string; maxHp?: string }>({});
 
     const handleSave = async () => {
         if (!config) return;
 
+        let hasError = false;
+        const nextErrors: any = {};
+
         if (config.isMandatory && !config.deadlineAt) {
-            setErrors({ deadlineAt: "Deadline is required for mandatory activities" });
+            nextErrors.deadlineAt = "Deadline is required for mandatory activities";
+            hasError = true;
+        } else if (config.deadlineAt) {
+            const deadline = new Date(config.deadlineAt);
+            if (deadline < new Date()) {
+                nextErrors.deadlineAt = "Deadline cannot be in the past";
+                hasError = true;
+            }
+        }
+
+        if (config.isMandatory && !config.penalty?.enabled) {
+            nextErrors.penaltyEnabled = "Penalty cannot be disabled for mandatory activities.";
+            hasError = true;
+        }
+
+        if (activity?.activityType === "VIBE_MILESTONE" && ((config as any).required_percentage === undefined || Number.isNaN((config as any).required_percentage))) {
+            nextErrors.requiredPercentage = "Required percentage must be provided for a Vibe Milestone activity.";
+            hasError = true;
+        }
+
+        if (
+            config.limits?.minHp !== undefined &&
+            config.limits?.maxHp !== undefined &&
+            config.limits.maxHp <= config.limits.minHp
+        ) {
+            nextErrors.maxHp = "Maximum HP must be greater than Minimum HP.";
+            hasError = true;
+        }
+
+        if (hasError) {
+            setErrors(nextErrors);
             return;
         }
 
-        if (config.deadlineAt) {
-            const deadline = new Date(config.deadlineAt);
-            if (deadline < new Date()) {
-                setErrors({ deadlineAt: "Deadline cannot be in the past" });
-                return;
-            }
-        }
         setErrors({});
 
         try {
@@ -125,7 +154,7 @@ export function RuleSettingsDialog({
 
             if (existingConfig?._id) {
                 console.log("Updating existing config with ID:", existingConfig._id);
-                await updateRuleConfig(activityId, rulePayload);
+                await updateRuleConfig(existingConfig._id, rulePayload);
             } else {
                 const createPayload: Partial<HpRuleConfig> = {
                     courseId,
@@ -142,8 +171,19 @@ export function RuleSettingsDialog({
 
             refetch();
             onOpenChange(false);
-        } catch (error) {
+            toast.success("Rule configuration saved successfully");
+        } catch (error: any) {
             console.error("Failed to save rule config", error);
+            if (error.response) {
+                try {
+                    const detail = await error.response.json();
+                    toast.error(detail.message || "Failed to save configuration due to validation errors.");
+                } catch (e) {
+                    toast.error("Failed to save configuration.");
+                }
+            } else {
+                toast.error(error.message || "Failed to save configuration.");
+            }
         }
     };
 
@@ -167,7 +207,8 @@ export function RuleSettingsDialog({
                 ) : (
                     <div className="space-y-8 py-4">
 
-                        {/* Mandatory Toggle */}
+                        {/* Mandatory Toggle — hidden for VIBE_MILESTONE (always mandatory) */}
+                        {activity?.activityType !== "VIBE_MILESTONE" && (
                         <div className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
                             <div className="space-y-0.5">
                                 <Label className="text-base">Mandatory Activity</Label>
@@ -184,6 +225,7 @@ export function RuleSettingsDialog({
                                 } as any))}
                             />
                         </div>
+                        )}
 
                         {/* Required Progress Percentage (Milestones Only) */}
                         {(activity?.activityType === "MILESTONE" || activity?.activityType === "VIBE_MILESTONE") && (
@@ -203,10 +245,16 @@ export function RuleSettingsDialog({
                                             placeholder="100"
                                             className="pr-8"
                                             value={(config as any)?.required_percentage ?? ""}
-                                            onChange={(e) => setConfig(prev => ({ ...prev, required_percentage: e.target.value === "" ? undefined : parseInt(e.target.value) } as any))}
+                                            onChange={(e) => {
+                                                setConfig(prev => ({ ...prev, required_percentage: e.target.value === "" ? undefined : parseInt(e.target.value) } as any));
+                                                if (errors.requiredPercentage) {
+                                                    setErrors(prev => ({ ...prev, requiredPercentage: undefined }));
+                                                }
+                                            }}
                                         />
                                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
                                     </div>
+                                    {errors.requiredPercentage && <p className="text-xs text-red-500 mt-1">{errors.requiredPercentage}</p>}
                                 </div>
                             </div>
                         )}
@@ -227,17 +275,37 @@ export function RuleSettingsDialog({
                                     </Label>
                                     <Input
                                         type="datetime-local"
-                                        min={new Date().toISOString().slice(0, 16)}
-                                        value={config?.deadlineAt ? new Date(config.deadlineAt).toISOString().slice(0, 16) : ""}
+                                        min={
+                                            new Date()
+                                                .toLocaleString("sv-SE", { timeZone: "Asia/Kolkata" })
+                                                .slice(0, 16)
+                                                .replace(" ", "T")
+                                            }
+                                        value={
+                                            config?.deadlineAt
+                                                ? new Date(config.deadlineAt)
+                                                    .toLocaleString("sv-SE", { timeZone: "Asia/Kolkata" })
+                                                    .slice(0, 16)
+                                                    .replace(" ", "T")
+                                                : ""
+                                            }
                                         onChange={(e) => {
                                             const val = e.target.value;
-                                            setConfig(prev => ({ ...prev, deadlineAt: val ? new Date(val).toISOString() : undefined } as any));
+
+                                            setConfig(prev => ({
+                                                ...prev,
+                                                deadlineAt: val
+                                                ? new Date(`${val}:00+05:30`).toISOString()
+                                                : undefined
+                                            }));
                                             if (errors.deadlineAt) setErrors({});
                                         }}
                                     />
                                     {errors.deadlineAt && <p className="text-xs text-red-500 mt-1">{errors.deadlineAt}</p>}
                                 </div>
 
+                                {/* Allow Late — hidden for VIBE_MILESTONE */}
+                                {activity?.activityType !== "VIBE_MILESTONE" && (
                                 <div className="space-y-2 flex flex-col justify-end pb-2">
                                     <div className="flex items-center gap-2">
                                         <Switch
@@ -248,6 +316,7 @@ export function RuleSettingsDialog({
                                         <Label htmlFor="allow-late">Allow Late Submissions</Label>
                                     </div>
                                 </div>
+                                )}
                             </div>
                         </div>
 
@@ -299,6 +368,8 @@ export function RuleSettingsDialog({
 
 
 
+                                {/* Apply Policy — hidden for VIBE_MILESTONE */}
+                                {activity?.activityType !== "VIBE_MILESTONE" && (
                                 <div className="space-y-2">
                                     <Label>Apply Policy</Label>
                                     <Select
@@ -317,7 +388,10 @@ export function RuleSettingsDialog({
                                         </SelectContent>
                                     </Select>
                                 </div>
+                                )}
 
+                                {/* Late Reward Behavior — only shown when allow late is ON */}
+                                {config?.allowLateSubmission && (
                                 <div className="space-y-2">
                                     <Label>Late Reward Behavior</Label>
                                     <Select
@@ -347,7 +421,6 @@ export function RuleSettingsDialog({
                                                 } as any));
                                             }
                                         }}
-                                        disabled={!config?.allowLateSubmission}
                                     >
                                         <SelectTrigger>
                                             <SelectValue />
@@ -358,8 +431,8 @@ export function RuleSettingsDialog({
                                             <SelectItem value="REWARD_DENIED">Deny Reward</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    {!config?.allowLateSubmission && <p className="text-[10px] text-muted-foreground">Enable Late Submissions to configure late behavior.</p>}
                                 </div>
+                                )}
                             </div>
                             )}
                         </div>
@@ -369,13 +442,13 @@ export function RuleSettingsDialog({
                                 <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Penalty Configuration (Late)</h4>
                                 <Switch
                                     checked={config?.penalty?.enabled || false}
-                                    disabled={!config?.isMandatory}
                                     onCheckedChange={(c) => setConfig(prev => ({
                                         ...prev,
                                         penalty: { ...(prev?.penalty || {}), enabled: c }
                                     } as any))}
                                 />
                             </div>
+                            {errors.penaltyEnabled && <p className="text-xs text-red-500 mt-1">{errors.penaltyEnabled}</p>}
                             {config?.penalty?.enabled && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
                                 <div className="space-y-2">
@@ -449,6 +522,7 @@ export function RuleSettingsDialog({
                                                 limits: { ...(prev?.limits || {}), maxHp: e.target.value === "" ? undefined : parseInt(e.target.value) }
                                             } as any))}
                                         />
+                                        {errors.maxHp && <p className="text-xs text-red-500 mt-1">{errors.maxHp}</p>}
                                     </div>
                                 </div>
                                 <p className="text-[10px] text-muted-foreground">

@@ -21,9 +21,9 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
             await this.db.getCollection<HpRuleConfig>("hp_activity_rules");
     }
 
-    async createRuleConfig(input: Omit<HpRuleConfig, "_id">): Promise<HpRuleConfigTransformer> {
+    async createRuleConfig(input: Omit<HpRuleConfig, "_id">, session?: ClientSession): Promise<HpRuleConfigTransformer> {
         await this.init();
-        const result = await this.hpRuleConfigsCollection.insertOne(input as any);
+        const result = await this.hpRuleConfigsCollection.insertOne(input as HpRuleConfig, { session });
 
         const created = await this.hpRuleConfigsCollection.findOne({
             _id: result.insertedId, isDeleted: { $ne: true },
@@ -43,17 +43,17 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
                 HpRuleConfig,
                 "_id" | "courseId" | "courseVersionId" | "activityId" | "createdAt"
             >
-        >
+        >, session?: ClientSession
     ): Promise<HpRuleConfigTransformer | null> {
         await this.init();
-        const activityId = new ObjectId(ruleConfigId);
+        const _id = new ObjectId(ruleConfigId);
 
         const result = await this.hpRuleConfigsCollection.findOneAndUpdate(
             {
-                activityId, isDeleted: { $ne: true },
+                _id, isDeleted: { $ne: true },
             },
             { $set: patch },
-            { returnDocument: "after" }
+            { returnDocument: "after", session }
         );
         return plainToInstance(HpRuleConfigTransformer, result as HpRuleConfig, {
             excludeExtraneousValues: true,
@@ -63,15 +63,19 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
 
     async findById(ruleConfigId: string): Promise<HpRuleConfigTransformer | null> {
         await this.init();
-        const activityId = new ObjectId(ruleConfigId);
-        console.log("Finding rule config by ID:", activityId);
         const doc = await this.hpRuleConfigsCollection.findOne({
-            activityId, isDeleted: { $ne: true },
+            _id: new ObjectId(ruleConfigId), isDeleted: { $ne: true },
         });
-        return plainToInstance(HpRuleConfigTransformer, doc as HpRuleConfig, {
-            excludeExtraneousValues: true,
-            exposeDefaultValues: true,
-        });
+        if (!doc) return null;
+        const result = {
+            ...doc,
+            _id: doc._id?.toString(),
+            courseId: doc.courseId?.toString(),
+            courseVersionId: doc.courseVersionId?.toString(),
+            activityId: doc.activityId?.toString(),
+        };
+
+        return result as HpRuleConfigTransformer;
     }
 
     async findByActivityId(activityId: string): Promise<HpRuleConfigTransformer | null> {
@@ -79,10 +83,16 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
         const doc = await this.hpRuleConfigsCollection.findOne({
             activityId: new ObjectId(activityId), isDeleted: { $ne: true },
         });
-        return plainToInstance(HpRuleConfigTransformer, doc as HpRuleConfig, {
-            excludeExtraneousValues: true,
-            exposeDefaultValues: true,
-        });
+        if (!doc) return null;
+        const result = {
+            ...doc,
+            _id: doc?._id?.toString(),
+            courseId: doc.courseId?.toString(),
+            courseVersionId: doc.courseVersionId?.toString(),
+            activityId: doc.activityId?.toString(),
+        };
+
+        return result as HpRuleConfigTransformer;
     }
 
     async softDeleteByActivityId(
@@ -143,15 +153,37 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
             },
             {
                 $match: {
-                    "activity.status": "PUBLISHED"
+                    "activity.status": "PUBLISHED",
+                    // "activity.activityType": "ASSIGNMENT"
                 }
             },
+            // {
+            //     $addFields: {
+            //         effectiveDeadline: {
+            //             $add: [
+            //                 "$deadlineAt",
+            //                 { $multiply: ["$penalty.graceMinutes", 60000] }
+            //             ]
+            //         }
+            //     }
+            // },
             {
                 $addFields: {
                     effectiveDeadline: {
                         $add: [
                             "$deadlineAt",
-                            { $multiply: ["$penalty.graceMinutes", 60000] }
+                            {
+                                $multiply: [
+                                    {
+                                        $cond: [
+                                            { $eq: ["$activity.activityType", "VIBE_MILESTONE"] },
+                                            { $add: ["$penalty.graceMinutes", 2] }, // milestone = existing + 2 minutes
+                                            "$penalty.graceMinutes"
+                                        ]
+                                    },
+                                    60000
+                                ]
+                            }
                         ]
                     }
                 }
@@ -181,7 +213,9 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
     async getAllMilestoneActivities(): Promise<HpRuleConfigTransformer[]> {
         await this.init();
 
-        const docs = await this.hpRuleConfigsCollection.aggregate([
+        const now = new Date();
+
+        return await this.hpRuleConfigsCollection.aggregate([
             {
                 $match: {
                     isMandatory: true,
@@ -198,15 +232,33 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
                 }
             },
             {
+                $unwind: "$activity"
+            },
+            {
                 $match: {
-                    "activity.activityType": { $in: ["MILESTONE", "VIBE_MILESTONE"] }
+                    "activity.activityType": "VIBE_MILESTONE",
+                    "activity.status": "PUBLISHED"
+                }
+            },
+            {
+                $addFields: {
+                    effectiveDeadline: "$deadlineAt"
+                }
+            },
+            {
+                $match: {
+                    effectiveDeadline: { $lte: now }
+                }
+            },
+            {
+                $project: {
+                    activity: 0
                 }
             }
-        ]).toArray();
-
-        return docs.map(doc => plainToInstance(HpRuleConfigTransformer, doc as HpRuleConfig, {
-            excludeExtraneousValues: true,
-            exposeDefaultValues: true,
-        }));
+        ]).toArray() as HpRuleConfigTransformer[];
+        // return docs.map(doc => plainToInstance(HpRuleConfigTransformer, doc as HpRuleConfig, {
+        //     excludeExtraneousValues: true,
+        //     exposeDefaultValues: true,
+        // }));
     }
 }

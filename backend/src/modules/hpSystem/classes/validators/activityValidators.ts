@@ -1,4 +1,4 @@
-import { IsArray, IsBoolean, IsDateString, IsEnum, IsMongoId, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
+import { IsArray, IsBoolean, IsDateString, IsEnum, IsMongoId, IsNumber, IsOptional, IsString, Max, Min, ValidateNested } from "class-validator";
 import { ActivityStatus, ActivityType, AttachmentKind, SubmissionMode } from "../../models.js";
 import { Type } from "class-transformer";
 
@@ -62,6 +62,8 @@ export class CreateActivityBody {
 
     @IsOptional()
     @IsNumber()
+    @Min(0)
+    @Max(100)
     required_percentage?: number;
 }
 
@@ -118,6 +120,8 @@ export class UpdateActivityBody {
 
     @IsOptional()
     @IsNumber()
+    @Min(0)
+    @Max(100)
     required_percentage?: number;
 }
 
@@ -140,6 +144,16 @@ export class ListActivitiesQuery {
         message: "status must be one of DRAFT, PUBLISHED, ARCHIVED",
     })
     status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+
+    @IsOptional()
+    @IsEnum(["ASSIGNMENT", "MILESTONE", "EXTERNAL_IMPORT", "VIBE_MILESTONE", "OTHER"], {
+        message: "activityType must be one of ASSIGNMENT, MILESTONE, EXTERNAL_IMPORT, VIBE_MILESTONE, OTHER ",
+    })
+    activityType?: | "ASSIGNMENT"
+        | "MILESTONE"
+        | "EXTERNAL_IMPORT"
+        | "VIBE_MILESTONE"
+        | "OTHER";
 
     @IsOptional()
     @IsMongoId({ message: "createdByTeacherId must be a valid MongoDB ObjectId" })

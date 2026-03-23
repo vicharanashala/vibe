@@ -155,7 +155,7 @@ export interface HpActivitySubmission {
 
 export type RuleType = "ABSOLUTE" | "PERCENTAGE";
 
-export type RewardApplyWhen = "ON_SUBMISSION" | "ON_APPROVAL";
+export type RewardApplyWhen = "ON_SUBMISSION" | "ON_APPROVAL" | "ON_MILESTONE_COMPLETION";
 
 export type LateBehavior = "NO_REWARD" | "REWARD";
 
@@ -183,7 +183,7 @@ export interface HpRuleConfig {
         applyWhen?: RewardApplyWhen;
         lateBehavior?: LateBehavior;
     };
-    
+
     // students => hpPOints = 50 (shouldn't be -ve)
 
     // penalty type = % => 10 => 10% of 50 => 5 => 50 -5 
@@ -225,13 +225,14 @@ export type HpLedgerDirection = "CREDIT" | "DEBIT";
 
 export type HpReasonCode =
     | "SUBMISSION_REWARD"
+    | "MILESTONE_REWARD"
     | "MISSED_DEADLINE_PENALTY"
     | "REWARD_REVERSAL"
     | "REJECTION_PENALTY"
     | "BASE_INIT"
     | "MANUAL";
 
-export type TriggeredBy = "SYSTEM" | "TEACHER" | "STUDENT" | "JOB";
+export type TriggeredBy = "SYSTEM" | "TEACHER" | "STUDENT" | "SYSTEM_AUTOMATION";
 
 export interface HpLedger {
     _id?: ID;

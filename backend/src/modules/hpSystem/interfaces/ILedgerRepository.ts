@@ -9,7 +9,8 @@ export interface ILedgerRepository {
     create(entry: Omit<HpLedger, "_id" | "createdAt">, session?: ClientSession): Promise<InsertOneResult<HpLedger>>
     listByStudentId(
         studentId: string,
-        filter: FilterQueryDto
+        filter: FilterQueryDto,
+        cohortName: string,
     ): Promise<{
         data: HpLedgerTransformer[];
         total: number;

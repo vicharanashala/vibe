@@ -105,7 +105,7 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
 
         const filter: any = { $or: orVersionMatch, isDeleted: { $ne: true } };
         if (typeof isPublic === "boolean") {
-            filter.isPublic = isPublic;
+            // filter.isPublic = isPublic;
         }
 
         return await this.cohortsCollection
@@ -292,6 +292,7 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
             {
                 $project: {
                     _id: { $toString: "$user._id" },
+                    enrollmentId: { $toString: "$_id" },
                     email: "$user.email",
                     name: {
                         $trim: {
@@ -307,7 +308,7 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
                     completionPercentage: {
                         $ifNull: ["$percentCompleted", 0],
                     },
-                    totalHp: { $literal: 0 },
+                    totalHp: { $ifNull: ["$hpPoints", 0] },
                 },
             },
             { $sort: { name: 1 } },
@@ -626,7 +627,7 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
             query,
             {
                 $set: {
-                    hpPoints: amount,
+                    hpPoints: Math.max(0, amount),
                     updatedAt: new Date(),
                 },
             },
@@ -825,5 +826,20 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
 
 
         return enrollment?.hpPoints ?? 0;
+    }
+
+    async getCourseVersionNameById(versionId: string): Promise<string> {
+        await this.init();
+
+        const doc = await this.courseVersionCollection.findOne(
+            { _id: new ObjectId(versionId) },
+            { projection: { version: 1 } }
+        );
+
+        if (!doc) {
+            throw new Error("Course version not found");
+        }
+
+        return doc.version;
     }
 }

@@ -40,6 +40,20 @@ export class ActivityService extends BaseService {
             if (body.status == "ARCHIVED") {
                 throw new BadRequestError("New activity cannot be created with ARCHIVED status");
             }
+            if (body.activityType === "EXTERNAL_IMPORT" || body.activityType === "MILESTONE" || body.activityType === "OTHER")
+                throw new BadRequestError(
+                    "Invalid activity type. Only 'ASSIGNMENT' and 'VIBE_MILESTONE' activities can be created."
+                );
+
+            if (body.activityType === "VIBE_MILESTONE" && !body.deadlineAt)
+                throw new BadRequestError(
+                    "Deadline is required when creating a Vibe Milestone activity."
+                );
+
+            if (body.activityType === "VIBE_MILESTONE" && !body.required_percentage)
+                throw new BadRequestError(
+                    "Required percentage must be provided for a Vibe Milestone activity."
+                );
 
             const now = new Date();
             const doc = await this.activityRepository.createActivity(
@@ -87,6 +101,30 @@ export class ActivityService extends BaseService {
 
             if (body.submissionMode === "EXTERNAL_LINK" && !body.externalLink && !existing.externalLink) {
                 throw new BadRequestError("externalLink is required when submissionMode is EXTERNAL_LINK");
+            }
+
+            if (body.activityType === "EXTERNAL_IMPORT" || body.activityType === "MILESTONE" || body.activityType === "OTHER")
+                throw new BadRequestError(
+                    "Invalid activity type. Only 'ASSIGNMENT' and 'VIBE_MILESTONE' activities can be created."
+                );
+
+            const effectiveActivityType = body.activityType ?? existing.activityType;
+
+            if (effectiveActivityType === "VIBE_MILESTONE") {
+                // Deadline lives in the rule config, not the activity document
+                const ruleConfig = await this.ruleConfigRepository.findByActivityId(activityId);
+                const hasDeadline = body.deadlineAt || ruleConfig?.deadlineAt;
+                const hasPercentage = body.required_percentage || existing.required_percentage;
+
+                if (!hasDeadline)
+                    throw new BadRequestError(
+                        "Deadline is required when creating a Vibe Milestone activity."
+                    );
+
+                if (!hasPercentage)
+                    throw new BadRequestError(
+                        "Required percentage must be provided for a Vibe Milestone activity."
+                    );
             }
 
             const updated = await this.activityRepository.updateActivityById(
@@ -208,6 +246,8 @@ export class ActivityService extends BaseService {
         // if (!enrollment) throw new BadRequestError("Enrollment not found!")
         // const role = enrollment.role;
 
-        return this.activityRepository.listActivities(filters, userId);
+        const activities = await this.activityRepository.listActivities(filters, userId);
+
+        return activities;
     }
 }

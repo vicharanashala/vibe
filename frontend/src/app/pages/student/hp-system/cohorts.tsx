@@ -99,7 +99,7 @@ export default function StudentCohorts() {
                     <CardContent>
                         <div className="text-2xl font-bold">{cohorts?.filter(c => (c.percentCompleted ?? 0) >= 100).length || 0}</div>
                         <p className="text-xs text-muted-foreground mt-1">
-                            Cohorts fully finished
+                                Cohorts with All Activities Completed
                         </p>
                     </CardContent>
                 </Card>

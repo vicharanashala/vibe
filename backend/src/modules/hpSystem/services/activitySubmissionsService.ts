@@ -16,6 +16,7 @@ import { ClientSession, ObjectId } from "mongodb";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { SubmissionFeedbackItem } from "../classes/transformers/ActivitySubmission.js";
 import { COHORT_OVERRIDES, ID } from "../constants.js";
+import { ISettingRepository } from "#root/shared/database/interfaces/ISettingRepository.js";
 
 
 @injectable()
@@ -49,6 +50,7 @@ export class ActivitySubmissionsService extends BaseService {
         private readonly activityRepository: ActivityRepository,
 
         @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
+        @inject(GLOBAL_TYPES.SettingRepo) private readonly settingRepository: ISettingRepository,
 
     ) {
         super(mongoDatabase);
@@ -232,7 +234,9 @@ export class ActivitySubmissionsService extends BaseService {
             }
             if (activity.status !== "PUBLISHED")
                 throw new BadRequestError("You can't submit this activity, it is not set to public")
-            
+            if (activity.activityType !== "ASSIGNMENT")
+                throw new BadRequestError("You can't submit this activity")
+
             const activityRuleConfig = await this.ruleConfigService.getByActivityId(activityId);
             if (!activityRuleConfig) {
                 throw new BadRequestError("Activity rule config not found");
@@ -311,11 +315,21 @@ export class ActivitySubmissionsService extends BaseService {
             let uploadedPdfs: any[] = [];
             let uploadedImages: any[] = [];
 
+
+            // To create proper unique folder names based on cohort (exisiting cohort=>cohortName, new cohorts=>id)
+            let cohortFileName = body.cohort
+            const isOverride = COHORT_OVERRIDES[body.cohort]
+            if (!isOverride) {
+                const cohortId = await this.cohortRepository.getCohortIdByCohortName(body.cohort);
+                if (cohortId)
+                    cohortFileName = cohortId;
+            }
+
             // Only call upload when there are files/images
             if (files.length > 0 || images.length > 0) {
                 const uploadResult = await this.uploadSubmissionAssets(
                     student.id,
-                    body.cohort,
+                    cohortFileName,
                     body.activityId,
                     files,
                     images
@@ -394,8 +408,13 @@ export class ActivitySubmissionsService extends BaseService {
                     const rewardMaxLimit = activityRuleConfig.limits?.maxHp;
                     const rewardMinLimit = activityRuleConfig.limits?.minHp;
 
-                    // Calculate percentage reward
-                    const calculatedReward = Math.round((totalStudentHpPoints * rewardValue) / 100);
+                    // Fetch course base HP from settings for percentage calculation baseline
+                    const courseSettings = await this.settingRepository.readCourseSettings(finalCourseId, finalVersionId, session);
+                    const courseBaseHp = courseSettings?.settings?.baseHp ?? 100;
+
+                    // Calculate percentage reward using current HP, or base HP if current is 0
+                    const calculationBase = totalStudentHpPoints > 0 ? totalStudentHpPoints : courseBaseHp;
+                    const calculatedReward = Math.round((calculationBase * rewardValue) / 100);
 
                     let finalReward = calculatedReward;
 
@@ -407,7 +426,7 @@ export class ActivitySubmissionsService extends BaseService {
                         finalReward = rewardMaxLimit;
                     }
 
-                    incrementAmount = finalReward;
+                    incrementAmount = Math.max(0, finalReward);
                 }
 
                 // For transparency in the audit trail, we create a human-readable note about how the reward was calculated
@@ -491,6 +510,7 @@ export class ActivitySubmissionsService extends BaseService {
                     "This submission cannot be updated because it has already been reviewed or approved by the instructor."
                 );
             }
+
             const basePayload = {
                 textResponse: body.payload?.textResponse ?? "",
                 links: body.payload?.links ?? [],
@@ -659,33 +679,29 @@ export class ActivitySubmissionsService extends BaseService {
             throw new BadRequestError("Student not found");
         }
 
-        let courseId: string;
-        let courseVersionId: string;
 
-        const override = COHORT_OVERRIDES[cohortName];
+        // if (override) {
+        //     courseId = override.courseId;
+        //     courseVersionId = override.versionId;
+        // } else {
+        const latestActivity = await this.activityRepository.getLatestActivityByCohortName(cohortName);
 
-        if (override) {
-            courseId = override.courseId;
-            courseVersionId = override.versionId;
-        } else {
-            const latestActivity = await this.activityRepository.getLatestActivityByCohortName(cohortName);
-
-            if (!latestActivity) {
-                return {
-                    success: true,
-                    data: {
-                        totalActivities: 0,
-                        totalSubmissions: 0,
-                        totalLateSubmissions: 0,
-                        totalPendings: 0,
-                        currentHp: 0,
-                    },
-                };
-            }
-
-            courseId = latestActivity.courseId.toString();
-            courseVersionId = latestActivity.courseVersionId.toString();
+        if (!latestActivity) {
+            return {
+                success: true,
+                data: {
+                    totalActivities: 0,
+                    totalSubmissions: 0,
+                    totalLateSubmissions: 0,
+                    totalPendings: 0,
+                    currentHp: 0,
+                },
+            };
         }
+
+        const courseId = latestActivity.courseId.toString();
+        const courseVersionId = latestActivity.courseVersionId.toString();
+        // }
 
         const [
             totalActivities,
@@ -693,12 +709,11 @@ export class ActivitySubmissionsService extends BaseService {
             totalLateSubmissions,
             totalPendingActivites,
             enrollment,
-            latestActivity,
         ] = await Promise.all([
             this.activityRepository.getCountByCohortName(cohortName),
-            this.activitySubmissionsRepository.getCountByStudentId(studentId, courseId, courseVersionId),
-            this.activitySubmissionsRepository.getLateSubmissionCountByStudentId(studentId, courseId, courseVersionId),
-            this.activityRepository.getPendingActivitesCount(studentId, courseId, courseVersionId),
+            this.activitySubmissionsRepository.getCountByStudentId(studentId, courseId, courseVersionId, cohortName),
+            this.activitySubmissionsRepository.getLateSubmissionCountByStudentId(studentId, courseId, courseVersionId, cohortName),
+            this.activityRepository.getPendingActivitesCount(studentId, courseId, courseVersionId, cohortName),
             this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId, cohortName),
             this.activityRepository.getLatestActivityByCohortName(cohortName),
         ]);
@@ -716,6 +731,7 @@ export class ActivitySubmissionsService extends BaseService {
             data,
         };
     }
+
 
     async listMySubmissions(studentId: string, query: FilterQueryDto, cohortName?: string): Promise<any> {
         const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined, undefined, cohortName);
@@ -760,13 +776,16 @@ export class ActivitySubmissionsService extends BaseService {
                 courseVersionId = override.versionId;
             }
 
-            const [activityRuleConfig, user, enrollment] = await Promise.all([
+            const [activityRuleConfig, user, enrollment, courseSettings] = await Promise.all([
                 this.ruleConfigService.getByActivityId(submission.activityId.toString()),
                 this.userRepo.findById(submission.studentId.toString()),
-                this.cohortRepository.findEnrollment(submission.studentId.toString(), courseId, courseVersionId, submission.cohort, session)
+                this.cohortRepository.findEnrollment(submission.studentId.toString(), courseId, courseVersionId, submission.cohort, session),
+                this.settingRepository.readCourseSettings(courseId, courseVersionId, session)
             ]);
 
             if (!user || !enrollment) throw new BadRequestError(!user ? "Student account missing." : "Enrollment data missing.");
+
+            const baseHpValue = courseSettings?.settings?.baseHp ?? 100;
 
             // 2. Flags & Config
             const rewardConfig = activityRuleConfig?.reward;
@@ -790,8 +809,8 @@ export class ActivitySubmissionsService extends BaseService {
                 throw new BadRequestError("This activity requires approval. Only APPROVE/REJECT is allowed.");
             }
 
-            if (isApprove && (currentStatus === "APPROVED" || (currentStatus === "SUBMITTED" && rewardConfig?.applyWhen !== "ON_APPROVAL"))) {
-                throw new BadRequestError("Conflict: Points already granted. Use REVERT or REJECT.");
+            if (isApprove && currentStatus === "APPROVED") {
+                throw new BadRequestError("Conflict: This submission is already approved.");
             }
 
             if (isReject && body.pointsToDeduct !== undefined && body.pointsToDeduct > baseHp) {
@@ -823,33 +842,38 @@ export class ActivitySubmissionsService extends BaseService {
             if (isApprove) {
                 const rewardValue = rewardConfig?.value ?? 0;
                 let rewardDetailsNote = "";
-
                 let incrementAmount = 0;
-                if (ruleType === "ABSOLUTE") {
-                    incrementAmount = rewardValue;
-                    rewardDetailsNote = `Reward Type: ABSOLUTE, Reward HP: ${rewardValue}`;
 
-                } else if (ruleType === "PERCENTAGE") {
-                    const rewardMaxLimit = activityRuleConfig.limits?.maxHp;
-                    const rewardMinLimit = activityRuleConfig.limits?.minHp;
+                // Prevention of double-rewarding for ON_SUBMISSION activities
+                if (rewardConfig?.applyWhen === "ON_SUBMISSION") {
+                    incrementAmount = 0;
+                    rewardDetailsNote = "Reward already applied on submission.";
+                } else {
+                    if (ruleType === "ABSOLUTE") {
+                        incrementAmount = rewardValue;
+                        rewardDetailsNote = `Reward Type: ABSOLUTE, Reward HP: ${rewardValue}`;
 
-                    // Calculate percentage reward
-                    const calculatedReward = Math.round((totalStudentHpPoints * rewardValue) / 100);
+                    } else if (ruleType === "PERCENTAGE") {
+                        const rewardMaxLimit = activityRuleConfig.limits?.maxHp;
+                        const rewardMinLimit = activityRuleConfig.limits?.minHp;
 
-                    let finalReward = calculatedReward;
+                        // Calculate percentage reward using current HP, or base HP if current is 0
+                        const calculationBase = totalStudentHpPoints > 0 ? totalStudentHpPoints : baseHpValue;
+                        const calculatedReward = Math.round((calculationBase * rewardValue) / 100);
 
-                    if (rewardMinLimit && finalReward < rewardMinLimit) {
-                        finalReward = rewardMinLimit;
+                        let finalReward = calculatedReward;
+
+                        if (rewardMinLimit && finalReward < rewardMinLimit) {
+                            finalReward = rewardMinLimit;
+                        }
+
+                        if (rewardMaxLimit && finalReward > rewardMaxLimit) {
+                            finalReward = rewardMaxLimit;
+                        }
+
+                        incrementAmount = Math.max(0, finalReward);
+                        rewardDetailsNote = `Reward Type: PERCENTAGE, Base HP: ${calculationBase}${totalStudentHpPoints === 0 ? " (from course settings)" : ""}, Percentage: ${rewardValue}%`;
                     }
-
-                    if (rewardMaxLimit && finalReward > rewardMaxLimit) {
-                        finalReward = rewardMaxLimit;
-                    }
-
-                    incrementAmount = finalReward;
-
-                    rewardDetailsNote = `Reward Type: PERCENTAGE, Base HP: ${totalStudentHpPoints}, Percentage: ${rewardValue}%`;
-
                 }
 
                 const finalTeacherNote = teacherNote
@@ -875,7 +899,9 @@ export class ActivitySubmissionsService extends BaseService {
                 if (originalLedger && originalLedger.direction == "CREDIT") {
                     rewardToUndo = originalLedger.amount ?? 0;
                     const hpBeforeReversal = finalHpBalance;
-                    finalHpBalance -= rewardToUndo;
+                    // finalHpBalance -= rewardToUndo;
+                    finalHpBalance = Math.max(0, finalHpBalance - rewardToUndo);
+
 
                     // First Ledger: The Reversal
                     ledgerPromises.push(this.ledgerRepository.create(
@@ -888,7 +914,8 @@ export class ActivitySubmissionsService extends BaseService {
                     const penaltyAmount = Number(body.pointsToDeduct) ?? 0;
                     if (penaltyAmount > 0) {
                         const hpBeforePenalty = finalHpBalance;
-                        finalHpBalance -= penaltyAmount;
+                        // finalHpBalance -= penaltyAmount;
+                        finalHpBalance = Math.max(0, finalHpBalance - penaltyAmount);
 
                         // Second Ledger: The Penalty
                         ledgerPromises.push(this.ledgerRepository.create(

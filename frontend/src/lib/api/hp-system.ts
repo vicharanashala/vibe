@@ -18,7 +18,10 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
     });
     if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || `Request failed (${res.status})`);
+        const err: any = new Error(errData.message || `Request failed (${res.status})`);
+        err.response = { json: async () => errData };
+        err.data = errData;
+        throw err;
     }
     return res.json();
 }
@@ -90,6 +93,7 @@ export interface HpActivity {
     activityType: "ASSIGNMENT" | "MILESTONE" | "EXTERNAL_IMPORT" | "VIBE_MILESTONE" | "OTHER";
     submissionMode: "IN_PLATFORM" | "EXTERNAL_LINK";
     externalLink?: string;
+    // required_percentage?: number;
     attachments?: {
         name: string;
         url: string;
@@ -261,11 +265,11 @@ export interface SubmissionAttachment {
 }
 
 export interface InstructorFeedback {
-  decision?: string;
-  reviewerName?: string;
-  reviewerEmail?: string;
-  reviewedAt?: string;
-  note?: string;
+    decision?: string;
+    reviewerName?: string;
+    reviewerEmail?: string;
+    reviewedAt?: string;
+    note?: string;
 }
 
 export interface HpStudentSubmission {
@@ -392,7 +396,12 @@ export interface HpStudentSubmissionStats {
         value: number;
     } | null;
 }
-
+export type HpCohortsResponse = {
+    success: boolean;
+    message: string;
+    data: CohortStats[];
+    courseVersionName: string;
+};
 // ─── API Functions ───────────────────────────────────────────
 
 export const hpApi = {
@@ -407,7 +416,8 @@ export const hpApi = {
     return apiFetch(`${BASE_URL}/courses-cohorts/course/${versionId}/details`);
 },
 
-    getCohorts: async (courseVersionId: string): Promise<{ success: boolean; message: string; data: CohortStats[] }> => {
+    // getCohorts: async (courseVersionId: string): Promise<{ success: boolean; message: string; data: CohortStats[] }> => {
+    getCohorts: async (courseVersionId: string): Promise<HpCohortsResponse> => {
         const params = new URLSearchParams({ courseVersionId });
         return apiFetch(`${BASE_URL}/courses-cohorts/cohorts?${params.toString()}`);
     },
@@ -479,7 +489,10 @@ export const hpApi = {
             });
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.message || `Request failed (${res.status})`);
+                const err: any = new Error(errData.message || `Request failed (${res.status})`);
+                err.response = { json: async () => errData };
+                err.data = errData;
+                throw err;
             }
             return res.json();
         }
@@ -561,7 +574,10 @@ export const hpApi = {
             });
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.message || `Request failed (${res.status})`);
+                const err: any = new Error(errData.message || `Request failed (${res.status})`);
+                err.response = { json: async () => errData };
+                err.data = errData;
+                throw err;
             }
             return res.json();
         }
@@ -798,12 +814,12 @@ export const hpApi = {
     // },
 
     // Made by Rishabh Shukla
-    getCohortActivityStats: async(cohortName: string, activityId: string): Promise<{ data: any }> => {
-        return apiFetch(`${BASE_URL}/activity-submissions/stats/cohort/${cohortName}/activity/${activityId}`);        
+    getCohortActivityStats: async (cohortName: string, activityId: string): Promise<{ data: any }> => {
+        return apiFetch(`${BASE_URL}/activity-submissions/stats/cohort/${cohortName}/activity/${activityId}`);
     },
 
     // Made by Rishabh Shukla
-    getCohortActivityStatsMap: async(cohortName: string, courseVersionId: string): Promise<{ success: boolean; data: any }> => {
+    getCohortActivityStatsMap: async (cohortName: string, courseVersionId: string): Promise<{ success: boolean; data: any }> => {
         return apiFetch(`${BASE_URL}/activity-submissions/stats/cohort/${cohortName}/courseVersion/${courseVersionId}`);
     },
 

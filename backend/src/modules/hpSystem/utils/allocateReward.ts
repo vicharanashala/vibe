@@ -2,41 +2,25 @@ import { getContainer } from "#root/bootstrap/loadModules.js"
 import { ActivityRepository, ActivitySubmissionsRepository, LedgerRepository, RuleConfigsRepository } from "../repositories/index.js";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { HpLedger, RuleType } from "../models.js";
-import { 
-    HpReasonCode, 
-    HpLedgerEventType, 
+import {
+    HpReasonCode,
+    HpLedgerEventType,
     HpLedgerDirection,
     COHORT_OVERRIDES
 } from "../constants.js";
 import { ObjectId, ClientSession } from "mongodb";
 import { MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
+import { getActualCourseIds } from "./getActualCourseId.js";
+import { HpRewardRule, HpRuleConfigTransformer, HpRuleLimits } from "../classes/transformers/RuleConfigs.js";
+import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
+import { CohortStudentItemDto } from "../classes/validators/courseAndCohorts.js";
+import { HpActivityTransformer } from "../classes/transformers/Activity.js";
 
-// Helper function to resolve course IDs (handle legacy vs new cohort system)
-function getActualCourseIds(activity: any) {
-    const isLegacyCourse = activity.courseId === "0000000000000001" && 
-                          activity.courseVersionId === "00000000000002";
-    
-    if (isLegacyCourse) {
-        const override = COHORT_OVERRIDES[activity.cohort];
-        if (!override) {
-            throw new Error(`No cohort override found for: ${activity.cohort}`);
-        }
-        return {
-            courseId: override.courseId,
-            courseVersionId: override.versionId
-        };
-    }
-    
-    return {
-        courseId: activity.courseId,
-        courseVersionId: activity.courseVersionId
-    };
-}
 
 export const allocateReward = async () => {
     console.log('🔍 allocateReward function called!');
-    
+
     const container = getContainer();
 
     const activityRepo = container.get<ActivityRepository>(HP_SYSTEM_TYPES.activityRepository);
@@ -48,38 +32,19 @@ export const allocateReward = async () => {
     console.log('🔍 Starting milestone reward allocation cron job...');
 
     try {
-        // Phase 1: Get all published milestone activities with enabled rewards
-        const milestoneActivities = await activityRepo.listActivities({
-            status: "PUBLISHED"
-        });
-        
-        // Filter for milestone activities with enabled reward configs
-        const milestoneActivityIds = milestoneActivities
-            .filter(activity => activity.activityType === "MILESTONE" || activity.activityType === "VIBE_MILESTONE")
-            .map(activity => activity._id?.toString());
-
-        console.log(`📋 Found ${milestoneActivityIds.length} published milestone activities`);
-
-        if (milestoneActivityIds.length === 0) {
-            console.log('✅ No milestone activities require reward processing');
-            return;
-        }
 
         // Get reward configs for these milestone activities
-        const rewardConfigs = await activityConfigsRepo.getAllMilestoneActivities();
-        const validRewardConfigs = rewardConfigs.filter(config => 
-            milestoneActivityIds.includes(config.activityId?.toString())
-        );
+        const milestoneActivityConfigs = await activityConfigsRepo.getAllMilestoneActivities();
 
-        console.log(`🎯 Found ${validRewardConfigs.length} milestone activities with enabled rewards`);
+        console.log(`🎯 Found ${milestoneActivityConfigs.length} milestone activities with enabled rewards`);
 
-        if (validRewardConfigs.length === 0) {
-            console.log('✅ No milestone activities with enabled rewards found');
+        if (milestoneActivityConfigs.length === 0) {
+            console.log('✅ No milestone activities found with rewards enabled');
             return;
         }
 
         // Process each milestone activity with reward config
-        for (const activityConfig of validRewardConfigs) {
+        for (const activityConfig of milestoneActivityConfigs) {
             await processMilestoneRewards(activityConfig, {
                 activityRepo,
                 ledgerRepo,
@@ -99,36 +64,54 @@ export const allocateReward = async () => {
 interface ProcessRewardDependencies {
     activityRepo: ActivityRepository;
     ledgerRepo: LedgerRepository;
-    cohortRepo: any;
+    cohortRepo: CohortRepository;
     db: MongoDatabase;
 }
 
-async function processMilestoneRewards(
-    activityConfig: any,
+const processMilestoneRewards = async (
+    activityConfig: HpRuleConfigTransformer,
     dependencies: ProcessRewardDependencies
-) {
+) => {
     const { activityRepo, ledgerRepo, cohortRepo, db } = dependencies;
-    
     // Get activity details
     const activity = await activityRepo.findById(activityConfig.activityId.toString());
     if (!activity) {
         console.log(`⚠️ Activity not found: ${activityConfig.activityId}`);
         return;
     }
-    
+
+    if (!activity.required_percentage) {
+        console.log(`Required Percentage is not defined, required_percentage:  ${activity.required_percentage}`);
+        return;
+    }
+
+    if (activityConfig.reward.enabled == false) {
+        console.log(`Activity reward is disabled, rewardConfig: ${activityConfig.reward.enabled}`)
+        return;
+    }
+
     console.log(`🎯 Processing milestone activity: ${activityConfig.activityId}`);
-    console.log(`📊 Required progress percentage: ${activity.required_percentage || 100}%`);
+    console.log(`📊 Required progress percentage: ${activity.required_percentage}%`);
     console.log(`💰 Reward type: ${activityConfig.reward.type}, Value: ${activityConfig.reward.value}`);
 
     // Get actual course IDs (handle legacy vs new cohort system)
     const { courseId, courseVersionId } = getActualCourseIds(activity);
     console.log(`🎯 Processing activity: ${activity._id} (Course: ${courseId}, Version: ${courseVersionId})`);
 
+
+    // <<<<<<<<<<<<<<<<<<<< CHANGE THIS WHIEN UPDATING COHORT NAME TO COHORT ID IN THE DB >>>>>>>>>>>>>>>
+    const cohortId = await cohortRepo.getCohortIdByCohortName(activity.cohort);
+
+
     // Get enrolled students for this course/version
     const enrolledStudents = await cohortRepo.getStudentsForCohortByVersionAndCohortName(
         courseVersionId.toString(),
-        activity.cohort
+        cohortId
     );
+
+    if (!enrolledStudents || enrolledStudents.length == 0) return false
+
+
 
     console.log(`👥 Found ${enrolledStudents.length} active student enrollments`);
 
@@ -139,17 +122,18 @@ async function processMilestoneRewards(
     console.log(`📄 Found ${existingRewards.length} existing rewards`);
 
     // Create lookup map for O(1) access
-    const rewardMap = new Map<string, any>(
-        existingRewards.map((reward: any) => [reward.studentId.toString(), reward] as [string, any])
+    const rewardMap = new Map<string, HpLedger>(
+        existingRewards.map((reward: HpLedger) => [reward.studentId.toString(), reward] as [string, HpLedger])
     );
 
+
     // OPTIMIZED: Filter students who actually need rewards (this is optimization!)
-    const studentsNeedingReward = enrolledStudents.filter((student: any) => {
+    const studentsNeedingReward = enrolledStudents.filter((student: CohortStudentItemDto) => {
         const studentId = student._id.toString();
-        const currentProgress = student.percentCompleted || 0;
-        const requiredProgress = activity.required_percentage || 100;
+        const currentProgress = student.completionPercentage || 0;
+        const requiredProgress = activity.required_percentage;
         const hasReward = rewardMap.has(studentId);
-        
+
         // Check progress requirement
         if (currentProgress < requiredProgress) {
             console.log(`❌ Student ${student.email} not eligible: ${currentProgress}% < ${requiredProgress}% required`);
@@ -162,15 +146,18 @@ async function processMilestoneRewards(
             return false;
         }
 
-        // Check deadline compliance
-        const now = new Date();
-        const deadline = new Date(activityConfig.deadlineAt);
-        const isAfterDeadline = now > deadline;
-
-        if (isAfterDeadline && activityConfig.reward.lateBehavior === "NO_REWARD") {
-            console.log(`⏰ After deadline and lateBehavior=NO_REWARD - no reward for ${student.email}`);
-            return false;
+        if (!activityConfig.deadlineAt) {
+            console.log("No deadline configured for this activity...")
+            return false
         }
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // Check if the milestone completed after deadline or not
+        // const isAfterDeadline = Date.now() > activityConfig.deadlineAt.getTime();
+
+        // if (isAfterDeadline && activityConfig.reward.lateBehavior === "NO_REWARD") {
+        //     console.log(`⏰ After deadline and lateBehavior=NO_REWARD - no reward for ${student.email}`);
+        //     return false;
+        // }
 
         console.log(`✅ Student ${student.email} eligible for reward: ${currentProgress}% >= ${requiredProgress}%`);
         return true; // This student needs reward
@@ -187,17 +174,17 @@ async function processMilestoneRewards(
     const batchSize = 10; // Process in parallel batches
     for (let i = 0; i < studentsNeedingReward.length; i += batchSize) {
         const batch = studentsNeedingReward.slice(i, i + batchSize);
-        
-        const batchPromises = batch.map(student => 
+
+        const batchPromises = batch.map(student =>
             processStudentReward(student, activityConfig, activity, {
                 ledgerRepo,
                 cohortRepo,
                 db
             })
         );
-        
+
         await Promise.all(batchPromises);
-        console.log(`⚡ Processed reward batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(studentsNeedingReward.length/batchSize)}`);
+        console.log(`⚡ Processed reward batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(studentsNeedingReward.length / batchSize)}`);
     }
 
     console.log(`✅ Completed activity ${activity._id}: ${studentsNeedingReward.length} rewards processed`);
@@ -205,124 +192,189 @@ async function processMilestoneRewards(
 
 interface StudentRewardDependencies {
     ledgerRepo: LedgerRepository;
-    cohortRepo: any;
+    cohortRepo: CohortRepository;
     db: MongoDatabase;
 }
 
-async function processStudentReward(
-    student: any,
-    activityConfig: any,
-    activity: any,
+const processStudentReward = async (
+    student: CohortStudentItemDto,
+    activityConfig: HpRuleConfigTransformer,
+    activity: HpActivityTransformer,
     dependencies: StudentRewardDependencies
-) {
+) => {
     const { ledgerRepo, cohortRepo, db } = dependencies;
-    
+
     const studentId = student._id.toString();
-    const enrollmentId = student._id?.toString(); // Assuming this is enrollment ID
-    
-    console.log(`\n🎓 Processing student: ${studentId}, ==> Current progress: ${student.percentCompleted || 0}%`);
+
+    console.log(`\n🎓 Processing student: ${student.email}, ==> Current progress: ${student.completionPercentage || 0}%`);
 
     // Calculate reward amount
-    const currentHp = student.hpPoints || 0;
+    const currentHp = student.totalHp || 0;
     const rewardAmount = calculateRewardAmount(
-        activityConfig.reward.type,
-        activityConfig.reward.value,
         currentHp,
-        activityConfig.limits?.maxHp
+        activityConfig.reward,
+        activityConfig.limits
     );
 
-    if (rewardAmount <= 0) {
-        console.log(`💰 Reward amount is 0 or negative - skipping`);
-        return;
-    }
+    // if (rewardAmount <= 0) {
+    //     console.log(`💰 Reward amount is 0 or negative - skipping`);
+    //     return;
+    // }
 
     const newHp = currentHp + rewardAmount;
 
     console.log(`💰 Reward: +${rewardAmount} HP (Current: ${currentHp} → New: ${newHp})`);
 
-    // Apply reward and create ledger entry
+    const requiredPercentage = activity.required_percentage ?? 0;
+
+    const note = `Milestone completed for "${activity.title}". Progress: ${student.completionPercentage}% (required: ${requiredPercentage}%). Rewarded ${rewardAmount} HP.`;    // Apply reward and create ledger entry
+
     await applyStudentReward(
-        enrollmentId,
-        studentId,
+        student,
         activity,
         activityConfig,
         rewardAmount,
         newHp,
-        "MILESTONE_COMPLETED",
+        note,
         { ledgerRepo, cohortRepo, db }
     );
 
     console.log(`✅ Reward processed successfully for student ${studentId}`);
 }
 
-function calculateRewardAmount(
-    type: "ABSOLUTE" | "PERCENTAGE",
-    value: number,
+const calculateRewardAmount = (
     currentHp: number,
-    maxHp?: number
-): number {
-    let rewardAmount: number;
+    reward: HpRewardRule,
+    limits: HpRuleLimits
+): number => {
+    if (reward.type === "ABSOLUTE") {
+        return reward.value;
+    } else if (reward.type === "PERCENTAGE") {
+        const rewardMaxLimit = limits?.maxHp;
+        const rewardMinLimit = limits?.minHp;
 
-    if (type === "ABSOLUTE") {
-        rewardAmount = value;
-    } else {
-        // PERCENTAGE calculation
-        rewardAmount = Math.floor((currentHp * value) / 100);
-    }
+        const calculatedReward = Math.round((currentHp * reward.value) / 100);
 
-    // Apply max HP limit if specified
-    if (maxHp && (currentHp + rewardAmount) > maxHp) {
-        rewardAmount = maxHp - currentHp;
-        
-        // Ensure reward is not negative
-        if (rewardAmount < 0) {
-            rewardAmount = 0;
+        let finalReward = calculatedReward;
+
+        if (rewardMinLimit != null && finalReward < rewardMinLimit) {
+            finalReward = rewardMinLimit;
         }
+
+        if (rewardMaxLimit != null && finalReward > rewardMaxLimit) {
+            finalReward = rewardMaxLimit;
+        }
+
+        return Math.max(0, finalReward);
     }
 
-    return rewardAmount;
-}
+    return 0;
+};
 
-async function applyStudentReward(
-    enrollmentId: string,
-    studentId: string,
-    activity: any,
-    activityConfig: any,
+// const applyStudentReward = async (
+//     student: CohortStudentItemDto,
+//     activity: HpActivityTransformer,
+//     activityConfig: HpRuleConfigTransformer,
+//     rewardAmount: number,
+//     newHp: number,
+//     note: string,
+//     dependencies: { ledgerRepo: LedgerRepository; cohortRepo: CohortRepository; db: MongoDatabase }
+// ) => {
+//     const { ledgerRepo, cohortRepo, db } = dependencies;
+//     const studentId = student._id.toString();
+
+//     const client = await db.getClient();
+//     const session = client.startSession();
+
+//     try {
+//         await session.withTransaction(async () => {
+//             // Get actual course IDs (handle legacy vs new cohort system)
+//             const { courseId, courseVersionId } = getActualCourseIds(activity);
+
+//             // Update student HP using repository method
+//             const hpUpdated = await cohortRepo.setHPForEnrollment(
+//                 studentId.toString(),
+//                 courseId.toString(),
+//                 courseVersionId.toString(),
+//                 activity.cohort,
+//                 newHp,
+//                 session
+//             );
+
+//             if (!hpUpdated) {
+//                 throw new Error(`Failed to update HP for student ${studentId}`);
+//             }
+
+//             // Create ledger entry
+//             const ledgerEntry: Omit<HpLedger, "_id" | "createdAt"> = {
+//                 courseId: new ObjectId(activity.courseId),
+//                 courseVersionId: new ObjectId(activity.courseVersionId),
+//                 cohort: activity.cohort || "",
+//                 studentId: new ObjectId(studentId),
+//                 studentEmail: student.email,
+//                 activityId: new ObjectId(activity._id),
+//                 submissionId: null,
+//                 eventType: HpLedgerEventType.CREDIT,
+//                 direction: HpLedgerDirection.CREDIT,
+//                 amount: rewardAmount,
+//                 calc: {
+//                     ruleType: activityConfig.reward.type as RuleType,
+//                     percentage: activityConfig.reward.type === "PERCENTAGE" ? activityConfig.reward.value : undefined,
+//                     absolutePoints: activityConfig.reward.type === "ABSOLUTE" ? activityConfig.reward.value : undefined,
+//                     baseHpAtTime: newHp - rewardAmount,
+//                     computedAmount: rewardAmount,
+//                     deadlineAt: activityConfig.deadlineAt,
+//                     withinDeadline: new Date() <= new Date(activityConfig.deadlineAt),
+//                     reasonCode: HpReasonCode.MILESTONE_REWARD
+//                 },
+//                 links: null,
+//                 meta: {
+//                     triggeredBy: "SYSTEM_AUTOMATION",
+//                     triggeredByUserId: null,
+//                     note
+//                 }
+//             };
+
+//             await ledgerRepo.create(ledgerEntry, session);
+
+//             console.log(`💾 Ledger entry created for reward: ${rewardAmount} HP`);
+//         });
+
+//         console.log(`✅ Transaction completed successfully`);
+//     } catch (error) {
+//         console.error(`❌ Failed to apply reward for student ${studentId}:`, error);
+//         throw error;
+//     } finally {
+//         await session.endSession();
+//     }
+// }
+
+
+const applyStudentReward = async (
+    student: CohortStudentItemDto,
+    activity: HpActivityTransformer,
+    activityConfig: HpRuleConfigTransformer,
     rewardAmount: number,
     newHp: number,
-    reason: string,
-    dependencies: { ledgerRepo: LedgerRepository; cohortRepo: any; db: MongoDatabase }
-) {
+    note: string,
+    dependencies: { ledgerRepo: LedgerRepository; cohortRepo: CohortRepository; db: MongoDatabase }
+) => {
     const { ledgerRepo, cohortRepo, db } = dependencies;
+    const studentId = student._id.toString();
 
     const client = await db.getClient();
     const session = client.startSession();
 
     try {
         await session.withTransaction(async () => {
-            // Get actual course IDs (handle legacy vs new cohort system)
             const { courseId, courseVersionId } = getActualCourseIds(activity);
 
-            // Update student HP using repository method
-            // const hpUpdated = await cohortRepo.setHPForEnrollment(
-            //     studentId,
-            //     courseId.toString(),
-            //     courseVersionId.toString(),
-            //     newHp,
-            //     session
-            // );
-
-            // if (!hpUpdated) {
-            //     throw new Error(`Failed to update HP for student ${studentId}`);
-            // }
-
-            // Create ledger entry
             const ledgerEntry: Omit<HpLedger, "_id" | "createdAt"> = {
                 courseId: new ObjectId(activity.courseId),
                 courseVersionId: new ObjectId(activity.courseVersionId),
                 cohort: activity.cohort || "",
                 studentId: new ObjectId(studentId),
-                studentEmail: "", // Email not available in this scope, would need user repo lookup
+                studentEmail: student.email,
                 activityId: new ObjectId(activity._id),
                 submissionId: null,
                 eventType: HpLedgerEventType.CREDIT,
@@ -332,21 +384,42 @@ async function applyStudentReward(
                     ruleType: activityConfig.reward.type as RuleType,
                     percentage: activityConfig.reward.type === "PERCENTAGE" ? activityConfig.reward.value : undefined,
                     absolutePoints: activityConfig.reward.type === "ABSOLUTE" ? activityConfig.reward.value : undefined,
-                    baseHpAtTime: newHp - rewardAmount,
-                    computedAmount: rewardAmount,
+                    baseHpAtTime: student.totalHp ?? 0,
+                    computedAmount: newHp,
                     deadlineAt: activityConfig.deadlineAt,
                     withinDeadline: new Date() <= new Date(activityConfig.deadlineAt),
-                    reasonCode: HpReasonCode.SUBMISSION_REWARD
+                    reasonCode: HpReasonCode.MILESTONE_REWARD
                 },
                 links: null,
                 meta: {
-                    triggeredBy: "JOB",
+                    triggeredBy: "SYSTEM_AUTOMATION",
                     triggeredByUserId: null,
-                    note: `Reward for completing milestone: ${reason}`
+                    note
                 }
             };
 
-            // await ledgerRepo.create(ledgerEntry, session);
+            try {
+                await ledgerRepo.create(ledgerEntry, session);
+            } catch (error: any) {
+                if (error?.code === 11000) {
+                    console.log(`⚠️ Reward already exists for student ${studentId} and activity ${activity._id}`);
+                    return;
+                }
+                throw error;
+            }
+
+            const hpUpdated = await cohortRepo.setHPForEnrollment(
+                studentId,
+                courseId.toString(),
+                courseVersionId.toString(),
+                activity.cohort,
+                newHp,
+                session
+            );
+
+            if (!hpUpdated) {
+                throw new Error(`Failed to update HP for student ${studentId}`);
+            }
 
             console.log(`💾 Ledger entry created for reward: ${rewardAmount} HP`);
         });
@@ -358,4 +431,4 @@ async function applyStudentReward(
     } finally {
         await session.endSession();
     }
-}
+};

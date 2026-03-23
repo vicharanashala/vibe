@@ -475,7 +475,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                 </div>
 
                                 {/* Stats block from backend */}
-                                <div className="bg-muted/30 p-3 rounded-md flex justify-between items-center mt-4 border text-xs">
+                                {/* <div className="bg-muted/30 p-3 rounded-md flex justify-between items-center mt-4 border text-xs">
                                     <div className="text-center px-2">
                                         <div className="font-bold text-foreground">{(Number(statsMap?.[activity._id]?.approvedCount) + Number(statsMap?.[activity._id]?.rejectedCount) + Number(statsMap?.[activity._id]?.submittedCount)+ Number(statsMap?.[activity._id]?.revertedCount)) || 0}</div>
                                         <div className="text-muted-foreground">Total Submitted</div>
@@ -490,7 +490,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                         <div className="font-bold text-green-600">{(Number(statsMap?.[activity._id]?.approvedCount)) || 0}</div>
                                         <div className="text-muted-foreground">Completed</div>
                                     </div>
-                                </div>
+                                </div> */}
                             </CardContent>
                         </Card>
                     ))}
@@ -517,9 +517,9 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                             <span><span className="font-medium text-foreground">Deadline:</span> {new Date(activity.rules.deadlineAt).toLocaleDateString()}</span>
                                         )}
                                         <span><span className="font-medium text-foreground">Submission:</span> {(activity.submissionMode || "").replace('_', ' ')}</span>
-                                        <span><span className="font-medium text-foreground">Total Submitted:</span> {(Number(statsMap?.[activity._id]?.approvedCount) + Number(statsMap?.[activity._id]?.rejectedCount) + Number(statsMap?.[activity._id]?.submittedCount)+ Number(statsMap?.[activity._id]?.revertedCount)) || 0}</span>
+                                        {/* <span><span className="font-medium text-foreground">Total Submitted:</span> {(Number(statsMap?.[activity._id]?.approvedCount) + Number(statsMap?.[activity._id]?.rejectedCount) + Number(statsMap?.[activity._id]?.submittedCount)+ Number(statsMap?.[activity._id]?.revertedCount)) || 0}</span>
                                         <span><span className="font-medium text-foreground">Overdue:</span> {(Number(statsMap?.[activity._id]?.rejectedCount) + Number(statsMap?.[activity._id]?.submittedCount)+ Number(statsMap?.[activity._id]?.revertedCount)) || 0}</span>
-                                        <span className="text-green-600"><span className="font-medium">Completed:</span> {(Number(statsMap?.[activity._id]?.approvedCount)) || 0}</span>
+                                        <span className="text-green-600"><span className="font-medium">Completed:</span> {(Number(statsMap?.[activity._id]?.approvedCount)) || 0}</span> */}
                                     </div>
                                 </div>
                                 <div className="flex flex-wrap sm:flex-nowrap justify-end gap-2">
@@ -580,6 +580,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                 onOpenChange={setIsRulesOpen}
                 courseId={courseId}
                 courseVersionId={courseVersionId}
+                cohortName={cohortName}
                 activityId={selectedActivityId}
             />
 

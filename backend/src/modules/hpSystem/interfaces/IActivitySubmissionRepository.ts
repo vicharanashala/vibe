@@ -49,9 +49,9 @@ export interface IActivitySubmissionRepository {
 
     getLatestByStudentId(studentId: string, activityId: string): Promise<HpActivitySubmission>
 
-    getCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number>
+    getCountByStudentId(studentId: string, courseId: string, courseVersionId: string, cohortName: string): Promise<number>
 
-    getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number>
+    getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string, cohortName: string): Promise<number>
 
     updateFeedbackById(id: string, feedback: SubmissionFeedbackItem, session?: ClientSession): Promise<boolean>
 

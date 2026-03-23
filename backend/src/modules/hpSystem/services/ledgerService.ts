@@ -52,7 +52,7 @@ export class LedgerService extends BaseService {
             studentEmail: student.email,
             studentName: `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim(),
         };
-        const data = await this.ledgerRepository.listByStudentId(studentId, filter);
+        const data = await this.ledgerRepository.listByStudentId(studentId, filter, cohortName);
         console.log("Got the data inside the data:", data);
 
         return { studentDetails, ...data }

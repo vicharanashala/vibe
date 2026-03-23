@@ -69,7 +69,6 @@ export class RuleConfigsController {
     @Authorized()
     @Get("/activity/:activityId")
     async getByActivityId(@Param("activityId") activityId: string) {
-        console.log("Fetching rule config for activity ID: ", activityId);
         const data = await this.ruleConfigService.getByActivityId(activityId);
         return {
             success: true,

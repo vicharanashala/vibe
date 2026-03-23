@@ -136,8 +136,8 @@ export class CohortListItemDto {
 
     @IsNumber()
     percentCompleted?: number;
-    @IsBoolean()
-    isPublic!: boolean;
+    // @IsBoolean()
+    // isPublic!: boolean;
 }
 
 /* =========================================================
@@ -263,6 +263,10 @@ export class CohortStudentItemDto {
     @Expose()
     @IsString()
     _id!: string;
+
+    @Expose()
+    @IsString()
+    enrollmentId!: string;
 
     @Expose()
     @IsString()

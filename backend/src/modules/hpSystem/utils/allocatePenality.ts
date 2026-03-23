@@ -17,31 +17,9 @@ import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepos
 import { HpPenaltyRule, HpRuleConfigTransformer, HpRuleLimits } from "../classes/transformers/RuleConfigs.js";
 import { CohortStudentItemDto } from "../classes/validators/courseAndCohorts.js";
 import { HpActivitySubmission } from "../classes/transformers/ActivitySubmission.js";
+import { getActualCourseIds } from "./getActualCourseId.js";
 
-// Helper function to resolve course IDs (handle legacy and new cohort system)
 
-const getActualCourseIds = (activity: HpActivityTransformer) => {
-    const key = `${activity.courseId}:${activity.courseVersionId}`;
-    const isLegacyCourse = LEGACY_COURSE_KEYS.has(key);
-
-    if (isLegacyCourse) {
-        const override = COHORT_OVERRIDES[activity.cohort];
-
-        if (!override) {
-            throw new Error(`No cohort override found for cohort: ${activity.cohort}`);
-        }
-
-        return {
-            courseId: override.courseId,
-            courseVersionId: override.versionId,
-        };
-    }
-
-    return {
-        courseId: activity.courseId,
-        courseVersionId: activity.courseVersionId,
-    };
-};
 
 export const allocatePenalty = async (): Promise<void> => {
     const container = getContainer();
@@ -55,7 +33,7 @@ export const allocatePenalty = async (): Promise<void> => {
 
     console.log("🔍 Starting penalty allocation cron job...");
 
-    try {
+    try { 
         const lateMandatoryActivities = await activityConfigsRepo.getAllMandatoryLateActivities();
 
 
@@ -142,36 +120,43 @@ const processActivityPenalties = async (
     // Get enrolled students for this course/cohort
     const enrolledStudents = await cohortRepo.getStudentsForCohortByVersionAndCohortName(
         courseVersionId.toString(),
-        cohortId.toString()
+        cohortId
     );
-    if (!enrolledStudents || enrolledStudents.length) return false
+    if (!enrolledStudents || enrolledStudents.length == 0) return false
 
 
     // Batch fetch all submissions and existing penalties upfront
-    const [allSubmissionsBeforeDeadline, existingPenalties] = await Promise.all([
+    const [allSubmissionsBeforeDeadline, existingPenalties, existingMilestoneRewards] = await Promise.all([
         // Get all submissions for this activity
         activitySubmissionRepo.listSubmissionsBeforeDeadline(activity._id.toString()).catch(() => []),
         // Get all existing penalties for this activity  
-        ledgerRepo.findPenaltiesByActivityId(activity._id.toString()).catch(() => [])
+        ledgerRepo.findPenaltiesByActivityId(activity._id.toString()).catch(() => []),
+
+        // Get all existing penalties for this activity  
+        ledgerRepo.findAllExisitingMilestoneRewards(activity._id.toString()).catch(() => [])
     ]);
 
     // Create lookup maps for O(1) access
     const submissionMap = new Map<string, HpActivitySubmission>(
         allSubmissionsBeforeDeadline.map((sub) => [sub.studentId.toString(), sub] as [string, HpActivitySubmission])
     );
-    console.log("submissionMap: ", submissionMap)
+
     const penaltyMap = new Map<string, HpLedger>(
         existingPenalties.map((penalty) => [penalty.studentId.toString(), penalty] as [string, HpLedger])
     );
-    console.log("penaltyMap: ", penaltyMap)
+
+    const milestoneRewardsMap = new Map<string, HpLedger>(
+        existingMilestoneRewards.map((reward) => [reward.studentId.toString(), reward] as [string, HpLedger])
+    );
 
     // Filter students who actually need penalties (this is the optimization!)
     const studentsNeedingPenalty = enrolledStudents.filter((student: CohortStudentItemDto) => {
         const studentId = student._id.toString();
         const hasSubmitted = submissionMap.has(studentId);
         const hasPenalty = penaltyMap.has(studentId);
+        const hasMilestoneReward = milestoneRewardsMap.has(studentId);
 
-        if (hasSubmitted || hasPenalty) {
+        if (hasSubmitted || hasPenalty || hasMilestoneReward) {
             return false;
         }
 
@@ -199,6 +184,108 @@ const processActivityPenalties = async (
     return true
 }
 
+// async function processStudentPenalty(
+//     student: CohortStudentItemDto,
+//     activity: HpActivityTransformer,
+//     activityConfig: HpRuleConfigTransformer,
+//     repositories: {
+//         activitySubmissionRepo: ActivitySubmissionsRepository;
+//         ledgerRepo: LedgerRepository;
+//         cohortRepo: CohortRepository;
+//         db: MongoDatabase;
+//     }
+// ) {
+//     const { ledgerRepo, cohortRepo, db } = repositories;
+//     const client = await db.getClient();
+//     const session = client.startSession();
+
+//     const cohortId = await cohortRepo.getCohortIdByCohortName(activity.cohort)
+
+//     try {
+//         await session.withTransaction(async () => {
+//             // Get current HP points
+//             const currentHp = await cohortRepo.getCurrentHpPointsByCohortId(
+//                 student._id,
+//                 activity.courseId.toString(),
+//                 activity.courseVersionId.toString(),
+//                 cohortId,
+//                 session
+//             );
+
+//             // Calculate penalty amount
+//             const penaltyAmount = calculatePenaltyAmount(
+//                 currentHp,
+//                 activityConfig.penalty,
+//                 activityConfig.limits
+//             );
+
+//             if (penaltyAmount <= 0) {
+//                 console.log(`⚠️ No penalty to apply for student ${student.email} (amount: ${penaltyAmount})`);
+//                 return;
+//             }
+
+//             // Apply penalty
+//             const newHp = Math.max(0, currentHp - penaltyAmount);
+
+//             const { courseId, courseVersionId } = getActualCourseIds(activity);
+
+//             // Update enrollment HP
+//             const hpUpdated = await cohortRepo.setHPForEnrollment(
+//                 student._id.toString(),
+//                 courseId,
+//                 courseVersionId,
+//                 activity.cohort,
+//                 newHp,
+//                 session
+//             );
+
+
+//             if (!hpUpdated) {
+//                 throw new Error(`Failed to update HP for student ${student._id}`);
+//             }
+//             const penaltyNote = `Penalty applied for missing deadline of mandatory activity "${activity.title}". Deducted ${penaltyAmount} HP. Deadline: ${activityConfig.deadlineAt.toISOString()}.`;
+//             // Create ledger entry
+//             const ledgerEntry: Omit<HpLedger, "_id" | "createdAt"> = {
+//                 courseId: new ObjectId(activity.courseId.toString()),
+//                 courseVersionId: new ObjectId(activity.courseVersionId.toString()),
+//                 cohort: activity.cohort,
+//                 studentId: new ObjectId(student._id),
+//                 studentEmail: student.email,
+//                 activityId: new ObjectId(activity._id),
+//                 submissionId: null,
+//                 eventType: HpLedgerEventType.DEBIT,
+//                 direction: HpLedgerDirection.DEBIT,
+//                 amount: penaltyAmount,
+//                 calc: {
+//                     ruleType: activityConfig.penalty.type as RuleType,
+//                     percentage: activityConfig.penalty.type === "PERCENTAGE" ? activityConfig.penalty.value : undefined,
+//                     absolutePoints: activityConfig.penalty.type === "ABSOLUTE" ? activityConfig.penalty.value : undefined,
+//                     baseHpAtTime: currentHp,
+//                     computedAmount: penaltyAmount,
+//                     deadlineAt: activityConfig.deadlineAt,
+//                     withinDeadline: false,
+//                     reasonCode: HpReasonCode.MISSED_DEADLINE_PENALTY
+//                 },
+//                 links: null,
+//                 meta: {
+//                     triggeredBy: "SYSTEM_AUTOMATION",
+//                     triggeredByUserId: null,
+//                     note: penaltyNote
+//                 }
+//             };
+
+//             await ledgerRepo.create(ledgerEntry, session);
+
+//             console.log(`💰 Applied penalty of ${penaltyAmount} HP to student ${student.email}. New HP: ${newHp}`);
+
+//         });
+//     } catch (error) {
+//         console.error(`❌ Failed to process penalty for student ${student.email}:`, error);
+//         throw error;
+//     } finally {
+//         await session.endSession();
+//     }
+// }
 async function processStudentPenalty(
     student: CohortStudentItemDto,
     activity: HpActivityTransformer,
@@ -214,20 +301,19 @@ async function processStudentPenalty(
     const client = await db.getClient();
     const session = client.startSession();
 
-    const cohortId = await cohortRepo.getCohortIdByCohortName(activity.cohort)
+    const cohortId = await cohortRepo.getCohortIdByCohortName(activity.cohort);
 
     try {
         await session.withTransaction(async () => {
-            // Get current HP points
-            const currentHp = await cohortRepo.getCurrentHpPointsByCohortId(
-                student._id,
-                activity.courseId.toString(),
-                activity.courseVersionId.toString(),
-                cohortId,
-                session
-            );
+            const currentHp = student.totalHp || 0;
+            // await cohortRepo.getCurrentHpPointsByCohortId(
+            //     student._id,
+            //     activity.courseId.toString(),
+            //     activity.courseVersionId.toString(),
+            //     cohortId,
+            //     session
+            // );
 
-            // Calculate penalty amount
             const penaltyAmount = calculatePenaltyAmount(
                 currentHp,
                 activityConfig.penalty,
@@ -239,28 +325,14 @@ async function processStudentPenalty(
                 return;
             }
 
-            // Apply penalty
             const newHp = Math.max(0, currentHp - penaltyAmount);
+            const { courseId, courseVersionId } = getActualCourseIds(activity);
 
-            // Update enrollment HP
-            const hpUpdated = await cohortRepo.setHPForEnrollment(
-                student._id,
-                activity.courseId.toString(),
-                activity.courseVersionId.toString(),
-                activity.cohort,
-                newHp,
-                session
-            );
+            const penaltyNote = `Penalty applied for missing deadline of mandatory activity "${activity.title}". Deducted ${penaltyAmount} HP. Deadline: ${activityConfig.deadlineAt.toISOString()}.`;
 
-
-            if (!hpUpdated) {
-                throw new Error(`Failed to update HP for student ${student._id}`);
-            }
-
-            // Create ledger entry
             const ledgerEntry: Omit<HpLedger, "_id" | "createdAt"> = {
-                courseId: new ObjectId(activity.courseId),
-                courseVersionId: new ObjectId(activity.courseVersionId),
+                courseId: new ObjectId(activity.courseId.toString()),
+                courseVersionId: new ObjectId(activity.courseVersionId.toString()),
                 cohort: activity.cohort,
                 studentId: new ObjectId(student._id),
                 studentEmail: student.email,
@@ -274,23 +346,43 @@ async function processStudentPenalty(
                     percentage: activityConfig.penalty.type === "PERCENTAGE" ? activityConfig.penalty.value : undefined,
                     absolutePoints: activityConfig.penalty.type === "ABSOLUTE" ? activityConfig.penalty.value : undefined,
                     baseHpAtTime: currentHp,
-                    computedAmount: penaltyAmount,
+                    computedAmount: newHp,
                     deadlineAt: activityConfig.deadlineAt,
                     withinDeadline: false,
                     reasonCode: HpReasonCode.MISSED_DEADLINE_PENALTY
                 },
                 links: null,
                 meta: {
-                    triggeredBy: "JOB",
+                    triggeredBy: "SYSTEM_AUTOMATION",
                     triggeredByUserId: null,
-                    note: "Penalty for missing mandatory activity deadline"
+                    note: penaltyNote
                 }
             };
 
-            await ledgerRepo.create(ledgerEntry, session);
+            try {
+                await ledgerRepo.create(ledgerEntry, session);
+            } catch (error: any) {
+                if (error?.code === 11000) {
+                    console.log(`⚠️ Penalty already exists for student ${student.email} and activity ${activity._id}`);
+                    return;
+                }
+                throw error;
+            }
+
+            const hpUpdated = await cohortRepo.setHPForEnrollment(
+                student._id.toString(),
+                courseId,
+                courseVersionId,
+                activity.cohort,
+                newHp,
+                session
+            );
+
+            if (!hpUpdated) {
+                throw new Error(`Failed to update HP for student ${student._id}`);
+            }
 
             console.log(`💰 Applied penalty of ${penaltyAmount} HP to student ${student.email}. New HP: ${newHp}`);
-
         });
     } catch (error) {
         console.error(`❌ Failed to process penalty for student ${student.email}:`, error);
@@ -326,7 +418,7 @@ const calculatePenaltyAmount = (
             finalReward = penaltyMaxLimit;
         }
 
-        return finalReward;
+        return Math.max(0, finalReward);
     }
 
     return 0;

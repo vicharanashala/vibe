@@ -118,16 +118,15 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         await this.init();
 
         const page = query.page ?? 1;
-        const limit = query.limit ?? 20;
-        const skip = (page - 1) * limit;
-
+        const limit = query.limit ?? 0;
+        const skip = limit > 0 ? (page - 1) * limit : 0;
         const search = query.search?.trim();
         const searchRegex = search
             ? new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")
             : null;
 
         const sortOrder = query.sortOrder === "desc" ? -1 : 1;
-        console.log("Received sortBy value in repo-> ", query.sortOrder);
+
         const sortByRaw = (query.sortBy ?? "submittedAt").trim();
 
         // allowlist sort keys
@@ -335,6 +334,15 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                         $switch: {
                             branches: [
                                 { case: { $eq: ["$status", "APPROVED"] }, then: "$baseHp" },
+                                {
+                                    case: {
+                                        $and: [
+                                            { $eq: ["$status", "SUBMITTED"] },
+                                            { $eq: ["$rule.reward.applyWhen", "ON_SUBMISSION"] }
+                                        ]
+                                    },
+                                    then: "$baseHp"
+                                },
                                 { case: { $eq: ["$status", "REVERTED"] }, then: 0 },
                                 { case: { $eq: ["$status", "REJECTED"] }, then: 0 },
                                 { case: { $eq: ["$status", "SUBMITTED"] }, then: 0 },
@@ -379,6 +387,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                         title: { $ifNull: ["$activity.title", ""] },
                         description: { $ifNull: ["$activity.description", ""] },
                         activityType: { $ifNull: ["$activity.activityType", "OTHER"] },
+                        required_percentage: "activity.required_percentage"
                     },
 
                     deadline: "$rule.deadlineAt",
@@ -397,7 +406,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                             allowLate: "$rule.reward.allowLate",
                             lateBehavior: "$rule.reward.lateBehavior",
                             minHpFloor: "$rule.reward.minHpFloor",
-                            required_percentage: "$rule.reward.required_percentage"
+                            // required_percentage: "$rule.reward.required_percentage"
                         },
 
                         penalty: {
@@ -497,11 +506,10 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             // 8) sort + paginate
             { $sort: sortStage },
             { $skip: skip },
-            { $limit: limit },
+            ...(limit > 0 ? [{ $limit: limit }] : []),
         ];
 
         const docs = await this.hpActivitySubmissionCollection.aggregate(pipeline).toArray();
-        console.log("Aggregated student submissions data in repo-> ", docs);
 
         // return plainToInstance(StudentActivitySubmissionsViewDto, docs, {
         //     excludeExtraneousValues: true,
@@ -515,8 +523,8 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         await this.init();
 
         const page = query.page ?? 1;
-        const limit = query.limit ?? 20;
-        const skip = (page - 1) * limit;
+        const limit = query.limit ?? 0;
+        const skip = limit > 0 ? (page - 1) * limit : 0;
 
         const sortOrder = query.sortOrder === "desc" ? -1 : 1;
         const sortByRaw = (query.sortBy ?? "submittedAt").trim();
@@ -598,28 +606,30 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         return await this.hpActivitySubmissionCollection.findOne({ studentId: new ObjectId(studentId), activityId: new ObjectId(activityId) }, { sort: { createdAt: -1 } })
     }
 
-    async getCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number> {
+    async getCountByStudentId(studentId: string, courseId: string, courseVersionId: string, cohortName: string): Promise<number> {
         await this.init();
         return await this.hpActivitySubmissionCollection.countDocuments({
             studentId: new ObjectId(studentId),
             courseId: new ObjectId(courseId),
             courseVersionId: new ObjectId(courseVersionId),
+            cohort: cohortName
         });
     }
 
-    async getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number> {
+    async getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string, cohortName: string): Promise<number> {
         await this.init();
         return await this.hpActivitySubmissionCollection.countDocuments({
             studentId: new ObjectId(studentId),
             courseId: new ObjectId(courseId),
             courseVersionId: new ObjectId(courseVersionId),
+            cohort: cohortName,
             isLate: true
         });
     }
 
     async getCompletedActivitiesCountByStudentId(studentId: string): Promise<Array<{ cohort: string, count: number }>> {
         await this.init();
-        
+
         return await this.hpActivitySubmissionCollection.aggregate([
             {
                 $match: {

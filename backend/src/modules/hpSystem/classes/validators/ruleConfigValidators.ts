@@ -20,6 +20,7 @@ export enum RuleTypeEnum {
 export enum RewardApplyWhenEnum {
   ON_SUBMISSION = "ON_SUBMISSION",
   ON_APPROVAL = "ON_APPROVAL",
+  ON_MILESTONE_COMPLETION = "ON_MILESTONE_COMPLETION",
 }
 
 export enum LateBehaviorEnum {
@@ -44,6 +45,7 @@ export class HpRewardRuleDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   value?: number;
 
   @IsOptional()
@@ -65,6 +67,7 @@ export class HpPenaltyRuleDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   value?: number;
 
   @IsOptional()
@@ -84,10 +87,12 @@ export class HpPenaltyRuleDto {
 export class HpRuleLimitsDto {
   @IsOptional()
   @IsNumber()
+  @Min(0)
   minHp?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   maxHp?: number;
 }
 

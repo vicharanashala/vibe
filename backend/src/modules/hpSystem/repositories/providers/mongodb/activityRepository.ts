@@ -205,6 +205,7 @@ export class ActivityRepository implements IActivityRepository {
       activity.submissionMode = doc.submissionMode;
       activity.externalLink = doc.externalLink;
       activity.attachments = doc.attachments;
+      activity.required_percentage = doc?.required_percentage
 
       if (doc.instructor) {
         const firstName = doc.instructor.firstName || '';
@@ -236,6 +237,23 @@ export class ActivityRepository implements IActivityRepository {
 
       return activity;
     });
+  }
+
+  async listActivityIds(query: {
+    status?: string;
+    activityType?: string;
+  }): Promise<string[]> {
+    await this.init();
+
+    const q: any = {};
+    if (query.status) q.status = query.status;
+    if (query.activityType) q.activityType = query.activityType;
+
+    const docs = await this.hpActivityCollection
+      .find(q, { projection: { _id: 1 } })
+      .toArray();
+
+    return docs.map(doc => doc._id.toString());
   }
 
   async publishActivity(
@@ -373,6 +391,7 @@ export class ActivityRepository implements IActivityRepository {
     studentId: string,
     courseId: string,
     courseVersionId: string,
+    cohortName: string,
   ): Promise<number> {
     await this.init();
 
@@ -383,6 +402,7 @@ export class ActivityRepository implements IActivityRepository {
             courseId: new ObjectId(courseId),
             courseVersionId: new ObjectId(courseVersionId),
             isDeleted: { $ne: true },
+            cohort: cohortName
           },
         },
         {
@@ -416,5 +436,10 @@ export class ActivityRepository implements IActivityRepository {
       .toArray();
 
     return result[0]?.pendingCount ?? 0;
+  }
+
+  async deleteById(activityId: string, session?: ClientSession): Promise<void> {
+    await this.init()
+    await this.hpActivityCollection.deleteOne({ _id: new ObjectId(activityId) }, { session })
   }
 }

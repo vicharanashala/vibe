@@ -23,7 +23,7 @@ import type { ProctoringSettings } from '@/types/video.types';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
 import { EntityType, IReport, ReportStatus } from '@/types/flag.types';
 import { PendingRegistrationNotification, ApprovedRegistrationNotification, PendingStudentRegistrationNotification, RejectedStudentRegistrationNotification } from '@/types/notification.types';
-import { useQueryClient, useQuery,useMutation } from '@tanstack/react-query';
+import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query';
 import { VersionWithCourse } from '@/app/pages/student/CourseRegistration';
 import { Registration, RegistrationStatus } from '@/app/pages/teacher/CourseRegistrationRequests';
 // import { Field } from '@/app/pages/teacher/components/course-registration-modal';
@@ -510,7 +510,7 @@ export function useChangePassword(): {
 // POST /courses/
 export function useCreateCourse(): {
   mutate: (variables: { body: components['schemas']['CreateCourseBody'] }) => void,
-  mutateAsync: (variables: { body: { name: string, description: string, versionName: string, versionDescription: string, cohorts: string[], hpSystem:boolean, baseHp:number | undefined } }) => Promise<components['schemas']['CourseDataResponse']>,
+  mutateAsync: (variables: { body: { name: string, description: string, versionName: string, versionDescription: string, cohorts: string[], hpSystem: boolean, baseHp: number | undefined } }) => Promise<components['schemas']['CourseDataResponse']>,
   data: components['schemas']['CourseDataResponse'] | undefined,
   error: string | null,
   isPending: boolean,
@@ -5080,6 +5080,7 @@ import {
   HpCohortOverviewStats,
   HpStudentSubmission,
   HpStudentSubmissionStats,
+  HpCohortsResponse,
 } from '../lib/api/hp-system';
 
 export function useHpCourseVersions() {
@@ -5102,12 +5103,12 @@ export function useHpCourseVersions() {
 }
 
 export function useHpCohorts(courseVersionId: string) {
-  const query = useQuery({
+  return useQuery<HpCohortsResponse>({
     queryKey: ['hp-cohorts', courseVersionId],
     queryFn: async () => {
       const res = await hpApi.getCohorts(courseVersionId);
       if (!res.success) throw new Error(res.message || 'Failed to load cohorts');
-      return res.data;
+      return res;
     },
     enabled: !!courseVersionId,
     refetchOnWindowFocus: false,
@@ -5361,7 +5362,7 @@ export function useArchiveHpActivity() {
   };
 }
 
-export function useDeleteHpActivity(){
+export function useDeleteHpActivity() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async (activityId: string) => {
@@ -5613,7 +5614,7 @@ export function useReviewSubmission() {
 }
 
 // Made by Rishabh Shukla....
-export function useHpCohortActivitySubmissionsStats(cohort: string, activityId: string){
+export function useHpCohortActivitySubmissionsStats(cohort: string, activityId: string) {
   const query = useQuery({
     queryKey: ['hp-cohort-activity-submissions-stats', cohort, activityId],
     queryFn: async () => {
@@ -5621,7 +5622,7 @@ export function useHpCohortActivitySubmissionsStats(cohort: string, activityId: 
       if (!res.success) throw new Error(res.message || 'Failed to load submission stats');
       return res.data;
     }
-})
+  })
   return {
     data: query.data || null,
     isLoading: query.isLoading,
@@ -5701,19 +5702,19 @@ export function useHpStudentSubmissions(studentId: string | undefined, courseVer
 }
 
 export function useHpStudentSubmissionStats(
-    studentId: string | undefined,
-    cohortName: string
+  studentId: string | undefined,
+  cohortName: string
 ) {
-    return useQuery({
-        queryKey: ['hpStudentSubmissionStats', studentId, cohortName],
-        queryFn: async () => {
-            if (!studentId) return null;
-            const res = await hpApi.getStudentSubmissionStats(studentId, cohortName);
-            if (!res.success) throw new Error("Failed to fetch submission stats");
-            return res.data;
-        },
-        enabled: !!studentId && !!cohortName,
-    });
+  return useQuery({
+    queryKey: ['hpStudentSubmissionStats', studentId, cohortName],
+    queryFn: async () => {
+      if (!studentId) return null;
+      const res = await hpApi.getStudentSubmissionStats(studentId, cohortName);
+      if (!res.success) throw new Error("Failed to fetch submission stats");
+      return res.data;
+    },
+    enabled: !!studentId && !!cohortName,
+  });
 }
 
 export function useStudentMySubmissions(courseVersionId: string, cohort: string) {
