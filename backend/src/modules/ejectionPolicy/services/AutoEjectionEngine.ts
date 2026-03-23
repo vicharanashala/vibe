@@ -11,6 +11,9 @@ import {ManualEjectionService} from './ManualEjectionService.js';
 import {EjectionPolicy} from '../classes/transformers/EjectionPolicy.js';
 import {IEnrollment} from '#root/shared/interfaces/models.js';
 import {NotificationService} from '#root/modules/notifications/services/NotificationService.js';
+import {MailService} from '#root/modules/notifications/index.js';
+import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
+import {ICourseRepository, UserRepository} from '#root/shared/index.js';
 
 // Run at 2:00 AM every day by default — can be overridden
 const DEFAULT_CRON_SCHEDULE = '0 2 * * *';
@@ -30,6 +33,15 @@ export class AutoEjectionEngine extends BaseService {
 
     @inject(EJECTION_POLICY_TYPES.NotificationService)
     private readonly notificationService: NotificationService,
+
+    @inject(NOTIFICATIONS_TYPES.MailService)
+    private readonly mailService: MailService,
+
+    @inject(GLOBAL_TYPES.CourseRepo)
+    private readonly courseRepo: ICourseRepository,
+
+    @inject(GLOBAL_TYPES.UserRepo)
+    private readonly userRepo: UserRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
@@ -182,6 +194,8 @@ export class AutoEjectionEngine extends BaseService {
     student: IEnrollment,
   ): Promise<'ejected' | 'warned' | 'none'> {
     const {thresholdDays, warningDays} = policy.triggers.inactivity!;
+    const course = await this.courseRepo.read(student.courseId.toString());
+    const user = await this.userRepo.findById(student.userId.toString());
 
     const now = new Date();
 
@@ -240,6 +254,30 @@ export class AutoEjectionEngine extends BaseService {
         thresholdDays,
         student.cohortId?.toString(),
       );
+      try {
+        console.log('user.email:', user.email);
+
+        await this.mailService.sendMail({
+          to: user.email,
+
+          subject: `Inactivity Warning – ${course.name}`,
+          html: `
+    <p>Hello,</p>
+
+    <p>You have been inactive in <strong>${course.name}</strong> for <strong>${daysSinceActive} days</strong>.</p>
+
+    <p>If inactivity continues, you will be removed after <strong>${thresholdDays} days</strong> of inactivity.</p>
+
+    <p>Please resume your course to avoid removal.</p>
+
+    <br/>
+    <p>– Team</p>
+  `,
+        });
+        console.log('✅ Email sent');
+      } catch (error) {
+        console.error('❌ Email failed:', error);
+      }
 
       return 'warned';
     }
