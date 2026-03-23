@@ -177,7 +177,7 @@ export class CohortsService extends BaseService {
                         },
                         lastActivityAt: "2026-01-20T10:00:00Z",
                         createdAt: "2026-01-15T08:00:00Z",
-                        isPublic: true,
+                        // isPublic: true,
                     };
                 })
             );
@@ -228,7 +228,7 @@ export class CohortsService extends BaseService {
                         },
                         lastActivityAt: "2026-01-20T10:00:00Z",
                         createdAt: "2026-01-15T08:00:00Z",
-                        isPublic: true,
+                        // isPublic: true,
                     };
                 })
             );

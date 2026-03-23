@@ -315,11 +315,21 @@ export class ActivitySubmissionsService extends BaseService {
             let uploadedPdfs: any[] = [];
             let uploadedImages: any[] = [];
 
+
+            // To create proper unique folder names based on cohort (exisiting cohort=>cohortName, new cohorts=>id)
+            let cohortFileName = body.cohort
+            const isOverride = COHORT_OVERRIDES[body.cohort]
+            if (!isOverride) {
+                const cohortId = await this.cohortRepository.getCohortIdByCohortName(body.cohort);
+                if (cohortId)
+                    cohortFileName = cohortId;
+            }
+
             // Only call upload when there are files/images
             if (files.length > 0 || images.length > 0) {
                 const uploadResult = await this.uploadSubmissionAssets(
                     student.id,
-                    body.cohort,
+                    cohortFileName,
                     body.activityId,
                     files,
                     images

@@ -69,7 +69,7 @@ export class CohortRepository implements ICohortRepository {
 
         const filter: any = { $or: orVersionMatch, isDeleted: { $ne: true } };
         if (typeof isPublic === "boolean") {
-            filter.isPublic = isPublic;
+            // filter.isPublic = isPublic;
         }
 
         return await this.cohortsCollection

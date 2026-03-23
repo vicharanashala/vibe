@@ -136,8 +136,8 @@ export class CohortListItemDto {
 
     @IsNumber()
     percentCompleted?: number;
-    @IsBoolean()
-    isPublic!: boolean;
+    // @IsBoolean()
+    // isPublic!: boolean;
 }
 
 /* =========================================================
