@@ -6,6 +6,7 @@ export const EJECTION_POLICY_TYPES = {
   ManualEjectionService: Symbol.for('ManualEjectionService'),
   ReinstatementService: Symbol.for('ReinstatementService'),
   AutoEjectionEngine: Symbol.for('AutoEjectionEngine'),
+  NotificationService: Symbol.for('NotificationService'),
 };
 
 export type TriggerType =

@@ -4725,4 +4725,24 @@ export class EnrollmentRepository {
       {session},
     );
   }
+  async findActiveEnrollmentsByCohort(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+  ): Promise<IEnrollment[]> {
+    await this.init();
+    return this.enrollmentCollection
+      .find({
+        courseId: {$in: [courseId, new ObjectId(courseId)]},
+        courseVersionId: {
+          $in: [courseVersionId, new ObjectId(courseVersionId)],
+        },
+        cohortId: new ObjectId(cohortId),
+        role: 'STUDENT',
+        status: 'ACTIVE',
+        isDeleted: {$ne: true},
+        isEjected: {$ne: true},
+      })
+      .toArray();
+  }
 }

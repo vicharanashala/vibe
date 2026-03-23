@@ -46,6 +46,7 @@ import {
   OutComeStatus,
 } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 import {ObjectId} from 'mongodb';
+import {NotificationService} from '#root/modules/notifications/services/NotificationService.js';
 
 /**
  * Controller for managing ejection policies
@@ -61,6 +62,8 @@ export class EjectionPolicyController {
   constructor(
     @inject(EJECTION_POLICY_TYPES.EjectionPolicyService)
     private readonly policyService: EjectionPolicyService,
+    @inject(EJECTION_POLICY_TYPES.NotificationService)
+    private readonly notificationService: NotificationService,
   ) {}
 
   @Authorized()
@@ -100,6 +103,14 @@ export class EjectionPolicyController {
     const policy = await this.policyService.createPolicy(
       body,
       user._id.toString(),
+    );
+    await this.notificationService.notifyPolicyChange(
+      body.courseId,
+      body.courseVersionId,
+      body.cohortId,
+      body.name,
+      true,
+      policy._id?.toString(),
     );
     // audit trail stays the same
     return plainToClass(EjectionPolicyResponse, policy, {
@@ -283,6 +294,14 @@ export class EjectionPolicyController {
     }
     // remove all scope/platform/course ability checks
     const updatedPolicy = await this.policyService.updatePolicy(policyId, body);
+    await this.notificationService.notifyPolicyChange(
+      updatedPolicy.courseId.toString(),
+      updatedPolicy.courseVersionId.toString(),
+      updatedPolicy.cohortId.toString(),
+      updatedPolicy.name,
+      false,
+      policyId,
+    );
     // audit trail stays the same
     return plainToClass(EjectionPolicyResponse, updatedPolicy, {
       enableImplicitConversion: true,

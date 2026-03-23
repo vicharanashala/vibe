@@ -5,6 +5,7 @@ import {EJECTION_POLICY_TYPES} from '../types.js';
 import {EjectionPolicyService} from './EjectionPolicyService.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
+import {NotificationService} from '#root/modules/notifications/services/NotificationService.js';
 
 export interface ManualEjectionResult {
   enrollmentId: string;
@@ -20,7 +21,8 @@ export class ManualEjectionService {
   constructor(
     @inject(EJECTION_POLICY_TYPES.EjectionPolicyService)
     private readonly policyService: EjectionPolicyService,
-
+    @inject(EJECTION_POLICY_TYPES.NotificationService)
+    private readonly notificationService: NotificationService,
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
   ) {}
@@ -52,6 +54,14 @@ export class ManualEjectionService {
       ejectedBy,
       cohortId,
       policyId,
+    );
+
+    await this.notificationService.notifyEjection(
+      userId,
+      courseId,
+      courseVersionId,
+      reason,
+      cohortId,
     );
 
     const lastEntry = (enrollment.ejectionHistory as any[]).at(-1);

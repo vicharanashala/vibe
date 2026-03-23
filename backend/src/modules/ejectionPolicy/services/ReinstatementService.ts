@@ -2,6 +2,8 @@ import 'reflect-metadata';
 import {injectable, inject} from 'inversify';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
+import {NotificationService} from '#root/modules/notifications/services/NotificationService.js';
+import {EJECTION_POLICY_TYPES} from '../types.js';
 
 export interface ReinstatementResult {
   enrollmentId: string;
@@ -16,6 +18,8 @@ export class ReinstatementService {
   constructor(
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+    @inject(EJECTION_POLICY_TYPES.NotificationService)
+    private readonly notificationService: NotificationService,
   ) {}
 
   async reinstateLearner(
@@ -32,7 +36,12 @@ export class ReinstatementService {
       reinstatedBy,
       cohortId,
     );
-
+    await this.notificationService.notifyReinstatement(
+      userId,
+      courseId,
+      courseVersionId,
+      cohortId,
+    );
     // Get the last history entry for reinstatedAt
     const history = (enrollment as any).ejectionHistory ?? [];
     const lastEntry = history.at(-1);
