@@ -14,6 +14,8 @@ import {
 } from "../classes/validators/ruleConfigValidators.js";
 import { toObjectId } from "../utils/toObjectId.js";
 import { HpRuleConfig, PenaltyApplyWhen, RewardApplyWhen, RuleType } from "../models.js";
+import { CreateActivityWithRuleBody } from "../classes/validators/activityValidators.js";
+import { ActivityService } from "./activityService.js";
 
 type HpRuleConfigCreateDoc = Omit<HpRuleConfig, "_id">;
 
@@ -32,6 +34,9 @@ export class RuleConfigService extends BaseService {
 
         @inject(HP_SYSTEM_TYPES.activityRepository)
         private readonly activityRepository: ActivityRepository,
+
+        @inject(HP_SYSTEM_TYPES.activityService)
+        private readonly activiService: ActivityService,
     ) {
         super(mongoDatabase);
     }
@@ -157,6 +162,14 @@ export class RuleConfigService extends BaseService {
             throw error;
         }
         // })
+    }
+
+    async createActivityWithRule(teacherId: string, body: CreateActivityWithRuleBody): Promise<HpRuleConfigTransformer> {
+        return this._withTransaction(async (session) => {
+            const activity = await this.activiService.create(teacherId, body.activity);
+            const ruleConfig = { ...body.ruleConfig, activityId: activity._id.toString()};
+            return this.create(ruleConfig);
+        });
     }
 
     async update(ruleConfigId: string, patch: UpdateHpRuleConfigBody): Promise<HpRuleConfigTransformer> {

@@ -20,17 +20,18 @@ import {
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { toast } from "sonner";
 import { CreateHpActivityPayload, HpRuleConfig, CourseWithVersions, CourseVersionStats } from "@/lib/api/hp-system";
-import { useCreateHpActivity, useCreateHpRuleConfig, useHpCourseVersions } from "@/hooks/hooks";
+import { useCreateActivityWithRule, useCreateHpActivity, useCreateHpRuleConfig, useHpCourseVersions } from "@/hooks/hooks";
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal";
 
 export default function CreateHpActivityPage() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
     const navigate = useNavigate();
-    const { mutateAsync: createActivity, isPending: isSubmittingActivity } = useCreateHpActivity();
-    const { mutateAsync: createRuleConfig, isPending: isSubmittingRules } = useCreateHpRuleConfig();
+    // const { mutateAsync: createActivity, isPending: isSubmittingActivity } = useCreateHpActivity();
+    // const { mutateAsync: createRuleConfig, isPending: isSubmittingRules } = useCreateHpRuleConfig();
+    const {mutateAsync :createActivityWithRule, isPending: isCreatingActivityWithRule } = useCreateActivityWithRule();
     const { data: courses = [], isLoading: isLoadingCourses } = useHpCourseVersions();
 
-    const isSubmitting = isSubmittingActivity || isSubmittingRules;
+    const isSubmitting = isCreatingActivityWithRule;
 
     const [step, setStep] = useState<1 | 2>(1);
     
@@ -282,116 +283,90 @@ export default function CreateHpActivityPage() {
             required_percentage: ruleConfig.required_percentage,
         };
 
+        // 2. Create the full Rule Config
+        const rulePayload = {
+            courseId: courseId,
+            courseVersionId: courseVersionId,
+            activityId: undefined,
+            isMandatory: ruleConfig.isMandatory as boolean,
+            deadlineAt: ruleConfig.deadlineAt as string | undefined,
+            allowLateSubmission: ruleConfig.allowLateSubmission as boolean,
+            reward: {
+                enabled: ruleConfig.reward?.enabled ?? true,
+                type: ruleConfig.reward?.type as any,
+                value: ruleConfig.reward?.value as number,
+                applyWhen: ruleConfig.reward?.applyWhen as any,
+                lateBehavior: ruleConfig.reward?.lateBehavior ?? "NO_REWARD",
+            },
+            penalty: {
+                enabled: ruleConfig.penalty?.enabled ?? false,
+                type: (ruleConfig.penalty?.type ?? "ABSOLUTE") as any,
+                value: ruleConfig.penalty?.value ?? 0,
+                applyWhen: (ruleConfig.penalty?.applyWhen ?? "AFTER_DEADLINE") as any,
+                graceMinutes: ruleConfig.penalty?.graceMinutes ?? 0,
+                runOnce: ruleConfig.penalty?.runOnce ?? true,
+            },
+            limits: {
+                minHp: ruleConfig.limits?.minHp,
+                maxHp: ruleConfig.limits?.maxHp,
+            },
+        };
+
         try {
-            // 2. Create the activity
-            const response: any = await createActivity(activityPayload);
-            // The backend might return _id as a string, or an object if it serialized an ObjectId directly
-            let createdActivityId = response?._id;
-            if (createdActivityId && typeof createdActivityId === "object") {
-                createdActivityId = createdActivityId.$oid || createdActivityId.id || createdActivityId.toString();
-                // If it's a buffer object, this might be tricky, but mostly $oid or id works
-            }
+            await createActivityWithRule({
+                activity: activityPayload,
+                ruleConfig: rulePayload,
+            });
 
-            if (!createdActivityId || typeof createdActivityId !== "string") {
-                console.error("Activity creation returned no valid string ID", response);
-                throw new Error("Missing valid activity ID from response");
-            }
+            toast.success("Activity created successfully");
 
-            // 3. Create the full Rule Config
-            const rulePayload = {
-                courseId: courseId,
-                courseVersionId: courseVersionId,
-                activityId: createdActivityId,
-                isMandatory: ruleConfig.isMandatory as boolean,
-                deadlineAt: ruleConfig.deadlineAt as string | undefined,
-                allowLateSubmission: ruleConfig.allowLateSubmission as boolean,
-                reward: {
-                    enabled: ruleConfig.reward?.enabled ?? true,
-                    type: ruleConfig.reward?.type as any,
-                    value: ruleConfig.reward?.value as number,
-                    applyWhen: ruleConfig.reward?.applyWhen as any,
-                    lateBehavior: ruleConfig.reward?.lateBehavior ?? "NO_REWARD",
-                },
-                penalty: {
-                    enabled: ruleConfig.penalty?.enabled ?? false,
-                    type: (ruleConfig.penalty?.type ?? "ABSOLUTE") as any,
-                    value: ruleConfig.penalty?.value ?? 0,
-                    applyWhen: (ruleConfig.penalty?.applyWhen ?? "AFTER_DEADLINE") as any,
-                    graceMinutes: ruleConfig.penalty?.graceMinutes ?? 0,
-                    runOnce: ruleConfig.penalty?.runOnce ?? true,
-                },
-                limits: {
-                    minHp: ruleConfig.limits?.minHp,
-                    maxHp: ruleConfig.limits?.maxHp,
-                },
-            };
+            navigate({
+                to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/activities`,
+                state: { from }
+            });
 
-            try {
-                await createRuleConfig(rulePayload);
-            } catch (ruleError: any) {
-                console.error("Rule config creation failed:", ruleError);
-                if (ruleError.response) {
+            } catch (error: any) {
+                 if (error.response) {
                     try {
-                        const detail = await ruleError.response.json();
-                        toast.error(`Activity created, but rules failed: ${detail.message || "Validation Error"}`);
-                    } catch (e) {
-                         toast.error("Activity created, but rules failed.");
-                    }
-                } else {
-                    toast.error(ruleError.message || "Activity created, but rules failed.");
-                }
-            }
+                        const detail = await error.response.json();
 
-            // 4. Navigate back
-            navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/activities`, state:{from} });
-        } catch (error: any) {
-            console.error("Failed to create activity", error);
-            if (error.response) {
-                try {
-                    const detail = await error.response.json();
-                    console.error("Backend Error Detail JSON:", detail);
-                    
-                    if (detail.errors && Array.isArray(detail.errors)) {
-                        let hasFieldErrors = false;
-                        const validFormFields = ["title", "description", "activityType", "submissionMode", "externalLink", "attachments"];
-                        const nextRuleErrors: any = { ...ruleErrors };
+                        if (detail.errors && Array.isArray(detail.errors)) {
+                            let hasFieldErrors = false;
+                            const validFormFields = ["title", "description", "activityType", "submissionMode", "externalLink", "attachments"];
+                            const nextRuleErrors: any = { ...ruleErrors };
 
-                        detail.errors.forEach((err: any) => {
-                            if (err.property) {
-                                const message = err.constraints ? Object.values(err.constraints).join(", ") : "Validation failed";
-                                
-                                if (validFormFields.includes(err.property)) {
-                                    setError(err.property as any, { type: "server", message });
-                                    hasFieldErrors = true;
-                                } else {
-                                    // Map to ruleErrors
-                                    nextRuleErrors[err.property] = message;
-                                    hasFieldErrors = true;
+                            detail.errors.forEach((err: any) => {
+                                if (err.property) {
+                                    const message = err.constraints
+                                        ? Object.values(err.constraints).join(", ")
+                                        : "Validation failed";
+
+                                    if (validFormFields.includes(err.property)) {
+                                        setError(err.property as any, { type: "server", message });
+                                        hasFieldErrors = true;
+                                    } else {
+                                        nextRuleErrors[err.property] = message;
+                                        hasFieldErrors = true;
+                                    }
                                 }
+                            });
+                            setRuleErrors(nextRuleErrors);
+                            if (!hasFieldErrors && detail.message) {
+                                toast.error(detail.message);
+                            } else if (hasFieldErrors) {
+                                toast.error("Please check the form for validation errors.");
                             }
-                        });
-                        
-                        setRuleErrors(nextRuleErrors);
-
-                        if (!hasFieldErrors && detail.message) {
-                            toast.error(detail.message);
-                        } else if (hasFieldErrors) {
-                            toast.error("Please check the form for validation errors.");
+                        } else {
+                            toast.error(detail.message || "Creation failed");
                         }
-                    } else if (detail.message) {
-                        toast.error(detail.message);
-                    } else {
-                        toast.error("An unexpected error occurred during creation.");
+                    } catch {
+                        toast.error("Failed to create activity.");
                     }
-                } catch (e) {
-                    console.error("Could not parse backend error JSON");
-                    toast.error("Failed to create activity. Please try again.");
-                }
             } else {
-                toast.error(error.message || "Failed to create activity. Please try again.");
+                toast.error(error.message || "Failed to create activity.");
             }
-        }
-    };
+        };
+    }
 
     const backUrl = `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/activities`;
 
