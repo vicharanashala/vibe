@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import React, { useState, useEffect, useRef } from 'react';
-import { Copy, Download, Search, Volume2, VolumeX, RotateCcw, Maximize2, Minimize2, FileText, Mic, MicOff, Eye, EyeOff, Info, Sparkle, Save, Delete, Pencil } from 'lucide-react';
+import { Copy, Download, Search, Volume2, VolumeX, RotateCcw, Maximize2, Minimize2, FileText, Mic, MicOff, Eye, EyeOff, Info, Sparkle, Save, Delete, Pencil, Trash2 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 interface TranscriptionResultProps {
@@ -18,7 +18,7 @@ interface TranscriptionResultProps {
   endTime?: number | null;
   isAIModulePage?: boolean;
   chunkTranscription?: object[];
-  setChunkTranscription?: (chunks: object[]) => void;
+  handleDeleteSegmentation?: (index: number)=>void
 }
 
 export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
@@ -34,7 +34,7 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
   endTime,
   isAIModulePage,
   chunkTranscription,
-  setChunkTranscription
+  handleDeleteSegmentation
 
 }) => {
   // const [isEditing, setIsEditing] = useState(false);
@@ -159,6 +159,8 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
       .toString()
       .padStart(2, "0")}`;
   }
+
+
 
 
 
@@ -407,32 +409,31 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
       </div>
 
 
-      {chunkTranscription?.length > 0 && (
-        <div className='p-4 mt-4'>
-          {chunkTranscription?.map((chunk, index) => {
-            return (
-              <Accordion type="single" collapsible className="w-full mt-2" key={index}>
-                <AccordionItem value={`item-${index}`} className="border-b">
-                  <AccordionTrigger className="flex justify-between items-center w-full px-4 py-2 text-left text-sm font-medium text-gray-800 dark:text-gray-100 bg-card hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg">
-                    <span>{`Segment ${index + 1}: ${formatTime(chunk.startTime)} - ${formatTime(chunk.endTime)}`}</span> 
-                    <span className='flex justify-end gap-2 items-center w-[50%]'>
-                    {/* <Button variant="ghost" size="sm" onClick={() => handleDeleteChunk(index)}>
-                      <Delete className="w-4 h-4 text-red-500" />
-                    </Button> 
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(chunk, index)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button> */}
-                    </span>
-                  </AccordionTrigger>
-                  {/* <AccordionContent className="px-4 py-2 bg-card text-gray-800 dark:text-gray-100">
-                    <p>{chunk.text}</p>
-                  </AccordionContent> */}
-                </AccordionItem>
-              </Accordion>
-            )
-          })}
+        {chunkTranscription?.length > 0 && (
+  <div className="p-4 mt-4 space-y-2">
+    {chunkTranscription?.map((chunk, index) => (
+      <div
+        key={index}
+        className="flex items-center justify-between px-4 py-3 rounded-lg border bg-card hover:bg-muted/50 transition"
+      >
+        <span className="text-sm font-medium text-gray-800 dark:text-gray-100">
+          {`Segment ${index + 1}: ${formatTime(chunk.startTime)} - ${formatTime(chunk.endTime)}`}
+        </span>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDeleteSegmentation(index)}
+            className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
         </div>
-      )}
+      </div>
+    ))}
+  </div>
+)}
 
       {/* {
         isAIModulePage && chunkTranscription.length > 0 &&
