@@ -149,13 +149,12 @@ export default function TeacherCoursesPage() {
   }, [])
 
   const handleSearchQueryChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(event.target.value)
-    if (event.target.value && enrollments.length === 0) {
-      setLastEmptyState(searchQuery)
-    } else if (event.target.value === "") {
-      setLastEmptyState(null)
-    } else {
-      return;
+    const value = event.target.value;
+    setSearchQuery(value);
+    if (value && enrollments.length === 0) {
+      setLastEmptyState(value);
+    } else if (value === "") {
+      setLastEmptyState(null);
     }
   }
 
@@ -189,10 +188,11 @@ export default function TeacherCoursesPage() {
 }, [searchQuery])
 
   useEffect(() => {
-    if (initialDocumentCount === 0) {
+    if (initialDocumentCount === 0 && !searchQuery) {
       return;
     }
     if (!searchQuery.trim()) {
+      setDebouncedSearchQuery("");
       return;
     }
     if (lastEmptyState && searchQuery.startsWith(lastEmptyState) && searchQuery.length >= lastEmptyState.length) {
