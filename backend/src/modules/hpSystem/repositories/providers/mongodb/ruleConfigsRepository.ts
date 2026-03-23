@@ -247,7 +247,7 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
             },
             {
                 $match: {
-                    effectiveDeadline: { $lte: now }
+                    effectiveDeadline: { $gte: now }
                 }
             },
             {

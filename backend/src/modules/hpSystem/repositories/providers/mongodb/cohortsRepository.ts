@@ -599,7 +599,7 @@ export class CohortRepository implements ICohortRepository {
             { session }
         );
 
-        return updateResult.modifiedCount > 0;
+        return updateResult.matchedCount  > 0;
     }
 
     async getDynamicCoursesWithVersions(session?: ClientSession): Promise<CourseWithVersionsDto[]> {
