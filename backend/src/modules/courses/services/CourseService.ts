@@ -295,8 +295,8 @@ class CourseService extends BaseService {
       const enrolledCourseIds = userEnrollments.map(enrollment =>
         enrollment.courseId.toString(),
       );
-           const enrolledVersionIds = userEnrollments.map(enrollment => enrollment.courseVersionId.toString());
-      const enrolledCohortIds = userEnrollments.map(enrollment => enrollment?.cohortId?.toString());
+      const enrolledVersionIds = userEnrollments.map(enrollment => enrollment.courseVersionId.toString());
+      const enrolledCohortIds = userEnrollments.map(e => e?.cohortId?.toString()).filter((id): id is string => id != null);
 
       // Query public courses
       const skip = (page - 1) * limit;

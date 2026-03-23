@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useEffect } from "react"
 import { useNavigate, useSearch } from "@tanstack/react-router"
@@ -193,9 +193,13 @@ export default function CourseEnrollments() {
   const [selectedUser, setSelectedUser] = useState<EnrollmentDetails | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false)
+  const [isDisableDialogOpen, setIsDisableDialogOpen] = useState(false)
+  const [isEnableDialogOpen, setIsEnableDialogOpen] = useState(false)
   const [isRecalculateProgressOpen, setIsRecalculateProgressOpen] = useState(false)
   const [isViewProgressDialogOpen, setIsViewProgressDialogOpen] = useState(false)
   const [userToRemove, setUserToRemove] = useState<EnrolledUser | null>(null)
+  const [userToDisable, setUserToDisable] = useState<EnrolledUser | null>(null)
+  const [userToEnable, setUserToEnable] = useState<EnrolledUser | null>(null)
   const [userToRecalculate, setUsertToRecalculate] = useState<EnrolledUser | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [resetScope, setResetScope] = useState<"course" | "module" | "section" | "item">("course")
@@ -635,45 +639,85 @@ const moveToCohortMutation = useMoveToCohort();
   const recalculateStudentMutation = useRecalculateStudentProgress()
 
   // Disable/Enable handlers
-  const handleDisableStudent = async (enrollment: any) => {
+  const handleDisableStudent = (enrollment: any) => {
     if (!courseId || !versionId) return
-    try {
-      await changeStatusMutation.mutateAsync({
-        params: {
-          path: {
-            userId: enrollment.user?._id,
-            courseId,
-            versionId,
+    setUserToDisable({
+      id: enrollment.user?._id,
+      name: `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
+      email: enrollment.user?.email,
+      enrolledDate: enrollment.enrollmentDate,
+      progress: enrollment.progress || 0,
+      cohortId: enrollment.cohortId,
+      cohortName: enrollment.cohortName
+    })
+    setIsDisableDialogOpen(true)
+  }
+
+  const handleEnableStudent = (enrollment: any) => {
+    if (!courseId || !versionId) return
+    setUserToEnable({
+      id: enrollment.user?._id,
+      name: `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
+      email: enrollment.user?.email,
+      enrolledDate: enrollment.enrollmentDate,
+      progress: enrollment.progress || 0,
+      cohortId: enrollment.cohortId,
+      cohortName: enrollment.cohortName
+    })
+    setIsEnableDialogOpen(true)
+  }
+
+  const confirmDisableStudent = async () => {
+    if (userToDisable && courseId && versionId) {
+      try {
+        await changeStatusMutation.mutateAsync({
+          params: {
+            path: {
+              userId: userToDisable.id,
+              courseId,
+              versionId,
+            },
           },
-        },
-        body: { status: 'INACTIVE' },
-      })
-      toast.success(`${enrollment.user?.firstName || 'Student'} has been disabled`)
-      queryClient.invalidateQueries({ queryKey: ["get", "/users/enrollments/courses/{courseId}/versions/{courseVersionId}"] })
-      refetchEnrollments()
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to disable student')
+          body: { 
+            status: 'INACTIVE',
+            cohortId: userToDisable.cohortId 
+          },
+        })
+        toast.success(`${userToDisable.name} has been disabled`)
+        setIsDisableDialogOpen(false)
+        setUserToDisable(null)
+        queryClient.invalidateQueries({ queryKey: ["get", "/users/enrollments/courses/{courseId}/versions/{courseVersionId}"] })
+        refetchEnrollments()
+      } catch (error: any) {
+        toast.error(error?.message || 'Failed to disable student')
+      }
     }
   }
 
-  const handleEnableStudent = async (enrollment: any) => {
-    if (!courseId || !versionId) return
-    try {
-      await changeStatusMutation.mutateAsync({
-        params: {
-          path: {
-            userId: enrollment.user?._id,
-            courseId,
-            versionId,
+  const confirmEnableStudent = async () => {
+    if (userToEnable && courseId && versionId) {
+      try {
+        await changeStatusMutation.mutateAsync({
+          params: {
+            path: {
+              userId: userToEnable.id,
+              courseId,
+              versionId,
+            },
           },
-        },
-        body: { status: 'ACTIVE' },
-      })
-      toast.success(`${enrollment.user?.firstName || 'Student'} has been enabled`)
-      queryClient.invalidateQueries({ queryKey: ["get", "/users/enrollments/courses/{courseId}/versions/{courseVersionId}"] })
-      refetchEnrollments()
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to enable student')
+          body: { 
+            status: 'ACTIVE',
+            cohortId: userToEnable.cohortId
+          },
+        })
+        toast.success(`${userToEnable.name} has been enabled`)
+        setIsEnableDialogOpen(false)
+        setUserToEnable(null)
+        queryClient.invalidateQueries({ queryKey: ["get", "/users/enrollments/courses/{courseId}/versions/{courseVersionId}"] })
+        refetchEnrollments()
+      } catch (error: any) {
+        toast.error(error?.message || 'Failed to enable student')
+      }
     }
   }
 
@@ -1819,6 +1863,134 @@ const handleMoveToCohort = async () => {
                       </>
                     ) : (
                       "Yes, Remove"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isDisableDialogOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+              <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+                onClick={() => setIsDisableDialogOpen(false)}
+              />
+              <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Disable Student</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsDisableDialogOpen(false)}
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-8">
+                  <p className="text-lg text-card-foreground">
+                    Want to disable <strong className="text-primary">{userToDisable?.name}</strong> from{" "}
+                    <strong className="text-primary">
+                      {course.name} ({version.version}) {userToDisable?.cohortName}
+                    </strong>
+                    ?
+                  </p>
+
+                  <div className="flex gap-4 p-6 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl">
+                    <div><AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" /></div>
+                    <div className="text-sm text-amber-800 dark:text-amber-200">
+                      <strong>Warning:</strong> This student will be set to inactive. You can re-enable them from the Inactive tab.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsDisableDialogOpen(false)}
+                    className="min-w-[100px] cursor-pointer"
+                  >
+                    No, Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={confirmDisableStudent}
+                    disabled={changeStatusMutation.isPending}
+                    className="min-w-[100px] shadow-lg cursor-pointer bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    {changeStatusMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Disabling...
+                      </>
+                    ) : (
+                      "Yes, Disable"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isEnableDialogOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+              <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+                onClick={() => setIsEnableDialogOpen(false)}
+              />
+              <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Enable Student</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsEnableDialogOpen(false)}
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-8">
+                  <p className="text-lg text-card-foreground">
+                    Want to enable <strong className="text-primary">{userToEnable?.name}</strong> for{" "}
+                    <strong className="text-primary">
+                      {course.name} ({version.version}) {userToEnable?.cohortName}
+                    </strong>
+                    ?
+                  </p>
+
+                  <div className="flex gap-4 p-6 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl">
+                    <div><CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" /></div>
+                    <div className="text-sm text-green-800 dark:text-green-200">
+                      This student will be moved back to the Active tab.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsEnableDialogOpen(false)}
+                    className="min-w-[100px] cursor-pointer"
+                  >
+                    No, Cancel
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={confirmEnableStudent}
+                    disabled={changeStatusMutation.isPending}
+                    className="min-w-[100px] shadow-lg cursor-pointer bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {changeStatusMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Enabling...
+                      </>
+                    ) : (
+                      "Yes, Enable"
                     )}
                   </Button>
                 </div>
