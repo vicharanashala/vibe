@@ -68,7 +68,7 @@ export class EnrollmentService extends BaseService {
     courseVersionId: string,
     role: EnrollmentRole,
     throughInvite: boolean = false,
-    cohort?:string,
+    cohort?: string,
     session?: ClientSession,
   ) {
     // const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId,session);
@@ -131,7 +131,7 @@ export class EnrollmentService extends BaseService {
         enrollmentDate: new Date(),
         percentCompleted: 0,
         completedItemsCount: 0,
-        ...(cohort ? {cohortId: new ObjectId(cohort) } : {}),
+        ...(cohort ? { cohortId: new ObjectId(cohort) } : {}),
       }
 
       const createdEnrollment = await this.enrollmentRepo.createEnrollment(
@@ -162,7 +162,7 @@ export class EnrollmentService extends BaseService {
               ),
               currentItem: new ObjectId(progressData.currentItem.toString()),
               completed: false,
-              ...(cohort ? {cohortId: new ObjectId( cohort) } : {}),
+              ...(cohort ? { cohortId: new ObjectId(cohort) } : {}),
             },
             session,
           );
@@ -543,8 +543,8 @@ export class EnrollmentService extends BaseService {
 
       const [
         watchedItemsMap,
-        watchedItemsByTypeMap,
-        quizSubmissionGrades,
+        // watchedItemsByTypeMap,
+        // quizSubmissionGrades,
       ]: [
           Map<string, number>,
           Map<string, { videos: number; quizzes: number; articles: number; projects: number }>,
@@ -557,26 +557,26 @@ export class EnrollmentService extends BaseService {
             : Promise.resolve([]),
         ]);
 
-      const quizGradeMap: Map<string, IGradingResult> = new Map(
-        quizSubmissionGrades.map(grade => [
-          grade.quizId.toString(),
-          grade.gradingResult,
-        ]),
-      );
+      // const quizGradeMap: Map<string, IGradingResult> = new Map(
+      //   quizSubmissionGrades.map(grade => [
+      //     grade.quizId.toString(),
+      //     grade.gradingResult,
+      //   ]),
+      // );
 
       return activeEnrollments.map(enr => {
         const versionIdStr = enr.courseVersionId.toString();
         const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}-${enr.cohortId?.toString() || ''}`;
 
-        const versionItemGroups = versionToItemGroups.get(versionIdStr) || [];
-        const versionQuizIds = quizInfo.filter(quiz =>
-          versionItemGroups.includes(quiz._id.toString()),
-        );
-        const enrollmentQuizGrades = versionQuizIds
-          .map(q =>
-            q.items?._id ? quizGradeMap.get(q.items._id.toString()) : null,
-          )
-          .filter(Boolean) as IGradingResult[];
+        // const versionItemGroups = versionToItemGroups.get(versionIdStr) || [];
+        // const versionQuizIds = quizInfo.filter(quiz =>
+        //   versionItemGroups.includes(quiz._id.toString()),
+        // );
+        // const enrollmentQuizGrades = versionQuizIds
+        //   .map(q =>
+        //     q.items?._id ? quizGradeMap.get(q.items._id.toString()) : null,
+        //   )
+        //   .filter(Boolean) as IGradingResult[];
 
         const completedCount = watchedItemsMap.get(watchedKey) || 0;
         // const completedByType = watchedItemsByTypeMap.get(watchedKey) || {
@@ -585,20 +585,20 @@ export class EnrollmentService extends BaseService {
         //   articles: 0,
         //   projects: 0,
         // };
-        const itemCounts = enr.courseVersion?.itemCounts || {};
+        // const itemCounts = enr.courseVersion?.itemCounts || {};
         const ratio = completedCount / (enr.totalItems || 1);
-        const calculatedPercent = Number((ratio * 100).toFixed(2));
+        // const calculatedPercent = Number((ratio * 100).toFixed(2));
 
-        if (enr.percentCompleted !== calculatedPercent) {
-          void this.enrollmentRepo.updateProgressPercentById(
-            enr._id.toString(),
-            calculatedPercent,
-            completedCount,
-            enr.cohortId?.toString(),
-          );
-          enr.percentCompleted = calculatedPercent;
-          enr.completedItemsCount = completedCount;
-        }
+        // if (enr.percentCompleted !== calculatedPercent) {
+        //   void this.enrollmentRepo.updateProgressPercentById(
+        //     enr._id.toString(),
+        //     calculatedPercent,
+        //     completedCount,
+        //     enr.cohortId?.toString(),
+        //   );
+        //   enr.percentCompleted = calculatedPercent;
+        //   enr.completedItemsCount = completedCount;
+        // }
 
         if (enr.percentCompleted >= 0) {
           return {
@@ -616,7 +616,7 @@ export class EnrollmentService extends BaseService {
             itemType: enr.itemType,
             contentCounts: {
               totalItems: enr.totalItems ?? 0,
-            },            
+            },
             cohortId: enr.cohortId?.toString(),
             cohortName: enr.cohortName,
             completedItems: watchedItemsMap.get(watchedKey) || 0,
@@ -888,7 +888,7 @@ export class EnrollmentService extends BaseService {
           filter,
           statusTab,
           cohort,
-          (courseVersion.cohorts || []).map(cohort=> new ObjectId(cohort)),
+          (courseVersion.cohorts || []).map(cohort => new ObjectId(cohort)),
           session,
         );
       return enrollmentsData;
@@ -1139,7 +1139,7 @@ export class EnrollmentService extends BaseService {
       let cohortMap;
       let cohortIds: string[] = [];
 
-      if(version.cohorts && version.cohorts.length > 0){
+      if (version.cohorts && version.cohorts.length > 0) {
         // If a specific cohort is provided, only get that cohort
         if (cohortId) {
           // Validate that the cohort exists in this version
@@ -1529,7 +1529,7 @@ export class EnrollmentService extends BaseService {
           enrollmentDate: new Date(),
           percentCompleted: 0,
           completedItemsCount: 0,
-          cohort:""
+          cohort: ""
         });
       }
 
@@ -1893,7 +1893,7 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
-              null,
+        null,
         session,
       );
 
@@ -2031,8 +2031,8 @@ export class EnrollmentService extends BaseService {
     );
   }
 
-  async enrollmentExists(versionId : string, cohortId: string, session: ClientSession): Promise<boolean>{
-   return await this.enrollmentRepo.enrollmentExistsByCohortId(versionId, cohortId, session);
+  async enrollmentExists(versionId: string, cohortId: string, session: ClientSession): Promise<boolean> {
+    return await this.enrollmentRepo.enrollmentExistsByCohortId(versionId, cohortId, session);
   }
 
   async moveNonCohortStudentsToCohortInEnrollment(
@@ -2062,25 +2062,25 @@ export class EnrollmentService extends BaseService {
     });
   }
 
-    // Move other documents realted to that student to the target cohort.
-    async moveRelatedDocumentsToCohort(
-      enrollmentIds: string[],
-      courseId: string,
-      versionId: string,
-      targetCohortId: string
-    ): Promise<boolean> {
+  // Move other documents realted to that student to the target cohort.
+  async moveRelatedDocumentsToCohort(
+    enrollmentIds: string[],
+    courseId: string,
+    versionId: string,
+    targetCohortId: string
+  ): Promise<boolean> {
 
-      return this._withTransaction(async (session: ClientSession) => {
+    return this._withTransaction(async (session: ClientSession) => {
 
-        await this.enrollmentRepo.moveRelatedDocumentsToCohort(
-          enrollmentIds,
-          courseId,
-          versionId,
-          targetCohortId,
-          session
-        );
+      await this.enrollmentRepo.moveRelatedDocumentsToCohort(
+        enrollmentIds,
+        courseId,
+        versionId,
+        targetCohortId,
+        session
+      );
 
-        return true;
-      });
-    }
+      return true;
+    });
+  }
 }
