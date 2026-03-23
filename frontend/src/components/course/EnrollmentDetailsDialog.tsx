@@ -49,19 +49,34 @@ export function EnrollmentDetailsDialog({
   const enroll1 = enrollmentDetails?.enrollments?.[0] || enrollment;
   // Extract data from enrollment prop
   const contentCounts = enroll1?.contentCounts || {};
+  const itemCounts = contentCounts.itemCounts || {};
 
   // Get values with fallbacks
-  const totalLessons = contentCounts.totalItems || 0;
-  const completedLessons = enroll1?.completedItems || 0;
+  const totalLessons = Number(contentCounts.totalItems ?? contentCounts.total ?? 0);
+  const completedLessons = Number(
+    enroll1?.completedItemsCount ?? enroll1?.completedItems ?? 0,
+  );
   const isCompleted = (enroll1?.percentCompleted >= 100) || false;
 
-  const totalQuizScore = contentCounts.totalQuizScore || 0;
-  const totalQuizMaxScore = contentCounts.totalQuizMaxScore || 0;
+  const totalQuizScore = Number(
+    contentCounts.totalQuizScore ?? enroll1?.totalQuizScore ?? 0,
+  );
+  const totalQuizMaxScore = Number(
+    contentCounts.totalQuizMaxScore ?? enroll1?.totalQuizMaxScore ?? 0,
+  );
 
-  const videoCount = contentCounts.videos || 0;
-  const quizCount = contentCounts.quizzes || 0;
-  const articleCount = contentCounts.articles || 0;
-  const projectCount = contentCounts.project || 0;
+  const videoCount = Number(
+    contentCounts.videos ?? itemCounts.VIDEO ?? itemCounts.video ?? itemCounts.videos ?? 0,
+  );
+  const quizCount = Number(
+    contentCounts.quizzes ?? itemCounts.QUIZ ?? itemCounts.quiz ?? itemCounts.quizzes ?? 0,
+  );
+  const articleCount = Number(
+    contentCounts.articles ?? itemCounts.BLOG ?? itemCounts.blog ?? itemCounts.articles ?? 0,
+  );
+  const projectCount = Number(
+    contentCounts.project ?? contentCounts.projects ?? itemCounts.PROJECT ?? itemCounts.project ?? itemCounts.projects ?? 0,
+  );
 
   const completedVideos = contentCounts.completedVideos || 0;
   const completedQuizzes = contentCounts.completedQuizzes || 0;
