@@ -336,6 +336,23 @@ export class UserRepository implements IUserRepository {
 
 
 
-
+  /**
+   * Updates a user's avatar URL.
+   */
+  async updateAvatar(
+    userId: string,
+    avatarUrl: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    const result = await this.usersCollection.updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: { avatar: avatarUrl } },
+      { session },
+    );
+    if (result.matchedCount === 0) {
+      throw new NotFoundError('User not found');
+    }
+  }
 
 }

@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useState } from "react"
-import { Mail, User, Shield, Pencil, BookOpen, Clock, Award } from "lucide-react"
+import React, { useState, useRef } from "react"
+import { Mail, User, Shield, Pencil, BookOpen, Clock, Award, Camera, Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/store/auth-store"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
-import { useEditUser, useUserEnrollments } from "@/hooks/hooks"
+import { useEditUser, useUserEnrollments, useUpdateAvatar } from "@/hooks/hooks"
 import { logout } from "@/utils/auth"
 import { useNavigate } from "@tanstack/react-router"
 import { LogOut } from "lucide-react"
@@ -20,6 +20,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 export default function UserProfile({ role = "student" }: { role?: "student" | "teacher" | "admin" }) {
   const { user, setUser } = useAuthStore()
   const navigate = useNavigate()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  
   const handleLogout = () => {
     logout();
     navigate({ to: "/auth" });
@@ -41,7 +43,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
     // Calculate total completed items and total items across all enrollments
     const { totalCompleted, totalItems } = enrollments.reduce((acc, enrollment) => {
       const completed = typeof enrollment.completedItems === 'number' ? enrollment.completedItems : 0;
-      const total = enrollment.contentCounts?.totalItems || 0;
+      const total = (enrollment as any).contentCounts?.totalItems || 0;
       return {
         totalCompleted: acc.totalCompleted + completed,
         totalItems: acc.totalItems + (total > 0 ? total : 1) // Avoid division by zero
@@ -67,6 +69,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
   const [confirmLogout, setConfirmLogout] = useState(false);
 
   const { mutateAsync: editUser } = useEditUser();
+  const { mutateAsync: updateAvatar, isPending: isUpdatingAvatar } = useUpdateAvatar();
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -97,6 +100,34 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
     }
   }
 
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // 1MB validation
+    if (file.size > 1 * 1024 * 1024) {
+      toast.error("Image size must be less than 1MB")
+      return
+    }
+
+    try {
+      const response = await updateAvatar({ body: { avatar: file } })
+      if (user) {
+        setUser({
+          ...user,
+          avatar: response.avatarUrl
+        })
+      }
+      toast.success("Profile picture updated")
+    } catch (error) {
+      toast.error("Failed to upload profile picture")
+    }
+  }
+
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:p-4 pt-0">
@@ -117,13 +148,33 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
             <div className="absolute inset-0 bg-card text-card-foreground" />
             <CardContent className="relative xl:p-6 lg:p-2 p-6">
               <div className="flex flex-col items-center space-y-6">
-                <div className="relative">
-                  <Avatar className="h-28 w-28 ring-4 ring-white dark:ring-gray-800 shadow-xl">
+                <div className="relative group">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <Avatar className="h-28 w-28 ring-4 ring-white dark:ring-gray-800 shadow-xl cursor-pointer transition-transform hover:scale-105" onClick={handleAvatarClick}>
                     <AvatarImage src={user?.avatar || "/placeholder.svg"} alt="Profile" />
                     <AvatarFallback className="text-lg md:text-xl font-semibold bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
                       {avatarFallback.toUpperCase()}
                     </AvatarFallback>
+                    {isUpdatingAvatar && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
+                        <Loader2 className="h-8 w-8 text-white animate-spin" />
+                      </div>
+                    )}
                   </Avatar>
+                  <div 
+                    className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-full cursor-pointer"
+                    onClick={handleAvatarClick}
+                  >
+                    <div className="bg-white/20 p-2 rounded-full backdrop-blur-sm border border-white/30">
+                      <Camera className="h-6 w-6 text-white" />
+                    </div>
+                  </div>
                   <div className="absolute -bottom-2 right-4">
                     <Badge variant="secondary" className="text-xs px-3 py-1 bg-white dark:bg-gray-800 shadow-lg border">
                       {displayRole}
@@ -133,10 +184,10 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
 
                 <div className="text-center space-y-2">
                   <h3 className="font-bold text-xl">{displayName}</h3>
-                  <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
-                    <div className="xl:flex lg:hidden flex"><Mail className="h-4 w-4" /></div>
+                  <div className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+                    <span className="xl:flex lg:hidden flex"><Mail className="h-4 w-4" /></span>
                     {displayEmail}
-                  </p>
+                  </div>
                 </div>
 
                 <div className="w-full space-y-4">

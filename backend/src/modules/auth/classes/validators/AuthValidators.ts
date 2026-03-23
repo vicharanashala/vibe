@@ -8,6 +8,48 @@ import {
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 
+class ForgotPasswordBody {
+  @JSONSchema({
+    title: 'Email Address',
+    description: 'Email address to send the reset link to',
+    example: 'user@example.com',
+    type: 'string',
+    format: 'email',
+  })
+  @IsEmail(undefined, {message: 'Invalid email address'})
+  email: string;
+
+  @JSONSchema({
+    title: 'reCAPTCHA Token',
+    description:
+      'reCAPTCHA verification token obtained from the frontend widget (required when reCAPTCHA is enabled)',
+    example: '03AGdBq27...',
+    type: 'string',
+  })
+  @IsString()
+  @IsNotEmpty()
+  recaptchaToken: string;
+}
+
+class ForgotPasswordResponse {
+  @JSONSchema({
+    description:
+      'Always true to avoid leaking whether the email exists in the system',
+    example: true,
+    type: 'boolean',
+    readOnly: true,
+  })
+  success: boolean;
+
+  @JSONSchema({
+    description: 'User-facing status message',
+    example: 'If an account exists, a reset link has been sent.',
+    type: 'string',
+    readOnly: true,
+  })
+  message: string;
+}
+
 class SignUpBody {
   @JSONSchema({
     title: 'Email Address',
@@ -332,6 +374,7 @@ export const AUTH_VALIDATORS = [
   SignUpBody,
   GoogleSignUpBody,
   ChangePasswordBody,
+  ForgotPasswordBody,
   SignUpResponse,
   VerifySignUpProviderBody,
   ChangePasswordResponse,
@@ -339,12 +382,15 @@ export const AUTH_VALIDATORS = [
   AuthErrorResponse,
   LoginBody,
   LoginResponse,
+  ForgotPasswordResponse,
 ];
 
 export {
   SignUpBody,
   GoogleSignUpBody,
   ChangePasswordBody,
+  ForgotPasswordBody,
+  ForgotPasswordResponse,
   SignUpResponse,
   VerifySignUpProviderBody,
   ChangePasswordResponse,

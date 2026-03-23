@@ -336,4 +336,43 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       displayName: `${body.firstName} ${body.lastName}`,
     });
   }
+
+  async sendPasswordResetEmail(email: string): Promise<void> {
+    // Avoid user enumeration: treat "not found" as success
+    try {
+      const actionCodeSettings = {
+        url: `${appConfig.frontendUrl}/reset-password`,
+        handleCodeInApp: true,
+      };
+
+      const resetLink = await this.auth.generatePasswordResetLink(
+        email,
+        actionCodeSettings,
+      );
+
+      await this.mailService.sendMail({
+        to: email,
+        subject: 'Reset your ViBe password',
+        html: `
+          <div style="font-family:Arial,sans-serif;line-height:1.5">
+            <h2 style="margin:0 0 12px">Reset your password</h2>
+            <p style="margin:0 0 16px">We received a request to reset your ViBe password. If you made this request, click the button below.</p>
+            <p style="margin:24px 0">
+              <a href="${resetLink}" style="background:#6d28d9;color:#fff;padding:12px 16px;border-radius:8px;text-decoration:none;display:inline-block">
+                Reset password
+              </a>
+            </p>
+            <p style="margin:0 0 8px;color:#555">If you didn’t request this, you can safely ignore this email.</p>
+            <p style="margin:0;color:#777;font-size:12px">This link will expire automatically.</p>
+          </div>
+        `,
+      });
+    } catch (error: any) {
+      // Firebase may throw if user doesn't exist; we intentionally ignore that
+      const code = error?.code ?? error?.errorInfo?.code;
+      if (code === 'auth/user-not-found') return;
+      console.error('Password reset email send failed:', error);
+      throw new InternalServerError('Failed to send password reset email.');
+    }
+  }
 }

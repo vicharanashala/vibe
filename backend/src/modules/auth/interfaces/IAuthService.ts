@@ -51,6 +51,13 @@ export interface IAuthService {
     firebaseUID: string,
     body: Partial<IUser>,
   ): Promise<void>;
+
+  /**
+   * Sends a password reset email to the given address.
+   *
+   * Implementations should avoid leaking whether the email exists.
+   */
+  sendPasswordResetEmail(email: string): Promise<void>;
 }
 
 /**
