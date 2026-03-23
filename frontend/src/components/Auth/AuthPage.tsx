@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Check, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { ShineBorder } from "@/components/magicui/shine-border";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Link } from "@tanstack/react-router";
 import { AnimatedGridPattern } from "@/components/magicui/animated-grid-pattern";
 import { cn } from "@/utils/utils";
 import { useSignup } from "@/hooks/hooks.ts";
@@ -21,10 +23,11 @@ type AuthPageProps = {
 export default function AuthPage({ role }: AuthPageProps) {
   const { isAuthenticated, user } = useAuthStore();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("abhijeetduttaam@gmail.com");
+  const [password, setPassword] = useState("Abhijeet@123");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [activeRole, setActiveRole] = useState<"teacher" | "student">(role || "student");
 
   // New state variables
@@ -47,6 +50,17 @@ export default function AuthPage({ role }: AuthPageProps) {
 
   // Removed the unused clearUser variable
   const setUser = useAuthStore((state) => state.setUser);
+
+  const fetchCurrentUserProfile = async (idToken: string) => {
+    const response = await fetch(`${import.meta.env.VITE_BASE_URL}/auth/me`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+    });
+    if (!response.ok) return null;
+    return await response.json();
+  };
 
   // Password validation
   const passwordsMatch = !confirmPassword || password === confirmPassword;
@@ -122,12 +136,18 @@ export default function AuthPage({ role }: AuthPageProps) {
       }
 
       // Set user in store
+      const idToken = await result.user.getIdToken();
+      const profile = await fetchCurrentUserProfile(idToken);
+      const profileName = profile
+        ? `${profile.firstName || ""} ${profile.lastName || ""}`.trim()
+        : "";
+
       setUser({
         uid: result.user.uid,
-        email: result.user.email || "",
-        name: result.user.displayName || "",
+        email: profile?.email || result.user.email || "",
+        name: profileName || result.user.displayName || "",
         role: activeRole, // Use the selected role from tabs
-        avatar: result.user.photoURL || "",
+        avatar: profile?.avatar || result.user.photoURL || "",
       });
 
       // Check for redirect param
@@ -186,15 +206,20 @@ export default function AuthPage({ role }: AuthPageProps) {
       }
 
       // If backend validation succeeds, proceed with Firebase login
-      const result = await loginWithEmail(email, password);
+      const result = await loginWithEmail(email, password, rememberMe);
+      const idToken = await result.user.getIdToken();
+      const profile = await fetchCurrentUserProfile(idToken);
+      const profileName = profile
+        ? `${profile.firstName || ""} ${profile.lastName || ""}`.trim()
+        : "";
 
       // Set user in store
       setUser({
         uid: result.user.uid,
-        email: result.user.email || "",
-        name: result.user.displayName || "",
+        email: profile?.email || result.user.email || "",
+        name: profileName || result.user.displayName || "",
         role: activeRole,
-        avatar: result.user.photoURL || "",
+        avatar: profile?.avatar || result.user.photoURL || "",
       });
 
       // Check for redirect param
@@ -445,9 +470,17 @@ export default function AuthPage({ role }: AuthPageProps) {
 
                       {/* Password Field */}
                       <div className="space-y-2">
-                        <Label htmlFor="password" className="font-medium">
-                          Password
-                        </Label>
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="password" className="font-medium">
+                            Password
+                          </Label>
+                          <Link 
+                            to="/forgot-password" 
+                            className="text-xs text-primary hover:underline hover:underline-offset-4"
+                          >
+                            Forgot password?
+                          </Link>
+                        </div>
                         <div className="relative">
                           <Input
                             id="password"
@@ -462,13 +495,34 @@ export default function AuthPage({ role }: AuthPageProps) {
                               formErrors.password && "border-destructive focus-visible:ring-destructive"
                             )}
                           />
-                          <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
-                            {showPassword ? <EyeOff /> : <Eye />}
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            type="button" 
+                            className="absolute inset-y-0 right-1" 
+                            onClick={() => setShowPassword(p => !p)}
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </Button>
                         </div>
                         {formErrors.password && (
                           <p className="text-xs text-destructive">{formErrors.password}</p>
                         )}
+                      </div>
+
+                      {/* Remember Me */}
+                      <div className="flex items-center space-x-2 pb-2">
+                        <Checkbox 
+                          id="rememberMe" 
+                          checked={rememberMe} 
+                          onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                        />
+                        <label
+                          htmlFor="rememberMe"
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          Remember me
+                        </label>
                       </div>
 
                       {/* reCAPTCHA */}
@@ -615,17 +669,28 @@ export default function AuthPage({ role }: AuthPageProps) {
                         <Label htmlFor="signup-password" className="font-medium">
                           Password
                         </Label>
-                        <Input
-                          id="signup-password"
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Create a strong password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className={cn(
-                            "transition-all duration-200",
-                            formErrors.password && "border-destructive focus-visible:ring-destructive"
-                          )}
-                        />
+                        <div className="relative">
+                          <Input
+                            id="signup-password"
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Create a strong password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className={cn(
+                              "transition-all duration-200",
+                              formErrors.password && "border-destructive focus-visible:ring-destructive"
+                            )}
+                          />
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            type="button" 
+                            className="absolute inset-y-0 right-1" 
+                            onClick={() => setShowPassword(p => !p)}
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                        </div>
                         {password && (
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
@@ -704,8 +769,14 @@ export default function AuthPage({ role }: AuthPageProps) {
                               !passwordsMatch && confirmPassword && "border-destructive focus-visible:ring-destructive"
                             )}
                           />
-                          <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
-                            {showPassword ? <EyeOff /> : <Eye />}
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            type="button" 
+                            className="absolute inset-y-0 right-1" 
+                            onClick={() => setShowPassword(p => !p)}
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </Button>
                         </div>
                         {!passwordsMatch && confirmPassword && (

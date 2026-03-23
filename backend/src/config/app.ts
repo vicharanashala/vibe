@@ -32,6 +32,11 @@ export const appConfig = {
     apiKey: env('FIREBASE_API_KEY') || undefined,
     storageBucket: env('FIREBASE_STORAGE_BUCKET') || 'vibe-aiserver-data',
   },
+  cloudinary: {
+    cloudName: env('CLOUDINARY_CLOUD_NAME'),
+    apiKey: env('CLOUDINARY_API_KEY'),
+    apiSecret: env('CLOUDINARY_API_SECRET'),
+  },
   sentry: {
     dsn: env('SENTRY_DSN') || undefined,
     environment: env('NODE_ENV') || 'development',

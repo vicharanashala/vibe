@@ -7,6 +7,8 @@ import {
   ChangePasswordResponse,
   AuthErrorResponse,
   LoginResponse,
+  ForgotPasswordBody,
+  ForgotPasswordResponse,
 } from '#auth/classes/validators/AuthValidators.js';
 import {
   IAuthService,
@@ -25,6 +27,7 @@ import {
   Req,
   HttpError,
   OnUndefined,
+  Get,
 } from 'routing-controllers';
 import {AUTH_TYPES} from '#auth/types.js';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
@@ -206,5 +209,56 @@ export class AuthController {
     // ✅ fetch your app user from DB
     // const user = await this.authService.getCurrentUserFromToken(result.idToken);
     return result;
+  }
+
+  @OpenAPI({
+    summary: 'Request a password reset email',
+    description:
+      'Sends a password reset email if an account exists. Always returns success to prevent email enumeration.',
+  })
+  @Post('/forgot-password')
+  @HttpCode(200)
+  @ResponseSchema(ForgotPasswordResponse, {
+    description: 'Password reset email requested',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async forgotPassword(@Body() body: ForgotPasswordBody) {
+    const {email, recaptchaToken} = body;
+    const { verifyRecaptcha } = await import('#root/shared/functions/verifyRecaptcha.js');
+
+    try {
+      const isValidRecaptcha = await verifyRecaptcha(recaptchaToken);
+      if (!isValidRecaptcha) {
+        throw new HttpError(400, 'reCAPTCHA verification failed. Please try again.');
+      }
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      throw new HttpError(500, 'Failed to verify reCAPTCHA. Please try again.');
+    }
+
+    await this.authService.sendPasswordResetEmail(email);
+    return {
+      success: true,
+      message: 'If an account exists for this email, a reset link has been sent.',
+    };
+  }
+
+  @OpenAPI({
+    summary: 'Get current authenticated user profile',
+    description: 'Returns the currently authenticated user from the bearer token.',
+  })
+  @Authorized()
+  @Get('/me')
+  @HttpCode(200)
+  async me(@Req() req: any) {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      throw new HttpError(401, 'Unauthorized');
+    }
+    return await this.authService.getCurrentUserFromToken(token);
   }
 }

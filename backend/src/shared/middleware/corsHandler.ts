@@ -11,9 +11,11 @@ const corsOptions: cors.CorsOptions = {
     const allowedOrigins = [
       'http://localhost:3000', // Default frontend dev server
       'http://localhost:5173', // Vite default port
+      'http://localhost:5174', // Vite fallback port
       'http://localhost:4000', // Alternative frontend port
       'http://127.0.0.1:3000',
       'http://127.0.0.1:5173',
+      'http://127.0.0.1:5174',
       'http://127.0.0.1:4000',
       'https://vibe-5b35a.web.app',
     ];
@@ -59,9 +61,11 @@ export function createCorsHandler(additionalOrigins: string[] = []) {
       const allowedOrigins = [
         'http://localhost:3000',
         'http://localhost:5173',
+        'http://localhost:5174',
         'http://localhost:4000',
         'http://127.0.0.1:3000',
         'http://127.0.0.1:5173',
+        'http://127.0.0.1:5174',
         'http://127.0.0.1:4000',
         'https://vibe-5b35a.web.app',
         ...additionalOrigins,

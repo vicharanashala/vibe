@@ -10,7 +10,11 @@ import { getAuth,
   updateProfile, 
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   confirmPasswordReset,
-  verifyPasswordResetCode } from "firebase/auth";
+  verifyPasswordResetCode,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence
+} from "firebase/auth";
 import { useAuthStore } from "../store/auth-store";
 import { useLoginWithGoogle } from "@/hooks/hooks";
 
@@ -47,7 +51,13 @@ export const loginWithGoogle = async () => {
   return result;
 };
 
-export const loginWithEmail = async (email: string, password: string) => {
+export const loginWithEmail = async (email: string, password: string, rememberMe: boolean = true) => {
+  // Set persistence before signing in
+  await setPersistence(
+    auth, 
+    rememberMe ? browserLocalPersistence : browserSessionPersistence
+  );
+  
   const result = await signInWithEmailAndPassword(auth, email, password);
   
   // Get ID token for backend authentication

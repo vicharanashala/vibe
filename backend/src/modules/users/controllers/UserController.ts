@@ -13,11 +13,14 @@ import {
   Post,
   Patch,
   Authorized,
+  UploadedFile,
+  BadRequestError,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {EditUserBody, GetUserParams, GetUserResponse, UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
 import { AUTH_TYPES } from '#root/modules/auth/types.js';
 import { IAuthService } from '#root/modules/auth/interfaces/IAuthService.js';
+import { avatarUploadOptions } from '../classes/validators/avatarUploadOptions.js';
 
 @OpenAPI({
   tags: ['Users'],
@@ -79,6 +82,38 @@ export class UserController {
   }
 
   @OpenAPI({
+    summary: 'Update user avatar',
+    description: 'Uploads and updates the user profile picture.',
+  })
+  @Authorized()
+  @Patch('/avatar')
+  @HttpCode(200)
+  async updateAvatar(
+    @Req() req: any,
+    @UploadedFile('avatar', { options: avatarUploadOptions })
+      file: Express.Multer.File,
+  ): Promise<{ avatarUrl: string }> {
+    if (!file) {
+      throw new BadRequestError('No avatar file uploaded. Please ensure you are sending a file with the field name "avatar".');
+    }
+
+    try {
+      const token = req.headers.authorization?.split(' ')[1];
+      const user = await this.authService.getCurrentUserFromToken(token);
+      const userId = user._id.toString();
+
+      console.log('User ID for avatar update:', userId);
+      console.log('File size:', file.size);
+
+      const avatarUrl = await this.userService.updateAvatar(userId, file.buffer);
+      return { avatarUrl };
+    } catch (error) {
+      console.error('Error in updateAvatar controller:', error);
+      throw error;
+    }
+  }
+
+  @OpenAPI({
     summary: 'Make a user an admin',
     description: `Promotes a user to admin status based on the provided user ID.<br/>
     It returns an empty body with a 200 status code.`,
@@ -98,3 +133,4 @@ export class UserController {
     await this.userService.makeAdmin(userId, body.password);
   }
 }
+

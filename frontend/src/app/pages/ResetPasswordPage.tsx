@@ -22,8 +22,7 @@ import { ShineBorder } from "@/components/magicui/shine-border";
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
-  const search = useSearch({ strict: false });
-
+  const search = useSearch({ strict: false }) as Record<string, unknown>;
   const oobCode = search.oobCode as string | undefined;
 
   const [email, setEmail] = useState<string | null>(null);
@@ -37,14 +36,10 @@ export default function ResetPasswordPage() {
 
   // 🔐 Verify reset link on load
   useEffect(() => {
-    // TODO: Set the firebase email template with format "frontend_url/reset-password?&mode=resetPassword&oobCode=jhaskdhdhu"
     if (!oobCode) {
-  // Firebase already completed the reset
-  setSuccess(true);
-  return;
-}
-
-
+      setError("Missing reset code. Please request a new password reset link.");
+      return;
+    }
     const verify = async () => {
       try {
         const result = await verifyResetCode(oobCode);
@@ -52,7 +47,7 @@ export default function ResetPasswordPage() {
           setError(result.message ?? "Invalid or expired reset link.");
           return;
         }
-        setEmail(result.email);
+        setEmail(result.email ?? null);
       } catch {
         setError("Invalid or expired reset link.");
       }
@@ -87,8 +82,8 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long.");
       return;
     }
 
@@ -148,7 +143,7 @@ export default function ResetPasswordPage() {
             <CardFooter>
               <Button
                 className="w-full"
-                onClick={() => navigate({ to: "/login" })}
+                onClick={() => navigate({ to: "/auth" })}
               >
                 Go to Login
               </Button>
@@ -268,9 +263,15 @@ export default function ResetPasswordPage() {
                                             error && "border-destructive focus-visible:ring-destructive"
                                           )}
                                           />
-                                         <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
-                                          {showPassword? <EyeOff />:<Eye />}
-                                          </Button> 
+                                         <Button 
+                                           variant="ghost" 
+                                           size="icon" 
+                                           type="button" 
+                                           className="absolute inset-y-0 right-1" 
+                                           onClick={() => setShowPassword(p => !p)}
+                                         >
+                                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                         </Button> 
                                           </div>
                                       
                                       </div>
@@ -349,8 +350,14 @@ export default function ResetPasswordPage() {
                               !passwordsMatch && confirmPassword && "border-destructive focus-visible:ring-destructive"
                             )}
                           />
-                           <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
-                            {showPassword? <EyeOff />:<Eye />}
+                           <Button 
+                             variant="ghost" 
+                             size="icon" 
+                             type="button" 
+                             className="absolute inset-y-0 right-1" 
+                             onClick={() => setShowPassword(p => !p)}
+                           >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                             </Button> 
                           </div>
                           {!passwordsMatch && confirmPassword && (

@@ -40,11 +40,22 @@ export class MongoDatabase implements IDatabase<Db> {
       return;
     }
 
+    // Original Code:
+    // this.client = new MongoClient(uri, {
+    //   ssl: true,
+    //   tls: true,
+    //   tlsAllowInvalidCertificates: false,
+    //   tlsAllowInvalidHostnames: false,
+    
+    // My Code:
+    const isAtlas = uri.startsWith('mongodb+srv');
     this.client = new MongoClient(uri, {
-      ssl: true,
-      tls: true,
-      tlsAllowInvalidCertificates: false,
-      tlsAllowInvalidHostnames: false,
+      ...(isAtlas ? {
+        ssl: true,
+        tls: true,
+        tlsAllowInvalidCertificates: false,
+        tlsAllowInvalidHostnames: false,
+      } : {}),
 
       retryWrites: true,
 

@@ -23,13 +23,11 @@ export class MailService {
   }
 
   async sendMail(options: Omit<nodemailer.SendMailOptions, 'from'>): Promise<nodemailer.SentMessageInfo> {
-    // const mailOptions: nodemailer.SendMailOptions = {
-    //   from: smtpConfig.auth.user,
-    //   ...options
-    // };
+    const mailOptions: nodemailer.SendMailOptions = {
+      from: smtpConfig.auth.user,
+      ...options,
+    };
 
-    // const info = await this.transporter.sendMail(mailOptions);
-
-    return true;
+    return await this.transporter.sendMail(mailOptions);
   }
 }

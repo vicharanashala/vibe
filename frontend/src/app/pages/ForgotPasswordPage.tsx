@@ -6,9 +6,10 @@ import { Label } from "@/components/ui/label";
 import { AlertCircle, Check, Mail } from "lucide-react";
 import { cn } from "@/utils/utils";
 import { useNavigate } from "@tanstack/react-router";
-import { sendPasswordResetEmail } from "@/lib/firebase";
 import { AnimatedGridPattern } from "@/components/magicui/animated-grid-pattern";
 import { ShineBorder } from "@/components/magicui/shine-border";
+import ReCAPTCHA from "react-google-recaptcha";
+import { useRef } from "react";
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -16,6 +17,9 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isRecaptchaEnabled: boolean = import.meta.env.VITE_IS_RECAPTCHA_ENABLED === "true";
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,11 +32,34 @@ export default function ForgotPasswordPage() {
     try {
       setLoading(true);
       setError(null);
-      
-      await sendPasswordResetEmail(email);
+
+      if (isRecaptchaEnabled && !recaptchaToken) {
+        setError("Please complete the reCAPTCHA verification");
+        return;
+      }
+
+      const backendUrl = `${import.meta.env.VITE_BASE_URL}/auth/forgot-password`;
+      const response = await fetch(backendUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          recaptchaToken: isRecaptchaEnabled ? recaptchaToken : "NO_CAPTCHA",
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.message || "Failed to request reset email");
+      }
+
       setSuccess(true);
     } catch (err: any) {
       setError(err.message || "Failed to send reset email");
+      if (recaptchaRef.current) {
+        recaptchaRef.current.reset();
+        setRecaptchaToken(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -96,7 +123,7 @@ export default function ForgotPasswordPage() {
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => navigate({ to: "/login" })}
+                onClick={() => navigate({ to: "/auth" })}
               >
                 Back to Login
               </Button>
@@ -143,7 +170,7 @@ export default function ForgotPasswordPage() {
               variant="ghost" 
               size="sm" 
               className="absolute top-4 left-4 text-muted-foreground"
-              onClick={() => navigate({ to: "/login" })}
+              onClick={() => navigate({ to: "/auth" })}
             >
               ← Back
             </Button>
@@ -180,10 +207,29 @@ export default function ForgotPasswordPage() {
                 />
               </div>
 
+              {isRecaptchaEnabled && (
+                <div className="flex justify-center scale-[0.95] origin-left">
+                  <ReCAPTCHA
+                    ref={recaptchaRef}
+                    sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                    theme="dark"
+                    onChange={(token) => {
+                      setRecaptchaToken(token);
+                      if (error) setError(null);
+                    }}
+                    onExpired={() => setRecaptchaToken(null)}
+                    onErrored={() => {
+                      setRecaptchaToken(null);
+                      setError("reCAPTCHA error. Please try again.");
+                    }}
+                  />
+                </div>
+              )}
+
               <Button
                 type="submit"
                 className="w-full h-11 font-medium bg-gradient-to-r from-primary to-primary/80"
-                disabled={loading}
+                disabled={loading || (isRecaptchaEnabled && !recaptchaToken)}
               >
                 {loading ? "Sending..." : "Send Reset Link"}
               </Button>
@@ -196,7 +242,7 @@ export default function ForgotPasswordPage() {
               <Button
                 variant="link"
                 className="p-0 h-auto font-medium"
-                onClick={() => navigate({ to: "/login" })}
+                onClick={() => navigate({ to: "/auth" })}
               >
                 Sign in
               </Button>

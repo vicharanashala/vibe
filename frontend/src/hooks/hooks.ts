@@ -2243,6 +2243,74 @@ export function useEditUser(): {
   };
 }
 
+export function useUpdateAvatar() {
+  const [isPending, setIsPending] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<{ avatarUrl: string } | undefined>(undefined);
+
+  const mutateAsync = async (variables: { body: { avatar: File } }) => {
+    setIsPending(true);
+    setIsError(false);
+    setIsSuccess(false);
+    setError(null);
+
+    const formData = new FormData();
+    formData.append('avatar', variables.body.avatar);
+
+    try {
+      const token = localStorage.getItem('firebase-auth-token');
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/users/avatar`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Upload failed with status ${response.status}`);
+      }
+
+      const result = await response.json();
+      setData(result);
+      setIsSuccess(true);
+      return result;
+    } catch (err: any) {
+      setIsError(true);
+      setError(err.message || 'Failed to update avatar');
+      throw err;
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  const mutate = (variables: { body: { avatar: File } }) => {
+    mutateAsync(variables).catch(() => {});
+  };
+
+  return {
+    mutate,
+    mutateAsync,
+    data,
+    error,
+    isPending,
+    isSuccess,
+    isError,
+    status: isPending ? 'pending' : isError ? 'error' : isSuccess ? 'success' : 'idle',
+    reset: () => {
+      setIsPending(false);
+      setIsSuccess(false);
+      setIsError(false);
+      setError(null);
+      setData(undefined);
+    }
+  };
+}
+
+
 export function useWatchtimeTotal(): {
   data: number | undefined,
   isLoading: boolean,

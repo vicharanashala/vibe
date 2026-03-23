@@ -117,6 +117,17 @@ export default function AuthPage() {
   // Removed the unused clearUser variable
   const setUser = useAuthStore((state) => state.setUser);
 
+  const fetchCurrentUserProfile = async (idToken: string) => {
+    const response = await fetch(`${import.meta.env.VITE_BASE_URL}/auth/me`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+    });
+    if (!response.ok) return null;
+    return await response.json();
+  };
+
   // Password validation
   const passwordsMatch = !confirmPassword || password === confirmPassword;
   const calculatePasswordStrength = (password: string) => {
@@ -182,13 +193,19 @@ export default function AuthPage() {
         });
       }
 
+      const idToken = await result.user.getIdToken();
+      const profile = await fetchCurrentUserProfile(idToken);
+      const profileName = profile
+        ? `${profile.firstName || ""} ${profile.lastName || ""}`.trim()
+        : "";
+
       // Set user in store
       setUser({
         uid: result.user.uid,
-        email: result.user.email || "",
-        name: result.user.displayName || "",
+        email: profile?.email || result.user.email || "",
+        name: profileName || result.user.displayName || "",
         role: activeRole, // Use the selected role from tabs
-        avatar: result.user.photoURL || "",
+        avatar: profile?.avatar || result.user.photoURL || "",
       });
 
       navigate({ to: `/${activeRole}` });
@@ -210,14 +227,19 @@ export default function AuthPage() {
 
       // This function now handles login only
       const result = await loginWithEmail(email, password);
+      const idToken = await result.user.getIdToken();
+      const profile = await fetchCurrentUserProfile(idToken);
+      const profileName = profile
+        ? `${profile.firstName || ""} ${profile.lastName || ""}`.trim()
+        : "";
 
       // Set user in store
       setUser({
         uid: result.user.uid,
-        email: result.user.email || "",
-        name: result.user.displayName || "",
+        email: profile?.email || result.user.email || "",
+        name: profileName || result.user.displayName || "",
         role: activeRole,
-        avatar: result.user.photoURL || "",
+        avatar: profile?.avatar || result.user.photoURL || "",
       });
 
       navigate({ to: `/${activeRole}` });
