@@ -113,7 +113,7 @@ export class EnrollmentRepository {
         userId: { $in: [userId, new ObjectId(userId)] },
         courseId: { $in: [courseId, new ObjectId(courseId)] },
         courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
         isDeleted: { $ne: true },
       },
       { session },
@@ -134,7 +134,7 @@ export class EnrollmentRepository {
         userId: { $in: [userId, new ObjectId(userId)] },
         courseId: { $in: [courseId, new ObjectId(courseId)] },
         courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       { session },
     );
@@ -160,7 +160,7 @@ export class EnrollmentRepository {
         courseVersionId: { $in: [courseVersionObjectId, courseVersionId] },
         status: 'ACTIVE',
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       { session },
     );
