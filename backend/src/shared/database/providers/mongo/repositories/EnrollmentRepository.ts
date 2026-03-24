@@ -3558,12 +3558,27 @@ export class EnrollmentRepository {
       if (enrollments.length === 0) {
         // No enrollment found - let caller handle it
         return null;
-      } else if (enrollments.length > 1) {
-        throw new Error(
-          'Multiple enrollments found. Cohort context required to disambiguate.',
-        );
       }
-      effectiveCohortId = enrollments[0].cohortId?.toString();
+
+      const activeStudentEnrollments = enrollments.filter(
+        enrollment =>
+          enrollment.role === 'STUDENT' &&
+          enrollment.status === 'ACTIVE' &&
+          enrollment.isDeleted !== true,
+      );
+
+      const candidates =
+        activeStudentEnrollments.length > 0
+          ? activeStudentEnrollments
+          : enrollments;
+
+      const selectedEnrollment = [...candidates].sort((a, b) => {
+        const bTime = new Date(b.enrollmentDate || 0).getTime();
+        const aTime = new Date(a.enrollmentDate || 0).getTime();
+        return bTime - aTime;
+      })[0];
+
+      effectiveCohortId = selectedEnrollment?.cohortId?.toString();
     }
 
     return await this.enrollmentCollection.findOne(
