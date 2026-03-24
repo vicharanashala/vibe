@@ -5406,7 +5406,9 @@ export function useCreateActivityWithRule() {
       ruleConfig: Partial<HpRuleConfig>;
     }) => {
       const res = await hpApi.createActivityWithRule(payload);
-      if (!res.success) throw new Error(res.message || "Failed to create Activity");
+      // console.log("Response",res,"Response");
+      // console.log("Response.message",res.message,"Error .message");
+      if (!res.success) throw res;
       return res.data;
     },
   });

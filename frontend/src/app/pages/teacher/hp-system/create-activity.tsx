@@ -30,6 +30,8 @@ export default function CreateHpActivityPage() {
     // const { mutateAsync: createRuleConfig, isPending: isSubmittingRules } = useCreateHpRuleConfig();
     const {mutateAsync :createActivityWithRule, isPending: isCreatingActivityWithRule } = useCreateActivityWithRule();
     const { data: courses = [], isLoading: isLoadingCourses } = useHpCourseVersions();
+    const [submitError, setSubmitError] = useState<string | null>(null);
+    console.log("Submit eRROR",submitError)
 
     const isSubmitting = isCreatingActivityWithRule;
 
@@ -79,13 +81,13 @@ export default function CreateHpActivityPage() {
         reward: {
             enabled: false,
             type: "ABSOLUTE",
-            value: 0,
+            value: 5,
             applyWhen: "ON_APPROVAL",
             lateBehavior: "NO_REWARD",
         },
         penalty: {
             enabled: false,
-            type: "PERCENTAGE",
+            type: "ABSOLUTE",
             value: 5,
             applyWhen: "AFTER_DEADLINE",
             graceMinutes: 0,
@@ -203,6 +205,8 @@ export default function CreateHpActivityPage() {
                 }
                 if (ruleConfig.reward?.value === undefined || Number.isNaN(ruleConfig.reward.value)) {
                     nextErrors.rewardValue = "Reward value is required";
+                } else if (ruleConfig.reward.value === 0) {
+                    nextErrors.rewardValue = "Reward value must be greater than 0";
                 } else if (ruleConfig.reward.value < 0) {
                     nextErrors.rewardValue = "Reward value cannot be negative";
                 }
@@ -225,6 +229,8 @@ export default function CreateHpActivityPage() {
                 }
                 if (ruleConfig.penalty?.value === undefined || Number.isNaN(ruleConfig.penalty.value)) {
                     nextErrors.penaltyValue = "Penalty value is required";
+                } else if (ruleConfig.penalty.value === 0) {
+                    nextErrors.penaltyValue = "Penalty value must be greater than 0";
                 } else if (ruleConfig.penalty.value < 0) {
                     nextErrors.penaltyValue = "Penalty value cannot be negative";
                 }
@@ -269,6 +275,7 @@ export default function CreateHpActivityPage() {
         if (!validateRuleConfig()) {
             return;
         }
+        setSubmitError(null);
 
         // 1. Prepare activity payload (including some fields from ruleConfig that Activity needs)
         const activityPayload = {
@@ -352,17 +359,20 @@ export default function CreateHpActivityPage() {
                             });
                             setRuleErrors(nextRuleErrors);
                             if (!hasFieldErrors && detail.message) {
+                                setSubmitError(detail.message);
                                 toast.error(detail.message);
                             } else if (hasFieldErrors) {
                                 toast.error("Please check the form for validation errors.");
                             }
                         } else {
-                            toast.error(detail.message || "Creation failed");
+                            setSubmitError(detail.message || "Activity creation failed")
                         }
                     } catch {
+                        setSubmitError("Failed to create activity")
                         toast.error("Failed to create activity.");
                     }
             } else {
+                setSubmitError(error.message || "Failed to create activity");
                 toast.error(error.message || "Failed to create activity.");
             }
         };
@@ -1041,6 +1051,11 @@ export default function CreateHpActivityPage() {
                                <p className="text-[10px] text-muted-foreground">
                                     💡 Recommended for more consistent HP allocation. Define lower and upper bounds for HP changes when using percentage-based calculations.
                                 </p>
+                            </div>
+                        )}
+                        {submitError && (
+                            <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-3 rounded-md flex items-start gap-2">
+                                <span>{submitError}</span>
                             </div>
                         )}
                     </div>
