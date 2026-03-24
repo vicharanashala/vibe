@@ -299,7 +299,7 @@ export default function StudentActivities() {
 
     return (
         <TooltipProvider>
-            <div className="container mx-auto p-6 max-w-5xl space-y-6">
+            <div className="container mx-auto p-6 max-w-7xl space-y-6">
                 <div className="flex items-center gap-4 mb-6">
                     <Button variant="ghost" size="icon" onClick={() => navigate({ to: from || '/student/hp-system/cohorts' })}>
                         <ArrowLeft className="h-5 w-5" />
