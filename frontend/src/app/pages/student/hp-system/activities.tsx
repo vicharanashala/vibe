@@ -525,7 +525,7 @@ export default function StudentActivities() {
                                                     <div className="space-y-2">
                                                         {activity.rules?.deadlineAt && (
                                                             <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-muted-foreground flex-wrap">
-                                                                <Clock className="h-3.5 w-3.5 text-orange-500 opacity-70 shrink-0" />
+                                                                {/* <Clock className="h-3.5 w-3.5 text-orange-500 opacity-70 shrink-0" /> */}
                                                                 <DeadlineCountdown
                                                                     deadline={activity.rules.deadlineAt.toString()}
                                                                     allowLate={activity.rules.allowLateSubmission ?? true}
