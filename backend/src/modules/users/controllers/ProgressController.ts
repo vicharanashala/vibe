@@ -45,6 +45,7 @@ import {
   Req,
   UseInterceptor,
   QueryParam,
+  NotFoundError,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
@@ -358,6 +359,23 @@ It returns an empty body with a 200 status code.
     console.log('Body:', body);
     const { userId, courseId, versionId } = params;
     const { moduleId, sectionId, itemId, cohortId } = body;
+
+    const getProgressSnapshot = async () => {
+      try {
+        return await this.progressService.getUserProgressPercentage(
+          userId,
+          courseId,
+          versionId,
+          cohortId,
+        );
+      } catch (error) {
+        if (error instanceof NotFoundError) {
+          return null;
+        }
+
+        throw error;
+      }
+    };
     // Create a progress resource object for permission checking
     const progressResource = subject('Progress', { userId, courseId, versionId });
 
@@ -372,13 +390,7 @@ It returns an empty body with a 200 status code.
     // If so, reset progress to the beginning of the module
     if (moduleId && !sectionId && !itemId) {
       console.log('Reset the course progress to the beginning of the module');
-      const getmoduleProgress =
-        await this.progressService.getUserProgressPercentage( //
-          userId,
-          courseId,
-          versionId,
-          cohortId
-        );
+      const getmoduleProgress = await getProgressSnapshot();
       await this.progressService.resetCourseProgressToModule( //
         userId,
         courseId,
@@ -412,10 +424,10 @@ It returns an empty body with a 200 status code.
         },
         changes: {
           before: {
-            completed: getmoduleProgress.completed,
-            completedItems: getmoduleProgress.completedItems,
-            compltedPercentage: getmoduleProgress.percentCompleted,
-            totalItems: getmoduleProgress.totalItems,
+            completed: getmoduleProgress?.completed ?? false,
+            completedItems: getmoduleProgress?.completedItems ?? 0,
+            compltedPercentage: getmoduleProgress?.percentCompleted ?? 0,
+            totalItems: getmoduleProgress?.totalItems ?? 0,
           },
           after: {
             completed: afterUpdateModuleProgress.completed,
@@ -434,12 +446,7 @@ It returns an empty body with a 200 status code.
     // If so, reset progress to the beginning of the section
     else if (moduleId && sectionId && !itemId) {
       console.log('Reset the course progress to the beginning of the section');
-      const getProgress = await this.progressService.getUserProgressPercentage(
-        userId,
-        courseId,
-        versionId,
-        cohortId
-      );
+      const getProgress = await getProgressSnapshot();
       console.log('Section Progress before reset:', getProgress);
 
       await this.progressService.resetCourseProgressToSection( //
@@ -478,10 +485,10 @@ It returns an empty body with a 200 status code.
         },
         changes: {
           before: {
-            completed: getProgress.completed,
-            completedItems: getProgress.completedItems,
-            compltedPercentage: getProgress.percentCompleted,
-            totalItems: getProgress.totalItems,
+            completed: getProgress?.completed ?? false,
+            completedItems: getProgress?.completedItems ?? 0,
+            compltedPercentage: getProgress?.percentCompleted ?? 0,
+            totalItems: getProgress?.totalItems ?? 0,
           },
           after: {
             completed: afterUpdateProgress.completed,
@@ -500,12 +507,7 @@ It returns an empty body with a 200 status code.
     // If so, reset progress to the beginning of the item
     else if (moduleId && sectionId && itemId) {
       console.log('Reset the course progress to the beginning of the item');
-      const getProgress = await this.progressService.getUserProgressPercentage(
-        userId,
-        courseId,
-        versionId,
-        cohortId
-      );
+      const getProgress = await getProgressSnapshot();
       console.log('Item Progress before reset:', getProgress);
       await this.progressService.resetCourseProgressToItem( //
         userId,
@@ -544,10 +546,10 @@ It returns an empty body with a 200 status code.
         },
         changes: {
           before: {
-            completed: getProgress.completed,
-            completedItems: getProgress.completedItems,
-            compltedPercentage: getProgress.percentCompleted,
-            totalItems: getProgress.totalItems,
+            completed: getProgress?.completed ?? false,
+            completedItems: getProgress?.completedItems ?? 0,
+            compltedPercentage: getProgress?.percentCompleted ?? 0,
+            totalItems: getProgress?.totalItems ?? 0,
           },
           after: {
             completed: afterUpdateProgress.completed,
@@ -565,12 +567,7 @@ It returns an empty body with a 200 status code.
     // If no moduleId, sectionId, or itemId are provided, reset progress to the beginning of the course
     else {
       console.log('Rest the course progress to the beginning of the course');
-      const getProgress = await this.progressService.getUserProgressPercentage(
-        userId,
-        courseId,
-        versionId,
-        cohortId
-      );
+      const getProgress = await getProgressSnapshot();
       console.log('Course Progress before reset:', getProgress);
       await this.progressService.resetCourseProgress(
         userId,
@@ -594,16 +591,16 @@ It returns an empty body with a 200 status code.
         },
         changes: {
           before: {
-            completed: getProgress.completed,
-            completedItems: getProgress.completedItems,
-            compltedPercentage: getProgress.percentCompleted,
-            totalItems: getProgress.totalItems,
+            completed: getProgress?.completed ?? false,
+            completedItems: getProgress?.completedItems ?? 0,
+            compltedPercentage: getProgress?.percentCompleted ?? 0,
+            totalItems: getProgress?.totalItems ?? 0,
           },
           after: {
             completed: 0,
             completedItems: 0,
             compltedPercentage: 0,
-            totalItems: getProgress.totalItems,
+            totalItems: getProgress?.totalItems ?? 0,
           },
         },
         outcome: {
