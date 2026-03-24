@@ -110,6 +110,11 @@ export class ActivitySubmissionsService extends BaseService {
         images: Express.Multer.File[]
     ) {
         const bucket = this.getActivitySubmissionBucket();
+        // Determine environment prefix
+        const isProduction = appConfig.isProduction;
+        const envPrefix = isProduction ? "" : `${appConfig.sentry.environment}`;
+
+        const basePath = `[${envPrefix}] hp-activity-submissions/${cohort}/${activityId}/${studentId}`;
 
         const [uploadedPdfs, uploadedImages] = await Promise.all([
             Promise.all(
@@ -118,7 +123,7 @@ export class ActivitySubmissionsService extends BaseService {
                         bucket,
                         studentId,
                         file,
-                        `hp-activity-submissions/${cohort}/${activityId}/${studentId}/files`
+                        `${basePath}/files`
                     )
                 )
             ),
@@ -128,7 +133,7 @@ export class ActivitySubmissionsService extends BaseService {
                         bucket,
                         studentId,
                         image,
-                        `hp-activity-submissions/${cohort}/${activityId}/${studentId}/images`
+                        `${basePath}/images`
                     )
                 )
             ),
