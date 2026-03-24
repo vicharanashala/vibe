@@ -151,6 +151,11 @@ export default function StudentSubmissions() {
             setEditError("Missing required information to update this submission.");
             return;
         }
+        console.log("***********")
+        console.log("***********")
+        console.log("Hnalde update submission")
+        console.log("***********")
+        console.log("***********")
 
         try {
             await updateSubmission({
@@ -182,6 +187,7 @@ export default function StudentSubmissions() {
             setEditDialogOpen(false);
             setEditingSubmission(null);
         } catch (err: any) {
+            console.log("Error at handle update submission")
             setEditError(err.message || "Failed to update submission");
         }
     };
@@ -618,7 +624,8 @@ export default function StudentSubmissions() {
 
                                             {editError && (
                                                 <div className="text-sm text-red-500 bg-red-50 p-3 rounded-md">
-                                                    {editError}
+                                                    {console.log("Edit error",editError,"Edit error")}
+                                                   fdssfdsdf {editError}423342
                                                 </div>
                                             )}
                                         </div>

@@ -43,19 +43,20 @@ export function RuleSettingsDialog({
     const [config, setConfig] = useState<Partial<HpRuleConfig> | null>(null);
 
     useEffect(()=>{
-        console.log("RuleSettingsDialog props changed:", { isOpen, courseId, courseVersionId, activityId });
+        // console.log("RuleSettingsDialog props changed:", { isOpen, courseId, courseVersionId, activityId });
     })
 
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
     // Hooks
     const { data: existingConfig, isLoading: fetchLoading, refetch } = useHpRuleConfig(isOpen ? activityId : undefined);
-    console.log("Existing config from hook:", existingConfig, "Loading:", fetchLoading);
+    // console.log("Existing config from hook:", existingConfig, "Loading:", fetchLoading);
     const { data: activities = [] } = useHpActivities(courseVersionId, cohortName, "", "");
     const activity = activities.find((a: HpActivity) => a._id === activityId);
     const { mutateAsync: createRuleConfig, isPending: isCreating } = useCreateHpRuleConfig();
     const { mutateAsync: updateRuleConfig, isPending: isUpdating } = useUpdateHpRuleConfig();
     const { mutateAsync: updateActivity, isPending: isUpdatingActivity } = useUpdateHpActivity();
+    const [saveError, setSaveError] = useState<string | null>(null);
 
     const loading = fetchLoading || isCreating || isUpdating;
 
@@ -102,9 +103,11 @@ export function RuleSettingsDialog({
         }
     }, [isOpen, existingConfig, fetchLoading, activity]);
 
-    const [errors, setErrors] = useState<{ deadlineAt?: string; penaltyEnabled?: string; requiredPercentage?: string; maxHp?: string }>({});
+    const [errors, setErrors] = useState<{ deadlineAt?: string; penaltyEnabled?: string; requiredPercentage?: string; maxHp?: string; rewardValue?: string; penaltyValue?: string;}>({});
 
     const handleSave = async () => {
+        console.log("Hnaldl save")
+        console.log(config,"Config")
         if (!config) return;
 
         let hasError = false;
@@ -131,13 +134,37 @@ export function RuleSettingsDialog({
             hasError = true;
         }
 
-        if (
-            config.limits?.minHp !== undefined &&
-            config.limits?.maxHp !== undefined &&
-            config.limits.maxHp <= config.limits.minHp
-        ) {
-            nextErrors.maxHp = "Maximum HP must be greater than Minimum HP.";
-            hasError = true;
+        if (config.reward?.enabled) {
+            if (config.reward.value === undefined || Number.isNaN(config.reward.value)) {
+                nextErrors.rewardValue = "Reward value is required";
+                hasError = true;
+            } else if (config.reward.value <= 0) {
+                nextErrors.rewardValue = "Reward value must be greater than 0";
+                hasError = true;
+            }
+        }
+
+        if (config.penalty?.enabled) {
+            if (config.penalty.value === undefined || Number.isNaN(config.penalty.value)) {
+                nextErrors.penaltyValue = "Penalty value is required";
+                hasError = true;
+            } else if (config.penalty.value <= 0) {
+                nextErrors.penaltyValue = "Penalty value must be greater than 0";
+                hasError = true;
+            }
+        }
+        
+        const isPercentageMode = config.reward?.type === "PERCENTAGE" || config.penalty?.type === "PERCENTAGE";
+
+        if (isPercentageMode) {
+            if (
+                    config.limits?.minHp !== undefined &&
+                    config.limits?.maxHp !== undefined &&
+                    config.limits.maxHp <= config.limits.minHp
+                ) {
+                    nextErrors.maxHp = "Maximum HP must be greater than Minimum HP.";
+                    hasError = true;
+                }
         }
 
         if (hasError) {
@@ -146,6 +173,7 @@ export function RuleSettingsDialog({
         }
 
         setErrors({});
+        setSaveError(null);
 
         try {
             const rulePayload = { ...config };
@@ -177,17 +205,18 @@ export function RuleSettingsDialog({
             if (error.response) {
                 try {
                     const detail = await error.response.json();
-                    toast.error(detail.message || "Failed to save configuration due to validation errors.");
+                    setSaveError(detail.message || "Failed to save configuration due to validation errors.");
                 } catch (e) {
-                    toast.error("Failed to save configuration.");
+                    setSaveError("Failed to save configuration.");
                 }
             } else {
-                toast.error(error.message || "Failed to save configuration.");
+                setSaveError(error.message || "Failed to save configuration.");
             }
         }
     };
 
     const handleConfirmSave = async () => {
+        console.log("Handle confirm save")
         await handleSave();
         setIsConfirmOpen(false);
     };
@@ -359,11 +388,24 @@ export function RuleSettingsDialog({
                                     <Input
                                         type="number"
                                         value={config?.reward?.value || 0}
-                                        onChange={(e) => setConfig(prev => ({
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            setConfig(prev => ({
                                             ...prev,
-                                            reward: { ...(prev?.reward || defaultReward), value: parseInt(e.target.value) || 0 }
-                                        } as any))}
+                                            reward: {
+                                                ...(prev?.reward || defaultReward),
+                                                value: value === "" ? undefined : parseInt(value)
+                                            }
+                                            } as any));
+
+                                            if (errors.rewardValue) {
+                                            setErrors(prev => ({ ...prev, rewardValue: undefined }));
+                                            }
+                                        }}
                                     />
+                                    {errors.rewardValue && (
+                                        <p className="text-xs text-red-500">{errors.rewardValue}</p>
+                                    )}
                                 </div>
 
 
@@ -474,11 +516,24 @@ export function RuleSettingsDialog({
                                     <Input
                                         type="number"
                                         value={config?.penalty?.value || 0}
-                                        onChange={(e) => setConfig(prev => ({
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            setConfig(prev => ({
                                             ...prev,
-                                            penalty: { ...(prev?.penalty || defaultPenalty), value: parseInt(e.target.value) || 0 }
-                                        } as any))}
+                                            penalty: {
+                                                ...(prev?.penalty || defaultPenalty),
+                                                value: value === "" ? undefined : parseInt(value)
+                                            }
+                                            } as any));
+
+                                            if (errors.penaltyValue) {
+                                            setErrors(prev => ({ ...prev, penaltyValue: undefined }));
+                                            }
+                                        }}
                                     />
+                                    {errors.penaltyValue && (
+                                        <p className="text-xs text-red-500">{errors.penaltyValue}</p>
+                                    )}
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Grace Period (Minutes)</Label>
@@ -528,6 +583,11 @@ export function RuleSettingsDialog({
                                 <p className="text-[10px] text-muted-foreground">
                                     💡 Recommended for more consistent HP allocation. Define lower and upper bounds for HP changes when using percentage-based calculations.
                                 </p>
+                                {saveError && (
+                                    <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-3 rounded-md flex items-start gap-2">
+                                        <span>{saveError}</span>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
