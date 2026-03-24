@@ -3560,19 +3560,7 @@ export class EnrollmentRepository {
         return null;
       }
 
-      const activeStudentEnrollments = enrollments.filter(
-        enrollment =>
-          enrollment.role === 'STUDENT' &&
-          enrollment.status === 'ACTIVE' &&
-          enrollment.isDeleted !== true,
-      );
-
-      const candidates =
-        activeStudentEnrollments.length > 0
-          ? activeStudentEnrollments
-          : enrollments;
-
-      const selectedEnrollment = [...candidates].sort((a, b) => {
+      const selectedEnrollment = [...enrollments].sort((a, b) => {
         const bTime = new Date(b.enrollmentDate || 0).getTime();
         const aTime = new Date(a.enrollmentDate || 0).getTime();
         return bTime - aTime;
