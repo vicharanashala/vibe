@@ -2330,9 +2330,16 @@ class ProgressService extends BaseService {
           enrollment._id.toString(),
           percentCompleted,
           completedCourseItemsCount,
+<<<<<<< HEAD
           effectiveCohortId,
         );
       }
+=======
+         effectiveCohortId,
+        );
+      }
+     
+>>>>>>> 23370bc59c93a8945b933dc484200d977a841f1f
 
       if (percentCompleted > 99) {
         await this.recalculateStudentProgress(
@@ -2354,6 +2361,7 @@ class ProgressService extends BaseService {
           session,
         );
       }
+     
     });
   }
 
