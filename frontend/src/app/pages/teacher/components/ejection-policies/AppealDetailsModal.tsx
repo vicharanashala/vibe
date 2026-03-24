@@ -1,26 +1,51 @@
-import { DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useGetAppealById } from "@/hooks/system-notification-hooks";
-import { Dialog } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { useGetAppealById, useApproveAppeal, useRejectAppeal } from "@/hooks/system-notification-hooks";
+import { useState } from "react";
 
 export function AppealDetailsModal({ open, onClose, notification }) {
   const appealId = notification.extra?.appealId;
 
-  const { data, isLoading } = useGetAppealById(
-    appealId,
-    open // only fetch when modal opens
-  );
-  console.log('data:', data);
- 
-  
+  const { data, isLoading } = useGetAppealById(appealId, open);
+
+  const approveMutation = useApproveAppeal();
+  const rejectMutation = useRejectAppeal();
+
+  const [rejectReason, setRejectReason] = useState("");
 
   if (isLoading) {
-    return <Dialog open={open}><DialogContent>Loading...</DialogContent></Dialog>;
+    return (
+      <Dialog open={open}>
+        <DialogContent>Loading...</DialogContent>
+      </Dialog>
+    );
   }
 
   const appeal = data;
 
+  const handleApprove = async () => {
+    await approveMutation.mutateAsync({
+      params: { path: { id: appealId } },
+    });
+    onClose();
+  };
+
+  const handleReject = async () => {
+    if (!rejectReason.trim()) return;
+
+    await rejectMutation.mutateAsync({
+      params: { path: { id: appealId } },
+      body: { reason: rejectReason },
+    });
+
+    onClose();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+    if (!isOpen) onClose();
+  }}>
       <DialogContent onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
           <DialogTitle>Appeal Details</DialogTitle>
@@ -28,6 +53,7 @@ export function AppealDetailsModal({ open, onClose, notification }) {
 
         <div className="space-y-4 text-sm">
 
+          {/* Reason */}
           <div>
             <p className="font-medium">Reason</p>
             <p className="text-muted-foreground mt-1">
@@ -35,6 +61,7 @@ export function AppealDetailsModal({ open, onClose, notification }) {
             </p>
           </div>
 
+          {/* Evidence */}
           {appeal?.evidenceUrl && (
             <div>
               <p className="font-medium">Evidence</p>
@@ -47,6 +74,36 @@ export function AppealDetailsModal({ open, onClose, notification }) {
               </a>
             </div>
           )}
+
+          {/* ACTIONS */}
+          <div className="flex flex-col gap-3 pt-4 border-t">
+
+            {/* Approve */}
+            <Button
+              onClick={handleApprove}
+              disabled={approveMutation.isLoading}
+              className="bg-green-700 hover:bg-green-800 text-white"
+            >
+              {approveMutation.isLoading ? "Approving..." : "Approve & Reinstate"}
+            </Button>
+
+            {/* Reject */}
+            <textarea
+              placeholder="Reason for rejection..."
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              className="border rounded p-2 text-sm"
+            />
+
+            <Button
+              onClick={handleReject}
+              disabled={rejectMutation.isLoading}
+              variant="destructive"
+            >
+              {rejectMutation.isLoading ? "Rejecting..." : "Reject Appeal"}
+            </Button>
+
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SystemNotification } from "@/types/notification.types";
 import { AppealDetailsModal } from "./AppealDetailsModal";
-
+import { useGetAppealById } from "@/hooks/system-notification-hooks";
 type Props = {
   notification: SystemNotification;
   onMarkRead: (id: string) => void;
@@ -14,6 +14,12 @@ export default function SystemNotificationItem({
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const appealId = notification.extra?.appealId;
+
+const { data: appeal } = useGetAppealById(
+  appealId,
+  !!appealId
+);
 
   const handleToggle = () => {
     setIsExpanded(prev => !prev);
@@ -55,7 +61,7 @@ export default function SystemNotificationItem({
           <div className="mt-2 flex gap-2">
 
           
-            {notification.type === "appeal_submitted" && (
+            {(notification.type === "appeal_submitted") && (appeal?.status==="PENDING") ? (
               <Button
                 size="sm"
                 variant="outline"
@@ -67,6 +73,8 @@ export default function SystemNotificationItem({
               >
                 Check Appeal
               </Button>
+            ):  (appeal?.status==="APPROVED" ? <span className="text-green-600"> APPROVED</span> : appeal?.status==="REJECTED" ? <span className="text-red-700">REJECTED</span> : <span>ACTION ALREADY TAKEN</span>
+                
             )}
 
             {!notification.read && (

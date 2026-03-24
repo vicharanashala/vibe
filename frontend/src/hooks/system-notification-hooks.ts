@@ -97,3 +97,31 @@ export function useGetAppealById(appealId: string, enabled: boolean) {
     }
   );
 }
+
+export function useApproveAppeal() {
+  return api.useMutation(
+    "post",
+    "/appeals/{id}/approve",
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: ["get", "/notifications/user"],
+        });
+      },
+    }
+  );
+}
+
+export function useRejectAppeal() {
+  return api.useMutation(
+    "post",
+    "/appeals/{id}/reject",
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: ["get", "/notifications/user"],
+        });
+      },
+    }
+  );
+}
