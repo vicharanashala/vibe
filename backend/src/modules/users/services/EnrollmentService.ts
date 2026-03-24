@@ -39,6 +39,9 @@ import {
 } from '#root/modules/quizzes/interfaces/index.js';
 import { Cohort } from '#root/modules/courses/classes/index.js';
 
+const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
+const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
+
 @injectable()
 export class EnrollmentService extends BaseService {
   constructor(
@@ -784,18 +787,26 @@ export class EnrollmentService extends BaseService {
         const completedCount = watchedItemsMap.get(watchedKey) || 0;
 
         const ratio = completedCount / (enr.totalItems || 1);
-        const calculatedPercent = Number((ratio * 100).toFixed(2));
+        let calculatedPercent = Number((ratio * 100).toFixed(2));
+        let totalCompletedItemsCount = completedCount;
+
+        // Guru Setu Override
+        if (enr.courseId?.toString() === GURU_SETU_COURSE_ID && versionIdStr === GURU_SETU_VERSION_ID) {
+          const guruProgress = await this.progressService.calculateGuruSetuProgress(userId, versionIdStr);
+          calculatedPercent = guruProgress.percentCompleted;
+          totalCompletedItemsCount = guruProgress.completedItemsCount;
+        }
 
         if (enr.percentCompleted !== calculatedPercent) {
           void this.enrollmentRepo.updateProgressPercentById(
             enr._id.toString(),
             calculatedPercent,
-            completedCount,
+            totalCompletedItemsCount,
             enr.cohortId?.toString(),
           );
 
           enr.percentCompleted = calculatedPercent;
-          enr.completedItemsCount = completedCount;
+          enr.completedItemsCount = totalCompletedItemsCount;
         }
 
         if (enr.percentCompleted >= 0) {
@@ -1091,14 +1102,23 @@ export class EnrollmentService extends BaseService {
         }
       }
 
+      let currentPercentCompleted = Number(detail?.percentCompleted ?? 0);
+      let currentCompletedItemsCount = completedItemsCount;
+
+      if (courseId === GURU_SETU_COURSE_ID && courseVersionId === GURU_SETU_VERSION_ID) {
+        const guruProgress = await this.progressService.calculateGuruSetuProgress(userId, courseVersionId);
+        currentPercentCompleted = guruProgress.percentCompleted;
+        currentCompletedItemsCount = guruProgress.completedItemsCount;
+      }
+
       return {
         ...detail,
         contentCounts: {
           totalItems,
           itemCounts: resolvedItemCounts,
         },
-        completedItemsCount,
-        percentCompleted: Number(detail?.percentCompleted ?? 0),
+        completedItemsCount: currentCompletedItemsCount,
+        percentCompleted: currentPercentCompleted,
         totalQuizScore,
         totalQuizMaxScore,
       };
@@ -1521,24 +1541,34 @@ export class EnrollmentService extends BaseService {
 
         for (const enrollment of enrollments) {
           try {
-            const completedItems =
+            let currentCompletedItems =
               await this.progressService.getUserProgressPercentageWithoutTotal(
                 enrollment.userId.toString(),
                 courseVersion.courseId.toString(),
                 courseVersion._id.toString(),
               );
 
-            const percentCompleted = Math.round(
-              (totalItems > 0 ? completedItems / totalItems : 0) * 100,
+            let currentPercentCompleted = Math.round(
+              (totalItems > 0 ? currentCompletedItems / totalItems : 0) * 100,
             );
+
+            // Guru Setu Override
+            if (courseVersion.courseId.toString() === GURU_SETU_COURSE_ID && courseVersion._id.toString() === GURU_SETU_VERSION_ID) {
+              const guruProgress = await this.progressService.calculateGuruSetuProgress(
+                enrollment.userId.toString(),
+                courseVersion._id.toString(),
+              );
+              currentPercentCompleted = guruProgress.percentCompleted;
+              currentCompletedItems = guruProgress.completedItemsCount;
+            }
 
             bulkOperations.push({
               updateOne: {
                 filter: { _id: new ObjectId(enrollment._id) },
                 update: {
                   $set: {
-                    percentCompleted,
-                    completedItemsCount: completedItems,
+                    percentCompleted: currentPercentCompleted,
+                    completedItemsCount: currentCompletedItems,
                   },
                 },
               },
