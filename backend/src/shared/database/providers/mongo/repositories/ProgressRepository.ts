@@ -107,7 +107,7 @@ class ProgressRepository {
         courseVersionId: new ObjectId(courseVersionId),
         endTime: { $exists: true, $ne: null },
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
       },
       { session },
     );
@@ -166,7 +166,7 @@ class ProgressRepository {
           userId: new ObjectId(userId),
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
-          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
           itemId: new ObjectId(itemId),
           endTime: { $exists: true, $ne: null },
           isDeleted: { $ne: true },
@@ -1054,13 +1054,15 @@ class ProgressRepository {
     limit: number,
     search?: string,
     sortBy: 'name' | 'views' | 'watchHours' = 'name',
-    sortOrder: 'asc' | 'desc' = 'asc'
+    sortOrder: 'asc' | 'desc' = 'asc',
+    maxSecondsPerView: number = 10 * 60,
   ): Promise<VideoUserAnalyticsResponse> {
     await this.init();
 
     const safePage = Math.max(1, page || 1);
     const safeLimit = Math.min(Math.max(1, limit || 10), 200);
     const skip = (safePage - 1) * safeLimit;
+    const capMs = Math.max(1, Math.floor(maxSecondsPerView * 1000));
 
     // Map sortBy to MongoDB field names
     const sortFieldMap = {
@@ -1099,7 +1101,20 @@ class ProgressRepository {
                       { $ne: ["$endTime", null] },
                     ],
                   },
-                  { $subtract: ["$endTime", "$startTime"] },
+                  {
+                    $let: {
+                      vars: {
+                        rawMs: { $subtract: ["$endTime", "$startTime"] },
+                      },
+                      in: {
+                        $cond: [
+                          { $gt: ["$$rawMs", 0] },
+                          { $min: ["$$rawMs", capMs] },
+                          0,
+                        ],
+                      },
+                    },
+                  },
                   0,
                 ],
               },
@@ -1134,27 +1149,6 @@ class ProgressRepository {
           : []),
 
         {
-          $addFields: {
-            cappedWatchMs: {
-              $cond: [
-                { $gt: ["$totalWatchMs", 600000] },
-                {
-                  $add: [
-                    600000,
-                    {
-                      $floor: {
-                        $multiply: [{ $rand: {} }, 120000],
-                      },
-                    },
-                  ],
-                },
-                "$totalWatchMs",
-              ],
-            },
-          },
-        },
-
-        {
           $facet: {
             data: [
               { $skip: skip },
@@ -1170,10 +1164,10 @@ class ProgressRepository {
                   totalWatchTime: {
                     $let: {
                       vars: {
-                        minutes: { $floor: { $divide: ["$cappedWatchMs", 60000] } },
+                        minutes: { $floor: { $divide: ["$totalWatchMs", 60000] } },
                         seconds: {
                           $floor: {
-                            $divide: [{ $mod: ["$cappedWatchMs", 60000] }, 1000],
+                            $divide: [{ $mod: ["$totalWatchMs", 60000] }, 1000],
                           },
                         },
                       },
@@ -1247,10 +1241,11 @@ class ProgressRepository {
   async getCourseVersionTotalWatchTime(
     courseId: string,
     versionId: string,
+    maxSecondsPerView: number = 10 * 60,
   ): Promise<number> {
     await this.init();
 
-    const MAX_MS = 10 * 60 * 1000; // 10 minutes
+    const capMs = Math.max(1, Math.floor(maxSecondsPerView * 1000));
 
     const result = await this.watchTimeCollection
       .aggregate([
@@ -1271,20 +1266,17 @@ class ProgressRepository {
         },
 
         {
-          $match: {
-            $expr: {
-              $and: [
-                { $gte: ['$diffMs', 0] },
-                { $lte: ['$diffMs', MAX_MS] }, 
-              ],
-            },
-          },
-        },
-
-        {
           $group: {
             _id: null,
-            totalMs: { $sum: '$diffMs' },
+            totalMs: {
+              $sum: {
+                $cond: [
+                  { $gt: ['$diffMs', 0] },
+                  { $min: ['$diffMs', capMs] },
+                  0,
+                ],
+              },
+            },
           },
         },
       ])
