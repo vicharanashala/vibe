@@ -49,13 +49,21 @@ export class ManualEjectionService {
     policyId?: string,
   ): Promise<ManualEjectionResult> {
     // If a policyId is provided, validate it exists and is active
+    let policy;
+
     if (policyId) {
-      const policy = await this.policyService.getPolicyById(policyId);
-      if (!policy.isActive) {
-        throw new ForbiddenError(
-          'The specified policy is not active and cannot be used for ejection',
+      policy = await this.policyService.getPolicyById(policyId);
+      console.log('IF:POLICY USED FOR EJECTION:', policy?.actions);
+    } else {
+      const [activePolicy] =
+        await this.policyService.getActivePoliciesForCourse(
+          courseId,
+          courseVersionId,
+          cohortId,
         );
-      }
+
+      policy = activePolicy;
+      console.log('ELSE:POLICY USED FOR EJECTION:', policy?.actions);
     }
 
     const {enrollment} = await this.enrollmentService.ejectUser(
@@ -74,10 +82,13 @@ export class ManualEjectionService {
       courseVersionId,
       reason,
       cohortId,
+      undefined, // session
+      policy,
+      enrollment._id.toString(),
     );
 
-    const course = await this.courseRepo.read(userId);
-    const user = await this.userRepo.findById(courseId);
+    const course = await this.courseRepo.read(courseId);
+    const user = await this.userRepo.findById(userId);
 
     try {
       await this.mailService.sendMail({

@@ -6,6 +6,7 @@ import {InviteController} from './controllers/index.js';
 import {NotificationRepository} from '#root/shared/database/providers/mongo/repositories/NotificationRepository.js';
 import {NotificationService} from './services/NotificationService.js';
 import {NotificationController} from './controllers/NotificationController.js';
+import {AutoEjectionEngine} from '../ejectionPolicy/services/AutoEjectionEngine.js';
 
 export const notificationsContainerModule = new ContainerModule(options => {
   // Repositories
@@ -35,4 +36,5 @@ export const notificationsContainerModule = new ContainerModule(options => {
   // Controllers
   options.bind(InviteController).toSelf().inSingletonScope();
   options.bind(NotificationController).toSelf().inSingletonScope();
+  options.bind(AutoEjectionEngine).toSelf().inSingletonScope();
 });

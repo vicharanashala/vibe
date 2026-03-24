@@ -5,7 +5,10 @@ export type NotificationType =
   | 'reinstatement'
   | 'policy_created'
   | 'policy_updated'
-  | 'inactivity_warning';
+  | 'inactivity_warning'
+  | 'appeal_submitted'
+  | 'appeal_approved'
+  | 'appeal_rejected';
 
 export interface INotification {
   _id?: ObjectId | string;
@@ -20,4 +23,10 @@ export interface INotification {
   read: boolean;
   createdAt: Date;
   updatedAt?: Date;
+  metadata?: {
+    allowAppeal?: boolean;
+    appealDeadline?: Date;
+    enrollmentId?: ObjectId;
+    appealPending?: boolean;
+  };
 }

@@ -368,4 +368,19 @@ export class EjectionPolicyService extends BaseService {
       }
     }
   }
+  async getPolicyForContext(
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+  ) {
+    const policies = await this.policyRepo.find({
+      courseId,
+      courseVersionId,
+      ...(cohortId ? {cohortId} : {}),
+      isActive: true,
+    });
+
+    // since you enforce 1 policy per cohort
+    return policies[0] ?? null;
+  }
 }

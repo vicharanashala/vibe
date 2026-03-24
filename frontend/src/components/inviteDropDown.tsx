@@ -15,6 +15,7 @@ import {useMarkNotificationAsRead} from '@/hooks/hooks';
 import {
   useMarkSystemNotificationAsRead,
   useMarkAllSystemNotificationsAsRead,
+  useSubmitAppeal,
 } from '@/hooks/system-notification-hooks';
 import InviteItem from './InviteItem';
 import {PolicyAcknowledgementModal} from '@/app/pages/student/components/policies/PolicyAcknowledgementModal';
@@ -24,6 +25,7 @@ import {
   RejectedStudentRegistrationNotification,
   SystemNotification,
 } from '@/types/notification.types';
+import { AppealModal } from '@/app/pages/student/components/policies/AppealModal';
 
 type InviteDropdownProps = {
   setShowInvites?: React.Dispatch<React.SetStateAction<boolean>>;
@@ -54,6 +56,12 @@ const getSystemNotificationIcon = (type: SystemNotification['type']) => {
     case 'policy_created':
     case 'policy_updated':
       return <Shield className="h-3 w-3 text-blue-600 dark:text-blue-400" />;
+    case 'appeal_submitted':
+      return <Shield className="h-3 w-3 text-purple-600" />;
+    case 'appeal_approved':
+      return <CheckCircle className="h-3 w-3 text-green-600" />;
+    case 'appeal_rejected':
+      return <XCircle className="h-3 w-3 text-red-600" />;
     default:
       return <Bell className="h-3 w-3 text-muted-foreground" />;
   }
@@ -107,6 +115,9 @@ const InviteDropdown = ({
 }: InviteDropdownProps) => {
   const {mutate: markAsRead, isPending} = useMarkNotificationAsRead();
   const [showPolicyModal, setShowPolicyModal] = useState(false);
+  const [submittedAppeals, setSubmittedAppeals] = useState<Set<string>>(new Set());
+const appealKey = (n: SystemNotification) =>
+  `${n.courseId}-${n.courseVersionId}-${n.cohortId}`;
 
   const unreadSystemNotifications = systemNotifications.filter(n => !n.read);
   const hasAnyContent =
@@ -115,6 +126,15 @@ const InviteDropdown = ({
     pendingStudentRegistrations.length > 0 ||
     rejectedStudentRegistrations.length > 0 ||
     systemNotifications.length > 0;
+  
+    const [selectedAppeal, setSelectedAppeal] = useState<{
+  courseId: string;
+  courseVersionId: string;
+  cohortId: string;
+} | null>(null);
+const submitAppeal = useSubmitAppeal();
+
+
 
   const handleMarkAsRead = (notificationId: string) => {
     markAsRead({params: {path: {registrationId: notificationId}}});
@@ -159,6 +179,10 @@ const InviteDropdown = ({
               {/* ── System Notifications (ejection, reinstatement, policy) ── */}
               {systemNotifications.map((notification, idx) => {
                 const colors = getSystemNotificationColors(notification.type);
+                const isExpired =
+                  notification.metadata?.appealDeadline &&
+                  new Date(notification.metadata.appealDeadline) < new Date();
+                  console.log("SYSTEM NOTIFICATION:", notification);
                 return (
                   <li
                     key={`system-${idx}`}
@@ -184,21 +208,54 @@ const InviteDropdown = ({
                         <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
                           {notification.message}
                         </p>
-                        <div className="flex items-center justify-between mt-1">
-                          <p className="text-xs text-muted-foreground/70">
-                            {new Date(notification.createdAt).toLocaleDateString()}
-                          </p>
-                          {!notification.read && onMarkSystemRead && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => onMarkSystemRead(notification._id)}
-                              className="h-5 px-2 text-xs text-muted-foreground hover:text-foreground"
-                            >
-                              Dismiss
-                            </Button>
-                          )}
-                        </div>
+                        <div className="flex items-center justify-between mt-1 gap-2">
+                <div className="flex items-center gap-2">
+                    <p className="text-xs text-muted-foreground/70">
+                      {new Date(notification.createdAt).toLocaleDateString()}
+                    </p>
+
+                  
+                {notification.type === 'ejection' &&
+                  notification.metadata?.allowAppeal &&
+                  !isExpired && (() => {
+                    const alreadySubmitted =
+                      notification.metadata?.appealPending ||
+                      submittedAppeals.has(appealKey(notification));
+                    return (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-5 px-2 text-xs text-muted-foreground hover:text-foreground"
+                        disabled={alreadySubmitted}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (notification.courseId && notification.courseVersionId && notification.cohortId) {
+                            setSelectedAppeal({
+                              courseId: notification.courseId,
+                              courseVersionId: notification.courseVersionId,
+                              cohortId: notification.cohortId,
+                            });
+                          }
+                        }}
+                      >
+                        {alreadySubmitted ? 'Appeal Submitted' : 'Appeal'}
+                      </Button>
+                    );
+                  })()
+                }
+                </div>
+
+                {!notification.read && onMarkSystemRead && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onMarkSystemRead(notification._id)}
+                    className="h-5 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Dismiss
+                  </Button>
+                )}
+              </div>
                       </div>
                     </div>
                   </li>
@@ -329,6 +386,29 @@ const InviteDropdown = ({
           cohortId={selectedInvite?.cohortId}
         />
       )}
+      <AppealModal
+  isOpen={!!selectedAppeal}
+  onClose={() => setSelectedAppeal(null)}
+  enrollmentId={selectedAppeal?.courseId ?? ''}  // prop kept for interface compat
+  // AppealModal onSubmit — mark submitted immediately
+onSubmit={async ({ reason, evidenceUrl }) => {
+  if (!selectedAppeal) return;
+  await submitAppeal.mutateAsync({
+    body: {
+      courseId: selectedAppeal.courseId,
+      courseVersionId: selectedAppeal.courseVersionId,
+      cohortId: selectedAppeal.cohortId,
+      reason,
+      evidenceUrl,
+    },
+  });
+  setSubmittedAppeals(prev => {
+    const next = new Set(prev);
+    next.add(`${selectedAppeal.courseId}-${selectedAppeal.courseVersionId}-${selectedAppeal.cohortId}`);
+    return next;
+  });
+}}
+/>
     </>
   );
 };

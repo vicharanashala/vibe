@@ -159,13 +159,14 @@ useEffect(() => {
     if (!showInvites) return;
 
     const handlePointerDown = (event: MouseEvent | TouchEvent) => {
-      const target = event.target as Node | null;
-      //  Ignore clicks if modal is open
+  const target = event.target as Node | null;
   if (selectedInvite) return;
-      if (invitesRef.current && target && !invitesRef.current.contains(target)) {
-        setShowInvites(false);
-      }
-    };
+  // Don't close if the click is inside any open dialog portal
+  if ((target as Element)?.closest?.('[role="dialog"]')) return;
+  if (invitesRef.current && target && !invitesRef.current.contains(target)) {
+    setShowInvites(false);
+  }
+};
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {

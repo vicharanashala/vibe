@@ -13,6 +13,7 @@ import {ManualEjectionController} from './controllers/ManualEjectionController.j
 import {ReinstatementController} from './controllers/ReinstatementController.js';
 import {AutoEjectionController} from './controllers/AutoEjectionController.js';
 import {NotificationController} from '../notifications/controllers/NotificationController.js';
+import {AppealController} from './controllers/AppealController.js';
 // Container modules that this module depends on
 export const ejectionPolicyContainerModules: ContainerModule[] = [
   sharedContainerModule,
@@ -28,6 +29,7 @@ export const ejectionPolicyModuleControllers: Function[] = [
   ReinstatementController,
   AutoEjectionController,
   NotificationController,
+  AppealController,
 ];
 
 // Validators exported by this module

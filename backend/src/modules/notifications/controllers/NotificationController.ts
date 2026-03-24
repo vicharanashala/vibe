@@ -141,7 +141,7 @@ export class NotificationController {
     const limit = query.limit ?? 20;
     const onlyUnread = query.onlyUnread ?? false;
 
-    const [notifications, unreadCount] = await Promise.all([
+    const [rawNotifications, unreadCount] = await Promise.all([
       this.notificationService.getUserNotifications(
         user._id.toString(),
         limit,
@@ -149,6 +149,11 @@ export class NotificationController {
       ),
       this.notificationService.getUnreadCount(user._id.toString()),
     ]);
+
+    const notifications = await this.notificationService.enrichWithAppealStatus(
+      user._id.toString(),
+      rawNotifications,
+    );
 
     return {
       notifications: notifications.map(n => ({
@@ -162,6 +167,7 @@ export class NotificationController {
         courseVersionId: n.courseVersionId?.toString(),
         cohortId: n.cohortId?.toString(),
         policyId: n.policyId?.toString(),
+        metadata: n.metadata,
       })) as NotificationResponse[],
       unreadCount,
     };

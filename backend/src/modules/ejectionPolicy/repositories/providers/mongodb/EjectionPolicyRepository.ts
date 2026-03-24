@@ -283,4 +283,20 @@ export class EjectionPolicyRepository {
     const doc = await this.collection.findOne(query, {session});
     return doc ? this.mapToEjectionPolicy(doc) : null;
   }
+
+  async getPolicyForContext(
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+  ) {
+    const policies = await this.collection.find({
+      courseId,
+      courseVersionId,
+      ...(cohortId ? {cohortId} : {}),
+      isActive: true,
+    });
+
+    // since you enforce 1 policy per cohort
+    return policies[0] ?? null;
+  }
 }

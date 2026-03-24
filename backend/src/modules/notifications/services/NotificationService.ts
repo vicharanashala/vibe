@@ -9,6 +9,8 @@ import {USERS_TYPES} from '#root/modules/users/types.js';
 import {UserRepository} from '#root/shared/database/providers/mongo/repositories/UserRepository.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {EJECTION_POLICY_TYPES} from '#root/modules/ejectionPolicy/types.js';
+import {AppealRepository} from '#root/shared/database/providers/mongo/repositories/AppealRepository.js';
 
 @injectable()
 export class NotificationService {
@@ -21,6 +23,8 @@ export class NotificationService {
     private readonly userRepo: UserRepository,
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
+    @inject(EJECTION_POLICY_TYPES.AppealRepo)
+    private readonly appealRepo: AppealRepository,
   ) {}
 
   // ── Core Methods ────────────────────────────────────────────────
@@ -54,9 +58,16 @@ export class NotificationService {
     reason: string,
     cohortId?: string,
     session?: ClientSession,
+    policy?: any,
+    enrollmentId?: string,
   ): Promise<void> {
     const course = await this.courseRepo.read(courseId);
     const courseName = course?.name ?? 'your course';
+    const appealDeadline = policy?.actions?.appealDeadlineDays
+      ? new Date(
+          Date.now() + policy.actions.appealDeadlineDays * 24 * 60 * 60 * 1000,
+        )
+      : null;
 
     const notification: Omit<INotification, '_id'> = {
       userId: new ObjectId(userId),
@@ -66,6 +77,11 @@ export class NotificationService {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
       ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
+      metadata: {
+        allowAppeal: policy?.actions?.allowAppeal ?? false,
+        appealDeadline,
+        ...(enrollmentId ? {enrollmentId: new ObjectId(enrollmentId)} : {}),
+      },
       read: false,
       createdAt: new Date(),
     };
@@ -171,5 +187,43 @@ export class NotificationService {
     };
 
     await this.notificationRepo.create(notification, session);
+  }
+  async createNotification(
+    notification: Omit<INotification, '_id'>,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.notificationRepo.create(notification, session);
+  }
+
+  async enrichWithAppealStatus(
+    userId: string,
+    notifications: INotification[],
+  ): Promise<INotification[]> {
+    return Promise.all(
+      notifications.map(async n => {
+        if (
+          n.type !== 'ejection' ||
+          !n.courseId ||
+          !n.courseVersionId ||
+          !n.cohortId
+        )
+          return n;
+
+        const hasPending = await this.appealRepo.existsPending(
+          userId,
+          n.courseId.toString(),
+          n.courseVersionId.toString(),
+          n.cohortId.toString(),
+        );
+
+        return {
+          ...n,
+          metadata: {
+            ...(n.metadata ?? {}),
+            appealPending: hasPending,
+          },
+        };
+      }),
+    );
   }
 }

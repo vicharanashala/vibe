@@ -88,12 +88,14 @@ export interface RejectedStudentRegistrationNotification {
   courseName?: string;
 }
 
- 
 export type SystemNotificationType =
   | 'ejection'
   | 'reinstatement'
   | 'policy_created'
-  | 'policy_updated';
+  | 'policy_updated'
+  | 'appeal_submitted'
+  | 'appeal_approved'
+  | 'appeal_rejected';
  
 export interface SystemNotification {
   _id: string;
@@ -106,6 +108,11 @@ export interface SystemNotification {
   courseVersionId?: string;
   cohortId?: string;
   policyId?: string;
+  metadata?: {
+    allowAppeal?: boolean;
+    appealDeadline?: string;
+    enrollmentId?: string;
+  };
 }
  
 export interface SystemNotificationsResponse {

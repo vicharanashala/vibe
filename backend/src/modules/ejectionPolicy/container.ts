@@ -9,6 +9,9 @@ import {ReinstatementService} from './services/ReinstatementService.js';
 import {ReinstatementController} from './controllers/ReinstatementController.js';
 import {AutoEjectionEngine} from './services/AutoEjectionEngine.js';
 import {AutoEjectionController} from './controllers/AutoEjectionController.js';
+import {AppealRepository} from '#root/shared/database/providers/mongo/repositories/AppealRepository.js';
+import {AppealService} from './services/AppealService.js';
+import {AppealController} from './controllers/AppealController.js';
 export const ejectionPolicyContainerModule = new ContainerModule(options => {
   // Repositories
   options
@@ -38,7 +41,19 @@ export const ejectionPolicyContainerModule = new ContainerModule(options => {
     .inSingletonScope();
 
   options.bind(ReinstatementController).toSelf().inSingletonScope();
-
-  options.bind(AutoEjectionEngine).toSelf().inSingletonScope();
   options.bind(AutoEjectionController).toSelf().inSingletonScope();
+  options.bind(AppealController).toSelf().inSingletonScope();
+  options
+    .bind(EJECTION_POLICY_TYPES.AutoEjectionEngine)
+    .to(AutoEjectionEngine)
+    .inSingletonScope();
+
+  options
+    .bind(EJECTION_POLICY_TYPES.AppealRepo)
+    .to(AppealRepository)
+    .inSingletonScope();
+  options
+    .bind(EJECTION_POLICY_TYPES.AppealService)
+    .to(AppealService)
+    .inSingletonScope();
 });

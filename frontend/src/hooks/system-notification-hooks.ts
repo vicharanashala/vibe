@@ -68,3 +68,17 @@ export function useMarkAllSystemNotificationsAsRead() {
     },
   );
 }
+
+export function useSubmitAppeal() {
+  return api.useMutation(
+    "post",
+    "/appeals",
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: ["get", "/notifications/user"],
+        });
+      },
+    }
+  );
+}
