@@ -444,19 +444,22 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
   setCohorts
 }) => {
   const [cohortInput, setCohortInput] = useState("");
+  const [cohortError, setCohortError] = useState("");
   const MAX_COHORTS = 10;
+  const BLOCKED_COHORT_NAMES = ["euclideans", "dijkstrians", "kruskalians", "rsaians", "aksians"];
+
   const addCohort = (value: string) => {
     const trimmed = value.trim();
-
     if (!trimmed) return;
-    if (cohorts.includes(trimmed)) return;
+    if (BLOCKED_COHORT_NAMES.includes(trimmed.toLowerCase())) {
+      setCohortError(`"${trimmed}" is a reserved cohort name and cannot be used.`);
+      return;
+    }
+    if (cohorts.includes(trimmed.toLowerCase())) return;
     if (cohorts.length >= MAX_COHORTS) return;
-
-    setCohorts(prev => [...prev, trimmed.toLocaleLowerCase()]);
+    setCohortError("");
+    setCohorts(prev => [...prev, trimmed.toLowerCase()]);
     setCohortInput("");
-  };
-  const removeCohort = (cohortToRemove: string) => {
-    setCohorts(prev => prev.filter(cohort => cohort !== cohortToRemove));
   };
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || e.key === ",") {
@@ -615,16 +618,24 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
                   <input
                     type="text"
                     value={cohortInput}
-                    onChange={e => setCohortInput(e.target.value)}
+                    onChange={e => {
+                      setCohortInput(e.target.value);
+                      if (cohortError) setCohortError("");
+                    }}
                     onKeyDown={handleKeyDown}
                     placeholder="Add a cohort name and press Enter"
                     className="flex-1 bg-transparent outline-none text-sm min-w-[120px]"
                   />
                 </div>
 
-                <p className="text-xs text-muted-foreground mt-1">
-                  Press Enter or comma to add cohorts (max {MAX_COHORTS})
-                </p>
+                {cohortError && (
+                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" /> {cohortError}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Press Enter or comma to add cohorts (max {MAX_COHORTS})
+                  </p>
               </div>
             </div>
           </div>
