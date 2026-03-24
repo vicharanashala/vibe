@@ -1835,17 +1835,33 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
         {/* Navigation */}
         <div className="flex justify-between items-center">
-          {/* Skip button (shown after 5 attempts) */}
-          {(attempts >= 5 && allowSkip == true) && (
-            <Button
-              // variant="outline"
-              onClick={handleSkipQuiz}
-              // className="text-white hover:text-background/90 hover:bg-foreground/10"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Skipping...' : 'Skip Quiz'}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {onPrevVideo && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setQuizCompleted(false);
+                  setFailedRedirectCountdown(null);
+                  onPrevVideo();
+                }}
+                disabled={isSubmitting || finshingQuiz || isProgressUpdating}
+                className="min-w-[160px]"
+              >
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                Return to Video
+              </Button>
+            )}
+
+            {/* Skip button (shown after 5 attempts) */}
+            {(attempts >= 5 && allowSkip == true) && (
+              <Button
+                onClick={handleSkipQuiz}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Skipping...' : 'Skip Quiz'}
+              </Button>
+            )}
+          </div>
 
           <div className="flex gap-2">
             <Button
