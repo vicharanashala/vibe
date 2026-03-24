@@ -1047,6 +1047,270 @@ export class CohortRepository implements ICohortRepository {
         //         }
         //     }
         // ]).toArray();
+
+
+
+
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+        // const courseId = new ObjectId("6981df886e100cfe04f9c4ad");
+        // const versionId = new ObjectId("6981df886e100cfe04f9c4ae");
+        /*
+        STEP 1: Fetch FEEDBACK items and forms
+        */
+
+        // const meta = await this.courseVersionCollection.aggregate([
+        //     { $match: { _id: versionId } },
+
+        //     { $unwind: "$modules" },
+        //     { $unwind: "$modules.sections" },
+
+        //     {
+        //         $project: {
+        //             itemsGroupId: {
+        //                 $cond: [
+        //                     { $eq: [{ $type: "$modules.sections.itemsGroupId" }, "string"] },
+        //                     {
+        //                         $convert: {
+        //                             input: "$modules.sections.itemsGroupId",
+        //                             to: "objectId",
+        //                             onError: null,
+        //                             onNull: null
+        //                         }
+        //                     },
+        //                     "$modules.sections.itemsGroupId"
+        //                 ]
+        //             }
+        //         }
+        //     },
+
+        //     {
+        //         $group: {
+        //             _id: null,
+        //             groupIds: { $addToSet: "$itemsGroupId" }
+        //         }
+        //     },
+
+        //     {
+        //         $lookup: {
+        //             from: "itemsGroup",
+        //             localField: "groupIds",
+        //             foreignField: "_id",
+        //             as: "groups"
+        //         }
+        //     },
+
+        //     { $unwind: "$groups" },
+        //     { $unwind: "$groups.items" },
+
+        //     { $match: { "groups.items.type": "FEEDBACK" } },
+
+        //     {
+        //         $addFields: {
+        //             feedbackId: {
+        //                 $cond: [
+        //                     { $eq: [{ $type: "$groups.items._id" }, "string"] },
+        //                     { $toObjectId: "$groups.items._id" },
+        //                     "$groups.items._id"
+        //                 ]
+        //             }
+        //         }
+        //     },
+
+        //     {
+        //         $lookup: {
+        //             from: "feedback_forms",
+        //             localField: "feedbackId",
+        //             foreignField: "_id",
+        //             as: "form"
+        //         }
+        //     },
+
+        //     { $unwind: "$form" },
+
+        //     {
+        //         $group: {
+        //             _id: null,
+        //             feedbackFormIds: { $addToSet: "$form._id" },
+        //             feedbackForms: {
+        //                 $addToSet: {
+        //                     feedbackFormId: "$form._id",
+        //                     name: "$form.name"
+        //                 }
+        //             }
+        //         }
+        //     },
+
+        //     {
+        //         $project: {
+        //             _id: 0,
+        //             feedbackFormIds: 1,
+        //             feedbackForms: 1,
+        //             totalFeedbackForms: { $size: "$feedbackFormIds" }
+        //         }
+        //     }
+
+        // ]).toArray();
+
+        // const metaData = meta[0] || {
+        //     feedbackFormIds: [],
+        //     feedbackForms: [],
+        //     totalFeedbackForms: 0
+        // };
+
+        /*
+        STEP 2: Fetch students + feedback submission stats
+        */
+
+        // const students = await this.enrollmentCollection.aggregate([
+        //     {
+        //         $match: {
+        //             courseId: courseId,
+        //             courseVersionId: versionId
+        //         }
+        //     },
+
+        //     {
+        //         $lookup: {
+        //             from: "users",
+        //             localField: "userId",
+        //             foreignField: "_id",
+        //             as: "user"
+        //         }
+        //     },
+
+        //     { $unwind: "$user" },
+
+        //     {
+        //         $addFields: {
+        //             userName: {
+        //                 $concat: [
+        //                     { $ifNull: ["$user.firstName", ""] },
+        //                     " ",
+        //                     { $ifNull: ["$user.lastName", ""] }
+        //                 ]
+        //             },
+        //             isInactiveUser: {
+        //                 $cond: [
+        //                     {
+        //                         $or: [
+        //                             { $eq: ["$isDeleted", true] },
+        //                             { $eq: ["$status", "INACTIVE"] }
+        //                         ]
+        //                     },
+        //                     true,
+        //                     false
+        //                 ]
+        //             }
+        //         }
+        //     },
+
+        //     {
+        //         $lookup: {
+        //             from: "feedback_submission",
+        //             let: {
+        //                 uid: "$userId",
+        //                 formIds: metaData.feedbackFormIds
+        //             },
+        //             pipeline: [
+        //                 {
+        //                     $match: {
+        //                         $expr: {
+        //                             $and: [
+        //                                 { $eq: ["$userId", "$$uid"] },
+        //                                 { $in: ["$feedbackFormId", "$$formIds"] }
+        //                             ]
+        //                         }
+        //                     }
+        //                 },
+        //                 {
+        //                     $group: {
+        //                         _id: null,
+        //                         totalSubmitted: { $sum: 1 },
+        //                         uniqueForms: { $addToSet: "$feedbackFormId" }
+        //                     }
+        //                 },
+        //                 {
+        //                     $project: {
+        //                         totalSubmitted: 1,
+        //                         uniqueSubmitted: { $size: "$uniqueForms" }
+        //                     }
+        //                 }
+        //             ],
+        //             as: "feedbackAgg"
+        //         }
+        //     },
+
+        //     {
+        //         $addFields: {
+        //             totalFeedbackForms: metaData.totalFeedbackForms,
+        //             totalFeedbackSubmitted: {
+        //                 $ifNull: [{ $arrayElemAt: ["$feedbackAgg.totalSubmitted", 0] }, 0]
+        //             },
+        //             uniqueFeedbackSubmitted: {
+        //                 $ifNull: [{ $arrayElemAt: ["$feedbackAgg.uniqueSubmitted", 0] }, 0]
+        //             }
+        //         }
+        //     },
+
+        //     {
+        //         $addFields: {
+        //             submittedAllFeedback: {
+        //                 $eq: ["$uniqueFeedbackSubmitted", "$totalFeedbackForms"]
+        //             },
+        //             completionPercentage: {
+        //                 $cond: [
+        //                     { $gt: ["$totalFeedbackForms", 0] },
+        //                     {
+        //                         $multiply: [
+        //                             { $divide: ["$uniqueFeedbackSubmitted", "$totalFeedbackForms"] },
+        //                             100
+        //                         ]
+        //                     },
+        //                     0
+        //                 ]
+        //             }
+        //         }
+        //     },
+
+        //     {
+        //         $project: {
+        //             _id: 0,
+        //             userId: { $toString: "$userId" },
+        //             email: "$user.email",
+        //             userName: 1,
+        //             status: 1,
+        //             isDeleted: 1,
+        //             isInactiveUser: 1,
+        //             totalFeedbackForms: 1,
+        //             totalFeedbackSubmitted: 1,
+        //             uniqueFeedbackSubmitted: 1,
+        //             submittedAllFeedback: 1,
+        //             completionPercentage: { $round: ["$completionPercentage", 2] }
+        //         }
+        //     }
+
+        // ], { allowDiskUse: true }).toArray();
+
+
+        /*
+        FINAL RESULT
+        */
+        // return {
+        //     courseId: courseId.toString(),
+        //     courseVersionId: versionId.toString(),
+        //     totalFeedbackForms: metaData.totalFeedbackForms,
+        //     feedbackForms: metaData.feedbackForms.map((f) => ({
+        //         feedbackFormId: f.feedbackFormId?.toString(),
+        //         name: f.name
+        //     })),
+        //     totalStudents: students.length,
+        //     students
+        // };
+
     }
 
 }
