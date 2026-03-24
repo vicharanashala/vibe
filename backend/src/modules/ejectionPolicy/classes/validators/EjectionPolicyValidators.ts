@@ -522,6 +522,11 @@ export class EjectionStudentsQuery {
   @IsString()
   @JSONSchema({type: 'string', description: 'Search by name or email'})
   search?: string;
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({type: 'string', description: 'Filter by status'})
+  statusFilter?: 'all' | 'active' | 'ejected' = 'all';
 }
 
 // ─── Response ─────────────────────────────────────────────────────────────────
@@ -541,6 +546,12 @@ export class StudentEjectionHistoryEntry {
   @Expose()
   @Transform(({value}) => value?.toString())
   ejectedBy: string;
+
+  @IsOptional()
+  @IsString()
+  @Expose()
+  @JSONSchema({description: 'Display name of the user who ejected the learner'})
+  ejectedByName?: string;
 
   @IsOptional()
   @IsString()

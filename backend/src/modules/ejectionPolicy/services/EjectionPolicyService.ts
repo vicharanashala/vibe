@@ -60,6 +60,7 @@ export class EjectionPolicyService extends BaseService {
         createdBy,
       });
 
+      try {
       const policyId = await this.policyRepo.create(policy, session);
       const createdPolicy = await this.policyRepo.findById(policyId, session);
 
@@ -68,6 +69,14 @@ export class EjectionPolicyService extends BaseService {
       }
 
       return createdPolicy;
+      } catch (err: any) {
+        if (err.code === 11000) {
+          throw new BadRequestError(
+            'A policy already exists for this cohort. Only one policy per cohort is allowed.'
+          );
+        }
+        throw err;
+      }
     });
   }
 
