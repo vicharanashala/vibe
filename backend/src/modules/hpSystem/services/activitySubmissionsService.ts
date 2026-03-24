@@ -243,7 +243,7 @@ export class ActivitySubmissionsService extends BaseService {
             }
 
             const ledger = await this.ledgerRepository.findByStudentAndActivityId(activityId, student.id);
-            if (ledger) {
+            if (ledger && ledger.direction == "CREDIT") {
                 throw new BadRequestError(
                     activityRuleConfig.reward.applyWhen === "ON_APPROVAL"
                         ? "This activity has already been submitted. Please wait for the instructor to review it and credit the HP points."
@@ -252,8 +252,8 @@ export class ActivitySubmissionsService extends BaseService {
             }
 
             const latestSubmissions = await this.activitySubmissionsRepository.getLatestByStudentId(student.id, activityId)
-            // if (latestSubmissions && latestSubmissions.status !== "REVERTED")
-            //     throw new BadRequestError("You have already attended this activity.")
+            if (latestSubmissions && latestSubmissions.status !== "REVERTED")
+                throw new BadRequestError("You have already attended this activity.")
 
             const cohort = body.cohort;
 
