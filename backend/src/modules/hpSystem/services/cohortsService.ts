@@ -12,7 +12,7 @@ import { IActivitySubmissionRepository } from "../interfaces/IActivitySubmission
 
 @injectable()
 export class CohortsService extends BaseService {
-    constructor(
+    constructor( 
         @inject(GLOBAL_TYPES.Database)
         private readonly mongoDatabase: MongoDatabase,
 
@@ -305,7 +305,7 @@ export class CohortsService extends BaseService {
                 courseVersionName,
                 meta: {
                     totalRecords: cohorts.length,
-                    totalPages: 1,
+                    totalPages: 1, 
                     page: query.page ?? 1,
                     limit: query.limit ?? 10,
                     sortBy: query.sortBy ?? "createdAt",
