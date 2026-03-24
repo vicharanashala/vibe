@@ -120,6 +120,50 @@ export class EnrollmentRepository {
     );
   }
 
+  async findStudentEnrollmentsByContext(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment[]> {
+    await this.init();
+
+    return await this.enrollmentCollection
+      .find(
+        {
+          userId: { $in: [userId, new ObjectId(userId)] },
+          courseId: { $in: [courseId, new ObjectId(courseId)] },
+          courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+          role: 'STUDENT',
+          isDeleted: { $ne: true },
+        },
+        { session },
+      )
+      .toArray();
+  }
+
+  async findActiveEnrollmentsByContext(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment[]> {
+    await this.init();
+
+    return await this.enrollmentCollection
+      .find(
+        {
+          userId: { $in: [userId, new ObjectId(userId)] },
+          courseId: { $in: [courseId, new ObjectId(courseId)] },
+          courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+          status: 'ACTIVE',
+          isDeleted: { $ne: true },
+        },
+        { session },
+      )
+      .toArray();
+  }
+
   async findAnyEnrollment(
     userId: string | ObjectId,
     courseId: string,
@@ -293,7 +337,7 @@ export class EnrollmentRepository {
         userId: { $in: userFilter },
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
       },
       {
         $set: {
@@ -1299,6 +1343,7 @@ export class EnrollmentRepository {
       ...(e.cohortId ? { cohortId: e.cohortId } : {}),
       isHidden: { $ne: true },
       isDeleted: { $ne: true },
+      endTime: { $exists: true, $ne: null },
     }));
 
     const results = await this.watchTimeCollection
@@ -1338,6 +1383,7 @@ export class EnrollmentRepository {
       userId: ObjectId;
       courseId: ObjectId;
       courseVersionId: ObjectId;
+      cohortId?: ObjectId;
     }[],
   ): Promise<
     Map<
@@ -1353,6 +1399,7 @@ export class EnrollmentRepository {
       userId: e.userId,
       courseId: e.courseId,
       courseVersionId: e.courseVersionId,
+      ...(e.cohortId ? { cohortId: e.cohortId } : {}),
       isHidden: { $ne: true },
       isDeleted: { $ne: true },
       endTime: { $exists: true, $ne: null },
@@ -1367,6 +1414,7 @@ export class EnrollmentRepository {
               userId: '$userId',
               courseId: '$courseId',
               courseVersionId: '$courseVersionId',
+              cohortId: { $ifNull: ['$cohortId', ''] },
               itemId: '$itemId',
             },
           },
@@ -1420,7 +1468,7 @@ export class EnrollmentRepository {
     >();
 
     for (const watched of watchedItems) {
-      const key = `${watched._id.userId.toString()}-${watched._id.courseId.toString()}-${watched._id.courseVersionId.toString()}`;
+      const key = `${watched._id.userId.toString()}-${watched._id.courseId.toString()}-${watched._id.courseVersionId.toString()}-${watched._id.cohortId?.toString() || ''}`;
 
       if (!map.has(key)) {
         map.set(key, { videos: 0, quizzes: 0, articles: 0, projects: 0 });
@@ -1620,8 +1668,8 @@ export class EnrollmentRepository {
           completedItemsCount: { $ifNull: ['$completedItemsCount', 0] },
           cohortId: {
             $cond: [
-              { $ifNull: ["$cohortId", false] },
-              { $toString: "$cohortId" },
+              { $ifNull: ["$cohort._id", false] },
+              { $toString: "$cohort._id" },
               null
             ]
           },
@@ -1719,12 +1767,12 @@ export class EnrollmentRepository {
           assignedTimeSlots: 1,
           cohortId: {
             $cond: [
-              { $ifNull: ["$cohortId", false] },
-              { $toString: "$cohortId" },
+              { $ifNull: ["$cohort._id", false] },
+              { $toString: "$cohort._id" },
               null
             ]
           },
-          cohortName: null,
+          cohortName: "$cohort.name",
           contentCounts: {
             totalItems: { $ifNull: ['$courseVersionInfo.totalItems', 0] },
             itemCounts: { $ifNull: ['$courseVersionInfo.itemCounts', {}] },
@@ -1832,7 +1880,7 @@ export class EnrollmentRepository {
           userId: { $in: [userId, userIdObj] },
           courseId: { $in: [courseId, courseIdObj] },
           courseVersionId: { $in: [courseVersionId, versionIdObj] },
-          ...(cohortIdObj ? { cohortId: cohortIdObj } : {}),
+          ...(cohortIdObj ? { cohortId: cohortIdObj } : {cohortId: null}),
           role: 'STUDENT',
         },
       },
@@ -3488,19 +3536,47 @@ export class EnrollmentRepository {
     courseVersionId: string,
     cohortId?: string,
     session?: ClientSession,
-  ): Promise<IEnrollment> {
+  ): Promise<IEnrollment | null> {
     await this.init();
-    return await this.enrollmentCollection
-      .find(
-        {
-          userId: new ObjectId(userId),
-          courseId: new ObjectId(courseId),
-          courseVersionId: new ObjectId(courseVersionId),
-          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : { cohortId: null }),
-        },
-        { session },
-      )
-      .next();
+
+    // If no cohortId provided, resolve it safely (only if exactly 1 enrollment exists)
+    let effectiveCohortId = cohortId;
+    if (!cohortId) {
+      // Find all enrollments (any role) for this user-course-version to resolve cohort
+      const enrollments = await this.enrollmentCollection
+        .find(
+          {
+            userId: new ObjectId(userId),
+            courseId: new ObjectId(courseId),
+            courseVersionId: new ObjectId(courseVersionId),
+            isDeleted: { $ne: true },
+          },
+          { session },
+        )
+        .toArray();
+
+      if (enrollments.length === 0) {
+        // No enrollment found - let caller handle it
+        return null;
+      } else if (enrollments.length > 1) {
+        throw new Error(
+          'Multiple enrollments found. Cohort context required to disambiguate.',
+        );
+      }
+      effectiveCohortId = enrollments[0].cohortId?.toString();
+    }
+
+    return await this.enrollmentCollection.findOne(
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        ...(effectiveCohortId
+          ? { cohortId: new ObjectId(effectiveCohortId) }
+          : { cohortId: null }),
+      },
+      { session },
+    );
   }
 
   async setWatchTimeVisibility(
@@ -3891,6 +3967,7 @@ export class EnrollmentRepository {
           _id: 1,
           courseId: 1,
           courseVersionId: 1,
+          cohortId: 1,
           role: 1,
           status: 1,
           enrollmentDate: 1,
