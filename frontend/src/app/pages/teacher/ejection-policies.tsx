@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EjectionPolicyModal } from "@/app/pages/teacher/components/ejection-policies/EjectionPolicyModal";
 import { EjectionPolicyList } from "@/app/pages/teacher/components/ejection-policies/EjectionPolicyList";
 import { EjectionStudentList } from "@/app/pages/teacher/components/ejection-policies/EjectionStudentList";
+import EjectionHistoryTab from "@/app/pages/teacher/components/ejection-policies/EjectionHistoryTab";
 import { useEjectionPolicies } from "@/hooks/ejection-policy-hooks";
 import { useCourseVersionCohorts } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
@@ -24,7 +25,7 @@ export default function EjectionPoliciesPage() {
   const versionId = currentCourse?.versionId;
 
   const [selectedCohortId, setSelectedCohortId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"policies" | "students">("policies");
+  const [activeTab, setActiveTab] = useState<"policies" | "students" | "history">("policies");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<EjectionPolicy | null>(null);
   const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
@@ -199,7 +200,7 @@ export default function EjectionPoliciesPage() {
         ) : (
           <Tabs
             value={activeTab}
-            onValueChange={(v) => setActiveTab(v as "policies" | "students")}
+            onValueChange={(v) => setActiveTab(v as "policies" | "students" | "history")}
           >
             {/* Tab bar + filter */}
             <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -216,6 +217,12 @@ export default function EjectionPoliciesPage() {
                   className="rounded-lg text-sm font-semibold text-muted-foreground transition-all duration-200 data-[state=active]:bg-background/80 data-[state=active]:text-foreground data-[state=active]:shadow-sm px-6"
                 >
                   Students
+                </TabsTrigger>
+                <TabsTrigger
+                  value="history"
+                  className="rounded-lg text-sm font-semibold text-muted-foreground transition-all duration-200 data-[state=active]:bg-background/80 data-[state=active]:text-foreground data-[state=active]:shadow-sm px-6"
+                >
+                  History
                 </TabsTrigger>
               </TabsList>
 
@@ -264,6 +271,16 @@ export default function EjectionPoliciesPage() {
                 courseVersionId={versionId}
                 cohortId={selectedCohortId}
                 cohortName={selectedCohort?.name ?? ""}
+              />
+            </TabsContent>
+
+            {/* History tab */}
+            <TabsContent value="history" className="mt-4">
+              <EjectionHistoryTab
+                courseId={courseId}
+                versionId={versionId}
+                cohortId={selectedCohortId as string}
+                onBack={() => setActiveTab("policies")}
               />
             </TabsContent>
           </Tabs>

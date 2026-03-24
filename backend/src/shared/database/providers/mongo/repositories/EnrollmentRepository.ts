@@ -4765,4 +4765,166 @@ export class EnrollmentRepository {
       .project({userId: 1, _id: 0})
       .toArray();
   }
+  async getGlobalEjectionHistory(
+    courseId: string,
+    courseVersionId: string,
+    params: {
+      triggerType?: string;
+      startDate?: Date;
+      endDate?: Date;
+      search?: string;
+      page?: number;
+      limit?: number;
+      cohortId?: string;
+    },
+    session?: ClientSession,
+  ): Promise<{history: any[]; totalDocuments: number}> {
+    await this.init();
+
+    const {
+      triggerType,
+      startDate,
+      endDate,
+      search,
+      page = 1,
+      limit = 10,
+      cohortId,
+    } = params;
+    const skip = (page - 1) * limit;
+
+    const pipeline: any[] = [
+      {
+        $match: {
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+          role: 'STUDENT',
+          ejectionHistory: {$exists: true, $not: {$size: 0}},
+          ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
+        },
+      },
+
+      {$unwind: '$ejectionHistory'},
+
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      {$unwind: {path: '$user', preserveNullAndEmptyArrays: true}},
+
+      {
+        $lookup: {
+          from: 'cohorts',
+          localField: 'cohortId',
+          foreignField: '_id',
+          as: 'cohort',
+        },
+      },
+      {$unwind: {path: '$cohort', preserveNullAndEmptyArrays: true}},
+
+      {
+        $lookup: {
+          from: 'ejectionPolicies',
+          localField: 'ejectionHistory.policyId',
+          foreignField: '_id',
+          as: 'policy',
+        },
+      },
+      {$unwind: {path: '$policy', preserveNullAndEmptyArrays: true}},
+
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'ejectionHistory.ejectedBy',
+          foreignField: '_id',
+          as: 'admin',
+        },
+      },
+      {$unwind: {path: '$admin', preserveNullAndEmptyArrays: true}},
+
+      {
+        $addFields: {
+          'ejectionHistory.triggerType': {
+            $cond: [
+              {$ifNull: ['$ejectionHistory.policyId', false]},
+              'POLICY',
+              'MANUAL',
+            ],
+          },
+        },
+      },
+
+      ...(triggerType
+        ? [{$match: {'ejectionHistory.triggerType': triggerType}}]
+        : []),
+      ...(startDate || endDate
+        ? [
+            {
+              $match: {
+                'ejectionHistory.ejectedAt': {
+                  ...(startDate ? {$gte: startDate} : {}),
+                  ...(endDate ? {$lte: endDate} : {}),
+                },
+              },
+            },
+          ]
+        : []),
+      ...(search
+        ? [
+            {
+              $match: {
+                $or: [
+                  {'user.firstName': {$regex: search, $options: 'i'}},
+                  {'user.lastName': {$regex: search, $options: 'i'}},
+                  {'user.email': {$regex: search, $options: 'i'}},
+                ],
+              },
+            },
+          ]
+        : []),
+
+      {
+        $project: {
+          _id: 0,
+          enrollmentId: '$_id',
+          userId: 1,
+          firstName: '$user.firstName',
+          lastName: '$user.lastName',
+          email: '$user.email',
+          cohortId: 1,
+          cohortName: '$cohort.name',
+          ejectedAt: '$ejectionHistory.ejectedAt',
+          ejectionReason: '$ejectionHistory.ejectionReason',
+          ejectedBy: '$ejectionHistory.ejectedBy',
+          ejectedByName: {
+            $concat: ['$admin.firstName', ' ', '$admin.lastName'],
+          },
+          policyId: '$ejectionHistory.policyId',
+          policyName: '$policy.name',
+          triggerType: '$ejectionHistory.triggerType',
+          reinstatedAt: '$ejectionHistory.reinstatedAt',
+          reinstatedBy: '$ejectionHistory.reinstatedBy',
+        },
+      },
+
+      {$sort: {ejectedAt: -1}},
+    ];
+
+    const [data, countResult] = await Promise.all([
+      this.enrollmentCollection
+        .aggregate([...pipeline, {$skip: skip}, {$limit: limit}], {session})
+        .toArray(),
+      this.enrollmentCollection
+        .aggregate([...pipeline, {$count: 'total'}], {session})
+        .toArray(),
+    ]);
+
+    return {
+      history: data,
+      totalDocuments: countResult[0]?.total ?? 0,
+    };
+  }
 }

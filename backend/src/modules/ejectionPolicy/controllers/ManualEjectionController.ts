@@ -11,7 +11,10 @@ import {
   Req,
   QueryParams,
   Get,
+  QueryParam,
+  Res,
 } from 'routing-controllers';
+import {Response, Request} from 'express';
 import {injectable, inject} from 'inversify';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {plainToClass} from 'class-transformer';
@@ -39,6 +42,10 @@ import {
   BulkEjectionResponse,
   BulkEjectionBody,
 } from '../classes/validators/ManualEjectionValidators.js';
+import {
+  EjectionHistoryQuery,
+  EjectionHistoryResponse,
+} from '../classes/validators/EjectionHistoryValidators.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
 import {
@@ -300,5 +307,54 @@ export class ManualEjectionController {
     return plainToClass(BulkEjectionResponse, result, {
       enableImplicitConversion: true,
     });
+  }
+
+
+  @Get('/history')
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(EjectionHistoryResponse)
+  async getEjectionHistory(
+    @QueryParams() query: EjectionHistoryQuery,
+    @Ability(getEjectionPolicyAbility) {user},
+  ): Promise<EjectionHistoryResponse> {
+    if (user.roles !== 'admin') {
+      throw new ForbiddenError('Only administrators can access ejection history');
+    }
+    const {courseId, courseVersionId} = query;
+    return await this.enrollmentService.getGlobalEjectionHistory(
+      courseId,
+      courseVersionId,
+      query,
+    );
+  }
+
+  @Get('/history/export')
+  @Authorized()
+  async exportEjectionHistory(
+    @QueryParams() query: EjectionHistoryQuery,
+    @Res() res: Response,
+    @Ability(getEjectionPolicyAbility) {user},
+  ): Promise<void> {
+    if (user.roles !== 'admin') {
+      throw new ForbiddenError('Only administrators can access ejection history');
+    }
+    const {courseId, courseVersionId} = query;
+    const csvContent = await this.enrollmentService.exportEjectionHistoryCSV(
+      courseId,
+      courseVersionId,
+      query,
+    );
+
+    res.removeHeader('Content-Type');
+    res.status(200);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="ejection_history.csv"',
+    );
+    res.setHeader('Cache-Control', 'no-cache');
+    res.write(csvContent);
+    res.end();
   }
 }

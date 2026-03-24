@@ -1,8 +1,9 @@
 import { queryClient } from "@/lib/client";
-import { api } from "@/lib/openapi";
-import { components } from '@/types/schema';
+import { api, fetchClient } from "@/lib/openapi";
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
-// const STUDENT_LIST_KEY = 'get /ejections/courses/{courseId}/versions/{courseVersionId}/cohorts/{cohortId}/students';
+const STUDENT_LIST_KEY = 'get /ejections/courses/{courseId}/versions/{courseVersionId}/cohorts/{cohortId}/students';
 
 // GET /ejection-policies
 export function useEjectionPolicies(
@@ -166,10 +167,92 @@ export function useReinstate() {
   const result = api.useMutation(
     'post',
     '/reinstatements/courses/{courseId}/versions/{courseVersionId}/users/{userId}',
-    { onSuccess: invalidateStudentList },
+    {
+      onSuccess: invalidateStudentList,
+      onError: (error: any) => {
+        toast.error(error.message || 'Failed to reinstate student');
+      },
+    },
   );
   return { ...result, error: result.error ? result.error.message || 'Failed to reinstate student' : null };
 }
+
+export const useEjectionHistory = (
+  courseId: string,
+  courseVersionId: string,
+  query: {
+    triggerType?: string;
+    cohortId?: string;
+    startDate?: string;
+    endDate?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  },
+) => {
+  const result: any = api.useQuery(
+    'get',
+    '/ejections/history' as any,
+    {
+      params: {
+        query: {
+          ...query,
+          courseId,
+          courseVersionId,
+        },
+      },
+    },
+    {
+      enabled: !!courseId && !!courseVersionId,
+      refetchOnWindowFocus: false,
+    },
+  );
+
+  return {
+    data: result.data as any,
+    isLoading: result.isLoading,
+    isError: result.isError,
+    error: result.error,
+    refetch: result.refetch,
+  };
+};
+
+export const useExportEjectionHistory = () => {
+  return useMutation({
+    mutationFn: async (params: {
+      courseId: string;
+      courseVersionId: string;
+      triggerType?: string;
+      cohortId?: string;
+      startDate?: string;
+      endDate?: string;
+      search?: string;
+    }) => {
+      const { data, error, response } = await fetchClient.GET('/ejections/history/export' as any, {
+        params: {
+          query: params
+        },
+        parseAs: 'blob' as any
+      });
+      
+      if (error || !response.ok || !data) {
+        throw new Error((error as any)?.message || 'Failed to export ejection history');
+      }
+
+      const blob = data as Blob;
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `ejection_history_${new Date().toLocaleDateString()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to export ejection history');
+    },
+  });
+};
 
 // POST /reinstatements/bulk
 export function useBulkReinstate() {
