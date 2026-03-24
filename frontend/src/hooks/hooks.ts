@@ -5406,8 +5406,6 @@ export function useCreateActivityWithRule() {
       ruleConfig: Partial<HpRuleConfig>;
     }) => {
       const res = await hpApi.createActivityWithRule(payload);
-      // console.log("Response",res,"Response");
-      // console.log("Response.message",res.message,"Error .message");
       if (!res.success) throw res;
       return res.data;
     },
@@ -5420,7 +5418,7 @@ export function useUpdateHpRuleConfig() {
     mutationFn: async ({ ruleConfigId, updates }: { ruleConfigId: string, updates: Partial<HpRuleConfig> }) => {
       console.log("Updating rule config with ID:", ruleConfigId, "and updates:", updates);
       const res = await hpApi.updateRuleConfig(ruleConfigId, updates);
-      if (!res.success) throw new Error(res.message || 'Failed to update rule config');
+      if (!res.success) throw res;
       return res.data;
     },
     onSuccess: () => {
