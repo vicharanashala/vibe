@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useState, createContext, useContext, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Check, AlertCircle, Github } from "lucide-react";
+import { Check, AlertCircle, Github, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/utils/utils";
 import { useSignup } from "@/hooks/hooks.ts";
 import classroom from "../../../public/img/classroom.svg";
@@ -100,6 +100,7 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // New state variables
   const [isSignUp, setIsSignUp] = useState(false);
@@ -128,9 +129,8 @@ export default function AuthPage() {
     if (/\d/.test(password)) strength += 25;
     if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength += 25;
 
-    if (strength <= 25) return { value: strength, label: "Weak", color: "bg-red-500" };
-    if (strength <= 50) return { value: strength, label: "Fair", color: "bg-yellow-500" };
-    if (strength <= 75) return { value: strength, label: "Good", color: "bg-blue-500" };
+    if (strength <= 40) return { value: strength, label: "Weak", color: "bg-red-500" };
+    if (strength <= 70) return { value: strength, label: "Medium", color: "bg-yellow-500" };
     return { value: strength, label: "Strong", color: "bg-green-500" };
   };
 
@@ -535,19 +535,45 @@ export default function AuthPage() {
                                 </div>
 
                                 <div className="space-y-2">
-                                  <Input
-                                    id="password"
-                                    name="new-password"
-                                    type="password"
-                                    placeholder="Enter your password"
-                                    autoComplete="new-password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className={cn(
-                                      "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16",
-                                      formErrors.password && "border-destructive focus-visible:ring-destructive"
-                                    )}
-                                  />
+                                  <div className="relative">
+                                    <Input
+                                      id="password"
+                                      name="new-password"
+                                      type={showPassword ? "text" : "password"}
+                                      placeholder="Enter your password"
+                                      autoComplete="new-password"
+                                      value={password}
+                                      onChange={(e) => setPassword(e.target.value)}
+                                      className={cn(
+                                        "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16 pr-12",
+                                        formErrors.password && "border-destructive focus-visible:ring-destructive"
+                                      )}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowPassword((v) => !v)}
+                                      className="absolute inset-y-0 right-3 flex items-center justify-center text-gray-500 hover:text-gray-900"
+                                      aria-label={showPassword ? "Hide password" : "Show password"}
+                                    >
+                                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                    </button>
+                                  </div>
+                                  {password && (
+                                    <div className="space-y-1">
+                                      <div className="flex items-center justify-between text-xs">
+                                        <span>Password strength</span>
+                                        <span className={cn(
+                                          "font-medium",
+                                          passwordStrength.value <= 40 && "text-red-500",
+                                          passwordStrength.value > 40 && passwordStrength.value <= 70 && "text-yellow-500",
+                                          passwordStrength.value > 70 && "text-green-500"
+                                        )}>{passwordStrength.label}</span>
+                                      </div>
+                                      <div className="w-full bg-muted rounded-full h-1.5">
+                                        <div className={cn("h-1.5 rounded-full transition-all duration-300", passwordStrength.color)} style={{ width: `${passwordStrength.value}%` }} />
+                                      </div>
+                                    </div>
+                                  )}
                                   {formErrors.password && (
                                     <p className="text-xs text-destructive">{formErrors.password}</p>
                                   )}
@@ -651,17 +677,27 @@ export default function AuthPage() {
                                 </div>
 
                                 <div className="space-y-2">
-                                  <Input
-                                    id="signup-password"
-                                    type="password"
-                                    placeholder="Create a strong password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className={cn(
-                                      "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16",
-                                      formErrors.password && "border-destructive focus-visible:ring-destructive"
-                                    )}
-                                  />
+                                  <div className="relative">
+                                    <Input
+                                      id="signup-password"
+                                      type={showPassword ? "text" : "password"}
+                                      placeholder="Create a strong password"
+                                      value={password}
+                                      onChange={(e) => setPassword(e.target.value)}
+                                      className={cn(
+                                        "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16 pr-12",
+                                        formErrors.password && "border-destructive focus-visible:ring-destructive"
+                                      )}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowPassword((v) => !v)}
+                                      className="absolute inset-y-0 right-3 flex items-center justify-center text-gray-500 hover:text-gray-900"
+                                      aria-label={showPassword ? "Hide password" : "Show password"}
+                                    >
+                                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                    </button>
+                                  </div>
                                   {password && (
                                     <div className="space-y-2">
                                       <div className="flex items-center justify-between">
@@ -723,17 +759,27 @@ export default function AuthPage() {
                                 </div>
 
                                 <div className="space-y-2">
-                                  <Input
-                                    id="confirmPassword"
-                                    type="password"
-                                    placeholder="Confirm your password"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className={cn(
-                                      "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16",
-                                      !passwordsMatch && confirmPassword && "border-destructive focus-visible:ring-destructive"
-                                    )}
-                                  />
+                                  <div className="relative">
+                                    <Input
+                                      id="confirmPassword"
+                                      type={showPassword ? "text" : "password"}
+                                      placeholder="Confirm your password"
+                                      value={confirmPassword}
+                                      onChange={(e) => setConfirmPassword(e.target.value)}
+                                      className={cn(
+                                        "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16 pr-12",
+                                        !passwordsMatch && confirmPassword && "border-destructive focus-visible:ring-destructive"
+                                      )}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowPassword((v) => !v)}
+                                      className="absolute inset-y-0 right-3 flex items-center justify-center text-gray-500 hover:text-gray-900"
+                                      aria-label={showPassword ? "Hide password" : "Show password"}
+                                    >
+                                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                    </button>
+                                  </div>
                                   {!passwordsMatch && confirmPassword && (
                                     <p className="text-xs text-destructive">Passwords do not match</p>
                                   )}

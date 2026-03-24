@@ -71,9 +71,8 @@ export default function ResetPasswordPage() {
     if (/\d/.test(password)) strength += 25;
     if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength += 25;
 
-    if (strength <= 25) return { value: strength, label: "Weak", color: "bg-red-500" };
-    if (strength <= 50) return { value: strength, label: "Fair", color: "bg-yellow-500" };
-    if (strength <= 75) return { value: strength, label: "Good", color: "bg-blue-500" };
+    if (strength <= 40) return { value: strength, label: "Weak", color: "bg-red-500" };
+    if (strength <= 70) return { value: strength, label: "Medium", color: "bg-yellow-500" };
     return { value: strength, label: "Strong", color: "bg-green-500" };
   };
   const passwordStrength = calculatePasswordStrength(password);
