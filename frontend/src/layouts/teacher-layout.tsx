@@ -51,14 +51,13 @@ export default function TeacherLayout() {
   const registrationsRef = useRef<HTMLDivElement | null>(null);
 const [showSystemNotifications, setShowSystemNotifications] = useState(false);
 const userId = user?.uid ||"";
-console.log("FRONTEND USER ID:", (user?.uid));
+
 
 const {
   notifications: systemNotifications,
   unreadCount: systemUnreadCount,
 } = useGetSystemNotifications(userId ?? "", false, isAuthReady && !!userId);
-console.log("SYSTEM NOTIFICATIONS:", systemNotifications);
-console.log("USER:", user);
+
 
 const { mutate: markSystemRead } = useMarkSystemNotificationAsRead();
 const { mutate: markAllSystemRead } = useMarkAllSystemNotificationsAsRead();
