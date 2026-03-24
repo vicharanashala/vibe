@@ -3,6 +3,7 @@ import { FilterQueryDto } from "../classes/validators/activitySubmissionValidato
 import { LedgerListResponseDto } from "../classes/validators/ledgerValidators.js";
 import { HpLedger } from "../models.js";
 import { HpLedgerTransformer } from "../classes/transformers/Ledger.js";
+import { EnrollmentRole } from "#root/shared/index.js";
 
 
 export interface ILedgerRepository {
@@ -11,6 +12,7 @@ export interface ILedgerRepository {
         studentId: string,
         filter: FilterQueryDto,
         cohortName: string,
+        role: EnrollmentRole,
     ): Promise<{
         data: HpLedgerTransformer[];
         total: number;
