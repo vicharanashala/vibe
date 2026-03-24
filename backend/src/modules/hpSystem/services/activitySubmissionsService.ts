@@ -112,9 +112,9 @@ export class ActivitySubmissionsService extends BaseService {
         const bucket = this.getActivitySubmissionBucket();
         // Determine environment prefix
         const isProduction = appConfig.isProduction;
-        const envPrefix = isProduction ? "" : `${appConfig.sentry.environment}`;
+        const envPrefix = isProduction ? "" : `[${appConfig.sentry.environment}]`;
 
-        const basePath = `[${envPrefix}] hp-activity-submissions/${cohort}/${activityId}/${studentId}`;
+        const basePath = `${envPrefix} hp-activity-submissions/${cohort}/${activityId}/${studentId}`;
 
         const [uploadedPdfs, uploadedImages] = await Promise.all([
             Promise.all(
