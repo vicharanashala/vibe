@@ -435,6 +435,34 @@ export class RewardInfoDto {
     value!: number;
 }
 
+export class CoursePerformanceDto {
+    @Expose()
+    @IsString()
+    courseId!: string;
+
+    @Expose()
+    @IsString()
+    courseName!: string;
+
+    @Expose()
+    @IsNumber()
+    totalHp!: number;
+
+    @Expose()
+    @IsNumber()
+    studentCount!: number;
+}
+
+export class WeeklyActivityDto {
+    @Expose()
+    @IsString()
+    date!: string;
+
+    @Expose()
+    @IsNumber()
+    studentCount!: number;
+}
+
 export class StudentActivitySubmissionStatsViewDto {
     @Expose()
     @IsNumber()
@@ -455,6 +483,25 @@ export class StudentActivitySubmissionStatsViewDto {
     @IsOptional()
     @Type(() => RewardInfoDto)
     reward?: RewardInfoDto | null;
+
+    // Dashboard metrics
+    @Expose()
+    @IsNumber()
+    totalStudents?: number;
+
+    @Expose()
+    @IsString()
+    bestPerformingCohort!: string;
+
+    @Expose()
+    @IsArray()
+    @Type(() => CoursePerformanceDto)
+    coursePerformance!: CoursePerformanceDto[];
+
+    @Expose()
+    @IsArray()
+    @Type(() => WeeklyActivityDto)
+    weeklyActivity!: WeeklyActivityDto[];
 }
 
 export class StudentActivitySubmissionStatsResponseDto {
