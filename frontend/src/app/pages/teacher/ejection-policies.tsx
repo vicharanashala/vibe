@@ -73,6 +73,19 @@ export default function EjectionPoliciesPage() {
     hasCourseContext,
   );
 
+  // Unfiltered policies to check if any policy exists for the cohort
+  const {
+    policies: allPoliciesForCohort,
+  } = useEjectionPolicies(
+    courseId,
+    versionId ?? undefined,
+    selectedCohortId ?? undefined,
+    undefined,
+    hasCourseContext,
+  );
+
+  const hasExistingPolicy = allPoliciesForCohort.length > 0;
+
   const handleCreateClick = () => {
     setEditingPolicy(null);
     setIsModalOpen(true);
@@ -133,8 +146,8 @@ export default function EjectionPoliciesPage() {
                 </div>
               </div>
 
-              {/* Create button — only on policies tab, only admins, only when cohort selected */}
-              {isAdmin && selectedCohortId && activeTab === "policies" && (
+              {/* Create button — only on policies tab, only admins, only when cohort selected, and only if no policy exists */}
+              {isAdmin && selectedCohortId && activeTab === "policies" && !hasExistingPolicy && (
                 <Button
                   onClick={handleCreateClick}
                   className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_auto] hover:bg-[length:100%_auto] shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 h-12 px-8 group"

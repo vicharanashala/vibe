@@ -32,9 +32,19 @@ export class EjectionPolicyRepository {
 
   private async createIndexes() {
     try {
+      try {
+        await this.collection.dropIndex('course_version_cohort_unique_idx');
+      } catch (e) {
+        // ignore if index doesn't exist
+      }
+      
       await this.collection.createIndex(
         {courseId: 1, courseVersionId: 1, cohortId: 1},
-        {name: 'course_version_cohort_unique_idx', unique: true},
+        {
+          name: 'course_version_cohort_unique_idx', 
+          unique: true,
+          partialFilterExpression: { isDeleted: false }
+        },
       );
       await this.collection.createIndex(
         {courseId: 1, courseVersionId: 1, isActive: 1, deletedAt: 1},
