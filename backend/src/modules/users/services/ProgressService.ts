@@ -96,7 +96,7 @@ class ProgressService extends BaseService {
     super(database);
   }
 
-  private async calculateGuruSetuProgress(
+  public async calculateGuruSetuProgress(
     userId: string,
     courseVersionId: string,
   ): Promise<{ percentCompleted: number; completedItemsCount: number }> {
@@ -462,7 +462,7 @@ class ProgressService extends BaseService {
         enrollment._id.toString(),
         percentCompleted,
         totalCompletedItemsCount,
-        cohort,
+        effectiveCohort,
         session,
       );
       return;
@@ -3845,6 +3845,18 @@ class ProgressService extends BaseService {
 
     if (!enrollment) {
       throw new NotFoundError('Enrollment not found');
+    }
+
+    // Guru Setu Progress Override
+    if (courseId === GURU_SETU_COURSE_ID && versionId === GURU_SETU_VERSION_ID) {
+      const guruProgress = await this.calculateGuruSetuProgress(userId, versionId);
+      await this.enrollmentRepo.updateProgressPercentById(
+        enrollment._id!.toString(),
+        guruProgress.percentCompleted,
+        guruProgress.completedItemsCount,
+        cohortId,
+      );
+      return 'Progress recalculated successfully';
     }
 
     let allRelevantItemIds: string[] = [];
