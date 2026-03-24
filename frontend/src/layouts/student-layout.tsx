@@ -17,9 +17,8 @@ import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal
 import { useInvites, useGetUnreadApprovedRegistrations, useGetPendingStudentRegistrations, useGetRejectedStudentRegistrations } from "@/hooks/hooks"
 import { ApprovedRegistrationNotification } from "@/types/notification.types"
 import { useRef, useEffect } from "react"
-import logo from "../../public/img/vibe_logo_img.ico"
+import logo from "@/img/vibe_logo_img.ico"
 import { useLocation } from "react-router-dom";
-
 export default function StudentLayout() {
   const { user, isAuthReady } = useAuthStore()
   const navigate = useNavigate()

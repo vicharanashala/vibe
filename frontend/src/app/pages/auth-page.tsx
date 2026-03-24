@@ -8,12 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Check, AlertCircle, Github } from "lucide-react";
 import { cn } from "@/utils/utils";
 import { useSignup } from "@/hooks/hooks.ts";
-import classroom from "../../../public/img/classroom.svg";
-import learningImg from "../../../public/img/learning-img.svg";
-import innovators from "../../../public/img/innovators.svg";
-import logos from "../../../public/img/logos.png";
-import vledLogo from "../../../public/img/vled-logo-login.png";
-import iitLogo from "../../../public/img/iit-clear.png";
+import classroom from "@/img/classroom.svg";
+import learningImg from "@/img/learning-img.svg";
+import innovators from "@/img/innovators.svg";
+import logos from "@/img/logos.png";
+import vledLogo from "@/img/vled-logo-login.png";
+import iitLogo from "@/img/iit-clear.png";
 
 // Create a context for tab state management
 const TabsContext = createContext<{

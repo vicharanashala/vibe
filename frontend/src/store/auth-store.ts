@@ -1,58 +1,87 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand"
+import { persist } from "zustand/middleware"
 
-import type { User, AuthStore } from '@/types/auth.types';
+import type { AuthStore } from "@/types/auth.types"
 
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
       user: null,
-      token: localStorage.getItem('firebase-auth-token'),
-      isAuthenticated: !!localStorage.getItem('firebase-auth-token'),
+      token: null,
+      isAuthenticated: false,
       isAuthReady: false,
 
       setUser: (user) => {
-        set({ user, isAuthenticated: true });
+        const email = user?.email || ""
+        const savedAvatar = email
+          ? localStorage.getItem(`avatar_${email}`)
+          : ""
+
+        set({
+          user: {
+            ...user,
+            avatar: user?.avatar || savedAvatar || "",
+          },
+          isAuthenticated: true,
+        })
       },
+
       setToken: (token) => {
-        localStorage.setItem('firebase-auth-token', token);
-        set({ token, isAuthenticated: true });
+        set({ token, isAuthenticated: !!token })
       },
+
       clearUser: () => {
-        localStorage.removeItem('firebase-auth-token');
-        localStorage.removeItem('user-id');
-        localStorage.removeItem('user-email');
-        localStorage.removeItem('user-firstName');
-        localStorage.removeItem('user-lastName');
-        set({ user: null, token: null, isAuthenticated: false });
+        set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+        })
       },
+
+      updateAvatar: (avatar: string) => {
+        const currentUser = get().user
+        if (!currentUser) return
+
+        const email = currentUser?.email || ""
+        if (email) {
+          localStorage.setItem(`avatar_${email}`, avatar)
+        }
+
+        set({
+          user: {
+            ...currentUser,
+            avatar,
+          },
+        })
+      },
+
       hasRole: (role) => {
-        const user = get().user;
-        if (!user || !user.role) return false;
+        const user = get().user
+        if (!user || !user.role) return false
 
         if (Array.isArray(role)) {
-          return role.includes(user.role);
+          return role.includes(user.role)
         }
-        return user.role === role;
+
+        return user.role === role
       },
+
       setAuthReady: (ready) => {
-        set({ isAuthReady: ready });
-      }
+        set({ isAuthReady: ready })
+      },
     }),
     {
-      name: 'auth-store',
+      name: "auth-store",
       partialize: (state) => ({
         user: state.user,
         token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.setAuthReady(true)
+        }
+      },
     }
   )
-);
-
-// Subscribe to store changes to update the auth header in API client
-useAuthStore.subscribe((state) => {
-  if (state.token) {
-    // Set token for API client (if needed beyond localStorage)
-  }
-});
+)

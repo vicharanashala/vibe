@@ -120,6 +120,7 @@
     "remark-math": "^6.0.0",
     "shadcn": "^2.6.0",
     "slate": "^0.112.0",
+    "slate-dom": "^0.123.0",
     "slate-react": "^0.112.1",
     "sonner": "^2.0.3",
     "styled-components": "^6.1.19",

@@ -1,12 +1,27 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react"; ExternalLink
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
-  SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
-  SidebarInset, SidebarProvider, SidebarTrigger, SidebarFooter
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarFooter
 } from "@/components/ui/sidebar";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup, SidebarResizablePanel } from "@/components/ui/resizable";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+  SidebarResizablePanel
+} from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -14,7 +29,19 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem, useRecalculateStudentProgress } from "@/hooks/hooks";
+import {
+  useCourseVersionById,
+  useUserProgress,
+  useItemsBySectionId,
+  useItemById,
+  useProctoringSettings,
+  useGetProcotoringSettings,
+  useSubmitFlag,
+  enqueueNavigation,
+  useSkipOptionalItem,
+  useRecalculateStudentProgress,
+  useModuleProgress
+} from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
@@ -41,7 +68,8 @@ import {
   X,
   CircleCheckIcon,
   Headphones,
-  ExternalLink, Menu
+  ExternalLink,
+  Menu
 } from "lucide-react";
 import FloatingVideo, { FloatingVideoPlaceholder } from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
@@ -51,9 +79,8 @@ import { FlagModal } from "@/components/FlagModal";
 import { EntityType } from "@/types/flag.types";
 import { toast } from "sonner";
 import ItemContainer from "@/components/Item-container";
-import logo from "../../../../public/img/vibe_logo_img.ico"
+import logo from "@/img/vibe_logo_img.ico";
 import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
-import { useModuleProgress } from "@/hooks/hooks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MobileFallbackScreen from "@/components/MobileFallbackScreen";
 
