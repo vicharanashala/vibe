@@ -4607,6 +4607,87 @@ export class EnrollmentRepository {
         },
       },
 
+      // Join users for ejection history actors 
+      {
+        $lookup: {
+          from: 'users',
+          let: {
+            ejectedByIds: {
+              $map: {
+                input: {$ifNull: ['$ejectionHistory', []]},
+                as: 'h',
+                in: '$$h.ejectedBy',
+              },
+            },
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {$in: ['$_id', '$$ejectedByIds']},
+              },
+            },
+            {
+              $project: {firstName: 1, lastName: 1},
+            },
+          ],
+          as: 'ejectionActors',
+        },
+      },
+
+      // Attach ejectedByName to each history entry when possible
+      {
+        $addFields: {
+          ejectionHistory: {
+            $map: {
+              input: {$ifNull: ['$ejectionHistory', []]},
+              as: 'h',
+              in: {
+                $mergeObjects: [
+                  '$$h',
+                  {
+                    ejectedByName: {
+                      $let: {
+                        vars: {
+                          actor: {
+                            $arrayElemAt: [
+                              {
+                                $filter: {
+                                  input: '$ejectionActors',
+                                  as: 'a',
+                                  cond: {$eq: ['$$a._id', '$$h.ejectedBy']},
+                                },
+                              },
+                              0,
+                            ],
+                          },
+                        },
+                        in: {
+                          $cond: [
+                            {$ifNull: ['$$actor', false]},
+                            {
+                              $trim: {
+                                input: {
+                                  $concat: [
+                                    '$$actor.firstName',
+                                    ' ',
+                                    '$$actor.lastName',
+                                  ],
+                                },
+                              },
+                            },
+                            '$$h.ejectedBy',
+                          ],
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+
       // Search filter
       ...(search
         ? [

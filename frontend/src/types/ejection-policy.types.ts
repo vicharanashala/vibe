@@ -69,6 +69,7 @@ export interface EjectionHistoryEntry {
   ejectedAt: string;
   ejectionReason: string;
   ejectedBy: string;
+  ejectedByName?: string;
   policyId?: string;
   reinstatedAt?: string;
   reinstatedBy?: string;

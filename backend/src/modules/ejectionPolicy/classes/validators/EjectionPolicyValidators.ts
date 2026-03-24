@@ -548,6 +548,12 @@ class EjectionHistoryEntryResponse {
   @IsOptional()
   @IsString()
   @Expose()
+  @JSONSchema({description: 'Display name of the user who ejected the learner'})
+  ejectedByName?: string;
+
+  @IsOptional()
+  @IsString()
+  @Expose()
   @Transform(({value}) => value?.toString())
   policyId?: string;
 

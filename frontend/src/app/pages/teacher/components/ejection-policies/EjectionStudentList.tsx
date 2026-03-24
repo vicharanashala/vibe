@@ -444,6 +444,11 @@ export function EjectionStudentList({
                                     <div className="flex items-center gap-2 flex-wrap">
                                       <span className="font-medium text-red-600">Ejected</span>
                                       <span className="text-muted-foreground text-xs">{formatDate(entry.ejectedAt)}</span>
+                                      {(entry.ejectedByName || entry.ejectedBy) && (
+                                        <span className="text-muted-foreground text-xs">
+                                          by {entry.ejectedByName || entry.ejectedBy}
+                                        </span>
+                                      )}
                                       {entry.reinstatedAt && (
                                         <>
                                           <span className="text-muted-foreground">→</span>
