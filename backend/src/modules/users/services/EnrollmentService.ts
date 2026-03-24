@@ -781,22 +781,22 @@ export class EnrollmentService extends BaseService {
           )
           .filter(Boolean) as IGradingResult[];
 
-        const completedCount = watchedItemsMap.get(watchedKey) || 0;
+        // const completedCount = watchedItemsMap.get(watchedKey) || 0;
 
-        const ratio = completedCount / (enr.totalItems || 1);
-        const calculatedPercent = Number((ratio * 100).toFixed(2));
+        // const ratio = completedCount / (enr.totalItems || 1);
+        // const calculatedPercent = Number((ratio * 100).toFixed(2));
 
-        if (enr.percentCompleted !== calculatedPercent) {
-          void this.enrollmentRepo.updateProgressPercentById(
-            enr._id.toString(),
-            calculatedPercent,
-            completedCount,
-            enr.cohortId?.toString(),
-          );
+        // if (enr.percentCompleted !== calculatedPercent) {
+        //   void this.enrollmentRepo.updateProgressPercentById(
+        //     enr._id.toString(),
+        //     calculatedPercent,
+        //     completedCount,
+        //     enr.cohortId?.toString(),
+        //   );
 
-          enr.percentCompleted = calculatedPercent;
-          enr.completedItemsCount = completedCount;
-        }
+        //   enr.percentCompleted = calculatedPercent;
+        //   enr.completedItemsCount = completedCount;
+        // }
 
         if (enr.percentCompleted >= 0) {
           let itemCounts = enr.itemCounts || {};
@@ -989,34 +989,34 @@ export class EnrollmentService extends BaseService {
       let resolvedItemCounts: Record<string, number> = {
         VIDEO: Number(
           existingItemCounts.VIDEO ??
-            existingItemCounts.video ??
-            existingItemCounts.videos ??
-            0,
+          existingItemCounts.video ??
+          existingItemCounts.videos ??
+          0,
         ),
         QUIZ: Number(
           existingItemCounts.QUIZ ??
-            existingItemCounts.quiz ??
-            existingItemCounts.quizzes ??
-            0,
+          existingItemCounts.quiz ??
+          existingItemCounts.quizzes ??
+          0,
         ),
         BLOG: Number(
           existingItemCounts.BLOG ??
-            existingItemCounts.blog ??
-            existingItemCounts.article ??
-            existingItemCounts.articles ??
-            0,
+          existingItemCounts.blog ??
+          existingItemCounts.article ??
+          existingItemCounts.articles ??
+          0,
         ),
         PROJECT: Number(
           existingItemCounts.PROJECT ??
-            existingItemCounts.project ??
-            existingItemCounts.projects ??
-            0,
+          existingItemCounts.project ??
+          existingItemCounts.projects ??
+          0,
         ),
         FEEDBACK: Number(
           existingItemCounts.FEEDBACK ??
-            existingItemCounts.feedback ??
-            existingItemCounts.feedbacks ??
-            0,
+          existingItemCounts.feedback ??
+          existingItemCounts.feedbacks ??
+          0,
         ),
       };
       let resolvedTotalItems = Number(existingContentCounts.totalItems ?? 0);
