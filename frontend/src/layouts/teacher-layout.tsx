@@ -6,7 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/auth-store";
 import { logout } from "@/utils/auth";
-import { LogOut, ArrowLeft, UserRoundCheck, UserCheck } from "lucide-react";
+import { LogOut, ArrowLeft, UserRoundCheck, UserCheck, Bell } from "lucide-react";
+import {
+  useGetSystemNotifications,
+  useMarkSystemNotificationAsRead,
+  useMarkAllSystemNotificationsAsRead,
+} from "@/hooks/system-notification-hooks";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -27,8 +32,9 @@ import InviteDropdown from "@/components/inviteDropDown";
 import RegistrationNotificationDropdown from "@/components/RegistrationNotificationDropdown";
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal";
 import { useInvites, useGetPendingRegistrations } from "@/hooks/hooks";
-import { PendingRegistrationNotification } from "@/types/notification.types";
+import { PendingRegistrationNotification, SystemNotification } from "@/types/notification.types";
 import { toast } from "sonner";
+import { SystemNotificationDropdown } from "@/app/pages/teacher/components/ejection-policies/SystemNotificationDropdown";
 
 export default function TeacherLayout() {
   const matches = useMatches();
@@ -43,6 +49,21 @@ export default function TeacherLayout() {
   const [pendingRegistrationsList, setPendingRegistrationsList] = useState<any[]>([]);
   const invitesRef = useRef<HTMLDivElement | null>(null);
   const registrationsRef = useRef<HTMLDivElement | null>(null);
+const [showSystemNotifications, setShowSystemNotifications] = useState(false);
+const userId = user?.uid ||"";
+console.log("FRONTEND USER ID:", (user?.uid));
+
+const {
+  notifications: systemNotifications,
+  unreadCount: systemUnreadCount,
+} = useGetSystemNotifications(userId ?? "", false, isAuthReady && !!userId);
+console.log("SYSTEM NOTIFICATIONS:", systemNotifications);
+console.log("USER:", user);
+
+const { mutate: markSystemRead } = useMarkSystemNotificationAsRead();
+const { mutate: markAllSystemRead } = useMarkAllSystemNotificationsAsRead();
+
+
   const { getInvites } = useInvites();
 
   // Sync local state with hook data and show toast for NEW registrations
@@ -57,9 +78,10 @@ export default function TeacherLayout() {
     navigate({ to: "/auth" });
   };
 
-  const handleGoBack = () => {
-    window.history.back();
-  };
+  
+  const toggleNotifications = () => {
+  setShowSystemNotifications(prev => !prev);
+};
 
   useEffect(() => {
     const items: BreadcrumbItem[] = [];
@@ -246,6 +268,34 @@ export default function TeacherLayout() {
                   {pendingRegistrationsList.length > 0 && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-orange-500" />}
                 </Button>
               </div>
+              <div className="relative">
+  <Button
+    variant="ghost"
+    size="sm"
+    onClick={toggleNotifications}
+  >
+    <Bell className="h-4 w-4" />
+    <span className="hidden sm:block ml-2">Notifications</span>
+
+    {systemUnreadCount > 0 && (
+      <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500" />
+    )}
+  </Button>
+
+  {showSystemNotifications && (
+    <SystemNotificationDropdown
+      notifications={systemNotifications}
+      onMarkRead={(id) => {
+  markSystemRead({
+    params: { path: { notificationId: id } },
+  });
+}}
+      onMarkAllRead={() => {
+        markAllSystemRead({});
+      }}
+    />
+  )}
+</div>
 
               <ConfirmationModal isOpen={confirmLogout}
                 onClose={() => setConfirmLogout(false)}

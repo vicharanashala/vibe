@@ -103,21 +103,69 @@ export class AppealService {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+    // const instructors = await this.enrollmentService.getCohortStaff(
+    //   courseId,
+    //   versionId,
+    //   cohortId,
+    // );
+    // console.log('STAFF:', instructors);
+    // // notify instructor/admin
+    // await Promise.all(
+    //   instructors.map(instructor =>
+    //     this.notificationService.createNotification({
+    //       userId: instructor.userId,
+    //       type: 'appeal_submitted',
+    //       title: 'New Appeal Submitted',
+    //       message: `A student has submitted an appeal`,
+    //       courseId: policy.courseId,
+    //       courseVersionId: policy.courseVersionId,
+    //       cohortId: policy.cohortId,
+    //       policyId: policy._id,
+    //       read: false,
+    //       createdAt: new Date(),
+    //       extra: {
+    //         appealId: appealId.toString(),
+    //       },
+    //     }),
+    //   ),
+    // );
 
-    // notify instructor/admin
-    await this.notificationService.createNotification({
-      userId: policy.createdBy,
-      type: 'appeal_submitted',
-      title: 'New Appeal Submitted',
-      message: 'A student has submitted an appeal',
-      courseId: policy.courseId,
-      courseVersionId: policy.courseVersionId,
-      cohortId: policy.cohortId,
-      policyId: policy._id,
-      read: false,
-      createdAt: new Date(),
-    });
+    const instructors =
+      await this.enrollmentService.getNonStudentEnrollmentsByCourseVersion(
+        courseId,
+        versionId,
+      );
 
+    console.log('INSTRUCTORS:', instructors);
+
+    if (!instructors.length) {
+      console.log('❌ No instructors found');
+      return appealId;
+    }
+
+    await Promise.all(
+      instructors.map(instructor =>
+        this.notificationService.createNotification({
+          userId: new ObjectId(instructor.userId.toString()),
+
+          type: 'appeal_submitted',
+          title: 'New Appeal Submitted',
+          message: 'A student has submitted an appeal',
+
+          courseId: new ObjectId(policy.courseId.toString()),
+          courseVersionId: new ObjectId(policy.courseVersionId.toString()),
+          cohortId: new ObjectId(policy.cohortId.toString()),
+          policyId: new ObjectId(policy._id.toString()),
+
+          read: false,
+          createdAt: new Date(),
+
+          extra: {
+            appealId: appealId.toString(),
+          },
+        }),
+      ),
+    );
     return appealId;
   }
 
@@ -125,6 +173,13 @@ export class AppealService {
 
   async getAppeals(filters: any) {
     return this.appealRepo.findAll(filters);
+  }
+  async getAppealById(appealId: string) {
+    const appeal = await this.appealRepo.findById(appealId);
+
+    if (!appeal) throw new NotFoundError('Appeal not found');
+
+    return appeal;
   }
 
   // ================= APPROVE =================

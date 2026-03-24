@@ -154,6 +154,7 @@ export class NotificationController {
       user._id.toString(),
       rawNotifications,
     );
+    console.log('NOTIFICAAIONS:', notifications);
 
     return {
       notifications: notifications.map(n => ({
@@ -168,6 +169,7 @@ export class NotificationController {
         cohortId: n.cohortId?.toString(),
         policyId: n.policyId?.toString(),
         metadata: n.metadata,
+        extra: n.extra,
       })) as NotificationResponse[],
       unreadCount,
     };

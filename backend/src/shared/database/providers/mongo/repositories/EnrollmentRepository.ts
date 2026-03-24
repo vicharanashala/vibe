@@ -4745,4 +4745,24 @@ export class EnrollmentRepository {
       })
       .toArray();
   }
+  async getCohortStaff(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+  ) {
+    await this.init();
+
+    return this.enrollmentCollection
+      .find({
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        cohortId: new ObjectId(cohortId),
+
+        role: {$in: ['INSTRUCTOR', 'MANAGER']},
+        status: 'ACTIVE',
+        isDeleted: {$ne: true},
+      })
+      .project({userId: 1, _id: 0})
+      .toArray();
+  }
 }

@@ -95,6 +95,12 @@ export class AppealController {
     return this.appealService.getAppeals(query);
   }
 
+  @Get('/:id')
+  @Authorized()
+  async getAppealById(@Param('id') id: string) {
+    return this.appealService.getAppealById(id);
+  }
+
   // ================= APPROVE =================
 
   @Authorized()

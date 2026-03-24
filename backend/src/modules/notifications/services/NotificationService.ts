@@ -222,6 +222,9 @@ export class NotificationService {
             ...(n.metadata ?? {}),
             appealPending: hasPending,
           },
+          extra: {
+            ...(n.extra ?? {}),
+          },
         };
       }),
     );

@@ -2234,4 +2234,7 @@ export class EnrollmentService extends BaseService {
       return {enrollment: reinstatedEnrollment};
     });
   }
+  async getCohortStaff(courseId: string, versionId: string, cohortId: string) {
+    return this.enrollmentRepo.getCohortStaff(courseId, versionId, cohortId);
+  }
 }

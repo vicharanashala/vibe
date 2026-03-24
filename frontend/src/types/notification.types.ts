@@ -113,6 +113,11 @@ export interface SystemNotification {
     appealDeadline?: string;
     enrollmentId?: string;
   };
+  extra?: {
+    studentId?: string;
+    reason?: string;
+    evidenceUrl?: string;
+  };
 }
  
 export interface SystemNotificationsResponse {

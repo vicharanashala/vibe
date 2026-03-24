@@ -82,3 +82,18 @@ export function useSubmitAppeal() {
     }
   );
 }
+
+export function useGetAppealById(appealId: string, enabled: boolean) {
+  return api.useQuery(
+    "get",
+    "/appeals/{id}",
+    {
+      params: {
+        path: { id: appealId },
+      },
+    },
+    {
+      enabled: enabled && !!appealId,
+    }
+  );
+}

@@ -29,4 +29,5 @@ export interface INotification {
     enrollmentId?: ObjectId;
     appealPending?: boolean;
   };
+  extra?: Record<string, any>;
 }
