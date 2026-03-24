@@ -375,7 +375,12 @@ export class CourseVersionService extends BaseService {
         existingVersion.supportLink = body.supportLink;
       existingVersion.updatedAt = new Date();
       if (body.cohorts) {
-        const cohortIds = await this.courseRepo.createCohorts(
+          const BLOCKED_COHORT_NAMES = ["euclideans", "dijkstrians", "kruskalians", "rsaians", "aksians"];
+          const blockedFound = body.cohorts.find(c => BLOCKED_COHORT_NAMES.includes(c.toLowerCase()));
+          if (blockedFound) {
+            throw new BadRequestError(`"${blockedFound}" is a reserved cohort name and cannot be used.`);
+          }
+          const cohortIds = await this.courseRepo.createCohorts(
           courseVersionId,
           body.cohorts,
           session,
