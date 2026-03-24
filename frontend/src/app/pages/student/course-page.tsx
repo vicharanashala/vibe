@@ -1147,9 +1147,9 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
               requestAnimationFrame(frame);
             };
             frame();
+            setTimeout(() => router.navigate({ to: "/student" }), 3500);
           }
 
-          setTimeout(() => router.navigate({ to: "/student" }), 3500);
           // Recalcualate and update the progress % and completed items count properly
           await recalculateStudentProgressAsync({
             body: {
