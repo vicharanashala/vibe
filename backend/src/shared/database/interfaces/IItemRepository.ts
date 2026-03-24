@@ -11,6 +11,7 @@ export interface IItemRepository {
   ): Promise<Item | null>;
 
   readItemById(itemId: string, session?: ClientSession): Promise<Item | null>;
+  getFeedbackItems(versionId: string, session?: ClientSession): Promise<Item[]>;
 
   deleteItem(
     itemGroupsId: string,
