@@ -24,15 +24,14 @@ import { Pagination } from '@/components/ui/Pagination';
 interface EjectionHistoryTabProps {
   courseId: string;
   versionId: string;
-  cohorts?: any[];
+  cohortId: string;
   onBack?: () => void;
 }
 
-const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versionId, cohorts = [], onBack }) => {
+const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versionId, cohortId, onBack }) => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [triggerType, setTriggerType] = useState<string>('ALL');
-  const [selectedCohortId, setSelectedCohortId] = useState<string>('ALL');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -41,7 +40,7 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
     limit: 10,
     search,
     triggerType: triggerType === 'ALL' ? undefined : triggerType,
-    cohortId: selectedCohortId === 'ALL' ? undefined : selectedCohortId,
+    cohortId,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
   });
@@ -54,7 +53,7 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
       courseVersionId: versionId,
       search,
       triggerType: triggerType === 'ALL' ? undefined : triggerType,
-      cohortId: selectedCohortId === 'ALL' ? undefined : selectedCohortId,
+      cohortId,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
     });
@@ -63,7 +62,6 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
   const handleResetFilters = () => {
     setSearch('');
     setTriggerType('ALL');
-    setSelectedCohortId('ALL');
     setStartDate('');
     setEndDate('');
     setPage(1);
@@ -102,18 +100,6 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
               <SelectItem value="ALL">All Triggers</SelectItem>
               <SelectItem value="MANUAL">Manual</SelectItem>
               <SelectItem value="POLICY">Policy</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={selectedCohortId} onValueChange={(val) => { setSelectedCohortId(val); setPage(1); }}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Cohort" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Cohorts</SelectItem>
-              {cohorts.map((c: any) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
             </SelectContent>
           </Select>
 

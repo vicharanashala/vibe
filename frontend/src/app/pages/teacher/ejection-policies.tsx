@@ -279,7 +279,7 @@ export default function EjectionPoliciesPage() {
               <EjectionHistoryTab
                 courseId={courseId}
                 versionId={versionId}
-                cohorts={cohorts}
+                cohortId={selectedCohortId as string}
                 onBack={() => setActiveTab("policies")}
               />
             </TabsContent>
