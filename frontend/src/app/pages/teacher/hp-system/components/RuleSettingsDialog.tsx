@@ -43,14 +43,13 @@ export function RuleSettingsDialog({
     const [config, setConfig] = useState<Partial<HpRuleConfig> | null>(null);
 
     useEffect(()=>{
-        // console.log("RuleSettingsDialog props changed:", { isOpen, courseId, courseVersionId, activityId });
+        console.log("RuleSettingsDialog props changed:", { isOpen, courseId, courseVersionId, activityId });
     })
 
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
     // Hooks
     const { data: existingConfig, isLoading: fetchLoading, refetch } = useHpRuleConfig(isOpen ? activityId : undefined);
-    // console.log("Existing config from hook:", existingConfig, "Loading:", fetchLoading);
     const { data: activities = [] } = useHpActivities(courseVersionId, cohortName, "", "");
     const activity = activities.find((a: HpActivity) => a._id === activityId);
     const { mutateAsync: createRuleConfig, isPending: isCreating } = useCreateHpRuleConfig();
@@ -106,8 +105,6 @@ export function RuleSettingsDialog({
     const [errors, setErrors] = useState<{ deadlineAt?: string; penaltyEnabled?: string; requiredPercentage?: string; maxHp?: string; rewardValue?: string; penaltyValue?: string;}>({});
 
     const handleSave = async () => {
-        console.log("Hnaldl save")
-        console.log(config,"Config")
         if (!config) return;
 
         let hasError = false;
@@ -216,7 +213,6 @@ export function RuleSettingsDialog({
     };
 
     const handleConfirmSave = async () => {
-        console.log("Handle confirm save")
         await handleSave();
         setIsConfirmOpen(false);
     };
