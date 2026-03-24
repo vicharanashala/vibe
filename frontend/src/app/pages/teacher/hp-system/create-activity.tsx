@@ -31,7 +31,6 @@ export default function CreateHpActivityPage() {
     const {mutateAsync :createActivityWithRule, isPending: isCreatingActivityWithRule } = useCreateActivityWithRule();
     const { data: courses = [], isLoading: isLoadingCourses } = useHpCourseVersions();
     const [submitError, setSubmitError] = useState<string | null>(null);
-    console.log("Submit eRROR",submitError)
 
     const isSubmitting = isCreatingActivityWithRule;
 
@@ -271,11 +270,12 @@ export default function CreateHpActivityPage() {
             setRuleErrors(nextErrors);
             return Object.keys(nextErrors).length === 0;
         };
-
+        
+        setSubmitError(null);
+        
         if (!validateRuleConfig()) {
             return;
         }
-        setSubmitError(null);
 
         // 1. Prepare activity payload (including some fields from ruleConfig that Activity needs)
         const activityPayload = {
@@ -850,6 +850,7 @@ export default function CreateHpActivityPage() {
                                                         ? "REWARD_DENIED"
                                                         : "NONE"
                                             }
+                                            disabled={ruleConfig.penalty?.enabled}
                                             onValueChange={(val: any) => {
                                                 if (val === "REWARD_ALLOWED") {
                                                     setRuleConfig(prev => ({
@@ -909,7 +910,10 @@ export default function CreateHpActivityPage() {
                                         onCheckedChange={(c) => {
                                             setRuleConfig(prev => ({
                                                 ...prev,
-                                                penalty: { ...(prev.penalty || {}), enabled: c }
+                                                penalty: { ...(prev.penalty || {}), enabled: c },
+                                                reward: c
+                                                ? { ...(prev.reward || {}), lateBehavior: "NO_REWARD" }
+                                                : prev.reward
                                             }));
                                             if (ruleErrors.penaltyEnabled) {
                                                 setRuleErrors(prev => ({ ...prev, penaltyEnabled: undefined }));

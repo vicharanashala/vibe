@@ -62,6 +62,15 @@ export class RuleConfigService extends BaseService {
             const hasReward = body.reward?.enabled === true;
             const hasPenalty = body.penalty?.enabled === true;
 
+            const allowLate = body.allowLateSubmission === true;
+            const lateRewardAllowed = body.reward?.enabled === true && body.reward.lateBehavior === "REWARD";
+
+            if (allowLate && lateRewardAllowed && hasPenalty) {
+                throw new BadRequestError(
+                    "Late reward and penalty can't be enabled at the same time."
+                );
+            }
+
             if (isVibeMilestone) {
                 body.isMandatory = true;
                 body.allowLateSubmission = false;
@@ -246,6 +255,30 @@ export class RuleConfigService extends BaseService {
                 } else if (existing.penalty?.enabled) {
                     updatePatch.penalty = { ...existing.penalty, enabled: false } as any;
                 }
+            }
+            const finalAllowLate =
+                patch.allowLateSubmission !== undefined
+                    ? patch.allowLateSubmission
+                    : existing.allowLateSubmission;
+
+            const finalReward = {
+                ...existing.reward,
+                ...(patch.reward || {}),
+            };
+
+            const finalPenalty = {
+                ...existing.penalty,
+                ...(patch.penalty || {}),
+            };
+            const lateRewardAllowed =
+                finalReward?.enabled === true &&
+                finalReward?.lateBehavior === "REWARD";
+
+            const penaltyEnabled = finalPenalty?.enabled === true;
+
+
+            if (finalAllowLate && lateRewardAllowed && penaltyEnabled) {
+                throw new BadRequestError("Late reward and penalty can't be enabled at the same time.");
             }
 
             if (patch.isMandatory !== undefined) updatePatch.isMandatory = patch.isMandatory;

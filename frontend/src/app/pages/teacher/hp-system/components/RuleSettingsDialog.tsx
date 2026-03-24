@@ -163,14 +163,13 @@ export function RuleSettingsDialog({
                     hasError = true;
                 }
         }
-
+        setSaveError(null);
         if (hasError) {
             setErrors(nextErrors);
             return;
         }
 
         setErrors({});
-        setSaveError(null);
 
         try {
             const rulePayload = { ...config };
@@ -440,6 +439,7 @@ export function RuleSettingsDialog({
                                                     ? "REWARD_DENIED"
                                                     : "NONE"
                                         }
+                                        disabled={config?.penalty?.enabled}
                                         onValueChange={(val: any) => {
                                             if (val === "REWARD_ALLOWED") {
                                                 setConfig(prev => ({
@@ -482,7 +482,13 @@ export function RuleSettingsDialog({
                                     checked={config?.penalty?.enabled || false}
                                     onCheckedChange={(c) => setConfig(prev => ({
                                         ...prev,
-                                        penalty: { ...(prev?.penalty || {}), enabled: c }
+                                        penalty: { ...(prev?.penalty || {}), enabled: c },
+                                        reward: c
+                                            ? {
+                                                ...(prev?.reward || defaultReward),
+                                                lateBehavior: "NO_REWARD"
+                                            }
+                                            : prev?.reward
                                     } as any))}
                                 />
                             </div>
@@ -579,17 +585,18 @@ export function RuleSettingsDialog({
                                 <p className="text-[10px] text-muted-foreground">
                                     💡 Recommended for more consistent HP allocation. Define lower and upper bounds for HP changes when using percentage-based calculations.
                                 </p>
-                                {saveError && (
-                                    <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-3 rounded-md flex items-start gap-2">
-                                        <span>{saveError}</span>
-                                    </div>
-                                )}
                             </div>
                         )}
                     </div>
                 )}
-
+{saveError && (
+                                    <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-3 rounded-md flex items-start gap-2">
+                                        <span>{saveError}</span>
+                                    </div>
+                                )}
                 <DialogFooter className="sticky bottom-0 bg-background pt-4 border-t">
+                    {/* <p>{saveError}</p> */}
+                                
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
                     <Button onClick={() => setIsConfirmOpen(true)} disabled={loading}>{loading ? "Saving..." : "Save Configuration"}</Button>
                 </DialogFooter>
