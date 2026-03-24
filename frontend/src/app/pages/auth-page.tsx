@@ -8,12 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Check, AlertCircle, Github } from "lucide-react";
 import { cn } from "@/utils/utils";
 import { useSignup } from "@/hooks/hooks.ts";
-import classroom from "../../../public/img/classroom.svg";
-import learningImg from "../../../public/img/learning-img.svg";
-import innovators from "../../../public/img/innovators.svg";
-import logos from "../../../public/img/logos.png";
-import vledLogo from "../../../public/img/vled-logo-login.png";
-import iitLogo from "../../../public/img/iit-clear.png";
+import classroom from "../../img/classroom.svg";
+import learningImg from "../../img/learning-img.svg";
+import innovators from "../../img/innovators.svg";
+import logos from "../../img/logos.png";
+import vledLogo from "../../img/vled-logo-login.png";
+import iitLogo from "../../img/iit-clear.png";
 
 // Create a context for tab state management
 const TabsContext = createContext<{
@@ -100,7 +100,11 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-
+  const [rememberMe, setRememberMe] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetMessage, setResetMessage] = useState("");
+  const [resetError, setResetError] = useState("");
   // New state variables
   const [isSignUp, setIsSignUp] = useState(false);
   const [activeRole, setActiveRole] = useState<"teacher" | "student">("student");
@@ -112,8 +116,8 @@ export default function AuthPage() {
     fullName?: string;
     auth?: string;
   }>({});
-  const [showAuthForm, setShowAuthForm] = useState(false);
-
+  const [showAuthForm, setShowAuthForm] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   // Removed the unused clearUser variable
   const setUser = useAuthStore((state) => state.setUser);
 
@@ -158,6 +162,23 @@ export default function AuthPage() {
     return Object.keys(errors).length === 0;
   };
 
+ const handleForgotPassword = () => {
+  setResetMessage("");
+  setResetError("");
+
+  if (!resetEmail) {
+    setResetError("Please enter your email");
+    return;
+  }
+
+  if (!/\S+@\S+\.\S+/.test(resetEmail)) {
+    setResetError("Invalid email format");
+    return;
+  }
+
+  // ✅ MOCK SUCCESS
+  setResetMessage("Password reset link sent to your email (demo)");
+};
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
@@ -202,35 +223,53 @@ export default function AuthPage() {
       setLoading(false);
     }
   };
-
+  
   const handleEmailLogin = async () => {
-    try {
-      setLoading(true);
-      setFormErrors({});
+  try {
+    setLoading(true);
+    setFormErrors({});
 
-      // This function now handles login only
-      const result = await loginWithEmail(email, password);
+    if (!email) {
+  setFormErrors({ email: "Email is required" });
+  setLoading(false);
+  return;
+}
 
-      // Set user in store
-      setUser({
-        uid: result.user.uid,
-        email: result.user.email || "",
-        name: result.user.displayName || "",
-        role: activeRole,
-        avatar: result.user.photoURL || "",
-      });
+if (!password) {
+  setFormErrors({ password: "Password is required" });
+  setLoading(false);
+  return;
+}
 
-      navigate({ to: `/${activeRole}` });
-    } catch (error) {
-      console.error("Email Login Failed", error);
-      setFormErrors({
-        ...formErrors,
-        auth: "Invalid email or password. Please try again."
-      });
-    } finally {
-      setLoading(false);
+    const result = await loginWithEmail(email, password);
+
+    // ✅ Remember Me logic
+    if (rememberMe) {
+      localStorage.setItem("rememberedEmail", email);
+    } else {
+      localStorage.removeItem("rememberedEmail");
     }
-  };
+
+    setUser({
+      uid: result.user.uid,
+      email: result.user.email || "",
+      name: result.user.displayName || "",
+      role: activeRole,
+      avatar: result.user.photoURL || "",
+    });
+
+    navigate({ to: `/${activeRole}` });
+
+  } catch (error) {
+    console.error("Email Login Failed", error);
+    setFormErrors({
+      ...formErrors,
+      auth: "Invalid email or password. Please try again."
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   //SignUp
 
@@ -238,7 +277,7 @@ export default function AuthPage() {
 
   // New function for handling signup
   const handleEmailSignup = async () => {
-    // if (!validateForm()) return;
+     if (!validateForm()) return;
 
     if (!passwordsMatch) {
       setFormErrors({
@@ -341,13 +380,24 @@ export default function AuthPage() {
       navigate({ to: '/auth' });
     }
   }, []);
+  useEffect(() => {
+  const savedEmail = localStorage.getItem("rememberedEmail");
+
+  if (savedEmail) {
+    setEmail(savedEmail);
+    setRememberMe(true);
+  } else {
+    setEmail("");
+    setRememberMe(false);
+  }
+}, []);
 
 
 
   // Return the new beautiful auth page with Magic UI
   return (
     <div className="relative min-h-screen overflow-x-hidden">
-
+      
       <div>
         {/* Left Side - Hero Section with Logos - Mobile & Desktop */}
         <div className="flex flex-col justify-center bg-[rgb(240,248,250)] relative lg:flex-1 px-4 sm:px-6">
@@ -499,7 +549,52 @@ export default function AuthPage() {
                         >
                           ← Back
                         </Button>
+                        {showForgotPassword && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-50">
+                          <div className="relative bg-white p-6 rounded-lg w-[90%] max-w-md space-y-4">
+                            <h2 className="text-xl font-bold text-center">Reset Password</h2>
+                              <button
+                                onClick={() => {
+                                 setShowForgotPassword(false);
+                                 setResetEmail("");
+                                 setResetMessage("");
+                                 }
+                                }
+                                className="absolute top-2 right-3 text-xl"
+                                >  ✖
+                                </button>
 
+                               <Input
+                                 type="email"
+                                  placeholder="Enter your email"
+                                  value={resetEmail}
+                                  onChange={(e) => setResetEmail(e.target.value)}
+                                />
+
+                                {resetMessage && (
+                                  <p className="text-sm text-green-600">{resetMessage}</p>
+                                  )
+                                  }
+
+                                 <div className="flex gap-2">
+                                   <Button onClick={handleForgotPassword} className="flex-1">
+                                     Send Reset Link
+                                     </Button>
+
+                                   <Button
+                                     variant="outline"
+                                     onClick={() => {
+                                       setShowForgotPassword(false);
+                                       setResetMessage("");
+                                        }
+                                      }
+                                    >
+                                    Cancel
+                                    </Button>
+                                  </div>
+                           </div>
+                        </div>
+)}
                         <Card className="relative overflow-hidden bg-[rgb(240,248,250)] border-0 rounded-[8px] pt-[75px] pb-[34px]">
                           {!isSignUp ? (
                             <div>
@@ -535,24 +630,58 @@ export default function AuthPage() {
                                 </div>
 
                                 <div className="space-y-2">
-                                  <Input
-                                    id="password"
-                                    name="new-password"
-                                    type="password"
-                                    placeholder="Enter your password"
-                                    autoComplete="new-password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className={cn(
-                                      "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16",
-                                      formErrors.password && "border-destructive focus-visible:ring-destructive"
-                                    )}
-                                  />
+                                  <div className="relative">
+  <Input
+    id="password"
+    name="new-password"
+    type={showPassword ? "text" : "password"}
+    placeholder="Enter your password"
+    autoComplete="new-password"
+    value={password}
+    onChange={(e) => setPassword(e.target.value)}
+    className={cn(
+      "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16 pr-12",
+      formErrors.password && "border-destructive focus-visible:ring-destructive"
+    )}
+  />
+
+  <button
+    type="button"
+    onClick={() => setShowPassword(!showPassword)}
+    className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500"
+  >
+    {showPassword ? "Hide" : "Show"}
+  </button>
+</div>
+
+<div className="text-right">
+  <button
+    type="button"
+    onClick={() => setShowForgotPassword(true)}
+    className="text-sm text-blue-600 hover:underline"
+  >
+    Forgot Password?
+  </button>
+</div>
+                                  
+                                  
                                   {formErrors.password && (
                                     <p className="text-xs text-destructive">{formErrors.password}</p>
                                   )}
                                 </div>
+                               
                                 <div className="w-full max-w-[294px] mx-auto">
+                                  
+ <div className="flex items-center justify-between w-full max-w-[294px] mx-auto mb-4">
+  <label className="flex items-center gap-2 text-sm text-gray-700">
+    <input
+      type="checkbox"
+      checked={rememberMe}
+      onChange={(e) => setRememberMe(e.target.checked)}
+    />
+    Remember Me
+  </label>
+</div>
                                   <Button
                                     className="w-full h-16 text-lg mb-0 font-semibold !bg-[rgb(52,152,169)] hover:!bg-[rgb(102,187,205)] text-white shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300"
                                     onClick={handleEmailLogin}
@@ -561,7 +690,7 @@ export default function AuthPage() {
                                     {loading ? "Signing in..." : `Sign in as ${activeRole=="student"?'learner':activeRole}`}
                                   </Button>
                                 </div>
-
+                                 
                                 <div className="relative my-6">
                                   <div className="relative flex justify-center text-xs uppercase">
                                     <span className="text-[rgb(52,152,169)] text-xl font-semibold">
@@ -590,13 +719,13 @@ export default function AuthPage() {
                               <CardFooter className="pt-12 md:px-20 px-5">
                                 <div className="flex flex-col sm:flex-row items-stretch gap-2 w-full">
                                   <div className="flex-1 bg-white text-[#6B7280] text-base font-medium rounded-md flex items-center justify-center px-3 sm:px-4 whitespace-nowrap">
-                                    Don’t have an account?
+                                    {isSignUp ? "Already have an account?" : "Don’t have an account?"}
                                   </div>
                                   <button
                                     onClick={toggleSignUpMode}
                                     className="py-3 px-[29px] text-base rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 whitespace-nowrap cursor-pointer"
                                   >
-                                    Sign Up
+                                    {isSignUp ? "Sign In" : "Sign Up"}
                                   </button>
                                 </div>
                               </CardFooter>

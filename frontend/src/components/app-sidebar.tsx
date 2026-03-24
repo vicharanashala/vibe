@@ -19,7 +19,7 @@ import { NavMain } from "./nav-main"
 import { AuroraText } from "@/components/magicui/aurora-text"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Link } from "@tanstack/react-router"
-import logo from "../../public/img/vibe_logo_img.ico"
+import logo from "../img/vibe_logo_img.ico";
 
 import {
   Sidebar,
