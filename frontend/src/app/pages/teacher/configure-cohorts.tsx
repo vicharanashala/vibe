@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Loader2, ArrowUp, ArrowDown, Plus, Pencil, Trash, Megaphone } from "lucide-react"
+import { Loader2, ArrowUp, ArrowDown, Plus, Pencil, Trash, Megaphone, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -22,6 +22,7 @@ import { AnnouncementType } from "@/types/announcement.types"
 import { AnnouncementModal } from "@/components/announcements/AnnouncementModal"
 import { Ban } from "lucide-react"
 
+
 const RESTRICTED_VERSION_IDS = [
   '6968e12cbf2860d6e39051af',
   '6970f87e30644cbc74b67150',
@@ -38,6 +39,7 @@ export default function ConfigureCohorts() {
   const createMutation = useCreateCohort()
   const updateMutation = useUpdateCohort()
   const deleteMutation = useDeleteCohort()
+  const [cohortError, setCohortError] = useState("")
   const [sortBy, setSortBy] =
     useState<"name" | "createdAt" | "updatedAt">("createdAt")
   const [sortOrder, setSortOrder] =
@@ -104,6 +106,11 @@ export default function ConfigureCohorts() {
         toast.error("Keep cohort name length below 50");
         return;
     }
+    const BLOCKED_COHORT_NAMES = ["euclideans", "dijkstrians", "kruskalians", "rsaians", "aksians"];
+    if (BLOCKED_COHORT_NAMES.includes(cohortName.trim().toLowerCase())) {
+      setCohortError(`"${cohortName.trim()}" is a reserved cohort name and cannot be used.`);
+      return;
+    }
     try{
         await createMutation.mutateAsync({
         params: {
@@ -129,6 +136,11 @@ export default function ConfigureCohorts() {
     if(cohortName.length >=50){
         toast.error("Keep cohort name length below 50");
         return;
+    }
+    const BLOCKED_COHORT_NAMES = ["euclideans", "dijkstrians", "kruskalians", "rsaians", "aksians"];
+    if (BLOCKED_COHORT_NAMES.includes(cohortName.trim().toLowerCase())) {
+      setCohortError(`"${cohortName.trim()}" is a reserved cohort name and cannot be used.`);
+      return;
     }
     try{
         await updateMutation.mutateAsync({
@@ -216,6 +228,7 @@ export default function ConfigureCohorts() {
         <Button
           onClick={() => {
             setCohortName("")
+            setCohortError("")
             setIsCreateOpen(true)
           }}
           disabled={isRestricted}
@@ -417,12 +430,18 @@ export default function ConfigureCohorts() {
             <DialogTitle >Enter Cohort Name</DialogTitle>
           </DialogHeader>
           <Input
-            placeholder="Cohort name"
-            value={cohortName}
-            onChange={(e) =>
-              setCohortName(e.target.value)
-            }
-          />
+              placeholder="Cohort name"
+              value={cohortName}
+              onChange={(e) => {
+                setCohortName(e.target.value);
+                if (cohortError) setCohortError("");
+              }}
+            />
+            {cohortError && (
+              <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" /> {cohortError}
+              </p>
+            )}
           <Button
             className="mt-8"
             onClick={createCohort}
@@ -444,11 +463,17 @@ export default function ConfigureCohorts() {
             <DialogTitle>Edit Cohort Name</DialogTitle>
           </DialogHeader>
           <Input
-            value={cohortName}
-            onChange={(e) =>
-              setCohortName(e.target.value)
-            }
-          />
+              value={cohortName}
+              onChange={(e) => {
+                setCohortName(e.target.value);
+                if (cohortError) setCohortError("");
+              }}
+            />
+            {cohortError && (
+              <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" /> {cohortError}
+              </p>
+            )}
           <Button
             onClick={updateCohort}
             disabled={updateMutation.isPending}
