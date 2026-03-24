@@ -2234,4 +2234,79 @@ export class EnrollmentService extends BaseService {
       return {enrollment: reinstatedEnrollment};
     });
   }
+
+  async getGlobalEjectionHistory(
+    courseId: string,
+    courseVersionId: string,
+    params: {
+      triggerType?: string;
+      startDate?: Date;
+      endDate?: Date;
+      search?: string;
+      page?: number;
+      limit?: number;
+      cohortId?: string;
+    },
+  ): Promise<{history: any[]; totalDocuments: number; totalPages: number}> {
+    const {history, totalDocuments} =
+      await this.enrollmentRepo.getGlobalEjectionHistory(
+        courseId,
+        courseVersionId,
+        params,
+      );
+
+    return {
+      history,
+      totalDocuments,
+      totalPages: Math.ceil(totalDocuments / (params.limit || 10)),
+    };
+  }
+
+  async exportEjectionHistoryCSV(
+    courseId: string,
+    courseVersionId: string,
+    params: {
+      triggerType?: string;
+      startDate?: Date;
+      endDate?: Date;
+      search?: string;
+      cohortId?: string;
+    },
+  ): Promise<string> {
+    const {history} = await this.enrollmentRepo.getGlobalEjectionHistory(
+      courseId,
+      courseVersionId,
+      {...params, page: 1, limit: 10000}, // Export all matching records
+    );
+
+    const {createObjectCsvStringifier} = await import('csv-writer');
+
+    const header = [
+      {id: 'firstName', title: 'First Name'},
+      {id: 'lastName', title: 'Last Name'},
+      {id: 'email', title: 'Email'},
+      {id: 'cohortName', title: 'Cohort'},
+      {id: 'ejectedAt', title: 'Ejected At'},
+      {id: 'triggerType', title: 'Trigger Type'},
+      {id: 'policyName', title: 'Policy Name'},
+      {id: 'ejectionReason', title: 'Reason'},
+      {id: 'ejectedByName', title: 'Ejected By'},
+    ];
+
+    const csvStringifier = createObjectCsvStringifier({
+      header: header,
+    });
+
+    const formattedHistory = history.map(item => ({
+      ...item,
+      ejectedAt: item.ejectedAt ? new Date(item.ejectedAt).toLocaleString() : '',
+      policyName: item.policyName || 'N/A',
+      cohortName: item.cohortName || 'N/A',
+    }));
+
+    return (
+      csvStringifier.getHeaderString() +
+      csvStringifier.stringifyRecords(formattedHistory)
+    );
+  }
 }

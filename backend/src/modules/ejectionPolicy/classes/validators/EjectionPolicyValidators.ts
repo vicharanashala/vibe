@@ -57,7 +57,8 @@ export class MissedDeadlinesTriggerDto implements MissedDeadlinesTrigger {
   warningAfterMisses: number;
 }
 
-class ViolationsDto {
+@Expose()
+export class ViolationsDto {
   @IsArray()
   @IsString({each: true})
   @Expose()
@@ -525,7 +526,8 @@ export class EjectionStudentsQuery {
 
 // ─── Response ─────────────────────────────────────────────────────────────────
 
-class EjectionHistoryEntryResponse {
+@Expose()
+export class StudentEjectionHistoryEntry {
   @IsDate()
   @Type(() => Date)
   @Expose()
@@ -625,10 +627,10 @@ export class EjectionStudentResponse {
 
   @IsArray()
   @ValidateNested({each: true})
-  @Type(() => EjectionHistoryEntryResponse)
+  @Type(() => StudentEjectionHistoryEntry)
   @Expose()
   @JSONSchema({description: 'Full ejection history for this student'})
-  ejectionHistory: EjectionHistoryEntryResponse[];
+  ejectionHistory: StudentEjectionHistoryEntry[];
 }
 
 @Expose()
