@@ -6,6 +6,10 @@ import {EjectionPolicyService} from './EjectionPolicyService.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
 import {NotificationService} from '#root/modules/notifications/services/NotificationService.js';
+import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
+import {MailService} from '#root/modules/notifications/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {ICourseRepository, UserRepository} from '#root/shared/index.js';
 
 export interface ManualEjectionResult {
   enrollmentId: string;
@@ -25,6 +29,14 @@ export class ManualEjectionService {
     private readonly notificationService: NotificationService,
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+    @inject(NOTIFICATIONS_TYPES.MailService)
+    private readonly mailService: MailService,
+
+    @inject(GLOBAL_TYPES.CourseRepo)
+    private readonly courseRepo: ICourseRepository,
+
+    @inject(GLOBAL_TYPES.UserRepo)
+    private readonly userRepo: UserRepository,
   ) {}
 
   async ejectLearner(
@@ -63,6 +75,32 @@ export class ManualEjectionService {
       reason,
       cohortId,
     );
+
+    const course = await this.courseRepo.read(userId);
+    const user = await this.userRepo.findById(courseId);
+
+    try {
+      await this.mailService.sendMail({
+        to: user.email,
+        subject: `Removed from ${course.name}`,
+        html: `
+      <p>Hello,</p>
+
+      <p>You have been removed from <strong>${course.name}</strong>.</p>
+
+      <p><strong>Reason:</strong> ${reason}</p>
+
+      <p>If you believe this is a mistake, you may contact support.</p>
+
+      <br/>
+      <p>– Team</p>
+    `,
+      });
+
+      console.log('✅ Ejection email sent');
+    } catch (error) {
+      console.error('❌ Ejection email failed:', error);
+    }
 
     const lastEntry = (enrollment.ejectionHistory as any[]).at(-1);
 

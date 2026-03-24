@@ -146,4 +146,30 @@ export class NotificationService {
 
     await this.notificationRepo.createMany(notifications, session);
   }
+  async notifyInactivityWarning(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    daysInactive: number,
+    thresholdDays: number,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    const course = await this.courseRepo.read(courseId);
+    const courseName = course?.name ?? 'your course';
+
+    const notification: Omit<INotification, '_id'> = {
+      userId: new ObjectId(userId),
+      type: 'inactivity_warning',
+      title: 'You are at risk of being removed',
+      message: `You have been inactive in "${courseName}" for ${daysInactive} days. You will be removed if you remain inactive for ${thresholdDays} days.`,
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
+      read: false,
+      createdAt: new Date(),
+    };
+
+    await this.notificationRepo.create(notification, session);
+  }
 }
