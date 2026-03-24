@@ -186,6 +186,7 @@ export class ManualEjectionController {
         query.page,
         query.limit,
         query.search ?? '',
+        query.statusFilter,
       );
 
     const now = new Date();

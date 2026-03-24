@@ -2168,6 +2168,7 @@ export class EnrollmentService extends BaseService {
     page: number,
     limit: number,
     search: string = '',
+    statusFilter: 'all' | 'active' | 'ejected' = 'all',
   ): Promise<{students: any[]; totalDocuments: number; totalPages: number}> {
     const {students, totalDocuments} =
       await this.enrollmentRepo.getStudentsForEjectionPage(
@@ -2177,6 +2178,7 @@ export class EnrollmentService extends BaseService {
         page,
         limit,
         search,
+        statusFilter,
         // no session — read-only, no transaction needed
       );
 

@@ -521,6 +521,11 @@ export class EjectionStudentsQuery {
   @IsString()
   @JSONSchema({type: 'string', description: 'Search by name or email'})
   search?: string;
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({type: 'string', description: 'Filter by status'})
+  statusFilter?: 'all' | 'active' | 'ejected' = 'all';
 }
 
 // ─── Response ─────────────────────────────────────────────────────────────────

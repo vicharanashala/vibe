@@ -4537,6 +4537,7 @@ export class EnrollmentRepository {
     page: number,
     limit: number,
     search: string = '',
+    statusFilter: 'all' | 'active' | 'ejected' = 'all',
     session?: ClientSession,
   ): Promise<{
     students: any[];
@@ -4553,6 +4554,12 @@ export class EnrollmentRepository {
       isDeleted: {$ne: true},
       role: 'STUDENT',
     };
+
+    if (statusFilter === 'active') {
+      matchStage.isEjected = {$ne: true};
+    } else if (statusFilter === 'ejected') {
+      matchStage.isEjected = true;
+    }
 
     const pipeline: any[] = [
       {$match: matchStage},
