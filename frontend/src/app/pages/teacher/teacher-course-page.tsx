@@ -2143,6 +2143,7 @@ function TeacherCourseContent() {
                                                               itemId: null,
                                                               watchItemId: null,
                                                             });
+                                                            setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
                                                             setMode('smartBloom')
                                                           }}
                                                         >
@@ -2408,7 +2409,14 @@ function TeacherCourseContent() {
             {mode === "wizard" ? (
               <AiWorkflow />
             ) : mode === "smartBloom" ? (
-              <SmartBloomWorkflow />
+              <SmartBloomWorkflow
+                onUploadComplete={(uploadedModuleId, uploadedSectionId) => {
+                  setMode('default');
+                  setExpandedModules(prev => ({ ...prev, [uploadedModuleId]: true }));
+                  setExpandedSections(prev => ({ ...prev, [uploadedSectionId]: true }));
+                  setActiveSectionInfo({ moduleId: uploadedModuleId, sectionId: uploadedSectionId });
+                }}
+              />
             ) : mode === "custom" ? (
               <AISectionPage />
             ) : (

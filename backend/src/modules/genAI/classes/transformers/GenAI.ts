@@ -71,6 +71,8 @@ export interface UploadParameters {
 	videoItemBaseName?: string;
 	quizItemBaseName?: string;
 	questionsPerQuiz?: number;
+	smartBloomEnabled?: boolean;
+	questions?: any[];
 }
 
 export interface audioData {

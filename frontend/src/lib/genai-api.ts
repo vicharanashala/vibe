@@ -113,6 +113,9 @@ export interface QuestionGenerationParameters {
       knowledge: number;
       understanding: number;
       application: number;
+      analysis?: number;
+      evaluation?: number;
+      creation?: number;
     };
   };
 }

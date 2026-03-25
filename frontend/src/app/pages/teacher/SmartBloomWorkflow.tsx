@@ -98,6 +98,7 @@ type PipelineStep =
 interface CuratedQuestion {
   id: string;
   segmentId: number;
+  bloomLevel?: BloomKey | 'unclassified';
   text: string;
   options: string[];
   raw: any;
@@ -218,7 +219,11 @@ const allocateQuestions = (
   return allocations;
 };
 
-const SmartBloomWorkflow = () => {
+interface SmartBloomWorkflowProps {
+  onUploadComplete?: (moduleId: string, sectionId: string) => void;
+}
+
+const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) => {
   const { currentCourse } = useCourseStore();
   const queryClient = useQueryClient();
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -356,6 +361,21 @@ const SmartBloomWorkflow = () => {
   }, [segmentIds, questions, acceptedQuestionIds, revealedSegmentCount]);
 
   const normalizeQuestionPayload = (data: any): CuratedQuestion[] => {
+    const normalizeBloomLevel = (value: unknown): BloomKey | 'unclassified' => {
+      const normalized = String(value ?? '').trim().toLowerCase();
+      if (
+        normalized === 'knowledge' ||
+        normalized === 'understanding' ||
+        normalized === 'application' ||
+        normalized === 'analysis' ||
+        normalized === 'evaluation' ||
+        normalized === 'creation'
+      ) {
+        return normalized as BloomKey;
+      }
+      return 'unclassified';
+    };
+
     const buildQuestion = (item: any, fallbackSegment: number, indexSeed: number): CuratedQuestion => {
       const questionText = item?.question?.text ?? item?.text ?? item?.question ?? "";
       const explicitOptions = Array.isArray(item?.options) ? item.options : [];
@@ -371,6 +391,7 @@ const SmartBloomWorkflow = () => {
       return {
         id: stableId,
         segmentId: Number.isFinite(segmentId) ? segmentId : fallbackSegment,
+        bloomLevel: normalizeBloomLevel(item?.bloomLevel ?? item?.question?.bloomLevel),
         text: questionText,
         options: baseOptions.filter(Boolean),
         raw: item,
@@ -570,10 +591,10 @@ const SmartBloomWorkflow = () => {
 
   const mergeQuestions = (incoming: CuratedQuestion[]) => {
     setQuestions((prev) => {
-      const seen = new Set(prev.map((q) => `${q.segmentId}::${q.text}`));
+      const seen = new Set(prev.map((q) => `${q.segmentId}::${q.bloomLevel ?? 'unclassified'}::${q.text}`));
       const next = [...prev];
       incoming.forEach((q) => {
-        const key = `${q.segmentId}::${q.text}`;
+        const key = `${q.segmentId}::${q.bloomLevel ?? 'unclassified'}::${q.text}`;
         if (!seen.has(key) && q.text) {
           seen.add(key);
           next.push(q);
@@ -858,11 +879,13 @@ const SmartBloomWorkflow = () => {
       .filter((q) => acceptedQuestionIds.has(q.id))
       .map((q) => ({
         ...q.raw,
+        bloomLevel: q.bloomLevel ?? q.raw?.bloomLevel ?? q.raw?.question?.bloomLevel,
         segmentId: q.segmentId,
         question: {
           ...(q.raw?.question || {}),
           type: q.raw?.question?.type ?? q.raw?.questionType ?? "SOL",
           text: q.text,
+          bloomLevel: q.bloomLevel ?? q.raw?.question?.bloomLevel ?? q.raw?.bloomLevel,
         },
         solution: q.raw?.solution,
         options: q.options,
@@ -878,6 +901,7 @@ const SmartBloomWorkflow = () => {
       versionId: currentCourse.versionId,
       moduleId: currentCourse.moduleId,
       sectionId: currentCourse.sectionId,
+      smartBloomEnabled: true,
       videoItemBaseName: "video_item",
       quizItemBaseName: "quiz_item",
       questions: curated,
@@ -926,6 +950,7 @@ const SmartBloomWorkflow = () => {
       await refreshTeacherContentCache();
       setPipelineStep("COMPLETED");
       toast.success("Curated questions uploaded successfully. Teacher content refreshed.");
+      onUploadComplete?.(currentCourse.moduleId, currentCourse.sectionId);
     } catch (error: any) {
       const message = String(error?.message || "");
       const alreadyCompleted =
@@ -941,6 +966,7 @@ const SmartBloomWorkflow = () => {
           await refreshTeacherContentCache();
           setPipelineStep("COMPLETED");
           toast.success("Curated questions uploaded successfully. Teacher content refreshed.");
+          onUploadComplete?.(currentCourse.moduleId, currentCourse.sectionId);
           return;
         } catch (rerunError) {
           console.error(rerunError);
