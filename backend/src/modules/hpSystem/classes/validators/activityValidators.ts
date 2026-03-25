@@ -1,6 +1,7 @@
 import { IsArray, IsBoolean, IsDateString, IsEnum, IsMongoId, IsNumber, IsOptional, IsString, Max, Min, ValidateNested } from "class-validator";
 import { ActivityStatus, ActivityType, AttachmentKind, SubmissionMode } from "../../models.js";
 import { Type } from "class-transformer";
+import { CreateHpRuleConfigBody } from "./ruleConfigValidators.js";
 
 export class AttachmentDto {
     @IsString()
@@ -67,7 +68,12 @@ export class CreateActivityBody {
     required_percentage?: number;
 }
 
+export class CreateActivityWithRuleBody{
+    
+    activity: CreateActivityBody;
 
+    ruleConfig: CreateHpRuleConfigBody
+}
 
 export class UpdateActivityBody {
     @IsOptional()
