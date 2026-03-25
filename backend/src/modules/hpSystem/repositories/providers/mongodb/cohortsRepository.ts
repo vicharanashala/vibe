@@ -534,6 +534,11 @@ export class CohortRepository implements ICohortRepository {
         await this.init();
         const userObjId = new ObjectId(userId);
 
+        const overridePairs = Object.values(COHORT_OVERRIDES).map(o => ({
+            courseId: new ObjectId(o.courseId),
+            courseVersionId: new ObjectId(o.versionId),
+        }));
+
         const result = await this.enrollmentCollection.aggregate([
             {
                 $match: {
@@ -543,6 +548,48 @@ export class CohortRepository implements ICohortRepository {
                     isDeleted: { $ne: true },
                 },
             },
+
+            {
+                $lookup: {
+                    from: "courseSettings",
+                    let: { versionId: "$courseVersionId" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ["$courseVersionId", "$$versionId"] },
+                                        { $eq: ["$settings.hpSystem", true] }
+                                    ]
+                                }
+                            }
+                        },
+                        { $project: { _id: 1 } }
+                    ],
+                    as: "courseSettingsDoc",
+                },
+            },
+
+            {
+                $addFields: {
+                    isOverride: {
+                        $in: [
+                            { courseId: "$courseId", courseVersionId: "$courseVersionId" },
+                            overridePairs
+                        ]
+                    }
+                }
+            },
+
+            {
+                $match: {
+                    $or: [
+                        { isOverride: true },
+                        { "courseSettingsDoc.0": { $exists: true } }
+                    ]
+                }
+            },
+
             {
                 $group: {
                     _id: null,
@@ -599,7 +646,7 @@ export class CohortRepository implements ICohortRepository {
             { session }
         );
 
-        return updateResult.matchedCount  > 0;
+        return updateResult.matchedCount > 0;
     }
 
     async getDynamicCoursesWithVersions(session?: ClientSession): Promise<CourseWithVersionsDto[]> {
