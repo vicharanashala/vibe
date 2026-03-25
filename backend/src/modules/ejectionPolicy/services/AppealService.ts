@@ -155,14 +155,43 @@ export class AppealService {
   // ================= GET =================
 
   async getAppeals(filters: any) {
-    return this.appealRepo.findAll(filters);
+    const appeals = await this.appealRepo.findAll(filters);
+
+    const enriched = await Promise.all(
+      appeals.map(async a => {
+        const user = await this.userService.getUserById(a.userId.toString());
+
+        return {
+          ...a,
+          student: {
+            id: a.userId.toString(),
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+          },
+        };
+      }),
+    );
+
+    return enriched;
   }
+
   async getAppealById(appealId: string) {
     const appeal = await this.appealRepo.findById(appealId);
 
     if (!appeal) throw new NotFoundError('Appeal not found');
 
-    return appeal;
+    const user = await this.userService.getUserById(appeal.userId.toString());
+
+    return {
+      ...appeal,
+      student: {
+        id: appeal.userId.toString(),
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+      },
+    };
   }
 
   // ================= APPROVE =================

@@ -95,7 +95,7 @@ export class AppealController {
     const appeals = await this.appealService.getAppeals(query);
     return appeals.map(a => ({
       _id: a._id?.toString(),
-      userId: a.userId?.toString(),
+      student: a.student,
       courseId: a.courseId?.toString(),
       courseVersionId: a.courseVersionId?.toString(),
       cohortId: a.cohortId?.toString(),

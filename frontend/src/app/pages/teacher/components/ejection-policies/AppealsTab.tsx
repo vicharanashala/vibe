@@ -16,7 +16,12 @@ import { toast } from "sonner";
 
 type Appeal = {
   _id: string;
-  userId: string;
+  student: {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+};
   reason: string;
   evidenceUrl?: string;
   status: "PENDING" | "APPROVED" | "REJECTED";
@@ -98,9 +103,13 @@ function AppealCard({
               <FileText className="h-4 w-4 text-primary" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-muted-foreground font-mono truncate">
-                Student: {appeal.userId}
-              </p>
+              <p className="text-sm font-medium">
+  {appeal.student.firstName} {appeal.student.lastName}
+</p>
+
+<p className="text-xs text-muted-foreground">
+  {appeal.student.email}
+</p>
               <p className="text-xs text-muted-foreground">
                 {new Date(appeal.createdAt).toLocaleDateString(undefined, {
                   year: "numeric", month: "short", day: "numeric",
@@ -179,7 +188,7 @@ function AppealCard({
           <DialogHeader>
             <DialogTitle>Reject Appeal</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 mt-8">
             <Textarea
               placeholder="Provide a reason for rejection..."
               value={rejectReason}
