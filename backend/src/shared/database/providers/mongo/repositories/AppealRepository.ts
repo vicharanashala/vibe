@@ -89,4 +89,22 @@ export class AppealRepository {
       {session},
     );
   }
+
+  async existsAnyAfterDate(
+    userId: string,
+    courseId: string,
+    versionId: string,
+    cohortId: string,
+    after: Date,
+  ): Promise<boolean> {
+    await this.init();
+    const found = await this.collection.findOne({
+      userId: new ObjectId(userId),
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(versionId),
+      cohortId: new ObjectId(cohortId),
+      createdAt: {$gte: after},
+    });
+    return !!found;
+  }
 }
