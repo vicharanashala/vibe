@@ -11,6 +11,7 @@ import {
   IsNumber,
   IsArray,
   IsJSON,
+  IsBoolean,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 import { Type, Transform } from 'class-transformer';
@@ -324,6 +325,26 @@ class UploadParameters {
   @IsOptional()
   @IsNumber()
   questionsPerQuiz?: number;
+
+  @JSONSchema({
+    title: 'Smart Bloom Enabled',
+    description: 'Forces bloom-level question-bank split during upload',
+    example: true,
+    type: 'boolean',
+  })
+  @IsOptional()
+  @IsBoolean()
+  smartBloomEnabled?: boolean;
+
+  @JSONSchema({
+    title: 'Curated Questions',
+    description: 'Optional curated questions payload for upload content task',
+    type: 'array',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsObject({ each: true })
+  questions?: any[];
 }
 
 @JSONSchema({ title: 'PartialUploadParameters' })
@@ -401,6 +422,26 @@ class PartialUploadParameters {
   @IsOptional()
   @IsNumber()
   questionsPerQuiz?: number;
+
+  @JSONSchema({
+    title: 'Smart Bloom Enabled',
+    description: 'Forces bloom-level question-bank split during upload',
+    example: true,
+    type: 'boolean',
+  })
+  @IsOptional()
+  @IsBoolean()
+  smartBloomEnabled?: boolean;
+
+  @JSONSchema({
+    title: 'Curated Questions',
+    description: 'Optional curated questions payload for upload content task',
+    type: 'array',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsObject({ each: true })
+  questions?: any[];
 }
 
 class Chunk {

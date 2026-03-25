@@ -49,6 +49,15 @@ import { CloudStorageService } from '#root/modules/anomalies/index.js';
 import { storageConfig } from '#root/config/storage.js';
 import { ObjectId } from 'mongodb';
 
+type BloomLevelKey =
+  | 'knowledge'
+  | 'understanding'
+  | 'application'
+  | 'analysis'
+  | 'evaluation'
+  | 'creation'
+  | 'unclassified';
+
 @injectable()
 export class GenAIService extends BaseService {
   constructor(
@@ -219,14 +228,31 @@ export class GenAIService extends BaseService {
       }
       if (jobState.currentTask === TaskType.UPLOAD_CONTENT) {
         // Persist upload parameters to DB before content upload
+        let resolvedUploadParameters = {
+          ...job.uploadParameters,
+        } as UploadParameters;
+
         if (parameters) {
+          resolvedUploadParameters = {
+            ...job.uploadParameters,
+            ...this.removeUndefined(parameters as Partial<UploadParameters>),
+          };
+
+          // Keep upload destination stable for the life of this job.
+          // UI-provided module/section at upload time should not redirect content elsewhere.
+          if (job.uploadParameters.moduleId) {
+            resolvedUploadParameters.moduleId = job.uploadParameters.moduleId;
+          }
+          if (job.uploadParameters.sectionId) {
+            resolvedUploadParameters.sectionId = job.uploadParameters.sectionId;
+          }
+
           await this.genAIRepository.update(jobId, {
-            uploadParameters: {
-              ...job.uploadParameters,
-              ...this.removeUndefined(parameters as Partial<UploadParameters>),
-            },
+            uploadParameters: resolvedUploadParameters,
           }, session);
         }
+
+        jobState.parameters = resolvedUploadParameters;
         const result = await this.uploadContent(jobId, jobState);
         return result;
       }
@@ -269,14 +295,30 @@ export class GenAIService extends BaseService {
       };
       if (jobState.currentTask === TaskType.UPLOAD_CONTENT) {
         // Persist upload parameters to DB before content upload
+        let resolvedUploadParameters = {
+          ...job.uploadParameters,
+        } as UploadParameters;
+
         if (parameters) {
+          resolvedUploadParameters = {
+            ...job.uploadParameters,
+            ...this.removeUndefined(parameters as Partial<UploadParameters>),
+          };
+
+          // Keep upload destination stable for the life of this job.
+          if (job.uploadParameters.moduleId) {
+            resolvedUploadParameters.moduleId = job.uploadParameters.moduleId;
+          }
+          if (job.uploadParameters.sectionId) {
+            resolvedUploadParameters.sectionId = job.uploadParameters.sectionId;
+          }
+
           await this.genAIRepository.update(jobId, {
-            uploadParameters: {
-              ...job.uploadParameters,
-              ...this.removeUndefined(parameters as Partial<UploadParameters>),
-            },
+            uploadParameters: resolvedUploadParameters,
           }, session);
         }
+
+        jobState.parameters = resolvedUploadParameters;
         const result = await this.uploadContent(jobId, jobState);
         return result;
       }
@@ -760,36 +802,159 @@ export class GenAIService extends BaseService {
   async uploadContent(jobId: string, jobState: JobState): Promise<any> {
     return this._withTransaction(async session => {
       const jobData = await this.genAIRepository.getById(jobId, session);
+      const normalizeBloomLevel = (input: unknown): BloomLevelKey => {
+        if (typeof input === 'number') {
+          if (input === 1) return 'knowledge';
+          if (input === 2) return 'understanding';
+          if (input === 3) return 'application';
+          if (input === 4) return 'analysis';
+          if (input === 5) return 'evaluation';
+          if (input === 6) return 'creation';
+          return 'unclassified';
+        }
+
+        const normalized = String(input || '')
+          .trim()
+          .toLowerCase()
+          .replace(/[\s_-]+/g, '');
+
+        if (
+          normalized === 'knowledge' ||
+          normalized === 'remember' ||
+          normalized === 'remembering' ||
+          normalized === 'recall' ||
+          normalized === '1' ||
+          normalized === 'l1' ||
+          normalized === 'level1'
+        ) {
+          return 'knowledge';
+        }
+
+        if (
+          normalized === 'understanding' ||
+          normalized === 'understand' ||
+          normalized === 'comprehension' ||
+          normalized === '2' ||
+          normalized === 'l2' ||
+          normalized === 'level2'
+        ) {
+          return 'understanding';
+        }
+
+        if (
+          normalized === 'application' ||
+          normalized === 'apply' ||
+          normalized === '3' ||
+          normalized === 'l3' ||
+          normalized === 'level3'
+        ) {
+          return 'application';
+        }
+
+        if (
+          normalized === 'analysis' ||
+          normalized === 'analyze' ||
+          normalized === 'analytical' ||
+          normalized === '4' ||
+          normalized === 'l4' ||
+          normalized === 'level4'
+        ) {
+          return 'analysis';
+        }
+
+        if (
+          normalized === 'evaluation' ||
+          normalized === 'evaluate' ||
+          normalized === '5' ||
+          normalized === 'l5' ||
+          normalized === 'level5'
+        ) {
+          return 'evaluation';
+        }
+
+        if (
+          normalized === 'creation' ||
+          normalized === 'create' ||
+          normalized === 'synthesis' ||
+          normalized === '6' ||
+          normalized === 'l6' ||
+          normalized === 'level6'
+        ) {
+          return 'creation';
+        }
+
+        return 'unclassified';
+      };
+      const extractBloomLevel = (question: any): BloomLevelKey => {
+        const candidates: unknown[] = [
+          question?.bloomLevel,
+          question?.question?.bloomLevel,
+          question?.level,
+          question?.question?.level,
+          question?.bloom,
+          question?.question?.bloom,
+          question?.taxonomy?.bloomLevel,
+          question?.metadata?.bloomLevel,
+          question?.question?.metadata?.bloomLevel,
+        ];
+
+        for (const candidate of candidates) {
+          if (candidate && typeof candidate === 'object') {
+            const objectLevel = normalizeBloomLevel(
+              (candidate as any).level ?? (candidate as any).name,
+            );
+            if (objectLevel !== 'unclassified') {
+              return objectLevel;
+            }
+          }
+
+          const level = normalizeBloomLevel(candidate);
+          if (level !== 'unclassified') {
+            return level;
+          }
+        }
+
+        return 'unclassified';
+      };
+
       try {
         if (!jobData) {
           throw new NotFoundError(`Job with ID ${jobId} not found`);
         }
-        // Fetch and parse the .json questions file from GCloud link
         let allQuestionsData: any[] = [];
-        try {
-          const agent =
-            appConfig.isProduction || appConfig.isStaging
-              ? new SocksProxyAgent(aiConfig.proxyAddress)
-              : undefined;
+        const uploadParams =
+          (jobState.parameters as UploadParameters) ?? jobData.uploadParameters;
+        const curatedQuestions = uploadParams?.questions;
 
-          const axiosOptions = {
-            httpAgent: agent,
-            httpsAgent: agent,
-          };
+        // Prefer curated questions from the upload payload when provided.
+        if (Array.isArray(curatedQuestions) && curatedQuestions.length > 0) {
+          allQuestionsData = curatedQuestions;
+        } else {
+          // Fallback to generated questions file when no curated payload is provided.
+          try {
+            const agent =
+              appConfig.isProduction || appConfig.isStaging
+                ? new SocksProxyAgent(aiConfig.proxyAddress)
+                : undefined;
 
-          const response = await axios.get(jobState.file, axiosOptions);
-          // Expecting { segmentsMap: {...}, questionsData: [...] }
-          if (response.data) {
-            allQuestionsData = response.data;
-          } else {
+            const axiosOptions = {
+              httpAgent: agent,
+              httpsAgent: agent,
+            };
+
+            const response = await axios.get(jobState.file, axiosOptions);
+            if (response.data) {
+              allQuestionsData = response.data;
+            } else {
+              throw new Error(
+                'JSON file must contain segmentsMap and questionsData',
+              );
+            }
+          } catch (error) {
             throw new Error(
-              'JSON file must contain segmentsMap and questionsData',
+              `Failed to fetch or parse questions file from URL: ${jobState.file}. Error: ${error}`,
             );
           }
-        } catch (error) {
-          throw new Error(
-            `Failed to fetch or parse questions file from URL: ${jobState.file}. Error: ${error}`,
-          );
         }
         const questionsGroupedBySegment: Record<string, any[]> = {};
         if (Array.isArray(allQuestionsData)) {
@@ -821,6 +986,7 @@ export class GenAIService extends BaseService {
           id: string;
           name: string;
           segmentId: string;
+          bloomLevel: string;
           questionCount: number;
           questionIds: string[];
         }> = [];
@@ -866,75 +1032,122 @@ export class GenAIService extends BaseService {
           const questionsForSegment =
             questionsGroupedBySegment[currentSegmentId] || [];
           if (questionsForSegment.length > 0) {
-            // Create Question Bank for this segment
-            const questionBankName = `Question Bank - Segment (${segmentStartTime} - ${currentSegmentEndTime})`;
-            const questionBank = new QuestionBank({
-              title: questionBankName,
-              description: `Question bank for video segment from ${segmentStartTime} to ${currentSegmentEndTime}."`,
-              courseId: new ObjectId(
-                (jobState.parameters as UploadParameters).courseId,
-              ),
-              courseVersionId: new ObjectId(
-                (jobState.parameters as UploadParameters).versionId,
-              ),
-              questions: [], // Will be populated after creating questions
-              tags: [`segment_${currentSegmentId}`, 'ai_generated'],
-            });
-
-            const questionBankId = await this.questionBankService.create(
-              questionBank,
+            const hasBloomLevels = questionsForSegment.some(
+              question => extractBloomLevel(question) !== 'unclassified',
+            );
+            const isSmartBloom = !!(
+              jobData.questionGenerationParameters?.smartBloom?.enabled ||
+              uploadParams?.smartBloomEnabled ||
+              hasBloomLevels
             );
 
-            // Create individual questions and add them to the question bank
-            const createdQuestionIds: string[] = [];
-            for (const questionData of questionsForSegment) {
-              try {
-                // Validate and truncate hint if it's too long
-                let hint = questionData.question.hint;
-                const MAX_HINT_LENGTH = 80; // Maximum hint length in characters
+            if (isSmartBloom) {
+            const questionsGroupedByBloom: Record<BloomLevelKey, any[]> = {
+              knowledge: [],
+              understanding: [],
+              application: [],
+              analysis: [],
+              evaluation: [],
+              creation: [],
+              unclassified: [],
+            };
 
-                if (
-                  hint &&
-                  typeof hint === 'string' &&
-                  hint.length > MAX_HINT_LENGTH
-                ) {
-                  // Truncate hint and add ellipsis
-                  hint = hint.substring(0, MAX_HINT_LENGTH - 3) + '...';
-                }
-
-                const questionnew = QuestionFactory.createQuestion(
-                  {
-                    question: questionData.question,
-                    solution: questionData.solution,
-                  },
-                  jobData.userId.toString(),
-                );
-
-                const questionId = await this.questionService.create(
-                  questionnew,
-                );
-                createdQuestionIds.push(questionId);
-
-                // Add question to the question bank
-                await this.questionBankService.addQuestion(
-                  questionBankId,
-                  questionId,
-                );
-              } catch (questionError) {
-                console.warn(
-                  `Failed to create question for segment ${currentSegmentId}:`,
-                  questionError,
-                );
-              }
+            for (const question of questionsForSegment) {
+              const bloomLevel = extractBloomLevel(question);
+              questionsGroupedByBloom[bloomLevel].push(question);
             }
 
-            createdQuestionBanksInfo.push({
-              id: questionBankId,
-              name: questionBankName,
-              segmentId: String(currentSegmentId),
-              questionCount: createdQuestionIds.length,
-              questionIds: createdQuestionIds,
-            });
+            const segmentQuestionBanks: Array<{
+              id: string;
+              bloomLevel: BloomLevelKey;
+              questionCount: number;
+            }> = [];
+            let totalQuestionsForSegment = 0;
+
+            for (const [bloomLevel, bloomQuestions] of Object.entries(
+              questionsGroupedByBloom,
+            ) as Array<[BloomLevelKey, any[]]>) {
+              if (bloomQuestions.length === 0) {
+                continue;
+              }
+
+              const questionBankName = `Question Bank - Segment (${segmentStartTime} - ${currentSegmentEndTime}) - ${bloomLevel.toUpperCase()}`;
+              const questionBank = new QuestionBank({
+                title: questionBankName,
+                description: `Question bank for video segment from ${segmentStartTime} to ${currentSegmentEndTime} (Bloom: ${bloomLevel}).`,
+                courseId: new ObjectId(
+                  (jobState.parameters as UploadParameters).courseId,
+                ),
+                courseVersionId: new ObjectId(
+                  (jobState.parameters as UploadParameters).versionId,
+                ),
+                questions: [],
+                tags: [
+                  `segment_${currentSegmentId}`,
+                  `bloom_${bloomLevel}`,
+                  'ai_generated',
+                ],
+              });
+
+              const questionBankId = await this.questionBankService.create(
+                questionBank,
+              );
+
+              const createdQuestionIds: string[] = [];
+              for (const questionData of bloomQuestions) {
+                try {
+                  const hint = questionData?.question?.hint;
+                  const MAX_HINT_LENGTH = 80;
+                  const safeHint =
+                    hint && typeof hint === 'string' && hint.length > MAX_HINT_LENGTH
+                      ? hint.substring(0, MAX_HINT_LENGTH - 3) + '...'
+                      : hint;
+
+                  const questionnew = QuestionFactory.createQuestion(
+                    {
+                      question: {
+                        ...questionData.question,
+                        hint: safeHint,
+                        bloomLevel,
+                      },
+                      solution: questionData.solution,
+                    },
+                    jobData.userId.toString(),
+                  );
+
+                  const questionId = await this.questionService.create(
+                    questionnew,
+                  );
+                  createdQuestionIds.push(questionId);
+
+                  await this.questionBankService.addQuestion(
+                    questionBankId,
+                    questionId,
+                  );
+                } catch (questionError) {
+                  console.warn(
+                    `Failed to create question for segment ${currentSegmentId} and bloom ${bloomLevel}:`,
+                    questionError,
+                  );
+                }
+              }
+
+              totalQuestionsForSegment += createdQuestionIds.length;
+              segmentQuestionBanks.push({
+                id: questionBankId,
+                bloomLevel,
+                questionCount: createdQuestionIds.length,
+              });
+
+              createdQuestionBanksInfo.push({
+                id: questionBankId,
+                name: questionBankName,
+                segmentId: String(currentSegmentId),
+                bloomLevel,
+                questionCount: createdQuestionIds.length,
+                questionIds: createdQuestionIds,
+              });
+            }
 
             const quizSegName = jobData.uploadParameters.quizItemBaseName
               ? jobData.uploadParameters.quizItemBaseName
@@ -955,7 +1168,7 @@ export class GenAIService extends BaseService {
                 showCorrectAnswersAfterSubmission: true,
                 showExplanationAfterSubmission: true,
                 showScoreAfterSubmission: true,
-                questionVisibility: createdQuestionIds.length,
+                questionVisibility: totalQuestionsForSegment,
                 releaseTime: new Date(),
                 deadline: undefined,
               },
@@ -968,20 +1181,24 @@ export class GenAIService extends BaseService {
               quizItemBody,
             );
 
-            // Link the QuestionBank to the Quiz
+            // Link each Bloom-specific QuestionBank to the Quiz
             const quizId = createdQuizItem.createdItem?._id?.toString();
-            if (quizId && questionBankId) {
-              try {
-                await this.quizService.addQuestionBank(quizId, {
-                  bankId: questionBankId,
-                  count: jobData.uploadParameters.questionsPerQuiz ?? 2,
-                  tags: ['AI Generated'],
-                });
-              } catch (linkError) {
-                console.warn(
-                  `Failed to link question bank ${questionBankId} to quiz ${quizId}:`,
-                  linkError,
-                );
+            if (quizId) {
+              for (const bank of segmentQuestionBanks) {
+                try {
+                  await this.quizService.addQuestionBank(quizId, {
+                    bankId: bank.id,
+                    count:
+                      jobData.uploadParameters.questionsPerQuiz ??
+                      Math.max(bank.questionCount, 1),
+                    tags: [`bloom_${bank.bloomLevel}`, 'ai_generated'],
+                  });
+                } catch (linkError) {
+                  console.warn(
+                    `Failed to link question bank ${bank.id} to quiz ${quizId}:`,
+                    linkError,
+                  );
+                }
               }
             }
 
@@ -989,8 +1206,125 @@ export class GenAIService extends BaseService {
               id: createdQuizItem.createdItem?._id?.toString(),
               name: quizSegName,
               segmentId: String(currentSegmentId),
-              questionCount: createdQuestionIds.length,
+              questionCount: totalQuestionsForSegment,
             });
+            } else {
+              // Original single-bank path (AiWorkflow and other non-SmartBloom workflows)
+              const legacyBankName = `Question Bank - Segment (${segmentStartTime} - ${currentSegmentEndTime})`;
+              const legacyQuestionBank = new QuestionBank({
+                title: legacyBankName,
+                description: `Question bank for video segment from ${segmentStartTime} to ${currentSegmentEndTime}.`,
+                courseId: new ObjectId(
+                  (jobState.parameters as UploadParameters).courseId,
+                ),
+                courseVersionId: new ObjectId(
+                  (jobState.parameters as UploadParameters).versionId,
+                ),
+                questions: [],
+                tags: [`segment_${currentSegmentId}`, 'ai_generated'],
+              });
+
+              const legacyBankId = await this.questionBankService.create(
+                legacyQuestionBank,
+              );
+
+              const legacyQuestionIds: string[] = [];
+              for (const questionData of questionsForSegment) {
+                try {
+                  const hint = questionData?.question?.hint;
+                  const MAX_HINT_LENGTH = 80;
+                  const safeHint =
+                    hint &&
+                    typeof hint === 'string' &&
+                    hint.length > MAX_HINT_LENGTH
+                      ? hint.substring(0, MAX_HINT_LENGTH - 3) + '...'
+                      : hint;
+
+                  const legacyQuestion = QuestionFactory.createQuestion(
+                    {
+                      question: {
+                        ...questionData.question,
+                        hint: safeHint,
+                      },
+                      solution: questionData.solution,
+                    },
+                    jobData.userId.toString(),
+                  );
+
+                  const questionId = await this.questionService.create(
+                    legacyQuestion,
+                  );
+                  legacyQuestionIds.push(questionId);
+
+                  await this.questionBankService.addQuestion(
+                    legacyBankId,
+                    questionId,
+                  );
+                } catch (questionError) {
+                  console.warn(
+                    `Failed to create question for segment ${currentSegmentId}:`,
+                    questionError,
+                  );
+                }
+              }
+
+              const legacyQuizName = jobData.uploadParameters.quizItemBaseName
+                ? jobData.uploadParameters.quizItemBaseName
+                : `Quiz`;
+
+              const legacyQuizItemBody: CreateItemBody = {
+                name: legacyQuizName,
+                description: `Quiz for video segment from ${segmentStartTime} to ${currentSegmentEndTime}. This quiz's points are based on its questions.`,
+                type: ItemType.QUIZ,
+                quizDetails: {
+                  passThreshold: 0.7,
+                  maxAttempts: 1000,
+                  quizType: 'NO_DEADLINE',
+                  approximateTimeToComplete: '00:05:00',
+                  allowPartialGrading: true,
+                  allowSkip: false,
+                  allowHint: true,
+                  showCorrectAnswersAfterSubmission: true,
+                  showExplanationAfterSubmission: true,
+                  showScoreAfterSubmission: true,
+                  questionVisibility: legacyQuestionIds.length,
+                  releaseTime: new Date(),
+                  deadline: undefined,
+                },
+              };
+
+              const legacyQuizItem = await this.itemService.createItem(
+                (jobState.parameters as UploadParameters).versionId,
+                (jobState.parameters as UploadParameters).moduleId,
+                (jobState.parameters as UploadParameters).sectionId,
+                legacyQuizItemBody,
+              );
+
+              const legacyQuizId = legacyQuizItem.createdItem?._id?.toString();
+              if (legacyQuizId) {
+                await this.quizService.addQuestionBank(legacyQuizId, {
+                  bankId: legacyBankId,
+                  count: jobData.uploadParameters.questionsPerQuiz ?? 2,
+                  tags: ['AI Generated'],
+                });
+              }
+
+              createdQuestionBanksInfo.push({
+                id: legacyBankId,
+                name: legacyBankName,
+                segmentId: String(currentSegmentId),
+                bloomLevel: 'n/a',
+                questionCount: legacyQuestionIds.length,
+                questionIds: legacyQuestionIds,
+              });
+
+              createdQuizItemsInfo.push({
+                id: legacyQuizItem.createdItem?._id?.toString(),
+                name: legacyQuizName,
+                segmentId: String(currentSegmentId),
+                questionCount: legacyQuestionIds.length,
+              });
+            }
           }
 
           previousSegmentEndTime = currentSegmentEndTime;
