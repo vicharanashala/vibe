@@ -105,11 +105,6 @@ export class ActivitySubmissionsController {
     @QueryParam("cohort") cohort?: string
   ): Promise<any> {
     const studentId = user._id.toString();
-    console.log("***********************8")
-    console.log("***********************8")
-    console.log("fdsffdfd")
-    console.log("***********************8")
-    console.log("***********************8")
     const doc = await this.submissionService.listMySubmissions(studentId, query, cohort);
     return { success: true, data: doc.data };
   }
