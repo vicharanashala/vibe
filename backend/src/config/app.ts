@@ -1,4 +1,4 @@
-import {env} from '#root/utils/env.js';
+import { env } from '#root/utils/env.js';
 
 // src/constants/AppModule.ts (or a shared constants directory)
 
@@ -6,7 +6,7 @@ export enum AppModule {
   All = 'all',
   Auth = 'auth',
   Users = 'users',
-  Courses = 'courses', 
+  Courses = 'courses',
   Quizzes = 'quizzes',
 }
 
@@ -22,8 +22,10 @@ export const appConfig = {
   frontendUrl: env('FRONTEND_URL') || 'http://localhost:5173',
   adminPassword: env('ADMIN_PASSWORD') || 'admin123',
   ENABLE_DB_BACKUP: env('ENABLE_DB_BACKUP') === 'true',
+  ENABLE_HP_JOB: env('ENABLE_HP_JOB') === 'true',
   GOOGLE_APPLICATION_CREDENTIALS: env('GOOGLE_APPLICATION_CREDENTIALS'),
-  GCP_BACKUP_BUCKET: env('GCP_BACKUP_BUCKET') ,
+  GCP_BACKUP_BUCKET: env('GCP_BACKUP_BUCKET'),
+  GCP_BACKUP_ACTIVITY_BUCKET: env('GCP_BACKUP_ACTIVITY_BUCKET'),
   // Only for development
   firebase: {
     clientEmail: env('FIREBASE_CLIENT_EMAIL') || undefined,
