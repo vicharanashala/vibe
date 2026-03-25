@@ -3,7 +3,12 @@ import { COHORT_OVERRIDES, LEGACY_COURSE_KEYS } from "../constants.js";
 
 export const getActualCourseIds = (activity: HpActivityTransformer) => {
     const key = `${activity.courseId}:${activity.courseVersionId}`;
-    const isLegacyCourse = LEGACY_COURSE_KEYS.has(key);
+    const legacyCourseIds = [
+        "000000000000000000000001",
+        "000000000000000000000002"
+    ];
+
+    const isLegacyCourse = legacyCourseIds.includes(activity.courseId.toString());
 
     if (isLegacyCourse) {
         const override = COHORT_OVERRIDES[activity.cohort];

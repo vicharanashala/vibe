@@ -427,7 +427,7 @@ export class CohortRepository implements ICohortRepository {
         await this.init();
 
         const isOverrideCohort = cohort in COHORT_OVERRIDES;
-
+        console.log(isOverrideCohort, cohort)
         const query: any = {
             userId: { $in: [userId, new ObjectId(userId)] },
             courseId: { $in: [courseId, new ObjectId(courseId)] },
@@ -449,6 +449,8 @@ export class CohortRepository implements ICohortRepository {
                 },
             ];
         }
+
+        console.log(query)
 
         return await this.enrollmentCollection.findOne(query, { session });
     }
