@@ -426,19 +426,35 @@ export class CohortRepository implements ICohortRepository {
     ): Promise<IEnrollment | null> {
         await this.init();
 
-        const isOverrideCohort = cohort in COHORT_OVERRIDES;
-        console.log(isOverrideCohort, cohort)
+        const override = COHORT_OVERRIDES[cohort];
+
+        const effectiveCourseId = override?.courseId ?? courseId;
+        const effectiveCourseVersionId = override?.versionId ?? courseVersionId;
+
+        const normalizedUserId =
+            typeof userId === "string" && ObjectId.isValid(userId)
+                ? [userId, new ObjectId(userId)]
+                : [userId];
+
+        const normalizedCourseId = ObjectId.isValid(effectiveCourseId)
+            ? [effectiveCourseId, new ObjectId(effectiveCourseId)]
+            : [effectiveCourseId];
+
+        const normalizedCourseVersionId = ObjectId.isValid(effectiveCourseVersionId)
+            ? [effectiveCourseVersionId, new ObjectId(effectiveCourseVersionId)]
+            : [effectiveCourseVersionId];
+
         const query: any = {
-            userId: { $in: [userId, new ObjectId(userId)] },
-            courseId: { $in: [courseId, new ObjectId(courseId)] },
-            courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+            userId: { $in: normalizedUserId },
+            courseId: { $in: normalizedCourseId },
+            courseVersionId: { $in: normalizedCourseVersionId },
             isDeleted: { $ne: true },
         };
 
-        if (!isOverrideCohort) {
+        if (!override) {
             const cohortConditions = await this._getCohortMatchConditions(
                 cohort,
-                courseVersionId
+                effectiveCourseVersionId
             );
 
             query.$or = [
@@ -449,8 +465,6 @@ export class CohortRepository implements ICohortRepository {
                 },
             ];
         }
-
-        console.log(query)
 
         return await this.enrollmentCollection.findOne(query, { session });
     }
