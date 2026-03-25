@@ -61,7 +61,11 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const item_type = enrollment.itemType || "VIDEO";
 
   // Fetch course version to get supportLink
-  const { data: courseVersionData } = useCourseVersionById(versionId, variant !== 'available');
+  const { data: courseVersionData } = useCourseVersionById(
+    versionId,
+    variant !== 'available',
+    cohortId || undefined,
+  );
   const supportLink = (courseVersionData as any)?.supportLink;
 
   // const { data: courseDetails, isLoading: isCourseLoading } = useCourseById(courseId);

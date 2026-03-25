@@ -17,6 +17,7 @@ import {
   UseInterceptor,
   Req,
   QueryParams,
+  QueryParam,
   Param,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
@@ -183,6 +184,7 @@ Accessible to:
   async read(
     @Params() params: ReadCourseVersionParams,
     @Ability(getCourseVersionAbility) { ability, user },
+    @QueryParam('cohortId') cohortId?: string,
   ): Promise<CourseVersion & {hpSystem: boolean}> {
     const { versionId } = params;
 
@@ -196,7 +198,11 @@ Accessible to:
     }
 
     const retrievedCourseVersion =
-      await this.courseVersionService.readCourseVersion(versionId, user._id);
+      await this.courseVersionService.readCourseVersion(
+        versionId,
+        user._id,
+        cohortId,
+      );
     return retrievedCourseVersion;
   }
 

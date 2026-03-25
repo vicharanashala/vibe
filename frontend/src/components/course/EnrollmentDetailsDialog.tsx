@@ -36,13 +36,20 @@ export function EnrollmentDetailsDialog({
 }: EnrollmentDetailsDialogProps) {
 
   const courseVersionId = bufferToHex(enrollment.courseVersionId);
+  const cohortId = enrollment?.cohortId
+    ? bufferToHex(enrollment.cohortId)
+    : undefined;
   // Hook is only called when this component is mounted
   const {
     data: enrollmentDetails,
     isLoading
   } = useUserEnrollmentsDetails(true, "", "STUDENT", courseVersionId);
 
-  const { data: versionDetails } = useCourseVersionById(courseVersionId);
+  const { data: versionDetails } = useCourseVersionById(
+    courseVersionId,
+    true,
+    cohortId,
+  );
 
 
   // Use the fetched enrollment details if available, otherwise fall back to the passed enrollment prop
