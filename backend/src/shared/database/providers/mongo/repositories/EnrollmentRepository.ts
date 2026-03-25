@@ -3539,43 +3539,13 @@ export class EnrollmentRepository {
   ): Promise<IEnrollment | null> {
     await this.init();
 
-    // If no cohortId provided, resolve it safely (only if exactly 1 enrollment exists)
-    let effectiveCohortId = cohortId;
-    if (!cohortId) {
-      // Find all enrollments (any role) for this user-course-version to resolve cohort
-      const enrollments = await this.enrollmentCollection
-        .find(
-          {
-            userId: new ObjectId(userId),
-            courseId: new ObjectId(courseId),
-            courseVersionId: new ObjectId(courseVersionId),
-            isDeleted: { $ne: true },
-          },
-          { session },
-        )
-        .toArray();
-
-      if (enrollments.length === 0) {
-        // No enrollment found - let caller handle it
-        return null;
-      }
-
-      const selectedEnrollment = [...enrollments].sort((a, b) => {
-        const bTime = new Date(b.enrollmentDate || 0).getTime();
-        const aTime = new Date(a.enrollmentDate || 0).getTime();
-        return bTime - aTime;
-      })[0];
-
-      effectiveCohortId = selectedEnrollment?.cohortId?.toString();
-    }
-
     return await this.enrollmentCollection.findOne(
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
-        ...(effectiveCohortId
-          ? { cohortId: new ObjectId(effectiveCohortId) }
+        ...(cohortId
+          ? { cohortId: new ObjectId(cohortId) }
           : { cohortId: null }),
       },
       { session },

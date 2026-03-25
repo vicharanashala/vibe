@@ -415,34 +415,13 @@ class ProgressService extends BaseService {
     completedItemCount?: number,
     cohort?: string,
   ): Promise<void> {
-    let effectiveCohort = cohort;
     let enrollment = await this.enrollmentRepo.findEnrollment(
       userId,
       courseId,
       courseVersionId,
-      effectiveCohort,
+      cohort,
       session
     );
-
-    if (!enrollment && !effectiveCohort) {
-      const resolvedCohort = await this.resolveSingleEnrollmentCohort(
-        userId,
-        courseId,
-        courseVersionId,
-        session,
-      );
-
-      if (resolvedCohort !== undefined) {
-        effectiveCohort = resolvedCohort ?? undefined;
-        enrollment = await this.enrollmentRepo.findEnrollment(
-          userId,
-          courseId,
-          courseVersionId,
-          effectiveCohort,
-          session,
-        );
-      }
-    }
 
     if (!enrollment) {
       if (isReset) return;
@@ -462,7 +441,7 @@ class ProgressService extends BaseService {
         enrollment._id.toString(),
         percentCompleted,
         totalCompletedItemsCount,
-        effectiveCohort,
+        cohort,
         session,
       );
       return;
@@ -508,30 +487,9 @@ class ProgressService extends BaseService {
       enrollment._id.toString(),
       percentCompleted,
       completedItemCount,
-      effectiveCohort,
+      cohort,
       session,
     );
-  }
-
-  private async resolveSingleEnrollmentCohort(
-    userId: string,
-    courseId: string,
-    courseVersionId: string,
-    session?: ClientSession,
-  ): Promise<string | null | undefined> {
-    const enrollments = await this.enrollmentRepo.findStudentEnrollmentsByContext(
-      userId,
-      courseId,
-      courseVersionId,
-      session,
-    );
-
-    if (enrollments.length !== 1) {
-      return undefined;
-    }
-
-    const cohortId = enrollments[0]?.cohortId;
-    return cohortId ? cohortId.toString() : null;
   }
 
   async updateEnrollmentProgressPercentBulk(
@@ -2110,19 +2068,6 @@ class ProgressService extends BaseService {
     }
 
     await this._withTransaction(async session => {
-      let effectiveCohortId = cohortId;
-      if (!effectiveCohortId) {
-        const resolvedCohort = await this.resolveSingleEnrollmentCohort(
-          userId,
-          courseId,
-          courseVersionId,
-          session,
-        );
-        if (resolvedCohort !== undefined) {
-          effectiveCohortId = resolvedCohort ?? undefined;
-        }
-      }
-
       let stoppedWatchTime = null;
       let shouldCountCurrentItemAsCompleted = false;
 
@@ -2132,7 +2077,7 @@ class ProgressService extends BaseService {
         if (!isSkipped) {
           stoppedWatchTime = await this.progressRepository.stopItemTracking(
             watchItemId,
-            effectiveCohortId,
+            cohortId,
             session,
           );
 
@@ -2150,7 +2095,7 @@ class ProgressService extends BaseService {
             attemptId,
             isSkipped,
             stoppedWatchTime,
-            effectiveCohortId,
+            cohortId,
           );
 
           shouldCountCurrentItemAsCompleted = true;
@@ -2195,7 +2140,7 @@ class ProgressService extends BaseService {
           userId,
           courseId,
           courseVersionId,
-          effectiveCohortId,
+          cohortId,
         );
         const completedItemsSet = new Set(completedItemsArray.map(id => id.toString()));
         if (shouldCountCurrentItemAsCompleted) {
@@ -2231,14 +2176,14 @@ class ProgressService extends BaseService {
           currentItem: itemId,
           completed: true,
           completedAt: new Date(),
-          ...(effectiveCohortId ? { cohortId: new ObjectId(effectiveCohortId) } : {}),
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
         }
         : {
           completed: false,
           currentModule: nextItem.moduleId,
           currentSection: nextItem.sectionId,
           currentItem: nextItem.itemId,
-          ...(effectiveCohortId ? { cohortId: new ObjectId(effectiveCohortId) } : {}),
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
         };
 
       if (item.type === 'QUIZ' && !isSkipped) {
@@ -2272,14 +2217,14 @@ class ProgressService extends BaseService {
             currentModule: previousVideoItem.moduleId,
             currentSection: previousVideoItem.sectionId,
             currentItem: previousVideoItem.itemId,
-            ...(effectiveCohortId ? { cohortId: new ObjectId(effectiveCohortId) } : {}),
+            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
             // skippedBlankQuizIds: [],
           };
         } else {
           // Quiz passed - set endTime, progress update is handled by the original logic above
           await this.progressRepository.stopItemTracking(
             watchItemId,
-            effectiveCohortId,
+            cohortId,
             session,
           );
           shouldCountCurrentItemAsCompleted = true;
@@ -2294,7 +2239,7 @@ class ProgressService extends BaseService {
         userId,
         courseId,
         courseVersionId,
-        effectiveCohortId
+        cohortId
       );
       if (!enrollment) return;
 
@@ -2307,7 +2252,7 @@ class ProgressService extends BaseService {
           userId,
           courseId,
           courseVersionId,
-          effectiveCohortId,
+          cohortId,
         );
       const completedItemsSet = new Set(
         completedItemsArray.map(id => id.toString()),
@@ -2330,7 +2275,7 @@ class ProgressService extends BaseService {
           enrollment._id.toString(),
           percentCompleted,
           completedCourseItemsCount,
-          effectiveCohortId,
+          cohortId,
         );
       }
 
@@ -2340,7 +2285,7 @@ class ProgressService extends BaseService {
           userId,
           courseId,
           courseVersionId,
-          effectiveCohortId,
+          cohortId,
         );
       }
 
@@ -2351,7 +2296,7 @@ class ProgressService extends BaseService {
           courseId,
           courseVersionId,
           newProgress,
-          effectiveCohortId,
+          cohortId,
           session,
         );
       }
@@ -2827,20 +2772,6 @@ class ProgressService extends BaseService {
     cohortId?: string,
   ): Promise<void> {
     return this._withTransaction(async session => {
-      let effectiveCohortId = cohortId;
-      if (!effectiveCohortId) {
-        const resolvedCohort = await this.resolveSingleEnrollmentCohort(
-          userId,
-          courseId,
-          courseVersionId,
-          session,
-        );
-
-        if (resolvedCohort !== undefined) {
-          effectiveCohortId = resolvedCohort ?? undefined;
-        }
-      }
-
       // Run verify + courseVersion fetch in parallel
       const [_, courseVersion] = await Promise.all([
         this.verifyDetails(userId, courseId, courseVersionId),
@@ -2853,7 +2784,7 @@ class ProgressService extends BaseService {
         courseId,
         courseVersionId,
         courseVersion,
-        effectiveCohortId,
+        cohortId,
       );
       // console.log("Initialized progress for resetCourseProgress:", updatedProgress);
       // Collect itemsGroupIds from courseModules
@@ -2891,7 +2822,7 @@ class ProgressService extends BaseService {
           userId,
           courseId,
           courseVersionId,
-          effectiveCohortId,
+          cohortId,
           session,
         ),
         this.updateEnrollmentProgressPercent(
@@ -2902,10 +2833,10 @@ class ProgressService extends BaseService {
           true,
           undefined,
           0,
-          effectiveCohortId
+          cohortId
         ),
         quizItemIds.length
-          ? this.resetUserQuizData(userId, quizItemIds, session, effectiveCohortId)
+          ? this.resetUserQuizData(userId, quizItemIds, session, cohortId)
           : Promise.resolve(),
         projectItemIds.length
           ? this.resetUserProjectData(
@@ -2913,7 +2844,7 @@ class ProgressService extends BaseService {
             projectItemIds,
             courseVersionId,
             session,
-            effectiveCohortId,
+            cohortId,
           )
           : Promise.resolve(),
       ]);
@@ -2929,7 +2860,7 @@ class ProgressService extends BaseService {
           currentItem: updatedProgress.currentItem,
           completed: false,
         },
-        effectiveCohortId,
+        cohortId,
         session,
       );
 

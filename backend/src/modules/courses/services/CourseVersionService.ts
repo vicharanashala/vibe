@@ -159,6 +159,7 @@ export class CourseVersionService extends BaseService {
   public async readCourseVersion(
     courseVersionId: string,
     userId: string,
+    cohortId?: string,
   ): Promise<CourseVersion & { hpSystem: boolean }> {
     return this._withTransaction(async session => {
       const readVersion = await this.courseRepo.getActiveVersion(
@@ -201,6 +202,7 @@ export class CourseVersionService extends BaseService {
           userId,
           courseId,
           courseVersionId,
+          cohortId,
         );
 
       if (!enrollment) {
