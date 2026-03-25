@@ -78,6 +78,55 @@ export class BulkUnenrollBody {
   @ArrayMaxSize(50, {message: 'Cannot unenroll more than 50 students at once'})
   @IsMongoId({each: true})
   userIds: string[];
+
+  @IsOptional()
+  @IsMongoId()
+  cohortId?: string
+}
+
+export class ChangeEnrollmentStatusBody {
+  @JSONSchema({
+    description: 'New status for the enrollment',
+    example: 'inactive',
+    type: 'string',
+    enum: ['active', 'inactive'],
+  })
+  @IsEnum(['ACTIVE', 'INACTIVE'])
+  @IsNotEmpty()
+  status: EnrollmentStatus;
+
+  @IsOptional()
+  @IsMongoId()
+  cohortId?: string;
+}
+
+export class BulkChangeEnrollmentStatusBody {
+  @JSONSchema({
+    description: 'Array of user IDs to update (maximum 50)',
+    example: ['60d5ec49b3f1c8e4a8f8b8d2', '60d5ec49b3f1c8e4a8f8b8d3'],
+    type: 'array',
+    items: {type: 'string'},
+    maxItems: 50,
+  })
+  @IsArray()
+  @IsNotEmpty()
+  @ArrayMaxSize(50, {message: 'Cannot update more than 50 students at once'})
+  @IsMongoId({each: true})
+  userIds: string[];
+
+  @JSONSchema({
+    description: 'New status for the enrollments',
+    example: 'inactive',
+    type: 'string',
+    enum: ['active', 'inactive'],
+  })
+  @IsEnum(['ACTIVE', 'INACTIVE'])
+  @IsNotEmpty()
+  status: EnrollmentStatus;
+
+  @IsOptional()
+  @IsMongoId()
+  cohortId?: string;
 }
 export class EnrollmentDataResponse {
   @JSONSchema({
@@ -170,6 +219,9 @@ export class EnrollmentDataResponse {
 
   @IsOptional()
   cohortName?: string;
+
+  @IsOptional()
+  hpSystem?: boolean;
 }
 
 class QuizScoresResponse {
@@ -556,4 +608,6 @@ export const ENROLLMENT_VALIDATORS = [
   UpdateEnrollmentProgressResponse,
   BulkUnenrollBody,
   BulkUnenrollResponse,
+  ChangeEnrollmentStatusBody,
+  BulkChangeEnrollmentStatusBody,
 ];

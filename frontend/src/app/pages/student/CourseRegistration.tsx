@@ -1,4 +1,4 @@
-import {  router, studentCourseInviteRegistration } from '@/app/routes/router';
+import { router, studentCourseInviteRegistration } from '@/app/routes/router';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
@@ -7,8 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import Form from "@rjsf/shadcn";
-import { useGetCourseRegistration, useGetDynamicFields, useSubmitCourseRegistration } from '@/hooks/hooks';
-import { useParams } from '@tanstack/react-router';
+import { useGetCourseRegistration, useGetDynamicFields, useSubmitCourseRegistration, useGetCourseRegistrationRequests } from '@/hooks/hooks';
 import React, { useEffect, useRef, useState } from 'react';
 import ReCAPTCHA from "react-google-recaptcha";
 import { toast } from 'sonner';
@@ -145,10 +144,14 @@ const CourseRegistration: React.FC = () => {
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
   const [submitErrors, setSubmitErrors] = useState<string[]>([]);
+  const [registrationStatus, setRegistrationStatus] = useState<'IDLE' | 'APPROVED' | 'PENDING'>('IDLE');
+  const pollTimeoutRef = useRef<number | null>(null);
+  const isMountedRef = useRef(true);
 
   const isRecaptchaEnabled: boolean = import.meta.env.VITE_IS_RECAPTCHA_ENABLED === "true";
   // const [showModules, setShowModules] = useState(false);
   const { data: versionData, isLoading: isLoadingVersionData } = useGetCourseRegistration(versionId);
+  const { refetch: refetchRegistrationRequests } = useGetCourseRegistrationRequests(versionId);
   const { mutateAsync: submitRegistration, isPending: isSubmitting } = useSubmitCourseRegistration();
   const { data: formFieldData, isLoading: isFormFieldsLoading } = useGetDynamicFields(versionId);
   const jsonSchema = formFieldData?.jsonSchema as RJSFSchema | undefined;
@@ -161,8 +164,87 @@ const CourseRegistration: React.FC = () => {
     return d.toLocaleDateString();
   };
 
+  const getStatusValue = (value: any): string => {
+    const rawStatus =
+      value?.status ??
+      value?.approvalStatus ??
+      value?.registrationStatus ??
+      value?.data?.status ??
+      value?.data?.approvalStatus ??
+      value?.data?.registrationStatus;
+
+    return typeof rawStatus === 'string' ? rawStatus.toUpperCase() : '';
+  };
+
+  const getRegistrationsFromResult = (result: any): any[] => {
+    const candidate = result?.data ?? result;
+
+    if (Array.isArray(candidate)) return candidate;
+    if (Array.isArray(candidate?.registrations)) return candidate.registrations;
+    if (Array.isArray(candidate?.data?.registrations)) return candidate.data.registrations;
+    if (Array.isArray(candidate?.courseRegistrations)) return candidate.courseRegistrations;
+    if (Array.isArray(candidate?.records)) return candidate.records;
+
+    return [];
+  };
+
+  const normalizeEmail = (email?: string) =>
+    (email || '').trim().toLowerCase();
+
+  const getRegistrationEmail = (registration: any) => {
+    const detail = registration?.detail || {};
+    return (
+      detail?.email ||
+      detail?.Email ||
+      registration?.email ||
+      registration?.studentEmail ||
+      registration?.student?.email ||
+      ''
+    );
+  };
+
+  const pollForAutoApproval = async (submittedEmail?: string) => {
+    const targetEmail = normalizeEmail(submittedEmail || user?.email || '');
+    const maxAttempts = 5;
+    const pollIntervalMs = 1500;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      if (!isMountedRef.current) return;
+
+      if (attempt > 1) {
+        await new Promise<void>(resolve => {
+          pollTimeoutRef.current = window.setTimeout(() => resolve(), pollIntervalMs);
+        });
+
+        if (!isMountedRef.current) return;
+      }
+
+      const result = await refetchRegistrationRequests();
+      const registrations = getRegistrationsFromResult(result);
+
+      const matchingRegistration = registrations.find((registration: any) => {
+        const registrationEmail = normalizeEmail(getRegistrationEmail(registration));
+        return registrationEmail !== '' && registrationEmail === targetEmail;
+      });
+
+      const status = getStatusValue(matchingRegistration);
+      if (status === 'APPROVED') {
+        if (isMountedRef.current) {
+          setRegistrationStatus('APPROVED');
+        }
+        return;
+      }
+    }
+
+    if (isMountedRef.current) {
+      setRegistrationStatus('PENDING');
+    }
+  };
+
   const onSubmit = async (data: IChangeEvent<any>) => {
     try {
+      // Capture the email from the submitted form before it's cleared
+      const submittedEmail = data.formData?.Email || data.formData?.email || user?.email;
 
       let body: any = { ...data.formData, recaptchaToken: isRecaptchaEnabled ? recaptchaToken : "NO_CAPTCHA" };
       if (cohort) {
@@ -188,7 +270,7 @@ const CourseRegistration: React.FC = () => {
         body = formDataObj;
       }
 
-      await submitRegistration({
+      const response = await submitRegistration({
         params: {
           path: {
             versionId: versionId || '',
@@ -197,15 +279,28 @@ const CourseRegistration: React.FC = () => {
         body,
       });
 
-
       setIsRegistering(false);
-      setIsRegistered(true)
+      setIsRegistered(true);
       setFormData(buildEmptyFormData(jsonSchema!));
+
+      const submissionStatus = getStatusValue(response);
+
+      if (submissionStatus === 'APPROVED') {
+        setRegistrationStatus('APPROVED');
+      } else {
+        setRegistrationStatus('IDLE');
+        try {
+          await pollForAutoApproval(submittedEmail);
+        } catch {
+          if (isMountedRef.current) {
+            setRegistrationStatus('PENDING');
+          }
+        }
+      }
 
     } catch (err: any) {
       toast.error(err?.message || 'Something went wrong, please try again.');
       if(err?.message.includes("You are already enrolled")){
-        console.log("err?.message----",err?.message);
         setTimeout(() => {
           router.navigate({ to: '/student' });
         }, 1000);
@@ -251,11 +346,11 @@ const CourseRegistration: React.FC = () => {
 
   const emptyData = buildEmptyFormData(jsonSchema);
 
-  setFormData(prev => ({
+  setFormData({
     ...emptyData,
     Name: user?.name ?? "emptyData.Name",
     Email: user?.email ?? "emptyData.Email",
-  }));
+  });
 }, [jsonSchema, user]);
 
 
@@ -277,7 +372,21 @@ const computedUiSchema = React.useMemo(() => {
 }, [uiSchema]);
 
 
-  useEffect(() => { setIsRegistered(false) }, [])
+  useEffect(() => { 
+  setIsRegistered(false);
+  setRegistrationStatus('IDLE');
+}, []);
+
+    useEffect(() => {
+      isMountedRef.current = true;
+
+      return () => {
+        isMountedRef.current = false;
+        if (pollTimeoutRef.current) {
+          window.clearTimeout(pollTimeoutRef.current);
+        }
+      };
+    }, []);
 
 
 
@@ -305,6 +414,62 @@ const computedUiSchema = React.useMemo(() => {
 
   return (
     <main className="mx-auto max-w-5xl space-y-8 my-8">
+      {isRegistered && (
+        <Card className="w-full max-w-3xl mx-auto border border-green-300 dark:border-green-700 rounded-xl shadow-sm animate-in fade-in zoom-in-95 duration-500">
+          <CardHeader className="text-center space-y-2 pb-2">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
+              <GraduationCap className="h-7 w-7 text-green-600 dark:text-green-400" />
+            </div>
+            {registrationStatus === 'IDLE' && (
+              <>
+                <CardTitle className="text-2xl font-bold text-green-700 dark:text-green-400">
+                  Checking registration status...
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Please wait while we check your registration status.
+                </CardDescription>
+              </>
+            )}
+            {registrationStatus === 'APPROVED' && (
+              <>
+                <CardTitle className="text-2xl font-bold text-green-700 dark:text-green-400">
+                  Successfully Registered 🎉
+                </CardTitle>
+                <CardDescription className="text-base">
+                  You are successfully registered to the course.
+                </CardDescription>
+              </>
+            )}
+            {registrationStatus === 'PENDING' && (
+              <>
+                <CardTitle className="text-2xl font-bold text-green-700 dark:text-green-400">
+                  Waiting for instructor approval
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Your enrollment request has been submitted.<br />
+                  Waiting for instructor approval. Login later to check your registration status.
+                </CardDescription>
+              </>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-1 text-center py-3">
+            {registrationStatus === 'APPROVED' && (
+              <div className="flex flex-col items-center justify-center gap-1 pt-2">
+                <Button
+                  onClick={() => window.location.href = "/student"}
+                  className="flex items-center gap-2 px-6 py-4 text-base"
+                >
+                  <BookOpen className="w-5 h-5" />
+                  GO TO DASHBOARD
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {!isRegistered && (
+        <>
       <header className="space-y-1">
         <div className="flex items-center gap-3 mb-2">
           <div className="relative">
@@ -579,42 +744,7 @@ const computedUiSchema = React.useMemo(() => {
                 )}
               </CardContent>
             </Card>
-          ) : (
-            <>
-
-              <Card className="w-full max-w-3xl mx-auto border border-green-300 dark:border-green-700 rounded-xl shadow-sm animate-in fade-in zoom-in-95 duration-500">
-                <CardHeader className="text-center space-y-2 pb-2">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
-                    <GraduationCap className="h-7 w-7 text-green-600 dark:text-green-400" />
-                  </div>
-
-                  <CardTitle className="text-2xl font-bold text-green-700 dark:text-green-400">
-                     Registration Request Submitted 🎉
-                  </CardTitle>
-
-                  <CardDescription className="text-base">
-                      Your enrollment request has been successfully submitted.
-                  </CardDescription>
-
-                   <p className="text-sm text-muted-foreground max-w-md mx-auto text-center">
-                      Our team will review your request and notify you once it is approved.
-                    </p>
-                </CardHeader>
-
-                <CardContent className="space-y-1 text-center py-3">
-                  <div className="flex flex-col items-center justify-center gap-1 pt-2">
-                   <Button
-                      onClick={() => window.location.href = "/student"}
-                      className="flex items-center gap-2 px-6 py-4 text-base"
-                      >
-                      <BookOpen className="w-5 h-5" />
-                      Go to Dashboard
-                    </Button>
-                  </div>
-                </CardContent>
-
-              </Card>
-            </>)}
+          ) : null}
         </section>
       </section>
 
@@ -772,6 +902,8 @@ const computedUiSchema = React.useMemo(() => {
           );
         })()}
       </section>
+        </>
+      )}
     </main>
   );
 };

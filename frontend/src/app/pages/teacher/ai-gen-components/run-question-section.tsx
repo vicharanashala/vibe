@@ -60,13 +60,22 @@ export function RunQuestionSection({ aiJobId, run, acceptedRunId, onAccept, runI
             const questionsRes = await fetch(arr[idx].fileUrl);
             if (!questionsRes.ok) throw new Error('Failed to fetch questions file');
             const data = await questionsRes.json();
-            let questionsArr = [];
+            let questionsArr: any[] = [];
             if (Array.isArray(data)) {
-              questionsArr = data.filter((q: any) => typeof q === 'object' && q !== null && q.question);
-            } else if (data.segments && Array.isArray(data.segments)) {
-              questionsArr = data.segments;
+              questionsArr = data;
+            } else if (Array.isArray(data.questionsData)) {
+              questionsArr = data.questionsData;
+            } else if (Array.isArray(data.questions)) {
+              questionsArr = data.questions;
+            } else if (Array.isArray(data.segments)) {
+              questionsArr = data.segments.flatMap((s: any) => Array.isArray(s.questions) ? s.questions : []);
+            } else if (Array.isArray(data?.data)) {
+              questionsArr = data.data;
             } else {
               setError('Questions format not recognized.');
+            }
+            if (questionsArr.length === 0) {
+              setError('No questions found in questions output file.');
             }
             setQuestionsByRun(prev => ({ ...prev, [run.id]: questionsArr }));
           } else {
@@ -114,11 +123,17 @@ export function RunQuestionSection({ aiJobId, run, acceptedRunId, onAccept, runI
                 const questionsRes = await fetch(arr[idx].fileUrl);
                 if (!questionsRes.ok) throw new Error('Failed to fetch questions file');
                 const data = await questionsRes.json();
-                let questionsArr = [];
+                let questionsArr: any[] = [];
                 if (Array.isArray(data)) {
-                  questionsArr = data.filter((q: any) => typeof q === 'object' && q !== null && q.question);
-                } else if (data.segments && Array.isArray(data.segments)) {
-                  questionsArr = data.segments.flatMap((seg: any) => seg.questions || []);
+                  questionsArr = data;
+                } else if (Array.isArray(data.questionsData)) {
+                  questionsArr = data.questionsData;
+                } else if (Array.isArray(data.questions)) {
+                  questionsArr = data.questions;
+                } else if (Array.isArray(data.segments)) {
+                  questionsArr = data.segments.flatMap((seg: any) => Array.isArray(seg.questions) ? seg.questions : []);
+                } else if (Array.isArray(data.data)) {
+                  questionsArr = data.data;
                 } else {
                   toast.error('Questions format not recognized.');
                   return;

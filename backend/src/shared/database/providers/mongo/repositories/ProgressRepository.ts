@@ -107,7 +107,7 @@ class ProgressRepository {
         courseVersionId: new ObjectId(courseVersionId),
         endTime: { $exists: true, $ne: null },
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
       },
       { session },
     );
@@ -166,7 +166,7 @@ class ProgressRepository {
           userId: new ObjectId(userId),
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
-          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
           itemId: new ObjectId(itemId),
           endTime: { $exists: true, $ne: null },
           isDeleted: { $ne: true },
@@ -276,7 +276,7 @@ class ProgressRepository {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
       },
       { $set: { isDeleted: true, deletedAt: new Date() } },
       { session },
@@ -355,7 +355,7 @@ class ProgressRepository {
           {
             userId: { $in: [userIdStr, userIdObj] },
             quizId: { $in: [quizIdStr, quizIdObj] },
-            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
           },
           { session },
         )
@@ -371,7 +371,7 @@ class ProgressRepository {
           filter: {
             userId: { $in: [userIdStr, userIdObj] },
             quizId: { $in: [quizIdStr, quizIdObj] },
-            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
           },
         },
       });
@@ -382,7 +382,7 @@ class ProgressRepository {
           filter: {
             quizId: { $in: [quizIdStr, quizIdObj] },
             userId: { $in: [userIdStr, userIdObj] },
-            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
           },
           update: {
             $set: {
@@ -447,7 +447,7 @@ class ProgressRepository {
         courseId: { $in: [new ObjectId(courseId), courseId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
       },
       {
         session,
@@ -523,7 +523,8 @@ class ProgressRepository {
         userId: { $in: [new ObjectId(userId), userId] },
         courseId: { $in: [new ObjectId(courseId), courseId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+        isDeleted: { $ne: true },
       },
       { $set: normalizedProgress },
       { returnDocument: 'after', session },
@@ -585,7 +586,7 @@ class ProgressRepository {
       {
         _id: new ObjectId(watchTimeId),
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
       },
       { $set: { endTime: new Date() } },
       { returnDocument: 'after', session },
@@ -620,8 +621,13 @@ class ProgressRepository {
     if (courseVersionId) {
       query.courseVersionId = new ObjectId(courseVersionId);
     }
-    if(cohortId){
+    if (cohortId) {
       query.cohortId = new ObjectId(cohortId);
+    } else {
+      query.$or = [
+        { cohortId: null },
+        { cohortId: { $exists: false } },
+      ];
     }
     query.isDeleted = { $ne: true };
     const result = await this.watchTimeCollection
@@ -669,7 +675,7 @@ class ProgressRepository {
         userId: { $in: [new ObjectId(userId), userId] },
         courseId: { $in: [new ObjectId(courseId), courseId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
         isDeleted: { $ne: true },
       },
       { $set: progress },
@@ -1048,13 +1054,15 @@ class ProgressRepository {
     limit: number,
     search?: string,
     sortBy: 'name' | 'views' | 'watchHours' = 'name',
-    sortOrder: 'asc' | 'desc' = 'asc'
+    sortOrder: 'asc' | 'desc' = 'asc',
+    maxSecondsPerView: number = 10 * 60,
   ): Promise<VideoUserAnalyticsResponse> {
     await this.init();
 
     const safePage = Math.max(1, page || 1);
     const safeLimit = Math.min(Math.max(1, limit || 10), 200);
     const skip = (safePage - 1) * safeLimit;
+    const capMs = Math.max(1, Math.floor(maxSecondsPerView * 1000));
 
     // Map sortBy to MongoDB field names
     const sortFieldMap = {
@@ -1093,7 +1101,20 @@ class ProgressRepository {
                       { $ne: ["$endTime", null] },
                     ],
                   },
-                  { $subtract: ["$endTime", "$startTime"] },
+                  {
+                    $let: {
+                      vars: {
+                        rawMs: { $subtract: ["$endTime", "$startTime"] },
+                      },
+                      in: {
+                        $cond: [
+                          { $gt: ["$$rawMs", 0] },
+                          { $min: ["$$rawMs", capMs] },
+                          0,
+                        ],
+                      },
+                    },
+                  },
                   0,
                 ],
               },
@@ -1128,27 +1149,6 @@ class ProgressRepository {
           : []),
 
         {
-          $addFields: {
-            cappedWatchMs: {
-              $cond: [
-                { $gt: ["$totalWatchMs", 600000] },
-                {
-                  $add: [
-                    600000,
-                    {
-                      $floor: {
-                        $multiply: [{ $rand: {} }, 120000],
-                      },
-                    },
-                  ],
-                },
-                "$totalWatchMs",
-              ],
-            },
-          },
-        },
-
-        {
           $facet: {
             data: [
               { $skip: skip },
@@ -1164,10 +1164,10 @@ class ProgressRepository {
                   totalWatchTime: {
                     $let: {
                       vars: {
-                        minutes: { $floor: { $divide: ["$cappedWatchMs", 60000] } },
+                        minutes: { $floor: { $divide: ["$totalWatchMs", 60000] } },
                         seconds: {
                           $floor: {
-                            $divide: [{ $mod: ["$cappedWatchMs", 60000] }, 1000],
+                            $divide: [{ $mod: ["$totalWatchMs", 60000] }, 1000],
                           },
                         },
                       },
@@ -1241,10 +1241,11 @@ class ProgressRepository {
   async getCourseVersionTotalWatchTime(
     courseId: string,
     versionId: string,
+    maxSecondsPerView: number = 10 * 60,
   ): Promise<number> {
     await this.init();
 
-    const MAX_MS = 10 * 60 * 1000; // 10 minutes
+    const capMs = Math.max(1, Math.floor(maxSecondsPerView * 1000));
 
     const result = await this.watchTimeCollection
       .aggregate([
@@ -1265,20 +1266,17 @@ class ProgressRepository {
         },
 
         {
-          $match: {
-            $expr: {
-              $and: [
-                { $gte: ['$diffMs', 0] },
-                { $lte: ['$diffMs', MAX_MS] }, 
-              ],
-            },
-          },
-        },
-
-        {
           $group: {
             _id: null,
-            totalMs: { $sum: '$diffMs' },
+            totalMs: {
+              $sum: {
+                $cond: [
+                  { $gt: ['$diffMs', 0] },
+                  { $min: ['$diffMs', capMs] },
+                  0,
+                ],
+              },
+            },
           },
         },
       ])

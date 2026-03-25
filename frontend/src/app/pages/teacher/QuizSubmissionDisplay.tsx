@@ -59,14 +59,15 @@ interface QuizSubmissionDisplayProps {
   userId: string;
   quizId: string;
   itemName?: string;
+  cohortId?: string;
 }
 
-export function QuizSubmissionDisplay({ userId, quizId, itemName }: QuizSubmissionDisplayProps) {
+export function QuizSubmissionDisplay({ userId, quizId, itemName, cohortId }: QuizSubmissionDisplayProps) {
   // State to track selected submission result id
   const [selectedSubmissionResultId, setSelectedSubmissionResultId] = useState<string | undefined>(undefined)
 
   // First, get quiz metrics to find the latest submission result ID
-  const { data: quizMetrics, isLoading: metricsLoading, error: metricsError } = useUserQuizMetrics(quizId, userId)
+  const { data: quizMetrics, isLoading: metricsLoading, error: metricsError } = useUserQuizMetrics(quizId, userId, cohortId)
   // Set default selected submission result id to latest on load
   const latestSubmissionResultId = quizMetrics?.latestSubmissionResultId
 

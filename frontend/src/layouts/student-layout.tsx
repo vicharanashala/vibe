@@ -14,7 +14,7 @@ import { useState } from "react"
 import InviteDropdown from "@/components/inviteDropDown"
 import { useNewAnnouncementIndicator } from "@/hooks/use-new-announcement-indicator"
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
-import { useInvites, useGetUnreadApprovedRegistrations } from "@/hooks/hooks"
+import { useInvites, useGetUnreadApprovedRegistrations, useGetPendingStudentRegistrations, useGetRejectedStudentRegistrations } from "@/hooks/hooks"
 import { ApprovedRegistrationNotification } from "@/types/notification.types"
 import { useRef, useEffect } from "react"
 import logo from "../../public/img/vibe_logo_img.ico"
@@ -25,6 +25,9 @@ export default function StudentLayout() {
   const navigate = useNavigate()
   const { getInvites } = useInvites(); // run after login
   const { data: approvedNotifications } = useGetUnreadApprovedRegistrations(user?.uid || '');
+  const { data: pendingStudentRegistrations } = useGetPendingStudentRegistrations(user?.uid || '');
+  const { data: rejectedStudentRegistrations, refetch: refetchRejected } = useGetRejectedStudentRegistrations(user?.uid || '');
+  const [localRejectedRegistrations, setLocalRejectedRegistrations] = useState<any[]>([]);
   const hasShownToast = useRef(false);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   const [approvedNotificationsList, setApprovedNotificationsList] = useState<any[]>([]);
@@ -78,6 +81,12 @@ export default function StudentLayout() {
       setApprovedNotificationsList(approvedNotifications);
     }
   }, [approvedNotifications]);
+
+  useEffect(() => {
+    if (rejectedStudentRegistrations) {
+      setLocalRejectedRegistrations(rejectedStudentRegistrations);
+    }
+  }, [rejectedStudentRegistrations]);
 
   const handleLogout = () => {
     logout()
@@ -254,6 +263,20 @@ export default function StudentLayout() {
               <Button
                 variant="ghost"
                 size="sm"
+                className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300 ${isActive("/student/hp-system/cohorts")
+                  ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-md before:opacity-100"
+                  : ""
+                  }`}
+                asChild
+              >
+                <Link to="/student/hp-system/cohorts">
+                  <span className="relative z-10">HP System</span>
+                </Link>
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
                 className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300 ${isActive("/student/announcements")
                   ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-md before:opacity-100"
                   : ""
@@ -279,7 +302,7 @@ export default function StudentLayout() {
                 >
                   <Bell className="h-4 w-4" />
                   <span className="hidden sm:block ml-2">Notifications</span>
-                  {(pendingInvites.length > 0 || approvedNotificationsList.length > 0) && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />}
+                  {(pendingInvites.length > 0 || approvedNotificationsList.length > 0 || (pendingStudentRegistrations?.length ?? 0) > 0 || localRejectedRegistrations.length > 0) && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />}
                 </Button>
 
                 {showInvites && <InviteDropdown
@@ -287,6 +310,11 @@ export default function StudentLayout() {
                   pendingInvites={pendingInvites}
                   approvedNotifications={approvedNotificationsList}
                   setApprovedNotifications={setApprovedNotificationsList}
+                  pendingStudentRegistrations={pendingStudentRegistrations ?? []}
+                  rejectedStudentRegistrations={localRejectedRegistrations}
+                  onDismissRejected={(id) => {
+                    setLocalRejectedRegistrations(prev => prev.filter(r => r._id !== id));
+                  }}
                 />}
               </div>
 
@@ -366,6 +394,18 @@ export default function StudentLayout() {
               >
                 <Link to="/student/courses">
                   <span>Courses</span>
+                </Link>
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground"
+                asChild
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <Link to="/student/hp-system/cohorts">
+                  <span>Cohorts</span>
                 </Link>
               </Button>
 

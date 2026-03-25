@@ -44,9 +44,8 @@ export class SettingRepository implements ISettingRepository {
     if (!this.initialized) {
       this.courseSettingsCollection =
         await this.db.getCollection<CourseSetting>('courseSettings');
-      this.userSettingsCollection = await this.db.getCollection<UserSetting>(
-        'userSettings',
-      );
+      this.userSettingsCollection =
+        await this.db.getCollection<UserSetting>('userSettings');
       this.cohortsCollection = await this.db.getCollection<ICohort>('cohorts');
       this.initialized = true;
 
@@ -272,7 +271,9 @@ export class SettingRepository implements ISettingRepository {
     detectors: DetectorSettingsDto[],
     linearProgressionEnabled: boolean,
     seekForwardEnabled: boolean,
+    hpSystem: boolean,
     isPublic: boolean,
+    baseHp: number,
     audit: AuditingDto,
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
@@ -328,7 +329,9 @@ export class SettingRepository implements ISettingRepository {
           'settings.proctors.detectors': detectors,
           'settings.linearProgressionEnabled': linearProgressionEnabled,
           'settings.seekForwardEnabled': seekForwardEnabled,
+          'settings.hpSystem': hpSystem,
           'settings.isPublic': isPublic,
+          'settings.baseHp': baseHp,
         },
         $push: {
           'settings.audit': audit,
@@ -422,6 +425,29 @@ export class SettingRepository implements ISettingRepository {
             schemas.registrationsAutoApproved,
           'settings.registration.autoapproval_emails':
             schemas.autoapproval_emails,
+        },
+      },
+      {session},
+    );
+    return result;
+  }
+
+  async updateCohortSettings(
+    courseId: string,
+    versionId: string,
+    schemas: {cohortSettings: ObjectId[]},
+    session?: ClientSession,
+  ): Promise<UpdateResult | null> {
+    await this.init();
+
+    const result = await this.courseSettingsCollection.updateOne(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(versionId),
+      },
+      {
+        $set: {
+          'settings.registration.cohortSettings': schemas.cohortSettings,
         },
       },
       {session},
@@ -769,19 +795,17 @@ export class SettingRepository implements ISettingRepository {
     return result;
   }
 
-
   async getPublicCatalog(
     enrolledVersionIds: string[],
     enrolledCohortIds: string[],
     skip: number,
     limit: number,
     search: string,
-    session?: ClientSession
+    session?: ClientSession,
   ) {
-    await this.init()
+    await this.init();
 
     const pipeline: any[] = [
-
       /*
       -------------------------
       PART 1: PUBLIC COHORTS
@@ -791,54 +815,54 @@ export class SettingRepository implements ISettingRepository {
       {
         $match: {
           isPublic: true,
-          isDeleted: { $ne: true },
-          _id: { $nin: enrolledCohortIds.map(id => new ObjectId(id)) }
-        }
+          isDeleted: {$ne: true},
+          _id: {$nin: enrolledCohortIds.map(id => new ObjectId(id))},
+        },
       },
 
       {
         $lookup: {
-          from: "newCourseVersion",
-          localField: "courseVersionId",
-          foreignField: "_id",
-          as: "version"
-        }
+          from: 'newCourseVersion',
+          localField: 'courseVersionId',
+          foreignField: '_id',
+          as: 'version',
+        },
       },
 
-      { $unwind: "$version" },
+      {$unwind: '$version'},
 
       {
         $lookup: {
-          from: "newCourse",
-          localField: "version.courseId",
-          foreignField: "_id",
-          as: "course"
-        }
+          from: 'newCourse',
+          localField: 'version.courseId',
+          foreignField: '_id',
+          as: 'course',
+        },
       },
 
-      { $unwind: "$course" },
+      {$unwind: '$course'},
 
       {
         $match: {
-          "course.isDeleted": { $ne: true }
-        }
+          'course.isDeleted': {$ne: true},
+        },
       },
 
       {
         $project: {
-          type: { $literal: "COHORT" },
+          type: {$literal: 'COHORT'},
 
-          cohortId: { $toString: "$_id" },
-          cohortName: "$name",
+          cohortId: {$toString: '$_id'},
+          cohortName: '$name',
 
-          courseId: { $toString: "$course._id" },
-          courseName: "$course.name",
-          courseDescription: "$course.description",
+          courseId: {$toString: '$course._id'},
+          courseName: '$course.name',
+          courseDescription: '$course.description',
 
-          courseVersionId: { $toString: "$version._id" },
-          versionName: "$version.version",
-          versionDescription: "$version.description"
-        }
+          courseVersionId: {$toString: '$version._id'},
+          versionName: '$version.version',
+          versionDescription: '$version.description',
+        },
       },
 
       /*
@@ -849,65 +873,65 @@ export class SettingRepository implements ISettingRepository {
 
       {
         $unionWith: {
-          coll: "courseSettings",
+          coll: 'courseSettings',
           pipeline: [
-
             {
               $match: {
-                "settings.isPublic": true,
-                courseVersionId: { $nin: enrolledVersionIds.map(id => new ObjectId(id)) }
-              }
+                'settings.isPublic': true,
+                courseVersionId: {
+                  $nin: enrolledVersionIds.map(id => new ObjectId(id)),
+                },
+              },
             },
 
             {
               $lookup: {
-                from: "newCourse",
-                localField: "courseId",
-                foreignField: "_id",
-                as: "course"
-              }
+                from: 'newCourse',
+                localField: 'courseId',
+                foreignField: '_id',
+                as: 'course',
+              },
             },
 
-            { $unwind: "$course" },
+            {$unwind: '$course'},
 
             {
               $lookup: {
-                from: "newCourseVersion",
-                localField: "courseVersionId",
-                foreignField: "_id",
-                as: "version"
-              }
+                from: 'newCourseVersion',
+                localField: 'courseVersionId',
+                foreignField: '_id',
+                as: 'version',
+              },
             },
 
-            { $unwind: "$version" },
+            {$unwind: '$version'},
 
             {
               $match: {
-                "course.isDeleted": { $ne: true }
-              }
+                'course.isDeleted': {$ne: true},
+              },
             },
 
             {
               $project: {
-                type: { $literal: "COURSE" },
+                type: {$literal: 'COURSE'},
 
                 cohortId: null,
                 cohortName: null,
 
-                courseId: { $toString: "$course._id" },
-                courseName: "$course.name",
-                courseDescription: "$course.description",
+                courseId: {$toString: '$course._id'},
+                courseName: '$course.name',
+                courseDescription: '$course.description',
 
-                courseVersionId: { $toString: "$version._id" },
-                versionName: "$version.version",
-                versionDescription: "$version.description"
-              }
-            }
-          ]
-        }
-      }
-
-    ]
+                courseVersionId: {$toString: '$version._id'},
+                versionName: '$version.version',
+                versionDescription: '$version.description',
+              },
+            },
+          ],
+        },
+      },
+    ];
 
     /*
     -------------------------
@@ -919,12 +943,12 @@ export class SettingRepository implements ISettingRepository {
       pipeline.push({
         $match: {
           $or: [
-            { courseName: { $regex: search, $options: "i" } },
-            { versionName: { $regex: search, $options: "i" } },
-            { cohortName: { $regex: search, $options: "i" } }
-          ]
-        }
-      })
+            {courseName: {$regex: search, $options: 'i'}},
+            {versionName: {$regex: search, $options: 'i'}},
+            {cohortName: {$regex: search, $options: 'i'}},
+          ],
+        },
+      });
     }
 
     /*
@@ -933,10 +957,26 @@ export class SettingRepository implements ISettingRepository {
     -------------------------
     */
 
-    pipeline.push({ $skip: skip }, { $limit: limit })
+    pipeline.push({$skip: skip}, {$limit: limit});
 
     return await this.cohortsCollection
-      .aggregate(pipeline, { session })
-      .toArray()
+      .aggregate(pipeline, {session})
+      .toArray();
+  }
+
+  async getSettingsByVersionIds(
+    courseVersionIds: ObjectId[],
+    session?: ClientSession,
+  ): Promise<ICourseSetting[] | null> {
+    await this.init();
+    return this.courseSettingsCollection
+      .find({courseVersionId: {$in: courseVersionIds}}, {session})
+      .toArray();
+  }
+
+  async getisHpSystemEnabled(courseVersionId: ObjectId): Promise<boolean> {
+    await this.init();
+    const result=await this.courseSettingsCollection.findOne({courseVersionId:courseVersionId});
+    return result.settings?.hpSystem ?? false;
   }
 }

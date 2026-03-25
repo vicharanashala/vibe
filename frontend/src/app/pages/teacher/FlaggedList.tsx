@@ -653,6 +653,7 @@ export default function FlaggedList() {
                         <div>
                           <span className="font-medium">Course :</span>
                           <p className="font-mono mt-1 break-all">{selectedFlagData.courseId.name}</p>
+                          {selectedFlagData.cohortName && <p className="font-mono mt-1 break-all">Cohort: {selectedFlagData.cohortName}</p>}
                         </div>
                         <div>
                           <span className="font-medium">Entity ID:</span>
