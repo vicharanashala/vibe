@@ -18,7 +18,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { HpRuleConfig, HpActivity } from "@/lib/api/hp-system";
+import { HpRuleConfig, HpActivity, SubmissionField } from "@/lib/api/hp-system";
 import { useHpRuleConfig, useCreateHpRuleConfig, useUpdateHpRuleConfig, useHpActivities, useUpdateHpActivity } from "@/hooks/hooks";
 import ConfirmationModal from "../../components/confirmation-modal";
 import { toast } from "sonner";
@@ -70,7 +70,7 @@ export function RuleSettingsDialog({
 
     const defaultPenalty: any = {
         enabled: false,
-        type: "PERCENTAGE",
+        type: "ABSOLUTE",
         value: 5,
         applyWhen: "AFTER_DEADLINE",
         graceMinutes: 0,
@@ -86,6 +86,7 @@ export function RuleSettingsDialog({
                 setConfig({
                     ...existingConfig,
                     required_percentage: activity?.required_percentage,
+                    submissionValidation: existingConfig?.submissionValidation ?? [SubmissionField.TEXT],
                 } as any);
             } else if (!fetchLoading) {
                 // No existing config — set defaults for creation
@@ -97,6 +98,7 @@ export function RuleSettingsDialog({
                     limits: defaultLimits,
                     deadlineAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
                     required_percentage: activity?.required_percentage,
+                    submissionValidation: [SubmissionField.TEXT],
                 } as any);
             }
         }
@@ -587,15 +589,60 @@ export function RuleSettingsDialog({
                                 </p>
                             </div>
                         )}
+                        <div className="space-y-4">
+                            <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                                Submission Requirements
+                            </h4>
+
+                            <div className="grid grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
+                                
+                                {[
+                                { label: "Text Response", value: SubmissionField.TEXT },
+                                { label: "PDF Upload", value: SubmissionField.PDF },
+                                { label: "Images", value: SubmissionField.IMAGE },
+                                { label: "URL Links", value: SubmissionField.URL },
+                                ].map((item) => {
+                                const selected = config?.submissionValidation || [];
+
+                                return (
+                                    <div key={item.value} className="flex items-center justify-between">
+                                    <Label>{item.label}</Label>
+                                    <Switch
+                                        checked={selected.includes(item.value)}
+                                        onCheckedChange={(checked) => {
+                                        let updated = [...selected];
+
+                                        if (checked) {
+                                            updated.push(item.value);
+                                        } else {
+                                            updated = updated.filter(v => v !== item.value);
+                                        }
+
+                                        // ❗ Prevent removing all
+                                        if (updated.length === 0) {
+                                            toast.error("At least one submission field must be required");
+                                            return;
+                                        }
+
+                                        setConfig(prev => ({
+                                            ...prev,
+                                            submissionValidation: updated
+                                        }));
+                                        }}
+                                    />
+                                    </div>
+                                );
+                                })}
+                            </div>
+                        </div>
                     </div>
                 )}
-{saveError && (
-                                    <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-3 rounded-md flex items-start gap-2">
-                                        <span>{saveError}</span>
-                                    </div>
-                                )}
+                {saveError && (
+                    <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-3 rounded-md flex items-start gap-2">
+                        <span>{saveError}</span>
+                    </div>
+                )}
                 <DialogFooter className="sticky bottom-0 bg-background pt-4 border-t">
-                    {/* <p>{saveError}</p> */}
                                 
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
                     <Button onClick={() => setIsConfirmOpen(true)} disabled={loading}>{loading ? "Saving..." : "Save Configuration"}</Button>

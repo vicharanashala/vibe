@@ -314,12 +314,20 @@ export interface HpStudentSubmission {
     isRequiredInstructorApproval?: boolean;
 }
 
+export enum SubmissionField {
+    TEXT = "TEXT",
+    PDF = "PDF",
+    IMAGE = "IMAGE",
+    URL = "URL",
+}
+
 export interface HpRuleConfig {
     _id: string;
     courseId: string;
     courseVersionId: string;
     activityId: string;
     isMandatory: boolean;
+    submissionValidation:SubmissionField[];
     deadlineAt?: string;
     allowLateSubmission?: boolean;
     reward?: {
