@@ -2076,7 +2076,7 @@ class ProgressService extends BaseService {
     // If the user wants to bypass the updateProgress call entirely, they can, but a partial bypass
     // might be better if they still want to track "currentItem".
     // According to the requirement: "Disable or bypass the updateProgress call".
-    
+
     // console.log(`Stopping item tracking for user ${userId}, course ${courseId}, version ${courseVersionId}, item ${itemId}, cohort ${cohortId}`);
     // Fetch course version, progress, item, and linear progression setting in parallel
     const [courseVersion, progress, item, linearProgressionEnabled] = await Promise.all([
@@ -2349,7 +2349,7 @@ class ProgressService extends BaseService {
           effectiveCohortId,
         );
       }
-     
+
 
       if (percentCompleted > 99) {
         await this.recalculateStudentProgress(
@@ -2369,7 +2369,6 @@ class ProgressService extends BaseService {
         effectiveCohortId,
         session,
       );
-     
     });
   }
 
@@ -2923,12 +2922,12 @@ class ProgressService extends BaseService {
           : Promise.resolve(),
         projectItemIds.length
           ? this.resetUserProjectData(
-              userId,
-              projectItemIds,
-              courseVersionId,
-              session,
-              effectiveCohortId,
-            )
+            userId,
+            projectItemIds,
+            courseVersionId,
+            session,
+            effectiveCohortId,
+          )
           : Promise.resolve(),
       ]);
 

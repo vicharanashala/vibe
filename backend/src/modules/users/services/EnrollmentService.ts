@@ -25,7 +25,12 @@ import {
   ForbiddenError,
 } from 'routing-controllers';
 import { ProgressService } from './ProgressService.js';
-import { ProgressRepository, InviteRepository } from '#root/shared/index.js';
+import {
+  ProgressRepository,
+  InviteRepository,
+  SettingRepository,
+  ISettingRepository,
+} from '#root/shared/index.js';
 import { EnrollmentDataResponse } from '../classes/index.js';
 import {
   QuizScoresExportResponseDto,
@@ -37,7 +42,7 @@ import {
   IGradingResult,
   ISubmission,
 } from '#root/modules/quizzes/interfaces/index.js';
-import { Cohort } from '#root/modules/courses/classes/index.js';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
 
 const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
 const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
@@ -55,6 +60,8 @@ export class EnrollmentService extends BaseService {
     private courseRegistrationRepo: ICourseRegistrationRepository,
     @inject(USERS_TYPES.ProgressService)
     private readonly progressService: ProgressService,
+    @inject(SETTING_TYPES.SettingRepo)
+    private readonly settingsRepository: ISettingRepository,
     @inject(GLOBAL_TYPES.InviteRepo)
     private readonly inviteRepo: InviteRepository,
     @inject(USERS_TYPES.ProgressRepo)
@@ -125,6 +132,8 @@ export class EnrollmentService extends BaseService {
           'User is already enrolled in this course version',
         );
       }
+      const versionSetting = await this.settingsRepository.getSettingsByVersionIds([new ObjectId(courseVersionId)]);
+      const baseHpValue = versionSetting?.[0]?.settings?.hpSystem === true ? versionSetting?.[0]?.settings?.baseHp ?? 0 : 0;
       const enrollmentData = {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
@@ -135,8 +144,8 @@ export class EnrollmentService extends BaseService {
         percentCompleted: 0,
         completedItemsCount: 0,
         ...(cohort ? { cohortId: new ObjectId(cohort) } : {}),
-      }
-
+        ...(role === 'STUDENT' ? { hpPoints: baseHpValue } : {})
+      };
       const createdEnrollment = await this.enrollmentRepo.createEnrollment(
         enrollmentData,
         session,
@@ -189,7 +198,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-    cohort?: string
+    cohort?: string,
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const user = await this.userRepo.findById(userId);
@@ -259,7 +268,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-    cohort?: string
+    cohort?: string,
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const user = await this.userRepo.findById(userId);
@@ -552,6 +561,19 @@ export class EnrollmentService extends BaseService {
 
       const allItemGroupIds = Array.from(versionToItemGroups.values()).flat();
 
+      const courseVersionIds: ObjectId[] = activeEnrollments.map(enr =>
+        enr.courseVersionId,
+      );
+      const courseSettings =
+        await this.settingsRepository.getSettingsByVersionIds(courseVersionIds);
+
+      const hpSystemMap = new Map(
+        courseSettings.map(s => [
+          s.courseVersionId.toString(),
+          s.settings?.hpSystem ?? false,
+        ]),
+      );
+
       const quizInfo = await this.itemRepo.getQuizInfo(allItemGroupIds);
 
       // Extract actual quiz item IDs from quizInfo
@@ -566,21 +588,20 @@ export class EnrollmentService extends BaseService {
         cohortId: e.cohortId,
       }));
 
-      const [
-        watchedItemsMap,
-        // watchedItemsByTypeMap,
-        // quizSubmissionGrades,
-      ]: [
-          Map<string, number>,
-          Map<string, { videos: number; quizzes: number; articles: number; projects: number }>,
-          ISubmission[],
-        ] = await Promise.all([
-          this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
-          this.enrollmentRepo.getWatchedItemCountsByTypeBatch(watchedKeys),
-          allQuizIds.length > 0
-            ? this.enrollmentRepo.getQuizSubmissionGrade(userId, allQuizIds)
-            : Promise.resolve([]),
-        ]);
+      const [watchedItemsMap, /*watchedItemsByTypeMap, quizSubmissionGrades*/]: [
+        Map<string, number>,
+        // Map<
+        //   string,
+        //   {videos: number; quizzes: number; articles: number; projects: number}
+        // >,
+        // ISubmission[],
+      ] = await Promise.all([
+        this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
+        // this.enrollmentRepo.getWatchedItemCountsByTypeBatch(watchedKeys),
+        // allQuizIds.length > 0
+        //   ? this.enrollmentRepo.getQuizSubmissionGrade(userId, allQuizIds)
+        //   : Promise.resolve([]),
+      ]);
 
       // const quizGradeMap: Map<string, IGradingResult> = new Map(
       //   quizSubmissionGrades.map(grade => [
@@ -613,6 +634,7 @@ export class EnrollmentService extends BaseService {
         // const itemCounts = enr.courseVersion?.itemCounts || {};
         const ratio = completedCount / (enr.totalItems || 1);
         // const calculatedPercent = Number((ratio * 100).toFixed(2));
+        const hpSystem = hpSystemMap.get(versionIdStr) ?? false;
 
         // if (enr.percentCompleted !== calculatedPercent) {
         //   void this.enrollmentRepo.updateProgressPercentById(
@@ -646,6 +668,7 @@ export class EnrollmentService extends BaseService {
             cohortName: enr.cohortName,
             completedItems: watchedItemsMap.get(watchedKey) || 0,
             hasNewItemsAfterCompletion: enr.hasNewItemsAfterCompletion || false,
+            hpSystem,
           };
         }
       });
@@ -667,7 +690,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     role: EnrollmentRole,
   ): Promise<number> {
-    if (role === "STUDENT") {
+    if (role === 'STUDENT') {
       return 0;
     }
     return await this.enrollmentRepo.getActiveCount(userId, role);
@@ -677,7 +700,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     role: EnrollmentRole,
   ): Promise<number> {
-    if (role === "STUDENT") {
+    if (role === 'STUDENT') {
       return 0;
     }
     return await this.enrollmentRepo.getArchiveCount(userId, role);
@@ -799,17 +822,17 @@ export class EnrollmentService extends BaseService {
           totalCompletedItemsCount = guruProgress.completedItemsCount;
         }
 
-        if (enr.percentCompleted !== calculatedPercent) {
-          void this.enrollmentRepo.updateProgressPercentById(
-            enr._id.toString(),
-            calculatedPercent,
-            totalCompletedItemsCount,
-            enr.cohortId?.toString(),
-          );
+        // if (enr.percentCompleted !== calculatedPercent) {
+        //   void this.enrollmentRepo.updateProgressPercentById(
+        //     enr._id.toString(),
+        //     calculatedPercent,
+        //     totalCompletedItemsCount,
+        //     enr.cohortId?.toString(),
+        //   );
 
-          enr.percentCompleted = calculatedPercent;
-          enr.completedItemsCount = totalCompletedItemsCount;
-        }
+        //   enr.percentCompleted = calculatedPercent;
+        //   enr.completedItemsCount = totalCompletedItemsCount;
+        // }
 
         if (enr.percentCompleted >= 0) {
           let itemCounts = enr.itemCounts || {};
@@ -970,7 +993,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-    cohortId?: string
+    cohortId?: string,
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       let effectiveCohortId = cohortId;
@@ -1002,34 +1025,34 @@ export class EnrollmentService extends BaseService {
       let resolvedItemCounts: Record<string, number> = {
         VIDEO: Number(
           existingItemCounts.VIDEO ??
-            existingItemCounts.video ??
-            existingItemCounts.videos ??
-            0,
+          existingItemCounts.video ??
+          existingItemCounts.videos ??
+          0,
         ),
         QUIZ: Number(
           existingItemCounts.QUIZ ??
-            existingItemCounts.quiz ??
-            existingItemCounts.quizzes ??
-            0,
+          existingItemCounts.quiz ??
+          existingItemCounts.quizzes ??
+          0,
         ),
         BLOG: Number(
           existingItemCounts.BLOG ??
-            existingItemCounts.blog ??
-            existingItemCounts.article ??
-            existingItemCounts.articles ??
-            0,
+          existingItemCounts.blog ??
+          existingItemCounts.article ??
+          existingItemCounts.articles ??
+          0,
         ),
         PROJECT: Number(
           existingItemCounts.PROJECT ??
-            existingItemCounts.project ??
-            existingItemCounts.projects ??
-            0,
+          existingItemCounts.project ??
+          existingItemCounts.projects ??
+          0,
         ),
         FEEDBACK: Number(
           existingItemCounts.FEEDBACK ??
-            existingItemCounts.feedback ??
-            existingItemCounts.feedbacks ??
-            0,
+          existingItemCounts.feedback ??
+          existingItemCounts.feedbacks ??
+          0,
         ),
       };
       let resolvedTotalItems = Number(existingContentCounts.totalItems ?? 0);
@@ -1135,7 +1158,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-    cohortId?: string
+    cohortId?: string,
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       let effectiveCohortId = cohortId;
@@ -1230,7 +1253,7 @@ export class EnrollmentService extends BaseService {
       await this.enrollmentRepo.getBatchQuizSubmissionGrades(
         userIds,
         allQuizIds,
-        enrollments.filter(e => e.cohortId).map(e => e.cohortId?.toString())
+        enrollments.filter(e => e.cohortId).map(e => e.cohortId?.toString()),
       );
     // 5. Create a map: userId -> quiz grades
     const userQuizGradesMap = new Map<string, IGradingResult[]>();
@@ -1696,7 +1719,7 @@ export class EnrollmentService extends BaseService {
           enrollmentDate: new Date(),
           percentCompleted: 0,
           completedItemsCount: 0,
-          cohort: ""
+          cohort: '',
         });
       }
 
@@ -1847,19 +1870,21 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     versionId: string,
-    cohort?: string
-  ): Promise<Array<{
-    moduleId: string;
-    moduleName: string;
-    totalItems: number;
-    completedItems: number;
-  }>> {
+    cohort?: string,
+  ): Promise<
+    Array<{
+      moduleId: string;
+      moduleName: string;
+      totalItems: number;
+      completedItems: number;
+    }>
+  > {
     // Delegate to ProgressService which already has working module progress logic
     return await this.progressService.getModuleWiseProgress(
       userId,
       courseId,
       versionId,
-      cohort
+      cohort,
     );
   }
 
@@ -1918,10 +1943,15 @@ export class EnrollmentService extends BaseService {
     session?: ClientSession,
   ): Promise<boolean> {
     const execute = async (session: ClientSession) => {
-      const versionStatus = await this.courseRepo.getCourseVersionStatus(courseVersionId, session);
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        courseVersionId,
+        session,
+      );
 
-      if (versionStatus === "archived") {
-        throw new ForbiddenError("Can not remove time slot. Because course version is archived.");
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'Can not remove time slot. Because course version is archived.',
+        );
       }
       const enrollment = await this.enrollmentRepo.findActiveEnrollment(
         userId,
@@ -1959,13 +1989,18 @@ export class EnrollmentService extends BaseService {
     session?: ClientSession,
   ): Promise<boolean> {
     const execute = async (session: ClientSession) => {
-      const versionStatus = await this.courseRepo.getCourseVersionStatus(courseVersionId, session);
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        courseVersionId,
+        session,
+      );
 
-      if (versionStatus === "archived") {
-        throw new ForbiddenError("Cannot update time slot. Because course version is archived.");
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'Cannot update time slot. Because course version is archived.',
+        );
       }
       const results = await Promise.all(
-        userIds.map(async (userId) => {
+        userIds.map(async userId => {
           try {
             const enrollment = await this.enrollmentRepo.findActiveEnrollment(
               userId,
@@ -1980,7 +2015,8 @@ export class EnrollmentService extends BaseService {
             }
 
             const hasOldTimeSlot = enrollment.assignedTimeSlots.some(
-              slot => slot.from === oldTimeSlot.from && slot.to === oldTimeSlot.to,
+              slot =>
+                slot.from === oldTimeSlot.from && slot.to === oldTimeSlot.to,
             );
 
             if (!hasOldTimeSlot) {
@@ -1996,7 +2032,10 @@ export class EnrollmentService extends BaseService {
 
             return !!result;
           } catch (error) {
-            console.error(`Failed to update time slot for user ${userId}:`, error);
+            console.error(
+              `Failed to update time slot for user ${userId}:`,
+              error,
+            );
             return false;
           }
         }),
@@ -2246,8 +2285,16 @@ export class EnrollmentService extends BaseService {
     );
   }
 
-  async enrollmentExists(versionId: string, cohortId: string, session: ClientSession): Promise<boolean> {
-    return await this.enrollmentRepo.enrollmentExistsByCohortId(versionId, cohortId, session);
+  async enrollmentExists(
+    versionId: string,
+    cohortId: string,
+    session: ClientSession,
+  ): Promise<boolean> {
+    return await this.enrollmentRepo.enrollmentExistsByCohortId(
+      versionId,
+      cohortId,
+      session,
+    );
   }
 
   async moveNonCohortStudentsToCohortInEnrollment(

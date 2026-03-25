@@ -61,6 +61,11 @@ export function AppSidebar() {
         url: "/teacher/announcements",
         icon: Megaphone,
       },
+      {
+        title: "HP System",
+        url: "/teacher/hp-system",
+        icon: SquareTerminal,
+      },
     ],
   }
 
