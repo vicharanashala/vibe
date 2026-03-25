@@ -9,10 +9,16 @@ export interface InactivityTrigger {
   warningDays: number;
 }
 
+export interface ProgressRule {
+  timeframeDays: number;
+  targetPercentage: number;
+}
+
 export interface MissedDeadlinesTrigger {
   enabled: boolean;
   consecutiveMisses: number;
   warningAfterMisses: number;
+  progressRules?: ProgressRule[] | null;
 }
 
 export interface PolicyViolationsTrigger {

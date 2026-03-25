@@ -177,6 +177,13 @@ export class AutoEjectionEngine extends BaseService {
       if (result === 'warned') return 'warned';
     }
 
+    // ── Missed Deadlines trigger ───────────────────────────────────
+    if (triggers.missedDeadlines?.enabled) {
+      const result = await this.evaluateMissedDeadlinesTrigger(policy, student);
+      if (result === 'ejected') return 'ejected';
+      if (result === 'warned') return 'warned';
+    }
+
     return 'none';
   }
 
@@ -311,5 +318,57 @@ export class AutoEjectionEngine extends BaseService {
     }
 
     return this.enrollmentCollection.find(query).toArray();
+  }
+
+  /**
+   * Evaluate the missed deadlines trigger for a student.
+   */
+  private async evaluateMissedDeadlinesTrigger(
+    policy: EjectionPolicy,
+    student: IEnrollment,
+  ): Promise<'ejected' | 'warned' | 'none'> {
+    const {progressRules} = policy.triggers.missedDeadlines!;
+    if (!progressRules || progressRules.length === 0) return 'none';
+
+    const now = new Date();
+    const enrollmentDate = student.enrollmentDate;
+    const daysEnrolled = Math.floor(
+      (now.getTime() - enrollmentDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    let shouldEject = false;
+    let ejectReason = '';
+
+    for (const rule of progressRules) {
+      const periodsPassed = Math.floor(daysEnrolled / rule.timeframeDays);
+      if (periodsPassed > 0) {
+        const expectedProgress = periodsPassed * rule.targetPercentage;
+        if (student.percentCompleted < expectedProgress) {
+          shouldEject = true;
+          ejectReason = `Automatically ejected: failed to meet progress rule (${rule.targetPercentage}% every ${rule.timeframeDays} days). Current progress: ${student.percentCompleted ?? 0}%, Expected: ${expectedProgress}%`;
+          break;
+        }
+      }
+    }
+
+    if (shouldEject) {
+      console.log(
+        `[AutoEjectionEngine] Ejecting student ${student.userId} — Missed Deadlines trigger met`,
+      );
+
+      await this.ejectionService.ejectLearner(
+        student.userId.toString(),
+        student.courseId.toString(),
+        student.courseVersionId.toString(),
+        ejectReason,
+        'SYSTEM',
+        student.cohortId?.toString(),
+        policy._id.toString(),
+      );
+
+      return 'ejected';
+    }
+
+    return 'none';
   }
 }

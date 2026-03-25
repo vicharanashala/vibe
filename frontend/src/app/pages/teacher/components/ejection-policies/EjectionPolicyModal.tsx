@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, AlertTriangle, Shield, Clock, CheckCircle } from "lucide-react";
+import { Loader2, AlertTriangle, Shield, Clock, CheckCircle, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useCreateEjectionPolicy, useUpdateEjectionPolicy } from "@/hooks/ejection-policy-hooks";
 import { EjectionPolicy, PolicyScope } from "@/types/ejection-policy.types";
@@ -57,6 +57,7 @@ export const EjectionPolicyModal = ({
     missedDeadlinesEnabled: false,
     consecutiveMisses: 3,
     warningAfterMisses: 2,
+    progressRules: [] as { timeframeDays: number; targetPercentage: number }[],
     
     violationsEnabled: false,
     violationTypes: [] as string[],
@@ -98,6 +99,7 @@ export const EjectionPolicyModal = ({
         missedDeadlinesEnabled: editPolicy.triggers.missedDeadlines?.enabled || false,
         consecutiveMisses: editPolicy.triggers.missedDeadlines?.consecutiveMisses || 3,
         warningAfterMisses: editPolicy.triggers.missedDeadlines?.warningAfterMisses || 2,
+        progressRules: editPolicy.triggers.missedDeadlines?.progressRules || [],
         
         violationsEnabled: editPolicy.triggers.policyViolations?.enabled || false,
         violationTypes: [
@@ -137,6 +139,7 @@ export const EjectionPolicyModal = ({
         missedDeadlinesEnabled: false,
         consecutiveMisses: 3,
         warningAfterMisses: 2,
+        progressRules: [],
         violationsEnabled: false,
         violationTypes: [] as string[],
         violationOtherDescription: "",
@@ -192,6 +195,14 @@ export const EjectionPolicyModal = ({
       if (formData.warningAfterMisses >= formData.consecutiveMisses) {
         newErrors.warningAfterMisses = "Warning threshold must be less than ejection threshold";
       }
+      formData.progressRules.forEach((rule, idx) => {
+        if (rule.timeframeDays <= 0) {
+          newErrors[`progressRuleTimeframe_${idx}`] = "Days must be > 0";
+        }
+        if (rule.targetPercentage < 0 || rule.targetPercentage > 100) {
+          newErrors[`progressRuleTarget_${idx}`] = "Percentage must be 0-100";
+        }
+      });
     }
 
     // Validate violations trigger
@@ -254,6 +265,7 @@ export const EjectionPolicyModal = ({
             enabled: true,
             consecutiveMisses: formData.consecutiveMisses,
             warningAfterMisses: formData.warningAfterMisses,
+            progressRules: formData.progressRules,
           } : null,
           policyViolations: formData.violationsEnabled ? {
             enabled: true,
@@ -429,8 +441,7 @@ export const EjectionPolicyModal = ({
               </CardContent>
             </Card>
 
-            {/* Missed Deadlines Trigger- DO NOT REMOVE THIS CODE ===== WILL NEED LATER 
-           
+            {/* Missed Deadlines Trigger */}
             <Card className={formData.missedDeadlinesEnabled ? "border-primary/50" : ""}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -448,7 +459,8 @@ export const EjectionPolicyModal = ({
                 </div>
 
                 {formData.missedDeadlinesEnabled && (
-                  <div className="grid grid-cols-2 gap-3 pt-3 border-t">
+                  <div className="space-y-4 pt-3 border-t">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label htmlFor="consecutiveMisses" className="text-xs">Consecutive Misses *</Label>
                       <Input
@@ -476,12 +488,83 @@ export const EjectionPolicyModal = ({
                       {errors.warningAfterMisses && (
                         <p className="text-xs text-destructive mt-1">{errors.warningAfterMisses}</p>
                       )}
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2 border-t pt-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold">Dynamic Progress Rules</Label>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-7 text-xs"
+                          onClick={() => setFormData({
+                            ...formData,
+                            progressRules: [...formData.progressRules, { timeframeDays: 1, targetPercentage: 0 }]
+                          })}
+                        >
+                          <Plus className="h-3 w-3 mr-1" /> Add Rule
+                        </Button>
+                      </div>
+                      
+                      {formData.progressRules.length === 0 && (
+                        <p className="text-xs text-muted-foreground my-2">No progress rules defined. Students will only be evaluated based on misses.</p>
+                      )}
+                      
+                      {formData.progressRules.map((rule, idx) => (
+                        <div key={idx} className="flex items-center gap-2 mb-2 bg-muted/30 p-2 rounded-md">
+                          <div className="flex-1">
+                            <Label className="text-xs">Days *</Label>
+                            <Input
+                              type="number"
+                              value={rule.timeframeDays}
+                              onChange={(e) => {
+                                const updated = [...formData.progressRules];
+                                updated[idx].timeframeDays = parseInt(e.target.value) || 0;
+                                setFormData({ ...formData, progressRules: updated });
+                              }}
+                              min={1}
+                              className={`h-8 text-sm ${errors[`progressRuleTimeframe_${idx}`] ? "border-destructive" : ""}`}
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <Label className="text-xs">Required Progress % *</Label>
+                            <Input
+                              type="number"
+                              value={rule.targetPercentage}
+                              onChange={(e) => {
+                                const updated = [...formData.progressRules];
+                                updated[idx].targetPercentage = parseInt(e.target.value) || 0;
+                                setFormData({ ...formData, progressRules: updated });
+                              }}
+                              min={0}
+                              max={100}
+                              className={`h-8 text-sm ${errors[`progressRuleTarget_${idx}`] ? "border-destructive" : ""}`}
+                            />
+                          </div>
+                          <div className="flex flex-col justify-end h-full pt-4">
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                              onClick={() => {
+                                const updated = [...formData.progressRules];
+                                updated.splice(idx, 1);
+                                setFormData({ ...formData, progressRules: updated });
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
               </CardContent>
             </Card>
-*/}
             {/* Policy Violations Trigger 
             <Card className={formData.violationsEnabled ? "border-primary/50" : ""}>
               <CardContent className="p-4">

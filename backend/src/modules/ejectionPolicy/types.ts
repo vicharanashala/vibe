@@ -30,6 +30,10 @@ export interface MissedDeadlinesTrigger {
   enabled: boolean;
   consecutiveMisses: number;
   warningAfterMisses: number;
+  progressRules?: {
+    timeframeDays: number;
+    targetPercentage: number;
+  }[];
 }
 
 export interface PolicyViolationsTrigger {

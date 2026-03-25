@@ -347,6 +347,17 @@ export class EjectionPolicyService extends BaseService {
         'Warning threshold must be less than ejection threshold',
       );
     }
+
+    if (trigger.progressRules && Array.isArray(trigger.progressRules)) {
+      for (const rule of trigger.progressRules) {
+        if (rule.timeframeDays <= 0) {
+          throw new BadRequestError('Timeframe days must be greater than 0');
+        }
+        if (rule.targetPercentage < 0 || rule.targetPercentage > 100) {
+          throw new BadRequestError('Target percentage must be between 0 and 100');
+        }
+      }
+    }
   }
 
   /**

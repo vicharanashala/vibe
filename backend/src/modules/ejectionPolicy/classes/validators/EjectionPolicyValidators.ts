@@ -15,6 +15,7 @@ import {
   IsArray,
   IsDate,
   IsInt,
+  Max,
 } from 'class-validator';
 import {
   InactivityTrigger,
@@ -55,6 +56,26 @@ export class MissedDeadlinesTriggerDto implements MissedDeadlinesTrigger {
   @Expose()
   @Min(0)
   warningAfterMisses: number;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => ProgressRuleDto)
+  @Expose()
+  progressRules?: ProgressRuleDto[];
+}
+
+export class ProgressRuleDto {
+  @IsNumber()
+  @Expose()
+  @Min(1)
+  timeframeDays: number;
+
+  @IsNumber()
+  @Expose()
+  @Min(0)
+  @Max(100)
+  targetPercentage: number;
 }
 
 @Expose()
