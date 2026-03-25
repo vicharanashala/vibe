@@ -68,11 +68,27 @@ export function AppealDetailsModal({ open, onClose, notification }) {
           <DialogTitle>Appeal Details</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 text-sm">
+        <div className="space-y-4 text-sm mt-6">
+          {/* By */}
+          <div>
+            <p className="font-medium ">By</p>
+            <p className="text-muted-foreground mt-1">
+              {notification.extra.firstName} {" "}
+              {notification.extra.lastName}
+            </p>
+
+          </div>
+           <div>
+            <p className="font-medium mt-2">Email</p>
+            <p className="text-muted-foreground mt-1">
+              {notification.extra.email}
+            </p>
+            
+          </div>
 
           {/* Reason */}
           <div>
-            <p className="font-medium">Reason</p>
+            <p className="font-medium mt-2">Reason</p>
             <p className="text-muted-foreground mt-1">
               {appeal?.reason}
             </p>
