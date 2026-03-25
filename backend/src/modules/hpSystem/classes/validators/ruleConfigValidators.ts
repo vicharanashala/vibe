@@ -45,7 +45,7 @@ export class HpRewardRuleDto {
 
   @IsOptional()
   @IsNumber()
-  @Min(0)
+  @Min(1)
   value?: number;
 
   @IsOptional()
@@ -67,7 +67,7 @@ export class HpPenaltyRuleDto {
 
   @IsOptional()
   @IsNumber()
-  @Min(0)
+  @Min(1)
   value?: number;
 
   @IsOptional()
