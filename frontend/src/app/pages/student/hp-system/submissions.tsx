@@ -53,7 +53,6 @@ export default function StudentSubmissions() {
     };
 
     const validation = getValidation(editingSubmission);
-    console.log(validation,editingSubmission)
 
     const isTextRequired = validation.includes(SubmissionField.TEXT);
     const isPdfRequired = validation.includes(SubmissionField.PDF);

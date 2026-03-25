@@ -109,18 +109,7 @@ export class ActivitySubmissionsService extends BaseService {
         files: Express.Multer.File[],
         images: Express.Multer.File[]
     ) {
-const dummyFile = (file: Express.Multer.File, type: "files" | "images") => ({
-        fileId: `${type}/dummy-${Date.now()}-${file.originalname}`,
-        url: `https://dummy-url.com/${type}/${file.originalname}`,
-        name: file.originalname,
-        mimeType: file.mimetype,
-        sizeBytes: file.size,
-    });
 
-    return {
-        uploadedPdfs: files.map(f => dummyFile(f, "files")),
-        uploadedImages: images.map(i => dummyFile(i, "images")),
-    };
         const bucket = this.getActivitySubmissionBucket();
         // Determine environment prefix
         const isProduction = appConfig.isProduction;
@@ -529,11 +518,6 @@ const dummyFile = (file: Express.Multer.File, type: "files" | "images") => ({
         upload?: { files?: Express.Multer.File[]; images?: Express.Multer.File[] }
     ) {
         return this._withTransaction(async (session) => {
-            console.log("***************************8")
-            console.log("***************************8")
-            console.log("Update submission")
-            console.log("***************************8")
-            console.log("***************************8")
             if (!body.courseId || !body.courseVersionId || !body.activityId || !body.cohort) {
                 throw new BadRequestError("Missing required fields");
             }
@@ -797,7 +781,6 @@ const dummyFile = (file: Express.Multer.File, type: "files" | "images") => ({
 
     async listMySubmissions(studentId: string, query: FilterQueryDto, cohortName?: string): Promise<any> {
         const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined, undefined, cohortName);
-        console.log(submissions)
         return {
             success: true,
             data: submissions,

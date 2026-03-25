@@ -57,11 +57,6 @@ export class ActivityController {
 
   ) {
     const teacherId = user._id.toString();
-    console.log("***********************")
-    console.log("***********************")
-    console.log(body)
-    console.log("***********************")
-    console.log("***********************")
     const doc = await this.ruleConfigService.createActivityWithRule(teacherId, body);
     return {success: true, data: instanceToPlain(doc)};
   }
