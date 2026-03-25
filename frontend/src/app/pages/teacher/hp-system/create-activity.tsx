@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { toast } from "sonner";
-import { CreateHpActivityPayload, HpRuleConfig, CourseWithVersions, CourseVersionStats } from "@/lib/api/hp-system";
+import { CreateHpActivityPayload, HpRuleConfig, CourseWithVersions, CourseVersionStats, SubmissionField } from "@/lib/api/hp-system";
 import { useCreateActivityWithRule, useCreateHpActivity, useCreateHpRuleConfig, useHpCourseVersions } from "@/hooks/hooks";
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal";
 
@@ -68,6 +68,7 @@ export default function CreateHpActivityPage() {
 
     // ── Step 2: Rule config (local state, matches RuleSettingsDialog) ──
     type RuleConfigFormState = Omit<Partial<HpRuleConfig>, "reward" | "penalty" | "limits"> & {
+        submissionValidation: SubmissionField[],
         reward?: Partial<HpRuleConfig["reward"]>;
         penalty?: Partial<HpRuleConfig["penalty"]>;
         limits?: Partial<HpRuleConfig["limits"]>;
@@ -77,6 +78,7 @@ export default function CreateHpActivityPage() {
     const [ruleConfig, setRuleConfig] = useState<RuleConfigFormState>({
         isMandatory: false,
         allowLateSubmission: false,
+        submissionValidation: [SubmissionField.TEXT],
         reward: {
             enabled: false,
             type: "ABSOLUTE",
@@ -294,7 +296,7 @@ export default function CreateHpActivityPage() {
         const rulePayload = {
             courseId: courseId,
             courseVersionId: courseVersionId,
-            activityId: undefined,
+            submissionValidation: ruleConfig.submissionValidation,
             isMandatory: ruleConfig.isMandatory as boolean,
             deadlineAt: ruleConfig.deadlineAt as string | undefined,
             allowLateSubmission: ruleConfig.allowLateSubmission as boolean,
@@ -1057,6 +1059,52 @@ export default function CreateHpActivityPage() {
                                 </p>
                             </div>
                         )}
+
+                        <div className="space-y-4">
+                            <h4 className="text-sm font-semibold uppercase tracking-wider text-foreground">
+                                Submission Requirements
+                            </h4>
+
+                            <div className="grid grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
+                                
+                                {[
+                                { label: "Text Response", value: SubmissionField.TEXT },
+                                { label: "PDF Upload", value: SubmissionField.PDF },
+                                { label: "Images", value: SubmissionField.IMAGE },
+                                { label: "URL Links", value: SubmissionField.URL },
+                                ].map((item) => {
+                                const selected = ruleConfig.submissionValidation || [];
+
+                                return (
+                                    <div key={item.value} className="flex items-center justify-between">
+                                    <Label>{item.label}</Label>
+                                    <Switch
+                                        checked={selected.includes(item.value)}
+                                        onCheckedChange={(checked) => {
+                                        let updated = [...selected];
+
+                                        if (checked) {
+                                            updated.push(item.value);
+                                        } else {
+                                            updated = updated.filter(v => v !== item.value);
+                                        }
+
+                                        if (updated.length === 0) {
+                                            toast.error("At least one submission field must be required");
+                                            return;
+                                        }
+
+                                        setRuleConfig(prev => ({
+                                            ...prev,
+                                            submissionValidation: updated
+                                        }));
+                                        }}
+                                    />
+                                    </div>
+                                );
+                                })}
+                            </div>
+                        </div>
                         {submitError && (
                             <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-3 rounded-md flex items-start gap-2">
                                 <span>{submitError}</span>

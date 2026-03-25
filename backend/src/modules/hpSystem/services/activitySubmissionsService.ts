@@ -11,7 +11,7 @@ import path from "path";
 import { randomBytes } from "crypto";
 import { ActivityService } from "./activityService.js";
 import { RuleConfigService } from "./ruleConfigsService.js";
-import { HpActivitySubmission, HpLedger, HpLedgerDirection, HpLedgerEventType, HpReasonCode, ReviewDecision, TriggeredBy } from "../models.js";
+import { HpActivitySubmission, HpLedger, HpLedgerDirection, HpLedgerEventType, HpReasonCode, ReviewDecision, SubmissionField, TriggeredBy } from "../models.js";
 import { ClientSession, ObjectId } from "mongodb";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { SubmissionFeedbackItem } from "../classes/transformers/ActivitySubmission.js";
@@ -109,6 +109,18 @@ export class ActivitySubmissionsService extends BaseService {
         files: Express.Multer.File[],
         images: Express.Multer.File[]
     ) {
+const dummyFile = (file: Express.Multer.File, type: "files" | "images") => ({
+        fileId: `${type}/dummy-${Date.now()}-${file.originalname}`,
+        url: `https://dummy-url.com/${type}/${file.originalname}`,
+        name: file.originalname,
+        mimeType: file.mimetype,
+        sizeBytes: file.size,
+    });
+
+    return {
+        uploadedPdfs: files.map(f => dummyFile(f, "files")),
+        uploadedImages: images.map(i => dummyFile(i, "images")),
+    };
         const bucket = this.getActivitySubmissionBucket();
         // Determine environment prefix
         const isProduction = appConfig.isProduction;
@@ -364,6 +376,23 @@ export class ActivitySubmissionsService extends BaseService {
                 ],
             };
 
+            const validation = activityRuleConfig.submissionValidation ?? [SubmissionField.TEXT];
+
+            if (validation.includes(SubmissionField.TEXT) && !payload.textResponse?.trim()) {
+                throw new BadRequestError("Text response is required");
+            }
+
+            if (validation.includes(SubmissionField.PDF) && (!payload.files || payload.files.length === 0)) {
+                throw new BadRequestError("At least one PDF file is required");
+            }
+
+            if (validation.includes(SubmissionField.IMAGE) && (!payload.images || payload.images.length === 0)) {
+                throw new BadRequestError("At least one image is required");
+            }
+
+            if (validation.includes(SubmissionField.URL) && (!payload.links || payload.links.length === 0)) {
+                throw new BadRequestError("At least one URL is required");
+            }
 
             // Create submission record, then calculate and apply rewards if applicable
             const submissionId = await this.activitySubmissionsRepository.create(
@@ -500,6 +529,11 @@ export class ActivitySubmissionsService extends BaseService {
         upload?: { files?: Express.Multer.File[]; images?: Express.Multer.File[] }
     ) {
         return this._withTransaction(async (session) => {
+            console.log("***************************8")
+            console.log("***************************8")
+            console.log("Update submission")
+            console.log("***************************8")
+            console.log("***************************8")
             if (!body.courseId || !body.courseVersionId || !body.activityId || !body.cohort) {
                 throw new BadRequestError("Missing required fields");
             }
@@ -575,6 +609,29 @@ export class ActivitySubmissionsService extends BaseService {
                     })),
                 ],
             };
+
+            const activityRuleConfig = await this.ruleConfigService.getByActivityId(body.activityId);
+            if (!activityRuleConfig) {
+                throw new BadRequestError("Activity rule config not found");
+            }
+
+            const validation: SubmissionField[] = activityRuleConfig.submissionValidation ?? [SubmissionField.TEXT];
+
+            if (validation.includes(SubmissionField.TEXT) && !payload.textResponse?.trim()) {
+                throw new BadRequestError("Text response is required");
+            }
+
+            if (validation.includes(SubmissionField.PDF) && (!payload.files || payload.files.length === 0)) {
+                throw new BadRequestError("At least one PDF file is required");
+            }
+
+            if (validation.includes(SubmissionField.IMAGE) && (!payload.images || payload.images.length === 0)) {
+                throw new BadRequestError("At least one image is required");
+            }
+
+            if (validation.includes(SubmissionField.URL) && (!payload.links || payload.links.length === 0)) {
+                throw new BadRequestError("At least one URL is required");
+            }
 
             await this.activitySubmissionsRepository.updateById(
                 submissionId,
@@ -740,7 +797,7 @@ export class ActivitySubmissionsService extends BaseService {
 
     async listMySubmissions(studentId: string, query: FilterQueryDto, cohortName?: string): Promise<any> {
         const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined, undefined, cohortName);
-
+        console.log(submissions)
         return {
             success: true,
             data: submissions,
