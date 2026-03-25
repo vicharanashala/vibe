@@ -1455,10 +1455,10 @@ useEffect(() => {
   const next = findNextItem();
   if (next) return; // not the last item
   // Small delay so the learner briefly sees the item before redirect
-  const timer = setTimeout(() => {
-    router.navigate({ to: '/student' });
-  }, 2000);
-  return () => clearTimeout(timer);
+  // const timer = setTimeout(() => {
+  //   router.navigate({ to: '/student' });
+  // }, 2000);
+  // return () => clearTimeout(timer);
 }, [currentItem, findNextItem, router]);
 
 
