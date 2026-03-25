@@ -41,7 +41,7 @@ export function AppealModal({ isOpen, onClose, onSubmit, enrollmentId }: Props) 
           <DialogTitle>Submit Appeal</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 mt-8">
           <Textarea
             placeholder="Explain why you should be reinstated..."
             value={reason}

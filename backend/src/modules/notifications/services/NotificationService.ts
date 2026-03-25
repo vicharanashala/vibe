@@ -209,21 +209,36 @@ export class NotificationService {
         )
           return n;
 
-        const hasPending = await this.appealRepo.existsPending(
+        // const hasPending = await this.appealRepo.existsPending(
+        //   userId,
+        //   n.courseId.toString(),
+        //   n.courseVersionId.toString(),
+        //   n.cohortId.toString(),
+        // );
+
+        // return {
+        //   ...n,
+        //   metadata: {
+        //     ...(n.metadata ?? {}),
+        //     appealPending: hasPending,
+        //   },
+        //   extra: {
+        //     ...(n.extra ?? {}),
+        //   },
+        // };
+        const hasAnyAppeal = await this.appealRepo.existsAnyAfterDate(
           userId,
           n.courseId.toString(),
           n.courseVersionId.toString(),
           n.cohortId.toString(),
+          n.createdAt, // ejection notification timestamp as lower bound
         );
 
         return {
           ...n,
           metadata: {
             ...(n.metadata ?? {}),
-            appealPending: hasPending,
-          },
-          extra: {
-            ...(n.extra ?? {}),
+            appealPending: hasAnyAppeal,
           },
         };
       }),

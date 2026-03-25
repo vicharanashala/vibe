@@ -36,7 +36,7 @@ export function SystemNotificationDropdown({
         )}
       </div>
 
-      <ul className="divide-y divide-gray-100 dark:divide-zinc-800 max-h-96 overflow-auto p-1">
+      <ul className="divide-y divide-gray-100 dark:divide-zinc-800 max-h-96 overflow-auto p-2 space-y-1">
         {notifications.length === 0 ? (
           <li className="text-sm text-gray-500 px-2 py-4 text-center">
             No notifications

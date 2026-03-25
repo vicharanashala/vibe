@@ -3,6 +3,7 @@ import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useGetAppealById, useApproveAppeal, useRejectAppeal } from "@/hooks/system-notification-hooks";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export function AppealDetailsModal({ open, onClose, notification }) {
   const appealId = notification.extra?.appealId;
@@ -25,21 +26,37 @@ export function AppealDetailsModal({ open, onClose, notification }) {
   const appeal = data;
 
   const handleApprove = async () => {
+   try {
     await approveMutation.mutateAsync({
       params: { path: { id: appealId } },
     });
+
+    toast.success("Appeal approved successfully ");
+
     onClose();
+  } catch (err) {
+    toast.error("Failed to approve appeal ");
+  }
   };
 
   const handleReject = async () => {
-    if (!rejectReason.trim()) return;
+    if (!rejectReason.trim()) {
+    toast.error("Please enter a rejection reason ⚠️");
+    return;
+  }
 
+  try {
     await rejectMutation.mutateAsync({
       params: { path: { id: appealId } },
       body: { reason: rejectReason },
     });
 
+    toast.success("Appeal rejected successfully ");
+
     onClose();
+  } catch (err) {
+    toast.error("Failed to reject appeal");
+  }
   };
 
   return (
@@ -51,11 +68,27 @@ export function AppealDetailsModal({ open, onClose, notification }) {
           <DialogTitle>Appeal Details</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 text-sm">
+        <div className="space-y-4 text-sm mt-6">
+          {/* By */}
+          <div>
+            <p className="font-medium ">By</p>
+            <p className="text-muted-foreground mt-1">
+              {notification.extra.firstName} {" "}
+              {notification.extra.lastName}
+            </p>
+
+          </div>
+           <div>
+            <p className="font-medium mt-2">Email</p>
+            <p className="text-muted-foreground mt-1">
+              {notification.extra.email}
+            </p>
+            
+          </div>
 
           {/* Reason */}
           <div>
-            <p className="font-medium">Reason</p>
+            <p className="font-medium mt-2">Reason</p>
             <p className="text-muted-foreground mt-1">
               {appeal?.reason}
             </p>
@@ -97,7 +130,9 @@ export function AppealDetailsModal({ open, onClose, notification }) {
 
             <Button
               onClick={handleReject}
-              disabled={rejectMutation.isLoading}
+              disabled={
+    rejectMutation.isLoading || !rejectReason.trim()
+  }
               variant="destructive"
             >
               {rejectMutation.isLoading ? "Rejecting..." : "Reject Appeal"}

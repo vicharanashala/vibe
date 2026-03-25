@@ -13,6 +13,7 @@ import {EjectionPolicyService} from './EjectionPolicyService.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
 import {NotificationService} from '#root/modules/notifications/services/NotificationService.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
+import {UserService} from '#root/modules/users/services/UserService.js';
 
 @injectable()
 export class AppealService {
@@ -25,6 +26,9 @@ export class AppealService {
 
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+
+    @inject(USERS_TYPES.UserService)
+    private readonly userService: UserService,
 
     @inject(EJECTION_POLICY_TYPES.NotificationService)
     private readonly notificationService: NotificationService,
@@ -46,6 +50,8 @@ export class AppealService {
       versionId,
       cohortId,
     );
+    const {firstName, lastName, email} =
+      await this.userService.getUserById(userId);
 
     const [policy] = await this.policyService.getActivePoliciesForCourse(
       courseId,
@@ -103,32 +109,6 @@ export class AppealService {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    // const instructors = await this.enrollmentService.getCohortStaff(
-    //   courseId,
-    //   versionId,
-    //   cohortId,
-    // );
-    // console.log('STAFF:', instructors);
-    // // notify instructor/admin
-    // await Promise.all(
-    //   instructors.map(instructor =>
-    //     this.notificationService.createNotification({
-    //       userId: instructor.userId,
-    //       type: 'appeal_submitted',
-    //       title: 'New Appeal Submitted',
-    //       message: `A student has submitted an appeal`,
-    //       courseId: policy.courseId,
-    //       courseVersionId: policy.courseVersionId,
-    //       cohortId: policy.cohortId,
-    //       policyId: policy._id,
-    //       read: false,
-    //       createdAt: new Date(),
-    //       extra: {
-    //         appealId: appealId.toString(),
-    //       },
-    //     }),
-    //   ),
-    // );
 
     const instructors =
       await this.enrollmentService.getNonStudentEnrollmentsByCourseVersion(
@@ -150,7 +130,7 @@ export class AppealService {
 
           type: 'appeal_submitted',
           title: 'New Appeal Submitted',
-          message: 'A student has submitted an appeal',
+          message: `${firstName} ${lastName} has submitted an appeal`,
 
           courseId: new ObjectId(policy.courseId.toString()),
           courseVersionId: new ObjectId(policy.courseVersionId.toString()),
@@ -162,6 +142,9 @@ export class AppealService {
 
           extra: {
             appealId: appealId.toString(),
+            email,
+            firstName,
+            lastName,
           },
         }),
       ),
@@ -172,14 +155,43 @@ export class AppealService {
   // ================= GET =================
 
   async getAppeals(filters: any) {
-    return this.appealRepo.findAll(filters);
+    const appeals = await this.appealRepo.findAll(filters);
+
+    const enriched = await Promise.all(
+      appeals.map(async a => {
+        const user = await this.userService.getUserById(a.userId.toString());
+
+        return {
+          ...a,
+          student: {
+            id: a.userId.toString(),
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+          },
+        };
+      }),
+    );
+
+    return enriched;
   }
+
   async getAppealById(appealId: string) {
     const appeal = await this.appealRepo.findById(appealId);
 
     if (!appeal) throw new NotFoundError('Appeal not found');
 
-    return appeal;
+    const user = await this.userService.getUserById(appeal.userId.toString());
+
+    return {
+      ...appeal,
+      student: {
+        id: appeal.userId.toString(),
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+      },
+    };
   }
 
   // ================= APPROVE =================
@@ -241,7 +253,7 @@ export class AppealService {
       userId: appeal.userId,
       type: 'appeal_rejected',
       title: 'Appeal Rejected',
-      message: 'Your appeal has been rejected.',
+      message: `Your appeal was rejected: ${reason}`,
       courseId: appeal.courseId,
       courseVersionId: appeal.courseVersionId,
       cohortId: appeal.cohortId,
