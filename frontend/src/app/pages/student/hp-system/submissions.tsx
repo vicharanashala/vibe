@@ -618,7 +618,7 @@ export default function StudentSubmissions() {
 
                                             {editError && (
                                                 <div className="text-sm text-red-500 bg-red-50 p-3 rounded-md">
-                                                    {editError}
+                                                   fdssfdsdf {editError}423342
                                                 </div>
                                             )}
                                         </div>

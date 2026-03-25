@@ -14,6 +14,8 @@ import {
 } from "../classes/validators/ruleConfigValidators.js";
 import { toObjectId } from "../utils/toObjectId.js";
 import { HpRuleConfig, PenaltyApplyWhen, RewardApplyWhen, RuleType } from "../models.js";
+import { CreateActivityWithRuleBody } from "../classes/validators/activityValidators.js";
+import { ActivityService } from "./activityService.js";
 
 type HpRuleConfigCreateDoc = Omit<HpRuleConfig, "_id">;
 
@@ -32,6 +34,9 @@ export class RuleConfigService extends BaseService {
 
         @inject(HP_SYSTEM_TYPES.activityRepository)
         private readonly activityRepository: ActivityRepository,
+
+        @inject(HP_SYSTEM_TYPES.activityService)
+        private readonly activiService: ActivityService,
     ) {
         super(mongoDatabase);
     }
@@ -56,6 +61,15 @@ export class RuleConfigService extends BaseService {
             const isMandatory = body.isMandatory === true;
             const hasReward = body.reward?.enabled === true;
             const hasPenalty = body.penalty?.enabled === true;
+
+            const allowLate = body.allowLateSubmission === true;
+            const lateRewardAllowed = body.reward?.enabled === true && body.reward.lateBehavior === "REWARD";
+
+            if (allowLate && lateRewardAllowed && hasPenalty) {
+                throw new BadRequestError(
+                    "Late reward and penalty can't be enabled at the same time."
+                );
+            }
 
             if (isVibeMilestone) {
                 body.isMandatory = true;
@@ -159,6 +173,14 @@ export class RuleConfigService extends BaseService {
         // })
     }
 
+    async createActivityWithRule(teacherId: string, body: CreateActivityWithRuleBody): Promise<HpRuleConfigTransformer> {
+        return this._withTransaction(async (session) => {
+            const activity = await this.activiService.create(teacherId, body.activity);
+            const ruleConfig = { ...body.ruleConfig, activityId: activity._id.toString()};
+            return this.create(ruleConfig);
+        });
+    }
+
     async update(ruleConfigId: string, patch: UpdateHpRuleConfigBody): Promise<HpRuleConfigTransformer> {
         return this._withTransaction(async (session) => {
 
@@ -233,6 +255,30 @@ export class RuleConfigService extends BaseService {
                 } else if (existing.penalty?.enabled) {
                     updatePatch.penalty = { ...existing.penalty, enabled: false } as any;
                 }
+            }
+            const finalAllowLate =
+                patch.allowLateSubmission !== undefined
+                    ? patch.allowLateSubmission
+                    : existing.allowLateSubmission;
+
+            const finalReward = {
+                ...existing.reward,
+                ...(patch.reward || {}),
+            };
+
+            const finalPenalty = {
+                ...existing.penalty,
+                ...(patch.penalty || {}),
+            };
+            const lateRewardAllowed =
+                finalReward?.enabled === true &&
+                finalReward?.lateBehavior === "REWARD";
+
+            const penaltyEnabled = finalPenalty?.enabled === true;
+
+
+            if (finalAllowLate && lateRewardAllowed && penaltyEnabled) {
+                throw new BadRequestError("Late reward and penalty can't be enabled at the same time.");
             }
 
             if (patch.isMandatory !== undefined) updatePatch.isMandatory = patch.isMandatory;

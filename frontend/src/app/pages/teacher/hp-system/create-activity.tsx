@@ -20,17 +20,19 @@ import {
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { toast } from "sonner";
 import { CreateHpActivityPayload, HpRuleConfig, CourseWithVersions, CourseVersionStats } from "@/lib/api/hp-system";
-import { useCreateHpActivity, useCreateHpRuleConfig, useHpCourseVersions } from "@/hooks/hooks";
+import { useCreateActivityWithRule, useCreateHpActivity, useCreateHpRuleConfig, useHpCourseVersions } from "@/hooks/hooks";
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal";
 
 export default function CreateHpActivityPage() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
     const navigate = useNavigate();
-    const { mutateAsync: createActivity, isPending: isSubmittingActivity } = useCreateHpActivity();
-    const { mutateAsync: createRuleConfig, isPending: isSubmittingRules } = useCreateHpRuleConfig();
+    // const { mutateAsync: createActivity, isPending: isSubmittingActivity } = useCreateHpActivity();
+    // const { mutateAsync: createRuleConfig, isPending: isSubmittingRules } = useCreateHpRuleConfig();
+    const {mutateAsync :createActivityWithRule, isPending: isCreatingActivityWithRule } = useCreateActivityWithRule();
     const { data: courses = [], isLoading: isLoadingCourses } = useHpCourseVersions();
+    const [submitError, setSubmitError] = useState<string | null>(null);
 
-    const isSubmitting = isSubmittingActivity || isSubmittingRules;
+    const isSubmitting = isCreatingActivityWithRule;
 
     const [step, setStep] = useState<1 | 2>(1);
     
@@ -78,13 +80,13 @@ export default function CreateHpActivityPage() {
         reward: {
             enabled: false,
             type: "ABSOLUTE",
-            value: 0,
+            value: 5,
             applyWhen: "ON_APPROVAL",
             lateBehavior: "NO_REWARD",
         },
         penalty: {
             enabled: false,
-            type: "PERCENTAGE",
+            type: "ABSOLUTE",
             value: 5,
             applyWhen: "AFTER_DEADLINE",
             graceMinutes: 0,
@@ -202,6 +204,8 @@ export default function CreateHpActivityPage() {
                 }
                 if (ruleConfig.reward?.value === undefined || Number.isNaN(ruleConfig.reward.value)) {
                     nextErrors.rewardValue = "Reward value is required";
+                } else if (ruleConfig.reward.value === 0) {
+                    nextErrors.rewardValue = "Reward value must be greater than 0";
                 } else if (ruleConfig.reward.value < 0) {
                     nextErrors.rewardValue = "Reward value cannot be negative";
                 }
@@ -224,6 +228,8 @@ export default function CreateHpActivityPage() {
                 }
                 if (ruleConfig.penalty?.value === undefined || Number.isNaN(ruleConfig.penalty.value)) {
                     nextErrors.penaltyValue = "Penalty value is required";
+                } else if (ruleConfig.penalty.value === 0) {
+                    nextErrors.penaltyValue = "Penalty value must be greater than 0";
                 } else if (ruleConfig.penalty.value < 0) {
                     nextErrors.penaltyValue = "Penalty value cannot be negative";
                 }
@@ -264,7 +270,9 @@ export default function CreateHpActivityPage() {
             setRuleErrors(nextErrors);
             return Object.keys(nextErrors).length === 0;
         };
-
+        
+        setSubmitError(null);
+        
         if (!validateRuleConfig()) {
             return;
         }
@@ -282,116 +290,93 @@ export default function CreateHpActivityPage() {
             required_percentage: ruleConfig.required_percentage,
         };
 
+        // 2. Create the full Rule Config
+        const rulePayload = {
+            courseId: courseId,
+            courseVersionId: courseVersionId,
+            activityId: undefined,
+            isMandatory: ruleConfig.isMandatory as boolean,
+            deadlineAt: ruleConfig.deadlineAt as string | undefined,
+            allowLateSubmission: ruleConfig.allowLateSubmission as boolean,
+            reward: {
+                enabled: ruleConfig.reward?.enabled ?? true,
+                type: ruleConfig.reward?.type as any,
+                value: ruleConfig.reward?.value as number,
+                applyWhen: ruleConfig.reward?.applyWhen as any,
+                lateBehavior: ruleConfig.reward?.lateBehavior ?? "NO_REWARD",
+            },
+            penalty: {
+                enabled: ruleConfig.penalty?.enabled ?? false,
+                type: (ruleConfig.penalty?.type ?? "ABSOLUTE") as any,
+                value: ruleConfig.penalty?.value ?? 0,
+                applyWhen: (ruleConfig.penalty?.applyWhen ?? "AFTER_DEADLINE") as any,
+                graceMinutes: ruleConfig.penalty?.graceMinutes ?? 0,
+                runOnce: ruleConfig.penalty?.runOnce ?? true,
+            },
+            limits: {
+                minHp: ruleConfig.limits?.minHp,
+                maxHp: ruleConfig.limits?.maxHp,
+            },
+        };
+
         try {
-            // 2. Create the activity
-            const response: any = await createActivity(activityPayload);
-            // The backend might return _id as a string, or an object if it serialized an ObjectId directly
-            let createdActivityId = response?._id;
-            if (createdActivityId && typeof createdActivityId === "object") {
-                createdActivityId = createdActivityId.$oid || createdActivityId.id || createdActivityId.toString();
-                // If it's a buffer object, this might be tricky, but mostly $oid or id works
-            }
+            await createActivityWithRule({
+                activity: activityPayload,
+                ruleConfig: rulePayload,
+            });
 
-            if (!createdActivityId || typeof createdActivityId !== "string") {
-                console.error("Activity creation returned no valid string ID", response);
-                throw new Error("Missing valid activity ID from response");
-            }
+            toast.success("Activity created successfully");
 
-            // 3. Create the full Rule Config
-            const rulePayload = {
-                courseId: courseId,
-                courseVersionId: courseVersionId,
-                activityId: createdActivityId,
-                isMandatory: ruleConfig.isMandatory as boolean,
-                deadlineAt: ruleConfig.deadlineAt as string | undefined,
-                allowLateSubmission: ruleConfig.allowLateSubmission as boolean,
-                reward: {
-                    enabled: ruleConfig.reward?.enabled ?? true,
-                    type: ruleConfig.reward?.type as any,
-                    value: ruleConfig.reward?.value as number,
-                    applyWhen: ruleConfig.reward?.applyWhen as any,
-                    lateBehavior: ruleConfig.reward?.lateBehavior ?? "NO_REWARD",
-                },
-                penalty: {
-                    enabled: ruleConfig.penalty?.enabled ?? false,
-                    type: (ruleConfig.penalty?.type ?? "ABSOLUTE") as any,
-                    value: ruleConfig.penalty?.value ?? 0,
-                    applyWhen: (ruleConfig.penalty?.applyWhen ?? "AFTER_DEADLINE") as any,
-                    graceMinutes: ruleConfig.penalty?.graceMinutes ?? 0,
-                    runOnce: ruleConfig.penalty?.runOnce ?? true,
-                },
-                limits: {
-                    minHp: ruleConfig.limits?.minHp,
-                    maxHp: ruleConfig.limits?.maxHp,
-                },
-            };
+            navigate({
+                to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/activities`,
+                state: { from }
+            });
 
-            try {
-                await createRuleConfig(rulePayload);
-            } catch (ruleError: any) {
-                console.error("Rule config creation failed:", ruleError);
-                if (ruleError.response) {
+            } catch (error: any) {
+                 if (error.response) {
                     try {
-                        const detail = await ruleError.response.json();
-                        toast.error(`Activity created, but rules failed: ${detail.message || "Validation Error"}`);
-                    } catch (e) {
-                         toast.error("Activity created, but rules failed.");
-                    }
-                } else {
-                    toast.error(ruleError.message || "Activity created, but rules failed.");
-                }
-            }
+                        const detail = await error.response.json();
 
-            // 4. Navigate back
-            navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/activities`, state:{from} });
-        } catch (error: any) {
-            console.error("Failed to create activity", error);
-            if (error.response) {
-                try {
-                    const detail = await error.response.json();
-                    console.error("Backend Error Detail JSON:", detail);
-                    
-                    if (detail.errors && Array.isArray(detail.errors)) {
-                        let hasFieldErrors = false;
-                        const validFormFields = ["title", "description", "activityType", "submissionMode", "externalLink", "attachments"];
-                        const nextRuleErrors: any = { ...ruleErrors };
+                        if (detail.errors && Array.isArray(detail.errors)) {
+                            let hasFieldErrors = false;
+                            const validFormFields = ["title", "description", "activityType", "submissionMode", "externalLink", "attachments"];
+                            const nextRuleErrors: any = { ...ruleErrors };
 
-                        detail.errors.forEach((err: any) => {
-                            if (err.property) {
-                                const message = err.constraints ? Object.values(err.constraints).join(", ") : "Validation failed";
-                                
-                                if (validFormFields.includes(err.property)) {
-                                    setError(err.property as any, { type: "server", message });
-                                    hasFieldErrors = true;
-                                } else {
-                                    // Map to ruleErrors
-                                    nextRuleErrors[err.property] = message;
-                                    hasFieldErrors = true;
+                            detail.errors.forEach((err: any) => {
+                                if (err.property) {
+                                    const message = err.constraints
+                                        ? Object.values(err.constraints).join(", ")
+                                        : "Validation failed";
+
+                                    if (validFormFields.includes(err.property)) {
+                                        setError(err.property as any, { type: "server", message });
+                                        hasFieldErrors = true;
+                                    } else {
+                                        nextRuleErrors[err.property] = message;
+                                        hasFieldErrors = true;
+                                    }
                                 }
+                            });
+                            setRuleErrors(nextRuleErrors);
+                            if (!hasFieldErrors && detail.message) {
+                                setSubmitError(detail.message);
+                                toast.error(detail.message);
+                            } else if (hasFieldErrors) {
+                                toast.error("Please check the form for validation errors.");
                             }
-                        });
-                        
-                        setRuleErrors(nextRuleErrors);
-
-                        if (!hasFieldErrors && detail.message) {
-                            toast.error(detail.message);
-                        } else if (hasFieldErrors) {
-                            toast.error("Please check the form for validation errors.");
+                        } else {
+                            setSubmitError(detail.message || "Activity creation failed")
                         }
-                    } else if (detail.message) {
-                        toast.error(detail.message);
-                    } else {
-                        toast.error("An unexpected error occurred during creation.");
+                    } catch {
+                        setSubmitError("Failed to create activity")
+                        toast.error("Failed to create activity.");
                     }
-                } catch (e) {
-                    console.error("Could not parse backend error JSON");
-                    toast.error("Failed to create activity. Please try again.");
-                }
             } else {
-                toast.error(error.message || "Failed to create activity. Please try again.");
+                setSubmitError(error.message || "Failed to create activity");
+                toast.error(error.message || "Failed to create activity.");
             }
-        }
-    };
+        };
+    }
 
     const backUrl = `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/activities`;
 
@@ -865,6 +850,7 @@ export default function CreateHpActivityPage() {
                                                         ? "REWARD_DENIED"
                                                         : "NONE"
                                             }
+                                            disabled={ruleConfig.penalty?.enabled}
                                             onValueChange={(val: any) => {
                                                 if (val === "REWARD_ALLOWED") {
                                                     setRuleConfig(prev => ({
@@ -924,7 +910,10 @@ export default function CreateHpActivityPage() {
                                         onCheckedChange={(c) => {
                                             setRuleConfig(prev => ({
                                                 ...prev,
-                                                penalty: { ...(prev.penalty || {}), enabled: c }
+                                                penalty: { ...(prev.penalty || {}), enabled: c },
+                                                reward: c
+                                                ? { ...(prev.reward || {}), lateBehavior: "NO_REWARD" }
+                                                : prev.reward
                                             }));
                                             if (ruleErrors.penaltyEnabled) {
                                                 setRuleErrors(prev => ({ ...prev, penaltyEnabled: undefined }));
@@ -1066,6 +1055,11 @@ export default function CreateHpActivityPage() {
                                <p className="text-[10px] text-muted-foreground">
                                     💡 Recommended for more consistent HP allocation. Define lower and upper bounds for HP changes when using percentage-based calculations.
                                 </p>
+                            </div>
+                        )}
+                        {submitError && (
+                            <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-3 rounded-md flex items-start gap-2">
+                                <span>{submitError}</span>
                             </div>
                         )}
                     </div>
