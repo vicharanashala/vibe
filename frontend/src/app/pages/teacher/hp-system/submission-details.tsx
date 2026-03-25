@@ -527,8 +527,9 @@ export default function SubmissionDetailsPage() {
         setActionSubId(subId);
         try {
             if (action === 'restore') {
-                toast.error("Restore functionality is not available yet. It will be added soon."); return
-                await restoreEntry(subId);
+                toast.error("Restore functionality is not available yet. It will be added soon.");
+                // return
+                // await restoreEntry(subId);
             } else if (action === 'approve' || action === 'reject' || action === 'revert') {
                 await reviewSubmission({
                     submissionId: subId,
