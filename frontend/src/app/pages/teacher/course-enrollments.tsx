@@ -45,7 +45,7 @@ import { useCourseStore } from "@/store/course-store"
 import type { EnrolledUser, EnrollmentDetails } from "@/types/course.types"
 import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
-import { generateExcel } from "@/lib/excel-export"
+import { generateExcel, generateStudentContactsExcel } from "@/lib/excel-export"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -381,6 +381,7 @@ export default function CourseEnrollments() {
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const [isSearching, setIsSearching] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingStudentContacts, setIsExportingStudentContacts] = useState(false);
 
   const [showContentSummary, setShowContentSummary] = useState(false)
   function SummaryRow({
@@ -428,6 +429,13 @@ export default function CourseEnrollments() {
     cohortName?: string | null;
     quizScores?: QuizScore[];
   }
+
+  const sanitizeFilenamePart = (value: string) =>
+    value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
 
   // Handle fetch and export quiz scores
   const handleFetchQuizScores = async () => {
@@ -622,6 +630,23 @@ export default function CourseEnrollments() {
 
   // Pagination state
   const totalDocuments = enrollmentsData?.totalDocuments || 0
+  const {
+    data: exportEnrollmentsData,
+    isLoading: isLoadingStudentContacts,
+  } = useCourseVersionEnrollments(
+    courseId,
+    versionId,
+    1,
+    Math.max(totalDocuments, 1),
+    debouncedSearch,
+    sortBy,
+    sortOrder,
+    isExportingStudentContacts,
+    'STUDENT',
+    statusTab,
+    cohort,
+  );
+
   useEffect(() => {
     if (enrollmentTab === "ACTIVE") {
       setActiveCount(totalDocuments)
@@ -652,6 +677,55 @@ export default function CourseEnrollments() {
     setCurrentPage(1);
   };
 
+  const handleExportStudentContacts = async () => {
+    if (!courseId || !versionId) {
+      toast.error('Course ID or Version ID is missing');
+      return;
+    }
+
+    if (!totalDocuments) {
+      toast.warning('No students found to export');
+      return;
+    }
+
+    const enrollments = exportEnrollmentsData?.enrollments || [];
+
+    if (!enrollments.length) {
+      toast.warning('No students found to export');
+      return;
+    }
+
+    try {
+      const formattedData = enrollments.map((enrollment: any) => ({
+        name:
+          `${enrollment?.user?.firstName ?? ''} ${enrollment?.user?.lastName ?? ''}`.trim() ||
+          'Unknown User',
+        email: enrollment?.user?.email || '',
+      }));
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
+      const statusLabel = enrollmentTab === 'ACTIVE' ? 'active' : 'inactive';
+      const courseLabel = sanitizeFilenamePart(course?.name || 'course');
+      const cohortName = cohort
+        ? (version as any)?.cohortDetails?.find((item: any) => item.id === cohort)?.name
+        : null;
+      const cohortLabel = cohortName
+        ? `${sanitizeFilenamePart(cohortName)}_`
+        : '';
+      const filename = `${courseLabel}_${cohortLabel}${statusLabel}_student_contacts_${timestamp}.xlsx`;
+
+      generateStudentContactsExcel(formattedData, filename);
+      toast.success('Student contacts exported successfully');
+    } catch (error) {
+      console.error('Error exporting student contacts:', error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to export student contacts',
+      );
+    }
+  };
+
   useEffect(() => {
     if (isResetDialogOpen) {
       setResetScope("course")
@@ -678,6 +752,12 @@ export default function CourseEnrollments() {
       handleFetchQuizScores().finally(() => setIsExporting(false));
     }
   }, [isExporting, isLoadingQuizScores]);
+
+  useEffect(() => {
+    if (isExportingStudentContacts && !isLoadingStudentContacts) {
+      handleExportStudentContacts().finally(() => setIsExportingStudentContacts(false));
+    }
+  }, [isExportingStudentContacts, isLoadingStudentContacts, exportEnrollmentsData]);
 
   const handleResetProgress = (user: EnrolledUser) => {
     setSelectedUser(user)
@@ -1107,6 +1187,8 @@ export default function CourseEnrollments() {
                 sortOrder={sortOrder}
                 isLoadingQuizScores={isLoadingQuizScores}
                 setIsExporting={setIsExporting}
+                isExportingStudentContacts={isLoadingStudentContacts}
+                setIsExportingStudentContacts={setIsExportingStudentContacts}
                 unenrollMutation={unenrollMutation}
                 user={user}
                 handleViewProgress={handleViewProgress}
@@ -1140,6 +1222,8 @@ export default function CourseEnrollments() {
                 sortOrder={sortOrder}
                 isLoadingQuizScores={isLoadingQuizScores}
                 setIsExporting={setIsExporting}
+                isExportingStudentContacts={isLoadingStudentContacts}
+                setIsExportingStudentContacts={setIsExportingStudentContacts}
                 unenrollMutation={unenrollMutation}
                 user={user}
                 handleViewProgress={handleViewProgress}
@@ -2062,6 +2146,8 @@ interface EnrollmentsTableProps {
   sortOrder: "asc" | "desc";
   isLoadingQuizScores: boolean;
   setIsExporting: (exporting: boolean) => void;
+  isExportingStudentContacts: boolean;
+  setIsExportingStudentContacts: (exporting: boolean) => void;
   unenrollMutation: any;
   user: any;
   handleViewProgress: (user: any) => void;
@@ -2092,6 +2178,8 @@ function EnrollmentsTable({
   sortOrder,
   isLoadingQuizScores,
   setIsExporting,
+  isExportingStudentContacts,
+  setIsExportingStudentContacts,
   unenrollMutation,
   user,
   handleViewProgress,
@@ -2121,6 +2209,21 @@ function EnrollmentsTable({
 
         {/* SAME header functionality for both tabs */}
         <div className="flex items-center space-x-4 lg:flex-nowrap flex-wrap gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsExportingStudentContacts(true)}
+            disabled={isExportingStudentContacts || enrollmentsLoading || isSearching}
+            className="flex items-center gap-2"
+          >
+            {isExportingStudentContacts ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            <span>{isExportingStudentContacts ? "Exporting..." : "Export Student Contacts"}</span>
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
