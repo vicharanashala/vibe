@@ -495,7 +495,7 @@ export class CohortsService extends BaseService {
                     );
 
                     const hpEnabledVersionIds = new Set(
-                        (courseSettings ?? [])
+                        (courseSettings ?? []) 
                             .filter(s => s.settings?.hpSystem === true)
                             .map(s => s.courseVersionId.toString())
                     );
@@ -527,7 +527,7 @@ export class CohortsService extends BaseService {
                             const matched = dynamic.filter(
                                 c => enrolledCohortNames.has(c.cohortName.toLowerCase())
                             );
-                            console.log("matched--", matched);
+
                             studentCohorts.push(
                                 ...matched
                             );
