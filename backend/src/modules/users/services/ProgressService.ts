@@ -96,7 +96,7 @@ class ProgressService extends BaseService {
     super(database);
   }
 
-  private async calculateGuruSetuProgress(
+  public async calculateGuruSetuProgress(
     userId: string,
     courseVersionId: string,
   ): Promise<{ percentCompleted: number; completedItemsCount: number }> {
@@ -462,7 +462,7 @@ class ProgressService extends BaseService {
         enrollment._id.toString(),
         percentCompleted,
         totalCompletedItemsCount,
-        cohort,
+        effectiveCohort,
         session,
       );
       return;
@@ -2068,7 +2068,7 @@ class ProgressService extends BaseService {
     // If the user wants to bypass the updateProgress call entirely, they can, but a partial bypass
     // might be better if they still want to track "currentItem".
     // According to the requirement: "Disable or bypass the updateProgress call".
-    
+
     // console.log(`Stopping item tracking for user ${userId}, course ${courseId}, version ${courseVersionId}, item ${itemId}, cohort ${cohortId}`);
     // Fetch course version, progress, item, and linear progression setting in parallel
     const [courseVersion, progress, item, linearProgressionEnabled] = await Promise.all([
@@ -2330,10 +2330,10 @@ class ProgressService extends BaseService {
           enrollment._id.toString(),
           percentCompleted,
           completedCourseItemsCount,
-         effectiveCohortId,
+          effectiveCohortId,
         );
       }
-     
+
 
       if (percentCompleted > 99) {
         await this.recalculateStudentProgress(
@@ -2355,7 +2355,7 @@ class ProgressService extends BaseService {
           session,
         );
       }
-     
+
     });
   }
 
@@ -2909,12 +2909,12 @@ class ProgressService extends BaseService {
           : Promise.resolve(),
         projectItemIds.length
           ? this.resetUserProjectData(
-              userId,
-              projectItemIds,
-              courseVersionId,
-              session,
-              effectiveCohortId,
-            )
+            userId,
+            projectItemIds,
+            courseVersionId,
+            session,
+            effectiveCohortId,
+          )
           : Promise.resolve(),
       ]);
 
@@ -3847,6 +3847,18 @@ class ProgressService extends BaseService {
 
     if (!enrollment) {
       throw new NotFoundError('Enrollment not found');
+    }
+
+    // Guru Setu Progress Override
+    if (courseId === GURU_SETU_COURSE_ID && versionId === GURU_SETU_VERSION_ID) {
+      const guruProgress = await this.calculateGuruSetuProgress(userId, versionId);
+      await this.enrollmentRepo.updateProgressPercentById(
+        enrollment._id!.toString(),
+        guruProgress.percentCompleted,
+        guruProgress.completedItemsCount,
+        cohortId,
+      );
+      return 'Progress recalculated successfully';
     }
 
     let allRelevantItemIds: string[] = [];

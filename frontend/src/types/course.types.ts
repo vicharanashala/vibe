@@ -45,6 +45,7 @@ export interface CourseCardProps {
     _id?: string;
     cohortId?: string;
     cohortName?: string;
+    hpSystem?: boolean;
   };
   isLoading: boolean;
   index: number;

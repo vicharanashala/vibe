@@ -10,8 +10,8 @@ import {
   isString,
   IsEnum,
 } from 'class-validator';
-import { Priority } from './quiz.js';
-import { Cohort } from '#root/modules/courses/classes/index.js';
+import {Priority} from './quiz.js';
+import {Cohort} from '#root/modules/courses/classes/index.js';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -406,8 +406,9 @@ export interface IEnrollment {
   isDeleted?: boolean;
   deletedAt?: Date;
   unenrolledAt?: Date;
+  hpPoints?:number;
   hasNewItemsAfterCompletion?: boolean;
-  cohortId?: ID
+  cohortId?: ID;
 }
 
 export interface IProgress {
@@ -451,12 +452,12 @@ export interface ICohort {
   isPublic: boolean;
 }
 
-export interface ICohortSettings{
+export interface ICohortSettings {
   _id?: string | ObjectId | null;
   courseVersionId: string | ObjectId;
   cohortId: string | ObjectId;
-  registrationsAutoApproved: boolean,
-  autoapproval_emails: string[]
+  registrationsAutoApproved: boolean;
+  autoapproval_emails: string[];
 }
 
 export interface IUserActivityEvent {
@@ -560,7 +561,9 @@ export interface ISettings {
   proctors: IProctoringSettings;
   linearProgressionEnabled: boolean;
   seekForwardEnabled: boolean;
+  hpSystem?: boolean;
   isPublic?: boolean;
+  baseHp?: number;
   // registration_settings?: IRegistrationSettings[];
   registration?: {
     jsonSchema?: any;
@@ -755,8 +758,8 @@ export interface AuthenticatedUser {
 // }
 
 export interface ICohortResponse {
-  _id: ID,
-  name: string
+  _id: ID;
+  name: string;
 }
 export interface ICourseRegistration {
   _id?: string | ObjectId;
