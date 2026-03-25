@@ -253,7 +253,7 @@ export class AppealService {
       userId: appeal.userId,
       type: 'appeal_rejected',
       title: 'Appeal Rejected',
-      message: 'Your appeal has been rejected.',
+      message: `Your appeal was rejected: ${reason}`,
       courseId: appeal.courseId,
       courseVersionId: appeal.courseVersionId,
       cohortId: appeal.cohortId,
