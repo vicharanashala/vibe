@@ -453,7 +453,7 @@ class ProgressService extends BaseService {
     let totalCompletedItemsCount = 0;
 
     // Guru Setu Progress Override
-    if (courseId === GURU_SETU_COURSE_ID && courseVersionId === GURU_SETU_VERSION_ID) {
+    if (courseId?.toString() === GURU_SETU_COURSE_ID && courseVersionId?.toString() === GURU_SETU_VERSION_ID) {
       const guruProgress = await this.calculateGuruSetuProgress(userId, courseVersionId);
       percentCompleted = guruProgress.percentCompleted;
       totalCompletedItemsCount = guruProgress.completedItemsCount;
@@ -554,6 +554,17 @@ class ProgressService extends BaseService {
 
         const completedItems = enrollment.completedItemsCount;
 
+        let percentCompleted = this._calculateProgress(
+          totalItems,
+          completedItems,
+        );
+
+        // Guru Setu Override
+        if (courseId?.toString() === GURU_SETU_COURSE_ID && versionId?.toString() === GURU_SETU_VERSION_ID) {
+          const guruProgress = await this.calculateGuruSetuProgress(userId, versionId);
+          percentCompleted = guruProgress.percentCompleted;
+        }
+
         return {
           updateOne: {
             filter: {
@@ -563,10 +574,7 @@ class ProgressService extends BaseService {
             },
             update: {
               $set: {
-                percentCompleted: this._calculateProgress(
-                  totalItems,
-                  completedItems,
-                ),
+                percentCompleted,
                 updatedAt: new Date(),
               },
             },
@@ -1693,7 +1701,7 @@ class ProgressService extends BaseService {
     cohortId?: string,
   ): Promise<string> {
     // Guru Setu Progress Override
-    if (courseId === GURU_SETU_COURSE_ID && courseVersionId === GURU_SETU_VERSION_ID) {
+    if (courseId?.toString() === GURU_SETU_COURSE_ID && courseVersionId?.toString() === GURU_SETU_VERSION_ID) {
       await this.updateEnrollmentProgressPercent(userId, courseId, courseVersionId, undefined, false, undefined, undefined, cohortId);
     }
 
@@ -1757,7 +1765,7 @@ class ProgressService extends BaseService {
           courseId,
           courseVersionId,
         );
-      if (!linearProgressionEnabled && (courseId !== GURU_SETU_COURSE_ID || courseVersionId !== GURU_SETU_VERSION_ID)) {
+      if (!linearProgressionEnabled && (courseId?.toString() !== GURU_SETU_COURSE_ID || courseVersionId?.toString() !== GURU_SETU_VERSION_ID)) {
         const newProgress: Partial<IProgress> = {
           completed: isItemCompleted,
           currentModule: moduleId,
@@ -2325,21 +2333,23 @@ class ProgressService extends BaseService {
 
       const percentCompleted = Math.min(100, parseFloat(rawPercent.toFixed(2)));
 
-      if (courseId !== GURU_SETU_COURSE_ID || courseVersionId !== GURU_SETU_VERSION_ID) {
+      if (courseId?.toString() === GURU_SETU_COURSE_ID && courseVersionId?.toString() === GURU_SETU_VERSION_ID) {
+        const guruProgress = await this.calculateGuruSetuProgress(userId, courseVersionId);
+        await this.enrollmentRepo.updateProgressPercentById(
+          enrollment._id.toString(),
+          guruProgress.percentCompleted,
+          guruProgress.completedItemsCount,
+          effectiveCohortId,
+        );
+      } else {
         await this.enrollmentRepo.updateProgressPercentById(
           enrollment._id.toString(),
           percentCompleted,
           completedCourseItemsCount,
-<<<<<<< HEAD
           effectiveCohortId,
         );
       }
-=======
-         effectiveCohortId,
-        );
-      }
      
->>>>>>> 23370bc59c93a8945b933dc484200d977a841f1f
 
       if (percentCompleted > 99) {
         await this.recalculateStudentProgress(
@@ -2351,16 +2361,14 @@ class ProgressService extends BaseService {
       }
 
       // Update progress in a transaction
-      if (courseId !== GURU_SETU_COURSE_ID || courseVersionId !== GURU_SETU_VERSION_ID) {
-        await this.progressRepository.updateProgress( // pending
-          userId,
-          courseId,
-          courseVersionId,
-          newProgress,
-          effectiveCohortId,
-          session,
-        );
-      }
+      await this.progressRepository.updateProgress( // pending
+        userId,
+        courseId,
+        courseVersionId,
+        newProgress,
+        effectiveCohortId,
+        session,
+      );
      
     });
   }
@@ -3856,7 +3864,7 @@ class ProgressService extends BaseService {
     }
 
     // Guru Setu Progress Override
-    if (courseId === GURU_SETU_COURSE_ID && versionId === GURU_SETU_VERSION_ID) {
+    if (courseId?.toString() === GURU_SETU_COURSE_ID && versionId?.toString() === GURU_SETU_VERSION_ID) {
       const guruProgress = await this.calculateGuruSetuProgress(userId, versionId);
       await this.enrollmentRepo.updateProgressPercentById(
         enrollment._id!.toString(),

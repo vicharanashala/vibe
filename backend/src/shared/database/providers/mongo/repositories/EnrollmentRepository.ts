@@ -164,6 +164,14 @@ export class EnrollmentRepository {
       .toArray();
   }
 
+  async findEnrollments(
+    filter: any,
+    session?: ClientSession,
+  ): Promise<IEnrollment[]> {
+    await this.init();
+    return await this.enrollmentCollection.find(filter, { session }).toArray();
+  }
+
   async findAnyEnrollment(
     userId: string | ObjectId,
     courseId: string,
