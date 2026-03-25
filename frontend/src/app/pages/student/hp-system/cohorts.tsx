@@ -106,7 +106,7 @@ export default function StudentCohorts() {
                     <CardContent>
                         <div className="text-2xl font-bold">{totalHp}</div>
                         <p className="text-xs text-muted-foreground mt-1">
-                            House Points earned
+                            Health Points earned
                         </p>
                     </CardContent>
                 </Card>
