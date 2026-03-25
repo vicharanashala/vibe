@@ -3615,7 +3615,7 @@ export class EnrollmentRepository {
     session?: ClientSession,
   ): Promise<ISubmission[]> {
     await this.init();
-    console.log("Fetching quiz submission grades for cohorts", cohorts);
+
     if (!userIds.length || !quizIds.length) {
       return [];
     }

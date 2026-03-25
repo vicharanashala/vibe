@@ -2298,7 +2298,7 @@ class ProgressService extends BaseService {
       );
       if (!enrollment) return;
 
-      const totalItems =
+      let totalItems =
         totalCourseItems;
 
       // Get completed items for progress calculation
@@ -2309,13 +2309,17 @@ class ProgressService extends BaseService {
           courseVersionId,
           effectiveCohortId,
         );
-      const completedItemsSet = new Set(
+      let completedItemsSet = new Set(
         completedItemsArray.map(id => id.toString()),
       );
       if (shouldCountCurrentItemAsCompleted) {
         completedItemsSet.add(itemId);
       }
-
+          // get hidden/deleted
+      const hiddenItems = await this.progressRepository.getHiddenOrDeletedItems(courseVersionId, session);
+      const hiddenSet = new Set(hiddenItems.map(i => i.itemId.toString()));
+      completedItemsSet = new Set(Array.from(completedItemsSet).filter(id => !hiddenSet.has(id)));
+      totalItems = totalItems - hiddenSet.size;
       const completedCourseItemsCount = Array.from(allCourseItemIdSet).filter(id =>
         completedItemsSet.has(id),
       ).length;
@@ -3786,6 +3790,7 @@ class ProgressService extends BaseService {
         if (!group?.items) continue;
 
         for (const item of group.items) {
+          if(item.isHidden) continue; // skip hidden items
           moduleItemIds.push(item._id.toString());
         }
       }
@@ -3880,10 +3885,12 @@ class ProgressService extends BaseService {
     }
 
     const completedItemSet = new Set(completedItemIds);
-    const missedItemIds = allRelevantItemIds.filter(
+    let missedItemIds = allRelevantItemIds.filter(
       itemId => !completedItemSet.has(itemId),
     );
-
+    const hiddenItems = await this.progressRepository.getHiddenOrDeletedItems(versionId);
+    const hiddenSet = new Set(hiddenItems.map(i => i.itemId.toString()));
+    missedItemIds = missedItemIds.filter(itemId => !hiddenSet.has(itemId));
     // 3. Backfill missed watch-time records
     if (missedItemIds.length > 0) {
       await this.progressRepository.addBulkWatchTime(

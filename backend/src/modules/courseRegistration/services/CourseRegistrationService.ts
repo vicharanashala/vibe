@@ -264,7 +264,8 @@ export class CourseRegistrationService extends BaseService {
         const cohortsDetails = await this.courseRepo.getCohortsByIds(courseVersion.cohorts)
         cohorts = cohortsDetails.map(c => ({
           cohortId: c._id.toString(),
-          cohortName: c.name
+          cohortName: c.name,
+          isActive: c.isActive ?? true,
         }));
       }
 

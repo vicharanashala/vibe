@@ -282,12 +282,12 @@ export class CourseRepository implements ICourseRepository {
     [sortBy]: sortOrder === "asc" ? 1 : -1
   }
 
-  return this.cohortsCollection
+  return await this.cohortsCollection
     .find(query, { session })
     .sort(sort)
     .skip(skip)
     .limit(limit)
-    .toArray()
+    .toArray();
   }
 
   async createCohorts(
@@ -310,6 +310,7 @@ export class CourseRepository implements ICourseRepository {
       createdAt: new Date(),
       updatedAt: new Date(),
       isPublic: false,
+      isActive: true
     }));
 
     const result = await this.cohortsCollection.insertMany(
@@ -368,6 +369,7 @@ export class CourseRepository implements ICourseRepository {
     cohortId: ObjectId,
     cohortName?: string,
     isPublic?: boolean,
+    isActive?: boolean,
     session?: ClientSession
   ): Promise<boolean> {
     try {
@@ -378,6 +380,9 @@ export class CourseRepository implements ICourseRepository {
       }
       if (!(isPublic === null || isPublic === undefined)) {
         updateFields.isPublic = isPublic
+      }
+      if (!(isActive === null || isActive === undefined)) {
+        updateFields.isActive = isActive
       }
       if (Object.keys(updateFields).length === 0) {
         return false
