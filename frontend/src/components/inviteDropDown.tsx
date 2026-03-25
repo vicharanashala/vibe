@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useMemo, useState} from 'react';
 import {
   Shield,
   ShieldOff,
@@ -147,6 +147,28 @@ const submitAppeal = useSubmitAppeal();
     markAsRead({params: {path: {registrationId}}});
     onDismissRejected?.(registrationId);
   };
+  // Computing which notification _id is the most recent ejection per course
+const mostRecentEjectionIds = useMemo(() => {
+  const map = new Map<string, string>(); // key -> notification._id
+  
+  systemNotifications
+    .filter(n => n.type === 'ejection')
+    .forEach(n => {
+      const key = `${n.courseId}-${n.courseVersionId}-${n.cohortId}`;
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, n._id);
+      } else {
+        
+        const existingNotif = systemNotifications.find(x => x._id === existing);
+        if (existingNotif && new Date(n.createdAt) > new Date(existingNotif.createdAt)) {
+          map.set(key, n._id);
+        }
+      }
+    });
+
+  return new Set(map.values());
+}, [systemNotifications]);
 
   return (
     <>
@@ -216,33 +238,34 @@ const submitAppeal = useSubmitAppeal();
 
                   
                 {notification.type === 'ejection' &&
-                  notification.metadata?.allowAppeal &&
-                  !isExpired && (() => {
-                    const alreadySubmitted =
-                      notification.metadata?.appealPending ||
-                      submittedAppeals.has(appealKey(notification));
-                    return (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-5 px-2 text-xs text-muted-foreground hover:text-foreground"
-                        disabled={alreadySubmitted}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (notification.courseId && notification.courseVersionId && notification.cohortId) {
-                            setSelectedAppeal({
-                              courseId: notification.courseId,
-                              courseVersionId: notification.courseVersionId,
-                              cohortId: notification.cohortId,
-                            });
-                          }
-                        }}
-                      >
-                        {alreadySubmitted ? 'Appeal Submitted' : 'Appeal'}
-                      </Button>
-                    );
-                  })()
-                }
+  notification.metadata?.allowAppeal &&
+  !isExpired &&
+  mostRecentEjectionIds.has(notification._id) &&
+  (() => {
+    const alreadySubmitted =
+      notification.metadata?.appealPending ||
+      submittedAppeals.has(appealKey(notification));
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={alreadySubmitted}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (notification.courseId && notification.courseVersionId && notification.cohortId) {
+            setSelectedAppeal({
+              courseId: notification.courseId,
+              courseVersionId: notification.courseVersionId,
+              cohortId: notification.cohortId,
+            });
+          }
+        }}
+      >
+        {alreadySubmitted ? 'Appeal Submitted' : 'Appeal'}
+      </Button>
+    );
+  })()
+}
                 </div>
 
                 {!notification.read && onMarkSystemRead && (

@@ -18,14 +18,14 @@ import { useEjectionPolicies } from "@/hooks/ejection-policy-hooks";
 import { useCourseVersionCohorts } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import { EjectionPolicy } from "@/types/ejection-policy.types";
-
+import { AppealsTab } from "./components/ejection-policies/AppealsTab";
 export default function EjectionPoliciesPage() {
   const { currentCourse } = useCourseStore();
   const courseId = currentCourse?.courseId;
   const versionId = currentCourse?.versionId;
 
   const [selectedCohortId, setSelectedCohortId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"policies" | "students" | "history">("policies");
+  const [activeTab, setActiveTab] = useState<"policies" | "students" | "history"| "appeals">("policies");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<EjectionPolicy | null>(null);
   const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
@@ -237,6 +237,12 @@ export default function EjectionPoliciesPage() {
                 >
                   History
                 </TabsTrigger>
+                <TabsTrigger
+  value="appeals"
+  className="rounded-lg text-sm font-semibold text-muted-foreground transition-all duration-200 data-[state=active]:bg-background/80 data-[state=active]:text-foreground data-[state=active]:shadow-sm px-6"
+>
+  Appeals
+</TabsTrigger>
               </TabsList>
 
               {/* Filter — only on policies tab */}
@@ -296,6 +302,14 @@ export default function EjectionPoliciesPage() {
                 onBack={() => setActiveTab("policies")}
               />
             </TabsContent>
+            <TabsContent value="appeals" className="mt-4">
+            <AppealsTab
+              courseId={courseId}
+              courseVersionId={versionId}
+              cohortId={selectedCohortId}
+            />
+          </TabsContent>
+            
           </Tabs>
         )}
       </div>

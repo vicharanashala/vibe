@@ -59,9 +59,22 @@ export class AppealRepository {
     return !!existing;
   }
 
+  // async findAll(filters: any): Promise<IAppeal[]> {
+  //   await this.init();
+  //   return this.collection.find(filters).sort({createdAt: -1}).toArray();
+  // }
   async findAll(filters: any): Promise<IAppeal[]> {
     await this.init();
-    return this.collection.find(filters).sort({createdAt: -1}).toArray();
+    const query: any = {};
+
+    if (filters.courseId) query.courseId = new ObjectId(filters.courseId);
+    if (filters.courseVersionId)
+      query.courseVersionId = new ObjectId(filters.courseVersionId);
+    if (filters.cohortId) query.cohortId = new ObjectId(filters.cohortId);
+    if (filters.status) query.status = filters.status;
+    if (filters.userId) query.userId = new ObjectId(filters.userId);
+
+    return this.collection.find(query).sort({createdAt: -1}).toArray();
   }
 
   async update(

@@ -125,3 +125,32 @@ export function useRejectAppeal() {
     }
   );
 }
+
+export function useGetAppeals(
+  courseId?: string,
+  courseVersionId?: string,
+  cohortId?: string,
+  status?: string,
+  enabled: boolean = true,
+) {
+  const result = api.useQuery(
+    'get',
+    '/appeals',
+    {
+      params: {
+        query: {
+          ...(courseId ? { courseId } : {}),
+          ...(courseVersionId ? { courseVersionId } : {}),
+          ...(cohortId ? { cohortId } : {}),
+          ...(status ? { status } : {}),
+        },
+      },
+    },
+    { enabled: enabled && !!courseId && !!courseVersionId && !!cohortId },
+  );
+
+  return {
+    ...result,
+    appeals: (result.data as any) ?? [],
+  };
+}

@@ -154,7 +154,6 @@ export class NotificationController {
       user._id.toString(),
       rawNotifications,
     );
-    console.log('NOTIFICAAIONS:', notifications);
 
     return {
       notifications: notifications.map(n => ({
