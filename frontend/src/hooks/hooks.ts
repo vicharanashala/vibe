@@ -796,7 +796,11 @@ export function useCreateCourseVersion(): {
 
 
 // GET /courses/versions/{id}
-export function useCourseVersionById(id: string, enabled?: boolean): {
+export function useCourseVersionById(
+  id: string,
+  enabled?: boolean,
+  cohortId?: string,
+): {
   data: components['schemas']['CourseVersionDataResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -808,7 +812,10 @@ export function useCourseVersionById(id: string, enabled?: boolean): {
     : undefined;
 
   const result = api.useQuery("get", "/courses/versions/{id}", {
-    params: { path: { id } }
+    params: {
+      path: { id },
+      ...(cohortId ? { query: { cohortId } } : {}),
+    }
   }, enabledOptions
   );
 
