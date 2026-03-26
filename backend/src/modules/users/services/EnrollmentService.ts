@@ -814,7 +814,9 @@ export class EnrollmentService extends BaseService {
         let totalCompletedItemsCount = completedCount;
 
         // Guru Setu Override
+        // console.log(`Checking Guru Setu for course ${enr.courseId?.toString()} and version ${versionIdStr}`);
         if (enr.courseId?.toString() === GURU_SETU_COURSE_ID && versionIdStr === GURU_SETU_VERSION_ID) {
+          // console.log(`Guru Setu Match Found for user ${userId}`);
           const guruProgress = await this.progressService.calculateGuruSetuProgress(userId, versionIdStr);
           calculatedPercent = guruProgress.percentCompleted;
           totalCompletedItemsCount = guruProgress.completedItemsCount;
@@ -1115,7 +1117,7 @@ export class EnrollmentService extends BaseService {
       let currentPercentCompleted = Number(detail?.percentCompleted ?? 0);
       let currentCompletedItemsCount = completedItemsCount;
 
-      if (courseId === GURU_SETU_COURSE_ID && courseVersionId === GURU_SETU_VERSION_ID) {
+      if (courseId?.toString() === GURU_SETU_COURSE_ID && courseVersionId?.toString() === GURU_SETU_VERSION_ID) {
         const guruProgress = await this.progressService.calculateGuruSetuProgress(userId, courseVersionId);
         currentPercentCompleted = guruProgress.percentCompleted;
         currentCompletedItemsCount = guruProgress.completedItemsCount;
@@ -1746,10 +1748,12 @@ export class EnrollmentService extends BaseService {
     const MAX_CONCURRENCY = 4;
 
     if (versionId) {
-      const result =
-        await this.enrollmentRepo.bulkUpdateCompletedItemsCountForCourseVersion(
-          { courseVersionId: versionId, courseId, userId },
-        );
+      if (versionId === GURU_SETU_VERSION_ID) {
+        return this.bulkUpdateGuruSetuProgress(courseId, versionId, userId);
+      }
+      const result = await this.enrollmentRepo.bulkUpdateCompletedItemsCountForCourseVersion(
+        { courseVersionId: versionId, courseId, userId },
+      );
       return result;
     }
 
@@ -1773,6 +1777,12 @@ export class EnrollmentService extends BaseService {
         const currentIndex = index++;
         const courseVersionId = courseVersionIds[currentIndex];
 
+        if (courseVersionId === GURU_SETU_VERSION_ID) {
+          const result = await this.bulkUpdateGuruSetuProgress(courseId, courseVersionId, userId);
+          results.push(result);
+          continue;
+        }
+
         const result =
           await this.enrollmentRepo.bulkUpdateCompletedItemsCountForCourseVersion(
             { courseVersionId, courseId, userId },
@@ -1790,6 +1800,45 @@ export class EnrollmentService extends BaseService {
     const updatedCount = results.reduce((sum, r) => sum + r.updatedCount, 0);
 
     return { totalCount, updatedCount };
+  }
+
+  /**
+   * Bulk updates progress for Guru Setu students using feedback-based logic.
+   */
+  private async bulkUpdateGuruSetuProgress(
+    courseId?: string,
+    versionId?: string,
+    userId?: string,
+  ): Promise<{ totalCount: number; updatedCount: number }> {
+    const filter: any = {
+      courseVersionId: new ObjectId(GURU_SETU_VERSION_ID),
+      role: 'STUDENT',
+      isDeleted: { $ne: true },
+    };
+    if (userId) filter.userId = new ObjectId(userId);
+    if (courseId) filter.courseId = new ObjectId(GURU_SETU_COURSE_ID);
+
+    const enrollments = await this.enrollmentRepo.findEnrollments(filter);
+    
+    let updatedCount = 0;
+    for (const enr of enrollments) {
+      try {
+        const userIdStr = enr.userId.toString();
+        const guruProgress = await this.progressService.calculateGuruSetuProgress(userIdStr, GURU_SETU_VERSION_ID);
+        
+        await this.enrollmentRepo.updateProgressPercentById(
+          enr._id.toString(),
+          guruProgress.percentCompleted,
+          guruProgress.completedItemsCount,
+          enr.cohortId?.toString(),
+        );
+        updatedCount++;
+      } catch (err) {
+        console.error(`Failed to update Guru Setu progress for user ${enr.userId}:`, err);
+      }
+    }
+
+    return { totalCount: enrollments.length, updatedCount };
   }
 
   async getModuleProgressForUser(

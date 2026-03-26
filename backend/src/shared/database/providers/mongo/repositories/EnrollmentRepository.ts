@@ -164,6 +164,14 @@ export class EnrollmentRepository {
       .toArray();
   }
 
+  async findEnrollments(
+    filter: any,
+    session?: ClientSession,
+  ): Promise<IEnrollment[]> {
+    await this.init();
+    return await this.enrollmentCollection.find(filter, { session }).toArray();
+  }
+
   async findAnyEnrollment(
     userId: string | ObjectId,
     courseId: string,
@@ -2973,6 +2981,15 @@ export class EnrollmentRepository {
     return Array.from(questionIds);
   }
 
+  // Helper function
+  private formatExportScore(value: number | null | undefined): number {
+    if (typeof value !== 'number' || Number.isNaN(value)) {
+      return 0;
+    }
+
+    return Number.isInteger(value) ? value : Number(value.toFixed(2));
+  }
+
   /**
    * Retrieves quiz IDs organized by modules and sections for a given course version
    * @param versionId The ID of the course version
@@ -3257,10 +3274,7 @@ export class EnrollmentRepository {
 
     const quizIdsObj = validQuizIds.map(id => new ObjectId(id));
 
-    const [quizDetails, quizQuestionsMap] = await Promise.all([
-      this.getQuizDetails(quizIdsObj),
-      this.getQuizQuestionIdsBulk(validQuizIds),
-    ]);
+    const quizDetails = await this.getQuizDetails(quizIdsObj);
 
     /* -------------------------------------------------------
      * 3️⃣ AGGREGATE SUBMISSIONS IN MONGO (🔥 FIX)
@@ -3278,21 +3292,31 @@ export class EnrollmentRepository {
           },
         },
         {
+          $project: {
+            userId: { $toString: '$userId' },
+            quizId: { $toString: '$quizId' },
+            cohortId: {
+              $ifNull: [{ $toString: '$cohortId' }, 'no-cohort'],
+            },
+            totalScore: '$gradingResult.totalScore',
+          },
+        },
+        {
           $group: {
             _id: {
               userId: '$userId',
               quizId: '$quizId',
-              cohortId: '$cohortId', // Always include cohort to separate scores
+              cohortId: '$cohortId',
             },
             attempts: { $sum: 1 },
-            maxScore: { $max: '$gradingResult.totalScore' },
+            maxScore: { $max: '$totalScore' },
           },
         },
       ])
       .toArray();
 
-    // Aggregation for question scores
-    const aggregatedSubmissions = await this.submissionCollection
+    // Aggregation for question scores from best attempt only
+    const bestAttemptSubmissions = await this.submissionCollection
       .aggregate([
         {
           $match: {
@@ -3305,21 +3329,49 @@ export class EnrollmentRepository {
           },
         },
         {
-          $unwind: '$gradingResult.overallFeedback',
+          $project: {
+            userId: { $toString: '$userId' },
+            quizId: { $toString: '$quizId' },
+            cohortId: {
+              $ifNull: [{ $toString: '$cohortId' }, 'no-cohort'],
+            },
+            overallFeedback: '$gradingResult.overallFeedback',
+            totalScore: '$gradingResult.totalScore',
+            updatedAt: 1,
+            createdAt: 1,
+          },
+        },
+        {
+          $sort: {
+            totalScore: -1,
+            updatedAt: -1,
+            createdAt: -1,
+          },
         },
         {
           $group: {
             _id: {
               userId: '$userId',
               quizId: '$quizId',
-              cohortId: '$cohortId', // Always include cohort to separate scores
-              questionId: '$gradingResult.overallFeedback.questionId',
+              cohortId: '$cohortId',
             },
-            questionScore: {
-              $max: '$gradingResult.overallFeedback.score',
-            },
+            overallFeedback: { $first: '$overallFeedback' },
           },
         },
+        {
+          $unwind: '$overallFeedback',
+        },
+        {
+          $project: {
+            _id: 0,
+            userId: '$_id.userId',
+            quizId: '$_id.quizId',
+            cohortId: '$_id.cohortId',
+            questionId: '$overallFeedback.questionId',
+            questionScore: '$overallFeedback.score',
+          },
+        },
+        
       ])
       .toArray();
 
@@ -3351,11 +3403,13 @@ export class EnrollmentRepository {
         .set(quizId, row.maxScore ?? 0);
     }
 
-    for (const row of aggregatedSubmissions) {
-      const userId = row._id.userId.toString();
-      const quizId = row._id.quizId.toString();
-      const cohortId = row._id.cohortId?.toString() ?? 'no-cohort';
-      const questionId = row._id.questionId.toString();
+    for (const row of bestAttemptSubmissions) {
+      const userId = row.userId.toString();
+      const quizId = row.quizId.toString();
+      const cohortId = row.cohortId?.toString() ?? 'no-cohort';
+      const questionId = row.questionId?.toString();
+
+      if (!questionId) continue;
 
       scoreMap
         .set(userId, scoreMap.get(userId) ?? new Map())
@@ -3378,9 +3432,7 @@ export class EnrollmentRepository {
       for (const module of quizzesByModuleSection) {
         for (const section of module.sections) {
           for (const quizId of section.quizIds) {
-            if (!quizQuestionsMap.has(quizId)) continue;
 
-            const questionIds = quizQuestionsMap.get(quizId)!;
             const qScoreMap = scoreMap.get(userId)?.get(cohortId)?.get(quizId) ?? new Map();
 
             quizScores.push({
@@ -3388,16 +3440,17 @@ export class EnrollmentRepository {
               sectionId: section.sectionId,
               quizId,
               quizName: quizDetails.get(quizId)?.name ?? 'Untitled Quiz',
-              maxScore: maxScoreMap.get(userId)?.get(cohortId)?.get(quizId) ?? 0,
+              maxScore: this.formatExportScore(
+                maxScoreMap.get(userId)?.get(cohortId)?.get(quizId) ?? 0,
+              ),
               attempts: attemptsMap.get(userId)?.get(cohortId)?.get(quizId) ?? 0,
-              questionScores: questionIds.map(qid => ({
-                questionId: qid,
-                score: qScoreMap.get(qid) ?? 0,
+              questionScores: Array.from(qScoreMap.entries()).map(([questionId, score]) => ({
+                questionId,
+                score: this.formatExportScore(score),
               })),
             });
           }
         }
-
       }
       // Get cohort name for this specific enrollment
       const cohortName = cohortMap?.get(enrollment.cohortId?.toString()) ?? null;
@@ -3588,7 +3641,7 @@ export class EnrollmentRepository {
     session?: ClientSession,
   ): Promise<ISubmission[]> {
     await this.init();
-    console.log("Fetching quiz submission grades for cohorts", cohorts);
+
     if (!userIds.length || !quizIds.length) {
       return [];
     }
