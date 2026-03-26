@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { ArrowUp, ArrowDown, Loader2, AlertCircle, Search, Layers } from "lucide-react"
+import { ArrowUp, ArrowDown, Loader2, AlertCircle, Search, Layers, RefreshCw } from "lucide-react"
 import { useAnomaliesByCourseItem, useCourseVersionById, type Anomaly } from "@/hooks/hooks"
 import { useAnomalyStore } from "@/store/anomaly-store"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -74,7 +74,8 @@ export default function AnomaliesList() {
     error,
     refetch,
     total,
-    totalPages
+    totalPages,
+    isRefetching,
   } = useAnomaliesByCourseItem(
     courseId as string,
     versionId as string,
@@ -162,7 +163,18 @@ export default function AnomaliesList() {
               <Card className="w-full">
                 <CardContent className="p-6">
                   <div className="flex md:flex-row flex-col justify-between items-center mb-6">
-                    <h2 className="text-2xl font-semibold">Anomalies</h2>
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-2xl font-semibold">Anomalies</h2>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refetch()}
+                        disabled={isRefetching || isLoading}
+                      >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                        {isRefetching ? "Refreshing..." : "Refresh"}
+                      </Button>
+                    </div>
                     <div className="flex md:flex-row flex-col gap-4 w-full sm:w-auto md:mt-0 mt-3">
 
                     {(version as any)?.cohortDetails?.length > 0 && (

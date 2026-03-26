@@ -362,6 +362,7 @@ export function useAnomaliesByCourseItem(
   page: number;
   totalPages: number;
   cohort?: string;
+  isRefetching: boolean;
 } {
   const result: any = api.useQuery(
     "get",
@@ -402,7 +403,8 @@ export function useAnomaliesByCourseItem(
     refetch: result.refetch,
     total,
     page,
-    totalPages
+    totalPages,
+    isRefetching: result.isRefetching,
   };
 }
 
@@ -890,7 +892,8 @@ export function useCourseVersionCohorts(
   data: CohortsResponse | undefined,
   isLoading: boolean,
   error: string | null,
-  refetch: () => void
+  refetch: () => void,
+  isRefetching: boolean
 } {
 
   const result = api.useQuery(
@@ -910,6 +913,7 @@ export function useCourseVersionCohorts(
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch course version enrollments') : null,
     refetch: result.refetch,
+    isRefetching: result.isRefetching,
   };
 }
 
@@ -1592,7 +1596,8 @@ export function useUserEnrollments(page?: number, limit?: number, enabled: boole
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
-  refetch: () => void
+  refetch: () => void,
+  isRefetching: boolean
 } {
   const result = api.useQuery("get", "/users/enrollments", {
     params: {
@@ -1605,7 +1610,8 @@ export function useUserEnrollments(page?: number, limit?: number, enabled: boole
     data: result.data,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch user enrollments') : null,
-    refetch: result.refetch
+    refetch: result.refetch,
+    isRefetching: result.isRefetching,
   };
 }
 
@@ -1704,7 +1710,8 @@ export function useCourseVersionEnrollments(
   data: components['schemas']['CourseVersionEnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
-  refetch: () => void
+  refetch: () => void,
+  isRefetching: boolean
 } {
   const result = api.useQuery(
     "get",
@@ -1723,6 +1730,7 @@ export function useCourseVersionEnrollments(
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch course version enrollments') : null,
     refetch: result.refetch,
+    isRefetching: result.isRefetching,
   };
 }
 
@@ -2102,7 +2110,8 @@ export function usePublicCourses(
   data: { courses: any[]; currentPage: number; totalPages: number; totalDocuments: number } | undefined,
   isLoading: boolean,
   error: string | null,
-  refetch: () => void
+  refetch: () => void,
+  isRefetching: boolean
 } {
   const result = api.useQuery(
     "get",
@@ -2122,7 +2131,8 @@ export function usePublicCourses(
     data: result.data,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch public courses') : null,
-    refetch: result.refetch
+    refetch: result.refetch,
+    isRefetching: result.isRefetching,
   };
 }
 
@@ -2149,7 +2159,8 @@ export function useCourseInvites(courseId: string, courseVersionId: string, enab
   data: InviteResponse | undefined,
   isLoading: boolean,
   error: string | null,
-  refetch: () => void
+  refetch: () => void,
+  isRefetching: boolean
 } {
   const queryParams: any = { search, currentPage, limit };
   if (sort) queryParams.sort = sort;
@@ -2166,7 +2177,8 @@ export function useCourseInvites(courseId: string, courseVersionId: string, enab
     data: result.data,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch course invites') : null,
-    refetch: result.refetch
+    refetch: result.refetch,
+    isRefetching: result.isRefetching,
   };
 }
 
@@ -3329,7 +3341,8 @@ export function useGetReports(courseId: string, versionId: string, limit = 10, c
     data: IReport[],
     isLoading: boolean,
     error: string | null,
-    refetch: () => void
+    refetch: () => void,
+    isRefetching: boolean
   } {
 
   const result = api.useQuery(
@@ -4106,6 +4119,7 @@ export const useGetCourseIssueReports = (
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
+  isRefetching: boolean;
 } => {
   const result = api.useQuery(
     "get",
@@ -4127,6 +4141,7 @@ export const useGetCourseIssueReports = (
       ? result.error.message || "Failed to fetch issue reports"
       : null,
     refetch: result.refetch,
+    isRefetching: result.isRefetching,
   };
 };
 
@@ -5161,6 +5176,7 @@ export function useHpStudentCohorts() {
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,
+    isRefetching: query.isRefetching,
   };
 }
 
@@ -5181,6 +5197,7 @@ export function useHpStudentActivities(courseVersionId: string, cohortName: stri
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,
+    isRefetching: query.isRefetching,
   };
 }
 
@@ -5275,6 +5292,7 @@ export function useHpActivities(
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,
+    isRefetching: query.isRefetching,
   };
 }
 
@@ -5459,6 +5477,7 @@ export function useHpStudents(courseVersionId: string, cohort: string) {
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,
+    isRefetching: query.isRefetching,
   };
 }
 
@@ -5485,6 +5504,7 @@ export function useHpStudentLedger(
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,
+    isRefetching: query.isRefetching,
   };
 }
 
@@ -5510,6 +5530,7 @@ export function useMyHpLedger(
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,
+    isRefetching: query.isRefetching,
   };
 }
 

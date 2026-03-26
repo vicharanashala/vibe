@@ -4,7 +4,7 @@ import { useHpCourseVersions, useStudentMySubmissions, useUpdateActivitySubmissi
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SubmissionStatusBadge } from "@/components/hp-system/SubmissionStatusBadge";
-import { Eye, ChevronDown, ChevronUp, Search } from "lucide-react";
+import { Eye, ChevronDown, ChevronUp, Search, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,7 @@ export default function StudentSubmissions() {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
-    const { data: submissions, isLoading, error } = useStudentMySubmissions(
+    const { data: submissions, isLoading, error, refetch, isRefetching } = useStudentMySubmissions(
         courseVersionId as string,
         cohortName as string
     );
@@ -214,12 +214,21 @@ export default function StudentSubmissions() {
                     >
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
-                    <div>
+                    <div className="flex-1">
                         <h1 className="text-3xl font-bold tracking-tight">My Submissions</h1>
                         <p className="text-muted-foreground">
                             {decodeURIComponent(cohortName as string)}
                         </p>
                     </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refetch()}
+                        disabled={isRefetching}
+                    >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                        {isRefetching ? "Refreshing..." : "Refresh"}
+                    </Button>
                 </div>
 
                 {(!submissions || submissions.length === 0) ? (
