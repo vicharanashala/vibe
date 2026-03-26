@@ -1011,7 +1011,7 @@ class ProgressRepository {
     courseId: string,
     courseVersionId: string,
     itemId: string,
-    cohort?: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<boolean> {
     await this.init();
@@ -1022,6 +1022,7 @@ class ProgressRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
         itemId: new ObjectId(itemId),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
         isDeleted: { $ne: true },
       },
       { session, limit: 1 },

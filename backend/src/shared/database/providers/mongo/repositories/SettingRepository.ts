@@ -211,7 +211,7 @@ export class SettingRepository implements ISettingRepository {
   ): Promise<ICourseSetting | null> {
     await this.init();
     const result = await this.courseSettingsCollection.insertOne(
-      courseSettings,
+      {...courseSettings, settings: {...courseSettings.settings, linearProgressionEnabled: true}},
       {session},
     );
     if (result.acknowledged) {
