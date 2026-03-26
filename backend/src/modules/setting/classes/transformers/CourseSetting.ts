@@ -451,7 +451,7 @@ class CourseSetting implements ICourseSetting {
         detectors: existingDetectors,
       },
       linearProgressionEnabled:
-        courseSettingsBody?.settings?.linearProgressionEnabled ?? false,
+        courseSettingsBody?.settings?.linearProgressionEnabled ?? true,
       seekForwardEnabled:
         courseSettingsBody?.settings?.seekForwardEnabled ?? false,
       hpSystem: courseSettingsBody?.settings?.hpSystem ?? false,
