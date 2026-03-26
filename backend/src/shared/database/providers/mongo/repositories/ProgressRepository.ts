@@ -111,7 +111,14 @@ class ProgressRepository {
       },
       { session },
     );
-    return distinctItemIds.map(id => id.toString());
+    const completedIds = distinctItemIds.map(id => id.toString());
+
+    // get hidden/deleted
+    const hiddenItems = await this.getHiddenOrDeletedItems(courseVersionId, session);
+    const hiddenSet = new Set(hiddenItems.map(i => i.itemId.toString()));
+
+    // filter out hidden/deleted items from completed items
+    return completedIds.filter(id => !hiddenSet.has(id));
   }
 
   async getAllDistinctCompletedItems(
@@ -1004,7 +1011,7 @@ class ProgressRepository {
     courseId: string,
     courseVersionId: string,
     itemId: string,
-    cohort?: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<boolean> {
     await this.init();
@@ -1015,6 +1022,7 @@ class ProgressRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
         itemId: new ObjectId(itemId),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
         isDeleted: { $ne: true },
       },
       { session, limit: 1 },
@@ -1287,7 +1295,62 @@ class ProgressRepository {
     return Math.floor(totalMs / 1000);
   }
 
+  async getHiddenOrDeletedItems(
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<
+    { itemId: string;}[]
+  > {
+    await this.init();
 
+    const results = await this.courseVersionCollection
+      .aggregate(
+        [
+          {
+            $match: {
+              _id: new ObjectId(courseVersionId),
+            },
+          },
+
+          { $unwind: "$modules" },
+          { $unwind: "$modules.sections" },
+
+          {
+            $lookup: {
+              from: "itemsGroup",
+              localField: "modules.sections.itemsGroupId",
+              foreignField: "_id",
+              as: "itemsGroup",
+            },
+          },
+
+          { $unwind: "$itemsGroup" },
+          { $unwind: "$itemsGroup.items" },
+
+          {
+            $match: {
+              $or: [
+                { "itemsGroup.items.isHidden": true },
+                { "itemsGroup.items.isDeleted": true },
+              ],
+            },
+          },
+
+          {
+            $project: {
+              _id: 0,
+              itemId: { $toString: "$itemsGroup.items._id" },
+            },
+          },
+        ],
+        { session },
+      )
+      .toArray();
+
+    return results as {
+      itemId: string;
+    }[];
+  }
 
 }
 

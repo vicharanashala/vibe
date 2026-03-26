@@ -1025,7 +1025,7 @@ function TeacherCourseContent() {
     setHidingItemId(itemId);
     try {
       await updateItemVisibilityAsync({
-        params: { path: { versionId, itemId } },
+        params: { path: {courseId, versionId, itemId } },
         body: { hide: hide }
       });
 

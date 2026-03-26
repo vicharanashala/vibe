@@ -193,7 +193,9 @@ export function ProctoringModal({
                       <Label className="text-sm font-medium">Linear Course Progression</Label>
                       <p className="text-xs text-muted-foreground">Students must follow lessons sequentially</p>
                     </div>
-                    <Switch checked={linearProgressionEnabled} onCheckedChange={()=>setLinearProgressionEnabled(prev=>!prev)} />
+                    <Switch checked={linearProgressionEnabled}
+                    //  onCheckedChange={()=>setLinearProgressionEnabled(prev=>!prev)}
+                     disabled />
                   </div>
 
                   <div className="flex items-center justify-between space-x-3">
