@@ -22,6 +22,8 @@ import { HpRuleConfig, HpActivity, SubmissionField } from "@/lib/api/hp-system";
 import { useHpRuleConfig, useCreateHpRuleConfig, useUpdateHpRuleConfig, useHpActivities, useUpdateHpActivity } from "@/hooks/hooks";
 import ConfirmationModal from "../../components/confirmation-modal";
 import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 
 interface RuleSettingsDialogProps {
     isOpen: boolean;
@@ -42,7 +44,7 @@ export function RuleSettingsDialog({
 }: RuleSettingsDialogProps) {
     const [config, setConfig] = useState<Partial<HpRuleConfig> | null>(null);
 
-    useEffect(()=>{
+    useEffect(() => {
         console.log("RuleSettingsDialog props changed:", { isOpen, courseId, courseVersionId, activityId });
     })
 
@@ -104,7 +106,7 @@ export function RuleSettingsDialog({
         }
     }, [isOpen, existingConfig, fetchLoading, activity]);
 
-    const [errors, setErrors] = useState<{ deadlineAt?: string; penaltyEnabled?: string; requiredPercentage?: string; maxHp?: string; rewardValue?: string; penaltyValue?: string;}>({});
+    const [errors, setErrors] = useState<{ deadlineAt?: string; penaltyEnabled?: string; requiredPercentage?: string; maxHp?: string; rewardValue?: string; penaltyValue?: string; }>({});
 
     const handleSave = async () => {
         if (!config) return;
@@ -152,18 +154,18 @@ export function RuleSettingsDialog({
                 hasError = true;
             }
         }
-        
+
         const isPercentageMode = config.reward?.type === "PERCENTAGE" || config.penalty?.type === "PERCENTAGE";
 
         if (isPercentageMode) {
             if (
-                    config.limits?.minHp !== undefined &&
-                    config.limits?.maxHp !== undefined &&
-                    config.limits.maxHp <= config.limits.minHp
-                ) {
-                    nextErrors.maxHp = "Maximum HP must be greater than Minimum HP.";
-                    hasError = true;
-                }
+                config.limits?.minHp !== undefined &&
+                config.limits?.maxHp !== undefined &&
+                config.limits.maxHp <= config.limits.minHp
+            ) {
+                nextErrors.maxHp = "Maximum HP must be greater than Minimum HP.";
+                hasError = true;
+            }
         }
         setSaveError(null);
         if (hasError) {
@@ -235,22 +237,22 @@ export function RuleSettingsDialog({
 
                         {/* Mandatory Toggle — hidden for VIBE_MILESTONE (always mandatory) */}
                         {activity?.activityType !== "VIBE_MILESTONE" && (
-                        <div className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
-                            <div className="space-y-0.5">
-                                <Label className="text-base">Mandatory Activity</Label>
-                                <p className="text-sm text-muted-foreground">
-                                    Students must complete this to pass the cohort.
-                                </p>
+                            <div className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
+                                <div className="space-y-0.5">
+                                    <Label className="text-base">Mandatory Activity</Label>
+                                    <p className="text-sm text-muted-foreground">
+                                        Students must complete this to pass the cohort.
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={config?.isMandatory || false}
+                                    onCheckedChange={(c) => setConfig(prev => ({
+                                        ...prev,
+                                        isMandatory: c,
+                                        penalty: !c ? { ...prev?.penalty, enabled: false } : prev?.penalty
+                                    } as any))}
+                                />
                             </div>
-                            <Switch
-                                checked={config?.isMandatory || false}
-                                onCheckedChange={(c) => setConfig(prev => ({ 
-                                    ...prev, 
-                                    isMandatory: c,
-                                    penalty: !c ? { ...prev?.penalty, enabled: false } : prev?.penalty
-                                } as any))}
-                            />
-                        </div>
                         )}
 
                         {/* Required Progress Percentage (Milestones Only) */}
@@ -306,7 +308,7 @@ export function RuleSettingsDialog({
                                                 .toLocaleString("sv-SE", { timeZone: "Asia/Kolkata" })
                                                 .slice(0, 16)
                                                 .replace(" ", "T")
-                                            }
+                                        }
                                         value={
                                             config?.deadlineAt
                                                 ? new Date(config.deadlineAt)
@@ -314,15 +316,15 @@ export function RuleSettingsDialog({
                                                     .slice(0, 16)
                                                     .replace(" ", "T")
                                                 : ""
-                                            }
+                                        }
                                         onChange={(e) => {
                                             const val = e.target.value;
 
                                             setConfig(prev => ({
                                                 ...prev,
                                                 deadlineAt: val
-                                                ? new Date(`${val}:00+05:30`).toISOString()
-                                                : undefined
+                                                    ? new Date(`${val}:00+05:30`).toISOString()
+                                                    : undefined
                                             }));
                                             if (errors.deadlineAt) setErrors({});
                                         }}
@@ -332,16 +334,16 @@ export function RuleSettingsDialog({
 
                                 {/* Allow Late — hidden for VIBE_MILESTONE */}
                                 {activity?.activityType !== "VIBE_MILESTONE" && (
-                                <div className="space-y-2 flex flex-col justify-end pb-2">
-                                    <div className="flex items-center gap-2">
-                                        <Switch
-                                            id="allow-late"
-                                            checked={config?.allowLateSubmission || false}
-                                            onCheckedChange={(c) => setConfig(prev => ({ ...prev, allowLateSubmission: c } as any))}
-                                        />
-                                        <Label htmlFor="allow-late">Allow Late Submissions</Label>
+                                    <div className="space-y-2 flex flex-col justify-end pb-2">
+                                        <div className="flex items-center gap-2">
+                                            <Switch
+                                                id="allow-late"
+                                                checked={config?.allowLateSubmission || false}
+                                                onCheckedChange={(c) => setConfig(prev => ({ ...prev, allowLateSubmission: c } as any))}
+                                            />
+                                            <Label htmlFor="allow-late">Allow Late Submissions</Label>
+                                        </div>
                                     </div>
-                                </div>
                                 )}
                             </div>
                         </div>
@@ -359,121 +361,121 @@ export function RuleSettingsDialog({
                                 />
                             </div>
                             {config?.reward?.enabled && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
 
-                                <div className="space-y-2">
-                                    <Label>Rule Type</Label>
-                                    <Select
-                                        value={config?.reward?.type || "ABSOLUTE"}
-                                        onValueChange={(v: any) => setConfig(prev => ({
-                                            ...prev,
-                                            reward: { ...(prev?.reward || defaultReward), type: v }
-                                        } as any))}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="ABSOLUTE">Absolute Points</SelectItem>
-                                            <SelectItem value="PERCENTAGE">Percentage (%)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                    <div className="space-y-2">
+                                        <Label>Rule Type</Label>
+                                        <Select
+                                            value={config?.reward?.type || "ABSOLUTE"}
+                                            onValueChange={(v: any) => setConfig(prev => ({
+                                                ...prev,
+                                                reward: { ...(prev?.reward || defaultReward), type: v }
+                                            } as any))}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="ABSOLUTE">Absolute Points</SelectItem>
+                                                <SelectItem value="PERCENTAGE">Percentage (%)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
 
-                                <div className="space-y-2">
-                                    <Label>Reward Value</Label>
-                                    <Input
-                                        type="number"
-                                        value={config?.reward?.value || 0}
-                                        onChange={(e) => {
-                                            const value = e.target.value;
-                                            setConfig(prev => ({
-                                            ...prev,
-                                            reward: {
-                                                ...(prev?.reward || defaultReward),
-                                                value: value === "" ? undefined : parseInt(value)
-                                            }
-                                            } as any));
+                                    <div className="space-y-2">
+                                        <Label>Reward Value</Label>
+                                        <Input
+                                            type="number"
+                                            value={config?.reward?.value || 0}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setConfig(prev => ({
+                                                    ...prev,
+                                                    reward: {
+                                                        ...(prev?.reward || defaultReward),
+                                                        value: value === "" ? undefined : parseInt(value)
+                                                    }
+                                                } as any));
 
-                                            if (errors.rewardValue) {
-                                            setErrors(prev => ({ ...prev, rewardValue: undefined }));
-                                            }
-                                        }}
-                                    />
-                                    {errors.rewardValue && (
-                                        <p className="text-xs text-red-500">{errors.rewardValue}</p>
+                                                if (errors.rewardValue) {
+                                                    setErrors(prev => ({ ...prev, rewardValue: undefined }));
+                                                }
+                                            }}
+                                        />
+                                        {errors.rewardValue && (
+                                            <p className="text-xs text-red-500">{errors.rewardValue}</p>
+                                        )}
+                                    </div>
+
+
+
+                                    {/* Apply Policy — hidden for VIBE_MILESTONE */}
+                                    {activity?.activityType !== "VIBE_MILESTONE" && (
+                                        <div className="space-y-2">
+                                            <Label>Apply Policy</Label>
+                                            <Select
+                                                value={config?.reward?.applyWhen || "ON_APPROVAL"}
+                                                onValueChange={(v: any) => setConfig(prev => ({
+                                                    ...prev,
+                                                    reward: { ...(prev?.reward || defaultReward), applyWhen: v }
+                                                } as any))}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="ON_SUBMISSION">Auto upon Submission</SelectItem>
+                                                    <SelectItem value="ON_APPROVAL">Manual (Instructor Approval)</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
+
+                                    {/* Late Reward Behavior — only shown when allow late is ON */}
+                                    {config?.allowLateSubmission && (
+                                        <div className="space-y-2">
+                                            <Label>Late Reward Behavior</Label>
+                                            <Select
+                                                value={
+                                                    config?.reward?.lateBehavior === "REWARD"
+                                                        ? "REWARD_ALLOWED"
+                                                        : config?.reward?.lateBehavior === "NO_REWARD"
+                                                            ? "REWARD_DENIED"
+                                                            : "NONE"
+                                                }
+                                                disabled={config?.penalty?.enabled}
+                                                onValueChange={(val: any) => {
+                                                    if (val === "REWARD_ALLOWED") {
+                                                        setConfig(prev => ({
+                                                            ...prev,
+                                                            reward: {
+                                                                ...(prev?.reward || defaultReward),
+                                                                lateBehavior: "REWARD"
+                                                            }
+                                                        } as any));
+                                                    } else {
+                                                        setConfig(prev => ({
+                                                            ...prev,
+                                                            reward: {
+                                                                ...(prev?.reward || defaultReward),
+                                                                lateBehavior: "NO_REWARD"
+                                                            }
+                                                        } as any));
+                                                    }
+                                                }}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="NONE">None</SelectItem>
+                                                    <SelectItem value="REWARD_ALLOWED">Allow Reward</SelectItem>
+                                                    <SelectItem value="REWARD_DENIED">Deny Reward</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     )}
                                 </div>
-
-
-
-                                {/* Apply Policy — hidden for VIBE_MILESTONE */}
-                                {activity?.activityType !== "VIBE_MILESTONE" && (
-                                <div className="space-y-2">
-                                    <Label>Apply Policy</Label>
-                                    <Select
-                                        value={config?.reward?.applyWhen || "ON_APPROVAL"}
-                                        onValueChange={(v: any) => setConfig(prev => ({
-                                            ...prev,
-                                            reward: { ...(prev?.reward || defaultReward), applyWhen: v }
-                                        } as any))}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="ON_SUBMISSION">Auto upon Submission</SelectItem>
-                                            <SelectItem value="ON_APPROVAL">Manual (Instructor Approval)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                )}
-
-                                {/* Late Reward Behavior — only shown when allow late is ON */}
-                                {config?.allowLateSubmission && (
-                                <div className="space-y-2">
-                                    <Label>Late Reward Behavior</Label>
-                                    <Select
-                                        value={
-                                            config?.reward?.lateBehavior === "REWARD"
-                                                ? "REWARD_ALLOWED"
-                                                : config?.reward?.lateBehavior === "NO_REWARD"
-                                                    ? "REWARD_DENIED"
-                                                    : "NONE"
-                                        }
-                                        disabled={config?.penalty?.enabled}
-                                        onValueChange={(val: any) => {
-                                            if (val === "REWARD_ALLOWED") {
-                                                setConfig(prev => ({
-                                                    ...prev,
-                                                    reward: {
-                                                        ...(prev?.reward || defaultReward),
-                                                        lateBehavior: "REWARD"
-                                                    }
-                                                } as any));
-                                            } else {
-                                                setConfig(prev => ({
-                                                    ...prev,
-                                                    reward: {
-                                                        ...(prev?.reward || defaultReward),
-                                                        lateBehavior: "NO_REWARD"
-                                                    }
-                                                } as any));
-                                            }
-                                        }}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="NONE">None</SelectItem>
-                                            <SelectItem value="REWARD_ALLOWED">Allow Reward</SelectItem>
-                                            <SelectItem value="REWARD_DENIED">Deny Reward</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                )}
-                            </div>
                             )}
                         </div>
                         {/* Penalty Settings */}
@@ -496,61 +498,61 @@ export function RuleSettingsDialog({
                             </div>
                             {errors.penaltyEnabled && <p className="text-xs text-red-500 mt-1">{errors.penaltyEnabled}</p>}
                             {config?.penalty?.enabled && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
-                                <div className="space-y-2">
-                                    <Label>Penalty Type</Label>
-                                    <Select
-                                        value={config?.penalty?.type || "PERCENTAGE"}
-                                        onValueChange={(v: any) => setConfig(prev => ({
-                                            ...prev,
-                                            penalty: { ...(prev?.penalty || defaultPenalty), type: v }
-                                        } as any))}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="ABSOLUTE">Absolute Points</SelectItem>
-                                            <SelectItem value="PERCENTAGE">Percentage (%)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Penalty Value</Label>
-                                    <Input
-                                        type="number"
-                                        value={config?.penalty?.value || 0}
-                                        onChange={(e) => {
-                                            const value = e.target.value;
-                                            setConfig(prev => ({
-                                            ...prev,
-                                            penalty: {
-                                                ...(prev?.penalty || defaultPenalty),
-                                                value: value === "" ? undefined : parseInt(value)
-                                            }
-                                            } as any));
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
+                                    <div className="space-y-2">
+                                        <Label>Penalty Type</Label>
+                                        <Select
+                                            value={config?.penalty?.type || "PERCENTAGE"}
+                                            onValueChange={(v: any) => setConfig(prev => ({
+                                                ...prev,
+                                                penalty: { ...(prev?.penalty || defaultPenalty), type: v }
+                                            } as any))}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="ABSOLUTE">Absolute Points</SelectItem>
+                                                <SelectItem value="PERCENTAGE">Percentage (%)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Penalty Value</Label>
+                                        <Input
+                                            type="number"
+                                            value={config?.penalty?.value || 0}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setConfig(prev => ({
+                                                    ...prev,
+                                                    penalty: {
+                                                        ...(prev?.penalty || defaultPenalty),
+                                                        value: value === "" ? undefined : parseInt(value)
+                                                    }
+                                                } as any));
 
-                                            if (errors.penaltyValue) {
-                                            setErrors(prev => ({ ...prev, penaltyValue: undefined }));
-                                            }
-                                        }}
-                                    />
-                                    {errors.penaltyValue && (
-                                        <p className="text-xs text-red-500">{errors.penaltyValue}</p>
-                                    )}
+                                                if (errors.penaltyValue) {
+                                                    setErrors(prev => ({ ...prev, penaltyValue: undefined }));
+                                                }
+                                            }}
+                                        />
+                                        {errors.penaltyValue && (
+                                            <p className="text-xs text-red-500">{errors.penaltyValue}</p>
+                                        )}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Grace Period (Minutes)</Label>
+                                        <Input
+                                            type="number"
+                                            value={config?.penalty?.graceMinutes || 0}
+                                            onChange={(e) => setConfig(prev => ({
+                                                ...prev,
+                                                penalty: { ...(prev?.penalty || defaultPenalty), graceMinutes: parseInt(e.target.value) || 0 }
+                                            } as any))}
+                                        />
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Grace Period (Minutes)</Label>
-                                    <Input
-                                        type="number"
-                                        value={config?.penalty?.graceMinutes || 0}
-                                        onChange={(e) => setConfig(prev => ({
-                                            ...prev,
-                                            penalty: { ...(prev?.penalty || defaultPenalty), graceMinutes: parseInt(e.target.value) || 0 }
-                                        } as any))}
-                                    />
-                                </div>
-                            </div>
                             )}
                         </div>
                         {/* HP Limits */}
@@ -590,48 +592,63 @@ export function RuleSettingsDialog({
                             </div>
                         )}
                         <div className="space-y-4">
-                            <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                                Submission Requirements
-                            </h4>
+                            <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-semibold uppercase tracking-wider text-foreground">
+                                    Submission Requirements
+                                </h4>
+
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Info className="h-4 w-4 text-muted-foreground cursor-pointer" />
+                                        </TooltipTrigger>
+                                        <TooltipContent className="max-w-xs text-xs text-black">
+                                            These are the fields that will be shown to students when submitting this activity.
+                                            You can enable or disable the options to control whether each field is required
+                                            or optional for students during submission.
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
 
                             <div className="grid grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
-                                
+
                                 {[
-                                { label: "Text Response", value: SubmissionField.TEXT },
-                                { label: "PDF Upload", value: SubmissionField.PDF },
-                                { label: "Images", value: SubmissionField.IMAGE },
-                                { label: "URL Links", value: SubmissionField.URL },
+                                    { label: "Text Response", value: SubmissionField.TEXT },
+                                    { label: "PDF Upload", value: SubmissionField.PDF },
+                                    { label: "Images", value: SubmissionField.IMAGE },
+                                    { label: "URL Links", value: SubmissionField.URL },
                                 ].map((item) => {
-                                const selected = config?.submissionValidation || [];
+                                    const selected = config?.submissionValidation || [];
 
-                                return (
-                                    <div key={item.value} className="flex items-center justify-between">
-                                    <Label>{item.label}</Label>
-                                    <Switch
-                                        checked={selected.includes(item.value)}
-                                        onCheckedChange={(checked) => {
-                                        let updated = [...selected];
+                                    return (
+                                        <div key={item.value} className="flex items-center justify-between">
+                                            <Label>{item.label}</Label>
+                                            <Switch
+                                                checked={selected.includes(item.value)}
+                                                onCheckedChange={(checked) => {
+                                                    let updated = [...selected];
 
-                                        if (checked) {
-                                            updated.push(item.value);
-                                        } else {
-                                            updated = updated.filter(v => v !== item.value);
-                                        }
+                                                    if (checked) {
+                                                        updated.push(item.value);
+                                                    } else {
+                                                        updated = updated.filter(v => v !== item.value);
+                                                    }
 
-                                        // ❗ Prevent removing all
-                                        if (updated.length === 0) {
-                                            toast.error("At least one submission field must be required");
-                                            return;
-                                        }
+                                                    // ❗ Prevent removing all
+                                                    if (updated.length === 0) {
+                                                        toast.error("At least one submission field must be required");
+                                                        return;
+                                                    }
 
-                                        setConfig(prev => ({
-                                            ...prev,
-                                            submissionValidation: updated
-                                        }));
-                                        }}
-                                    />
-                                    </div>
-                                );
+                                                    setConfig(prev => ({
+                                                        ...prev,
+                                                        submissionValidation: updated
+                                                    }));
+                                                }}
+                                            />
+                                        </div>
+                                    );
                                 })}
                             </div>
                         </div>
@@ -643,7 +660,7 @@ export function RuleSettingsDialog({
                     </div>
                 )}
                 <DialogFooter className="sticky bottom-0 bg-background pt-4 border-t">
-                                
+
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
                     <Button onClick={() => setIsConfirmOpen(true)} disabled={loading}>{loading ? "Saving..." : "Save Configuration"}</Button>
                 </DialogFooter>
