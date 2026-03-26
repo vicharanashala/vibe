@@ -1,7 +1,8 @@
-﻿"use client"
+"use client"
 
 import { useState, useEffect } from "react"
 import { useNavigate, useSearch } from "@tanstack/react-router"
+import { useQueryClient } from "@tanstack/react-query"
 import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check, Layers,Video, HelpCircle } from 'lucide-react'
 import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
@@ -16,7 +17,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { QuizSubmissionDisplay } from "./QuizSubmissionDisplay"
 import { WatchTimeDisplay } from "./WatchTimeDisplay"
 import TimeSlotsModal from "./components/TimeSlotsModal"
-import { useStudentCurrentProgressPath } from "@/hooks/hooks"
+import { useStudentCurrentProgressPath, useMoveToCohort } from "@/hooks/hooks"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { MoreVertical, Trash2 } from "lucide-react"
@@ -34,6 +35,8 @@ import {
   useCourseQuizScores,
   useRecalculateProgress,
   useBulkUnenrollUsers,
+  useChangeEnrollmentStatus,
+  useBulkChangeEnrollmentStatus,
   useUserModuleProgress,
   useGetTimeSlots,
   useStudentProgressDetail,
@@ -45,7 +48,7 @@ import { useCourseStore } from "@/store/course-store"
 import type { EnrolledUser, EnrollmentDetails } from "@/types/course.types"
 import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
-import { generateExcel } from "@/lib/excel-export"
+import { generateExcel, generateStudentContactsExcel } from "@/lib/excel-export"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -163,6 +166,7 @@ const getItemIcon = (type: string) => {
 
 export default function CourseEnrollments() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { user } = useAuthStore()
 
   // Get course info from store
@@ -178,7 +182,7 @@ export default function CourseEnrollments() {
   // Fetch course and version data
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
-// console.log("----version-----", version);
+
   // Fetch course anomalies stats
   const { data: enrollmentStats, isLoading: statsLoading, error: statsError } = useCourseEnrollmentsStats(
     courseId,
@@ -189,15 +193,24 @@ export default function CourseEnrollments() {
   const [selectedUser, setSelectedUser] = useState<EnrollmentDetails | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false)
+  const [isDisableDialogOpen, setIsDisableDialogOpen] = useState(false)
+  const [isEnableDialogOpen, setIsEnableDialogOpen] = useState(false)
   const [isRecalculateProgressOpen, setIsRecalculateProgressOpen] = useState(false)
   const [isViewProgressDialogOpen, setIsViewProgressDialogOpen] = useState(false)
   const [userToRemove, setUserToRemove] = useState<EnrolledUser | null>(null)
+  const [userToDisable, setUserToDisable] = useState<EnrolledUser | null>(null)
+  const [userToEnable, setUserToEnable] = useState<EnrolledUser | null>(null)
   const [userToRecalculate, setUsertToRecalculate] = useState<EnrolledUser | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [resetScope, setResetScope] = useState<"course" | "module" | "section" | "item">("course")
   const [selectedModule, setSelectedModule] = useState<string>("")
   const [selectedSection, setSelectedSection] = useState<string>("")
   const [selectedItem, setSelectedItem] = useState<string>("")
+const [isMoveCohortModalOpen, setIsMoveCohortModalOpen] = useState(false);
+const [isMoveSelectionMode, setIsMoveSelectionMode] = useState(false);
+const [moveSelectedUsers, setMoveSelectedUsers] = useState<Set<string>>(new Set());
+const [selectedMoveCohort, setSelectedMoveCohort] = useState<string | null>(null);
+const moveToCohortMutation = useMoveToCohort();
 
   // New states for view progress functionality
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
@@ -216,6 +229,10 @@ export default function CourseEnrollments() {
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set())
   const [isBulkUnenrollDialogOpen, setIsBulkUnenrollDialogOpen] = useState(false)
+  const [isBulkDisableDialogOpen, setIsBulkDisableDialogOpen] = useState(false)
+  const [isBulkEnableDialogOpen, setIsBulkEnableDialogOpen] = useState(false)
+  const [isInactiveSelectionMode, setIsInactiveSelectionMode] = useState(false)
+  const [selectedInactiveUsers, setSelectedInactiveUsers] = useState<Set<string>>(new Set())
   const [isTimeSlotsModalOpen, setIsTimeSlotsModalOpen] = useState(false);
 
   // Get URL search params
@@ -333,7 +350,7 @@ export default function CourseEnrollments() {
       toast.error('Course or version information missing')
       return
     }
-    if(!cohort) {
+    if(version?.cohorts?.length > 0 && !cohort) {
       toast.error('Please select a cohort for unenrollment')
       return;
     }
@@ -350,7 +367,7 @@ export default function CourseEnrollments() {
         },
         body: {
           userIds,
-          cohort: cohort,
+          cohortId: cohort,
         },
       })
 
@@ -381,6 +398,7 @@ export default function CourseEnrollments() {
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const [isSearching, setIsSearching] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingStudentContacts, setIsExportingStudentContacts] = useState(false);
 
   const [showContentSummary, setShowContentSummary] = useState(false)
   function SummaryRow({
@@ -428,6 +446,13 @@ export default function CourseEnrollments() {
     cohortName?: string | null;
     quizScores?: QuizScore[];
   }
+
+  const sanitizeFilenamePart = (value: string) =>
+    value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
 
   // Handle fetch and export quiz scores
   const handleFetchQuizScores = async () => {
@@ -616,12 +641,166 @@ export default function CourseEnrollments() {
   const resetProgressMutation = useResetProgress()
   const unenrollMutation = useUnenrollUser()
   const bulkUnenrollMutation = useBulkUnenrollUsers()
+  const changeStatusMutation = useChangeEnrollmentStatus()
+  const bulkChangeStatusMutation = useBulkChangeEnrollmentStatus()
   const recalculateMutation = useRecalculateProgress()
   const recalculateStudentMutation = useRecalculateStudentProgress()
+
+  // Disable/Enable handlers
+  const handleDisableStudent = (enrollment: any) => {
+    if (!courseId || !versionId) return
+    setUserToDisable({
+      id: enrollment.user?._id,
+      name: `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
+      email: enrollment.user?.email,
+      enrolledDate: enrollment.enrollmentDate,
+      progress: enrollment.progress || 0,
+      cohortId: enrollment.cohortId,
+      cohortName: enrollment.cohortName
+    })
+    setIsDisableDialogOpen(true)
+  }
+
+  const handleEnableStudent = (enrollment: any) => {
+    if (!courseId || !versionId) return
+    setUserToEnable({
+      id: enrollment.user?._id,
+      name: `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
+      email: enrollment.user?.email,
+      enrolledDate: enrollment.enrollmentDate,
+      progress: enrollment.progress || 0,
+      cohortId: enrollment.cohortId,
+      cohortName: enrollment.cohortName
+    })
+    setIsEnableDialogOpen(true)
+  }
+
+  const confirmDisableStudent = async () => {
+    if (userToDisable && courseId && versionId) {
+      try {
+        await changeStatusMutation.mutateAsync({
+          params: {
+            path: {
+              userId: userToDisable.id,
+              courseId,
+              versionId,
+            },
+          },
+          body: { 
+            status: 'INACTIVE',
+            cohortId: userToDisable.cohortId 
+          },
+        })
+        toast.success(`${userToDisable.name} has been disabled`)
+        setIsDisableDialogOpen(false)
+        setUserToDisable(null)
+        queryClient.invalidateQueries({ queryKey: ["get", "/users/enrollments/courses/{courseId}/versions/{courseVersionId}"] })
+        refetchEnrollments()
+      } catch (error: any) {
+        toast.error(error?.message || 'Failed to disable student')
+      }
+    }
+  }
+
+  const confirmEnableStudent = async () => {
+    if (userToEnable && courseId && versionId) {
+      try {
+        await changeStatusMutation.mutateAsync({
+          params: {
+            path: {
+              userId: userToEnable.id,
+              courseId,
+              versionId,
+            },
+          },
+          body: { 
+            status: 'ACTIVE',
+            cohortId: userToEnable.cohortId
+          },
+        })
+        toast.success(`${userToEnable.name} has been enabled`)
+        setIsEnableDialogOpen(false)
+        setUserToEnable(null)
+        queryClient.invalidateQueries({ queryKey: ["get", "/users/enrollments/courses/{courseId}/versions/{courseVersionId}"] })
+        refetchEnrollments()
+      } catch (error: any) {
+        toast.error(error?.message || 'Failed to enable student')
+      }
+    }
+  }
+
+  const handleBulkDisable = () => {
+    if (selectedUsers.size > 50) {
+      toast.error('Cannot disable more than 50 students at once')
+      return
+    }
+    setIsBulkDisableDialogOpen(true)
+  }
+
+  const handleBulkEnable = () => {
+    if (selectedInactiveUsers.size > 50) {
+      toast.error('Cannot enable more than 50 students at once')
+      return
+    }
+    setIsBulkEnableDialogOpen(true)
+  }
+
+  const confirmBulkDisable = async () => {
+    if (!courseId || !versionId) return
+    try {
+      await bulkChangeStatusMutation.mutateAsync({
+        params: { path: { courseId, versionId } },
+        body: { userIds: Array.from(selectedUsers), status: 'INACTIVE', cohortId: cohort },
+      })
+      toast.success(`Successfully disabled ${selectedUsers.size} students`)
+      setSelectedUsers(new Set())
+      setIsSelectionMode(false)
+      setIsBulkDisableDialogOpen(false)
+      queryClient.invalidateQueries({ queryKey: ["get", "/users/enrollments/courses/{courseId}/versions/{courseVersionId}"] })
+      refetchEnrollments()
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to disable students')
+    }
+  }
+
+  const confirmBulkEnable = async () => {
+    if (!courseId || !versionId) return
+    try {
+      await bulkChangeStatusMutation.mutateAsync({
+        params: { path: { courseId, versionId } },
+        body: { userIds: Array.from(selectedInactiveUsers), status: 'ACTIVE', cohortId: cohort },
+      })
+      toast.success(`Successfully enabled ${selectedInactiveUsers.size} students`)
+      setSelectedInactiveUsers(new Set())
+      setIsInactiveSelectionMode(false)
+      setIsBulkEnableDialogOpen(false)
+      queryClient.invalidateQueries({ queryKey: ["get", "/users/enrollments/courses/{courseId}/versions/{courseVersionId}"] })
+      refetchEnrollments()
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to enable students')
+    }
+  }
 
 
   // Pagination state
   const totalDocuments = enrollmentsData?.totalDocuments || 0
+  const {
+    data: exportEnrollmentsData,
+    isLoading: isLoadingStudentContacts,
+  } = useCourseVersionEnrollments(
+    courseId,
+    versionId,
+    1,
+    Math.max(totalDocuments, 1),
+    debouncedSearch,
+    sortBy,
+    sortOrder,
+    isExportingStudentContacts,
+    'STUDENT',
+    statusTab,
+    cohort,
+  );
+
   useEffect(() => {
     if (enrollmentTab === "ACTIVE") {
       setActiveCount(totalDocuments)
@@ -652,6 +831,55 @@ export default function CourseEnrollments() {
     setCurrentPage(1);
   };
 
+  const handleExportStudentContacts = async () => {
+    if (!courseId || !versionId) {
+      toast.error('Course ID or Version ID is missing');
+      return;
+    }
+
+    if (!totalDocuments) {
+      toast.warning('No students found to export');
+      return;
+    }
+
+    const enrollments = exportEnrollmentsData?.enrollments || [];
+
+    if (!enrollments.length) {
+      toast.warning('No students found to export');
+      return;
+    }
+
+    try {
+      const formattedData = enrollments.map((enrollment: any) => ({
+        name:
+          `${enrollment?.user?.firstName ?? ''} ${enrollment?.user?.lastName ?? ''}`.trim() ||
+          'Unknown User',
+        email: enrollment?.user?.email || '',
+      }));
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
+      const statusLabel = enrollmentTab === 'ACTIVE' ? 'active' : 'inactive';
+      const courseLabel = sanitizeFilenamePart(course?.name || 'course');
+      const cohortName = cohort
+        ? (version as any)?.cohortDetails?.find((item: any) => item.id === cohort)?.name
+        : null;
+      const cohortLabel = cohortName
+        ? `${sanitizeFilenamePart(cohortName)}_`
+        : '';
+      const filename = `${courseLabel}_${cohortLabel}${statusLabel}_student_contacts_${timestamp}.xlsx`;
+
+      generateStudentContactsExcel(formattedData, filename);
+      toast.success('Student contacts exported successfully');
+    } catch (error) {
+      console.error('Error exporting student contacts:', error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to export student contacts',
+      );
+    }
+  };
+
   useEffect(() => {
     if (isResetDialogOpen) {
       setResetScope("course")
@@ -678,6 +906,12 @@ export default function CourseEnrollments() {
       handleFetchQuizScores().finally(() => setIsExporting(false));
     }
   }, [isExporting, isLoadingQuizScores]);
+
+  useEffect(() => {
+    if (isExportingStudentContacts && !isLoadingStudentContacts) {
+      handleExportStudentContacts().finally(() => setIsExportingStudentContacts(false));
+    }
+  }, [isExportingStudentContacts, isLoadingStudentContacts, exportEnrollmentsData]);
 
   const handleResetProgress = (user: EnrolledUser) => {
     setSelectedUser(user)
@@ -819,6 +1053,89 @@ export default function CourseEnrollments() {
     }
   }
 
+const handleMoveSelectUser = (enrollment: any, checked: boolean) => {
+  const enrollmentId = enrollment.id;
+
+  setMoveSelectedUsers(prev => {
+    const newSet = new Set(prev);
+
+    if (checked) newSet.add(enrollmentId);
+    else newSet.delete(enrollmentId);
+
+    return newSet;
+  });
+};
+
+
+const handleMoveSelectAll = (checked: boolean) => {
+  const validEnrollmentIds = filteredStudentEnrollments
+    .filter((e: any) => !e.cohortId)
+    .map((e: any) => e.id);
+
+  setMoveSelectedUsers(prev => {
+    const newSet = new Set(prev);
+
+    validEnrollmentIds.forEach(id => {
+      if (checked) newSet.add(id);
+      else newSet.delete(id);
+    });
+
+    return newSet;
+  });
+};
+
+const handleMoveToCohort = async () => {
+  if (!selectedMoveCohort) {
+    toast.error("Select target cohort");
+    return;
+  }
+
+  if (moveSelectedUsers.size === 0) {
+    toast.error("No students selected");
+    return;
+  }
+
+  const enrollmentIds = Array.from(moveSelectedUsers);
+
+  if (!enrollmentIds.length) {
+    toast.warning("Nothing to move");
+    return;
+  }
+
+  if(!courseId || !versionId) {
+    toast.error("Course or version information missing");
+    return;
+  }
+
+  try {
+    await moveToCohortMutation.mutateAsync({
+      params: {
+        path: {
+          courseId,
+          versionId,
+        },
+      },
+      body: {
+        enrollmentIds,
+        targetCohortId: selectedMoveCohort,
+      },
+    });
+
+    toast.success("Students moved successfully");
+
+    // Reset state
+    setMoveSelectedUsers(new Set());
+    setIsMoveSelectionMode(false);
+    setIsMoveCohortModalOpen(false);
+
+    // Refresh data
+    refetchEnrollments();
+
+  } catch (error: any) {
+    toast.error(error?.message || "Failed to move students");
+  }
+};
+
 
   // Toggle functions for expanding/collapsing modules and sections
   const toggleModule = (moduleId: string) => {
@@ -877,6 +1194,18 @@ export default function CourseEnrollments() {
       icon: TrendingUp,
       color: "text-purple-600",
       bgColor: "bg-purple-50",
+    },
+     {
+      title: "Avg Watch Hours",
+      value: (() => {
+        const v = enrollmentStats?.averageWatchHoursPerUser ?? 0;
+        if (v <= 0) return `0h`;
+        if (v < 0.005) return `<0.01h`;
+        return `${v.toFixed(2)}h`;
+      })(),
+      icon: Clock,
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
     },
   ]
   const {
@@ -998,7 +1327,14 @@ export default function CourseEnrollments() {
           </div>
 
           {/* Stats */}
-          <div className="flex lg:flex-nowrap flex-wrap gap-6">
+          {statsLoading?<>
+           <div className="ml-6 p-2">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Loading statistics...</span>
+        </div>
+      </div>
+          </>:<div className="flex lg:flex-nowrap flex-wrap gap-6">
             {stats.map((stat) => (
               <Card key={stat.title} className="border-0 shadow-sm hover:shadow-md transition-shadow w-full">
                 <CardContent className="p-6">
@@ -1014,7 +1350,7 @@ export default function CourseEnrollments() {
                 </CardContent>
               </Card>
             ))}
-          </div>
+          </div>}
 
           {/* Search */}
           <div className="flex flex-col sm:flex-row gap-4">
@@ -1091,6 +1427,18 @@ export default function CourseEnrollments() {
                   Inactive Students({inactiveCount})
                 </TabsTrigger>
               </TabsList>
+              {(version as any)?.cohortDetails?.length > 0 && (
+                <span className="relative flex justify-end right-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsMoveCohortModalOpen(true)}
+                  >
+                    <Layers className="h-4 w-4 text-muted-foreground mr-2" />
+                    Move students to cohort
+                  </Button>
+                </span>
+              )}
             </div>
             {/* Active Tab */}
             <TabsContent value="ACTIVE" className="mt-4">
@@ -1107,16 +1455,23 @@ export default function CourseEnrollments() {
                 sortOrder={sortOrder}
                 isLoadingQuizScores={isLoadingQuizScores}
                 setIsExporting={setIsExporting}
+                isExportingStudentContacts={isLoadingStudentContacts}
+                setIsExportingStudentContacts={setIsExportingStudentContacts}
                 unenrollMutation={unenrollMutation}
+                changeStatusMutation={changeStatusMutation}
+                bulkChangeStatusMutation={bulkChangeStatusMutation}
                 user={user}
                 handleViewProgress={handleViewProgress}
                 handleRemoveStudent={handleRemoveStudent}
+                handleDisableStudent={handleDisableStudent}
+                handleEnableStudent={handleEnableStudent}
                 isSelectionMode={isSelectionMode}
                 selectedUsers={selectedUsers}
                 onSelectUser={handleSelectUser}
                 onSelectAll={handleSelectAll}
                 toggleSelectionMode={toggleSelectionMode}
                 handleBulkUnenroll={handleBulkUnenroll}
+                handleBulkDisable={handleBulkDisable}
                 setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
                 getStudentTimeSlot={getStudentTimeSlot}
                 version={version}
@@ -1140,16 +1495,36 @@ export default function CourseEnrollments() {
                 sortOrder={sortOrder}
                 isLoadingQuizScores={isLoadingQuizScores}
                 setIsExporting={setIsExporting}
+                isExportingStudentContacts={isLoadingStudentContacts}
+                setIsExportingStudentContacts={setIsExportingStudentContacts}
                 unenrollMutation={unenrollMutation}
+                changeStatusMutation={changeStatusMutation}
+                bulkChangeStatusMutation={bulkChangeStatusMutation}
                 user={user}
                 handleViewProgress={handleViewProgress}
                 handleRemoveStudent={handleRemoveStudent}
-                isSelectionMode={false}
-                selectedUsers={new Set()}
-                onSelectUser={handleSelectUser}
-                onSelectAll={handleSelectAll}
-                toggleSelectionMode={toggleSelectionMode}
+                handleDisableStudent={handleDisableStudent}
+                handleEnableStudent={handleEnableStudent}
+                isSelectionMode={isInactiveSelectionMode}
+                selectedUsers={selectedInactiveUsers}
+                onSelectUser={(userId, checked) => {
+                  const newSet = new Set(selectedInactiveUsers)
+                  checked ? newSet.add(userId) : newSet.delete(userId)
+                  setSelectedInactiveUsers(newSet)
+                }}
+                onSelectAll={(checked) => {
+                  const visibleIds = studentEnrollments.map((e: any) => e.user?._id || e.user?.id).filter(Boolean)
+                  if (checked) {
+                    setSelectedInactiveUsers(prev => { const s = new Set(prev); visibleIds.forEach((id: string) => s.add(id)); return s })
+                  } else {
+                    setSelectedInactiveUsers(prev => { const s = new Set(prev); visibleIds.forEach((id: string) => s.delete(id)); return s })
+                  }
+                }}
+                toggleSelectionMode={() => {
+                  setIsInactiveSelectionMode(prev => { if (prev) setSelectedInactiveUsers(new Set()); return !prev })
+                }}
                 handleBulkUnenroll={handleBulkUnenroll}
+                handleBulkEnable={handleBulkEnable}
                 setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
                 getStudentTimeSlot={getStudentTimeSlot}
                 version={version}
@@ -1212,7 +1587,7 @@ export default function CourseEnrollments() {
                       <>
                         <div className="flex justify-between items-center mb-3">
                           <p className="text-sm text-muted-foreground">Completion</p>
-                          <EnrollmentProgress progress={progressDetail.percentCompleted || 0} />
+                          <EnrollmentProgress progress={Math.min(selectedUser?.progress ?? progressDetail?.percentCompleted ?? 0, 100)} /> 
                         </div>
                         <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                           <SummaryRow label="Total Items" value={progressDetail.contentCounts?.totalItems ?? 0} />
@@ -1220,13 +1595,18 @@ export default function CourseEnrollments() {
                           <SummaryRow label="Quizzes" value={progressDetail.contentCounts?.itemCounts?.QUIZ ?? 0} />
                           <SummaryRow label="Articles" value={progressDetail.contentCounts?.itemCounts?.BLOG ?? 0} />
                           <SummaryRow label="Projects" value={progressDetail.contentCounts?.itemCounts?.PROJECT ?? 0} />
+                          <SummaryRow label="Feedbacks" value={progressDetail.contentCounts?.itemCounts?.FEEDBACK ?? 0} />
                           <SummaryRow
                             label="Quiz Score"
-                            value={`${progressDetail.totalQuizScore ?? 0} / ${progressDetail.totalQuizMaxScore ?? 0}`}
+                            value={`${(progressDetail.totalQuizScore ?? 0).toFixed(2)} / ${(progressDetail.totalQuizMaxScore ?? 0).toFixed(2)}`}
                           />
                           <SummaryRow
                             label="Items Completed"
-                            value={`${progressDetail.completedItemsCount ?? 0} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
+                            value={`${Math.min(selectedUser?.completedItemsCount ?? progressDetail.completedItemsCount ?? 0, progressDetail.contentCounts?.totalItems ?? 0)} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
+                          />
+                           <SummaryRow
+                            label="Watch Hours"
+                            value={`${(progressDetail.watchHours ?? 0).toFixed(2)}h`}
                           />
                         </div>
                       </>
@@ -1480,6 +1860,7 @@ export default function CourseEnrollments() {
                               userId={selectedUser.id}
                               quizId={selectedViewItem}
                               itemName={selectedViewItemName}
+                              cohortId={selectedUser.cohortId}
                             />
                           ) : (
                             <WatchTimeDisplay
@@ -1489,6 +1870,7 @@ export default function CourseEnrollments() {
                               courseVersionId={versionId}
                               itemName={selectedViewItemName}
                               itemType={selectedViewItemType}
+                              cohortId={selectedUser.cohortId}
                             />
                           )}
                         </div>
@@ -1530,7 +1912,7 @@ export default function CourseEnrollments() {
                 <p className="text-lg text-card-foreground">
                   Want to remove <strong className="text-primary">{userToRemove?.name}</strong> from{" "}
                   <strong className="text-primary">
-                    {course.name} ({version.version}) ({userToRemove?.cohortName})
+                    {course.name} ({version.version}) {userToRemove?.cohortName}
                   </strong>
                   ?
                 </p>
@@ -1565,6 +1947,134 @@ export default function CourseEnrollments() {
                       </>
                     ) : (
                       "Yes, Remove"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isDisableDialogOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+              <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+                onClick={() => setIsDisableDialogOpen(false)}
+              />
+              <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Disable Student</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsDisableDialogOpen(false)}
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-8">
+                  <p className="text-lg text-card-foreground">
+                    Want to disable <strong className="text-primary">{userToDisable?.name}</strong> from{" "}
+                    <strong className="text-primary">
+                      {course.name} ({version.version}) {userToDisable?.cohortName}
+                    </strong>
+                    ?
+                  </p>
+
+                  <div className="flex gap-4 p-6 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl">
+                    <div><AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" /></div>
+                    <div className="text-sm text-amber-800 dark:text-amber-200">
+                      <strong>Warning:</strong> This student will be set to inactive. You can re-enable them from the Inactive tab.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsDisableDialogOpen(false)}
+                    className="min-w-[100px] cursor-pointer"
+                  >
+                    No, Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={confirmDisableStudent}
+                    disabled={changeStatusMutation.isPending}
+                    className="min-w-[100px] shadow-lg cursor-pointer bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    {changeStatusMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Disabling...
+                      </>
+                    ) : (
+                      "Yes, Disable"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isEnableDialogOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+              <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+                onClick={() => setIsEnableDialogOpen(false)}
+              />
+              <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Enable Student</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsEnableDialogOpen(false)}
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-8">
+                  <p className="text-lg text-card-foreground">
+                    Want to enable <strong className="text-primary">{userToEnable?.name}</strong> for{" "}
+                    <strong className="text-primary">
+                      {course.name} ({version.version}) {userToEnable?.cohortName}
+                    </strong>
+                    ?
+                  </p>
+
+                  <div className="flex gap-4 p-6 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl">
+                    <div><CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" /></div>
+                    <div className="text-sm text-green-800 dark:text-green-200">
+                      This student will be moved back to the Active tab.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsEnableDialogOpen(false)}
+                    className="min-w-[100px] cursor-pointer"
+                  >
+                    No, Cancel
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={confirmEnableStudent}
+                    disabled={changeStatusMutation.isPending}
+                    className="min-w-[100px] shadow-lg cursor-pointer bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {changeStatusMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Enabling...
+                      </>
+                    ) : (
+                      "Yes, Enable"
                     )}
                   </Button>
                 </div>
@@ -1836,6 +2346,141 @@ export default function CourseEnrollments() {
               onPageChange={handlePageChange}
             />
           )}
+          {/* Move Cohort Modal */}
+          {isMoveCohortModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+
+              {/* Backdrop */}
+              <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                onClick={() => setIsMoveCohortModalOpen(false)}
+              />
+
+              {/* Modal */}
+              <div className="relative bg-card border border-border rounded-xl shadow-xl w-full max-w-md mx-4 p-6 space-y-5">
+
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Move Students to Cohort</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsMoveCohortModalOpen(false)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Selection Controls */}
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    {moveSelectedUsers.size} selected
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsMoveSelectionMode(prev => !prev)}
+                  >
+                    <CheckSquare className="h-4 w-4 mr-2" />
+                    {isMoveSelectionMode ? "Hide" : "Select Students"}
+                  </Button>
+                </div>
+
+                {/* Student Selection */}
+                {isMoveSelectionMode && (
+                  <div className="max-h-60 overflow-y-auto border rounded-lg p-2 space-y-2">
+
+                    {/* Select All */}
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <Checkbox
+                        checked={
+                          filteredStudentEnrollments
+                            .filter((e: any) => !e.cohortId)
+                            .every((e: any) => moveSelectedUsers.has(e.id))
+                        }
+                        onCheckedChange={(checked) =>
+                          handleMoveSelectAll(checked === true)
+                        }
+                      />
+                      <span className="text-sm font-medium">Select All</span>
+                    </div>
+
+                    {/* Students */}
+                    {filteredStudentEnrollments
+                      .filter((e: any) => !e.cohortId)
+                      .map((enrollment: any) => {
+                        const enrollmentId = enrollment.id;
+
+                        return (
+                          <div
+                            key={enrollmentId}
+                            className="flex items-center gap-3 p-2 rounded hover:bg-muted/20"
+                          >
+                            <Checkbox
+                              checked={moveSelectedUsers.has(enrollmentId)}
+                              onCheckedChange={(checked) =>
+                                handleMoveSelectUser(enrollment, checked === true)
+                              }
+                            />
+
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">
+                                {`${enrollment.user?.firstName || ""} ${enrollment.user?.lastName || ""}`}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {enrollment.user?.email}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+
+                {/* Cohort Select */}
+                <div className="space-y-2">
+                  <Label>Select Target Cohort</Label>
+                  <Select
+                    value={selectedMoveCohort ?? ""}
+                    onValueChange={(val) => setSelectedMoveCohort(val)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose cohort" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(version as any)?.cohortDetails?.map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Actions */}
+                <div className="flex justify-end gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsMoveCohortModalOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+
+                  <Button
+                    disabled={
+                      !selectedMoveCohort ||
+                      moveSelectedUsers.size === 0 ||
+                      moveToCohortMutation.isPending
+                    }
+                    onClick={handleMoveToCohort}
+                  >
+                    {moveToCohortMutation.isPending ? "Moving..." : "Move"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Bulk Unenroll Confirmation Dialog */}
           {isBulkUnenrollDialogOpen && (
@@ -1883,6 +2528,72 @@ export default function CourseEnrollments() {
                     className="min-w-[100px] shadow-lg cursor-pointer"
                   >
                     Unenroll Selected
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Bulk Disable Confirmation Dialog */}
+          {isBulkDisableDialogOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer" onClick={() => setIsBulkDisableDialogOpen(false)} />
+              <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Disable Students</h2>
+                  <Button variant="ghost" size="sm" onClick={() => setIsBulkDisableDialogOpen(false)} className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="space-y-4">
+                  <p className="text-lg text-card-foreground">
+                    Are you sure you want to disable <strong>{selectedUsers.size}</strong> students? They will be moved to the Inactive tab.
+                  </p>
+                  <div className="flex gap-4 p-6 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl">
+                    <div><AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" /></div>
+                    <div className="text-sm text-amber-800 dark:text-amber-200">
+                      Students will be set to inactive. You can re-enable them from the Inactive tab.
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button variant="outline" onClick={() => setIsBulkDisableDialogOpen(false)} className="min-w-[100px] cursor-pointer">Cancel</Button>
+                  <Button
+                    onClick={confirmBulkDisable}
+                    disabled={bulkChangeStatusMutation.isPending}
+                    className="min-w-[130px] shadow-lg cursor-pointer bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    {bulkChangeStatusMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Disabling...</> : 'Disable Selected'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Bulk Enable Confirmation Dialog */}
+          {isBulkEnableDialogOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer" onClick={() => setIsBulkEnableDialogOpen(false)} />
+              <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Enable Students</h2>
+                  <Button variant="ghost" size="sm" onClick={() => setIsBulkEnableDialogOpen(false)} className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="space-y-4">
+                  <p className="text-lg text-card-foreground">
+                    Are you sure you want to re-enable <strong>{selectedInactiveUsers.size}</strong> students? They will be moved back to the Active tab.
+                  </p>
+                </div>
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button variant="outline" onClick={() => setIsBulkEnableDialogOpen(false)} className="min-w-[100px] cursor-pointer">Cancel</Button>
+                  <Button
+                    onClick={confirmBulkEnable}
+                    disabled={bulkChangeStatusMutation.isPending}
+                    className="min-w-[130px] shadow-lg cursor-pointer bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {bulkChangeStatusMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enabling...</> : 'Enable Selected'}
                   </Button>
                 </div>
               </div>
@@ -2062,16 +2773,24 @@ interface EnrollmentsTableProps {
   sortOrder: "asc" | "desc";
   isLoadingQuizScores: boolean;
   setIsExporting: (exporting: boolean) => void;
+  isExportingStudentContacts: boolean;
+  setIsExportingStudentContacts: (exporting: boolean) => void;
   unenrollMutation: any;
+  changeStatusMutation: any;
+  bulkChangeStatusMutation: any;
   user: any;
   handleViewProgress: (user: any) => void;
   handleRemoveStudent: (user: any) => void;
+  handleDisableStudent: (enrollment: any) => void;
+  handleEnableStudent: (enrollment: any) => void;
   isSelectionMode: boolean;
   selectedUsers: Set<string>;
   onSelectUser: (userId: string, checked: boolean) => void;
   onSelectAll: (checked: boolean) => void;
   toggleSelectionMode: () => void;
   handleBulkUnenroll: () => void;
+  handleBulkDisable?: () => void;
+  handleBulkEnable?: () => void;
   setIsTimeSlotsModalOpen: (open: boolean) => void;
   getStudentTimeSlot: (userId: string) => any;
   version: any;
@@ -2092,16 +2811,24 @@ function EnrollmentsTable({
   sortOrder,
   isLoadingQuizScores,
   setIsExporting,
+  isExportingStudentContacts,
+  setIsExportingStudentContacts,
   unenrollMutation,
+  changeStatusMutation,
+  bulkChangeStatusMutation,
   user,
   handleViewProgress,
   handleRemoveStudent,
+  handleDisableStudent,
+  handleEnableStudent,
   isSelectionMode,
   selectedUsers,
   onSelectUser,
   onSelectAll,
   toggleSelectionMode,
   handleBulkUnenroll,
+  handleBulkDisable,
+  handleBulkEnable,
   setIsTimeSlotsModalOpen,
   getStudentTimeSlot,
   version,
@@ -2121,6 +2848,21 @@ function EnrollmentsTable({
 
         {/* SAME header functionality for both tabs */}
         <div className="flex items-center space-x-4 lg:flex-nowrap flex-wrap gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsExportingStudentContacts(true)}
+            disabled={isExportingStudentContacts || enrollmentsLoading || isSearching}
+            className="flex items-center gap-2"
+          >
+            {isExportingStudentContacts ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            <span>{isExportingStudentContacts ? "Exporting..." : "Export Student Contacts"}</span>
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -2148,27 +2890,25 @@ function EnrollmentsTable({
             <span>Configure Time Slots</span>
           </Button>
 
-          {/* Select Students Button - Only for Active Students */}
-          {!isInactiveTab && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={toggleSelectionMode}
-              className="flex items-center gap-2"
-            >
-              {isSelectionMode ? (
-                <>
-                  <X className="h-4 w-4" />
-                  <span>Exit Selection</span>
-                </>
-              ) : (
-                <>
-                  <CheckSquare className="h-4 w-4" />
-                  <span>Select Students</span>
-                </>
-              )}
-            </Button>
-          )}
+          {/* Select Students Button - shown in both tabs */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleSelectionMode}
+            className="flex items-center gap-2"
+          >
+            {isSelectionMode ? (
+              <>
+                <X className="h-4 w-4" />
+                <span>Exit Selection</span>
+              </>
+            ) : (
+              <>
+                <CheckSquare className="h-4 w-4" />
+                <span>Select Students</span>
+              </>
+            )}
+          </Button>
 
           {(version as any)?.cohortDetails?.length > 0 && (
             <DropdownMenu>
@@ -2206,17 +2946,39 @@ function EnrollmentsTable({
             </DropdownMenu>
           )}
 
-          {/* Bulk Actions Bar */}
-          {isSelectionMode && selectedUsers.size > 0 && (
+          {/* Bulk Actions Bar - Active tab: Disable + Unenroll */}
+          {isSelectionMode && selectedUsers.size > 0 && !isInactiveTab && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBulkDisable}
+                className="flex items-center gap-2 animate-in fade-in zoom-in duration-200 border-amber-400 text-amber-700 hover:bg-amber-50"
+              >
+                <UserX className="h-4 w-4" />
+                <span>Disable ({selectedUsers.size})</span>
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkUnenroll}
+                className="flex items-center gap-2 animate-in fade-in zoom-in duration-200"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Remove</span>
+              </Button>
+            </>
+          )}
+
+          {/* Bulk Enable - Inactive tab */}
+          {isSelectionMode && selectedUsers.size > 0 && isInactiveTab && (
             <Button
-              variant="destructive"
               size="sm"
-              onClick={handleBulkUnenroll}
-              className="flex items-center gap-2 animate-in fade-in zoom-in duration-200"
+              onClick={handleBulkEnable}
+              className="flex items-center gap-2 animate-in fade-in zoom-in duration-200 bg-green-600 hover:bg-green-700 text-white"
             >
-              <Trash2 className="h-4 w-4" />
-              {/* <span>Remove ({selectedUsers.size})</span> */}
-              <span>Remove</span>
+              <CheckCircle className="h-4 w-4" />
+              <span>Enable ({selectedUsers.size})</span>
             </Button>
           )}
 
@@ -2291,7 +3053,7 @@ function EnrollmentsTable({
                       </TableHead>
                     ));
                   })()}
-                  <TableHead className="font-bold text-foreground pr-6 w-[200px]">
+                  <TableHead className="font-bold text-foreground pr-6 w-[300px]">
                     Actions
                   </TableHead>
                 </TableRow>
@@ -2497,7 +3259,7 @@ function EnrollmentsTable({
 
                       {/* Progress */}
                       <TableCell className="py-6">
-                        <EnrollmentProgress progress={enrollment.progress || 0} />
+                        <EnrollmentProgress progress={Math.min(enrollment.progress ?? 0, 100)} />
                       </TableCell>
 
                       {/* Assigned Time Slot */}
@@ -2523,7 +3285,7 @@ function EnrollmentsTable({
 
                       {/* Actions */}
                       <TableCell className="py-6 pr-6">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 whitespace-nowrap">
                           {/* View Progress - Always enabled in both tabs */}
                           <Button
                             variant="ghost"
@@ -2557,48 +3319,82 @@ function EnrollmentsTable({
                                 cohortName: enrollment.cohortName
                               })
                             }
-
-                            // disabled={
-                            //   Math.round(enrollment.progress || 0) === 0 ||
-                            //   enrollment?.isDeleted
-                            // }
                             className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
                           >
                             <Eye className="h-4 w-4 mr-2" />
                             View Progress
                           </Button>
 
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                                {console.log("Remove student clicked:", enrollment);
-                              handleRemoveStudent({
-                                id: enrollment.user?._id,
-                                name:
-                                  `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() ||
-                                  "Unknown User",
-                                email: enrollment.user?.email,
-                                enrolledDate: enrollment.enrollmentDate,
-                                progress: 0,
-                                cohortId: enrollment.cohortId,
-                                cohortName: enrollment.cohortName
-                              })}
-                            }
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
-                            disabled={
-                              unenrollMutation.isPending ||
-                              user?.email === enrollment?.user?.email ||
-                              enrollment?.isDeleted
-                            }
-                          >
-                            {unenrollMutation.isPending ? (
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                              <UserX className="h-4 w-4 mr-2" />
-                            )}
-                            Remove
-                          </Button>
+                          {/* Disable button - Active tab only */}
+                          {!isInactiveTab && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDisableStudent(enrollment)}
+                              disabled={changeStatusMutation.isPending || user?.email === enrollment?.user?.email}
+                              className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
+                            >
+                              {changeStatusMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <UserX className="h-4 w-4 mr-2" />
+                              )}
+                              Disable
+                            </Button>
+                          )}
+
+                          {/* Enable button - Inactive tab only */}
+                          {isInactiveTab && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEnableStudent(enrollment)}
+                              disabled={changeStatusMutation.isPending}
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950/30 transition-all duration-200 cursor-pointer"
+                            >
+                              {changeStatusMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                              )}
+                              Enable
+                            </Button>
+                          )}
+
+                          {/* Remove - Active tab only */}
+                          {!isInactiveTab && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                  {console.log("Remove student clicked:", enrollment);
+                                handleRemoveStudent({
+                                  id: enrollment.user?._id,
+                                  name:
+                                    `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() ||
+                                    "Unknown User",
+                                  email: enrollment.user?.email,
+                                  enrolledDate: enrollment.enrollmentDate,
+                                  progress: 0,
+                                  cohortId: enrollment.cohortId,
+                                  cohortName: enrollment.cohortName
+                                })}
+                              }
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
+                              disabled={
+                                unenrollMutation.isPending ||
+                                user?.email === enrollment?.user?.email ||
+                                enrollment?.isDeleted
+                              }
+                            >
+                              {unenrollMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <UserX className="h-4 w-4 mr-2" />
+                              )}
+                              Remove
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

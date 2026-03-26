@@ -227,7 +227,9 @@ export default function StudentCourses() {
                         course: {
                           name: course.courseName,
                           description: course.courseDescription
-                        }
+                        },
+                        cohortId: course.cohortId,
+                        cohortName: course.cohortName,
                       }}
                     />
                   ))}

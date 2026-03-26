@@ -34,6 +34,8 @@ export interface ICourseRepository {
     session?: ClientSession,
   ): Promise<ICourseVersion | null>;
 
+  updateTotalItemCount(versionId: string, newCount: number, session?: ClientSession): Promise<void>
+  
   getCohortsByIds(
     cohortIds: ID[],
     options?: {
@@ -56,7 +58,7 @@ export interface ICourseRepository {
     versionId: string,
     cohortIds: ObjectId[],
     session?: ClientSession
-  ):Promise<boolean>;
+  ): Promise<boolean>;
 
   // pushCohortsToVersion(
   //   versionId: string,
@@ -68,6 +70,7 @@ export interface ICourseRepository {
     cohortId: ObjectId,
     cohortName?: string,
     isPublic?: boolean,
+    isActive?: boolean,
     session?: ClientSession
   ): Promise<boolean>;
 
@@ -76,12 +79,12 @@ export interface ICourseRepository {
     session: ClientSession
   ): Promise<boolean>;
 
-   removeCohortFromVersion(
+  removeCohortFromVersion(
     versionId: string,
     cohortId: string,
     session?: ClientSession
-  ): Promise<boolean> 
-  
+  ): Promise<boolean>
+
   addModulesToVersion(
     courseVersionId: string,
     newModules: Module[],
@@ -148,12 +151,37 @@ export interface ICourseRepository {
   ): Promise<ICourseVersion | null>;
   bulkUpdateVersions(operations: any[], session?: ClientSession): Promise<void>;
   getAllCourses(session?: ClientSession): Promise<ICourse[]>;
-  updateCourseVersionStatus(vesionId:string,versionStatus:courseVersionStatus,session?: ClientSession): Promise<ICourseVersion | null>;
-  getCourseVersionStatus(versionId:string,session?:ClientSession): Promise<courseVersionStatus>;
+  updateCourseVersionStatus(vesionId: string, versionStatus: courseVersionStatus, session?: ClientSession): Promise<ICourseVersion | null>;
+  getCourseVersionStatus(versionId: string, session?: ClientSession): Promise<courseVersionStatus>;
   // Cascade Delete Methods used by Cron Jobs
   cascadeDeleteVersion(session?: ClientSession): Promise<void>;
   //cascadeDeleteModule(session?: ClientSession): Promise<void>;
   //cascadeDeleteSection(session?: ClientSession): Promise<void>;
   //cascadeDeleteItemGroup(session?: ClientSession): Promise<void>;
   //cascadeDeleteItem(session?: ClientSession): Promise<void>;
+  createCohortSettings(
+    versionId: string,
+    cohortId: string,
+    registrationsAutoApproved: boolean,
+    autoapproval_emails: string[],
+    session?: ClientSession
+  ): Promise<string>;
+
+  getCohortSetting(
+    versionId: string,
+    cohortId: string,
+    session?: ClientSession
+  ): Promise<string>;
+
+  updateCohortSettings(
+    settingId: string,
+    registrationsAutoApproved: boolean,
+    autoapproval_emails: string[],
+    session?: ClientSession
+  ): Promise<boolean>;
+
+  getCohortSettingById(
+    id: string,
+    session?: ClientSession
+  ): Promise<any>;
 }

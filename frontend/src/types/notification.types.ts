@@ -47,3 +47,43 @@ export interface ApprovedRegistrationNotification {
   };
   courseName?: string;
 }
+
+export interface PendingStudentRegistrationNotification {
+  _id: string;
+  userId: string;
+  courseId: string;
+  versionId: string;
+  status: string;
+  detail: {
+    Name?: string;
+    Email?: string;
+    Phone?: string;
+    [key: string]: any;
+  };
+  createdAt: string;
+  updatedAt?: string | null;
+  course?: {
+    name: string;
+  };
+  courseName?: string;
+}
+
+export interface RejectedStudentRegistrationNotification {
+  _id: string;
+  userId: string;
+  courseId: string;
+  versionId: string;
+  status: string;
+  detail: {
+    Name?: string;
+    Email?: string;
+    Phone?: string;
+    [key: string]: any;
+  };
+  createdAt: string;
+  updatedAt?: string | null;
+  course?: {
+    name: string;
+  };
+  courseName?: string;
+}

@@ -143,11 +143,25 @@ export class AnomalyService extends BaseService {
     search?: string,
     type?: string,
     page: number = 1,
+    cohortId?: string,
   ): Promise<PaginatedResponse<AnomalyData>> {
     return this._withTransaction(async session => {
-      const courseVersion = await this.courseRepo.readVersion(versionId);
+      const courseVersion = await this.courseRepo.readVersion(versionId, session);
       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
         throw new NotFoundError('Course version not found');
+      }
+      let cohortMap;
+      if(courseVersion.cohorts?.length > 0){
+        const cohortDetails = await this.courseRepo.getCohortsByIds(
+          courseVersion.cohorts,
+          {},
+          session,
+        );
+
+        // Build cohort map
+        cohortMap = new Map(
+          cohortDetails.map(cohort => [cohort._id.toString(), cohort.name]),
+        );
       }
 
       // First, get all users that match the search criteria if search is provided
@@ -176,6 +190,7 @@ export class AnomalyService extends BaseService {
           sortOptions,
           userIdsToSearch || undefined, // Pass user IDs for filtering if search was performed
           type,
+          cohortId,
           session,
         );
 
@@ -199,6 +214,10 @@ export class AnomalyService extends BaseService {
           studentEmail: user?.email || '',
           fileName: undefined,
           fileType: undefined,
+          cohortId: a.cohortId?.toString(),
+          cohortName: a.cohortId
+            ? cohortMap.get(a.cohortId.toString()) || null
+            : null,
         } as unknown as AnomalyData;
       });
 
@@ -214,6 +233,7 @@ export class AnomalyService extends BaseService {
                 sortOptions,
                 userIdsToSearch,
                 type,
+                cohortId,
                 session,
               )
               .then(({total}) => total)

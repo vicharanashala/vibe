@@ -81,7 +81,7 @@ export default function CourseRegistrationRequests() {
   const [cohort, setCohort] = useState<string | null>(null);
   const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(versionId || "")
 
-// console.log("courseVersion in registration page", courseVersion);
+
   const PAGE_LIMIT = 15;
 
   const params = useMemo(() => ({
@@ -96,11 +96,17 @@ export default function CourseRegistrationRequests() {
 // console.log("registrationsData---", registrationsData);
   const { data: statusData, refetch: statusRefetch } = useGetRegistrationStatus(versionId as string);
   const { mutateAsync: toggleStatus, isPending: isTogglingStatus } = useToggleRegistrationStatus(versionId as string);
-  const { settings: autoApprovalSettings, isLoading: isLoadingAutoApproval } = useAutoApprovalSettings(versionId as string);
+  const { settings: autoApprovalSettings, isLoading: isLoadingAutoApproval, refetch: autoApprovalRefetch } = useAutoApprovalSettings(versionId as string);
 
   const { mutateAsync: updateStatus, isPending: isUpdatingStatus } = useUpdateRegistrationStatus();
   const { mutateAsync: updateBulkStatus, isPending: isUpdatingBulkStatus } = useBulkUpdateRegistrationStatus();
   const registrations = registrationsData?.registrations || []
+
+  useEffect(() => {
+    if (!isAutoApprovalModalOpen) {
+      autoApprovalRefetch();
+    }
+  }, [isAutoApprovalModalOpen, autoApprovalRefetch]);
 
   const FRONTEND_URL = window.location.origin;
   const registrationUrl = `${FRONTEND_URL}/student/course-registration/${versionId}`;
@@ -520,6 +526,7 @@ useEffect(() => {
               onOpenChange={setIsAutoApprovalModalOpen}
               versionId={versionId!}
               currentSettings={autoApprovalSettings}
+              courseVersion = {courseVersion}
             />
           </Dialog>
         {/* <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
@@ -1170,7 +1177,7 @@ export const RegistrationActions = ({
           ? "Approve Selected"
           : `Approve Selected (${selectedIds.length})`}
       </Button>
-
+{!(courseVersion?.cohortDetails?.length > 0) && (
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -1202,7 +1209,7 @@ export const RegistrationActions = ({
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-
+)}
       <Button
         variant="outline"
         size="sm"

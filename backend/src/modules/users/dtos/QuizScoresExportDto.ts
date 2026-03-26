@@ -22,8 +22,8 @@ export class StudentQuizScoreDto {
 
   @Expose()
   @IsString()
-  cohortName: string;
-
+  @IsOptional()
+  cohortName?: string;
 
   @Expose()
   @IsArray()

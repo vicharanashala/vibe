@@ -54,7 +54,7 @@ class UserQuizMetricsRepository {
     const filter: any = {
       userId: {$in: [userIdStr, ...(userIdObj ? [userIdObj] : [])]},
       quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
-      ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+      ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
     };
 
     const result = await this.userQuizMetricsCollection.findOne(filter, {

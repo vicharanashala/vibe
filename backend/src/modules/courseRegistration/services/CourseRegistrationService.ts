@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { inject, injectable } from 'inversify';
-import { ForbiddenError, InternalServerError, NotFoundError } from 'routing-controllers';
+import { ForbiddenError, InternalServerError, NotFoundError, BadRequestError } from 'routing-controllers';
 import nodemailer from 'nodemailer';
 import {
   BaseService,
@@ -264,7 +264,8 @@ export class CourseRegistrationService extends BaseService {
         const cohortsDetails = await this.courseRepo.getCohortsByIds(courseVersion.cohorts)
         cohorts = cohortsDetails.map(c => ({
           cohortId: c._id.toString(),
-          cohortName: c.name
+          cohortName: c.name,
+          isActive: c.isActive ?? true,
         }));
       }
 
@@ -313,7 +314,7 @@ export class CourseRegistrationService extends BaseService {
 
         // Validate that cohort matches one of the available cohorts
         const isValidCohort = courseVersion.cohorts.some(
-          (cohort: any) => cohort.toString() === registrationData.detail.cohort
+          (cohort: any) => cohort?.toString() === registrationData.detail.cohort
         );
 
         if (!isValidCohort) {
@@ -643,7 +644,7 @@ export class CourseRegistrationService extends BaseService {
 
   async getSettings(
     versionId: string,
-  ): Promise<{ jsonSchema: any; uiSchema: any; isActive: boolean, registrationsAutoApproved?: boolean, autoapproval_emails?: string[] }> {
+  ): Promise<{ jsonSchema: any; uiSchema: any; isActive: boolean, registrationsAutoApproved?: boolean, autoapproval_emails?: string[], cohortSettings?: ObjectId[] , cohortSettingDetails?: any[]}> {
     return this._withTransaction(async session => {
       try {
         const version = await this.courseRepo.readVersion(versionId, session);
@@ -667,7 +668,17 @@ export class CourseRegistrationService extends BaseService {
           );
         }
 
-        let { jsonSchema, uiSchema, isActive, registrationsAutoApproved, autoapproval_emails } =
+        const cohortSettingDetails = [];
+        if(courseSettings.settings?.registration?.cohortSettings?.length > 0){
+          for (const cohortSetting of courseSettings.settings?.registration?.cohortSettings) {
+            const detail = await this.courseRepo.getCohortSettingById(
+              cohortSetting.toString(),
+              session
+            );
+            cohortSettingDetails.push({...detail, cohortId: detail?.cohortId?.toString(), courseVersionId: detail.courseVersionId.toString()});
+          }
+        }
+        let { jsonSchema, uiSchema, isActive, registrationsAutoApproved, autoapproval_emails, cohortSettings } =
           courseSettings.settings?.registration || {};
 
         //   // const defaultUiSchema = {
@@ -694,7 +705,9 @@ export class CourseRegistrationService extends BaseService {
           uiSchema, 
           isActive: isActive ?? true, 
           registrationsAutoApproved, 
-          autoapproval_emails 
+          autoapproval_emails,
+          cohortSettings: cohortSettings || [],
+          cohortSettingDetails: cohortSettingDetails
         };
 
         // return registrationSettings;
@@ -722,6 +735,75 @@ export class CourseRegistrationService extends BaseService {
           throw new ForbiddenError("Cannot update settings. Because course version is archived.");
         }
         const courseId = version.courseId.toString();
+        return await this.settingsRepo.updateRegistrationSettings(
+          courseId,
+          versionId,
+          // settings,
+          {
+            jsonSchema: schemas.jsonSchema,
+            uiSchema: schemas.uiSchema,
+            isActive: schemas.isActive ?? true,
+            registrationsAutoApproved: schemas.registrationsAutoApproved,
+            autoapproval_emails: schemas.autoapproval_emails,
+          },
+          session,
+        );
+      } catch (error) {
+        console.error(error);
+        throw new InternalServerError('Failed to update settings');
+      }
+    });
+  }
+
+
+  async updateAutoApprovalSettings(
+    versionId: string,
+    schemas: { jsonSchema: any; uiSchema: any; isActive?: boolean; registrationsAutoApproved?: boolean; autoapproval_emails?: string[], cohortSettings?: ObjectId[] },
+    cohortId?: string
+  ) {
+    return this._withTransaction(async session => {
+      try {
+        const version = await this.courseRepo.readVersion(versionId, session);
+        if (!version) {
+          throw new NotFoundError(
+            `Course version with id ${versionId} not found`,
+          );
+        }
+        const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId);
+                
+        if(versionStatus==="archived"){
+          throw new ForbiddenError("Cannot update settings. Because course version is archived.");
+        }
+        const courseId = version.courseId.toString();
+
+        if(version?.cohorts?.length > 0){
+          if(!cohortId){
+            throw new BadRequestError("Cohort ID is required for this course version.");
+          }
+          if(!version.cohorts.some((c: ObjectId) => c.toString() === cohortId)){
+            throw new BadRequestError("Invalid Cohort ID provided.");
+          }
+          let cohortSetting = await this.courseRepo.getCohortSetting(version._id.toString(), cohortId, session);
+          if(cohortSetting){
+            await this.courseRepo.updateCohortSettings(cohortSetting, schemas.registrationsAutoApproved ?? false, schemas.autoapproval_emails ?? [], session);
+            return await this.settingsRepo.readCourseSettings(
+              courseId,
+              versionId,
+              session,
+            );
+          } else {
+            cohortSetting = await this.courseRepo.createCohortSettings(version._id.toString(), cohortId, schemas.registrationsAutoApproved ?? false, schemas.autoapproval_emails ?? [], session );
+            return await this.settingsRepo.updateCohortSettings(
+              courseId,
+              versionId,
+              {
+                cohortSettings: schemas.cohortSettings ? [...schemas.cohortSettings, new ObjectId(cohortSetting)] : [new ObjectId(cohortSetting)]
+              },
+              session,
+            );
+          }
+        }
+
         return await this.settingsRepo.updateRegistrationSettings(
           courseId,
           versionId,
@@ -832,6 +914,18 @@ export class CourseRegistrationService extends BaseService {
   async getPendingRegistrations(instructorId: string) {
     return this._withTransaction(async session => {
       return await this.courseRegistrationRepo.getPendingRegistrations(instructorId, session);
+    });
+  }
+
+  async getPendingRegistrationsByStudent(studentId: string) {
+    return this._withTransaction(async session => {
+      return await this.courseRegistrationRepo.getPendingRegistrationsByStudent(studentId, session);
+    });
+  }
+
+  async getRejectedRegistrationsByStudent(studentId: string) {
+    return this._withTransaction(async session => {
+      return await this.courseRegistrationRepo.getRejectedRegistrationsByStudent(studentId, session);
     });
   }
 

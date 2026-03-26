@@ -40,6 +40,14 @@ export interface ICourseRegistrationRepository {
     instructorId: string,
     session?: ClientSession,
   ): Promise<any[]>;
+  getPendingRegistrationsByStudent(
+    studentId: string,
+    session?: ClientSession,
+  ): Promise<any[]>;
+  getRejectedRegistrationsByStudent(
+    studentId: string,
+    session?: ClientSession,
+  ): Promise<any[]>;
   getUnreadApprovedRegistrations(
     studentId: string,
     session?: ClientSession,

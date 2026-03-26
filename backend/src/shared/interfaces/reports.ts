@@ -32,6 +32,8 @@ interface IReport {
     moduleName?: string;
     sectionName?: string;
     itemName?: string;
+    cohortId?: string | ObjectId;
+    cohortName?: string;
 }
 
 

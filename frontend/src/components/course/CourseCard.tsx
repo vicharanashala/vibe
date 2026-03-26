@@ -1,4 +1,4 @@
-import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play } from "lucide-react";
+import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play, Activity } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -61,7 +61,11 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const item_type = enrollment.itemType || "VIDEO";
 
   // Fetch course version to get supportLink
-  const { data: courseVersionData } = useCourseVersionById(versionId, variant !== 'available');
+  const { data: courseVersionData } = useCourseVersionById(
+    versionId,
+    variant !== 'available',
+    cohortId || undefined,
+  );
   const supportLink = (courseVersionData as any)?.supportLink;
 
   // const { data: courseDetails, isLoading: isCourseLoading } = useCourseById(courseId);
@@ -80,7 +84,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       : "internship-support@vicharanashala.zohodesk";
 
   // const progress = Math.round(enrollment.percentCompleted || 0) as number 
-  const progress = Number(((enrollment.percentCompleted || 0)).toFixed(2));
+  const progress = Number(Math.min(enrollment.percentCompleted ?? 0, 100).toFixed(2));
 
   // Check if student already has assigned timeslots
   const hasAssignedTimeslot = enrollment.assignedTimeSlot && 
@@ -352,8 +356,20 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 <Button onClick={() => setIsDetailsOpen(true)} variant="outline" className="w-full sm:w-auto">View Details</Button>
               </>
             )}
-            
-
+              {variant !== 'available' && enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && (
+              <>
+                {enrollment?.hpSystem && (
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto gap-2"
+                    onClick={() => navigate({ to: `/student/hp-system/${enrollment.courseVersionId}/${enrollment.cohortName}/activities`, state:{from: location.pathname} })}
+                  >
+                    <Activity className="h-4 w-4" />
+                    HP Dashboard
+                  </Button>
+                )}
+              </>
+            )}
             {variant !== 'available' && supportLink && (() => {
               const isEmail = supportLink.startsWith('mailto:') || (!supportLink.startsWith('http://') && !supportLink.startsWith('https://') && !supportLink.startsWith('//') && supportLink.includes('@'));
               const href = supportLink.startsWith('mailto:')

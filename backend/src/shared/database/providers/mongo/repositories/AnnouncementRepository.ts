@@ -143,6 +143,7 @@ export class AnnouncementRepository {
             courseId?: string;
             courseVersionId?: string;
             instructorId?: string;
+            cohortId?: string;
         },
         page: number = 1,
         limit: number = 10,
@@ -173,6 +174,12 @@ export class AnnouncementRepository {
                 : null;
             filter.instructorId = { $in: [filters.instructorId, ...(instructorIdObj ? [instructorIdObj] : [])] };
         }
+        if (filters.cohortId) {
+            const cohortIdObj = ObjectId.isValid(filters.cohortId)
+                ? new ObjectId(filters.cohortId)
+                : null;
+            filter.cohortId = { $in: [filters.cohortId, ...(cohortIdObj ? [cohortIdObj] : [])] };
+        }
 
         const skip = (page - 1) * limit;
 
@@ -191,11 +198,37 @@ export class AnnouncementRepository {
                         as: 'courseDetails'
                     }
                 },
+                // Lookup Cohort
+                {
+                    $lookup: {
+                        from: 'cohorts',
+                        localField: 'cohortId',
+                        foreignField: '_id',
+                        as: 'cohortDetails'
+                    }
+                },
+                // Convert cohort array → object
+                {
+                    $addFields: {
+                        cohortDetails: { $arrayElemAt: ['$cohortDetails', 0] }
+                    }
+                },
+                // Determine version id
+                {
+                    $addFields: {
+                        effectiveVersionId: {
+                            $ifNull: [
+                                '$courseVersionId',
+                                '$cohortDetails.courseVersionId'
+                            ]
+                        }
+                    }
+                },
                 // Lookup Course Version
                 {
                     $lookup: {
                         from: 'newCourseVersion',
-                        localField: 'courseVersionId',
+                        localField: 'effectiveVersionId',
                         foreignField: '_id',
                         as: 'versionDetails'
                     }
@@ -214,7 +247,8 @@ export class AnnouncementRepository {
                     $addFields: {
                         courseName: { $arrayElemAt: ['$courseDetails.name', 0] },
                         courseVersionName: { $arrayElemAt: ['$versionDetails.version', 0] },
-                        instructorFirebaseUid: { $arrayElemAt: ['$instructorDetails.firebaseUID', 0] }
+                        instructorFirebaseUid: { $arrayElemAt: ['$instructorDetails.firebaseUID', 0] },
+                        cohortName: '$cohortDetails.name'
                     }
                 },
                 // Remove joined arrays
@@ -222,7 +256,9 @@ export class AnnouncementRepository {
                     $project: {
                         courseDetails: 0,
                         versionDetails: 0,
-                        instructorDetails: 0
+                        instructorDetails: 0,
+                        cohortDetails: 0,
+                        effectiveVersionId: 0
                     }
                 }
             ], { session }).toArray(),
@@ -237,13 +273,14 @@ export class AnnouncementRepository {
             courseId: a.courseId?.toString(),
             courseVersionId: a.courseVersionId?.toString(),
             instructorId: a.instructorId?.toString(),
+            cohortId: a.cohortId?.toString(),
         })) as IAnnouncement[];
 
         return { announcements: normalized, totalDocuments, totalPages };
     }
 
     async findForStudent(
-        enrollments: { courseId: string; versionId: string }[],
+        enrollments: { courseId: string; versionId: string, cohortId?: string }[],
         page: number = 1,
         limit: number = 10,
         session?: ClientSession,
@@ -263,6 +300,9 @@ export class AnnouncementRepository {
             const versionIdObj = ObjectId.isValid(enrollment.versionId)
                 ? new ObjectId(enrollment.versionId)
                 : null;
+            const cohortIdObj = ObjectId.isValid(enrollment.cohortId)
+                ? new ObjectId(enrollment.cohortId)
+                : null;
 
             // COURSE_SPECIFIC: match courseId
             orConditions.push({
@@ -276,6 +316,15 @@ export class AnnouncementRepository {
                 courseId: { $in: [enrollment.courseId, ...(courseIdObj ? [courseIdObj] : [])] },
                 courseVersionId: { $in: [enrollment.versionId, ...(versionIdObj ? [versionIdObj] : [])] },
             });
+
+            // COHORT_SPECIFIC
+            if (enrollment.cohortId) {
+                orConditions.push({
+                    type: AnnouncementType.COHORT_SPECIFIC,
+                    courseId: { $in: [enrollment.courseId, ...(courseIdObj ? [courseIdObj] : [])] },
+                    cohortId: { $in: [enrollment.cohortId, ...(cohortIdObj ? [cohortIdObj] : [])] }
+                });
+            }
         }
 
         const filter: any = {
@@ -301,11 +350,37 @@ export class AnnouncementRepository {
                         as: 'courseDetails'
                     }
                 },
+                // Lookup Cohort
+                {
+                    $lookup: {
+                        from: 'cohorts',
+                        localField: 'cohortId',
+                        foreignField: '_id',
+                        as: 'cohortDetails'
+                    }
+                },
+                // Convert cohort array → object
+                {
+                    $addFields: {
+                        cohortDetails: { $arrayElemAt: ['$cohortDetails', 0] }
+                    }
+                },
+                // Determine version id
+                {
+                    $addFields: {
+                        effectiveVersionId: {
+                            $ifNull: [
+                                '$courseVersionId',
+                                '$cohortDetails.courseVersionId'
+                            ]
+                        }
+                    }
+                },
                 // Lookup Course Version
                 {
                     $lookup: {
                         from: 'newCourseVersion',
-                        localField: 'courseVersionId',
+                        localField: 'effectiveVersionId',
                         foreignField: '_id',
                         as: 'versionDetails'
                     }
@@ -324,6 +399,7 @@ export class AnnouncementRepository {
                     $addFields: {
                         courseName: { $arrayElemAt: ['$courseDetails.name', 0] },
                         courseVersionName: { $arrayElemAt: ['$versionDetails.version', 0] },
+                        cohortName: '$cohortDetails.name',
                         instructorFirebaseUid: { $arrayElemAt: ['$instructorDetails.firebaseUID', 0] }
                     }
                 },
@@ -332,7 +408,9 @@ export class AnnouncementRepository {
                     $project: {
                         courseDetails: 0,
                         versionDetails: 0,
-                        instructorDetails: 0
+                        instructorDetails: 0,
+                        cohortDetails: 0,
+                        effectiveVersionId: 0
                     }
                 }
             ], { session }).toArray(),
@@ -347,6 +425,7 @@ export class AnnouncementRepository {
             courseId: a.courseId?.toString(),
             courseVersionId: a.courseVersionId?.toString(),
             instructorId: a.instructorId?.toString(),
+            cohortId: a.cohortId?.toString()
         })) as IAnnouncement[];
 
         return { announcements: normalized, totalDocuments, totalPages };
