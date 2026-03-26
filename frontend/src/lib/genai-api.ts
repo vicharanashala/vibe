@@ -112,6 +112,18 @@ export interface QuestionGenerationParameters {
   BIN?: number;
   prompt?: string;
   numberOfQuestions?: number;
+  smartBloom?: {
+    enabled?: boolean;
+    segmentationStrategy?: 'DEFAULT' | 'CONCEPT_END';
+    distribution?: {
+      knowledge: number;
+      understanding: number;
+      application: number;
+      analysis?: number;
+      evaluation?: number;
+      creation?: number;
+    };
+  };
 }
 
 export interface Chunk {
@@ -249,6 +261,9 @@ export const connectToLiveStatusUpdates = (
 
   const eventSource = new EventSourcePolyfill(url, {
     headers: { Authorization: `Bearer ${getAuthToken()}` },
+    // Some tasks can run >45s without emitting status updates.
+    // Keep the connection alive longer before the polyfill treats it as dead.
+    heartbeatTimeout: 180000,
   });
 
   eventSource.onmessage = (event) => {
@@ -267,7 +282,8 @@ export const connectToLiveStatusUpdates = (
   });
 
   eventSource.onerror = (error) => {
-    console.error('SSE error:', error);
+    // EventSource may emit transient reconnect errors; keep this as warning noise only.
+    console.warn('SSE reconnecting...', error);
     // if (onError) onError(error);
   };
 
