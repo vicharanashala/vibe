@@ -56,6 +56,13 @@ export const EjectionPolicyCard = ({ policy, onEdit, canEdit, canDelete }: Eject
     triggers.push(
       `${policy.triggers.missedDeadlines.consecutiveMisses} missed deadlines`
     );
+
+    const rules = policy.triggers.missedDeadlines.progressRules;
+    if (rules && rules.length > 0) {
+      rules.forEach(rule => {
+        triggers.push(`Require ${rule.targetPercentage}% progress every ${rule.timeframeDays} days`);
+      });
+    }
   }
 
   if (policy.triggers.policyViolations?.enabled) {

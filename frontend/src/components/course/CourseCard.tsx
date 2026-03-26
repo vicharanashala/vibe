@@ -371,6 +371,8 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   courseId={courseId}
                   courseVersionId={versionId}
                   cohortId={cohortId}
+                  enrollmentDate={enrollment.enrollmentDate}
+                  currentProgressPercent={progress}
                 />
 
             {variant !== 'available' && supportLink && (() => {

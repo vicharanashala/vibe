@@ -3,8 +3,12 @@ import { EjectionPolicy } from "@/types/ejection-policy.types"
 
 export function StudentPolicyList({
   policies,
+  enrollmentDate,
+  currentProgressPercent
 }: {
   policies: EjectionPolicy[]
+  enrollmentDate?: Date | string
+  currentProgressPercent?: number
 }) {
 
   if (!policies.length) {
@@ -18,7 +22,12 @@ export function StudentPolicyList({
   return (
     <div className="space-y-4">
       {policies.map((policy) => (
-        <StudentPolicyCard key={policy._id} policy={policy} />
+        <StudentPolicyCard 
+          key={policy._id} 
+          policy={policy} 
+          enrollmentDate={enrollmentDate}
+          currentProgressPercent={currentProgressPercent}
+        />
       ))}
     </div>
   )

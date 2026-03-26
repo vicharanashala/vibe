@@ -2,8 +2,15 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Clock, AlertTriangle, Shield } from "lucide-react"
 import { EjectionPolicy } from "@/types/ejection-policy.types"
+import { calculateNextMilestones } from "@/lib/policy-utils"
 
-export function StudentPolicyCard({ policy }: { policy: EjectionPolicy }) {
+interface StudentPolicyCardProps {
+  policy: EjectionPolicy;
+  enrollmentDate?: Date | string;
+  currentProgressPercent?: number;
+}
+
+export function StudentPolicyCard({ policy, enrollmentDate, currentProgressPercent = 0 }: StudentPolicyCardProps) {
 
   const triggers = []
 
@@ -17,6 +24,13 @@ export function StudentPolicyCard({ policy }: { policy: EjectionPolicy }) {
     triggers.push(
       `${policy.triggers.missedDeadlines.consecutiveMisses} missed deadlines`
     )
+
+    const rules = policy.triggers.missedDeadlines.progressRules;
+    if (rules && rules.length > 0) {
+      const startDate = enrollmentDate || new Date();
+      const milestones = calculateNextMilestones(rules, startDate, currentProgressPercent);
+      milestones.forEach(m => triggers.push(m.studentFormattedString));
+    }
   }
 
   if (policy.triggers.policyViolations?.enabled) {
@@ -62,10 +76,15 @@ export function StudentPolicyCard({ policy }: { policy: EjectionPolicy }) {
 
           {triggers.map((trigger, i) => (
             <div key={i} className="flex items-center gap-2">
-              <AlertTriangle className="h-3 w-3 text-orange-500" />
-              {trigger}
+              <AlertTriangle className="h-3 w-3 text-orange-500 shrink-0" />
+              <span>{trigger}</span>
             </div>
           ))}
+          {currentProgressPercent !== undefined && (
+            <div className="flex items-center gap-2 mt-2 text-green-600 dark:text-green-500 font-medium">
+               <span>Current Progress: {currentProgressPercent}%</span>
+            </div>
+          )}
 
         </div>
 

@@ -8,13 +8,17 @@ export function StudentPolicyModal({
   onClose,
   courseId,
   courseVersionId,
-  cohortId
+  cohortId,
+  enrollmentDate,
+  currentProgressPercent
 }: {
   open: boolean
   onClose: () => void
   courseId: string
   courseVersionId:string
   cohortId:string
+  enrollmentDate?: Date | string
+  currentProgressPercent?: number
 }) {
 
   const { policies, isLoading } = useActivePoliciesForCourse(courseId,courseVersionId,cohortId)
@@ -41,7 +45,11 @@ export function StudentPolicyModal({
         {isLoading ? (
           <div className="text-center py-6">Loading policies...</div>
         ) : (
-          <StudentPolicyList policies={policies} />
+          <StudentPolicyList 
+            policies={policies} 
+            enrollmentDate={enrollmentDate}
+            currentProgressPercent={currentProgressPercent}
+          />
         )}
 </div></div>
       </DialogContent>
