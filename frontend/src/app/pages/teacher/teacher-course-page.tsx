@@ -2410,7 +2410,8 @@ function TeacherCourseContent() {
               <AiWorkflow />
             ) : mode === "smartBloom" ? (
               <SmartBloomWorkflow
-                onUploadComplete={(uploadedModuleId, uploadedSectionId) => {
+                onUploadComplete={async (uploadedModuleId, uploadedSectionId) => {
+                  await invalidateAllQueries();
                   setMode('default');
                   setExpandedModules(prev => ({ ...prev, [uploadedModuleId]: true }));
                   setExpandedSections(prev => ({ ...prev, [uploadedSectionId]: true }));

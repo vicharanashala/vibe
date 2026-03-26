@@ -23,6 +23,7 @@ type BloomKey =
 
 type BloomDistribution = Record<BloomKey, number>;
 type OptionalBloomKey = "analysis" | "evaluation" | "creation";
+type QuestionTypeKey = "SOL" | "SML" | "NAT" | "DES" | "BIN";
 
 const REQUIRED_BLOOM_KEYS: BloomKey[] = ["knowledge", "understanding", "application"];
 const OPTIONAL_BLOOM_KEYS: OptionalBloomKey[] = ["analysis", "evaluation", "creation"];
@@ -35,6 +36,16 @@ const BLOOM_LEVEL_META: Record<BloomKey, { label: string; description: string }>
   evaluation: { label: "Evaluation", description: "Judge, justify, critique" },
   creation: { label: "Creation", description: "Design, build, synthesize" },
 };
+
+const QUESTION_TYPE_META: Record<QuestionTypeKey, { label: string; description: string }> = {
+  SOL: { label: "Single Correct (MCQ)", description: "One correct option" },
+  SML: { label: "Multiple Correct", description: "More than one correct option" },
+  NAT: { label: "Numeric", description: "Answer is a number/value" },
+  DES: { label: "Descriptive", description: "Short explanation-based answer" },
+  BIN: { label: "Binary", description: "Yes/No or True/False" },
+};
+
+const ALL_QUESTION_TYPES: QuestionTypeKey[] = ["SOL", "SML", "NAT", "DES", "BIN"];
 
 type BloomPreset = {
   id: "classic-3" | "full-6-balanced" | "higher-order-heavy";
@@ -106,6 +117,9 @@ interface CuratedQuestion {
 
 const MIN_ACTIVE_QUESTIONS_PER_SEGMENT = 15;
 const MIN_SEGMENT_DURATION_SECONDS = 120; // 2 min minimum for quiz-worthy coverage
+const MIN_BLOOM_QUESTIONS_PER_SEGMENT = 3;
+const MAX_BLOOM_QUESTIONS_PER_SEGMENT = 10;
+const DEFAULT_BLOOM_QUESTIONS_PER_SEGMENT = 5;
 
 const normalizeOptionText = (value: unknown): string =>
   String(value ?? "")
@@ -124,6 +138,58 @@ const uniqueOptions = (values: unknown[]): string[] => {
     out.push(normalized);
   });
   return out;
+};
+
+const BINARY_POSITIVE_TOKENS = new Set(["yes", "true", "y", "t"]);
+const BINARY_NEGATIVE_TOKENS = new Set(["no", "false", "n", "f"]);
+
+const normalizeBinaryToken = (value: string): string =>
+  normalizeOptionText(value)
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, "")
+    .trim();
+
+const getBinaryPolarity = (value: string): "positive" | "negative" | null => {
+  const token = normalizeBinaryToken(value);
+  if (BINARY_POSITIVE_TOKENS.has(token)) return "positive";
+  if (BINARY_NEGATIVE_TOKENS.has(token)) return "negative";
+  return null;
+};
+
+const isBinaryQuestionText = (questionText: string): boolean => {
+  const text = String(questionText ?? "").trim().toLowerCase();
+  if (!text) return false;
+  if (/^true\s*\/\s*false\b/.test(text)) return true;
+  if (/^true\s+or\s+false\b/.test(text)) return true;
+  if (/^(is|are|am|was|were|do|does|did|can|could|should|will|would|has|have|had)\b/.test(text)) return true;
+  return false;
+};
+
+const enforceBinaryOptionLimit = (questionText: string, options: string[]): string[] => {
+  const cleaned = uniqueOptions(options);
+  const entries = cleaned.map((opt) => ({ opt, polarity: getBinaryPolarity(opt) }));
+  const hasPositive = entries.some((entry) => entry.polarity === "positive");
+  const hasNegative = entries.some((entry) => entry.polarity === "negative");
+  const binaryByOptions = hasPositive && hasNegative;
+  const binaryByQuestion = isBinaryQuestionText(questionText);
+
+  if (!binaryByOptions && !binaryByQuestion) {
+    return cleaned;
+  }
+
+  const positive = entries.find((entry) => entry.polarity === "positive")?.opt ?? "Yes";
+  const negative = entries.find((entry) => entry.polarity === "negative")?.opt ?? "No";
+  return uniqueOptions([positive, negative]).slice(0, 2);
+};
+
+const BLOOM_LEVEL_BADGE_CLASSES: Record<BloomKey | "unclassified", string> = {
+  knowledge: "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300",
+  understanding: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300",
+  application: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300",
+  analysis: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300",
+  evaluation: "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300",
+  creation: "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300",
+  unclassified: "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400",
 };
 
 const clampToNumber = (value: string, min = 0) => {
@@ -219,6 +285,222 @@ const allocateQuestions = (
   return allocations;
 };
 
+const allocateQuestionTypes = (
+  totalQuestions: number,
+  enabledTypes: QuestionTypeKey[],
+): Record<QuestionTypeKey, number> => {
+  const allocations: Record<QuestionTypeKey, number> = {
+    SOL: 0,
+    SML: 0,
+    NAT: 0,
+    DES: 0,
+    BIN: 0,
+  };
+
+  if (enabledTypes.length === 0 || totalQuestions <= 0) {
+    return allocations;
+  }
+
+  const base = Math.floor(totalQuestions / enabledTypes.length);
+  let remainder = totalQuestions - base * enabledTypes.length;
+
+  enabledTypes.forEach((type) => {
+    allocations[type] = base;
+  });
+
+  enabledTypes.forEach((type) => {
+    if (remainder <= 0) return;
+    allocations[type] += 1;
+    remainder -= 1;
+  });
+
+  return allocations;
+};
+
+type SmartBloomGenerationPlan = {
+  totalQuestions: number;
+  perSegmentBloomTargets: number[];
+  totalPerBloomLevel: number;
+  segmentInstructionBlock: string;
+};
+
+type QuestionNormalizationContext = {
+  segmentMap?: number[];
+  perSegmentQuestionTargets?: number[];
+};
+
+const buildSmartBloomGenerationPlan = (
+  segmentationMap: number[],
+  activeKeys: BloomKey[],
+): SmartBloomGenerationPlan => {
+  const durations = segmentationMap.length > 0
+    ? segmentationMap.map((end, index) => (index === 0 ? end : end - segmentationMap[index - 1]))
+    : [MIN_SEGMENT_DURATION_SECONDS];
+
+  const minDuration = Math.min(...durations);
+  const maxDuration = Math.max(...durations);
+
+  const perSegmentBloomTargets = durations.map((duration) => {
+    if (maxDuration === minDuration) {
+      return DEFAULT_BLOOM_QUESTIONS_PER_SEGMENT;
+    }
+
+    const normalized = (duration - minDuration) / (maxDuration - minDuration);
+    return MIN_BLOOM_QUESTIONS_PER_SEGMENT + Math.round(normalized * (MAX_BLOOM_QUESTIONS_PER_SEGMENT - MIN_BLOOM_QUESTIONS_PER_SEGMENT));
+  });
+
+  const totalPerBloomLevel = perSegmentBloomTargets.reduce((sum, count) => sum + count, 0);
+  const totalQuestions = totalPerBloomLevel * activeKeys.length;
+  const segmentInstructionBlock = perSegmentBloomTargets
+    .map((count, index) => {
+      const durationMinutes = (durations[index] / 60).toFixed(1);
+      return `- Segment ${index + 1} (~${durationMinutes} min): generate ${count} question(s) for each enabled Bloom level.`;
+    })
+    .join("\n");
+
+  return {
+    totalQuestions,
+    perSegmentBloomTargets,
+    totalPerBloomLevel,
+    segmentInstructionBlock,
+  };
+};
+
+const normalizeSegmentMap = (value: unknown): number[] =>
+  Array.isArray(value)
+    ? value
+        .map((entry) => Number(entry))
+        .filter((entry) => Number.isFinite(entry) && entry > 0)
+    : [];
+
+const parseSegmentNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+
+  const direct = Number(text);
+  if (Number.isFinite(direct)) {
+    return direct;
+  }
+
+  const matched = text.match(/(\d+(?:\.\d+)?)/);
+  if (!matched) return null;
+
+  const parsed = Number(matched[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const scaleSegmentTargets = (
+  totalQuestions: number,
+  requestedTargets: number[],
+): number[] => {
+  if (totalQuestions <= 0 || requestedTargets.length === 0) {
+    return requestedTargets.map(() => 0);
+  }
+
+  const sanitizedTargets = requestedTargets.map((target) => Math.max(0, Math.floor(target)));
+  const totalRequested = sanitizedTargets.reduce((sum, target) => sum + target, 0);
+
+  if (totalRequested <= 0) {
+    const evenShare = Math.floor(totalQuestions / requestedTargets.length);
+    let remainder = totalQuestions - evenShare * requestedTargets.length;
+    return requestedTargets.map(() => {
+      const allocation = evenShare + (remainder > 0 ? 1 : 0);
+      if (remainder > 0) remainder -= 1;
+      return allocation;
+    });
+  }
+
+  const weighted = sanitizedTargets.map((target, index) => {
+    const exact = (target / totalRequested) * totalQuestions;
+    return {
+      index,
+      allocation: Math.floor(exact),
+      remainder: exact - Math.floor(exact),
+    };
+  });
+
+  let allocated = weighted.reduce((sum, entry) => sum + entry.allocation, 0);
+  let remaining = totalQuestions - allocated;
+
+  weighted
+    .slice()
+    .sort((left, right) => right.remainder - left.remainder)
+    .forEach((entry) => {
+      if (remaining <= 0) return;
+      weighted[entry.index].allocation += 1;
+      remaining -= 1;
+    });
+
+  if (totalQuestions >= requestedTargets.length) {
+    for (let index = 0; index < weighted.length; index += 1) {
+      if (remaining <= 0) break;
+      if (weighted[index].allocation > 0) continue;
+      weighted[index].allocation = 1;
+      remaining -= 1;
+    }
+  }
+
+  while (remaining > 0) {
+    for (let index = 0; index < weighted.length && remaining > 0; index += 1) {
+      weighted[index].allocation += 1;
+      remaining -= 1;
+    }
+  }
+
+  allocated = weighted.reduce((sum, entry) => sum + entry.allocation, 0);
+  if (allocated > totalQuestions) {
+    let overflow = allocated - totalQuestions;
+    for (let index = weighted.length - 1; index >= 0 && overflow > 0; index -= 1) {
+      const removable = Math.min(weighted[index].allocation, overflow);
+      weighted[index].allocation -= removable;
+      overflow -= removable;
+    }
+  }
+
+  return weighted.map((entry) => entry.allocation);
+};
+
+const rebalanceQuestionsAcrossSegments = (
+  questions: CuratedQuestion[],
+  segmentMap: number[],
+  requestedTargets: number[],
+): CuratedQuestion[] => {
+  if (!questions.length || !segmentMap.length) {
+    return questions;
+  }
+
+  const scaledTargets = scaleSegmentTargets(
+    questions.length,
+    requestedTargets.length === segmentMap.length
+      ? requestedTargets
+      : segmentMap.map(() => 1),
+  );
+
+  let runningTotal = 0;
+  let currentSegmentIndex = 0;
+
+  return questions.map((question, idx) => {
+    while (
+      currentSegmentIndex < scaledTargets.length - 1 &&
+      idx >= runningTotal + scaledTargets[currentSegmentIndex]
+    ) {
+      runningTotal += scaledTargets[currentSegmentIndex];
+      currentSegmentIndex += 1;
+    }
+
+    const reassignedSegmentId = segmentMap[currentSegmentIndex] ?? segmentMap[0];
+    return {
+      ...question,
+      segmentId: reassignedSegmentId,
+      id: `${reassignedSegmentId}-${(question.text || "q").slice(0, 32)}-${idx}`,
+    };
+  });
+};
+
 interface SmartBloomWorkflowProps {
   onUploadComplete?: (moduleId: string, sectionId: string) => void;
 }
@@ -234,6 +516,13 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
   const [segmentationStrategy, setSegmentationStrategy] = useState<"DEFAULT" | "CONCEPT_END">("CONCEPT_END");
   const [pipelineStep, setPipelineStep] = useState<PipelineStep>("IDLE");
   const [totalQuestions, setTotalQuestions] = useState<number>(10);
+  const [questionTypeEnabled, setQuestionTypeEnabled] = useState<Record<QuestionTypeKey, boolean>>({
+    SOL: true,
+    SML: false,
+    NAT: false,
+    DES: false,
+    BIN: false,
+  });
   const [distribution, setDistribution] = useState<BloomDistribution>({
     knowledge: 40,
     understanding: 35,
@@ -294,6 +583,16 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
     [distribution, totalQuestions, activeBloomKeys],
   );
 
+  const activeQuestionTypes = useMemo(
+    () => ALL_QUESTION_TYPES.filter((type) => questionTypeEnabled[type]),
+    [questionTypeEnabled],
+  );
+
+  const questionTypeBreakdown = useMemo(
+    () => allocateQuestionTypes(totalQuestions, activeQuestionTypes),
+    [totalQuestions, activeQuestionTypes],
+  );
+
   const handleDistributionChange = (key: BloomKey, value: string) => {
     if (!REQUIRED_BLOOM_KEYS.includes(key) && !optionalBloomEnabled[key as OptionalBloomKey]) {
       return;
@@ -319,6 +618,18 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
   const applyBloomPreset = (preset: BloomPreset) => {
     setOptionalBloomEnabled(preset.enabledOptional);
     setDistribution(preset.distribution);
+  };
+
+  const toggleQuestionType = (type: QuestionTypeKey) => {
+    setQuestionTypeEnabled((prev) => {
+      const next = { ...prev, [type]: !prev[type] };
+      const selectedCount = ALL_QUESTION_TYPES.filter((k) => next[k]).length;
+      if (selectedCount === 0) {
+        toast.error("Select at least one question type.");
+        return prev;
+      }
+      return next;
+    });
   };
 
   const segmentIds = useMemo(() => {
@@ -360,7 +671,12 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
     );
   }, [segmentIds, questions, acceptedQuestionIds, revealedSegmentCount]);
 
-  const normalizeQuestionPayload = (data: any): CuratedQuestion[] => {
+  const normalizeQuestionPayload = (
+    data: any,
+    context: QuestionNormalizationContext = {},
+  ): CuratedQuestion[] => {
+    const segmentMap = normalizeSegmentMap(context.segmentMap);
+
     const normalizeBloomLevel = (value: unknown): BloomKey | 'unclassified' => {
       const normalized = String(value ?? '').trim().toLowerCase();
       if (
@@ -376,6 +692,47 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
       return 'unclassified';
     };
 
+    const resolveSegmentId = (item: any, fallbackSegment: number) => {
+      const explicitSegment =
+        item?.segmentId ??
+        item?.segment ??
+        item?.segmentIndex ??
+        item?.segmentNumber ??
+        item?.segment_id ??
+        item?.question?.segmentId ??
+        item?.question?.segment ??
+        item?.question?.segmentIndex ??
+        item?.question?.segmentNumber ??
+        item?.metadata?.segmentId ??
+        item?.metadata?.segmentIndex ??
+        item?.metadata?.segmentNumber;
+
+      const parsedSegment = parseSegmentNumber(explicitSegment);
+      if (parsedSegment == null) {
+        return fallbackSegment;
+      }
+
+      if (!segmentMap.length) {
+        return parsedSegment;
+      }
+
+      if (segmentMap.includes(parsedSegment)) {
+        return parsedSegment;
+      }
+
+      const zeroBasedIndex = Math.trunc(parsedSegment);
+      if (zeroBasedIndex >= 0 && zeroBasedIndex < segmentMap.length) {
+        return segmentMap[zeroBasedIndex];
+      }
+
+      const oneBasedIndex = Math.trunc(parsedSegment) - 1;
+      if (oneBasedIndex >= 0 && oneBasedIndex < segmentMap.length) {
+        return segmentMap[oneBasedIndex];
+      }
+
+      return parsedSegment;
+    };
+
     const buildQuestion = (item: any, fallbackSegment: number, indexSeed: number): CuratedQuestion => {
       const questionText = item?.question?.text ?? item?.text ?? item?.question ?? "";
       const explicitOptions = Array.isArray(item?.options) ? item.options : [];
@@ -386,20 +743,52 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
           ]
         : [];
       const baseOptions = uniqueOptions([...explicitOptions, ...solutionOptions]);
-      const segmentId = Number(item?.segmentId ?? item?.segment ?? fallbackSegment);
+      const normalizedOptions = enforceBinaryOptionLimit(questionText, baseOptions.filter(Boolean));
+      const segmentId = resolveSegmentId(item, fallbackSegment);
       const stableId = `${segmentId}-${(questionText || "q").slice(0, 32)}-${indexSeed}`;
       return {
         id: stableId,
         segmentId: Number.isFinite(segmentId) ? segmentId : fallbackSegment,
         bloomLevel: normalizeBloomLevel(item?.bloomLevel ?? item?.question?.bloomLevel),
         text: questionText,
-        options: baseOptions.filter(Boolean),
+        options: normalizedOptions,
         raw: item,
       };
     };
 
     if (Array.isArray(data)) {
-      return data.map((q, idx) => buildQuestion(q, Number(q?.segmentId ?? 0), idx));
+      const flatData = data.filter((entry) => entry && typeof entry === "object");
+      const hasExplicitSegments = flatData.some((entry) =>
+        parseSegmentNumber(
+          entry?.segmentId ?? entry?.segment ?? entry?.segmentIndex ?? entry?.segmentNumber,
+        ) != null,
+      );
+
+      const perSegmentQuestionTargets = Array.isArray(context.perSegmentQuestionTargets)
+        ? context.perSegmentQuestionTargets
+        : [];
+
+      if (!hasExplicitSegments && segmentMap.length > 1) {
+        const normalized = flatData.map((question, idx) =>
+          buildQuestion(question, segmentMap[0] ?? 0, idx),
+        );
+        return rebalanceQuestionsAcrossSegments(normalized, segmentMap, perSegmentQuestionTargets);
+      }
+
+      const normalized = flatData.map((q, idx) => buildQuestion(q, segmentMap[0] ?? 0, idx));
+
+      if (segmentMap.length > 1) {
+        const uniqueSegmentCount = new Set(normalized.map((q) => q.segmentId)).size;
+        const shouldRebalanceCollapsedOutput =
+          uniqueSegmentCount <= 1 &&
+          normalized.length >= segmentMap.length;
+
+        if (shouldRebalanceCollapsedOutput) {
+          return rebalanceQuestionsAcrossSegments(normalized, segmentMap, perSegmentQuestionTargets);
+        }
+      }
+
+      return normalized;
     }
 
     if (Array.isArray(data?.segments)) {
@@ -411,7 +800,8 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
             ? segment
             : [];
         possible.forEach((q: any, qIdx: number) => {
-          flat.push(buildQuestion(q, segIdx, segIdx * 1000 + qIdx));
+          const fallbackSegment = resolveSegmentId(segment, segmentMap[segIdx] ?? segIdx);
+          flat.push(buildQuestion(q, fallbackSegment, segIdx * 1000 + qIdx));
         });
       });
       return flat;
@@ -550,18 +940,115 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
     });
   };
 
-  const fetchLatestQuestionResults = async (jobId: string, directFileUrl?: string): Promise<CuratedQuestion[]> => {
+  const fetchLatestTaskRun = async <T,>(jobId: string, taskKey: string): Promise<T | null> => {
+    const token = localStorage.getItem("firebase-auth-token");
+    if (!token) throw new Error("Authentication token missing");
+
+    const statusUrl = getApiUrl(`/genai/${jobId}/tasks/${taskKey}/status`);
+    const statusRes = await fetch(statusUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!statusRes.ok) {
+      throw new Error(`Failed to fetch ${taskKey} status`);
+    }
+
+    const payload = await statusRes.json();
+    if (Array.isArray(payload)) {
+      return (payload[payload.length - 1] ?? null) as T | null;
+    }
+
+    return (payload ?? null) as T | null;
+  };
+
+  const fetchLatestSegmentationMap = async (jobId: string): Promise<number[]> => {
+    const latestSegmentation = await fetchLatestTaskRun<{ segmentationMap?: unknown }>(jobId, "SEGMENTATION");
+    return normalizeSegmentMap(latestSegmentation?.segmentationMap);
+  };
+
+  const extractTranscriptEndTime = (transcriptPayload: any): number => {
+    const chunks = Array.isArray(transcriptPayload?.chunks) ? transcriptPayload.chunks : [];
+    if (!chunks.length) return 0;
+
+    let maxEnd = 0;
+    chunks.forEach((chunk: any) => {
+      const rawEnd = chunk?.timestamp?.[1];
+      const parsedEnd = Number(rawEnd);
+      if (Number.isFinite(parsedEnd) && parsedEnd > maxEnd) {
+        maxEnd = parsedEnd;
+      }
+    });
+
+    return maxEnd;
+  };
+
+  const updateSegmentationMapForJob = async (jobId: string, segmentMap: number[]) => {
+    const token = localStorage.getItem("firebase-auth-token");
+    if (!token) throw new Error("Authentication token missing");
+
+    const url = getApiUrl(`/genai/jobs/${jobId}/edit/segment-map`);
+    const response = await fetch(url, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ segmentMap }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to update segmentation map");
+    }
+  };
+
+  const ensureSegmentationCoversTranscriptEnd = async (jobId: string, segmentMap: number[]): Promise<number[]> => {
+    const latestSegmentation = await fetchLatestTaskRun<{
+      transcriptFileUrl?: string;
+      segmentationMap?: unknown;
+    }>(jobId, "SEGMENTATION");
+
+    const normalizedMap = segmentMap.length > 0
+      ? segmentMap
+      : normalizeSegmentMap(latestSegmentation?.segmentationMap);
+
+    const transcriptFileUrl = latestSegmentation?.transcriptFileUrl;
+    if (!transcriptFileUrl) {
+      return normalizedMap;
+    }
+
+    const transcriptRes = await fetch(transcriptFileUrl);
+    if (!transcriptRes.ok) {
+      return normalizedMap;
+    }
+
+    const transcriptPayload = await transcriptRes.json();
+    const transcriptEndTime = extractTranscriptEndTime(transcriptPayload);
+    if (!Number.isFinite(transcriptEndTime) || transcriptEndTime <= 0) {
+      return normalizedMap;
+    }
+
+    const sortedMap = [...normalizedMap].sort((a, b) => a - b);
+    const lastBoundary = sortedMap[sortedMap.length - 1] ?? 0;
+    const COVERAGE_TOLERANCE_SECONDS = 1;
+
+    if (lastBoundary >= transcriptEndTime - COVERAGE_TOLERANCE_SECONDS) {
+      return sortedMap;
+    }
+
+    const correctedEnd = Number(transcriptEndTime.toFixed(2));
+    const correctedMap = [...sortedMap, correctedEnd];
+    await updateSegmentationMapForJob(jobId, correctedMap);
+    return correctedMap;
+  };
+
+  const fetchLatestQuestionResults = async (
+    jobId: string,
+    directFileUrl?: string,
+    context: QuestionNormalizationContext = {},
+  ): Promise<CuratedQuestion[]> => {
     let fileUrl = directFileUrl;
 
     if (!fileUrl) {
-      // Fallback: query the task status endpoint for the file URL
-      const token = localStorage.getItem("firebase-auth-token");
-      if (!token) throw new Error("Authentication token missing");
-      const statusUrl = getApiUrl(`/genai/${jobId}/tasks/QUESTION_GENERATION/status`);
-      const statusRes = await fetch(statusUrl, { headers: { Authorization: `Bearer ${token}` } });
-      if (!statusRes.ok) throw new Error("Failed to fetch generated question status");
-      const payload = await statusRes.json();
-      const latest = Array.isArray(payload) ? payload[payload.length - 1] : payload;
+      const latest = await fetchLatestTaskRun<{ fileUrl?: string }>(jobId, "QUESTION_GENERATION");
       if (!latest?.fileUrl) throw new Error("Question file URL not found");
       fileUrl = latest.fileUrl;
     }
@@ -569,19 +1056,93 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
     const fileRes = await fetch(fileUrl!);
     if (!fileRes.ok) throw new Error("Failed to fetch question file");
     const fileJson = await fileRes.json();
-    return normalizeQuestionPayload(fileJson);
+    return normalizeQuestionPayload(fileJson, context);
   };
 
-  const getQuestionGenerationParams = (numQuestions: number) => ({
-    SOL: numQuestions,
-    SML: 0,
-    NAT: 0,
-    DES: 0,
+  const getQuestionGenerationParams = (
+    numQuestions: number,
+    segmentInstructionBlock?: string,
+  ) => ({
+    ...allocateQuestionTypes(numQuestions, activeQuestionTypes),
     numberOfQuestions: numQuestions,
     prompt:
-      "Generate scenario-based, situational questions that test real understanding. " +
-      "Each question should present a realistic context or mini-scenario relevant to the segment topic, " +
-      "making students apply concepts rather than just recall definitions.",
+      "SCENARIO-BASED QUESTIONS ONLY.\n" +
+      "Every single question — regardless of Bloom level — MUST open with a brief realistic mini-scenario or situational context drawn from the segment content. The cognitive question must be asked within that scenario. Pure recall or definition questions that present no scenario are STRICTLY FORBIDDEN.\n" +
+      "Scenarios MUST show variety in domain and application. Do not repeat one profession, one setting, or one type of problem across all questions.\n" +
+      "Use diverse real-world contexts such as education, healthcare, public services, business operations, logistics, manufacturing, environment, community life, and everyday decision-making whenever relevant to the transcript.\n" +
+      "Do not default to software/developer contexts unless the segment explicitly focuses on software development.\n" +
+      "\n" +
+      "Example of a FORBIDDEN (non-scenario) question:\n" +
+      "  'What is the definition of X?' — NOT acceptable.\n" +
+      "Example of REQUIRED scenario variety:\n" +
+      "  'A nurse in a clinic must decide which symptom trend needs immediate escalation. Which interpretation is most accurate?'\n" +
+      "  'A school coordinator notices attendance dropping after a schedule change. Which cause is best supported by the data?'\n" +
+      "  'A warehouse supervisor must reduce delayed dispatches under limited staffing. Which first action is most effective?'\n" +
+      "\n" +
+      "GENERATE STRICTLY BY BLOOM'S TAXONOMY LEVEL.\n" +
+      "\n" +
+      `Enabled Bloom levels: ${activeBloomKeys.map((key) => BLOOM_LEVEL_META[key].label).join(", ")}.\n` +
+      `For every segment, generate between ${MIN_BLOOM_QUESTIONS_PER_SEGMENT} and ${MAX_BLOOM_QUESTIONS_PER_SEGMENT} questions for each enabled Bloom level based on transcript depth, conceptual density, and segment duration.\n` +
+      "Use this segment-by-segment plan:\n" +
+      `${segmentInstructionBlock ?? "- For each segment, generate 3 to 10 questions for every enabled Bloom level depending on transcript richness."}\n` +
+      "Return questions in segment order. Every question MUST include the segment it belongs to using either segmentNumber (1-based) or segmentIndex (0-based).\n" +
+      "Across each segment, include multiple application styles: diagnosing an issue, choosing between options, prioritizing actions, evaluating trade-offs, and designing improvements.\n" +
+      "\n" +
+      "FOR EACH BLOOM LEVEL, DESIGN SCENARIO-BASED QUESTIONS WITH THESE SPECIFIC CHARACTERISTICS:\n" +
+      "\n" +
+      "KNOWLEDGE (recall & recognition):\n" +
+      "- Every question MUST start with a scenario: describe a situation where a person encounters the concept, then ask them to identify/recall the correct fact or term within that context.\n" +
+      "- Example stem: 'A student reads a textbook chapter and sees the term X used. Based on the context described, what does X refer to?'\n" +
+      "- Correct answers are factually correct; distractors are plausible but incorrect.\n" +
+      "\n" +
+      "UNDERSTANDING (explaining & interpreting):\n" +
+      "- Every question MUST start with a scenario: describe an observation or situation, then ask the learner to explain, classify, or interpret what is happening.\n" +
+      "- Example stem: 'A technician observes that Y occurs after step Z. How should the technician best explain this outcome to their manager?'\n" +
+      "- Requires the learner to demonstrate comprehension within the described context.\n" +
+      "\n" +
+      "APPLICATION (applying to scenarios):\n" +
+      "- Every question MUST present a concrete work or real-world situation, then ask students to apply the concept to solve or act on it.\n" +
+      "- Example stem: 'A project manager faces problem P. Using concept C, what should they do first?'\n" +
+      "- Answers show practical use of knowledge within the given scenario.\n" +
+      "\n" +
+      "ANALYSIS (breaking down & comparing):\n" +
+      "- Every question MUST present a scenario with multiple components or a described system, then ask students to identify relationships, distinguish elements, or examine assumptions.\n" +
+      "- Example stem: 'A team reviews a process where A leads to B which leads to C. What is the most likely root cause of the observed failure?'\n" +
+      "- Requires analytical thinking about the scenario's structure, cause, or interdependencies.\n" +
+      "\n" +
+      "EVALUATION (judging & justifying):\n" +
+      "- Every question MUST present a scenario with competing approaches or a proposed course of action, then ask students to judge which is most justified.\n" +
+      "- Example stem: 'A company is deciding between approach X and approach Y to solve problem P. Which approach is better supported by the evidence?'\n" +
+      "- Requires reasoning and justification against criteria visible in the scenario.\n" +
+      "\n" +
+      "CREATION (designing & synthesizing):\n" +
+      "- Every question MUST present a scenario with a gap or challenge, then ask students to design, propose, or synthesize a solution.\n" +
+      "- Example stem: 'An organization needs to accomplish goal G but has constraints A and B. Which proposed design best addresses all requirements?'\n" +
+      "- Requires original thinking and integration of multiple concepts from the scenario.\n" +
+      "\n" +
+      "CRITICAL REQUIREMENTS:\n" +
+      "1. EVERY question — at EVERY Bloom level — MUST contain a mini-scenario or situational context in the question stem. Questions without a scenario are INVALID and must not appear in the output.\n" +
+      "2. Every question must be tagged with EXACTLY ONE bloomLevel from the list above.\n" +
+      `3. For each segment, every enabled Bloom level must receive ${MIN_BLOOM_QUESTIONS_PER_SEGMENT} to ${MAX_BLOOM_QUESTIONS_PER_SEGMENT} questions.\n` +
+      "4. Each question must be designed to test the cognitive level, not just labeled.\n" +
+      "5. Ensure scenario variety and application variety; avoid repeating the same domain template in most questions.\n" +
+      "\n" +
+      "OPTION LENGTH RULES (strict):\n" +
+      "- Every answer option must be 8-20 words long.\n" +
+      "- The correct answer must NOT be longer than any distractor.\n" +
+      "- Write all four options at the same level of specificity and detail.\n" +
+      "- A student comparing only option lengths must not be able to identify the correct answer.\n" +
+      "- For Yes/No, True/False, or binary questions, provide exactly 2 options only.\n" +
+      "\n" +
+      "OUTPUT FORMAT:\n" +
+      "Return questions as JSON array. Each question must have:\n" +
+      "{\n" +
+      '  "segmentNumber": 1,\n' +
+      '  "bloomLevel": "knowledge|understanding|application|analysis|evaluation|creation",\n' +
+      '  "question": { "text": "...", "type": "SOL|SML|NAT|DES|BIN", "bloomLevel": "..." },\n' +
+      '  "options": [...],\n' +
+      '  "solution": { "correctLotItem": {...} | "correctLotItems": [...], "incorrectLotItems": [...] }\n' +
+      "}",
     smartBloom: {
       enabled: true,
       segmentationStrategy,
@@ -629,15 +1190,23 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
       type: "SEGMENTATION",
       parameters: { lam: 4.5, runs: 25, noiseId: -1, segmentationStrategy },
     });
-    let segResult = await waitForSSEEvent(jobId, "SEGMENTATION");
-    let numSegments: number | null = Array.isArray(segResult?.segmentationMap)
-      ? (segResult.segmentationMap as number[]).length
-      : null;
+    await waitForSSEEvent(jobId, "SEGMENTATION");
+    let segMap = await fetchLatestSegmentationMap(jobId);
+    addLog("Checking segmentation coverage against transcript end…");
+    const segMapBeforeCoverage = segMap;
+    segMap = await ensureSegmentationCoversTranscriptEnd(jobId, segMap);
+    if (segMap.length > segMapBeforeCoverage.length) {
+      const previousEnd = segMapBeforeCoverage[segMapBeforeCoverage.length - 1] ?? 0;
+      const correctedEnd = segMap[segMap.length - 1] ?? previousEnd;
+      addLog(`Adjusted final segment boundary from ${previousEnd.toFixed(1)}s to ${correctedEnd.toFixed(1)}s to cover full video.`);
+    } else {
+      addLog("Segmentation coverage check complete ✓");
+    }
+    let numSegments: number | null = segMap.length || null;
     if (numSegments) setSegmentCount(numSegments);
     addLog(`Segmentation complete ✓ — ${numSegments ?? "?"} segments found`);
 
     // Quiz-worthy check: ensure no segment is too short to support 15 questions
-    const segMap = Array.isArray(segResult?.segmentationMap) ? (segResult.segmentationMap as number[]) : [];
     if (segMap.length > 1) {
       const durations = segMap.map((t, i) => (i === 0 ? t : t - segMap[i - 1]));
       const shortCount = durations.filter((d) => d < MIN_SEGMENT_DURATION_SECONDS).length;
@@ -651,10 +1220,19 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
         });
         // Brief pause so the backend transitions the task status from COMPLETED → RUNNING
         await new Promise<void>((r) => setTimeout(r, 2000));
-        segResult = await waitForSSEEvent(jobId, "SEGMENTATION", 12 * 60 * 1000, true);
-        numSegments = Array.isArray(segResult?.segmentationMap)
-          ? (segResult.segmentationMap as number[]).length
-          : numSegments;
+        await waitForSSEEvent(jobId, "SEGMENTATION", 12 * 60 * 1000, true);
+        segMap = await fetchLatestSegmentationMap(jobId);
+        addLog("Re-checking segmentation coverage against transcript end…");
+        const segMapBeforeCoverageRetry = segMap;
+        segMap = await ensureSegmentationCoversTranscriptEnd(jobId, segMap);
+        if (segMap.length > segMapBeforeCoverageRetry.length) {
+          const previousEnd = segMapBeforeCoverageRetry[segMapBeforeCoverageRetry.length - 1] ?? 0;
+          const correctedEnd = segMap[segMap.length - 1] ?? previousEnd;
+          addLog(`Adjusted final segment boundary from ${previousEnd.toFixed(1)}s to ${correctedEnd.toFixed(1)}s after re-segmentation.`);
+        } else {
+          addLog("Re-segmentation coverage check complete ✓");
+        }
+        numSegments = segMap.length || numSegments;
         if (numSegments) setSegmentCount(numSegments);
         addLog(`Re-segmentation complete ✓ — ${numSegments ?? "?"} segments found`);
       }
@@ -662,11 +1240,21 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
 
     // ── Stage 4: Question generation ──
     setPipelineStep("QUESTION_GENERATION");
-    addLog(`Generating questions for ${numSegments ?? "?"} segment(s)…`);
+    const generationPlan = buildSmartBloomGenerationPlan(segMap, activeBloomKeys);
+    const perSegmentQuestionTargets = generationPlan.perSegmentBloomTargets.map(
+      (count) => count * activeBloomKeys.length,
+    );
+    setTotalQuestions(generationPlan.totalQuestions);
+    addLog(
+      `Generating ${generationPlan.totalQuestions} questions for ${numSegments ?? "?"} segment(s) with ${generationPlan.totalPerBloomLevel} per enabled Bloom level overall…`,
+    );
     await aiSectionAPI.approveContinueTask(jobId);
     await aiSectionAPI.approveStartTask(jobId, {
       type: "QUESTION_GENERATION",
-      parameters: getQuestionGenerationParams(totalQuestions),
+      parameters: getQuestionGenerationParams(
+        generationPlan.totalQuestions,
+        generationPlan.segmentInstructionBlock,
+      ),
     });
     const qResult = await waitForSSEEvent(jobId, "QUESTION_GENERATION");
     addLog("Question generation complete ✓ — loading results…");
@@ -674,7 +1262,10 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
 
     // ── Progressive segment reveal ──
     // The fileUrl is delivered directly in the SSE COMPLETED event payload.
-    const generated = await fetchLatestQuestionResults(jobId, qResult?.fileUrl as string | undefined);
+    const generated = await fetchLatestQuestionResults(jobId, qResult?.fileUrl as string | undefined, {
+      segmentMap: segMap,
+      perSegmentQuestionTargets,
+    });
 
     // Group by segment and reveal one segment at a time.
     const groups = new Map<number, CuratedQuestion[]>();
@@ -689,13 +1280,26 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
     setQuestionIndexBySegment({});
     setRevealedSegmentCount(0);
 
+    const seenQuestionKeys = new Set<string>();
+
     for (let i = 0; i < sortedSegIds.length; i++) {
       if (i > 0) await new Promise<void>((r) => setTimeout(r, 450));
       const segId = sortedSegIds[i];
       const segQs = groups.get(segId)!;
-      mergeQuestions(segQs);
-      setRevealedSegmentCount(i + 1);
-      addLog(`Segment ${i + 1} ready — ${segQs.length} questions available`);
+      const uniqueSegmentQuestions = segQs.filter((question) => {
+        const key = `${question.segmentId}::${question.bloomLevel ?? 'unclassified'}::${question.text}`;
+        if (!question.text || seenQuestionKeys.has(key)) {
+          return false;
+        }
+        seenQuestionKeys.add(key);
+        return true;
+      });
+      if (uniqueSegmentQuestions.length === 0) {
+        continue;
+      }
+      mergeQuestions(uniqueSegmentQuestions);
+      setRevealedSegmentCount((prev) => Math.max(prev, i + 1));
+      addLog(`Segment ${i + 1} ready — ${uniqueSegmentQuestions.length} questions available`);
       if (i === 0) {
         // Open curation immediately so the user can start swiping segment 1
         // while the remaining segments are still streaming in.
@@ -728,7 +1332,10 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
       });
       const qResult = await waitForSSEEvent(createdJobId, "QUESTION_GENERATION");
       disconnectSSE();
-      const generated = await fetchLatestQuestionResults(createdJobId, qResult?.fileUrl as string | undefined);
+      const generated = await fetchLatestQuestionResults(createdJobId, qResult?.fileUrl as string | undefined, {
+        segmentMap: [segmentId],
+        perSegmentQuestionTargets: [Math.max(needed, 3)],
+      });
       mergeQuestions(generated);
       toast.success(`Fetched additional questions for segment ${segmentId + 1}`);
     } catch (error) {
@@ -784,11 +1391,11 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
   };
 
   const openEdit = (question: CuratedQuestion) => {
-    const normalizedOptions = uniqueOptions(question.options.length > 0 ? question.options : [
+    const normalizedOptions = enforceBinaryOptionLimit(question.text, uniqueOptions(question.options.length > 0 ? question.options : [
       ...(question.raw?.solution?.correctLotItems || []).map((o: any) => o?.text),
       question.raw?.solution?.correctLotItem?.text,
       ...(question.raw?.solution?.incorrectLotItems || []).map((o: any) => o?.text),
-    ]);
+    ]));
 
     const correctTexts = new Set(
       uniqueOptions([
@@ -810,7 +1417,7 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
   const saveEdit = () => {
     if (!editingQuestionId) return;
 
-    const cleanedOptions = uniqueOptions(editOptions);
+    const cleanedOptions = enforceBinaryOptionLimit(editText, uniqueOptions(editOptions));
     if (cleanedOptions.length < 2) {
       toast.error("At least two unique options are required.");
       return;
@@ -820,7 +1427,14 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
       .filter((idx) => idx >= 0 && idx < cleanedOptions.length)
       .filter((idx, i, arr) => arr.indexOf(idx) === i);
 
-    const correctIndexes = validCorrectIndexes.length > 0 ? validCorrectIndexes : [0];
+    const isBinary = isBinaryQuestionText(editText) ||
+      (cleanedOptions.length === 2 && cleanedOptions.every((opt) => getBinaryPolarity(opt) !== null));
+
+    const correctIndexes = isBinary
+      ? [validCorrectIndexes.length > 0 ? validCorrectIndexes[0] : 0]
+      : validCorrectIndexes.length > 0
+        ? validCorrectIndexes
+        : [0];
 
     setQuestions((prev) =>
       prev.map((q) =>
@@ -910,27 +1524,21 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
     const refreshTeacherContentCache = async () => {
       // Force teacher UI to re-fetch latest generated items/quizzes after upload.
       await queryClient.invalidateQueries({
-        predicate: (query) =>
-          query.queryKey[0] === "get" &&
-          query.queryKey[1] === "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items",
+        queryKey: ["get", "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items"],
       });
 
       await queryClient.invalidateQueries({
-        predicate: (query) =>
-          query.queryKey[0] === "get" &&
-          query.queryKey[1] === "/courses/{id}/versions/{versionId}",
+        queryKey: ["get", "/courses/versions/{id}"],
       });
 
-      await queryClient.invalidateQueries({
-        predicate: (query) =>
-          query.queryKey[0] === "get" &&
-          query.queryKey[1] === "/courses/{courseId}/versions/{versionId}/modules",
+      await queryClient.refetchQueries({
+        queryKey: ["get", "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items"],
+        type: "active",
       });
 
-      queryClient.removeQueries({
-        predicate: (query) =>
-          query.queryKey[0] === "get" &&
-          query.queryKey[1] === "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items",
+      await queryClient.refetchQueries({
+        queryKey: ["get", "/courses/versions/{id}"],
+        type: "active",
       });
     };
 
@@ -1007,6 +1615,11 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
       return;
     }
 
+    if (activeQuestionTypes.length === 0) {
+      toast.error("Select at least one question type.");
+      return;
+    }
+
     setIsSubmitting(true);
     setStatusLog([]);
     setSegmentCount(null);
@@ -1016,10 +1629,7 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
     setRejectedQuestionIds(new Set());
     try {
       const questionGenerationParameters = {
-        SOL: totalQuestions,
-        SML: 0,
-        NAT: 0,
-        DES: 0,
+        ...allocateQuestionTypes(totalQuestions, activeQuestionTypes),
         numberOfQuestions: totalQuestions,
         smartBloom: {
           enabled: true,
@@ -1098,6 +1708,41 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
             <p className="text-xs text-muted-foreground">
               Concept end mode sends strategy as Smart Bloom metadata for segmentation-aware generation.
             </p>
+          </div>
+
+          <div className="rounded-lg border p-3 bg-muted/20">
+            <p className="text-sm font-medium mb-2">Question Types</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+              {ALL_QUESTION_TYPES.map((type) => (
+                <label key={type} className="inline-flex items-start gap-2 cursor-pointer rounded-md border p-2 bg-background/50">
+                  <input
+                    type="checkbox"
+                    checked={questionTypeEnabled[type]}
+                    onChange={() => toggleQuestionType(type)}
+                    className="h-4 w-4 mt-0.5"
+                  />
+                  <span>
+                    <span className="font-medium block">{QUESTION_TYPE_META[type].label}</span>
+                    <span className="text-xs text-muted-foreground">{QUESTION_TYPE_META[type].description}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Selected types are converted into generation counts using equal split and remainder balancing.
+            </p>
+          </div>
+
+          <div className="rounded-lg border p-4 bg-muted/20">
+            <h3 className="text-sm font-semibold mb-3">Question type allocation preview</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+              {ALL_QUESTION_TYPES.map((type) => (
+                <div key={type} className="rounded-md border p-3">
+                  <div className="text-muted-foreground">{type}</div>
+                  <div className="text-xl font-semibold">{questionTypeBreakdown[type]}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="rounded-lg border p-3 bg-muted/20">
@@ -1297,6 +1942,19 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
                 </div>
               )}
 
+              {/* Upload wait indicator */}
+              {pipelineStep === "UPLOAD_CONTENT" && (
+                <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-900 dark:bg-blue-950/30">
+                  <div className="flex items-center gap-2 text-sm text-blue-800 dark:text-blue-300">
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span className="font-medium">Content is getting uploaded. Please wait…</span>
+                  </div>
+                  <p className="mt-1 text-xs text-blue-700/90 dark:text-blue-300/80">
+                    We are finalizing upload and refreshing course content. This can take a few moments.
+                  </p>
+                </div>
+              )}
+
               {/* Status log */}
               {statusLog.length > 0 && (
                 <div className="rounded border bg-background p-2 space-y-0.5 max-h-28 overflow-y-auto">
@@ -1314,6 +1972,13 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
                 <h3 className="font-semibold text-gray-900 dark:text-gray-100">Question Curation</h3>
                 <Badge variant="outline">Accepted: {acceptedCount}</Badge>
               </div>
+
+              {isUploading && (
+                <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 p-2 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  Content upload in progress. Please wait while we process and refresh.
+                </div>
+              )}
 
               {/* Segment loading notice */}
               {segmentCount && revealedSegmentCount < segmentCount && (
@@ -1405,13 +2070,25 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
 
                         {/* Metadata */}
                         <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2 text-xs">
+                          <div className="flex items-center gap-2 text-xs flex-wrap">
                             <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full font-medium">
                               Segment {activeSegmentIndex + 1}
                             </span>
                             {(currentQuestion.raw?.questionType || currentQuestion.raw?.question?.type) && (
                               <span className="bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full font-medium">
                                 {currentQuestion.raw?.questionType ?? currentQuestion.raw?.question?.type}
+                              </span>
+                            )}
+                            {currentQuestion.bloomLevel && (
+                              <span
+                                className={cn(
+                                  "px-2 py-1 rounded-full font-medium capitalize",
+                                  BLOOM_LEVEL_BADGE_CLASSES[currentQuestion.bloomLevel],
+                                )}
+                              >
+                                {currentQuestion.bloomLevel === "unclassified"
+                                  ? "Unclassified"
+                                  : BLOOM_LEVEL_META[currentQuestion.bloomLevel as BloomKey].label}
                               </span>
                             )}
                           </div>

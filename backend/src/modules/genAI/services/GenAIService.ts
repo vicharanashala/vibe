@@ -917,6 +917,93 @@ export class GenAIService extends BaseService {
         return 'unclassified';
       };
 
+      const allocateBloomCountsForAttempt = (
+        bankQuestionCounts: Array<{ bloomLevel: BloomLevelKey; availableCount: number }>,
+        distribution?: {
+          knowledge: number;
+          understanding: number;
+          application: number;
+          analysis?: number;
+          evaluation?: number;
+          creation?: number;
+        },
+      ): Record<BloomLevelKey, number> => {
+        const allocations: Record<BloomLevelKey, number> = {
+          knowledge: 0,
+          understanding: 0,
+          application: 0,
+          analysis: 0,
+          evaluation: 0,
+          creation: 0,
+          unclassified: 0,
+        };
+
+        const eligibleBanks = bankQuestionCounts.filter(bank => bank.availableCount > 0);
+        if (!eligibleBanks.length) {
+          return allocations;
+        }
+
+        const percentageByBloom: Record<BloomLevelKey, number> = {
+          knowledge: distribution?.knowledge ?? 0,
+          understanding: distribution?.understanding ?? 0,
+          application: distribution?.application ?? 0,
+          analysis: distribution?.analysis ?? 0,
+          evaluation: distribution?.evaluation ?? 0,
+          creation: distribution?.creation ?? 0,
+          unclassified: 0,
+        };
+
+        const totalVisibleQuestions = eligibleBanks.reduce(
+          (sum, bank) => sum + bank.availableCount,
+          0,
+        );
+        const activeTotalPercentage = eligibleBanks.reduce(
+          (sum, bank) => sum + (percentageByBloom[bank.bloomLevel] || 0),
+          0,
+        );
+
+        const weighted = eligibleBanks.map(bank => {
+          const percentage = activeTotalPercentage > 0
+            ? (percentageByBloom[bank.bloomLevel] || 0) / activeTotalPercentage
+            : 1 / eligibleBanks.length;
+          const expected = totalVisibleQuestions * percentage;
+          const base = Math.min(bank.availableCount, Math.floor(expected));
+          return {
+            bloomLevel: bank.bloomLevel,
+            availableCount: bank.availableCount,
+            allocated: base,
+            remainder: expected - Math.floor(expected),
+          };
+        });
+
+        let remaining = totalVisibleQuestions - weighted.reduce((sum, bank) => sum + bank.allocated, 0);
+
+        weighted
+          .slice()
+          .sort((left, right) => right.remainder - left.remainder)
+          .forEach(bank => {
+            if (remaining <= 0) return;
+            if (bank.allocated >= bank.availableCount) return;
+            bank.allocated += 1;
+            remaining -= 1;
+          });
+
+        if (remaining > 0) {
+          weighted.forEach(bank => {
+            while (remaining > 0 && bank.allocated < bank.availableCount) {
+              bank.allocated += 1;
+              remaining -= 1;
+            }
+          });
+        }
+
+        weighted.forEach(bank => {
+          allocations[bank.bloomLevel] = bank.allocated;
+        });
+
+        return allocations;
+      };
+
       try {
         if (!jobData) {
           throw new NotFoundError(`Job with ID ${jobId} not found`);
@@ -1032,122 +1119,173 @@ export class GenAIService extends BaseService {
           const questionsForSegment =
             questionsGroupedBySegment[currentSegmentId] || [];
           if (questionsForSegment.length > 0) {
-            const hasBloomLevels = questionsForSegment.some(
-              question => extractBloomLevel(question) !== 'unclassified',
-            );
+            // Always enable Smart Bloom mode if flag is set, regardless of Bloom level tags
             const isSmartBloom = !!(
               jobData.questionGenerationParameters?.smartBloom?.enabled ||
-              uploadParams?.smartBloomEnabled ||
-              hasBloomLevels
+              uploadParams?.smartBloomEnabled
             );
 
             if (isSmartBloom) {
-            const questionsGroupedByBloom: Record<BloomLevelKey, any[]> = {
-              knowledge: [],
-              understanding: [],
-              application: [],
-              analysis: [],
-              evaluation: [],
-              creation: [],
-              unclassified: [],
-            };
+              // Initialize bloom level buckets
+              const questionsGroupedByBloom: Record<BloomLevelKey, any[]> = {
+                knowledge: [],
+                understanding: [],
+                application: [],
+                analysis: [],
+                evaluation: [],
+                creation: [],
+                unclassified: [],
+              };
 
-            for (const question of questionsForSegment) {
-              const bloomLevel = extractBloomLevel(question);
-              questionsGroupedByBloom[bloomLevel].push(question);
-            }
-
-            const segmentQuestionBanks: Array<{
-              id: string;
-              bloomLevel: BloomLevelKey;
-              questionCount: number;
-            }> = [];
-            let totalQuestionsForSegment = 0;
-
-            for (const [bloomLevel, bloomQuestions] of Object.entries(
-              questionsGroupedByBloom,
-            ) as Array<[BloomLevelKey, any[]]>) {
-              if (bloomQuestions.length === 0) {
-                continue;
+              // First pass: group by existing Bloom levels
+              for (const question of questionsForSegment) {
+                const bloomLevel = extractBloomLevel(question);
+                questionsGroupedByBloom[bloomLevel].push(question);
               }
 
-              const questionBankName = `Question Bank - Segment (${segmentStartTime} - ${currentSegmentEndTime}) - ${bloomLevel.toUpperCase()}`;
-              const questionBank = new QuestionBank({
-                title: questionBankName,
-                description: `Question bank for video segment from ${segmentStartTime} to ${currentSegmentEndTime} (Bloom: ${bloomLevel}).`,
-                courseId: new ObjectId(
-                  (jobState.parameters as UploadParameters).courseId,
-                ),
-                courseVersionId: new ObjectId(
-                  (jobState.parameters as UploadParameters).versionId,
-                ),
-                questions: [],
-                tags: [
-                  `segment_${currentSegmentId}`,
-                  `bloom_${bloomLevel}`,
-                  'ai_generated',
-                ],
-              });
+              // Second pass: redistribute unclassified questions across all Bloom levels
+              // using weighted distribution to match instructor's intended Bloom percentages
+              if (questionsGroupedByBloom.unclassified.length > 0) {
+                const bloomDistribution = jobData.questionGenerationParameters?.smartBloom?.distribution || {
+                  knowledge: 40,
+                  understanding: 35,
+                  application: 25,
+                  analysis: 0,
+                  evaluation: 0,
+                  creation: 0,
+                };
 
-              const questionBankId = await this.questionBankService.create(
-                questionBank,
-              );
+                // Calculate total distribution percentage
+                const totalDistPercent = Object.values(bloomDistribution).reduce((sum, pct) => sum + pct, 0);
+                const bloomLevels: BloomLevelKey[] = ['knowledge', 'understanding', 'application', 'analysis', 'evaluation', 'creation'];
 
-              const createdQuestionIds: string[] = [];
-              for (const questionData of bloomQuestions) {
-                try {
-                  const hint = questionData?.question?.hint;
-                  const MAX_HINT_LENGTH = 80;
-                  const safeHint =
-                    hint && typeof hint === 'string' && hint.length > MAX_HINT_LENGTH
-                      ? hint.substring(0, MAX_HINT_LENGTH - 3) + '...'
-                      : hint;
+                // Distribute unclassified questions based on the distribution percentages
+                const unclassifiedQuestions = questionsGroupedByBloom.unclassified;
+                let qIndex = 0;
 
-                  const questionnew = QuestionFactory.createQuestion(
-                    {
-                      question: {
-                        ...questionData.question,
-                        hint: safeHint,
-                        bloomLevel,
-                      },
-                      solution: questionData.solution,
-                    },
-                    jobData.userId.toString(),
-                  );
+                for (const bloomLevel of bloomLevels) {
+                  const distribution = bloomDistribution[bloomLevel] || 0;
+                  if (distribution === 0) continue;
 
-                  const questionId = await this.questionService.create(
-                    questionnew,
-                  );
-                  createdQuestionIds.push(questionId);
+                  // Calculate how many unclassified questions should go to this level
+                  const proportion = distribution / totalDistPercent;
+                  const countForThisLevel = Math.round(proportion * unclassifiedQuestions.length);
 
-                  await this.questionBankService.addQuestion(
-                    questionBankId,
-                    questionId,
-                  );
-                } catch (questionError) {
-                  console.warn(
-                    `Failed to create question for segment ${currentSegmentId} and bloom ${bloomLevel}:`,
-                    questionError,
-                  );
+                  for (let i = 0; i < countForThisLevel && qIndex < unclassifiedQuestions.length; i++) {
+                    questionsGroupedByBloom[bloomLevel].push(unclassifiedQuestions[qIndex]);
+                    qIndex++;
+                  }
                 }
+
+                // Assign remaining questions using round-robin as fallback
+                if (qIndex < unclassifiedQuestions.length) {
+                  let fallbackIndex = 0;
+                  for (; qIndex < unclassifiedQuestions.length; qIndex++) {
+                    const assignedBloom = bloomLevels[fallbackIndex % bloomLevels.length];
+                    questionsGroupedByBloom[assignedBloom].push(unclassifiedQuestions[qIndex]);
+                    fallbackIndex++;
+                  }
+                }
+
+                questionsGroupedByBloom.unclassified = [];
               }
 
-              totalQuestionsForSegment += createdQuestionIds.length;
-              segmentQuestionBanks.push({
-                id: questionBankId,
-                bloomLevel,
-                questionCount: createdQuestionIds.length,
-              });
+              const segmentQuestionBanks: Array<{
+                id: string;
+                bloomLevel: BloomLevelKey;
+                questionCount: number;
+              }> = [];
+              let totalQuestionsForSegment = 0;
 
-              createdQuestionBanksInfo.push({
-                id: questionBankId,
-                name: questionBankName,
-                segmentId: String(currentSegmentId),
-                bloomLevel,
-                questionCount: createdQuestionIds.length,
-                questionIds: createdQuestionIds,
-              });
-            }
+              // Create a Question Bank for EVERY Bloom level (including empty ones for consistency)
+              const allBloomLevels: BloomLevelKey[] = [
+                'knowledge',
+                'understanding',
+                'application',
+                'analysis',
+                'evaluation',
+                'creation',
+              ];
+
+              for (const bloomLevel of allBloomLevels) {
+                const bloomQuestions = questionsGroupedByBloom[bloomLevel] || [];
+                const questionBankName = `Question Bank - Segment (${segmentStartTime} - ${currentSegmentEndTime}) - ${bloomLevel.toUpperCase()}`;
+                const questionBank = new QuestionBank({
+                  title: questionBankName,
+                  description: `Question bank for video segment from ${segmentStartTime} to ${currentSegmentEndTime} (Bloom: ${bloomLevel}).`,
+                  courseId: new ObjectId(
+                    (jobState.parameters as UploadParameters).courseId,
+                  ),
+                  courseVersionId: new ObjectId(
+                    (jobState.parameters as UploadParameters).versionId,
+                  ),
+                  questions: [],
+                  tags: [
+                    `segment_${currentSegmentId}`,
+                    `bloom_${bloomLevel}`,
+                    'ai_generated',
+                  ],
+                });
+
+                const questionBankId = await this.questionBankService.create(
+                  questionBank,
+                );
+
+                const createdQuestionIds: string[] = [];
+                for (const questionData of bloomQuestions) {
+                  try {
+                    const hint = questionData?.question?.hint;
+                    const MAX_HINT_LENGTH = 80;
+                    const safeHint =
+                      hint && typeof hint === 'string' && hint.length > MAX_HINT_LENGTH
+                        ? hint.substring(0, MAX_HINT_LENGTH - 3) + '...'
+                        : hint;
+
+                    const questionnew = QuestionFactory.createQuestion(
+                      {
+                        question: {
+                          ...questionData.question,
+                          hint: safeHint,
+                          bloomLevel,
+                        },
+                        solution: questionData.solution,
+                      },
+                      jobData.userId.toString(),
+                    );
+
+                    const questionId = await this.questionService.create(
+                      questionnew,
+                    );
+                    createdQuestionIds.push(questionId);
+
+                    await this.questionBankService.addQuestion(
+                      questionBankId,
+                      questionId,
+                    );
+                  } catch (questionError) {
+                    console.warn(
+                      `Failed to create question for segment ${currentSegmentId} and bloom ${bloomLevel}:`,
+                      questionError,
+                    );
+                  }
+                }
+
+                totalQuestionsForSegment += createdQuestionIds.length;
+                segmentQuestionBanks.push({
+                  id: questionBankId,
+                  bloomLevel,
+                  questionCount: createdQuestionIds.length,
+                });
+
+                createdQuestionBanksInfo.push({
+                  id: questionBankId,
+                  name: questionBankName,
+                  segmentId: String(currentSegmentId),
+                  bloomLevel,
+                  questionCount: createdQuestionIds.length,
+                  questionIds: createdQuestionIds,
+                });
+              }
 
             const quizSegName = jobData.uploadParameters.quizItemBaseName
               ? jobData.uploadParameters.quizItemBaseName
@@ -1184,13 +1322,19 @@ export class GenAIService extends BaseService {
             // Link each Bloom-specific QuestionBank to the Quiz
             const quizId = createdQuizItem.createdItem?._id?.toString();
             if (quizId) {
+              const bloomCountsForAttempt = allocateBloomCountsForAttempt(
+                segmentQuestionBanks.map(bank => ({
+                  bloomLevel: bank.bloomLevel,
+                  availableCount: bank.questionCount,
+                })),
+                jobData.questionGenerationParameters?.smartBloom?.distribution,
+              );
+
               for (const bank of segmentQuestionBanks) {
                 try {
                   await this.quizService.addQuestionBank(quizId, {
                     bankId: bank.id,
-                    count:
-                      jobData.uploadParameters.questionsPerQuiz ??
-                      Math.max(bank.questionCount, 1),
+                    count: bloomCountsForAttempt[bank.bloomLevel],
                     tags: [`bloom_${bank.bloomLevel}`, 'ai_generated'],
                   });
                 } catch (linkError) {
