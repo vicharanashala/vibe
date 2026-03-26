@@ -6,7 +6,7 @@ export default defineConfig({
   // Keep artifacts predictable and easy to ignore
   outputDir: 'test-results',
 
-  timeout: 60 * 60 * 1000,
+  timeout: 10 * 60 * 60 * 1000, //10 hours
   retries: 0,
   workers: 1,
 

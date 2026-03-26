@@ -1147,9 +1147,9 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
               requestAnimationFrame(frame);
             };
             frame();
+            setTimeout(() => router.navigate({ to: "/student" }), 3500);
           }
 
-          setTimeout(() => router.navigate({ to: "/student" }), 3500);
           // Recalcualate and update the progress % and completed items count properly
           await recalculateStudentProgressAsync({
             body: {
@@ -1455,10 +1455,10 @@ useEffect(() => {
   const next = findNextItem();
   if (next) return; // not the last item
   // Small delay so the learner briefly sees the item before redirect
-  const timer = setTimeout(() => {
-    router.navigate({ to: '/student' });
-  }, 2000);
-  return () => clearTimeout(timer);
+  // const timer = setTimeout(() => {
+  //   router.navigate({ to: '/student' });
+  // }, 2000);
+  // return () => clearTimeout(timer);
 }, [currentItem, findNextItem, router]);
 
 

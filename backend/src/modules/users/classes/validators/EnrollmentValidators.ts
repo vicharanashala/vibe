@@ -219,6 +219,9 @@ export class EnrollmentDataResponse {
 
   @IsOptional()
   cohortName?: string;
+
+  @IsOptional()
+  hpSystem?: boolean;
 }
 
 class QuizScoresResponse {
