@@ -5428,13 +5428,26 @@ export function useCreateHpRuleConfig() {
   };
 }
 
+export function useCreateActivityWithRule() {
+  return useMutation({
+    mutationFn: async (payload: {
+      activity: CreateHpActivityPayload;
+      ruleConfig: Partial<HpRuleConfig>;
+    }) => {
+      const res = await hpApi.createActivityWithRule(payload);
+      if (!res.success) throw res;
+      return res.data;
+    },
+  });
+}
+
 export function useUpdateHpRuleConfig() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async ({ ruleConfigId, updates }: { ruleConfigId: string, updates: Partial<HpRuleConfig> }) => {
       console.log("Updating rule config with ID:", ruleConfigId, "and updates:", updates);
       const res = await hpApi.updateRuleConfig(ruleConfigId, updates);
-      if (!res.success) throw new Error(res.message || 'Failed to update rule config');
+      if (!res.success) throw res;
       return res.data;
     },
     onSuccess: () => {
