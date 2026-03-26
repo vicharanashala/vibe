@@ -68,6 +68,7 @@ export interface ICourseRepository {
     cohortId: ObjectId,
     cohortName?: string,
     isPublic?: boolean,
+    isActive?: boolean,
     session?: ClientSession
   ): Promise<boolean>;
 

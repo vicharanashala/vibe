@@ -761,7 +761,7 @@ Accessible to:
       );
     }
 
-    if (!body.newCohortName && (body.isPublic === null || body.isPublic === undefined)) {
+    if (!body.newCohortName && (body.isPublic === null || body.isPublic === undefined) && (body.isActive === null || body.isActive === undefined)) {
         throw new BadRequestError("No information provided in request body");
     }
     const existingVersion = await this.courseVersionService.readCourseVersion(versionId, user._id);
@@ -782,7 +782,7 @@ Accessible to:
           throw new BadRequestError("The requested cohort name already exists in the course version");
         }
     }
-    await this.courseVersionService.updateCohortInCourseVersion(cohortId, body?.newCohortName?.toLowerCase(), body?.isPublic );
+    await this.courseVersionService.updateCohortInCourseVersion(cohortId, body?.newCohortName?.toLowerCase(), body?.isPublic, body?.isActive );
 
     setAuditTrail(req, {
       category: AuditCategory.COHORT,
@@ -801,6 +801,8 @@ Accessible to:
       changes:{
         after:{
           cohort: body.newCohortName,
+          isPublic: body.isPublic,
+          isActive: body.isActive,
         }
       },
       outcome:{

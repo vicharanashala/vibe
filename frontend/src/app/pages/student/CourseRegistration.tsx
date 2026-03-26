@@ -704,7 +704,7 @@ const computedUiSchema = React.useMemo(() => {
                             </ul>
                           </div>
                         )}
-                        {formFieldData && (formFieldData as any).isActive === false && (
+                        {(formFieldData && (formFieldData as any).isActive === false) || (versionData && (versionData as any).cohorts?.find((c: any) => c.cohortId === cohort)?.isActive === false) && (
                           <div className="w-full rounded-md border border-amber-200 bg-amber-50 p-4 mb-4">
                             <div className="flex gap-3">
                               <div className="text-amber-600">
@@ -723,7 +723,7 @@ const computedUiSchema = React.useMemo(() => {
                         )}
                         <Button
                           type="submit"
-                          disabled={isSubmitting || (!recaptchaToken && isRecaptchaEnabled) || (formFieldData as any)?.isActive === false}
+                          disabled={isSubmitting || (!recaptchaToken && isRecaptchaEnabled) ||((formFieldData as any)?.isActive === false) || (versionData && (versionData as any).cohorts?.find((c: any) => c.cohortId === cohort)?.isActive === false)}
                         >
                           {isSubmitting ? (
                             <>
