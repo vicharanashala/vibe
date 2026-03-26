@@ -4880,19 +4880,125 @@ export class EnrollmentRepository {
     } = params;
     const skip = (page - 1) * limit;
 
+    const baseMatch: any = {
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      role: 'STUDENT',
+      ejectionHistory: {$exists: true, $not: {$size: 0}},
+    };
+    if (cohortId) {
+      baseMatch.cohortId = new ObjectId(cohortId);
+    }
+
     const pipeline: any[] = [
+      { $match: baseMatch },
+      { $unwind: '$ejectionHistory' },
       {
-        $match: {
-          courseId: new ObjectId(courseId),
-          courseVersionId: new ObjectId(courseVersionId),
-          role: 'STUDENT',
-          ejectionHistory: {$exists: true, $not: {$size: 0}},
-          ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
-        },
+        $project: {
+          enrollmentId: '$_id',
+          userId: 1,
+          cohortId: 1,
+          events: {
+            $concatArrays: [
+              [
+                {
+                  type: 'EJECTED',
+                  date: '$ejectionHistory.ejectedAt',
+                  ejectionReason: '$ejectionHistory.ejectionReason',
+                  adminId: '$ejectionHistory.ejectedBy',
+                  policyId: '$ejectionHistory.policyId',
+                  triggerType: { $cond: [{ $ifNull: ['$ejectionHistory.policyId', false] }, 'POLICY', 'MANUAL'] }
+                }
+              ],
+              {
+                $cond: [
+                  { $ifNull: ['$ejectionHistory.reinstatedAt', false] },
+                  [{
+                    type: 'REINSTATED',
+                    date: '$ejectionHistory.reinstatedAt',
+                    adminId: '$ejectionHistory.reinstatedBy',
+                    policyId: '$ejectionHistory.policyId',
+                    triggerType: { $cond: [{ $ifNull: ['$ejectionHistory.policyId', false] }, 'POLICY', 'MANUAL'] }
+                  }],
+                  []
+                ]
+              }
+            ]
+          }
+        }
       },
-
-      {$unwind: '$ejectionHistory'},
-
+      { $unwind: '$events' },
+      {
+        $project: {
+          enrollmentId: 1,
+          userId: 1,
+          cohortId: 1,
+          type: '$events.type',
+          date: '$events.date',
+          ejectionReason: '$events.ejectionReason',
+          adminId: '$events.adminId',
+          policyId: '$events.policyId',
+          triggerType: '$events.triggerType'
+        }
+      },
+      {
+        $unionWith: {
+          coll: 'appeals',
+          pipeline: [
+            {
+              $match: {
+                courseId: new ObjectId(courseId),
+                courseVersionId: new ObjectId(courseVersionId),
+                ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {})
+              }
+            },
+            {
+              $project: {
+                userId: 1,
+                cohortId: 1,
+                events: {
+                  $concatArrays: [
+                    [
+                      {
+                        type: 'APPEAL_SUBMITTED',
+                        date: '$createdAt',
+                        ejectionReason: { $ifNull: ['$reason', 'Appeal submitted'] },
+                        adminId: '$userId',
+                        triggerType: 'APPEAL'
+                      }
+                    ],
+                    {
+                      $cond: [
+                        { $and: [{ $ne: ['$status', 'PENDING'] }, { $ifNull: ['$processedAt', false] }] },
+                        [{
+                          type: { $cond: [{ $eq: ['$status', 'APPROVED'] }, 'APPEAL_APPROVED', 'APPEAL_REJECTED'] },
+                          date: '$processedAt',
+                          ejectionReason: { $concat: ['Appeal ', { $toLower: '$status' }] },
+                          adminId: '$processedBy',
+                          triggerType: 'APPEAL'
+                        }],
+                        []
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            { $unwind: '$events' },
+            {
+              $project: {
+                userId: 1,
+                cohortId: 1,
+                type: '$events.type',
+                date: '$events.date',
+                ejectionReason: '$events.ejectionReason',
+                adminId: '$events.adminId',
+                triggerType: '$events.triggerType'
+              }
+            }
+          ]
+        }
+      },
       {
         $lookup: {
           from: 'users',
@@ -4916,7 +5022,7 @@ export class EnrollmentRepository {
       {
         $lookup: {
           from: 'ejectionPolicies',
-          localField: 'ejectionHistory.policyId',
+          localField: 'policyId',
           foreignField: '_id',
           as: 'policy',
         },
@@ -4926,79 +5032,61 @@ export class EnrollmentRepository {
       {
         $lookup: {
           from: 'users',
-          localField: 'ejectionHistory.ejectedBy',
+          localField: 'adminId',
           foreignField: '_id',
           as: 'admin',
         },
       },
       {$unwind: {path: '$admin', preserveNullAndEmptyArrays: true}},
-
-      {
-        $addFields: {
-          'ejectionHistory.triggerType': {
-            $cond: [
-              {$ifNull: ['$ejectionHistory.policyId', false]},
-              'POLICY',
-              'MANUAL',
-            ],
-          },
-        },
-      },
-
-      ...(triggerType
-        ? [{$match: {'ejectionHistory.triggerType': triggerType}}]
-        : []),
-      ...(startDate || endDate
-        ? [
-            {
-              $match: {
-                'ejectionHistory.ejectedAt': {
-                  ...(startDate ? {$gte: startDate} : {}),
-                  ...(endDate ? {$lte: endDate} : {}),
-                },
-              },
-            },
-          ]
-        : []),
-      ...(search
-        ? [
-            {
-              $match: {
-                $or: [
-                  {'user.firstName': {$regex: search, $options: 'i'}},
-                  {'user.lastName': {$regex: search, $options: 'i'}},
-                  {'user.email': {$regex: search, $options: 'i'}},
-                ],
-              },
-            },
-          ]
-        : []),
-
       {
         $project: {
           _id: 0,
-          enrollmentId: '$_id',
+          enrollmentId: 1,
           userId: 1,
           firstName: '$user.firstName',
           lastName: '$user.lastName',
           email: '$user.email',
           cohortId: 1,
           cohortName: '$cohort.name',
-          ejectedAt: '$ejectionHistory.ejectedAt',
-          ejectionReason: '$ejectionHistory.ejectionReason',
-          ejectedBy: '$ejectionHistory.ejectedBy',
-          ejectedByName: {
-            $concat: ['$admin.firstName', ' ', '$admin.lastName'],
+          type: 1,
+          date: 1,
+          ejectionReason: 1,
+          adminId: 1,
+          adminName: {
+            $cond: [
+              { $ifNull: ['$admin', false] },
+              { $concat: ['$admin.firstName', ' ', '$admin.lastName'] },
+              'System'
+            ]
           },
-          policyId: '$ejectionHistory.policyId',
+          policyId: 1,
           policyName: '$policy.name',
-          triggerType: '$ejectionHistory.triggerType',
-          reinstatedAt: '$ejectionHistory.reinstatedAt',
-          reinstatedBy: '$ejectionHistory.reinstatedBy',
-        },
+          triggerType: 1
+        }
       },
-
-      {$sort: {ejectedAt: -1}},
+      ...(triggerType ? [ { $match: { triggerType } } ] : []),
+      ...(startDate || endDate ? [
+        {
+          $match: {
+            date: {
+              ...(startDate ? { $gte: startDate } : {}),
+              ...(endDate ? { $lte: endDate } : {})
+            }
+          }
+        }
+      ] : []),
+      ...(search ? [
+        {
+          $match: {
+            $or: [
+              {'firstName': {$regex: search, $options: 'i'}},
+              {'lastName': {$regex: search, $options: 'i'}},
+              {'email': {$regex: search, $options: 'i'}},
+            ]
+          }
+        }
+      ] : []),
+      { $sort: { date: -1 } }
     ];
 
     const [data, countResult] = await Promise.all([

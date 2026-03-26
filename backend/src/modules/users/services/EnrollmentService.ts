@@ -2290,11 +2290,12 @@ export class EnrollmentService extends BaseService {
       {id: 'lastName', title: 'Last Name'},
       {id: 'email', title: 'Email'},
       {id: 'cohortName', title: 'Cohort'},
-      {id: 'ejectedAt', title: 'Ejected At'},
+      {id: 'date', title: 'Date'},
+      {id: 'type', title: 'Event Type'},
       {id: 'triggerType', title: 'Trigger Type'},
       {id: 'policyName', title: 'Policy Name'},
-      {id: 'ejectionReason', title: 'Reason'},
-      {id: 'ejectedByName', title: 'Ejected By'},
+      {id: 'ejectionReason', title: 'Context / Reason'},
+      {id: 'adminName', title: 'Stored By'},
     ];
 
     const csvStringifier = createObjectCsvStringifier({
@@ -2303,11 +2304,10 @@ export class EnrollmentService extends BaseService {
 
     const formattedHistory = history.map(item => ({
       ...item,
-      ejectedAt: item.ejectedAt
-        ? new Date(item.ejectedAt).toLocaleString()
-        : '',
+      date: item.date ? new Date(item.date).toLocaleString() : '',
       policyName: item.policyName || 'N/A',
       cohortName: item.cohortName || 'N/A',
+      adminName: item.adminName || 'N/A'
     }));
 
     return (

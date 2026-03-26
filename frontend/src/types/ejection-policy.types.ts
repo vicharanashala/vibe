@@ -64,15 +64,25 @@ export interface EjectionPolicy {
   updatedAt: string;
   deletedAt?: string;
 }
-// Add these new types:
 export interface EjectionHistoryEntry {
-  ejectedAt: string;
+  enrollmentId: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  cohortId?: string;
+  cohortName: string;
+  
+  type: 'EJECTED' | 'REINSTATED' | 'APPEAL_SUBMITTED' | 'APPEAL_APPROVED' | 'APPEAL_REJECTED';
+  date: string;
+  
   ejectionReason: string;
-  ejectedBy: string;
-  ejectedByName?: string;
+  adminId?: string;
+  adminName: string;
+  
   policyId?: string;
-  reinstatedAt?: string;
-  reinstatedBy?: string;
+  policyName?: string;
+  triggerType: 'POLICY' | 'MANUAL' | 'APPEAL';
 }
 
 export interface EjectionStudent {
