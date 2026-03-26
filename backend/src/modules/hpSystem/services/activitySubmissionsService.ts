@@ -761,7 +761,7 @@ export class ActivitySubmissionsService extends BaseService {
             this.activitySubmissionsRepository.getLateSubmissionCountByStudentId(studentId, courseId, courseVersionId, cohortName),
             this.activityRepository.getPendingActivitesCount(studentId, courseId, courseVersionId, cohortName),
             this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId, cohortName),
-            this.activityRepository.getLatestActivityByCohortName(cohortName),
+            // this.activityRepository.getLatestActivityByCohortName(cohortName),
         ]);
 
         const data: StudentActivitySubmissionStatsViewDto = {
