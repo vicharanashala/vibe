@@ -47,6 +47,8 @@ import {
 } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 import {ObjectId} from 'mongodb';
 import {NotificationService} from '#root/modules/notifications/services/NotificationService.js';
+import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
 
 /**
  * Controller for managing ejection policies
@@ -64,6 +66,8 @@ export class EjectionPolicyController {
     private readonly policyService: EjectionPolicyService,
     @inject(EJECTION_POLICY_TYPES.NotificationService)
     private readonly notificationService: NotificationService,
+    @inject(USERS_TYPES.EnrollmentService)
+    private readonly enrollmentService: EnrollmentService,
   ) {}
 
   @Authorized()
@@ -294,6 +298,7 @@ export class EjectionPolicyController {
     }
     // remove all scope/platform/course ability checks
     const updatedPolicy = await this.policyService.updatePolicy(policyId, body);
+
     await this.notificationService.notifyPolicyChange(
       updatedPolicy.courseId.toString(),
       updatedPolicy.courseVersionId.toString(),
@@ -301,6 +306,11 @@ export class EjectionPolicyController {
       updatedPolicy.name,
       false,
       policyId,
+    );
+    await this.enrollmentService.markPolicyReacknowledgementRequired(
+      updatedPolicy.courseId.toString(),
+      updatedPolicy.courseVersionId.toString(),
+      updatedPolicy.cohortId.toString(),
     );
     // audit trail stays the same
     return plainToClass(EjectionPolicyResponse, updatedPolicy, {

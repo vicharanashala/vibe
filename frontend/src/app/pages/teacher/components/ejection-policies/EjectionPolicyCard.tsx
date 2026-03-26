@@ -109,9 +109,7 @@ export const EjectionPolicyCard = ({ policy, onEdit, canEdit, canDelete }: Eject
                   <Shield className="h-3 w-3 mr-1" />
                   {policy.scope === 'platform' ? 'Platform-wide' : 'Course-specific'}
                 </Badge>
-                <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
-                  Priority: {policy.priority}
-                </Badge>
+                
               </div>
               {policy.description && (
                 <p className="text-sm text-muted-foreground line-clamp-2">{policy.description}</p>

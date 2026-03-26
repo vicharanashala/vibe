@@ -1,4 +1,4 @@
-// Add these hooks to your existing hooks.ts file
+
 
 import { api } from "@/lib/openapi";
 import { queryClient } from "@/lib/client";
@@ -153,4 +153,16 @@ export function useGetAppeals(
     ...result,
     appeals: (result.data as any) ?? [],
   };
+}
+export function useAcknowledgePolicyUpdate() {
+  return api.useMutation(
+    'post',
+    '/users/enrollments/courses/{courseId}/versions/{courseVersionId}/cohorts/{cohortId}/policy-acknowledge' as any,
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['get', '/notifications/user'] });
+        queryClient.invalidateQueries({ queryKey: ['get', '/users/enrollments'] });
+      },
+    }
+  );
 }

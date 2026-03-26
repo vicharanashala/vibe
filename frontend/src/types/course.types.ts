@@ -102,6 +102,7 @@ export type RawEnrollment = {
   courseId: { buffer: { data: number[] } }
   courseVersionId: { buffer: { data: number[] } }
   course?: components['schemas']['CourseDataResponse'] & { versionDetails?: components['schemas']['CourseVersionDataResponse'][] };
+  policyReacknowledgementRequired?: boolean;
 }
 
 export interface EnrolledUser {

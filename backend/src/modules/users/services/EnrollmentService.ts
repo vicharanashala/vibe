@@ -622,6 +622,8 @@ export class EnrollmentService extends BaseService {
             cohortName: enr.cohortName,
             completedItems: watchedItemsMap.get(watchedKey) || 0,
             hasNewItemsAfterCompletion: enr.hasNewItemsAfterCompletion || false,
+            policyReacknowledgementRequired:
+              enr.policyReacknowledgementRequired ?? false,
           };
         }
       });
@@ -2313,6 +2315,31 @@ export class EnrollmentService extends BaseService {
     return (
       csvStringifier.getHeaderString() +
       csvStringifier.stringifyRecords(formattedHistory)
+    );
+  }
+  async markPolicyReacknowledgementRequired(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+  ): Promise<void> {
+    await this.enrollmentRepo.markReacknowledgementRequired(
+      courseId,
+      courseVersionId,
+      cohortId,
+    );
+  }
+
+  async clearPolicyReacknowledgement(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+  ): Promise<void> {
+    await this.enrollmentRepo.clearReacknowledgement(
+      userId,
+      courseId,
+      courseVersionId,
+      cohortId,
     );
   }
 }
