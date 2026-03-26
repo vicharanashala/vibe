@@ -1,4 +1,4 @@
-import {useMemo, useState} from 'react';
+import {useMemo, useState, useEffect} from 'react';
 import {
   Shield,
   ShieldOff,
@@ -26,6 +26,7 @@ import {
   SystemNotification,
 } from '@/types/notification.types';
 import { AppealModal } from '@/app/pages/student/components/policies/AppealModal';
+import { useInvites } from "@/hooks/hooks";
 
 type InviteDropdownProps = {
   setShowInvites?: React.Dispatch<React.SetStateAction<boolean>>;
@@ -133,7 +134,25 @@ const appealKey = (n: SystemNotification) =>
   cohortId: string;
 } | null>(null);
 const submitAppeal = useSubmitAppeal();
+const [localInvites, setLocalInvites] = useState<any[]>([]);
+const { getInvites } = useInvites();
+// useEffect(() => {
+//   if (!pendingInvites.length) {
+//     getInvites().then((data) => {
+//       console.log("INVITES API RESPONSE:", data); 
+//       setLocalInvites(data?.invites || []);
+//     });
+//   }
+// }, [pendingInvites]);
+useEffect(() => {
+  if (localInvites.length === 0) {
+    getInvites().then((data) => {
+      console.log("INVITES API RESPONSE:", data); 
 
+      setLocalInvites(data?.invites || []);
+    });
+  }
+}, []);
 
 
   const handleMarkAsRead = (notificationId: string) => {
@@ -198,6 +217,18 @@ const mostRecentEjectionIds = useMemo(() => {
             </li>
           ) : (
             <>
+             {/* ── Invites ── */}
+             {(pendingInvites.length ? pendingInvites : localInvites).map((invite, idx) => (
+                <InviteItem
+                  key={`invite-${idx}`}
+                  invite={invite}
+                  onRejectClick={onRejectClick ?? (() => {})}
+                  onAcceptClick={invite => {
+                    setSelectedInvite(invite);
+                    setShowPolicyModal(true);
+                  }}
+                />
+              ))}
               {/* ── System Notifications (ejection, reinstatement, policy) ── */}
               {systemNotifications.map((notification, idx) => {
                 const colors = getSystemNotificationColors(notification.type);
@@ -382,18 +413,7 @@ const mostRecentEjectionIds = useMemo(() => {
                 </li>
               ))}
 
-              {/* ── Invites ── */}
-              {pendingInvites.map((invite: any, idx: number) => (
-                <InviteItem
-                  key={`invite-${idx}`}
-                  invite={invite}
-                  onRejectClick={onRejectClick ?? (() => {})}
-                  onAcceptClick={invite => {
-                    setSelectedInvite(invite);
-                    setShowPolicyModal(true);
-                  }}
-                />
-              ))}
+             
             </>
           )}
         </ul>
