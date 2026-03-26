@@ -27,6 +27,7 @@ import {
 } from '@/types/notification.types';
 import { AppealModal } from '@/app/pages/student/components/policies/AppealModal';
 import { useInvites } from "@/hooks/hooks";
+import { PolicyReacknowledgementModal } from '@/app/pages/student/components/policies/PolicyReacknowledgementModal';
 
 type InviteDropdownProps = {
   setShowInvites?: React.Dispatch<React.SetStateAction<boolean>>;
@@ -116,6 +117,8 @@ const InviteDropdown = ({
 }: InviteDropdownProps) => {
   const {mutate: markAsRead, isPending} = useMarkNotificationAsRead();
   const [showPolicyModal, setShowPolicyModal] = useState(false);
+  const [selectedPolicyNotification, setSelectedPolicyNotification] = useState<SystemNotification | null>(null);
+
   const [submittedAppeals, setSubmittedAppeals] = useState<Set<string>>(new Set());
 const appealKey = (n: SystemNotification) =>
   `${n.courseId}-${n.courseVersionId}-${n.cohortId}`;
@@ -229,6 +232,7 @@ const mostRecentEjectionIds = useMemo(() => {
                   }}
                 />
               ))}
+
               {/* ── System Notifications (ejection, reinstatement, policy) ── */}
               {systemNotifications.map((notification, idx) => {
                 const colors = getSystemNotificationColors(notification.type);
@@ -266,6 +270,19 @@ const mostRecentEjectionIds = useMemo(() => {
                     <p className="text-xs text-muted-foreground/70">
                       {new Date(notification.createdAt).toLocaleDateString()}
                     </p>
+                    {notification.type === 'policy_updated' && !notification.read && (
+  <Button
+    size="sm"
+    variant="outline"
+    onClick={(e) => {
+      e.stopPropagation();
+      setSelectedPolicyNotification(notification);
+    }}
+    className="text-xs mt-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+  >
+    Re-acknowledge Policy
+  </Button>
+)}
 
                   
                 {notification.type === 'ejection' &&
@@ -452,6 +469,20 @@ onSubmit={async ({ reason, evidenceUrl }) => {
   });
 }}
 />
+{selectedPolicyNotification && (
+  <PolicyReacknowledgementModal
+    open={!!selectedPolicyNotification}
+    onClose={() => setSelectedPolicyNotification(null)}
+    courseId={selectedPolicyNotification.courseId!}
+    courseVersionId={selectedPolicyNotification.courseVersionId!}
+    cohortId={selectedPolicyNotification.cohortId!}
+    notificationId={selectedPolicyNotification._id}
+    onSuccess={() => {
+      onMarkSystemRead?.(selectedPolicyNotification._id);
+      setSelectedPolicyNotification(null);
+    }}
+  />
+)}
     </>
   );
 };

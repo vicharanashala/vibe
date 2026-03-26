@@ -4607,7 +4607,7 @@ export class EnrollmentRepository {
         },
       },
 
-      // Join users for ejection history actors 
+      // Join users for ejection history actors
       {
         $lookup: {
           from: 'users',
@@ -5014,5 +5014,50 @@ export class EnrollmentRepository {
       history: data,
       totalDocuments: countResult[0]?.total ?? 0,
     };
+  }
+  // Mark all students in a cohort as needing re-ack
+  async markReacknowledgementRequired(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    await this.enrollmentCollection.updateMany(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        cohortId: new ObjectId(cohortId),
+        role: 'STUDENT',
+        isEjected: {$ne: true},
+      },
+      {$set: {policyReacknowledgementRequired: true, status: 'INACTIVE'}},
+      {session},
+    );
+  }
+
+  // Clear re-ack flag for a specific student
+  async clearReacknowledgement(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+  ): Promise<void> {
+    await this.init();
+    await this.enrollmentCollection.updateOne(
+      {
+        userId: {$in: [userId, new ObjectId(userId)]},
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        cohortId: new ObjectId(cohortId),
+      },
+      {$set: {policyReacknowledgementRequired: false, status: 'ACTIVE'}},
+    );
+  }
+  async updateOne(enrollmentId: string, update: any) {
+    await this.enrollmentCollection.updateOne(
+      {_id: new ObjectId(enrollmentId)},
+      {$set: update},
+    );
   }
 }

@@ -692,6 +692,15 @@ function CourseCard({
 
   const MAX_DESCRIPTION_LENGTH = 1000;
 
+  if (enrollment.policyReacknowledgementRequired) {
+  // Show a banner or disable "Continue" button
+  return (
+    <div className="...warning banner...">
+      Policy updated — please re-acknowledge via the notification bell to continue.
+    </div>
+  );
+}
+
   return (
     <div className="relative group">
       {/* <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div> */}

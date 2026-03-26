@@ -409,6 +409,7 @@ export interface IEnrollment {
   hasNewItemsAfterCompletion?: boolean;
   cohortId?: ID;
   policyAcknowledgedAt?: Date;
+  policyReacknowledgementRequired?: boolean;
   isEjected?: boolean;
   ejectionHistory?: Array<{
     ejectedAt: Date;
