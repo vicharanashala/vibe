@@ -150,7 +150,9 @@ export interface paths {
     };
     "/courses/versions/{id}": {
         parameters: {
-            query?: never;
+            query?: {
+                cohortId?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;

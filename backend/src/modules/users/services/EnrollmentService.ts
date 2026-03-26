@@ -996,24 +996,11 @@ export class EnrollmentService extends BaseService {
     cohortId?: string,
   ) {
     return this._withTransaction(async (session: ClientSession) => {
-      let effectiveCohortId = cohortId;
-      if (!effectiveCohortId) {
-        const enrollments = await this.enrollmentRepo.findStudentEnrollmentsByContext(
-          userId,
-          courseId,
-          courseVersionId,
-          session,
-        );
-        if (enrollments.length === 1) {
-          effectiveCohortId = enrollments[0]?.cohortId?.toString();
-        }
-      }
-
       const detail = await this.enrollmentRepo.getStudentProgressDetail(
         userId,
         courseId,
         courseVersionId,
-        effectiveCohortId,
+        cohortId,
         session,
       );
       if (!detail) return null;
@@ -1115,7 +1102,7 @@ export class EnrollmentService extends BaseService {
               await this.enrollmentRepo.getBatchQuizSubmissionGrades(
                 [userId],
                 allQuizIds,
-                [effectiveCohortId]
+                cohortId ? [cohortId] : undefined
               );
 
             quizSubmissions.forEach((submission: any) => {
@@ -1161,24 +1148,11 @@ export class EnrollmentService extends BaseService {
     cohortId?: string,
   ) {
     return this._withTransaction(async (session: ClientSession) => {
-      let effectiveCohortId = cohortId;
-      if (!effectiveCohortId) {
-        const enrollments = await this.enrollmentRepo.findStudentEnrollmentsByContext(
-          userId,
-          courseId,
-          courseVersionId,
-          session,
-        );
-        if (enrollments.length === 1) {
-          effectiveCohortId = enrollments[0]?.cohortId?.toString();
-        }
-      }
-
       return this.enrollmentRepo.getStudentCourseStructure(
         userId,
         courseId,
         courseVersionId,
-        effectiveCohortId,
+        cohortId,
         session,
       );
     });
@@ -1753,13 +1727,14 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-  ): Promise<IEnrollment> {
+    cohortId?: string,
+  ): Promise<IEnrollment | null> {
     return this._withTransaction(async (session: ClientSession) => {
       return this.enrollmentRepo.getUserEnrollmentsByCourseVersion(
         userId,
         courseId,
         courseVersionId,
-        undefined,
+        cohortId,
         session,
       );
     });

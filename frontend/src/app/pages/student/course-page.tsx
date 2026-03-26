@@ -220,7 +220,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
   // Fetch course version data
   const { data: courseVersionData, isLoading: versionLoading, error: versionError, refetch: refetchVersion } =
-    useCourseVersionById(VERSION_ID);
+    useCourseVersionById(VERSION_ID, undefined, COHORT_ID);
 
   // Fetch user progress
   const { data: progressData, isLoading: progressLoading, error: progressError } =
