@@ -40,7 +40,8 @@ import {
     ChevronUp,
     Mail,
     User,
-    Search
+    Search,
+    RefreshCw
 } from "lucide-react";
 import type { HpStudentSubmission } from "@/lib/api/hp-system";
 
@@ -232,9 +233,9 @@ export default function StudentSubmissionsPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
-    const { data: submissions, isLoading: submissionsLoading, error } = useHpStudentSubmissions(
+    const { data: submissions, isLoading: submissionsLoading, error, refetch, isRefetching } = useHpStudentSubmissions(
         studentId || "", courseVersionId || "", cohortName || ""
-    );
+    ) as any;
     const { data: stats } = useHpStudentSubmissionStats(
         studentId || "",
         decodeURIComponent(cohortName || "")
@@ -323,7 +324,7 @@ export default function StudentSubmissionsPage() {
                 >
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
-                <div>
+                <div className="flex-1">
                     <h2 className="text-2xl font-bold tracking-tight">
                         {student?.name || "Student"} — Submissions
                     </h2>
@@ -331,6 +332,15 @@ export default function StudentSubmissionsPage() {
                         {student?.email || ""} · {decodeURIComponent(cohortName || "")}
                     </p>
                 </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetch()}
+                    disabled={isRefetching}
+                >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                    {isRefetching ? "Refreshing..." : "Refresh"}
+                </Button>
             </div>
 
             {/* Summary Cards */}

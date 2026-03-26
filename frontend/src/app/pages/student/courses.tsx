@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
-import { Search, X } from "lucide-react";
+import { Search, X, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "@tanstack/react-router";
@@ -45,11 +46,11 @@ export default function StudentCourses() {
   // Get the current user from auth store
   const { isAuthenticated, token } = useAuthStore();
   
-  const { data: enrollmentsData, isLoading, error, refetch } = useUserEnrollments(
+  const { data: enrollmentsData, isLoading, error, refetch, isRefetching } = useUserEnrollments(
     currentPage, 10, !!token, debouncedSearch
   );
 
-  const { data: publicCoursesData, isLoading: loadingPublic, refetch: refetchPublic } = usePublicCourses(
+  const { data: publicCoursesData, isLoading: loadingPublic, refetch: refetchPublic, isRefetching: isRefetchingPublic } = usePublicCourses(
     currentPage,
     10,
     !!token,
@@ -127,9 +128,20 @@ export default function StudentCourses() {
   return (
     <div className="flex flex-1 flex-col gap-4 md:px-4 px-0 p-4 pt-0">
       <div className="flex flex-col space-y-6">
-        <section className="flex flex-col space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">My Courses</h1>
-          <p className="text-muted-foreground">Manage your learning journey</p>
+        <section className="flex items-start justify-between gap-4">
+          <div className="flex flex-col space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight">My Courses</h1>
+            <p className="text-muted-foreground">Manage your learning journey</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => activeTab === "available" ? refetchPublic() : refetch()}
+            disabled={activeTab === "available" ? isRefetchingPublic : isRefetching}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${(activeTab === "available" ? isRefetchingPublic : isRefetching) ? "animate-spin" : ""}`} />
+            {(activeTab === "available" ? isRefetchingPublic : isRefetching) ? "Refreshing..." : "Refresh"}
+          </Button>
         </section>
          
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
