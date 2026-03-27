@@ -22,8 +22,8 @@ export class StudentQuizScoreDto {
 
   @Expose()
   @IsString()
-  cohortName: string;
-
+  @IsOptional()
+  cohortName?: string;
 
   @Expose()
   @IsArray()
@@ -32,6 +32,8 @@ export class StudentQuizScoreDto {
     sectionId: string;
     quizId: string;
     quizName: string;
+    questionCount: number;
+    quizMaxScore: number;
     maxScore: number;
     attempts: number;
     questionScores: Array<{

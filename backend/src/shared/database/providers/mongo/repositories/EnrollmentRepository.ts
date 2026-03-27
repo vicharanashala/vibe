@@ -2539,7 +2539,7 @@ export class EnrollmentRepository {
    */
   private async getQuizDetails(
     quizIds: ObjectId[],
-  ): Promise<Map<string, { name: string }>> {
+  ): Promise<Map<string, { name: string; questionCount: number }>> {
     const quizzes = await this.quizCollection
       .find({
         _id: { $in: quizIds },
@@ -2547,13 +2547,20 @@ export class EnrollmentRepository {
       .project({
         _id: 1,
         name: 1,
+        'details.questionBankRefs.count': 1,
       })
       .toArray();
 
-    const quizDetails = new Map<string, { name: string }>();
+    const quizDetails = new Map<string, { name: string; questionCount: number }>();
     quizzes.forEach(quiz => {
+      const questionCount = (quiz.details?.questionBankRefs ?? []).reduce(
+        (sum: number, ref: { count?: number }) => sum + (Number(ref?.count) || 0),
+        0,
+      );
+
       quizDetails.set(quiz._id.toString(), {
         name: quiz.name,
+        questionCount,
       });
     });
 
@@ -2981,6 +2988,15 @@ export class EnrollmentRepository {
     return Array.from(questionIds);
   }
 
+  // Helper function
+  private formatExportScore(value: number | null | undefined): number {
+    if (typeof value !== 'number' || Number.isNaN(value)) {
+      return 0;
+    }
+
+    return Number.isInteger(value) ? value : Number(value.toFixed(2));
+  }
+
   /**
    * Retrieves quiz IDs organized by modules and sections for a given course version
    * @param versionId The ID of the course version
@@ -3265,10 +3281,7 @@ export class EnrollmentRepository {
 
     const quizIdsObj = validQuizIds.map(id => new ObjectId(id));
 
-    const [quizDetails, quizQuestionsMap] = await Promise.all([
-      this.getQuizDetails(quizIdsObj),
-      this.getQuizQuestionIdsBulk(validQuizIds),
-    ]);
+    const quizDetails = await this.getQuizDetails(quizIdsObj);
 
     /* -------------------------------------------------------
      * 3️⃣ AGGREGATE SUBMISSIONS IN MONGO (🔥 FIX)
@@ -3286,21 +3299,33 @@ export class EnrollmentRepository {
           },
         },
         {
+          $project: {
+            userId: { $toString: '$userId' },
+            quizId: { $toString: '$quizId' },
+            cohortId: {
+              $ifNull: [{ $toString: '$cohortId' }, 'no-cohort'],
+            },
+            totalScore: '$gradingResult.totalScore',
+            totalMaxScore: '$gradingResult.totalMaxScore',
+          },
+        },
+        {
           $group: {
             _id: {
               userId: '$userId',
               quizId: '$quizId',
-              cohortId: '$cohortId', // Always include cohort to separate scores
+              cohortId: '$cohortId',
             },
             attempts: { $sum: 1 },
-            maxScore: { $max: '$gradingResult.totalScore' },
+            maxScore: { $max: '$totalScore' },
+            quizMaxScore: { $max: '$totalMaxScore' },
           },
         },
       ])
       .toArray();
 
-    // Aggregation for question scores
-    const aggregatedSubmissions = await this.submissionCollection
+    // Aggregation for question scores from best attempt only
+    const bestAttemptSubmissions = await this.submissionCollection
       .aggregate([
         {
           $match: {
@@ -3313,21 +3338,49 @@ export class EnrollmentRepository {
           },
         },
         {
-          $unwind: '$gradingResult.overallFeedback',
+          $project: {
+            userId: { $toString: '$userId' },
+            quizId: { $toString: '$quizId' },
+            cohortId: {
+              $ifNull: [{ $toString: '$cohortId' }, 'no-cohort'],
+            },
+            overallFeedback: '$gradingResult.overallFeedback',
+            totalScore: '$gradingResult.totalScore',
+            updatedAt: 1,
+            createdAt: 1,
+          },
+        },
+        {
+          $sort: {
+            totalScore: -1,
+            updatedAt: -1,
+            createdAt: -1,
+          },
         },
         {
           $group: {
             _id: {
               userId: '$userId',
               quizId: '$quizId',
-              cohortId: '$cohortId', // Always include cohort to separate scores
-              questionId: '$gradingResult.overallFeedback.questionId',
+              cohortId: '$cohortId',
             },
-            questionScore: {
-              $max: '$gradingResult.overallFeedback.score',
-            },
+            overallFeedback: { $first: '$overallFeedback' },
           },
         },
+        {
+          $unwind: '$overallFeedback',
+        },
+        {
+          $project: {
+            _id: 0,
+            userId: '$_id.userId',
+            quizId: '$_id.quizId',
+            cohortId: '$_id.cohortId',
+            questionId: '$overallFeedback.questionId',
+            questionScore: '$overallFeedback.score',
+          },
+        },
+        
       ])
       .toArray();
 
@@ -3337,6 +3390,7 @@ export class EnrollmentRepository {
     const scoreMap = new Map<string, Map<string, Map<string, Map<string, number>>>>();
     const maxScoreMap = new Map<string, Map<string, Map<string, number>>>();
     const attemptsMap = new Map<string, Map<string, Map<string, number>>>();
+    const quizMaxScoreMap = new Map<string, number>();
 
     // Build attempts and max score maps from separate aggregation
     for (const row of attemptsAggregation) {
@@ -3357,13 +3411,20 @@ export class EnrollmentRepository {
         .set(cohortId, maxScoreMap.get(userId)?.get(cohortId) ?? new Map())
         .get(cohortId)!
         .set(quizId, row.maxScore ?? 0);
+
+      quizMaxScoreMap.set(
+        quizId,
+        Math.max(quizMaxScoreMap.get(quizId) ?? 0, row.quizMaxScore ?? 0),
+      );
     }
 
-    for (const row of aggregatedSubmissions) {
-      const userId = row._id.userId.toString();
-      const quizId = row._id.quizId.toString();
-      const cohortId = row._id.cohortId?.toString() ?? 'no-cohort';
-      const questionId = row._id.questionId.toString();
+    for (const row of bestAttemptSubmissions) {
+      const userId = row.userId.toString();
+      const quizId = row.quizId.toString();
+      const cohortId = row.cohortId?.toString() ?? 'no-cohort';
+      const questionId = row.questionId?.toString();
+
+      if (!questionId) continue;
 
       scoreMap
         .set(userId, scoreMap.get(userId) ?? new Map())
@@ -3386,9 +3447,7 @@ export class EnrollmentRepository {
       for (const module of quizzesByModuleSection) {
         for (const section of module.sections) {
           for (const quizId of section.quizIds) {
-            if (!quizQuestionsMap.has(quizId)) continue;
 
-            const questionIds = quizQuestionsMap.get(quizId)!;
             const qScoreMap = scoreMap.get(userId)?.get(cohortId)?.get(quizId) ?? new Map();
 
             quizScores.push({
@@ -3396,16 +3455,19 @@ export class EnrollmentRepository {
               sectionId: section.sectionId,
               quizId,
               quizName: quizDetails.get(quizId)?.name ?? 'Untitled Quiz',
-              maxScore: maxScoreMap.get(userId)?.get(cohortId)?.get(quizId) ?? 0,
+              questionCount: quizDetails.get(quizId)?.questionCount ?? 0,
+              quizMaxScore: this.formatExportScore(quizMaxScoreMap.get(quizId) ?? 0),
+              maxScore: this.formatExportScore(
+                maxScoreMap.get(userId)?.get(cohortId)?.get(quizId) ?? 0,
+              ),
               attempts: attemptsMap.get(userId)?.get(cohortId)?.get(quizId) ?? 0,
-              questionScores: questionIds.map(qid => ({
-                questionId: qid,
-                score: qScoreMap.get(qid) ?? 0,
+              questionScores: Array.from(qScoreMap.entries()).map(([questionId, score]) => ({
+                questionId,
+                score: this.formatExportScore(score),
               })),
             });
           }
         }
-
       }
       // Get cohort name for this specific enrollment
       const cohortName = cohortMap?.get(enrollment.cohortId?.toString()) ?? null;
