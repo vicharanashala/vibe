@@ -14,6 +14,7 @@ import {
 export enum EjectionTriggerType {
   MANUAL = 'MANUAL',
   POLICY = 'POLICY',
+  APPEAL = 'APPEAL',
 }
 
 export class EjectionHistoryQuery {
@@ -92,6 +93,9 @@ export class EjectionHistoryEntryResponse {
 
   @Expose()
   cohortName?: string;
+
+  @Expose()
+  type: string;
 
   @Expose()
   @IsDate()

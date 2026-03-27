@@ -2508,11 +2508,12 @@ export class EnrollmentService extends BaseService {
       {id: 'lastName', title: 'Last Name'},
       {id: 'email', title: 'Email'},
       {id: 'cohortName', title: 'Cohort'},
-      {id: 'ejectedAt', title: 'Ejected At'},
-      {id: 'triggerType', title: 'Trigger Type'},
+      {id: 'type', title: 'Event Type'},
+      {id: 'ejectedAt', title: 'Date'},
+      {id: 'triggerType', title: 'Trigger Source'},
       {id: 'policyName', title: 'Policy Name'},
-      {id: 'ejectionReason', title: 'Reason'},
-      {id: 'ejectedByName', title: 'Ejected By'},
+      {id: 'ejectionReason', title: 'Reason/Note'},
+      {id: 'ejectedByName', title: 'Performed By'},
     ];
 
     const csvStringifier = createObjectCsvStringifier({
@@ -2526,6 +2527,7 @@ export class EnrollmentService extends BaseService {
         : '',
       policyName: item.policyName || 'N/A',
       cohortName: item.cohortName || 'N/A',
+      triggerType: item.triggerType || 'N/A',
     }));
 
     return (

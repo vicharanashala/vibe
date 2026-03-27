@@ -67,6 +67,23 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
     setPage(1);
   };
 
+  const getEventBadge = (type: string) => {
+    switch (type) {
+      case 'EJECTED':
+        return <Badge variant="outline" className="text-red-700 border-red-200 bg-red-50">Ejected</Badge>;
+      case 'REINSTATED':
+        return <Badge variant="outline" className="text-green-700 border-green-200 bg-green-50">Reinstated</Badge>;
+      case 'APPEAL_SUBMITTED':
+        return <Badge variant="outline" className="text-blue-700 border-blue-200 bg-blue-50">Appeal Submitted</Badge>;
+      case 'APPEAL_APPROVED':
+        return <Badge variant="outline" className="text-emerald-700 border-emerald-200 bg-emerald-50">Appeal Approved</Badge>;
+      case 'APPEAL_REJECTED':
+        return <Badge variant="outline" className="text-orange-700 border-orange-200 bg-orange-50">Appeal Rejected</Badge>;
+      default:
+        return <Badge variant="secondary">{type}</Badge>;
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-2">
@@ -94,12 +111,13 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
           
           <Select value={triggerType} onValueChange={(val) => { setTriggerType(val); setPage(1); }}>
             <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Trigger Type" />
+              <SelectValue placeholder="Trigger Source" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All Triggers</SelectItem>
+              <SelectItem value="ALL">All Sources</SelectItem>
               <SelectItem value="MANUAL">Manual</SelectItem>
               <SelectItem value="POLICY">Policy</SelectItem>
+              <SelectItem value="APPEAL">Appeal</SelectItem>
             </SelectContent>
           </Select>
 
@@ -139,18 +157,17 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
           <TableHeader>
             <TableRow>
               <TableHead>Student</TableHead>
-              <TableHead>Cohort</TableHead>
-              <TableHead>Ejected At</TableHead>
-              <TableHead>Trigger</TableHead>
-              <TableHead>Reason</TableHead>
-              <TableHead>Ejected By</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Event</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Source</TableHead>
+              <TableHead>Reason/Note</TableHead>
+              <TableHead>Performed By</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   <div className="flex items-center justify-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin text-primary" />
                     <span>Loading history...</span>
@@ -159,7 +176,7 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
               </TableRow>
             ) : isError ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-destructive">
+                <TableCell colSpan={6} className="h-24 text-center text-destructive">
                   <div className="flex flex-col items-center justify-center gap-1">
                     <AlertTriangle className="h-5 w-5" />
                     <span className="font-medium">Failed to load history</span>
@@ -169,19 +186,20 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
               </TableRow>
             ) : data?.history?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   No ejection events found.
                 </TableCell>
               </TableRow>
             ) : (
               data?.history?.map((entry: any, idx: number) => (
-                <TableRow key={`${entry.enrollmentId}-${idx}`}>
+                <TableRow key={`${entry.enrollmentId}-${entry.type}-${idx}`}>
                   <TableCell>
                     <div className="font-medium">{entry.firstName} {entry.lastName}</div>
                     <div className="text-xs text-muted-foreground">{entry.email}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">{entry.cohortName}</div>
                   </TableCell>
-                  <TableCell>{entry.cohortName || 'N/A'}</TableCell>
-                  <TableCell>
+                  <TableCell>{getEventBadge(entry.type)}</TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {entry.ejectedAt ? new Date(entry.ejectedAt).toLocaleString('en-US', { 
                       month: 'short', 
                       day: 'numeric', 
@@ -191,7 +209,7 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
                     }) : 'N/A'}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={entry.triggerType === 'POLICY' ? 'default' : 'secondary'}>
+                    <Badge variant="outline" className={entry.triggerType === 'POLICY' ? 'bg-primary/5 text-primary border-primary/20' : ''}>
                       {entry.triggerType}
                     </Badge>
                     {entry.policyName && (
@@ -201,21 +219,12 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
                     )}
                   </TableCell>
                   <TableCell className="max-w-[200px]">
-                    <div className="text-sm truncate" title={entry.ejectionReason}>
-                      {entry.ejectionReason}
+                    <div className="text-xs line-clamp-2" title={entry.ejectionReason}>
+                      {entry.ejectionReason || '—'}
                     </div>
                   </TableCell>
-                  <TableCell>{entry.ejectedByName || 'System'}</TableCell>
-                  <TableCell>
-                    {entry.reinstatedAt ? (
-                      <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
-                        Reinstated
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-red-600 border-red-200 bg-red-50">
-                        Ejected
-                      </Badge>
-                    )}
+                  <TableCell className="text-sm font-medium">
+                    {entry.ejectedByName || 'System'}
                   </TableCell>
                 </TableRow>
               ))

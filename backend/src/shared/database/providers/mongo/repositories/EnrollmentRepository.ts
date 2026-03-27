@@ -5018,9 +5018,170 @@ export class EnrollmentRepository {
           ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
         },
       },
-
-      {$unwind: '$ejectionHistory'},
-
+      {
+        $project: {
+          enrollmentId: '$_id',
+          userId: 1,
+          cohortId: 1,
+          events: {
+            $concatArrays: [
+              {
+                $map: {
+                  input: '$ejectionHistory',
+                  as: 'h',
+                  in: {
+                    type: 'EJECTED',
+                    date: '$$h.ejectedAt',
+                    ejectionReason: '$$h.ejectionReason',
+                    adminId: '$$h.ejectedBy',
+                    policyId: '$$h.policyId',
+                    triggerType: {
+                      $cond: [
+                        {$ifNull: ['$$h.policyId', false]},
+                        'POLICY',
+                        'MANUAL',
+                      ],
+                    },
+                  },
+                },
+              },
+              {
+                $reduce: {
+                  input: '$ejectionHistory',
+                  initialValue: [],
+                  in: {
+                    $concatArrays: [
+                      '$$value',
+                      {
+                        $cond: [
+                          {$ifNull: ['$$this.reinstatedAt', false]},
+                          [
+                            {
+                              type: 'REINSTATED',
+                              date: '$$this.reinstatedAt',
+                              adminId: '$$this.reinstatedBy',
+                              ejectionReason: {
+                                $cond: [
+                                  {$eq: ['$$this.triggerType', 'APPEAL']},
+                                  'Reinstated from appeal',
+                                  'Reinstated by admin',
+                                ],
+                              },
+                              policyId: '$$this.policyId',
+                              triggerType: {
+                                $cond: [
+                                  {$ifNull: ['$$this.policyId', false]},
+                                  'POLICY',
+                                  'MANUAL',
+                                ],
+                              },
+                            },
+                          ],
+                          [],
+                        ],
+                      },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+      {$unwind: '$events'},
+      {
+        $project: {
+          _id: 0,
+          enrollmentId: 1,
+          userId: 1,
+          cohortId: 1,
+          type: '$events.type',
+          date: '$events.date',
+          ejectionReason: '$events.ejectionReason',
+          adminId: '$events.adminId',
+          policyId: '$events.policyId',
+          triggerType: '$events.triggerType',
+        },
+      },
+      {
+        $unionWith: {
+          coll: 'appeals',
+          pipeline: [
+            {
+              $match: {
+                courseId: new ObjectId(courseId),
+                courseVersionId: new ObjectId(courseVersionId),
+                ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
+              },
+            },
+            {
+              $project: {
+                userId: 1,
+                cohortId: 1,
+                events: {
+                  $concatArrays: [
+                    [
+                      {
+                        type: 'APPEAL_SUBMITTED',
+                        date: '$createdAt',
+                        ejectionReason: {
+                          $ifNull: ['$reason', 'Appeal submitted'],
+                        },
+                        adminId: '$userId',
+                        triggerType: 'APPEAL',
+                        policyId: '$policyId',
+                      },
+                    ],
+                    {
+                      $cond: [
+                        {
+                          $and: [
+                            {$ne: ['$status', 'PENDING']},
+                            {$ifNull: ['$reviewedAt', false]},
+                          ],
+                        },
+                        [
+                          {
+                            type: {
+                              $cond: [
+                                {$eq: ['$status', 'APPROVED']},
+                                'APPEAL_APPROVED',
+                                'APPEAL_REJECTED',
+                              ],
+                            },
+                            date: '$reviewedAt',
+                            ejectionReason: {
+                              $concat: ['Appeal ', {$toLower: '$status'}],
+                            },
+                            adminId: '$reviewedBy',
+                            triggerType: 'APPEAL',
+                            policyId: '$policyId',
+                          },
+                        ],
+                        [],
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+            {$unwind: '$events'},
+            {
+              $project: {
+                userId: 1,
+                cohortId: 1,
+                type: '$events.type',
+                date: '$events.date',
+                ejectionReason: '$events.ejectionReason',
+                adminId: '$events.adminId',
+                triggerType: '$events.triggerType',
+                policyId: '$events.policyId',
+              },
+            },
+          ],
+        },
+      },
+      // Join user details (the student)
       {
         $lookup: {
           from: 'users',
@@ -5030,7 +5191,17 @@ export class EnrollmentRepository {
         },
       },
       {$unwind: {path: '$user', preserveNullAndEmptyArrays: true}},
-
+      // Join admin details
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'adminId',
+          foreignField: '_id',
+          as: 'adminUser',
+        },
+      },
+      {$unwind: {path: '$adminUser', preserveNullAndEmptyArrays: true}},
+      // Join cohort details
       {
         $lookup: {
           from: 'cohorts',
@@ -5040,47 +5211,23 @@ export class EnrollmentRepository {
         },
       },
       {$unwind: {path: '$cohort', preserveNullAndEmptyArrays: true}},
-
+      // Join policy details
       {
         $lookup: {
           from: 'ejectionPolicies',
-          localField: 'ejectionHistory.policyId',
+          localField: 'policyId',
           foreignField: '_id',
           as: 'policy',
         },
       },
       {$unwind: {path: '$policy', preserveNullAndEmptyArrays: true}},
 
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'ejectionHistory.ejectedBy',
-          foreignField: '_id',
-          as: 'admin',
-        },
-      },
-      {$unwind: {path: '$admin', preserveNullAndEmptyArrays: true}},
-
-      {
-        $addFields: {
-          'ejectionHistory.triggerType': {
-            $cond: [
-              {$ifNull: ['$ejectionHistory.policyId', false]},
-              'POLICY',
-              'MANUAL',
-            ],
-          },
-        },
-      },
-
-      ...(triggerType
-        ? [{$match: {'ejectionHistory.triggerType': triggerType}}]
-        : []),
+      ...(triggerType ? [{$match: {triggerType: triggerType}}] : []),
       ...(startDate || endDate
         ? [
             {
               $match: {
-                'ejectionHistory.ejectedAt': {
+                date: {
                   ...(startDate ? {$gte: startDate} : {}),
                   ...(endDate ? {$lte: endDate} : {}),
                 },
@@ -5105,24 +5252,43 @@ export class EnrollmentRepository {
       {
         $project: {
           _id: 0,
-          enrollmentId: '$_id',
+          enrollmentId: 1,
           userId: 1,
           firstName: '$user.firstName',
           lastName: '$user.lastName',
           email: '$user.email',
           cohortId: 1,
           cohortName: '$cohort.name',
-          ejectedAt: '$ejectionHistory.ejectedAt',
-          ejectionReason: '$ejectionHistory.ejectionReason',
-          ejectedBy: '$ejectionHistory.ejectedBy',
+          type: 1,
+          ejectedAt: '$date',
+          ejectionReason: 1,
+          adminId: 1,
           ejectedByName: {
-            $concat: ['$admin.firstName', ' ', '$admin.lastName'],
+            $cond: [
+              {$eq: ['$type', 'APPEAL_SUBMITTED']},
+              'Student',
+              {
+                $cond: [
+                  {$ifNull: ['$adminUser', false]},
+                  {
+                    $trim: {
+                      input: {
+                        $concat: [
+                          {$ifNull: ['$adminUser.firstName', '']},
+                          ' ',
+                          {$ifNull: ['$adminUser.lastName', '']},
+                        ],
+                      },
+                    },
+                  },
+                  'System',
+                ],
+              },
+            ],
           },
-          policyId: '$ejectionHistory.policyId',
+          policyId: 1,
           policyName: '$policy.name',
-          triggerType: '$ejectionHistory.triggerType',
-          reinstatedAt: '$ejectionHistory.reinstatedAt',
-          reinstatedBy: '$ejectionHistory.reinstatedBy',
+          triggerType: 1,
         },
       },
 
