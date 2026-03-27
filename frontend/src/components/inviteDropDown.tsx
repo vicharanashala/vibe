@@ -270,7 +270,7 @@ const mostRecentEjectionIds = useMemo(() => {
                     <p className="text-xs text-muted-foreground/70">
                       {new Date(notification.createdAt).toLocaleDateString()}
                     </p>
-                    {notification.type === 'policy_updated' && !notification.read && (
+                    {(notification.type ==="policy_created"||notification.type === 'policy_updated') && !notification.read  && (
   <Button
     size="sm"
     variant="outline"

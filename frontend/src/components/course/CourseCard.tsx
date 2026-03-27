@@ -43,6 +43,7 @@ const isCurrentTimeInTimeSlot = (timeSlot?: { from: string; to: string }) => {
   const [toHours, toMinutes] = timeSlot.to.split(':').map(Number);
   const fromTime = fromHours * 60 + fromMinutes;
   const toTime = toHours * 60 + toMinutes;
+
   
   return currentTime >= fromTime && currentTime <= toTime;
 };
@@ -59,6 +60,8 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const module_number = enrollment.moduleNumber || "";
   const section_number = enrollment.sectionNumber || "";
   const item_type = enrollment.itemType || "VIDEO";
+  const [showPolicies, setShowPolicies] = useState(false)
+
 
   // Fetch course version to get supportLink
   const { data: courseVersionData } = useCourseVersionById(
