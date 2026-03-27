@@ -39,6 +39,7 @@ import {
   Layers,
   Activity,
   MoreVertical,
+  MoreVerticalIcon,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -178,16 +179,16 @@ export default function TeacherCoursesPage() {
     }
   }, [totalDocuments, initialDocumentCount, enrollmentsResponse])
 
- useEffect(() => {
+  useEffect(() => {
     sessionStorage.removeItem("teacher_page")
   }, [])
 
   // Reset page to 1 when search query changes
   useEffect(() => {
-  if (searchQuery) {
-    setCurrentPage(1)
-  }
-}, [searchQuery])
+    if (searchQuery) {
+      setCurrentPage(1)
+    }
+  }, [searchQuery])
 
   useEffect(() => {
     if (initialDocumentCount === 0 && !searchQuery) {
@@ -252,7 +253,7 @@ export default function TeacherCoursesPage() {
       </div>
     )
   }
-  if ( activeCount === 0 && archivedCount === 0 && !enrollmentsLoading ) {
+  if (activeCount === 0 && archivedCount === 0 && !enrollmentsLoading) {
     return (
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-6xl mx-auto">
@@ -361,25 +362,25 @@ export default function TeacherCoursesPage() {
               className="w-full"
             >
               <TabsList className="grid w-full sm:w-[420px] grid-cols-2 h-11 bg-muted/40 backdrop-blur-sm border border-border/50 p-1 rounded-xl overflow-hidden mb-4">
-              <TabsTrigger
-                value="active"
-                className="rounded-lg text-sm font-semibold text-muted-foreground transition-all duration-200
+                <TabsTrigger
+                  value="active"
+                  className="rounded-lg text-sm font-semibold text-muted-foreground transition-all duration-200
                 data-[state=active]:bg-background/80
                 data-[state=active]:text-foreground
                 data-[state=active]:shadow-sm"
-              >
-                Active Versions({activeCount})
-              </TabsTrigger>
+                >
+                  Active Versions({activeCount})
+                </TabsTrigger>
 
-              <TabsTrigger
-                value="archived"
-                className="rounded-lg text-sm font-semibold text-muted-foreground transition-all duration-200
+                <TabsTrigger
+                  value="archived"
+                  className="rounded-lg text-sm font-semibold text-muted-foreground transition-all duration-200
                 data-[state=active]:bg-background/80
                 data-[state=active]:text-foreground
                 data-[state=active]:shadow-sm"
-              >
-                Archived Versions({archivedCount})
-              </TabsTrigger>
+                >
+                  Archived Versions({archivedCount})
+                </TabsTrigger>
               </TabsList>
             </Tabs>
             <div className="md:flex flex-row items-center justify-between gap-4">
@@ -731,31 +732,31 @@ function CourseCard({
                   {/* <div className="flex flex-row sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2"> */}
                   <div className="flex flex-row items-center gap-2 sm:gap-3 mb-2">
                     <CardTitle className="text-lg md:text-xl font-bold text-foreground sm:line-clamp-2 break-words">
-                        {(() => {
-                          const MAX_TITLE_LENGTH = 60;
-                          const isLong = course.name.length > MAX_TITLE_LENGTH;
-                          const displayName = isLong ? course.name.slice(0, MAX_TITLE_LENGTH) + "..." : course.name;
-                          return (
-                            <span
-                              className="relative cursor-pointer"
-                              title={isLong ? course.name : undefined}
-                              style={{
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                maxWidth: "100%",
-                                display: "inline-block"
-                              }}
-                            >
-                              {displayName}
-                              {isLong && (
-                                <span className="absolute left-0 top-full z-10 mt-1 px-2 py-1 bg-background border border-border rounded shadow text-xs text-foreground whitespace-pre-line opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-                                  {course.name}
-                                </span>
-                              )}
-                            </span>
-                          );
-                        })()}
+                      {(() => {
+                        const MAX_TITLE_LENGTH = 60;
+                        const isLong = course.name.length > MAX_TITLE_LENGTH;
+                        const displayName = isLong ? course.name.slice(0, MAX_TITLE_LENGTH) + "..." : course.name;
+                        return (
+                          <span
+                            className="relative cursor-pointer"
+                            title={isLong ? course.name : undefined}
+                            style={{
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              maxWidth: "100%",
+                              display: "inline-block"
+                            }}
+                          >
+                            {displayName}
+                            {isLong && (
+                              <span className="absolute left-0 top-full z-10 mt-1 px-2 py-1 bg-background border border-border rounded shadow text-xs text-foreground whitespace-pre-line opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                                {course.name}
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })()}
                     </CardTitle>
                     {/* <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary w-fit shrink-0">
                       <FileText className="h-3 w-3 mr-1" />
@@ -773,7 +774,7 @@ function CourseCard({
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 shrink-0 mt-3 md:mt-0">
+              {/* <div className="flex items-center justify-end gap-2 shrink-0 mt-3 md:mt-0">
                 <Button variant="outline" size="sm" onClick={handleAuditClick}>
                   <CheckCheckIcon />  View Audit
                 </Button>
@@ -811,7 +812,45 @@ function CourseCard({
                   <Megaphone className="h-3 w-3 mr-1" />
                   Announce
                 </Button>
-              </div>
+              </div> */}
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation()
+                    setShowAnnouncementModal(true)
+                  }}
+                    disabled={isArchivedEnrollment}
+                    title={isArchivedEnrollment ? "Cannot announce on archived course" : undefined}
+                  >
+                    <Megaphone className="h-4 w-4 mr-2" />
+                    Announce
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation()
+                    if (!expandedCourse) toggleCourse()
+                    startEditing()
+                  }}
+                    disabled={updateCourseMutation.isPending || isArchivedEnrollment}
+                    title={isArchivedEnrollment ? "Cannot edit archived course" : undefined}
+                  >
+                    <Edit3 className="h-4 w-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onClick={handleAuditClick}>
+                    <CheckCheckIcon className="h-4 w-4 mr-2" />
+                    View Audit
+                  </DropdownMenuItem>
+
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </CardHeader>
@@ -948,12 +987,12 @@ function CourseCard({
                             {displayedDescription}
                             {!expandedDescription && isLongDescription && "..."}
                             {isLongDescription && (
-                                <span
-                                  onClick={() => setExpandedDescription(!expandedDescription)}
-                                  className="text-primary cursor-pointer hover:underline text-xs"
-                                >
-                                  {expandedDescription ? " View Less" : "View More"}
-                                </span>
+                              <span
+                                onClick={() => setExpandedDescription(!expandedDescription)}
+                                className="text-primary cursor-pointer hover:underline text-xs"
+                              >
+                                {expandedDescription ? " View Less" : "View More"}
+                              </span>
                             )}
                           </p>
                         </div>
@@ -970,7 +1009,7 @@ function CourseCard({
                     <div className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full"></div>
                     All Versions ({course.versions?.length || 0})
                   </h3>
-                  <div className="flex items-center gap-2">
+                  {/* <div className="flex items-center gap-2">
                     <Button
                       onClick={showVersionForm}
                       size="sm"
@@ -1003,7 +1042,32 @@ function CourseCard({
                       )}
                       Delete Course
                     </Button>
-                  </div>
+                  </div> */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant={"outline"} size={"icon"}>
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={showVersionForm} disabled={createVersionMutation.isPending}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Course
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem 
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (!expandedCourse) toggleCourse()
+                        setShowDeleteCourseModal(true)
+                      }}
+                      disabled={deleteCourseMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Course
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
                 {/* New Version Form */}
@@ -1152,12 +1216,12 @@ function VersionCard({
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const storePageAndNavigate = (path: string) => {
-  sessionStorage.setItem("teacher_page", String(currentPage))
+    sessionStorage.setItem("teacher_page", String(currentPage))
 
-  navigate({
-    to: path as any,
-  })
-}
+    navigate({
+      to: path as any,
+    })
+  }
   const { setCurrentCourse } = useCourseStore()
   const [showProctoringModal, setShowProctoringModal] = useState(false)
   const { setCurrentCourseFlag } = useFlagStore()
@@ -1575,8 +1639,8 @@ function VersionCard({
                 <div className="flex items-center gap-2 flex-wrap">
 
                   <ProjectSubmissionsDownloadButton
-                    courseId={courseId || ""} 
-                    versionId={versionId || ""} 
+                    courseId={courseId || ""}
+                    versionId={versionId || ""}
                     cohorts={existingCohorts}
                   />
 
@@ -1591,7 +1655,7 @@ function VersionCard({
 
                       {(version as any)?.supportLink && (() => {
                         const link = (version as any).supportLink;
-                        const isEmail = link.startsWith('mailto:') || 
+                        const isEmail = link.startsWith('mailto:') ||
                           (!link.startsWith('http://') && !link.startsWith('https://') && link.includes('@'));
 
                         const href = link.startsWith('mailto:')
@@ -1617,19 +1681,43 @@ function VersionCard({
                         );
                       })()}
 
-                      <DropdownMenuItem onClick={() => setIsCopyModalOpen(true)}>
-                        <Copy className="mr-2 h-4 w-4" />
-                        Clone
-                      </DropdownMenuItem>
-
                       <DropdownMenuItem onClick={() => setShowAnnouncementModal(true)}>
                         <Megaphone className="mr-2 h-4 w-4" />
                         Announce
                       </DropdownMenuItem>
 
+                      <DropdownMenuItem onClick={() => setIsCopyModalOpen(true)}>
+                        <Copy className="mr-2 h-4 w-4" />
+                        Clone
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem onClick={configureCohorts}>
+                        <Layers className="h-4 w-4 mr-2" />
+                        Configure Cohorts
+                      </DropdownMenuItem>
+
                       <DropdownMenuItem onClick={startEditingVersion} disabled={isArchived}>
                         <Edit3 className="h-4 w-4 mr-2" />
                         Edit
+                      </DropdownMenuItem>
+
+
+
+
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation()
+                        setShowProctoringModal(true)
+                      }}
+                        disabled={isArchived}
+                        title={isArchived ? "Cannot open settings for archived version" : undefined}
+                      >
+                        <Settings2 className="h-4 w-4 mr-2" />
+                        Settings
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem onClick={viewAnomalies}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Anomalies
                       </DropdownMenuItem>
 
                       <DropdownMenuSeparator />
@@ -1680,7 +1768,7 @@ function VersionCard({
                     isOpen={showArchiveModal}
                     onClose={() => setShowArchiveModal(false)}
                     onConfirm={async () => {
-                      await handleArchive();  
+                      await handleArchive();
                       setShowArchiveModal(false);
                     }}
                     title={isArchived ? "Unarchive Version" : "Archive Version"}
@@ -1866,19 +1954,19 @@ function VersionCard({
                 </div>
               )}
 
-              <div className="flex items-center flex-wrap justify-start gap-2 shrink-0 pl-2 mt-4 pt-2 md:mt-0">
+              <div className="flex items-center flex-wrap justify-between shrink-0 pl-2 mt-4 pt-2 md:mt-0">
 
 
 
-                <Button variant="outline" size="sm" onClick={viewAnomalies} className="h-7 text-xs cursor-pointer">
+                {/* <Button variant="outline" size="sm" onClick={viewAnomalies} className="h-7 text-xs cursor-pointer">
                   <Eye className="h-3 w-3 mr-1" />
                   View Anomalies
-                </Button>
+                </Button> */}
                 <Button variant="outline" size="sm" onClick={viewFlags} className="h-7 text-xs cursor-pointer">
                   <FlagTriangleRight className="h-3 w-3 mr-1" />
                   View Flags
                 </Button>
-                <Button
+                {/* <Button
                   variant="outline"
                   size="sm"
                   onClick={viewInstructors}
@@ -1886,7 +1974,7 @@ function VersionCard({
                 >
                   <UserCog2 className="h-3 w-3 mr-1" />
                   View Instructors
-                </Button>
+                </Button> */}
 
                 <Button
                   variant="outline"
@@ -1895,7 +1983,7 @@ function VersionCard({
                   className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
                 >
                   <Users className="h-3 w-3 mr-1" />
-                  View Students
+                  View Enrollments
                 </Button>
                 <Button
                   variant="outline"
@@ -1925,27 +2013,28 @@ function VersionCard({
                   size="sm"
                   onClick={viewCourse}
                   className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-                  // Manage remains enabled even for archived versions
+                // Manage remains enabled even for archived versions
                 >
                   <BookOpenIcon className="h-3 w-3 mr-1" />
                   Manage
                 </Button>
                 {version.hpSystem &&
-                    <Button 
+                  <Button
                     variant="outline"
-                    size="sm" 
+                    size="sm"
                     className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-                    onClick={()=>{
+                    onClick={() => {
                       navigate({
                         to: `/teacher/hp-system/${version._id}/cohorts`,
                         state: {
                           from: location.pathname,
-                        }});
-                      }}
-                    >
-                      <Activity className="h-3 w-3 mr-1" />
-                      Hp System
-                    </Button>
+                        }
+                      });
+                    }}
+                  >
+                    <Activity className="h-3 w-3 mr-1" />
+                    Hp System
+                  </Button>
                 }
                 <Button
                   variant="outline"
@@ -1960,7 +2049,7 @@ function VersionCard({
                 </Button>
 
 
-                <Button
+                {/* <Button
                   variant="outline"
                   size="sm"
                   onClick={(e) => {
@@ -1973,8 +2062,8 @@ function VersionCard({
                 >
                   <Settings2 className="h-3 w-3 mr-1" />
                   Settings
-                </Button>
-                <Button
+                </Button> */}
+                {/* <Button
                     variant="outline"
                     size="sm"
                     onClick={configureCohorts}
@@ -1982,7 +2071,7 @@ function VersionCard({
                   >
                     <Layers className="h-3 w-3 mr-1" />
                     Configure Cohorts
-                </Button>
+                </Button> */}
               </div>
             </div>
 

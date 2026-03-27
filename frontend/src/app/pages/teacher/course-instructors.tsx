@@ -165,7 +165,7 @@ export default function CourseInstructors() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto py-4 space-y-8">
-        <CourseBackButton />
+        {/* <CourseBackButton /> */}
         <div className="flex flex-col space-y-4">
 
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

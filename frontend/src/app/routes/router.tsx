@@ -28,7 +28,8 @@ import TeacherCoursesPage from '@/app/pages/teacher/course-page'
 import Editor from '@/app/pages/teacher/create-article'
 import { NotFoundComponent } from '@/components/not-found'
 import { useCourseStore } from '@/store/course-store'
-import CourseEnrollments from '../pages/teacher/course-enrollments'
+// import CourseEnrollments from '../pages/teacher/course-enrollments'
+import CourseEnrollmentsContainer from '../pages/teacher/course-enrollments'
 import InvitePage from '../pages/teacher/invite'
 import GenerateSectionPage from '@/app/pages/teacher/create-job'
 import AISectionPage from '@/app/pages/teacher/AISectionPage';
@@ -36,7 +37,7 @@ import FlaggedList from '../pages/teacher/FlaggedList'
 import StudentRouteGuard from '@/components/StudentRouteGuard'
 import AiWorkflow from '../pages/teacher/AiWorkflow'
 import AnomaliesList from '../pages/teacher/AnomaliesList'
-import CourseInstructors from '../pages/teacher/course-instructors'
+// import CourseInstructors from '../pages/teacher/course-instructors'
 import RegisteredUsers from '../pages/teacher/CourseRegistrationRequests'
 import CourseRegistration from '../pages/student/CourseRegistration'
 import CourseIssueReports from '../pages/student/FlagResponse'
@@ -310,15 +311,15 @@ const teacherCreateArticleRoute = new Route({
 const teacherCourseEnrollmentsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/courses/enrollments',
-  component: CourseEnrollments,
+  component: CourseEnrollmentsContainer,
 });
 
 // Teacher Course Instructors route
-const teacherCourseInstructorsRoute = new Route({
-  getParentRoute: () => teacherLayoutRoute,
-  path: '/courses/instructors',
-  component: CourseInstructors,
-});
+// const teacherCourseInstructorsRoute = new Route({
+//   getParentRoute: () => teacherLayoutRoute,
+//   path: '/courses/instructors',
+//   component: CourseInstructors,
+// });
 
 // Teacher Course Instructors route
 const teacherConfigureCohortsRoute = new Route({
@@ -645,7 +646,7 @@ const routeTree = rootRoute.addChildren([
     teacherAIWorkflowSectionRoute,
     testAISectionModalRoute,
     teacherCourseAnomaliesRoute,
-    teacherCourseInstructorsRoute,
+    // teacherCourseInstructorsRoute,
     teacherCourseRegistrationRequests,
     teacherFeedBackEditorRoute,
     teacherAnnouncementsRoute,
