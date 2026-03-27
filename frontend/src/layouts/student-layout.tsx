@@ -18,7 +18,15 @@ import { useInvites, useGetUnreadApprovedRegistrations, useGetPendingStudentRegi
 import { ApprovedRegistrationNotification } from "@/types/notification.types"
 import { useRef, useEffect } from "react"
 import logo from "../../public/img/vibe_logo_img.ico"
-import { useLocation } from "react-router-dom";
+import { PolicyAcknowledgementModal } from "@/app/pages/student/components/policies/PolicyAcknowledgementModal"
+import { useGetSystemNotifications, useMarkSystemNotificationAsRead, useMarkAllSystemNotificationsAsRead } from "@/hooks/system-notification-hooks"
+import { SystemNotification } from "@/types/notification.types";
+type Invite = {
+  inviteId: string;
+  courseId: string;
+  courseVersionId: string;
+  cohortId:string;
+};
 
 export default function StudentLayout() {
   const { user, isAuthReady } = useAuthStore()
@@ -35,6 +43,9 @@ export default function StudentLayout() {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const invitesRef = useRef<HTMLDivElement | null>(null);
+  const [selectedInvite, setSelectedInvite] = useState<Invite|null>(null);
+  const [systemNotifications, setSystemNotifications] = useState<SystemNotification[]>([])
+  
   const { hasNew: hasNewAnnouncements, markSeen: markAnnouncementsSeen } = useNewAnnouncementIndicator();
   // const location = useLocation();
   const [pathname, setPathname] = useState(
@@ -96,7 +107,15 @@ export default function StudentLayout() {
   const handleGoBack = () => {
     window.history.back()
   }
-
+  const { notifications: fetchedSystemNotifications, unreadCount: systemUnreadCount } =
+  useGetSystemNotifications(user?.uid || '', false, !!user?.uid);
+const { mutate: markSystemRead } = useMarkSystemNotificationAsRead();
+const { mutate: markAllSystemRead } = useMarkAllSystemNotificationsAsRead();
+useEffect(() => {
+  if (fetchedSystemNotifications) {
+    setSystemNotifications(fetchedSystemNotifications);
+  }
+}, [fetchedSystemNotifications]);
   useEffect(() => {
     if (!isAuthReady || !user) return;
 
@@ -140,11 +159,14 @@ export default function StudentLayout() {
     if (!showInvites) return;
 
     const handlePointerDown = (event: MouseEvent | TouchEvent) => {
-      const target = event.target as Node | null;
-      if (invitesRef.current && target && !invitesRef.current.contains(target)) {
-        setShowInvites(false);
-      }
-    };
+  const target = event.target as Node | null;
+  if (selectedInvite) return;
+  // Don't close if the click is inside any open dialog portal
+  if ((target as Element)?.closest?.('[role="dialog"]')) return;
+  if (invitesRef.current && target && !invitesRef.current.contains(target)) {
+    setShowInvites(false);
+  }
+};
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -276,25 +298,46 @@ export default function StudentLayout() {
             <div className="relative" ref={invitesRef}>
               <Button
                 variant="ghost"
-                size="icon"
+                size="sm"
                 onClick={() => setShowInvites((prev) => !prev)}
-                className="relative h-10 w-10 transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10"
+                className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:shadow-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10"
               >
-                <Bell className="h-5 w-5" />
-                {(pendingInvites.length > 0 || approvedNotificationsList.length > 0 || (pendingStudentRegistrations?.length ?? 0) > 0 || localRejectedRegistrations.length > 0) && <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500" />}
+                <Bell className="h-4 w-4" />
+                <span className="hidden sm:block ml-2">Notifications</span>
+                {(pendingInvites.length > 0 || approvedNotificationsList.length > 0 || (pendingStudentRegistrations?.length ?? 0) > 0 || localRejectedRegistrations.length > 0 || systemUnreadCount > 0) && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />}
               </Button>
 
-              {showInvites && <InviteDropdown
-                setPendingInvites={setPendingInvites}
-                pendingInvites={pendingInvites}
-                approvedNotifications={approvedNotificationsList}
-                setApprovedNotifications={setApprovedNotificationsList}
-                pendingStudentRegistrations={pendingStudentRegistrations ?? []}
-                rejectedStudentRegistrations={localRejectedRegistrations}
-                onDismissRejected={(id) => {
-                  setLocalRejectedRegistrations(prev => prev.filter(r => r._id !== id));
-                }}
-              />}
+              {showInvites && (
+                <InviteDropdown
+                  setShowInvites={setShowInvites}
+                  onRejectClick={(invite) => {
+                    setSelectedInvite(null);
+                    setShowInvites(false);
+                  }}
+                  systemNotifications={systemNotifications}
+                  onMarkSystemRead={(id) => {
+                    markSystemRead({ params: { path: { notificationId: id } } });
+                    setSystemNotifications(prev =>
+                      prev.map(n => n._id === id ? { ...n, read: true } : n)
+                    );
+                  }}
+                  onMarkAllSystemRead={() => {
+                    markAllSystemRead({});
+                    setSystemNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                  }}
+                  selectedInvite={selectedInvite}
+                  setSelectedInvite={setSelectedInvite}
+                  setPendingInvites={setPendingInvites}
+                  pendingInvites={pendingInvites}
+                  approvedNotifications={approvedNotificationsList}
+                  setApprovedNotifications={setApprovedNotificationsList}
+                  pendingStudentRegistrations={pendingStudentRegistrations ?? []}
+                  rejectedStudentRegistrations={localRejectedRegistrations}
+                  onDismissRejected={(id) => {
+                    setLocalRejectedRegistrations(prev => prev.filter(r => r._id !== id));
+                  }}
+                />
+              )}
             </div>
 
             <div className="relative">
@@ -403,6 +446,16 @@ export default function StudentLayout() {
           </div>
         )}
       </header>
+      {selectedInvite && (
+        <PolicyAcknowledgementModal
+          open={!!selectedInvite}
+          onClose={() => setSelectedInvite(null)}
+          inviteId={selectedInvite?.inviteId}
+          courseId={selectedInvite?.courseId}
+          courseVersionId={selectedInvite?.courseVersionId}
+          cohortId={selectedInvite?.cohortId}
+        />
+      )}
 
       <main className="relative flex flex-1 flex-col p-6">
         {/* Content background gradient */}

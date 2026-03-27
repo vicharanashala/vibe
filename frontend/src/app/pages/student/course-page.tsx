@@ -91,6 +91,7 @@ export default function CoursePage() {
     };
   }, []);
   const [attemptId, setAttemptId] = useState<string | null>(null);
+  const [showPolicies, setShowPolicies] = useState(false)
   // Dialog state for proctoring declaration
   const [showProctorDialog, setShowProctorDialog] = useState(true);
   const { user } = useAuthStore();

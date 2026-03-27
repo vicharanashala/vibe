@@ -1,21 +1,21 @@
-import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Play, Activity, Users } from "lucide-react";
+import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Play, Activity, Users, Shield, LucideShield, MessageCircle, Sparkles, Check, Copy } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLeaderboard, useCourseVersionById } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import { useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, lazy, Suspense, useEffect } from "react";
 import { bufferToHex } from "@/utils/helpers";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
-import { Pagination } from "../ui/Pagination";
-import { lazy, Suspense } from "react";
+import { StudentPolicyModal } from "@/app/pages/student/components/policies/StudentPolicyModal";
 
 const EnrollmentDetailsDialog = lazy(() =>
   import("@/components/course/EnrollmentDetailsDialog").then(mod => ({
@@ -57,7 +57,12 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const courseId = bufferToHex(enrollment.courseId as string);
   const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
   const cohortId = enrollment?.cohortId ? (typeof enrollment.cohortId === 'string' ? enrollment.cohortId : bufferToHex(enrollment.cohortId as any)) : "";
-
+  const module_number = enrollment.moduleNumber || "";
+  const section_number = enrollment.sectionNumber || "";
+  const item_type = enrollment.itemType || "VIDEO";
+  const [showPolicies, setShowPolicies] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
 
   const { setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
@@ -98,37 +103,26 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const isRankVisible = variant !== 'available' && isNotGuruSetu;
   const isTimeslotActive = variant !== 'available' && isNotGuruSetu;
 
-  // const videoCount: number = contentCounts.videos || 0;
-  // const quizCount: number = contentCounts.quizzes || 0;
-  // const articleCount: number = contentCounts.articles || 0;
-  // const projectCount: number = contentCounts.project || 0;
+  const supportLink = enrollment?.course?.supportLink || "";
 
+  // Use useEffect to update completion to avoid infinite re-renders
+  useEffect(() => {
+    const existingCompletionIndex = completion?.findIndex(
+      (c) => c.courseVersionId === versionId
+    );
 
-  // const completedVideos: number = contentCounts.completedVideos || 0;
-  // const completedQuizzes: number = contentCounts.quizzes || 0;
-  // const completedArticles: number = contentCounts.articles || 0;
-  // const completedProjects: number = contentCounts.project || 0;
-
-
-  // Find if this courseVersionId is already in completion
-  const existingCompletionIndex = completion?.findIndex(
-    (c) => c.courseVersionId === versionId
-  );
-
-  // If not found, append the user progress percentage to the list
-  if (existingCompletionIndex === -1 && enrollment) {
-    setCompletion?.([
-      ...(completion || []),
-      {
-        courseVersionId: versionId,
-        percentage: typeof progress === 'number' ? progress : 0,
-        totalItems: typeof contentCounts.totalItems === 'number' ? contentCounts.totalItems : 0,
-        completedItems: typeof completedLessons === 'number' ? completedLessons : 0
-      },
-    ]);
-  }
-
-
+    if (existingCompletionIndex === -1 && enrollment) {
+      setCompletion?.([
+        ...(completion || []),
+        {
+          courseVersionId: versionId,
+          percentage: typeof progress === 'number' ? progress : 0,
+          totalItems: typeof contentCounts.totalItems === 'number' ? contentCounts.totalItems : 0,
+          completedItems: typeof completedLessons === 'number' ? completedLessons : 0
+        },
+      ]);
+    }
+  }, [completion, versionId, enrollment, progress, contentCounts.totalItems, completedLessons, setCompletion]);
 
   const handleContinue = () => {
     if (variant === 'available') {
@@ -282,6 +276,96 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                         </div>
                       )}
                     </div>
+
+                    {variant !== 'available' && isNotGuruSetu && (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 h-9 text-[10px] lg:text-xs font-bold rounded-lg border-2"
+                          onClick={(e) => { e.stopPropagation(); setShowPolicies(true); }}
+                        >
+                          <LucideShield className="h-3.5 w-3.5 mr-1 text-indigo-500" />
+                          Policies
+                        </Button>
+                        {supportLink && (
+                          <div onClick={(e) => e.stopPropagation()} className="flex-1">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="outline" size="sm" className="w-full h-9 text-[10px] lg:text-xs font-bold rounded-lg border-2">
+                                  <MessageCircle className="h-3.5 w-3.5 mr-1 text-blue-500" />
+                                  Forum
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="w-full max-w-lg">
+                                <DialogHeader>
+                                  <DialogTitle>Forum Details</DialogTitle>
+                                </DialogHeader>
+                                <Separator className="my-4" />
+                                <div className="space-y-4">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                                      <MessageCircle className="w-4 h-4 text-primary-foreground" />
+                                    </div>
+                                    <h3 className="text-lg font-semibold">Discord Community</h3>
+                                    <Sparkles className="w-4 h-4 text-primary" />
+                                  </div>
+                                  <div className="rounded-xl border bg-primary/5 p-6 space-y-5">
+                                    <div className="flex items-start justify-between gap-4">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-14 h-14 rounded-xl bg-[#5865F2] flex items-center justify-center shadow-md">
+                                          <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z" />
+                                          </svg>
+                                        </div>
+                                        <div>
+                                          <p className="font-semibold text-base">Join Our Community</p>
+                                          <p className="text-sm text-muted-foreground">Connect with fellow students</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                      <p className="text-sm text-muted-foreground leading-relaxed">
+                                        Get help, share resources, and connect with your coursemates in our exclusive Discord server.
+                                      </p>
+                                      <div className="flex items-center gap-2.5 pt-1">
+                                        <Button asChild className="flex-1">
+                                          <a href={supportLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
+                                            <ExternalLink className="w-4 h-4" />
+                                            Join Discord
+                                          </a>
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          size="icon"
+                                          onClick={async () => {
+                                            try {
+                                              await navigator.clipboard.writeText(supportLink);
+                                              setCopied(true);
+                                              setTimeout(() => setCopied(false), 2000);
+                                            } catch {
+                                              setCopyError(true);
+                                              setTimeout(() => setCopyError(false), 2000);
+                                            }
+                                          }}
+                                          disabled={copied}
+                                        >
+                                          {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
+                                        </Button>
+                                      </div>
+                                      {(copied || copyError) && (
+                                        <div className={cn("text-xs px-3 py-2 rounded-lg border flex items-center gap-2", copied ? "text-primary bg-primary/10 border-primary/20" : "text-red-500 bg-red-50 border-red-100")}>
+                                          {copied ? <Check className="w-3 h-3" /> : <Info className="w-3 h-3" />}
+                                          {copied ? "Link copied to clipboard" : "Failed to copy link"}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                            </div>
+                          )}
+                        </div>
+                      )}
                   </div>
                 </div>
               </CardContent>
@@ -316,6 +400,12 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground font-medium">Version</span>
                     <span className="text-foreground font-bold">{courseVersionData?.version || courseVersionData?.name || versionId.substring(0, 8)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground font-medium">Progress</span>
+                    <span className="text-foreground font-bold italic">
+                      {isCompleted ? 'Finished' : (progress === 0) ? 'Not Started' : `MOD ${module_number} • SEC ${section_number} • ${item_type}`}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground font-medium">Instructors</span>
@@ -385,6 +475,15 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               hasAssignedTimeslot={!!hasAssignedTimeslot}
             />
           </div>
+          <StudentPolicyModal
+            open={showPolicies}
+            onClose={() => setShowPolicies(false)}
+            courseId={courseId}
+            courseVersionId={versionId}
+            cohortId={cohortId}
+            enrollmentDate={enrollment.enrollmentDate}
+            currentProgressPercent={progress}
+          />
         </Suspense>
       </div>
     );
@@ -417,251 +516,172 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {enrollment?.course?.description && (
-          <p className="text-sm text-muted-foreground line-clamp-2">
-            {enrollment?.course.description}
-          </p>
-        )}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm text-muted-foreground">
-            <span>{completedLessons} of {totalLessons} lessons completed</span>
-            <span>{progress.toFixed(2)}%</span>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>Overall Progress</span>
+              <span>{progress.toFixed(2)}%</span>
+            </div>
+            <Progress value={progress} className="h-2" />
           </div>
-          <Progress value={progress} />
+
+          <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              <span>{completedLessons} / {totalLessons} Lessons</span>
+            </div>
+            {enrollment.enrollmentDate && (
+              <div className="flex items-center gap-2">
+                <Medal className="h-4 w-4" />
+                <span>Enrolled {new Date(enrollment.enrollmentDate).toLocaleDateString()}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Button onClick={handleContinue} className="flex-1" disabled={!isCurrentTimeInTimeSlot(enrollment.assignedTimeSlot)}>
+              {isStart ? 'Start Course' : 'Continue Learning'}
+            </Button>
+            <div className="flex gap-2 w-full sm:w-auto">
+              {isRankVisible && (
+                <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="icon" title="Leaderboard">
+                      <Trophy className="h-4 w-4 text-yellow-500" />
+                    </Button>
+                  </DialogTrigger>
+                  <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} />
+                </Dialog>
+              )}
+              {isHpSystem && (
+                <Button variant="outline" size="icon" title="HP System" onClick={() => navigate({ to: `/student/hp-system/${versionId}/${enrollment.cohortName || 'default'}/activities` })}>
+                  <Activity className="h-4 w-4 text-blue-500" />
+                </Button>
+              )}
+              {isTimeslotActive && (
+                <Button variant="outline" size="icon" title="Timeslot" onClick={() => setIsTimeslotModalOpen(true)}>
+                  <Clock className="h-4 w-4 text-green-500" />
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
-        <Button className="w-full" onClick={handleContinue}>
-          {progress === 0 ? 'Start Learning' : progress >= 100 ? 'Completed' : 'Continue Learning'}
-        </Button>
       </CardContent>
     </Card>
   );
 };
 
-// Skeleton component for loading states
-export const CourseCardSkeleton = ({ variant = 'dashboard' }: { variant?: 'dashboard' | 'courses' | 'available' }) => {
-  if (variant === 'dashboard') {
+export const CourseCardSkeleton = ({ variant }: { variant: string }) => {
+  if (variant === 'dashboard' || variant === 'available') {
     return (
-      <Card className="border border-border overflow-hidden flex flex-row student-card-hover p-0">
-        <div className="w-24 h-auto sm:w-32 flex-shrink-0 flex items-center justify-center bg-muted animate-pulse">
-          <div className="w-full h-full bg-muted rounded-l-lg"></div>
-        </div>
-        <CardContent className="p-3 pl-0 flex flex-col flex-1">
-          <div className="flex items-start justify-between flex-wrap gap-2 mb-2">
-            <div className="h-6 bg-muted rounded animate-pulse w-16"></div>
-            <div className="h-4 bg-muted rounded animate-pulse w-32"></div>
+      <Card className="border-0 bg-white dark:bg-card overflow-hidden flex flex-col rounded-[24px] shadow-sm animate-pulse">
+        <div className="w-full aspect-[4/3] bg-slate-100 dark:bg-slate-800" />
+        <CardContent className="p-6">
+          <Skeleton className="h-4 w-20 mb-4" />
+          <Skeleton className="h-6 w-full mb-2" />
+          <Skeleton className="h-4 w-3/4 mb-6" />
+          <div className="space-y-2 mb-6">
+            <Skeleton className="h-2 w-full" />
+            <Skeleton className="h-2 w-full" />
           </div>
-          <div className="h-6 bg-muted rounded animate-pulse mb-2 w-3/4"></div>
-          <div className="h-4 bg-muted rounded animate-pulse mb-3 w-1/2"></div>
-          <div className="h-10 bg-muted rounded animate-pulse w-20"></div>
+          <Skeleton className="h-12 w-full rounded-xl" />
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card>
+    <Card className="animate-pulse">
       <CardHeader>
-        <div className="h-4 bg-muted rounded animate-pulse mb-2" />
-        <div className="h-3 bg-muted rounded animate-pulse w-2/3" />
+        <div className="flex justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+          <Skeleton className="h-6 w-24" />
+        </div>
       </CardHeader>
-      <CardContent>
-        <div className="h-2 bg-muted rounded animate-pulse mb-4" />
-        <div className="h-10 bg-muted rounded animate-pulse" />
+      <CardContent className="space-y-4">
+        <Skeleton className="h-2 w-full" />
+        <div className="flex justify-between">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-10 flex-1" />
+          <Skeleton className="h-10 w-10" />
+          <Skeleton className="h-10 w-10" />
+        </div>
       </CardContent>
     </Card>
   );
 };
 
-// Leaderboard Dialog Component
-const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { courseId: string; versionId: string; courseName?: string, isOpen: boolean }) => {
-  const [page, setPage] = useState(1);
-  const { leaderboard,
-    totalPages,
-    totalDocuments,
-    isLoading, error, myStats } = useLeaderboard(courseId, versionId, page, 10, isOpen);
-
-  const getInitials = (name: string) => {
-    const parts = name.split(" ");
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
-  };
-
-  const getRankStyle = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return {
-          bgColor: "bg-gradient-to-br from-yellow-400 to-yellow-600",
-          textColor: "text-yellow-900",
-          icon: <Crown className="h-5 w-5" />,
-        };
-      case 2:
-        return {
-          bgColor: "bg-gradient-to-br from-gray-300 to-gray-500",
-          textColor: "text-gray-900",
-          icon: <Medal className="h-5 w-5" />,
-        };
-      case 3:
-        return {
-          bgColor: "bg-gradient-to-br from-orange-400 to-orange-700",
-          textColor: "text-orange-900",
-          icon: <Award className="h-5 w-5" />,
-        };
-      default:
-        return {
-          bgColor: "bg-muted",
-          textColor: "text-muted-foreground",
-          icon: null,
-        };
-    }
-  };
+const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { courseId: string; versionId: string; courseName?: string; isOpen: boolean }) => {
+  const { data: leaderboardData, isLoading } = useLeaderboard(courseId, versionId, isOpen);
 
   return (
-    <DialogContent className="max-w-6xl h-[85vh] flex flex-col overflow-hidden">
-      <DialogHeader className="flex-shrink-0 pb-4">
+    <DialogContent className="max-w-2xl">
+      <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-yellow-600" />
-          {courseName || 'Course'} Leaderboard
+          <Trophy className="h-6 w-6 text-yellow-500" />
+          Leaderboard - {courseName || 'Course'}
         </DialogTitle>
-        <p className="text-sm text-muted-foreground">
-          Students ranked by completion percentage and completion time
-        </p>
       </DialogHeader>
 
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full pr-4">
-          {isLoading && (
-            <div className="space-y-3">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
+      <div className="mt-4">
+        {isLoading ? (
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex items-center gap-4">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <Skeleton className="h-6 flex-1" />
+                <Skeleton className="h-6 w-16" />
+              </div>
+            ))}
+          </div>
+        ) : leaderboardData?.length > 0 ? (
+          <ScrollArea className="h-[400px] pr-4">
+            <div className="space-y-2">
+              {leaderboardData.map((entry: any, i: number) => (
+                <div key={entry.userId} className={cn(
+                  "flex items-center gap-4 p-3 rounded-xl transition-colors",
+                  i === 0 ? "bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-900/30" :
+                    i === 1 ? "bg-slate-50 dark:bg-slate-900/10 border border-slate-200 dark:border-slate-800/30" :
+                      i === 2 ? "bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-900/30" :
+                        "hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                )}>
+                  <div className="flex items-center justify-center w-8 font-bold text-lg">
+                    {i === 0 ? <Medal className="text-yellow-500" /> :
+                      i === 1 ? <Medal className="text-slate-400" /> :
+                        i === 2 ? <Medal className="text-orange-400" /> :
+                          i + 1}
+                  </div>
+                  <Avatar className="h-10 w-10 border-2 border-white dark:border-slate-800">
+                    <AvatarFallback>{entry.userName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="font-bold flex items-center gap-2">
+                      {entry.userName}
+                      {i === 0 && <Crown className="h-4 w-4 text-yellow-500" />}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{entry.completedCount || 0} lessons completed</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-primary">{entry.score || 0} XP</div>
+                  </div>
+                </div>
               ))}
             </div>
-          )}
-
-          {error && !isLoading && (
-            <p className="text-muted-foreground text-center py-8">{error}</p>
-          )}
-
-          {!isLoading && !error && (!leaderboard || leaderboard.length === 0) && (
-            <p className="text-muted-foreground text-center py-8">
-              No students enrolled yet
-            </p>
-          )}
-
-          {!isLoading && !error && leaderboard && leaderboard.length > 0 && (
-            <div className="space-y-2 pb-4">
-              {leaderboard.map((entry) => {
-                const rankStyle = getRankStyle(entry.rank);
-                return (
-                  <div
-                    key={entry.userId}
-                    className={cn(
-                      "flex items-center gap-3 p-3 rounded-lg transition-colors",
-                      entry.rank <= 3
-                        ? "bg-muted/50 border-2"
-                        : "bg-muted/20",
-                      entry.rank === 1 && "border-yellow-400",
-                      entry.rank === 2 && "border-gray-400",
-                      entry.rank === 3 && "border-orange-400"
-                    )}
-                  >
-                    {/* Rank */}
-                    <div className="flex-shrink-0 w-10 text-center">
-                      {entry.rank <= 3 ? (
-                        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center mx-auto", rankStyle.bgColor)}>
-                          <span className={cn("font-bold text-sm", rankStyle.textColor)}>
-                            {entry.rank}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-base font-semibold text-muted-foreground">
-                          {entry.rank}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Avatar */}
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback
-                        className={cn(
-                          entry.rank === 1 && "bg-yellow-100 text-yellow-800",
-                          entry.rank === 2 && "bg-gray-100 text-gray-700",
-                          entry.rank === 3 && "bg-orange-100 text-orange-700",
-                          entry.rank > 3 && "bg-muted"
-                        )}
-                      >
-                        {getInitials(entry.userName)}
-                      </AvatarFallback>
-                    </Avatar>
-
-                    {/* Name and Stats */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{entry.userName}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {Math.round(entry.completionPercentage) === 100 ? (
-                          <>
-                            <span className="text-green-600 font-medium">
-                              ✓ Completed
-                            </span>
-                            {entry.completedAt && (
-                              <span className="ml-2">
-                                on {new Date(entry.completedAt).toLocaleString()}
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          `In Progress: ${entry.completionPercentage.toFixed(2)}%`
-                        )}
-                      </p>
-                    </div>
-
-                    {/* Completion Badge */}
-                    <div
-                      className={cn(
-                        "px-3 py-1 rounded-full font-semibold text-sm",
-                        Math.round(entry.completionPercentage) === 100
-                          ? "bg-green-100 text-green-800"
-                          : "bg-blue-100 text-blue-800"
-                      )}
-                    >
-                      {Math.round(entry.completionPercentage)}%
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </ScrollArea>
-      </div>
-      <div className="flex-shrink-0 pt-4 border-t border-border/50 bg-background flex items-center justify-between">
-        {/* My Stats */}
-        {myStats ? (
-          <div className="flex items-center gap-4 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border/50">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground uppercase tracking-wider">Your Rank</span>
-              <span className="font-display font-bold text-lg text-gold">#{myStats.rank}</span>
-            </div>
-            <div className="w-px h-6 bg-border" />
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground uppercase tracking-wider">Progress</span>
-              <span className="font-semibold text-foreground">{Math.round(myStats.completionPercentage * 1000) / 1000}%</span>
-            </div>
-          </div>
+          </ScrollArea>
         ) : (
-          <div />
-        )}
-        {(totalPages ?? 0) > 1 && (
-          <Pagination
-            currentPage={page}
-            totalPages={totalPages}
-            totalDocuments={totalDocuments}
-            onPageChange={setPage}
-          />
+          <div className="py-12 text-center text-muted-foreground">
+            <Trophy className="h-12 w-12 mx-auto mb-4 opacity-20" />
+            <p>No leaderboard data available for this course yet.</p>
+          </div>
         )}
       </div>
-
     </DialogContent>
   );
 };
