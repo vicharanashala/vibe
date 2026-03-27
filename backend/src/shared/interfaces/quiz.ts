@@ -14,16 +14,25 @@ interface IQuestionParameter {
 }
 
 export type Priority = 'LOW' | 'MEDIUM' | 'HIGH';
+export type BloomLevel =
+  | 'knowledge'
+  | 'understanding'
+  | 'application'
+  | 'analysis'
+  | 'evaluation'
+  | 'creation'
+  | 'unclassified';
 
 interface IQuestion {
   _id?: string | ObjectId;
   text: string;
   type: QuestionType;
   isParameterized: boolean;
+  bloomLevel?: BloomLevel;
   parameters?: IQuestionParameter[];
   hint?: string;
   timeLimitSeconds: number;
-  points: number;
+  points?: number;
   priority: Priority;
 }
 
@@ -74,6 +83,7 @@ interface IQuestionBank {
   tags?: string[];
   title: string;
   description: string;
+  points?: number;
   createdAt: Date;
   updatedAt: Date;
 }

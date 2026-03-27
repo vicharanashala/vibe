@@ -1603,7 +1603,7 @@ class ProgressService extends BaseService {
 
       return {
         completed: progress.completed,
-        percentCompleted: enrollment.percentCompleted,
+        percentCompleted: Math.min(100, enrollment.percentCompleted),
         totalItems,
         completedItems: completedItemsSet.size,
       };
@@ -3542,7 +3542,7 @@ class ProgressService extends BaseService {
       userId: progress.userId?.toString(),
       userName: userMap.get(progress.userId?.toString()) || 'Unknown User',
       completionPercentage:
-        enrollmentMap.get(progress.userId?.toString())?.completionPercentage ||
+        Math.min(100, enrollmentMap.get(progress.userId?.toString())?.completionPercentage) ||
         0,
       completedAt:
         progress.completed && progress.completedAt
@@ -3582,6 +3582,7 @@ class ProgressService extends BaseService {
       ...student,
       rank: index + 1,
     }));
+    console.log(rankedLeaderboard[0])
 
     const myStats =
       rankedLeaderboard.find(entry => entry.userId === userId) || null;
@@ -3849,6 +3850,26 @@ class ProgressService extends BaseService {
       );
     }
 
+
+
+    ////////////////////////////////////// Handle if courVersion.totalItems if it is wrong ///////////////////////////////////////
+
+    const completedItemCount = enrollment.completedItemsCount ?? 0;
+
+    if (completedItemCount > 0 && courseVersion.totalItems != null) {
+      if (completedItemCount > courseVersion.totalItems) {
+        const actualTotalItemsCount = await this.itemRepo.CalculateTotalItemsCount(courseId, versionId);
+
+        if (actualTotalItemsCount) {
+          await this.courseRepo.updateTotalItemCount(versionId, actualTotalItemsCount);
+          courseVersion.totalItems = actualTotalItemsCount;
+        }
+
+      }
+    }
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
     // 4. Avoid recomputing totalItems if already stored
     const totalItemsCount =
       courseVersion.totalItems ??
@@ -4108,7 +4129,7 @@ class ProgressService extends BaseService {
         userName: user?.name || 'Unknown User',
         email: user?.email || 'No email',
 
-        completionPercentage: enrollment?.completionPercentage ?? 0,
+        completionPercentage: Math.min(100, enrollment?.completionPercentage) ?? 0,
 
         completedAt:
           progress.completed && progress.completedAt
