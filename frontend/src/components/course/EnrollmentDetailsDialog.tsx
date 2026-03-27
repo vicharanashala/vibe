@@ -148,10 +148,15 @@ const versionDescription = versionDetails?.description || 'No version descriptio
                 <div className="space-y-1 col-span-2">
                   <p className="text-sm font-medium text-muted-foreground">Assigned Timeslot</p>
                   <p className="text-sm">
-                    {enroll1?.assignedTimeSlot 
-                      ? `${enroll1.assignedTimeSlot.from} - ${enroll1.assignedTimeSlot.to} (IST)`
-                      : 'You can access course anytime'
-                    }
+                    {(() => {
+                      const timeSlot = Array.isArray(enroll1?.assignedTimeSlot) 
+                        ? enroll1.assignedTimeSlot[0] 
+                        : enroll1?.assignedTimeSlot;
+                      
+                      return timeSlot 
+                        ? `${timeSlot.from} - ${timeSlot.to} (IST)`
+                        : 'You can access course anytime';
+                    })()}
                   </p>
                 </div>
                 <div className="space-y-1 col-span-2">

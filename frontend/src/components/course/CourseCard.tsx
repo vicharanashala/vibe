@@ -1,15 +1,13 @@
-import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play, Activity } from "lucide-react";
+import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Play, Activity, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import {  useLeaderboard, useCourseVersionById } from "@/hooks/hooks";
+import { useLeaderboard, useCourseVersionById } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -17,7 +15,6 @@ import { bufferToHex } from "@/utils/helpers";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { Pagination } from "../ui/Pagination";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { lazy, Suspense } from "react";
 
 const EnrollmentDetailsDialog = lazy(() =>
@@ -33,17 +30,21 @@ const StudentTimeslotModal = lazy(() =>
 );
 
 // Helper function to check if current time is within assigned time slot
-const isCurrentTimeInTimeSlot = (timeSlot?: { from: string; to: string }) => {
-  if (!timeSlot || !timeSlot.from || !timeSlot.to) return true; // No time slot restriction
-  
+const isCurrentTimeInTimeSlot = (timeSlotData?: any) => {
+  if (!timeSlotData) return true; // No time slot restriction
+
+  // Handle array or object
+  const timeSlot = Array.isArray(timeSlotData) ? timeSlotData[0] : timeSlotData;
+  if (!timeSlot || !timeSlot.from || !timeSlot.to) return true;
+
   const now = new Date();
-  const currentTime = now.getHours() * 60 + now.getMinutes(); // Convert to minutes since midnight
-  
-  const [fromHours, fromMinutes] = timeSlot.from.split(':').map(Number);
-  const [toHours, toMinutes] = timeSlot.to.split(':').map(Number);
+  const currentTime = now.getHours() * 60 + now.getMinutes();
+
+  const [fromHours, fromMinutes] = (timeSlot.from as string).split(':').map(Number);
+  const [toHours, toMinutes] = (timeSlot.to as string).split(':').map(Number);
   const fromTime = fromHours * 60 + fromMinutes;
   const toTime = toHours * 60 + toMinutes;
-  
+
   return currentTime >= fromTime && currentTime <= toTime;
 };
 
@@ -55,48 +56,47 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   }
   const courseId = bufferToHex(enrollment.courseId as string);
   const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
-  const cohortId = enrollment?.cohortId || "";
-  const module_number = enrollment.moduleNumber || "";
-  const section_number = enrollment.sectionNumber || "";
-  const item_type = enrollment.itemType || "VIDEO";
+  const cohortId = enrollment?.cohortId ? (typeof enrollment.cohortId === 'string' ? enrollment.cohortId : bufferToHex(enrollment.cohortId as any)) : "";
 
-  // Fetch course version to get supportLink
+
+  const { setCurrentCourse } = useCourseStore();
+  const navigate = useNavigate();
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isTimeslotModalOpen, setIsTimeslotModalOpen] = useState(false);
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+
+  // Fetch course version to get version name
   const { data: courseVersionData } = useCourseVersionById(
     versionId,
     variant !== 'available',
     cohortId || undefined,
   );
-  const supportLink = (courseVersionData as any)?.supportLink;
 
-  // const { data: courseDetails, isLoading: isCourseLoading } = useCourseById(courseId);
-  const { setCurrentCourse } = useCourseStore();
-  const navigate = useNavigate();
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [isTimeslotModalOpen, setIsTimeslotModalOpen] = useState(false);
-  const [isForumOpen, setIsForumOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [copyError, setCopyError] = useState(false);
-  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
-  const [isSupportOpen, setIsSupportOpen] = useState(false);
-  const supportEmail =
-    enrollment.courseId === "692f030a945e82ec875e9116"
-      ? "vibe-support@vicharanashala.zohodesk"
-      : "internship-support@vicharanashala.zohodesk";
-
-  // const progress = Math.round(enrollment.percentCompleted || 0) as number 
   const progress = Number(Math.min(enrollment.percentCompleted ?? 0, 100).toFixed(2));
 
-  // Check if student already has assigned timeslots
-  const hasAssignedTimeslot = enrollment.assignedTimeSlot && 
-    Array.isArray(enrollment.assignedTimeSlot) && 
+  const hasAssignedTimeslot = enrollment.assignedTimeSlot &&
+    Array.isArray(enrollment.assignedTimeSlot) &&
     enrollment.assignedTimeSlot.length > 0;
 
-  const contentCounts = enrollment.contentCounts as { totalItems?: number; videos?: number; quizzes?: number; articles?: number; project?: number, totalQuizScore?: number, totalQuizMaxScore?: number, completedVideos?: number, completedQuizzes?: number, completedArticles?: number, completedProjects?: number } || {};
+  const contentCounts = enrollment.contentCounts as { totalItems?: number } || {};
   const totalLessons = contentCounts.totalItems || 0;
   const completedLessons = enrollment.completedItems as number || 0;
   const isCompleted = (typeof enrollment.percentCompleted === 'number' && enrollment.percentCompleted >= 100) || false;
-  // const totalQuizScore = contentCounts.totalQuizScore as number || 0;
-  // const totalQuizMaxScore = contentCounts.totalQuizMaxScore as number || 0;
+
+  const GURU_SETU_VERSION_ID = "6981df886e100cfe04f9c4ae";
+  const isNotGuruSetu = versionId !== GURU_SETU_VERSION_ID;
+
+  // Robust check for HP system availability
+  const isHpSystem = !!(
+    enrollment.hpSystem ||
+    enrollment.course?.hpSystem ||
+    (enrollment.versionDetails && enrollment.versionDetails[0]?.hpSystem) ||
+    courseVersionData?.hpSystem
+  );
+
+  const isRankVisible = variant !== 'available' && isNotGuruSetu;
+  const isTimeslotActive = variant !== 'available' && isNotGuruSetu;
 
   // const videoCount: number = contentCounts.videos || 0;
   // const quizCount: number = contentCounts.quizzes || 0;
@@ -105,9 +105,9 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
 
   // const completedVideos: number = contentCounts.completedVideos || 0;
-  // const completedQuizzes: number = contentCounts.completedQuizzes || 0;
-  // const completedArticles: number = contentCounts.completedArticles || 0;
-  // const completedProjects: number = contentCounts.completedProjects || 0;
+  // const completedQuizzes: number = contentCounts.quizzes || 0;
+  // const completedArticles: number = contentCounts.articles || 0;
+  // const completedProjects: number = contentCounts.project || 0;
 
 
   // Find if this courseVersionId is already in completion
@@ -128,25 +128,13 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
     ]);
   }
 
-  const formatDate = (dateString: string) => {
-    try {
-      return new Date(dateString).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch (error) {
-      return 'N/A';
-    }
-  };
+
 
   const handleContinue = () => {
     if (variant === 'available') {
       navigate({
-        to: "/student/course-registration/$versionId/{-$cohortId}",
-        params: { versionId: versionId, cohortId: cohortId }
+        to: "/student/course-registration/$versionId/{-$cohort}",
+        params: { versionId: versionId, cohort: cohortId }
       });
       return;
     }
@@ -185,91 +173,221 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
     const isStart = progress === 0 && variant !== 'available';
 
     return (
-      <div className="h-full">
-        <Card className={cn(
-          "group border-0 bg-white dark:bg-card overflow-hidden flex flex-col rounded-[24px] transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 h-full",
-          className
-        )}>
-          {/* Thumbnail/Icon Area */}
-          <div className={cn("relative w-full aspect-[4/3] flex items-center justify-center transition-colors duration-300", theme.bg)}>
-            <div className={cn("transition-transform duration-500 group-hover:scale-110", theme.icon)}>
-              {theme.iconComponent}
-            </div>
-            {enrollment.hasNewItemsAfterCompletion && (
-              <Badge className="absolute top-4 right-4 bg-yellow-400 text-yellow-900 border-0">New Content</Badge>
-            )}
+      <div className={cn("[perspective:1000px] transition-all duration-300 hover:-translate-y-1", className)}>
+        <div className={cn("relative w-full transition-all duration-700 [transform-style:preserve-3d]", isFlipped && "[transform:rotateY(180deg)]")}>
+          {/* Front Side - Determines the height */}
+          <div className="relative w-full [backface-visibility:hidden]">
+            <Card
+              className={cn(
+                "border-0 bg-white dark:bg-card overflow-hidden flex flex-col rounded-[24px] shadow-sm transition-shadow duration-300 group",
+                variant !== 'available' ? "cursor-pointer hover:shadow-md" : "cursor-default"
+              )}
+              onClick={() => variant !== 'available' && setIsFlipped(true)}
+            >
+              {/* Thumbnail/Icon Area */}
+              <div className={cn("relative w-full aspect-[4/3] flex items-center justify-center transition-colors duration-300", theme.bg)}>
+                <div className={cn("transition-transform duration-500 group-hover:scale-110", theme.icon)}>
+                  {theme.iconComponent}
+                </div>
+                {enrollment.hasNewItemsAfterCompletion && (
+                  <Badge className="absolute top-4 right-4 bg-yellow-400 text-yellow-900 border-0">New Content</Badge>
+                )}
+                <div className="absolute top-4 left-4 p-2 rounded-full bg-white/20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Info className="h-4 w-4 text-white" />
+                </div>
+              </div>
+
+              <CardContent className="p-6 pb-10 flex flex-col">
+                <div className="flex items-center gap-2 mb-4">
+                  <Badge variant="secondary" className="bg-[#F1F5F9] text-[#64748B] dark:bg-slate-800 dark:text-slate-400 border-0 font-medium px-3">Course</Badge>
+                  {isCompleted && <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 font-medium">Completed</Badge>}
+                </div>
+
+                <h3 className="font-bold text-xl text-foreground mb-1 line-clamp-2 leading-tight">{enrollment?.course?.name || `Course ${index + 1}`}</h3>
+                <p className="text-sm text-muted-foreground mb-6 line-clamp-1">{enrollment?.course?.description || "Accelerate your learning journey"}</p>
+
+                <div className="space-y-4">
+                  {variant !== 'available' && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-sm font-semibold">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span className="text-foreground">{progress.toFixed(0)}%</span>
+                      </div>
+                      <div className="h-2 w-full bg-[#F1F5F9] dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div className={cn("h-full rounded-full transition-all duration-700 ease-out", theme.progress)} style={{ width: `${progress}%` }} />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-3 pt-2">
+                    <Button
+                      onClick={(e) => { e.stopPropagation(); handleContinue(); }}
+                      disabled={!isCurrentTimeInTimeSlot(enrollment.assignedTimeSlot)}
+                      className={cn(
+                        "w-full h-12 rounded-xl text-lg font-bold transition-all duration-300 shadow-md active:scale-95 flex items-center justify-center gap-2",
+                        variant === 'available' ? "bg-primary text-primary-foreground" : isStart ? "bg-[#22C55E] text-white" : "bg-[#FACC15] text-black"
+                      )}
+                    >
+                      {variant === 'available' ? (
+                        <span className="flex items-center gap-2">
+                          Register Now
+                          <ExternalLink className="h-4 w-4" />
+                        </span>
+                      ) : (
+                        <>
+                          {isStart ? 'Start Course' : isCompleted ? 'View Course' : 'Continue Learning'}
+                          <Play className="h-4 w-4 fill-current" />
+                        </>
+                      )}
+                    </Button>
+
+                    <div className="flex gap-2">
+                      {isRankVisible && (
+                        <div onClick={(e) => e.stopPropagation()} className="flex-1">
+                          <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" className="w-full rounded-lg border-2 h-10 text-[10px] lg:text-xs font-bold px-1" size="sm">
+                                <Trophy className="h-3 w-3 lg:h-3.5 lg:w-3.5 mr-1 text-yellow-500 flex-shrink-0" />
+                                <span className="truncate">Rank</span>
+                              </Button>
+                            </DialogTrigger>
+                            <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} />
+                          </Dialog>
+                        </div>
+                      )}
+                      {variant !== 'available' && isHpSystem && (
+                        <div onClick={(e) => e.stopPropagation()} className="flex-1">
+                          <Button
+                            variant="outline"
+                            className="w-full rounded-lg border-2 h-10 text-[10px] lg:text-xs font-bold px-1"
+                            size="sm"
+                            onClick={() => navigate({ to: `/student/hp-system/${versionId}/${enrollment.cohortName || 'default'}/activities` })}
+                          >
+                            <Activity className="h-3 w-3 lg:h-3.5 lg:w-3.5 mr-1 text-blue-500 flex-shrink-0" />
+                            <span className="truncate">HP</span>
+                          </Button>
+                        </div>
+                      )}
+                      {isTimeslotActive && (
+                        <div onClick={(e) => e.stopPropagation()} className="flex-1">
+                          <Button
+                            variant="outline"
+                            className="w-full rounded-lg border-2 h-10 text-[10px] lg:text-xs font-bold px-1"
+                            size="sm"
+                            onClick={() => setIsTimeslotModalOpen(true)}
+                          >
+                            <Clock className="h-3 w-3 lg:h-3.5 lg:w-3.5 mr-1 text-green-500 flex-shrink-0" />
+                            <span className="truncate">{hasAssignedTimeslot ? 'Slot' : 'Pick Slot'}</span>
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          <CardContent className="p-6 flex flex-col flex-1">
-            <div className="flex items-center gap-2 mb-4">
-              <Badge variant="secondary" className="bg-[#F1F5F9] text-[#64748B] dark:bg-slate-800 dark:text-slate-400 border-0 font-medium px-3">Course</Badge>
-              {isCompleted && <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 font-medium">Completed</Badge>}
-            </div>
-
-            <h3 className="font-bold text-xl text-foreground mb-1 line-clamp-2">{enrollment?.course?.name || `Course ${index + 1}`}</h3>
-            <p className="text-sm text-muted-foreground mb-6 line-clamp-1">{enrollment?.course?.description || "Accelerate your learning journey"}</p>
-
-            <div className="mt-auto space-y-4">
-              {variant !== 'available' && (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center text-sm font-semibold">
-                    <span className="text-muted-foreground">Progress</span>
-                    <span className="text-foreground">{progress.toFixed(0)}%</span>
-                  </div>
-                  <div className="h-2 w-full bg-[#F1F5F9] dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div className={cn("h-full rounded-full transition-all duration-700 ease-out", theme.progress)} style={{ width: `${progress}%` }} />
-                  </div>
+          {/* Back Side - Stretches to match front height */}
+          <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] bg-white dark:bg-slate-900 rounded-[24px] p-6 border-2 border-primary/20 shadow-xl flex flex-col cursor-pointer" onClick={() => setIsFlipped(false)}>
+            <div className="flex-1 overflow-y-auto scrollbar-hide pr-1">
+              <div className="flex items-center justify-between mb-4">
+                <Badge className={cn("font-bold px-3 py-1", theme.bg, theme.icon.replace('text-', 'bg-').replace('[', '').replace(']', '/10'))}>
+                  Course Details
+                </Badge>
+                <div className="p-2 rounded-full bg-slate-100 dark:bg-slate-800">
+                  <Play className={cn("h-5 w-5", theme.icon)} />
                 </div>
-              )}
+              </div>
 
-              {variant !== 'available' && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                  <Clock className="h-4 w-4" />
-                  <span>Enrolled: {enrollment.enrollmentDate ? new Date(enrollment.enrollmentDate).toLocaleDateString('en-GB') : 'Recently'}</span>
+              <h3 className="font-bold text-lg text-foreground mb-4">{enrollment?.course?.name || `Course ${index + 1}`}</h3>
+
+              <div className="space-y-4 mb-6">
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1.5">
+                    <Info className="h-3 w-3" /> Description
+                  </h4>
+                  <p className="text-xs text-foreground/80 leading-relaxed line-clamp-4">
+                    {enrollment?.course?.description || "No description available for this course. Explore our structured curriculum designed to accelerate your learning journey."}
+                  </p>
                 </div>
-              )}
 
-              <div className="grid grid-cols-1 gap-3 pt-2">
-                <Button
-                  onClick={handleContinue}
-                  disabled={!isCurrentTimeInTimeSlot(enrollment.assignedTimeSlot)}
-                  className={cn(
-                    "w-full h-12 rounded-xl text-lg font-bold transition-all duration-300 shadow-lg active:scale-95",
-                    variant === 'available' ? "bg-primary text-primary-foreground" : isStart ? "bg-[#22C55E] text-white" : "bg-[#FACC15] text-black"
-                  )}
-                >
-                  {variant === 'available' ? 'Register Now' : isStart ? 'Start Course' : isCompleted ? 'View Course' : 'Continue Learning'}
-                </Button>
-
-                <div className="flex gap-2">
-                  {variant !== 'available' && enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && (
-                    <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
-                      <DialogTrigger asChild><Button variant="outline" className="flex-1 rounded-lg border-2" size="sm"><Trophy className="h-4 w-4 mr-2 text-yellow-500" />Rank</Button></DialogTrigger>
-                      <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} />
-                    </Dialog>
-                  )}
-                  {variant !== 'available' && enrollment?.hpSystem && (
-                    <Button variant="outline" className="flex-1 rounded-lg border-2" size="sm" onClick={() => navigate({ to: `/student/hp-system/${enrollment.courseVersionId}/${enrollment.cohortName}/activities` })}><Activity className="h-4 w-4 mr-2" />HP</Button>
-                  )}
+                <div className="grid grid-cols-1 gap-3 py-3 border-y border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground font-medium">Version</span>
+                    <span className="text-foreground font-bold">{courseVersionData?.version || courseVersionData?.name || versionId.substring(0, 8)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground font-medium">Instructors</span>
+                    <span className="text-foreground font-bold text-right truncate max-w-[120px]">
+                      {enrollment?.course?.instructors?.join(', ') || "ViBe Team"}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+
+            <div className="mt-auto space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className={cn("grid gap-3", isTimeslotActive ? "grid-cols-2" : "grid-cols-1")} onClick={(e) => e.stopPropagation()}>
+                <Button
+                  variant="outline"
+                  className="w-full rounded-lg h-9 text-[10px] font-bold border-2"
+                  onClick={() => setIsDetailsOpen(true)}
+                >
+                  <Info className="h-3.5 w-3.5 mr-1 text-blue-500" />
+                  Full Details
+                </Button>
+                {isTimeslotActive && (
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-lg h-9 text-[10px] font-bold border-2"
+                    onClick={() => setIsTimeslotModalOpen(true)}
+                    disabled={hasAssignedTimeslot}
+                  >
+                    <Clock className="h-3.5 w-3.5 mr-1 text-green-500" />
+                    {hasAssignedTimeslot ? 'Timeslot' : 'Pick Slot'}
+                  </Button>
+                )}
+              </div>
+
+              <Button
+                onClick={(e) => { e.stopPropagation(); handleContinue(); }}
+                disabled={!isCurrentTimeInTimeSlot(enrollment.assignedTimeSlot)}
+                className={cn(
+                  "w-full h-10 rounded-xl text-xs font-bold transition-all duration-300 shadow-md active:scale-95 flex items-center justify-center gap-2",
+                  variant === 'available' ? "bg-primary text-primary-foreground" : isStart ? "bg-[#22C55E] text-white" : "bg-[#FACC15] text-black"
+                )}
+              >
+                {variant === 'available' ? 'Register Now' : isStart ? 'Start Course' : isCompleted ? 'View Course' : 'Continue Learning'}
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
 
         <Suspense fallback={null}>
-          <StudentTimeslotModal
-            isOpen={isTimeslotModalOpen}
-            onClose={() => setIsTimeslotModalOpen(false)}
-            courseId={courseId}
-            courseVersionId={versionId}
-            currentUserId={""}
-            hasAssignedTimeslot={hasAssignedTimeslot}
-          />
+          {isDetailsOpen && (
+            <div onClick={(e) => e.stopPropagation()}>
+              <EnrollmentDetailsDialog
+                isOpen={isDetailsOpen}
+                onOpenChange={setIsDetailsOpen}
+                enrollment={enrollment}
+              />
+            </div>
+          )}
+          <div onClick={(e) => e.stopPropagation()}>
+            <StudentTimeslotModal
+              isOpen={isTimeslotModalOpen}
+              onClose={() => setIsTimeslotModalOpen(false)}
+              courseId={courseId}
+              courseVersionId={versionId}
+              currentUserId={""}
+              hasAssignedTimeslot={!!hasAssignedTimeslot}
+            />
+          </div>
         </Suspense>
       </div>
     );
-
   }
 
   // Courses page variant
