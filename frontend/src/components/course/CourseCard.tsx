@@ -176,487 +176,100 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   }
 
   if (variant === 'dashboard' || variant === 'available') {
+    const themes = [
+      { bg: "bg-[#F3E8FF]", icon: "text-[#A855F7]", progress: "bg-[#A855F7]", iconComponent: <Play className="h-10 w-10 md:h-12 md:w-12" /> },
+      { bg: "bg-[#DBEAFE]", icon: "text-[#3B82F6]", progress: "bg-[#3B82F6]", iconComponent: <Activity className="h-10 w-10 md:h-12 md:w-12" /> },
+      { bg: "bg-[#FCE7F3]", icon: "text-[#EC4899]", progress: "bg-[#EC4899]", iconComponent: <Users className="h-10 w-10 md:h-12 md:w-12" /> },
+    ];
+    const theme = themes[index % themes.length];
+    const isStart = progress === 0 && variant !== 'available';
+
     return (
-      <>
-      <Card className={`dark:bg-[#4b341e4b] border border-border overflow-hidden flex flex-col sm:flex-row student-card-hover p-0 ${className || ''}`}>
-        <div className="w-full h-40 sm:h-auto sm:w-32 flex-shrink-0 flex items-center justify-center">
-          <ImageWithFallback
-            src="https://us.123rf.com/450wm/warat42/warat422108/warat42210800253/173451733-charts-graph-with-analysis-business-financial-data-white-clipboard-checklist-smartphone-wallet.jpg?ver=6"
-            alt={enrollment?.course?.name || `Course ${index + 1}`}
-            aspectRatio="aspect-square"
-            className="w-full h-full object-cover rounded-t-lg sm:rounded-l-lg sm:rounded-t-none"
-          />
-        </div>
-        <CardContent className="p-3 sm:pl-0 flex flex-col flex-1">
-          {/* isCompleted && */}
-           {enrollment.hasNewItemsAfterCompletion && (
-            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300 text-xs my-1">
-              New content added
-            </Badge>
-          )}
-          <div className="flex items-start justify-between xl:flex-row flex-col gap-2 mb-2">
-            <div className="flex items-center">
-              
-              <Badge className="bg-secondary/70 text-secondary-foreground border-0 font-normal">
-                Course
-              </Badge>
-              {isCompleted && (
-                <Badge className="bg-green-100 text-green-800 border-0 font-normal ml-2">
-                  Completed
-                </Badge>
-              )}
-              
+      <div className="h-full">
+        <Card className={cn(
+          "group border-0 bg-white dark:bg-card overflow-hidden flex flex-col rounded-[24px] transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 h-full",
+          className
+        )}>
+          {/* Thumbnail/Icon Area */}
+          <div className={cn("relative w-full aspect-[4/3] flex items-center justify-center transition-colors duration-300", theme.bg)}>
+            <div className={cn("transition-transform duration-500 group-hover:scale-110", theme.icon)}>
+              {theme.iconComponent}
             </div>
-            <div className="text-sm text-muted-foreground">
-              <div className="flex flex-col xl:flex-row gap-3 2xl:gap-8 xl:gap-4">
-                {/* <div className="flex lg:flex-nowrap flex-wrap items-center gap-2 mb-1 xl:mb-0">
-                  <span>Content</span>
-                  <div className="flex items-center gap-1">
-                    <div><FileText className="h-4 w-4" /></div>
-                    {videoCount} videos , {quizCount} quizzes , {articleCount} articles , {projectCount} project
+            {enrollment.hasNewItemsAfterCompletion && (
+              <Badge className="absolute top-4 right-4 bg-yellow-400 text-yellow-900 border-0">New Content</Badge>
+            )}
+          </div>
+
+          <CardContent className="p-6 flex flex-col flex-1">
+            <div className="flex items-center gap-2 mb-4">
+              <Badge variant="secondary" className="bg-[#F1F5F9] text-[#64748B] dark:bg-slate-800 dark:text-slate-400 border-0 font-medium px-3">Course</Badge>
+              {isCompleted && <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 font-medium">Completed</Badge>}
+            </div>
+
+            <h3 className="font-bold text-xl text-foreground mb-1 line-clamp-2">{enrollment?.course?.name || `Course ${index + 1}`}</h3>
+            <p className="text-sm text-muted-foreground mb-6 line-clamp-1">{enrollment?.course?.description || "Accelerate your learning journey"}</p>
+
+            <div className="mt-auto space-y-4">
+              {variant !== 'available' && (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-sm font-semibold">
+                    <span className="text-muted-foreground">Progress</span>
+                    <span className="text-foreground">{progress.toFixed(0)}%</span>
                   </div>
-                </div> */}
-                <div className="flex lg:flex-nowrap flex-wrap items-center gap-2 mb-1 xl:mb-0">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 cursor-pointer text-muted-foreground hover:text-foreground transition-colors" />
-                    </TooltipTrigger>
-                    <TooltipContent side="top" sideOffset={8}>
-                      <p>This course is actively updated with new content.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <span>Ongoing training — subject to change</span>
+                  <div className="h-2 w-full bg-[#F1F5F9] dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className={cn("h-full rounded-full transition-all duration-700 ease-out", theme.progress)} style={{ width: `${progress}%` }} />
+                  </div>
                 </div>
-                {variant !== 'available' && (
-                  <div className="flex items-center gap-2">
-                    <span>Completion Percentage</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span>{progress.toFixed(2)}%</span>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-3.5 w-3.5 text-muted-foreground cursor-pointer hover:text-foreground transition-colors" />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" sideOffset={8}>
-                            <p>Percentage of course items you have completed</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {variant !== 'available' && (
-                  <div className="flex items-center gap-2">
-                    <span>Enrolled At</span>
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-4 w-4 text-green-500" />
-                      <span className="text-green-500">
-                        {enrollment.enrollmentDate && typeof enrollment.enrollmentDate === 'string'
-                          ? new Date(enrollment.enrollmentDate).toLocaleDateString('en-GB', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                          })
-                          : 'Recently'}
-                      </span>
-                    </div>
-                  </div>
-                )}
+              )}
+
+              {variant !== 'available' && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                  <Clock className="h-4 w-4" />
+                  <span>Enrolled: {enrollment.enrollmentDate ? new Date(enrollment.enrollmentDate).toLocaleDateString('en-GB') : 'Recently'}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 gap-3 pt-2">
+                <Button
+                  onClick={handleContinue}
+                  disabled={!isCurrentTimeInTimeSlot(enrollment.assignedTimeSlot)}
+                  className={cn(
+                    "w-full h-12 rounded-xl text-lg font-bold transition-all duration-300 shadow-lg active:scale-95",
+                    variant === 'available' ? "bg-primary text-primary-foreground" : isStart ? "bg-[#22C55E] text-white" : "bg-[#FACC15] text-black"
+                  )}
+                >
+                  {variant === 'available' ? 'Register Now' : isStart ? 'Start Course' : isCompleted ? 'View Course' : 'Continue Learning'}
+                </Button>
+
+                <div className="flex gap-2">
+                  {variant !== 'available' && enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && (
+                    <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
+                      <DialogTrigger asChild><Button variant="outline" className="flex-1 rounded-lg border-2" size="sm"><Trophy className="h-4 w-4 mr-2 text-yellow-500" />Rank</Button></DialogTrigger>
+                      <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} />
+                    </Dialog>
+                  )}
+                  {variant !== 'available' && enrollment?.hpSystem && (
+                    <Button variant="outline" className="flex-1 rounded-lg border-2" size="sm" onClick={() => navigate({ to: `/student/hp-system/${enrollment.courseVersionId}/${enrollment.cohortName}/activities` })}><Activity className="h-4 w-4 mr-2" />HP</Button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-          <h3 className="font-medium text-lg mb-auto">
-            {enrollment?.course?.name || `Course ${index + 1}`}
-            {enrollment?.cohortName && (
-              <span className="font-medium text-[80%] mb-auto ml-5">
-                (Cohort: {enrollment.cohortName})
-              </span>
-            )}
-          </h3>
+          </CardContent>
+        </Card>
 
-          <p className="text-xs text-muted-foreground mb-3">
-            {isCompleted
-              ? 'Course completed!'
-              : progress === 0
-                ? 'Start your learning journey'
-                : 'Continue Learning'}
-
-            &nbsp;&nbsp;&nbsp;
-            {isCompleted ? "" : (progress == 0) ? "" : <span>&bull; MOD {module_number} &bull; SEC {section_number} &bull; {item_type}</span>}
-          {variant !== 'available' && enrollment.assignedTimeSlot && (
-              <span className="ml-2 inline-flex items-center gap-1.5">
-               
-                <span className="font-bold">Time Slot:</span>
-                  {
-                    enrollment.assignedTimeSlot && enrollment.assignedTimeSlot.map((timeSlot, index) => (
-                <span className="inline-flex items-center gap-1 px-2 py-0 rounded-full text-xs font-medium text-primary bg-primary/10 border border-primary/20">
-                  <Clock className="h-3 w-3" />
-                      <span key={index}>
-                        {timeSlot.from} - {timeSlot.to} IST
-                      </span>
-                </span>
-                    ))
-                  }
-              </span>
-            )}
-          </p>
-          <div className="mt-auto flex flex-col sm:flex-row gap-2">
-            <Button
-              variant={variant === 'available' ? "default" : progress === 0 ? "default" : isCompleted ? "default" : "default"}
-              className={`${variant === 'available'
-                ? ""
-                : progress === 0
-                  ? "bg-green-600 hover:bg-green-700 text-white shadow-md border-0"
-                  : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
-                // : isCompleted
-                //   ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
-                //   : "bg-blue-600 hover:bg-blue-700 text-white shadow-md border-0"
-                } w-full sm:w-auto transition-all duration-200`}
-              onClick={handleContinue}
-               disabled={!isCurrentTimeInTimeSlot(enrollment.assignedTimeSlot)}
-            >
-              {variant === 'available' ? 'Register' : progress === 0 ? 'Start' : progress >= 100 ? 'Completed' : 'Continue'}
-            </Button>
-            {variant !== 'available' && enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="w-full sm:w-auto">
-                  <Trophy className="h-4 w-4 mr-2" />
-                  Leaderboard
-                </Button>
-              </DialogTrigger>
-              <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} />
-            </Dialog>}
-            {
-              enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && isDetailsOpen && (
-                <Suspense fallback={null}>
-                  <EnrollmentDetailsDialog
-                    isOpen={isDetailsOpen}
-                    onOpenChange={setIsDetailsOpen}
-                    enrollment={enrollment}
-                  />
-                </Suspense>
-              )
-            }
-            {variant !== 'available' && enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && (
-              <>
-                <Button 
-                  onClick={() => setIsTimeslotModalOpen(true)} 
-                  variant="outline" 
-                  className="w-full sm:w-auto mb-2"
-                  disabled={hasAssignedTimeslot}
-                >
-                  {hasAssignedTimeslot ? 'Timeslot Assigned' : 'Choose Timeslot'}
-                </Button>
-                <Button onClick={() => setIsDetailsOpen(true)} variant="outline" className="w-full sm:w-auto">View Details</Button>
-              </>
-            )}
-              {variant !== 'available' && enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && (
-              <>
-                {enrollment?.hpSystem && (
-                  <Button
-                    variant="outline"
-                    className="w-full sm:w-auto gap-2"
-                    onClick={() => navigate({ to: `/student/hp-system/${enrollment.courseVersionId}/${enrollment.cohortName}/activities`, state:{from: location.pathname} })}
-                  >
-                    <Activity className="h-4 w-4" />
-                    HP Dashboard
-                  </Button>
-                )}
-              </>
-            )}
-            {variant !== 'available' && supportLink && (() => {
-              const isEmail = supportLink.startsWith('mailto:') || (!supportLink.startsWith('http://') && !supportLink.startsWith('https://') && !supportLink.startsWith('//') && supportLink.includes('@'));
-              const href = supportLink.startsWith('mailto:')
-                ? supportLink
-                : supportLink.startsWith('http://') || supportLink.startsWith('https://') || supportLink.startsWith('//')
-                  ? supportLink
-                  : supportLink.includes('@')
-                    ? `mailto:${supportLink}`
-                    : supportLink;
-              return (
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                  asChild
-                >
-                  <a
-                    href={href}
-                    target={isEmail ? undefined : "_blank"}
-                    rel={isEmail ? undefined : "noopener noreferrer"}
-                    className="flex items-center gap-2"
-                  >
-                    <Headphones className="h-4 w-4" />
-                    Get Support
-                  </a>
-                </Button>
-              );
-            })()}
-
-            {/* JUST ADD THIS FOR MERN CASE STUDY COURSE ONLY */}
-            {variant !== 'available' && enrollment.courseId === "692f030a945e82ec875e9116" && (
-              <Dialog open={isForumOpen} onOpenChange={setIsForumOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="w-full sm:w-auto">
-                    Discussion Forum
-                  </Button>
-                </DialogTrigger>
-
-                <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 max-h-full flex flex-col">
-                  <DialogHeader className="mb-3 text-left">
-                    <DialogTitle>Forum Details</DialogTitle>
-                  </DialogHeader>
-
-                  <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[800px] overflow-y-auto">
-                    <>
-                      <Separator className="mb-6" />
-
-                      <div className="space-y-4">
-
-                        {/* Section Header */}
-                        <div className="flex items-center gap-2 mb-4">
-                          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                            <MessageCircle className="w-4 h-4 text-primary-foreground" />
-                          </div>
-                          <h3 className="text-lg font-semibold">Discord Community</h3>
-                          <Sparkles className="w-4 h-4 text-primary" />
-                        </div>
-
-                        {/* Discord Card */}
-                        <div className="rounded-xl border bg-primary/5 shadow-sm hover:shadow-md transition-all">
-                          <div className="p-6 space-y-5">
-
-                            {/* Top Section */}
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <div className="w-14 h-14 rounded-xl bg-[#5865F2] flex items-center justify-center shadow-md group-hover:scale-105 transition-transform flex-shrink-0">
-                                  <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z" />
-                                  </svg>
-                                </div>
-
-                                <div className="min-w-0">
-                                  <p className="font-semibold text-base">
-                                    Join Our Community
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    Connect with fellow students
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                                <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                                Active
-                              </div>
-                            </div>
-
-                            {/* Features */}
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg border bg-primary/5">
-                                <Users className="w-4 h-4 text-primary" />
-                                <span className="font-medium">Student Network</span>
-                              </div>
-                              <div className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg border bg-primary/5">
-                                <MessageCircle className="w-4 h-4 text-primary" />
-                                <span className="font-medium">Live Discussions</span>
-                              </div>
-                            </div>
-
-                            {/* Description */}
-                            <p className="text-sm text-muted-foreground leading-relaxed px-4 py-3 rounded-lg border bg-primary/5">
-                              Get help, share resources, and connect with your coursemates in
-                              our exclusive Discord server.
-                            </p>
-
-                            {/* Actions */}
-                            <div className="flex items-center gap-2.5 pt-1">
-                              <Button asChild className="flex-1">
-                                <a
-                                  href="https://discord.gg/kKNBu3PF"
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center justify-center gap-2"
-                                >
-                                  <ExternalLink className="w-4 h-4" />
-                                  Join Discord
-                                </a>
-                              </Button>
-
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={async () => {
-                                  try {
-                                    await navigator.clipboard.writeText(
-                                      "https://discord.gg/kKNBu3PF"
-                                    );
-                                    setCopied(true);
-                                    setCopyError(false);
-                                    setTimeout(() => setCopied(false), 2000);
-                                  } catch {
-                                    setCopyError(true);
-                                    setTimeout(() => setCopyError(false), 2000);
-                                  }
-                                }}
-                                disabled={copied}
-                              >
-                                {copied ? (
-                                  <Check className="w-4 h-4 text-primary" />
-                                ) : (
-                                  <Copy className="w-4 h-4" />
-                                )}
-                              </Button>
-                            </div>
-
-                            {/* Feedback */}
-                            {copied && (
-                              <div className="flex items-center gap-2 text-sm text-primary bg-primary/10 px-3 py-2 rounded-lg border">
-                                <Check className="w-4 h-4" />
-                                Link copied to clipboard
-                              </div>
-                            )}
-
-                            {copyError && (
-                              <div className="flex items-center gap-2 text-sm text-destructive bg-primary/5 px-3 py-2 rounded-lg border">
-                                <span>Failed to copy link</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  </ScrollArea>
-                </DialogContent>
-              </Dialog>
-            )}
-
-            {/* Dynamic Support Link - shown if configured by instructor */}
-            {(enrollment.courseVersion as any)?.supportLink && (
-              <Button
-                variant="outline"
-                className="w-full sm:w-auto bg-green-500/10 border-green-500/30 hover:bg-green-500/20 text-green-700 dark:text-green-400"
-                asChild
-              >
-                <a
-                  href={
-                    (enrollment.courseVersion as any).supportLink.startsWith('mailto:') || (enrollment.courseVersion as any).supportLink.includes('@')
-                      ? (enrollment.courseVersion as any).supportLink.startsWith('mailto:')
-                        ? (enrollment.courseVersion as any).supportLink
-                        : `mailto:${(enrollment.courseVersion as any).supportLink}`
-                      : (enrollment.courseVersion as any).supportLink
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2"
-                >
-                  <Headphones className="h-4 w-4" />
-                  Get Support
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </Button>
-            )}
-
-            {/* Legacy hardcoded support - only show if no dynamic supportLink is configured */}
-            {!(enrollment.courseVersion as any)?.supportLink && (
-              enrollment.courseId === "6943b2cafa4e840eb39490b6" ||
-              enrollment.courseId === "692f030a945e82ec875e9116"
-            ) && (
-                <Dialog open={isSupportOpen} onOpenChange={setIsSupportOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full sm:w-auto">
-                      Support
-                    </Button>
-                  </DialogTrigger>
-
-                  <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 max-h-full flex flex-col">
-                    <DialogHeader className="mb-3 text-left">
-                      <DialogTitle>Support Details</DialogTitle>
-                    </DialogHeader>
-
-                    <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[800px] overflow-y-auto">
-                      <>
-                        <Separator className="mb-6" />
-
-                        <div className="space-y-4">
-                          {/* Section Header */}
-                          <div className="flex items-center gap-2 mb-4">
-                            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                              <LifeBuoy className="w-4 h-4 text-primary-foreground" />
-                            </div>
-                            <h3 className="text-lg font-semibold">Internship Support</h3>
-                          </div>
-
-                          {/* Support Card */}
-                          <div className="rounded-xl border bg-primary/5 shadow-sm hover:shadow-md transition-all">
-                            <div className="p-6 space-y-5">
-                              {/* Top */}
-                              <div className="flex items-center gap-3">
-                                <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-md">
-                                  <Mail className="w-7 h-7" />
-                                </div>
-
-                                <div>
-                                  <p className="font-semibold text-base">
-                                    Contact Support
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    We usually respond within 24 hours
-                                  </p>
-                                </div>
-                              </div>
-
-                              {/* Description */}
-                              <p className="text-sm text-muted-foreground leading-relaxed px-4 py-3 rounded-lg border bg-primary/5">
-                                For course-related queries, guidance, or issues, feel free to
-                                reach out to our support team via email.
-                              </p>
-
-                              {/* Email */}
-                              <div className="flex items-center gap-2.5">
-                                <Button asChild className="flex-1">
-                                  <a
-                                    href={`mailto:${supportEmail}`}
-                                    className="flex items-center justify-center gap-2"
-                                  >
-                                    <Mail className="w-4 h-4" />
-                                    {supportEmail}
-                                  </a>
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    </ScrollArea>
-                  </DialogContent>
-                </Dialog>
-              )}
-
-
-
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Student Timeslot Modal */}
-      <Suspense fallback={null}>
-        <StudentTimeslotModal
-          isOpen={isTimeslotModalOpen}
-          onClose={() => setIsTimeslotModalOpen(false)}
-          courseId={courseId}
-          courseVersionId={versionId}
-          currentUserId={""} // TODO: Get current user ID
-          hasAssignedTimeslot={hasAssignedTimeslot}
-        />
-      </Suspense>
-      </>
+        <Suspense fallback={null}>
+          <StudentTimeslotModal
+            isOpen={isTimeslotModalOpen}
+            onClose={() => setIsTimeslotModalOpen(false)}
+            courseId={courseId}
+            courseVersionId={versionId}
+            currentUserId={""}
+            hasAssignedTimeslot={hasAssignedTimeslot}
+          />
+        </Suspense>
+      </div>
     );
+
   }
 
   // Courses page variant
@@ -708,7 +321,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 };
 
 // Skeleton component for loading states
-export const CourseCardSkeleton = ({ variant = 'dashboard' }: { variant?: 'dashboard' | 'courses' }) => {
+export const CourseCardSkeleton = ({ variant = 'dashboard' }: { variant?: 'dashboard' | 'courses' | 'available' }) => {
   if (variant === 'dashboard') {
     return (
       <Card className="border border-border overflow-hidden flex flex-row student-card-hover p-0">
