@@ -250,7 +250,7 @@ export class CourseRepository implements ICourseRepository {
     cohortIds: ID[],
     options?: {
       search?: string
-      sortBy?: "name" | "createdAt" | "updatedAt"
+      sortBy?: "name" | "createdAt" | "updatedAt" | "baseHp" | "safeHp"
       sortOrder?: "asc" | "desc"
       skip?: number
       limit?: number
@@ -293,9 +293,15 @@ export class CourseRepository implements ICourseRepository {
   async createCohorts(
     versionId: string,
     cohorts: string[],
+    baseHp: number,
     session?: ClientSession
   ): Promise<ObjectId[]> {
 
+    console.log("*************************")
+    console.log("*************************")
+    console.log("Create cohorts",cohorts)
+    console.log("*************************")
+    console.log("*************************")
     await this.init();
 
     if (!cohorts?.length) return [];
@@ -307,6 +313,8 @@ export class CourseRepository implements ICourseRepository {
     const cohortsToInsert: ICohort[] = unique.map(name => ({
       courseVersionId: versionObjectId,
       name,
+      baseHp:baseHp,
+      safeHp:0,
       createdAt: new Date(),
       updatedAt: new Date(),
       isPublic: false,
@@ -370,6 +378,8 @@ export class CourseRepository implements ICourseRepository {
     cohortName?: string,
     isPublic?: boolean,
     isActive?: boolean,
+    baseHp?: number,
+    safeHp?: number,
     session?: ClientSession
   ): Promise<boolean> {
     try {
@@ -383,6 +393,12 @@ export class CourseRepository implements ICourseRepository {
       }
       if (!(isActive === null || isActive === undefined)) {
         updateFields.isActive = isActive
+      }
+      if (!(baseHp === null || baseHp === undefined)) {
+        updateFields.baseHp = baseHp
+      }
+      if (!(safeHp === null || safeHp === undefined)) {
+        updateFields.safeHp = safeHp
       }
       if (Object.keys(updateFields).length === 0) {
         return false

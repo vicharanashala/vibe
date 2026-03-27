@@ -150,8 +150,8 @@ class CohortsQuery {
   search?: string;
 
   @IsOptional()
-  @IsIn(['name', 'createdAt', 'updatedAt'])
-  sortBy: 'name' | 'createdAt' | 'updatedAt' =
+  @IsIn(['name', 'createdAt', 'updatedAt', 'baseHp', 'safeHp'])
+  sortBy: 'name' | 'createdAt' | 'updatedAt' | 'baseHp' | 'safeHp' =
     'createdAt';
 
   @IsOptional()
@@ -176,6 +176,22 @@ class CohortResponse {
   })
   @IsString()
   name: string;
+
+  @JSONSchema({
+    description: "Base Hp for the cohort",
+    example: 100,
+    type: "number",
+  })
+  @IsNumber()
+  baseHp: number;
+
+  @JSONSchema({
+    description: "safe Hp for the cohort",
+    example: 100,
+    type: "number",
+  })
+  @IsNumber()
+  safeHp: number;
 
   @JSONSchema({
     description: "Date when the cohort was created",
@@ -255,6 +271,16 @@ class NewCohortBody{
   @IsOptional()
   @IsBoolean()
   isActive?: boolean
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  baseHp?: number
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  safeHp?: number
 }
 
 class CohortUpdatedMessage{

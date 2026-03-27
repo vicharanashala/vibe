@@ -776,6 +776,11 @@ Accessible to:
       throw new BadRequestError("This courseversion does not have any cohorts to update");
     }
     const cohortExists = existingVersion.cohorts.some(cohort=> cohort?.toString() === cohortId);
+    console.log("#$#$#$#$#$#$#$#$#$#$#")
+    console.log("#$#$#$#$#$#$#$#$#$#$#")
+    console.log(cohortExists,existingVersion);
+    console.log("#$#$#$#$#$#$#$#$#$#$#")
+    console.log("#$#$#$#$#$#$#$#$#$#$#")
 
     if(!cohortExists){
       throw new BadRequestError("The requested cohort does not exists in the course version");
@@ -784,11 +789,8 @@ Accessible to:
       if (BLOCKED_COHORT_NAMES.has(body.newCohortName.trim().toLowerCase())) {
         throw new BadRequestError(`"${body.newCohortName}" is a reserved cohort name and cannot be used.`);
       }
-      if(existingVersion.cohortDetails && existingVersion.cohortDetails.some(cohort=> cohort.name === body.newCohortName)){
-          throw new BadRequestError("The requested cohort name already exists in the course version");
-        }
     }
-    await this.courseVersionService.updateCohortInCourseVersion(cohortId, body?.newCohortName?.toLowerCase(), body?.isPublic, body?.isActive );
+    await this.courseVersionService.updateCohortInCourseVersion(cohortId, body?.newCohortName?.toLowerCase(), body?.isPublic, body?.isActive, body?.baseHp, body?.safeHp );
 
     setAuditTrail(req, {
       category: AuditCategory.COHORT,
