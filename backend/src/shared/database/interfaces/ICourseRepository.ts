@@ -34,11 +34,13 @@ export interface ICourseRepository {
     session?: ClientSession,
   ): Promise<ICourseVersion | null>;
 
+  updateTotalItemCount(versionId: string, newCount: number, session?: ClientSession): Promise<void>
+  
   getCohortsByIds(
     cohortIds: ID[],
     options?: {
       search?: string
-      sortBy?: "name" | "createdAt" | "updatedAt"
+      sortBy?: "name" | "createdAt" | "updatedAt" | "baseHp" | "safeHp"
       sortOrder?: "asc" | "desc"
       skip?: number
       limit?: number
@@ -49,6 +51,7 @@ export interface ICourseRepository {
   createCohorts(
     versionId: string,
     cohorts: string[],
+    baseHp: number,
     session?: ClientSession
   ): Promise<ObjectId[]>;
 
@@ -56,7 +59,7 @@ export interface ICourseRepository {
     versionId: string,
     cohortIds: ObjectId[],
     session?: ClientSession
-  ):Promise<boolean>;
+  ): Promise<boolean>;
 
   // pushCohortsToVersion(
   //   versionId: string,
@@ -68,6 +71,9 @@ export interface ICourseRepository {
     cohortId: ObjectId,
     cohortName?: string,
     isPublic?: boolean,
+    isActive?: boolean,
+    baseHp?: number,
+    safeHp?: number,
     session?: ClientSession
   ): Promise<boolean>;
 
@@ -76,12 +82,12 @@ export interface ICourseRepository {
     session: ClientSession
   ): Promise<boolean>;
 
-   removeCohortFromVersion(
+  removeCohortFromVersion(
     versionId: string,
     cohortId: string,
     session?: ClientSession
-  ): Promise<boolean> 
-  
+  ): Promise<boolean>
+
   addModulesToVersion(
     courseVersionId: string,
     newModules: Module[],
@@ -148,8 +154,8 @@ export interface ICourseRepository {
   ): Promise<ICourseVersion | null>;
   bulkUpdateVersions(operations: any[], session?: ClientSession): Promise<void>;
   getAllCourses(session?: ClientSession): Promise<ICourse[]>;
-  updateCourseVersionStatus(vesionId:string,versionStatus:courseVersionStatus,session?: ClientSession): Promise<ICourseVersion | null>;
-  getCourseVersionStatus(versionId:string,session?:ClientSession): Promise<courseVersionStatus>;
+  updateCourseVersionStatus(vesionId: string, versionStatus: courseVersionStatus, session?: ClientSession): Promise<ICourseVersion | null>;
+  getCourseVersionStatus(versionId: string, session?: ClientSession): Promise<courseVersionStatus>;
   // Cascade Delete Methods used by Cron Jobs
   cascadeDeleteVersion(session?: ClientSession): Promise<void>;
   //cascadeDeleteModule(session?: ClientSession): Promise<void>;
@@ -177,7 +183,7 @@ export interface ICourseRepository {
     session?: ClientSession
   ): Promise<boolean>;
 
- getCohortSettingById(
+  getCohortSettingById(
     id: string,
     session?: ClientSession
   ): Promise<any>;

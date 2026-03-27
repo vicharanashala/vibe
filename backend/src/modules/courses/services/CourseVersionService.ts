@@ -159,6 +159,7 @@ export class CourseVersionService extends BaseService {
   public async readCourseVersion(
     courseVersionId: string,
     userId: string,
+    cohortId?: string,
   ): Promise<CourseVersion & { hpSystem: boolean }> {
     return this._withTransaction(async session => {
       const readVersion = await this.courseRepo.getActiveVersion(
@@ -201,6 +202,7 @@ export class CourseVersionService extends BaseService {
           userId,
           courseId,
           courseVersionId,
+          cohortId,
         );
 
       if (!enrollment) {
@@ -242,9 +244,10 @@ export class CourseVersionService extends BaseService {
     skip?: number,
     limit?: number,
     search?: string,
-    sortBy?: 'name' | 'createdAt' | 'updatedAt',
+    sortBy?: 'name' | 'createdAt' | 'updatedAt' | 'baseHp' | 'safeHp',
     sortOrder?: 'asc' | 'desc',
   ): Promise<CohortsResponse> {
+
     const courseVersion = await this.courseRepo.readVersion(courseVersionId);
     if (!courseVersion.cohorts || courseVersion.cohorts.length == 0) {
       const cohortDetails: CohortsResponse = {
@@ -256,6 +259,9 @@ export class CourseVersionService extends BaseService {
       courseVersion.cohorts,
       { search, sortBy, sortOrder, skip, limit },
     );
+    
+    const versionSettings = await this.settingsRepo.getSettingsByVersionIds([new ObjectId(courseVersionId)]);
+    const baseHp = versionSettings?.[0]?.settings?.baseHp ?? 0;
 
     const cohortDetails: CohortsResponse = {
       cohorts: cohorts.map(cohort => ({
@@ -264,6 +270,9 @@ export class CourseVersionService extends BaseService {
         createdAt: cohort.createdAt,
         updatedAt: cohort.updatedAt,
         isPublic: cohort.isPublic,
+        isActive: cohort.isActive ?? true,
+        baseHp: cohort.baseHp ?? baseHp,
+        safeHp: cohort.safeHp ?? 0
       })),
       version: courseVersion.version,
     };
@@ -271,14 +280,20 @@ export class CourseVersionService extends BaseService {
     return cohortDetails;
   }
 
+
   public async updateCohortInCourseVersion(
     cohortId: string,
-    cohortName: string,
-    isPublic: boolean,
-  ): Promise<boolean> {
+    cohortName?: string,
+    isPublic?: boolean,
+    isActive?: boolean,
+    baseHp?: number,
+    safeHp?: number,
+  ): Promise<boolean>{
     return this._withTransaction(async session => {
-      if (!cohortName && (isPublic === null || isPublic === undefined)) {
-        throw new BadRequestError('No information provided in request body');
+      if (!cohortName && (isPublic === null || isPublic === undefined) && 
+        (isActive === null || isActive === undefined) && 
+        (baseHp === null || baseHp === undefined) && (safeHp === null || safeHp ==undefined)) {
+        throw new BadRequestError("No information provided in request body");
       }
       const existingCohorts = await this.courseRepo.getCohortsByIds(
         [cohortId],
@@ -310,6 +325,9 @@ export class CourseVersionService extends BaseService {
         new ObjectId(cohortId),
         cohortName,
         isPublic,
+        isActive,
+        baseHp,
+        safeHp,
         session,
       );
     });
@@ -380,9 +398,12 @@ export class CourseVersionService extends BaseService {
           if (blockedFound) {
             throw new BadRequestError(`"${blockedFound}" is a reserved cohort name and cannot be used.`);
           }
+          const versionSetting = await this.settingsRepo.getSettingsByVersionIds([new ObjectId(courseVersionId)]);
+          const baseHpValue = versionSetting?.[0]?.settings?.hpSystem === true ? versionSetting?.[0]?.settings?.baseHp ?? 0 : 0;
           const cohortIds = await this.courseRepo.createCohorts(
           courseVersionId,
           body.cohorts,
+          baseHpValue,
           session,
         );
         if (!existingVersion.cohorts) {

@@ -17,6 +17,7 @@ import {
   UseInterceptor,
   Req,
   QueryParams,
+  QueryParam,
   Param,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
@@ -183,6 +184,7 @@ Accessible to:
   async read(
     @Params() params: ReadCourseVersionParams,
     @Ability(getCourseVersionAbility) { ability, user },
+    @QueryParam('cohortId') cohortId?: string,
   ): Promise<CourseVersion & {hpSystem: boolean}> {
     const { versionId } = params;
 
@@ -196,7 +198,11 @@ Accessible to:
     }
 
     const retrievedCourseVersion =
-      await this.courseVersionService.readCourseVersion(versionId, user._id);
+      await this.courseVersionService.readCourseVersion(
+        versionId,
+        user._id,
+        cohortId,
+      );
     return retrievedCourseVersion;
   }
 
@@ -761,7 +767,7 @@ Accessible to:
       );
     }
 
-    if (!body.newCohortName && (body.isPublic === null || body.isPublic === undefined)) {
+    if (!body.newCohortName && (body.isPublic === null || body.isPublic === undefined) && (body.isActive === null || body.isActive === undefined)) {
         throw new BadRequestError("No information provided in request body");
     }
     const existingVersion = await this.courseVersionService.readCourseVersion(versionId, user._id);
@@ -778,11 +784,8 @@ Accessible to:
       if (BLOCKED_COHORT_NAMES.has(body.newCohortName.trim().toLowerCase())) {
         throw new BadRequestError(`"${body.newCohortName}" is a reserved cohort name and cannot be used.`);
       }
-      if(existingVersion.cohortDetails && existingVersion.cohortDetails.some(cohort=> cohort.name === body.newCohortName)){
-          throw new BadRequestError("The requested cohort name already exists in the course version");
-        }
     }
-    await this.courseVersionService.updateCohortInCourseVersion(cohortId, body?.newCohortName?.toLowerCase(), body?.isPublic );
+    await this.courseVersionService.updateCohortInCourseVersion(cohortId, body?.newCohortName?.toLowerCase(), body?.isPublic, body?.isActive, body?.baseHp, body?.safeHp );
 
     setAuditTrail(req, {
       category: AuditCategory.COHORT,
@@ -801,6 +804,8 @@ Accessible to:
       changes:{
         after:{
           cohort: body.newCohortName,
+          isPublic: body.isPublic,
+          isActive: body.isActive,
         }
       },
       outcome:{

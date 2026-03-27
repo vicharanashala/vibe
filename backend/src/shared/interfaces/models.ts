@@ -450,6 +450,9 @@ export interface ICohort {
   createdAt: Date;
   updatedAt: Date;
   isPublic: boolean;
+  isActive?: boolean;
+  baseHp?: number;
+  safeHp?: number;
 }
 
 export interface ICohortSettings {

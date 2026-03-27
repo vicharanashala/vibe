@@ -6,7 +6,7 @@ import { dbConfig } from '#root/config/db.js';
 import cron from 'node-cron';
 
 cron.schedule(
-    '*/1 * * * *',
+    '*/5 * * * *',
     // "*/5 * * * * *",
     async () => {
 

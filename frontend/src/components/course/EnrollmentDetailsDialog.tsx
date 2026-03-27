@@ -35,18 +35,50 @@ export function EnrollmentDetailsDialog({
   enrollment
 }: EnrollmentDetailsDialogProps) {
 
+  const normalizeId = (value: any): string | undefined => {
+    if (!value) return undefined;
+    if (typeof value === 'string') return value;
+    try {
+      return bufferToHex(value);
+    } catch {
+      return value?.toString?.();
+    }
+  };
+
   const courseVersionId = bufferToHex(enrollment.courseVersionId);
+  const cohortId = enrollment?.cohortId
+    ? bufferToHex(enrollment.cohortId)
+    : undefined;
+  const enrollmentId = normalizeId(enrollment?._id);
   // Hook is only called when this component is mounted
   const {
     data: enrollmentDetails,
     isLoading
   } = useUserEnrollmentsDetails(true, "", "STUDENT", courseVersionId);
 
-  const { data: versionDetails } = useCourseVersionById(courseVersionId);
+  const { data: versionDetails } = useCourseVersionById(
+    courseVersionId,
+    true,
+    cohortId,
+  );
 
 
-  // Use the fetched enrollment details if available, otherwise fall back to the passed enrollment prop
-  const enroll1 = enrollmentDetails?.enrollments?.[0] || enrollment;
+  const matchedEnrollment = enrollmentDetails?.enrollments?.find((entry: any) => {
+    const entryId = normalizeId(entry?._id);
+    const entryCohortId = normalizeId(entry?.cohortId);
+
+    if (enrollmentId && entryId === enrollmentId) {
+      return true;
+    }
+
+    if (cohortId) {
+      return entryCohortId === cohortId;
+    }
+
+    return !entryCohortId;
+  });
+
+  const enroll1 = matchedEnrollment || enrollment;
   // Extract data from enrollment prop
   const contentCounts = enroll1?.contentCounts || {};
   const itemCounts = contentCounts.itemCounts || {};
