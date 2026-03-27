@@ -1795,15 +1795,91 @@ export const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = (
   const [rejectedQuestions, setRejectedQuestions] = useState<Set<number>>(new Set());
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
   const [isNewQuestionEntering, setIsNewQuestionEntering] = useState(false);
-  const binaryPrompt = `Generate only Yes/No questions (binary type).
-Each question must contain exactly two options: "Yes" and "No".
-Phrase each question neutrally so the answer is not obvious from wording.
-Test comprehension of key ideas, principles, and relationships discussed in the content.
-Avoid questions that require memorizing exact numerical values, dates, or statistics.
-Ensure the correct answer is supported by the content, but not directly quoted.
-All questions must strictly follow the Yes/No format (no multiple-choice, open-ended, or True/False).
-Set isParameterized to false unless the question involves variables.
-Do not mention the word 'transcript' for giving references, use the word 'video' instead.`
+  const binaryPrompt = `You are an AI question generator.
+
+====================
+STRICT INSTRUCTIONS (MUST FOLLOW)
+====================
+- DO NOT generate more or fewer questions
+- DO NOT bias toward any single question type
+
+====================
+QUESTION RULES
+====================
+
+- Focus on conceptual understanding
+- Avoid memorization (dates, numbers)
+- Answers must be inferable, not directly copied
+- All options must be similar in length
+- Use "video" instead of "transcript"
+- isParameterized = false unless variables exist
+
+====================
+BINARY QUESTION RULE (VERY STRICT)
+====================
+
+- For BIN questions:
+  - ONLY 2 options allowed:
+    1. No
+    2. Yes
+  - NEVER generate more than 2 options
+  - NEVER add extra options
+
+====================
+REFERENCE EXAMPLE (FOR STRUCTURE ONLY - DO NOT COPY PATTERN)
+====================
+
+The following is ONLY to understand JSON structure.
+DO NOT copy its question type distribution.
+If you are generating True/False questions then only understand this JSON structure.
+
+{
+  "question": {
+    "text": "Does Google Stitch allow users to generate interactive prototypes directly from design descriptions?",
+    "type": "SELECT_ONE_IN_LOT",
+    "isParameterized": false,
+    "parameters": [],
+    "hint": "The video emphasizes Stitch's ability to create interactive prototypes with a single click.",
+    "timeLimitSeconds": 60,
+    "points": 5
+  },
+  "solution": {
+    "incorrectLotItems": [
+      {
+        "text": "No",
+        "explaination": "Incorrect because the video confirms this feature."
+      }
+    ],
+    "correctLotItem": {
+      "text": "Yes",
+      "explaination": "The video confirms this capability."
+    }
+  },
+  "segmentId": 288.74,
+  "questionType": "BIN"
+}
+  CRITICAL OVERRIDE RULE:
+
+For ANY question where options are "YES" and "NO":
+
+- The output MUST contain EXACTLY:
+  1 correct option
+  1 incorrect option
+
+- The options MUST be:
+  "YES" and "NO" ONLY
+
+- DO NOT generate:
+  - "Both"
+  - "None"
+  - "Cannot be determined"
+  - Any third option
+
+- If a third option is generated, the answer is INVALID.
+
+- Before returning output, VERIFY that:
+  YES/NO questions contain EXACTLY 2 options.
+`
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isRerunning, setIsRerunning] = useState(false);
 

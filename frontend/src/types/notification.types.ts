@@ -87,3 +87,40 @@ export interface RejectedStudentRegistrationNotification {
   };
   courseName?: string;
 }
+
+export type SystemNotificationType =
+  | 'ejection'
+  | 'reinstatement'
+  | 'policy_created'
+  | 'policy_updated'
+  | 'appeal_submitted'
+  | 'appeal_approved'
+  | 'appeal_rejected';
+ 
+export interface SystemNotification {
+  _id: string;
+  type: SystemNotificationType;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+  courseId?: string;
+  courseVersionId?: string;
+  cohortId?: string;
+  policyId?: string;
+  metadata?: {
+    allowAppeal?: boolean;
+    appealDeadline?: string;
+    enrollmentId?: string;
+  };
+  extra?: {
+    studentId?: string;
+    reason?: string;
+    evidenceUrl?: string;
+  };
+}
+ 
+export interface SystemNotificationsResponse {
+  notifications: SystemNotification[];
+  unreadCount: number;
+}

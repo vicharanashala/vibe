@@ -14,10 +14,10 @@ import {
   Req,
   UseInterceptor,
 } from 'routing-controllers';
-import { injectable, inject } from 'inversify';
-import { Ability } from '#root/shared/functions/AbilityDecorator.js';
-import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
-import { InviteService } from '../services/InviteService.js';
+import {injectable, inject} from 'inversify';
+import {Ability} from '#root/shared/functions/AbilityDecorator.js';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {InviteService} from '../services/InviteService.js';
 import {
   CourseAndVersionId,
   InviteBody,
@@ -27,22 +27,26 @@ import {
   InviteResponse,
   InviteResult,
 } from '../classes/validators/InviteValidators.js';
-import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
-import { NOTIFICATIONS_TYPES } from '../types.js';
+import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
+import {NOTIFICATIONS_TYPES} from '../types.js';
 import {
   CancelInviteResponse,
   MessageResponse,
   ResendInviteResponse,
 } from '../classes/index.js';
-import { appConfig } from '#root/config/app.js';
-import { inviteRedirectTemplate } from '../redirectTemplate.js';
-import { InviteActions, getInviteAbility } from '../abilities/inviteAbilities.js';
-import { subject } from '@casl/ability';
-import { EnrollmentRole } from '#root/shared/index.js';
-import { setAuditTrail } from '#root/utils/setAuditTrail.js';
-import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
-import { ObjectId } from 'mongodb';
-import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
+import {appConfig} from '#root/config/app.js';
+import {inviteRedirectTemplate} from '../redirectTemplate.js';
+import {InviteActions, getInviteAbility} from '../abilities/inviteAbilities.js';
+import {subject} from '@casl/ability';
+import {EnrollmentRole} from '#root/shared/index.js';
+import {setAuditTrail} from '#root/utils/setAuditTrail.js';
+import {
+  AuditAction,
+  AuditCategory,
+  OutComeStatus,
+} from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
+import {ObjectId} from 'mongodb';
+import {AuditTrailsHandler} from '#root/shared/middleware/auditTrails.js';
 
 /**
  * Controller for managing student enrollments in courses.
@@ -52,13 +56,13 @@ import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 @OpenAPI({
   tags: ['Invites'],
 })
-@JsonController('/notifications/invite', { transformResponse: true })
+@JsonController('/notifications/invite', {transformResponse: true})
 @injectable()
 export class InviteController {
   constructor(
     @inject(NOTIFICATIONS_TYPES.InviteService)
     private readonly inviteService: InviteService,
-  ) { }
+  ) {}
 
   @Authorized()
   @Post('/courses/:courseId/versions/:versionId')
@@ -79,11 +83,11 @@ export class InviteController {
   async inviteUsers(
     @Body() body: InviteBody,
     @Params() params: CourseAndVersionId,
-    @Ability(getInviteAbility) { ability, user },
+    @Ability(getInviteAbility) {ability, user},
     @Req() req: Request,
   ) {
-    const { courseId, versionId } = params;
-    const { inviteData, cohortId } = body;
+    const {courseId, versionId} = params;
+    const {inviteData, cohortId} = body;
 
     // Validate that the user can invite to each specific role
     // This ensures students can only invite students, TAs can invite students/TAs, etc.
@@ -105,7 +109,7 @@ export class InviteController {
       inviteData,
       courseId,
       versionId,
-      cohortId?.toString()
+      cohortId?.toString(),
     );
 
     setAuditTrail(req, {
@@ -128,13 +132,13 @@ export class InviteController {
             email: inviteData[index].email,
             role: inviteData[index].role,
           })),
-          inviteCount: results.length
-        }
+          inviteCount: results.length,
+        },
       },
       outcome: {
         status: OutComeStatus.SUCCESS,
-      }
-    })
+      },
+    });
 
     return new InviteResponse(results);
   }
@@ -160,12 +164,12 @@ export class InviteController {
   })
   async generateInviteLink(
     @Params() params: CourseAndVersionId,
-    @Body() body: { role: EnrollmentRole , cohortId: string},
-    @Ability(getInviteAbility) { ability, user },
+    @Body() body: {role: EnrollmentRole; cohortId: string},
+    @Ability(getInviteAbility) {ability, user},
     @Req() req: Request,
   ) {
-    const { courseId, versionId } = params;
-    const { role, cohortId } = body;
+    const {courseId, versionId} = params;
+    const {role, cohortId} = body;
     const roleSpecificSubject = subject('Invite', {
       courseId,
       versionId,
@@ -182,7 +186,7 @@ export class InviteController {
       courseId,
       versionId,
       role,
-      cohortId
+      cohortId,
     );
 
     setAuditTrail(req, {
@@ -198,17 +202,17 @@ export class InviteController {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(versionId),
       },
-      changes:{
-        after:{
+      changes: {
+        after: {
           role: role,
           inviteLinkGenerated: true,
-        }
+        },
       },
-      outcome:{
+      outcome: {
         status: OutComeStatus.SUCCESS,
-      }
-    })
-    return { link };
+      },
+    });
+    return {link};
   }
 
   @Get('/:inviteId')
@@ -231,10 +235,15 @@ export class InviteController {
     @Params() params: InviteIdParams,
     @Req() req: any,
   ): Promise<string> {
-    const { inviteId } = params;
+    const {inviteId} = params;
     const action = req.query.action === 'REJECTED' ? 'REJECTED' : 'ACCEPT';
+    const policyAcknowledged = req.query.policyAcknowledged === 'true';
     try {
-      const result = await this.inviteService.processInvite(inviteId, action);
+      const result = await this.inviteService.processInvite(
+        inviteId,
+        action,
+        policyAcknowledged,
+      );
       if (result.isBulk) {
       }
       return inviteRedirectTemplate(result.message, appConfig.origins[0]);
@@ -260,14 +269,14 @@ export class InviteController {
   async getInvitesForCourseVersion(
     @Params() params: CourseAndVersionId,
     @QueryParams() query: InviteQueryParams,
-    @Ability(getInviteAbility) { ability },
+    @Ability(getInviteAbility) {ability},
   ): Promise<InviteResponse> {
-    const { courseId, versionId } = params;
-    const { inviteStatus, currentPage, limit, search, sort, startDate, endDate } =
+    const {courseId, versionId} = params;
+    const {inviteStatus, currentPage, limit, search, sort, startDate, endDate} =
       query;
 
     // Build subject context first
-    const inviteContext = { courseId, versionId };
+    const inviteContext = {courseId, versionId};
     const inviteSubject = subject('Invite', inviteContext);
 
     if (!ability.can(InviteActions.View, inviteSubject)) {
@@ -276,7 +285,7 @@ export class InviteController {
       );
     }
 
-    const { invites, totalDocuments, totalPages } =
+    const {invites, totalDocuments, totalPages} =
       await this.inviteService.findInvitesForCourse(
         courseId,
         versionId,
@@ -307,8 +316,8 @@ export class InviteController {
     statusCode: 400,
   })
   async getInvitesForUser(
-    @Ability(getInviteAbility) { ability },
-    @CurrentUser() user: { _id: string },
+    @Ability(getInviteAbility) {ability},
+    @CurrentUser() user: {_id: string},
   ): Promise<InviteResponse> {
     const invites = await this.inviteService.findPendingInvitesByUserId(
       user._id,
@@ -333,10 +342,10 @@ export class InviteController {
   })
   async resendInvite(
     @Params() params: InviteIdParams,
-    @Ability(getInviteAbility) { ability, user },
+    @Ability(getInviteAbility) {ability, user},
     @Req() req: Request,
   ): Promise<MessageResponse> {
-    const { inviteId } = params;
+    const {inviteId} = params;
     const invite = await this.inviteService.findInviteById(inviteId);
     // Build subject context first
     const inviteSubject = subject('Invite', {
@@ -359,16 +368,16 @@ export class InviteController {
         email: user.email,
         role: user.roles,
       },
-      changes:{
-        after:{
+      changes: {
+        after: {
           inviteRole: invite.role,
           inviteResent: true,
-        }
+        },
       },
-      outcome:{
+      outcome: {
         status: OutComeStatus.SUCCESS,
-      }
-    })
+      },
+    });
 
     return this.inviteService.resendInvite(inviteId);
   }
@@ -390,10 +399,10 @@ export class InviteController {
   })
   async cancelInvite(
     @Params() params: InviteIdParams,
-    @Ability(getInviteAbility) { ability , user},
+    @Ability(getInviteAbility) {ability, user},
     @Req() req: Request,
   ): Promise<MessageResponse> {
-    const { inviteId } = params;
+    const {inviteId} = params;
 
     const invite = await this.inviteService.findInviteById(inviteId);
     // Build subject context first
@@ -422,16 +431,16 @@ export class InviteController {
         courseVersionId: new ObjectId(invite.courseVersionId),
         inviteId: new ObjectId(invite.inviteId.toString()),
       },
-      changes:{
-        after:{
+      changes: {
+        after: {
           inviteRole: invite.role,
           inviteCancelled: true,
-        }
+        },
       },
-      outcome:{
+      outcome: {
         status: OutComeStatus.SUCCESS,
-      }
-    })
+      },
+    });
 
     return this.inviteService.cancelInvite(inviteId);
   }

@@ -639,7 +639,7 @@ export class CourseVersionService extends BaseService {
               settings: { enabled: false, options: {} },
             })),
           },
-          linearProgressionEnabled: false,
+          linearProgressionEnabled: true,
           seekForwardEnabled: false,
         },
       };

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, type Dispatch, type SetStateAction } from "react"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check, Layers, Video, HelpCircle } from 'lucide-react'
@@ -48,7 +48,7 @@ import { useCourseStore } from "@/store/course-store"
 import type { EnrolledUser, EnrollmentDetails } from "@/types/course.types"
 import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
-import { generateExcel, generateStudentContactsExcel } from "@/lib/excel-export"
+import { generateExcel, type ExcelExportOptions } from "@/lib/excel-export"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -430,6 +430,10 @@ function CourseEnrollments() {
   const [isSearching, setIsSearching] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingStudentContacts, setIsExportingStudentContacts] = useState(false);
+  const [quizExportOptions, setQuizExportOptions] = useState<ExcelExportOptions>({
+    includeAttempts: true,
+    includeQuestionScores: true,
+  });
 
   const [showContentSummary, setShowContentSummary] = useState(false)
   function SummaryRow({
@@ -461,6 +465,8 @@ function CourseEnrollments() {
     sectionId?: string;
     quizId?: string;
     quizName?: string;
+    questionCount?: number;
+    quizMaxScore?: number;
     maxScore?: number;
     attempts?: number;
     questionScores?: Array<{
@@ -540,6 +546,8 @@ function CourseEnrollments() {
               sectionId: quiz.sectionId ?? 'unknown',
               quizId: quiz.quizId ?? 'unknown',
               quizName: quiz.quizName ?? 'Untitled Quiz',
+              questionCount: Number(quiz.questionCount) || 0,
+              quizMaxScore: Number(quiz.quizMaxScore) || 0,
               moduleName: quiz.moduleName ?? 'Module',
               sectionName: quiz.sectionName ?? 'Section',
               maxScore: Number(quiz.maxScore) || 0,
@@ -936,7 +944,7 @@ function CourseEnrollments() {
 
       handleFetchQuizScores().finally(() => setIsExporting(false));
     }
-  }, [isExporting, isLoadingQuizScores]);
+  }, [isExporting, isLoadingQuizScores, quizExportOptions]);
 
   useEffect(() => {
     if (isExportingStudentContacts && !isLoadingStudentContacts) {
@@ -1634,7 +1642,7 @@ function CourseEnrollments() {
                           <SummaryRow label="Feedbacks" value={progressDetail.contentCounts?.itemCounts?.FEEDBACK ?? 0} />
                           <SummaryRow
                             label="Quiz Score"
-                            value={`${progressDetail.totalQuizScore ?? 0} / ${progressDetail.totalQuizMaxScore ?? 0}`}
+                            value={`${(progressDetail.totalQuizScore ?? 0).toFixed(2)} / ${(progressDetail.totalQuizMaxScore ?? 0).toFixed(2)}`}
                           />
                           <SummaryRow
                             label="Items Completed"
@@ -2811,6 +2819,8 @@ interface EnrollmentsTableProps {
   setIsExporting: (exporting: boolean) => void;
   isExportingStudentContacts: boolean;
   setIsExportingStudentContacts: (exporting: boolean) => void;
+  quizExportOptions: ExcelExportOptions;
+  setQuizExportOptions: Dispatch<SetStateAction<ExcelExportOptions>>;
   unenrollMutation: any;
   changeStatusMutation: any;
   bulkChangeStatusMutation: any;
@@ -2849,6 +2859,8 @@ function EnrollmentsTable({
   setIsExporting,
   isExportingStudentContacts,
   setIsExportingStudentContacts,
+  quizExportOptions,
+  setQuizExportOptions,
   unenrollMutation,
   changeStatusMutation,
   bulkChangeStatusMutation,

@@ -1,10 +1,10 @@
-import { COURSES_TYPES } from '#courses/types.js';
-import { InviteStatus } from '#root/modules/notifications/index.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
-import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {COURSES_TYPES} from '#courses/types.js';
+import {InviteStatus} from '#root/modules/notifications/index.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
+import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   courseVersionStatus,
   EnrollmentRole,
@@ -12,12 +12,12 @@ import {
   ICourseVersion,
   IEnrollment,
 } from '#root/shared/interfaces/models.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import { Enrollment } from '#users/classes/transformers/Enrollment.js';
-import { EnrollmentStats, USERS_TYPES } from '#users/types.js';
-import { injectable, inject } from 'inversify';
-import { ClientSession, ObjectId, OptionalId } from 'mongodb';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import {Enrollment} from '#users/classes/transformers/Enrollment.js';
+import {EnrollmentStats, USERS_TYPES} from '#users/types.js';
+import {injectable, inject} from 'inversify';
+import {ClientSession, ObjectId, OptionalId} from 'mongodb';
 import {
   BadRequestError,
   NotFoundError,
@@ -36,12 +36,13 @@ import {
   QuizScoresExportResponseDto,
   StudentQuizScoreDto,
 } from '../dtos/QuizScoresExportDto.js';
-import { COURSE_REGISTRATION_TYPES } from '#root/modules/courseRegistration/types.js';
-import { ICourseRegistrationRepository } from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
+import {COURSE_REGISTRATION_TYPES} from '#root/modules/courseRegistration/types.js';
+import {ICourseRegistrationRepository} from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
 import {
   IGradingResult,
   ISubmission,
 } from '#root/modules/quizzes/interfaces/index.js';
+import {Cohort} from '#root/modules/courses/classes/index.js';
 import { SETTING_TYPES } from '#root/modules/setting/types.js';
 
 const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
@@ -79,6 +80,7 @@ export class EnrollmentService extends BaseService {
     role: EnrollmentRole,
     throughInvite: boolean = false,
     cohort?: string,
+    policyAcknowledged?: boolean,
     session?: ClientSession,
   ) {
     // const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId,session);
@@ -124,7 +126,7 @@ export class EnrollmentService extends BaseService {
       // }
 
       if (existingEnrollment && throughInvite) {
-        return { status: 'ALREADY_ENROLLED' as InviteStatus };
+        return {status: 'ALREADY_ENROLLED' as InviteStatus};
       }
 
       if (existingEnrollment && !throughInvite) {
@@ -143,7 +145,8 @@ export class EnrollmentService extends BaseService {
         enrollmentDate: new Date(),
         percentCompleted: 0,
         completedItemsCount: 0,
-        ...(cohort ? { cohortId: new ObjectId(cohort) } : {}),
+        ...(cohort ? {cohortId: new ObjectId(cohort)} : {}),
+        ...(policyAcknowledged ? {policyAcknowledgedAt: new Date()} : {}),
         ...(role === 'STUDENT' ? { hpPoints: baseHpValue } : {})
       };
       const createdEnrollment = await this.enrollmentRepo.createEnrollment(
@@ -234,7 +237,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-    cohort?: string
+    cohort?: string,
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const user = await this.userRepo.findById(userId);
@@ -257,7 +260,7 @@ export class EnrollmentService extends BaseService {
         courseId,
         courseVersionId,
         cohort,
-        session
+        session,
       );
 
       return existingEnrollment;
@@ -361,7 +364,7 @@ export class EnrollmentService extends BaseService {
     userIds: string[],
     courseId: string,
     courseVersionId: string,
-    cohortId?: string
+    cohortId?: string,
   ): Promise<{
     successCount: number;
     failureCount: number;
@@ -389,7 +392,7 @@ export class EnrollmentService extends BaseService {
             userId,
             courseId,
             courseVersionId,
-            cohortId
+            cohortId,
           );
 
           if (!enrollment) {
@@ -484,14 +487,14 @@ export class EnrollmentService extends BaseService {
       ...course,
       versions: course?.versions
         ? course.versions
-          .map((versionId: any) => {
-            // Convert ObjectId to string if needed
-            const versionIdStr = versionId.toString
-              ? versionId.toString()
-              : versionId;
-            return enrolledVersionIds.has(versionIdStr) ? versionIdStr : null;
-          })
-          .filter(Boolean) // Remove null values
+            .map((versionId: any) => {
+              // Convert ObjectId to string if needed
+              const versionIdStr = versionId.toString
+                ? versionId.toString()
+                : versionId;
+              return enrolledVersionIds.has(versionIdStr) ? versionIdStr : null;
+            })
+            .filter(Boolean) // Remove null values
         : [],
     };
   }
@@ -668,6 +671,8 @@ export class EnrollmentService extends BaseService {
             cohortName: enr.cohortName,
             completedItems: watchedItemsMap.get(watchedKey) || 0,
             hasNewItemsAfterCompletion: enr.hasNewItemsAfterCompletion || false,
+            policyReacknowledgementRequired:
+              enr.policyReacknowledgementRequired ?? false,
             hpSystem,
           };
         }
@@ -771,7 +776,7 @@ export class EnrollmentService extends BaseService {
         Map<string, number>,
         Map<
           string,
-          { videos: number; quizzes: number; articles: number; projects: number }
+          {videos: number; quizzes: number; articles: number; projects: number}
         >,
         ISubmission[],
       ] = await Promise.all([
@@ -1491,7 +1496,7 @@ export class EnrollmentService extends BaseService {
   async bulkUpdateAllEnrollments(
     courseId?: string,
     userId?: string,
-  ): Promise<{ totalCount: number; updatedCount: number }> {
+  ): Promise<{totalCount: number; updatedCount: number}> {
     const BATCH_SIZE = 5000;
 
     // 1. Get courses (all or specific one)
@@ -1563,7 +1568,7 @@ export class EnrollmentService extends BaseService {
 
             bulkOperations.push({
               updateOne: {
-                filter: { _id: new ObjectId(enrollment._id) },
+                filter: {_id: new ObjectId(enrollment._id)},
                 update: {
                   $set: {
                     percentCompleted: currentPercentCompleted,
@@ -1613,7 +1618,7 @@ export class EnrollmentService extends BaseService {
       });
     }
 
-    return { totalCount, updatedCount };
+    return {totalCount, updatedCount};
   }
 
   async getNonStudentEnrollmentsByCourseVersion(
@@ -1626,7 +1631,7 @@ export class EnrollmentService extends BaseService {
     );
   }
   async bulkEnrollUsers(
-    existingEnrolledUsersWithRoles: { userId: string; role: EnrollmentRole }[],
+    existingEnrolledUsersWithRoles: {userId: string; role: EnrollmentRole}[],
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
@@ -1658,11 +1663,11 @@ export class EnrollmentService extends BaseService {
       const enrollmentsToCreate: OptionalId<IEnrollment>[] = [];
       const results: any[] = [];
 
-      for (const { userId, role } of existingEnrolledUsersWithRoles) {
+      for (const {userId, role} of existingEnrolledUsersWithRoles) {
         const userExists = await this.userRepo.findById(userId, session);
 
         if (!userExists) {
-          results.push({ userId, error: 'User not found' });
+          results.push({userId, error: 'User not found'});
           continue;
         }
         const existingEnrollment =
@@ -1744,7 +1749,7 @@ export class EnrollmentService extends BaseService {
     courseId?: string,
     versionId?: string,
     userId?: string,
-  ): Promise<{ totalCount: number; updatedCount: number }> {
+  ): Promise<{totalCount: number; updatedCount: number}> {
     const MAX_CONCURRENCY = 4;
 
     if (versionId) {
@@ -1770,7 +1775,7 @@ export class EnrollmentService extends BaseService {
     );
 
     let index = 0;
-    const results: { totalCount: number; updatedCount: number }[] = [];
+    const results: {totalCount: number; updatedCount: number}[] = [];
 
     const worker = async () => {
       while (index < courseVersionIds.length) {
@@ -1785,21 +1790,21 @@ export class EnrollmentService extends BaseService {
 
         const result =
           await this.enrollmentRepo.bulkUpdateCompletedItemsCountForCourseVersion(
-            { courseVersionId, courseId, userId },
+            {courseVersionId, courseId, userId},
           );
 
         results.push(result);
       }
     };
 
-    const workers = Array.from({ length: MAX_CONCURRENCY }, () => worker());
+    const workers = Array.from({length: MAX_CONCURRENCY}, () => worker());
 
     await Promise.all(workers);
 
     const totalCount = results.reduce((sum, r) => sum + r.totalCount, 0);
     const updatedCount = results.reduce((sum, r) => sum + r.updatedCount, 0);
 
-    return { totalCount, updatedCount };
+    return {totalCount, updatedCount};
   }
 
   /**
@@ -1870,7 +1875,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-    timeSlot: { from: string; to: string },
+    timeSlot: {from: string; to: string},
     session?: ClientSession,
   ): Promise<boolean> {
     const execute = async (session: ClientSession) => {
@@ -1959,8 +1964,8 @@ export class EnrollmentService extends BaseService {
     userIds: string[],
     courseId: string,
     courseVersionId: string,
-    oldTimeSlot: { from: string; to: string },
-    newTimeSlot: { from: string; to: string },
+    oldTimeSlot: {from: string; to: string},
+    newTimeSlot: {from: string; to: string},
     session?: ClientSession,
   ): Promise<boolean> {
     const execute = async (session: ClientSession) => {
@@ -2028,7 +2033,7 @@ export class EnrollmentService extends BaseService {
   async findEnrollmentsByTimeSlot(
     courseId: string,
     courseVersionId: string,
-    timeSlot: { from: string; to: string },
+    timeSlot: {from: string; to: string},
     session?: ClientSession,
   ): Promise<IEnrollment[]> {
     const execute = async (session: ClientSession) => {
@@ -2051,8 +2056,8 @@ export class EnrollmentService extends BaseService {
   async updateTimeSlot(
     courseId: string,
     courseVersionId: string,
-    oldTimeSlot: { from: string; to: string },
-    newTimeSlot: { from: string; to: string },
+    oldTimeSlot: {from: string; to: string},
+    newTimeSlot: {from: string; to: string},
     session?: ClientSession,
   ): Promise<boolean> {
     const execute = async (session: ClientSession) => {
@@ -2102,7 +2107,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-    timeSlots: Array<{ from: string; to: string }>,
+    timeSlots: Array<{from: string; to: string}>,
     session?: ClientSession,
   ): Promise<boolean> {
     const execute = async (session: ClientSession) => {
@@ -2147,7 +2152,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-    timeSlot: { from: string; to: string },
+    timeSlot: {from: string; to: string},
     session?: ClientSession,
   ): Promise<boolean> {
     const execute = async (session: ClientSession) => {
@@ -2192,7 +2197,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-    timeSlotToRemove: { from: string; to: string },
+    timeSlotToRemove: {from: string; to: string},
     session?: ClientSession,
   ): Promise<boolean> {
     const execute = async (session: ClientSession) => {
@@ -2276,22 +2281,20 @@ export class EnrollmentService extends BaseService {
     enrollmentIds: string[],
     courseId: string,
     versionId: string,
-    cohortId: string
+    cohortId: string,
   ): Promise<boolean> {
-
     return this._withTransaction(async (session: ClientSession) => {
-
       const result = await this.enrollmentRepo.moveEnrollmentsToCohort(
         enrollmentIds,
         courseId,
         versionId,
         cohortId,
-        session
+        session,
       );
 
       if (result.modifiedCount !== enrollmentIds.length) {
         throw new BadRequestError(
-          "Some enrollments are invalid or already assigned to a cohort"
+          'Some enrollments are invalid or already assigned to a cohort',
         );
       }
 
@@ -2304,20 +2307,255 @@ export class EnrollmentService extends BaseService {
     enrollmentIds: string[],
     courseId: string,
     versionId: string,
-    targetCohortId: string
+    targetCohortId: string,
   ): Promise<boolean> {
-
     return this._withTransaction(async (session: ClientSession) => {
-
       await this.enrollmentRepo.moveRelatedDocumentsToCohort(
         enrollmentIds,
         courseId,
         versionId,
         targetCohortId,
-        session
+        session,
       );
 
       return true;
     });
+  }
+  async ejectUser(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    reason: string,
+    ejectedBy: string,
+    cohortId?: string,
+    policyId?: string,
+  ): Promise<{enrollment: IEnrollment}> {
+    return this._withTransaction(async (session: ClientSession) => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        courseVersionId,
+        session,
+      );
+
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'This course version is archived, cannot eject users',
+        );
+      }
+
+      const enrollment = await this.enrollmentRepo.findActiveStudentEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId,
+        session,
+      );
+
+      if (!enrollment) {
+        throw new NotFoundError(
+          'No active enrollment found for this user in the specified course version',
+        );
+      }
+
+      if ((enrollment as any).isEjected) {
+        throw new BadRequestError(
+          'This learner is already ejected from this course',
+        );
+      }
+
+      // Only update the enrollment document — do NOT touch progress or watchtime
+      const ejectedEnrollment = await this.enrollmentRepo.ejectEnrollment(
+        enrollment._id.toString(),
+        reason,
+        ejectedBy,
+        policyId,
+        session,
+      );
+
+      if (!ejectedEnrollment) {
+        throw new NotFoundError('Failed to eject enrollment');
+      }
+
+      return {enrollment: ejectedEnrollment};
+    });
+  }
+
+  async getStudentsForEjectionPage(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+    page: number,
+    limit: number,
+    search: string = '',
+    statusFilter: 'all' | 'active' | 'ejected' = 'all',
+  ): Promise<{students: any[]; totalDocuments: number; totalPages: number}> {
+    const {students, totalDocuments} =
+      await this.enrollmentRepo.getStudentsForEjectionPage(
+        courseId,
+        courseVersionId,
+        cohortId,
+        page,
+        limit,
+        search,
+        statusFilter,
+        // no session — read-only, no transaction needed
+      );
+
+    return {
+      students,
+      totalDocuments,
+      totalPages: Math.ceil(totalDocuments / limit),
+    };
+  }
+
+  async reinstateUser(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    reinstatedBy: string,
+    cohortId?: string,
+  ): Promise<{enrollment: IEnrollment}> {
+    return this._withTransaction(async (session: ClientSession) => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        courseVersionId,
+        session,
+      );
+
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'This course version is archived, cannot reinstate users',
+        );
+      }
+
+      const enrollment = await this.enrollmentRepo.findEjectedEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId,
+        session,
+      );
+
+      if (!enrollment) {
+        throw new NotFoundError(
+          'No ejected enrollment found for this user in the specified course version',
+        );
+      }
+
+      const reinstatedEnrollment =
+        await this.enrollmentRepo.reinstateEnrollment(
+          enrollment._id.toString(),
+          reinstatedBy,
+          session,
+        );
+
+      if (!reinstatedEnrollment) {
+        throw new NotFoundError('Failed to reinstate enrollment');
+      }
+
+      return {enrollment: reinstatedEnrollment};
+    });
+  }
+  async getCohortStaff(courseId: string, versionId: string, cohortId: string) {
+    return this.enrollmentRepo.getCohortStaff(courseId, versionId, cohortId);
+  }
+  async getGlobalEjectionHistory(
+    courseId: string,
+    courseVersionId: string,
+    params: {
+      triggerType?: string;
+      startDate?: Date;
+      endDate?: Date;
+      search?: string;
+      page?: number;
+      limit?: number;
+      cohortId?: string;
+    },
+  ): Promise<{history: any[]; totalDocuments: number; totalPages: number}> {
+    const {history, totalDocuments} =
+      await this.enrollmentRepo.getGlobalEjectionHistory(
+        courseId,
+        courseVersionId,
+        params,
+      );
+
+    return {
+      history,
+      totalDocuments,
+      totalPages: Math.ceil(totalDocuments / (params.limit || 10)),
+    };
+  }
+
+  async exportEjectionHistoryCSV(
+    courseId: string,
+    courseVersionId: string,
+    params: {
+      triggerType?: string;
+      startDate?: Date;
+      endDate?: Date;
+      search?: string;
+      cohortId?: string;
+    },
+  ): Promise<string> {
+    const {history} = await this.enrollmentRepo.getGlobalEjectionHistory(
+      courseId,
+      courseVersionId,
+      {...params, page: 1, limit: 10000}, // Export all matching records
+    );
+
+    const {createObjectCsvStringifier} = await import('csv-writer');
+
+    const header = [
+      {id: 'firstName', title: 'First Name'},
+      {id: 'lastName', title: 'Last Name'},
+      {id: 'email', title: 'Email'},
+      {id: 'cohortName', title: 'Cohort'},
+      {id: 'ejectedAt', title: 'Ejected At'},
+      {id: 'triggerType', title: 'Trigger Type'},
+      {id: 'policyName', title: 'Policy Name'},
+      {id: 'ejectionReason', title: 'Reason'},
+      {id: 'ejectedByName', title: 'Ejected By'},
+    ];
+
+    const csvStringifier = createObjectCsvStringifier({
+      header: header,
+    });
+
+    const formattedHistory = history.map(item => ({
+      ...item,
+      ejectedAt: item.ejectedAt
+        ? new Date(item.ejectedAt).toLocaleString()
+        : '',
+      policyName: item.policyName || 'N/A',
+      cohortName: item.cohortName || 'N/A',
+    }));
+
+    return (
+      csvStringifier.getHeaderString() +
+      csvStringifier.stringifyRecords(formattedHistory)
+    );
+  }
+  async markPolicyReacknowledgementRequired(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+  ): Promise<void> {
+    await this.enrollmentRepo.markReacknowledgementRequired(
+      courseId,
+      courseVersionId,
+      cohortId,
+    );
+  }
+
+  async clearPolicyReacknowledgement(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+  ): Promise<void> {
+    await this.enrollmentRepo.clearReacknowledgement(
+      userId,
+      courseId,
+      courseVersionId,
+      cohortId,
+    );
   }
 }

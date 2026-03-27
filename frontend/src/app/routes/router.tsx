@@ -14,6 +14,7 @@ import React, { useEffect } from 'react'
 // Import pages and layouts
 import AuthPage from '@/app/pages/auth-page'
 import TeacherLayout from '@/layouts/teacher-layout'
+import EjectionPoliciesPage from '../pages/teacher/ejection-policies'
 import StudentLayout from '@/layouts/student-layout'
 import StudentDashboard from "@/app/pages/student/dashboard";
 import StudentCourses from "@/app/pages/student/courses";
@@ -109,6 +110,12 @@ const authRoute = new Route({
       }
     }
   },
+});
+// Teacher Ejection Policies route
+const teacherEjectionPoliciesRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/ejection-policies',
+  component: EjectionPoliciesPage,
 });
 
 // Forgot Password route - accessible only when NOT authenticated
@@ -651,6 +658,8 @@ const routeTree = rootRoute.addChildren([
     teacherFeedBackEditorRoute,
     teacherAnnouncementsRoute,
     teacherAuditRoute,
+    teacherConfigureCohortsRoute,
+      teacherEjectionPoliciesRoute, 
     teacherHpSystemVersionsRoute,
     teacherHpSystemCohortsRoute,
     teacherHpSystemDashboardRoute,
@@ -658,7 +667,7 @@ const routeTree = rootRoute.addChildren([
     teacherStudentLedgerRoute,
     teacherStudentSubmissionsRoute,
     teacherSubmissionDetailsRoute,
-    teacherConfigureCohortsRoute
+    
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
