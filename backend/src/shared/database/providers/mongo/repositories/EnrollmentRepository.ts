@@ -4992,6 +4992,7 @@ export class EnrollmentRepository {
       page?: number;
       limit?: number;
       cohortId?: string;
+      timezoneOffset?: number;
     },
     session?: ClientSession,
   ): Promise<{history: any[]; totalDocuments: number}> {
@@ -5005,6 +5006,7 @@ export class EnrollmentRepository {
       page = 1,
       limit = 10,
       cohortId,
+      timezoneOffset,
     } = params;
     const skip = (page - 1) * limit;
 
@@ -5228,8 +5230,22 @@ export class EnrollmentRepository {
             {
               $match: {
                 date: {
-                  ...(startDate ? {$gte: startDate} : {}),
-                  ...(endDate ? {$lte: endDate} : {}),
+                  ...(startDate
+                    ? {
+                        $gte: new Date(
+                          new Date(startDate).getTime() + (timezoneOffset ?? 0) * 60000,
+                        ),
+                      }
+                    : {}),
+                  ...(endDate
+                    ? {
+                        $lte: new Date(
+                          new Date(endDate).getTime() +
+                            (timezoneOffset ?? 0) * 60000 +
+                            86399999, // Add 23h 59m 59s 999ms
+                        ),
+                      }
+                    : {}),
                 },
               },
             },

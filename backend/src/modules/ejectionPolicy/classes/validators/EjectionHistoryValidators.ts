@@ -58,6 +58,12 @@ export class EjectionHistoryQuery {
   @IsOptional()
   @IsNumber()
   @Type(() => Number)
+  @JSONSchema({description: 'User timezone offset in minutes'})
+  timezoneOffset?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
   @JSONSchema({description: 'Page number for pagination'})
   page?: number = 1;
 

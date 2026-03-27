@@ -2468,6 +2468,7 @@ export class EnrollmentService extends BaseService {
       page?: number;
       limit?: number;
       cohortId?: string;
+      timezoneOffset?: number;
     },
   ): Promise<{history: any[]; totalDocuments: number; totalPages: number}> {
     const {history, totalDocuments} =

@@ -43,6 +43,7 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
     cohortId,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
+    timezoneOffset: new Date().getTimezoneOffset(),
   });
 
   const exportMutation = useExportEjectionHistory();
@@ -56,6 +57,7 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
       cohortId,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
+      timezoneOffset: new Date().getTimezoneOffset(),
     });
   };
 
