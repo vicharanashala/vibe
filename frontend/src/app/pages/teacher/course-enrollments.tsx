@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
-import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check, Layers,Video, HelpCircle } from 'lucide-react'
+import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check, Layers,Video, HelpCircle, RefreshCw } from 'lucide-react'
 import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -585,6 +585,7 @@ const moveToCohortMutation = useMoveToCohort();
     isLoading: enrollmentsLoading,
     error: enrollmentsError,
     refetch: refetchEnrollments,
+    isRefetching: isRefetchingEnrollments,
   } = useCourseVersionEnrollments(
     courseId,
     versionId,
@@ -1306,6 +1307,15 @@ const handleMoveToCohort = async () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchEnrollments()}
+                disabled={isRefetchingEnrollments}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isRefetchingEnrollments ? "animate-spin" : ""}`} />
+                {isRefetchingEnrollments ? "Refreshing..." : "Refresh"}
+              </Button>
               <Button
                 className="gap-2 bg-primary hover:bg-accent text-primary-foreground cursor-pointer"
                 onClick={() => {
