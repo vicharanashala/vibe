@@ -50,7 +50,7 @@ export interface QuestionBody {
     }>;
     hint?: string;
     timeLimitSeconds: number;
-    points: number;
+    points?: number;
     priority: 'LOW' | 'MEDIUM' | 'HIGH';
   };
   solution: any; // Union type based on question type
@@ -172,6 +172,7 @@ export interface EditQuestionBankBody {
   count: number;
   difficulty?: string[];
   tags?: string[];
+  points?: number;
 }
 
 export interface GetUserMatricesParams {
@@ -2520,6 +2521,9 @@ export interface AddFeedbackBody {
 export interface GetAllQuestionBanksResponse extends Array<{
   questionBankId: string;
   questionsCount?: number;
+  title?: string;
+  description?: string;
+  points?: number;
 }> { }
 
 // Attempt types
