@@ -297,11 +297,6 @@ export class CourseRepository implements ICourseRepository {
     session?: ClientSession
   ): Promise<ObjectId[]> {
 
-    console.log("*************************")
-    console.log("*************************")
-    console.log("Create cohorts",cohorts)
-    console.log("*************************")
-    console.log("*************************")
     await this.init();
 
     if (!cohorts?.length) return [];

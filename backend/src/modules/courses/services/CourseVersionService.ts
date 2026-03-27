@@ -247,11 +247,6 @@ export class CourseVersionService extends BaseService {
     sortBy?: 'name' | 'createdAt' | 'updatedAt' | 'baseHp' | 'safeHp',
     sortOrder?: 'asc' | 'desc',
   ): Promise<CohortsResponse> {
-    console.log("*************************")
-    console.log("*************************")
-    console.log("Get cohorts");
-    console.log("*************************")
-    console.log("*************************")
 
     const courseVersion = await this.courseRepo.readVersion(courseVersionId);
     if (!courseVersion.cohorts || courseVersion.cohorts.length == 0) {
@@ -264,11 +259,6 @@ export class CourseVersionService extends BaseService {
       courseVersion.cohorts,
       { search, sortBy, sortOrder, skip, limit },
     );
-    console.log("###############")
-    console.log("###############")
-    console.log(cohorts)
-    console.log("###############")
-    console.log("###############")
     
     const versionSettings = await this.settingsRepo.getSettingsByVersionIds([new ObjectId(courseVersionId)]);
     const baseHp = versionSettings?.[0]?.settings?.baseHp ?? 0;
@@ -286,7 +276,6 @@ export class CourseVersionService extends BaseService {
       })),
       version: courseVersion.version,
     };
-    console.log(cohortDetails);
 
     return cohortDetails;
   }
@@ -300,7 +289,6 @@ export class CourseVersionService extends BaseService {
     baseHp?: number,
     safeHp?: number,
   ): Promise<boolean>{
-    console.log(baseHp,safeHp);
     return this._withTransaction(async session => {
       if (!cohortName && (isPublic === null || isPublic === undefined) && 
         (isActive === null || isActive === undefined) && 

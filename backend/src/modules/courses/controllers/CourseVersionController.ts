@@ -776,11 +776,6 @@ Accessible to:
       throw new BadRequestError("This courseversion does not have any cohorts to update");
     }
     const cohortExists = existingVersion.cohorts.some(cohort=> cohort?.toString() === cohortId);
-    console.log("#$#$#$#$#$#$#$#$#$#$#")
-    console.log("#$#$#$#$#$#$#$#$#$#$#")
-    console.log(cohortExists,existingVersion);
-    console.log("#$#$#$#$#$#$#$#$#$#$#")
-    console.log("#$#$#$#$#$#$#$#$#$#$#")
 
     if(!cohortExists){
       throw new BadRequestError("The requested cohort does not exists in the course version");
