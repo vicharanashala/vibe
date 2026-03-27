@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import type { StatCardProps } from "@/types/ui.types";
+import { cn } from "@/utils/utils";
 
 // export const StatCard = ({ icon, value, label, className }: StatCardProps) => {
 //   return (
@@ -38,30 +39,28 @@ import type { StatCardProps } from "@/types/ui.types";
 
 
 export const StatCard = ({ icon, value, label, className }: StatCardProps) => {
+  const isEnrolled = label.toLowerCase().includes("enrolled");
+  
   return (
     <Card
-      className={`
-        border border-border
-       bg-gradient-to-r from-[#ffecb3] to-[#ff9eb]
-        dark:bg-gradient-to-r dark:to-[#ff940880] dark:from-[#95122c80]
-        dark:text-white
-        text-black
-        rounded-2xl
-        flex flex-row items-center p-5 gap-4
-        h-[110px]
-        w-full
-        hover:shadow-md hover:-translate-y-0.5
-        transition-all duration-200
-        ${className || ""}
-      `}
+      className={cn(
+        "border p-5 rounded-[20px] flex flex-row items-center gap-5 h-[110px] w-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1",
+        isEnrolled 
+          ? "bg-[#FFF5F8] border-[#FFD6E0] dark:bg-pink-950/20 dark:border-pink-900/30" 
+          : "bg-[#F0F7FF] border-[#D1E9FF] dark:bg-blue-950/20 dark:border-blue-900/30",
+        className
+      )}
     >
-      <div className="bg-white/40 dark:bg-primary/25 p-3 rounded-xl flex items-center justify-center text-primary shrink-0">
+      <div className={cn(
+        "p-3 rounded-xl flex items-center justify-center shrink-0 shadow-sm",
+        isEnrolled ? "bg-white text-[#D97706]" : "bg-white text-[#EF4444]"
+      )}>
         {icon}
       </div>
 
       <div className="flex flex-col min-w-0">
-        <span className="text-2xl font-bold tracking-tight text-foreground">{value}</span>
-        <span className="text-sm text-muted-foreground truncate">{label}</span>
+        <span className="text-3xl font-bold tracking-tight text-foreground">{value}</span>
+        <span className="text-sm text-muted-foreground font-medium">{label}</span>
       </div>
     </Card>
   );
