@@ -673,6 +673,13 @@ export class EjectionStudentsListResponse {
   @Expose()
   students: EjectionStudentResponse[];
 
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => EjectionPolicyResponse)
+  @Expose()
+  @IsOptional()
+  policies: EjectionPolicyResponse[];
+
   @IsInt()
   @Expose()
   totalDocuments: number;
