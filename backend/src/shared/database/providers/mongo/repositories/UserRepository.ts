@@ -1,14 +1,14 @@
-import { IUserRepository } from '#shared/database/interfaces/IUserRepository.js';
-import { IUser } from '#shared/interfaces/models.js';
-import { instanceToPlain, plainToInstance } from 'class-transformer';
-import { injectable, inject } from 'inversify';
-import { Collection, MongoClient, ClientSession, ObjectId } from 'mongodb';
-import { MongoDatabase } from '../MongoDatabase.js';
-import { InternalServerError, NotFoundError } from 'routing-controllers';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { User } from '#auth/classes/transformers/User.js';
+import {IUserRepository} from '#shared/database/interfaces/IUserRepository.js';
+import {IUser} from '#shared/interfaces/models.js';
+import {instanceToPlain, plainToInstance} from 'class-transformer';
+import {injectable, inject} from 'inversify';
+import {Collection, MongoClient, ClientSession, ObjectId} from 'mongodb';
+import {MongoDatabase} from '../MongoDatabase.js';
+import {InternalServerError, NotFoundError} from 'routing-controllers';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {User} from '#auth/classes/transformers/User.js';
 import admin from 'firebase-admin';
-import { appConfig } from '#root/config/app.js';
+import {appConfig} from '#root/config/app.js';
 
 if (!admin.apps.length) {
   if (appConfig.isDevelopment) {
@@ -32,7 +32,7 @@ export class UserRepository implements IUserRepository {
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
-  ) { }
+  ) {}
 
   /**
    * Ensures that `usersCollection` is initialized before usage.
@@ -40,7 +40,7 @@ export class UserRepository implements IUserRepository {
   private async init(): Promise<void> {
     if (!this.usersCollection) {
       this.usersCollection = await this.db.getCollection<IUser>('users');
-      this.usersCollection.createIndex({ email: 1, firebaseUID: 1 });
+      this.usersCollection.createIndex({email: 1, firebaseUID: 1});
     }
   }
 
@@ -59,14 +59,14 @@ export class UserRepository implements IUserRepository {
   async create(user: IUser, session?: ClientSession): Promise<string> {
     await this.init();
     const existingUser = await this.usersCollection.findOne(
-      { email: user.email },
-      { session },
+      {email: user.email},
+      {session},
     );
 
     if (existingUser) {
       throw new Error('User already exists');
     }
-    const result = await this.usersCollection.insertOne(user, { session });
+    const result = await this.usersCollection.insertOne(user, {session});
     if (!result.acknowledged) {
       throw new InternalServerError('Failed to create user');
     }
@@ -82,7 +82,7 @@ export class UserRepository implements IUserRepository {
   ): Promise<IUser | null> {
     await this.init();
 
-    const user = await this.usersCollection.findOne({ email }, { session });
+    const user = await this.usersCollection.findOne({email}, {session});
     return user;
   }
 
@@ -95,8 +95,8 @@ export class UserRepository implements IUserRepository {
   ): Promise<IUser | null> {
     await this.init();
     const user = await this.usersCollection.findOne(
-      { _id: new ObjectId(id) },
-      { session },
+      {_id: new ObjectId(id)},
+      {session},
     );
     return instanceToPlain(new User(user)) as IUser;
   }
@@ -110,8 +110,8 @@ export class UserRepository implements IUserRepository {
     await this.init();
     const users = await this.usersCollection
       .find(
-        { _id: { $in: userIds.map(id => new ObjectId(id)) } },
-        { projection: { firstName: 1, firebaseUID: 1, _id: 0 }, session }, // <-- projection instead of select
+        {_id: {$in: userIds.map(id => new ObjectId(id))}},
+        {projection: {firstName: 1, firebaseUID: 1, _id: 0}, session}, // <-- projection instead of select
       )
       .toArray();
     const results = await Promise.all(
@@ -147,7 +147,7 @@ export class UserRepository implements IUserRepository {
     session?: ClientSession,
   ): Promise<IUser | null> {
     await this.init();
-    const user = await this.usersCollection.findOne({ firebaseUID }, { session });
+    const user = await this.usersCollection.findOne({firebaseUID}, {session});
     return user;
   }
 
@@ -157,9 +157,9 @@ export class UserRepository implements IUserRepository {
   async makeAdmin(userId: string, session?: ClientSession): Promise<void> {
     await this.init();
     await this.usersCollection.updateOne(
-      { _id: new ObjectId(userId) },
-      { $set: { roles: 'admin' } },
-      { session },
+      {_id: new ObjectId(userId)},
+      {$set: {roles: 'admin'}},
+      {session},
     );
   }
 
@@ -172,9 +172,9 @@ export class UserRepository implements IUserRepository {
   ): Promise<IUser | null> {
     await this.init();
     const result = await this.usersCollection.findOneAndUpdate(
-      { firebaseUID },
-      { $set: { password } },
-      { returnDocument: 'after' },
+      {firebaseUID},
+      {$set: {password}},
+      {returnDocument: 'after'},
     );
     return instanceToPlain(new User(result)) as IUser;
   }
@@ -186,9 +186,9 @@ export class UserRepository implements IUserRepository {
   ): Promise<void> {
     await this.init();
     await this.usersCollection.updateOne(
-      { _id: new ObjectId(userId) },
-      { $set: userData },
-      { session },
+      {_id: new ObjectId(userId)},
+      {$set: userData},
+      {session},
     );
   }
 
@@ -196,7 +196,7 @@ export class UserRepository implements IUserRepository {
     await this.init();
     const objectIds = ids.map(id => new ObjectId(id));
     const users = await this.usersCollection
-      .find({ _id: { $in: objectIds } })
+      .find({_id: {$in: objectIds}})
       .toArray();
     return users.map(user => ({
       ...user,
@@ -216,9 +216,9 @@ export class UserRepository implements IUserRepository {
     const searchRegex = new RegExp(searchTerm, 'i');
     const query = {
       $or: [
-        { firstName: { $regex: searchRegex } },
-        { lastName: { $regex: searchRegex } },
-        { email: { $regex: searchRegex } },
+        {firstName: {$regex: searchRegex}},
+        {lastName: {$regex: searchRegex}},
+        {email: {$regex: searchRegex}},
       ],
     };
 
@@ -230,7 +230,7 @@ export class UserRepository implements IUserRepository {
     };
 
     const users = await this.usersCollection
-      .find(query, { session, projection })
+      .find(query, {session, projection})
       .toArray();
 
     return users.map(user => ({
@@ -242,91 +242,88 @@ export class UserRepository implements IUserRepository {
   }
 
   async deleteDuplicateUsers() {
-    const COURSE_ID = new ObjectId("6943b2cafa4e840eb39490b6");
+    const COURSE_ID = new ObjectId('6943b2cafa4e840eb39490b6');
 
     const cursor = this.usersCollection.aggregate([
       {
         $group: {
-          _id: "$email",
-          users: { $push: "$_id" },
-          count: { $sum: 1 }
-        }
+          _id: '$email',
+          users: {$push: '$_id'},
+          count: {$sum: 1},
+        },
       },
-      { $match: { count: { $gt: 1 } } },
+      {$match: {count: {$gt: 1}}},
 
       {
         $lookup: {
-          from: "enrollments",
-          let: { userIds: "$users" },
+          from: 'enrollments',
+          let: {userIds: '$users'},
           pipeline: [
             {
               $match: {
                 $expr: {
                   $and: [
-                    { $in: ["$userId", "$$userIds"] },
-                    { $eq: ["$courseId", COURSE_ID] }
-                  ]
-                }
-              }
-            }
+                    {$in: ['$userId', '$$userIds']},
+                    {$eq: ['$courseId', COURSE_ID]},
+                  ],
+                },
+              },
+            },
           ],
-          as: "enrollments"
-        }
+          as: 'enrollments',
+        },
       },
 
       {
         $lookup: {
-          from: "watchtime",
-          let: { userIds: "$users" },
+          from: 'watchtime',
+          let: {userIds: '$users'},
           pipeline: [
             {
               $match: {
                 $expr: {
                   $and: [
-                    { $in: ["$userId", "$$userIds"] },
-                    { $eq: ["$courseId", COURSE_ID] }
-                  ]
-                }
-              }
-            }
+                    {$in: ['$userId', '$$userIds']},
+                    {$eq: ['$courseId', COURSE_ID]},
+                  ],
+                },
+              },
+            },
           ],
-          as: "watchtimes"
-        }
+          as: 'watchtimes',
+        },
       },
 
       {
         $addFields: {
           validUserIds: {
-            $setIntersection: [
-              "$enrollments.userId",
-              "$watchtimes.userId"
-            ]
-          }
-        }
+            $setIntersection: ['$enrollments.userId', '$watchtimes.userId'],
+          },
+        },
       },
 
       {
         $project: {
           markDeletedUserIds: {
-            $setDifference: ["$users", "$validUserIds"]
-          }
-        }
+            $setDifference: ['$users', '$validUserIds'],
+          },
+        },
       },
 
-      { $match: { "markDeletedUserIds.0": { $exists: true } } }
+      {$match: {'markDeletedUserIds.0': {$exists: true}}},
     ]);
 
     let totalMarked = 0;
 
     for await (const doc of cursor) {
       const res = await this.usersCollection.updateMany(
-        { _id: { $in: doc.markDeletedUserIds } },
+        {_id: {$in: doc.markDeletedUserIds}},
         {
           $set: {
             isDeleted: false,
-            updatedAt: new Date()
-          }
-        }
+            updatedAt: new Date(),
+          },
+        },
       );
       totalMarked += res.modifiedCount;
     }
@@ -334,8 +331,7 @@ export class UserRepository implements IUserRepository {
     return totalMarked;
   }
 
-
-
-
-
+  async findByFirebaseUid(uid: string) {
+    return this.usersCollection.findOne({firebaseUid: uid});
+  }
 }

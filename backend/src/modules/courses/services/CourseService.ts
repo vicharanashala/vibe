@@ -104,6 +104,7 @@ class CourseService extends BaseService {
         'INSTRUCTOR',
         false,
         undefined,
+        undefined,
         session,
       );
 
@@ -117,7 +118,7 @@ class CourseService extends BaseService {
               settings: {enabled: false, options: {}},
             })),
           },
-          linearProgressionEnabled: false,
+          linearProgressionEnabled: true,
           seekForwardEnabled: false,
           isPublic: false,
           hpSystem: hpSystem,

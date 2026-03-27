@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, type Dispatch, type SetStateAction } from "react"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check, Layers, Video, HelpCircle } from 'lucide-react'
@@ -48,7 +48,7 @@ import { useCourseStore } from "@/store/course-store"
 import type { EnrolledUser, EnrollmentDetails } from "@/types/course.types"
 import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
-import { generateExcel, generateStudentContactsExcel } from "@/lib/excel-export"
+import { generateExcel, type ExcelExportOptions } from "@/lib/excel-export"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -430,6 +430,10 @@ function CourseEnrollments() {
   const [isSearching, setIsSearching] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingStudentContacts, setIsExportingStudentContacts] = useState(false);
+  const [quizExportOptions, setQuizExportOptions] = useState<ExcelExportOptions>({
+    includeAttempts: true,
+    includeQuestionScores: true,
+  });
 
   const [showContentSummary, setShowContentSummary] = useState(false)
   function SummaryRow({
@@ -461,6 +465,8 @@ function CourseEnrollments() {
     sectionId?: string;
     quizId?: string;
     quizName?: string;
+    questionCount?: number;
+    quizMaxScore?: number;
     maxScore?: number;
     attempts?: number;
     questionScores?: Array<{
@@ -540,6 +546,8 @@ function CourseEnrollments() {
               sectionId: quiz.sectionId ?? 'unknown',
               quizId: quiz.quizId ?? 'unknown',
               quizName: quiz.quizName ?? 'Untitled Quiz',
+              questionCount: Number(quiz.questionCount) || 0,
+              quizMaxScore: Number(quiz.quizMaxScore) || 0,
               moduleName: quiz.moduleName ?? 'Module',
               sectionName: quiz.sectionName ?? 'Section',
               maxScore: Number(quiz.maxScore) || 0,
@@ -936,7 +944,7 @@ function CourseEnrollments() {
 
       handleFetchQuizScores().finally(() => setIsExporting(false));
     }
-  }, [isExporting, isLoadingQuizScores]);
+  }, [isExporting, isLoadingQuizScores, quizExportOptions]);
 
   useEffect(() => {
     if (isExportingStudentContacts && !isLoadingStudentContacts) {
@@ -1634,7 +1642,7 @@ function CourseEnrollments() {
                           <SummaryRow label="Feedbacks" value={progressDetail.contentCounts?.itemCounts?.FEEDBACK ?? 0} />
                           <SummaryRow
                             label="Quiz Score"
-                            value={`${progressDetail.totalQuizScore ?? 0} / ${progressDetail.totalQuizMaxScore ?? 0}`}
+                            value={`${(progressDetail.totalQuizScore ?? 0).toFixed(2)} / ${(progressDetail.totalQuizMaxScore ?? 0).toFixed(2)}`}
                           />
                           <SummaryRow
                             label="Items Completed"
@@ -2811,6 +2819,8 @@ interface EnrollmentsTableProps {
   setIsExporting: (exporting: boolean) => void;
   isExportingStudentContacts: boolean;
   setIsExportingStudentContacts: (exporting: boolean) => void;
+  quizExportOptions: ExcelExportOptions;
+  setQuizExportOptions: Dispatch<SetStateAction<ExcelExportOptions>>;
   unenrollMutation: any;
   changeStatusMutation: any;
   bulkChangeStatusMutation: any;
@@ -2849,6 +2859,8 @@ function EnrollmentsTable({
   setIsExporting,
   isExportingStudentContacts,
   setIsExportingStudentContacts,
+  quizExportOptions,
+  setQuizExportOptions,
   unenrollMutation,
   changeStatusMutation,
   bulkChangeStatusMutation,
@@ -2898,21 +2910,76 @@ function EnrollmentsTable({
             )}
             <span>{isExportingStudentContacts ? "Exporting..." : "Export Student Contacts"}</span>
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isLoadingQuizScores}
+                className="flex items-center gap-2"
+              >
+                {isLoadingQuizScores ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileDown className="h-4 w-4" />
+                )}
+                <span>{isLoadingQuizScores ? "Exporting..." : "Export Quiz Scores"}</span>
+                {!isLoadingQuizScores && <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-72 rounded-xl border-border/70 p-3 shadow-xl">
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">Export options</p>
+                  <p className="text-xs text-muted-foreground">
+                    Choose which quiz detail columns to include in the Excel file.
+                  </p>
+                </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsExporting(true)}
-            disabled={isLoadingQuizScores}
-            className="flex items-center gap-2"
-          >
-            {isLoadingQuizScores ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <FileDown className="h-4 w-4" />
-            )}
-            <span>{isLoadingQuizScores ? "Exporting..." : "Export Quiz Scores"}</span>
-          </Button>
+                <label className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 cursor-pointer">
+                  <Checkbox
+                    checked={quizExportOptions.includeQuestionScores}
+                    onCheckedChange={(checked) =>
+                      setQuizExportOptions(prev => ({
+                        ...prev,
+                        includeQuestionScores: checked === true,
+                      }))
+                    }
+                  />
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium text-foreground">Individual question scores</p>
+                    <p className="text-xs text-muted-foreground">Include columns like `q1`, `q2`, `q3`.</p>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 cursor-pointer">
+                  <Checkbox
+                    checked={quizExportOptions.includeAttempts}
+                    onCheckedChange={(checked) =>
+                      setQuizExportOptions(prev => ({
+                        ...prev,
+                        includeAttempts: checked === true,
+                      }))
+                    }
+                  />
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium text-foreground">Total attempts</p>
+                    <p className="text-xs text-muted-foreground">Include the attempts column for each quiz.</p>
+                  </div>
+                </label>
+
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => setIsExporting(true)}
+                  disabled={isLoadingQuizScores}
+                >
+                  Export Excel
+                </Button>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* <Button
             variant="outline"

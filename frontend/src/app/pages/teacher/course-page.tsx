@@ -37,6 +37,7 @@ import {
   Archive,
   ArchiveRestore,
   Layers,
+  Shield,
   Activity,
   MoreVertical,
   MoreVerticalIcon,
@@ -695,6 +696,14 @@ function CourseCard({
 
   const MAX_DESCRIPTION_LENGTH = 1000;
 
+  if (enrollment.policyReacknowledgementRequired) {
+  // Show a banner or disable "Continue" button
+  return (
+    <div className="...warning banner...">
+      Policy updated — please re-acknowledge via the notification bell to continue.
+    </div>
+  );
+}
   const MAX_DESC_LENGTH = 80;
 
   const isLongDescription = course.description?.length > MAX_DESC_LENGTH;
@@ -1994,6 +2003,27 @@ function VersionCard({
                   <UserCheck className="h-3 w-3 mr-1" />
                   Registrations
                 </Button>
+                <Button
+  variant="outline"
+  size="sm"
+  onClick={() => {
+    setCurrentCourse({
+      courseId: courseId,
+      versionId: selectedVersionId ?? null,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null,
+    });
+    storePageAndNavigate("/teacher/ejection-policies");
+  }}
+  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+  disabled={isArchived}
+  title={isArchived ? "Cannot manage policies for archived version" : undefined}
+>
+  <Shield className="h-3 w-3 mr-1" />
+  Ejection Policies
+</Button>
                 {/* <Button
           variant="outline"
           size="sm"

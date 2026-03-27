@@ -1,4 +1,4 @@
-import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play, Activity } from "lucide-react";
+import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play, Shield, LucideShield } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ import type { CourseCardProps } from '@/types/course.types';
 import { Pagination } from "../ui/Pagination";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { lazy, Suspense } from "react";
+import { StudentPolicyModal } from "@/app/pages/student/components/policies/StudentPolicyModal";
 
 const EnrollmentDetailsDialog = lazy(() =>
   import("@/components/course/EnrollmentDetailsDialog").then(mod => ({
@@ -38,6 +39,7 @@ const isCurrentTimeInTimeSlot = (timeSlot?: { from: string; to: string }) => {
   
   const now = new Date();
   const currentTime = now.getHours() * 60 + now.getMinutes(); // Convert to minutes since midnight
+
   
   const [fromHours, fromMinutes] = timeSlot.from.split(':').map(Number);
   const [toHours, toMinutes] = timeSlot.to.split(':').map(Number);
@@ -59,6 +61,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const module_number = enrollment.moduleNumber || "";
   const section_number = enrollment.sectionNumber || "";
   const item_type = enrollment.itemType || "VIDEO";
+  const [showPolicies, setShowPolicies] = useState(false)
 
   // Fetch course version to get supportLink
   const { data: courseVersionData } = useCourseVersionById(
@@ -176,7 +179,16 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   }
 
   if (variant === 'dashboard' || variant === 'available') {
+    const themes = [
+      { bg: "bg-[#F3E8FF]", icon: "text-[#A855F7]", progress: "bg-[#A855F7]", iconComponent: <Play className="h-10 w-10 md:h-12 md:w-12" /> },
+      { bg: "bg-[#DBEAFE]", icon: "text-[#3B82F6]", progress: "bg-[#3B82F6]", iconComponent: <Activity className="h-10 w-10 md:h-12 md:w-12" /> },
+      { bg: "bg-[#FCE7F3]", icon: "text-[#EC4899]", progress: "bg-[#EC4899]", iconComponent: <Users className="h-10 w-10 md:h-12 md:w-12" /> },
+    ];
+    const theme = themes[index % themes.length];
+    const isStart = progress === 0 && variant !== 'available';
+
     return (
+
       <>
       <Card className={`dark:bg-[#4b341e4b] border border-border overflow-hidden flex flex-col sm:flex-row student-card-hover p-0 ${className || ''}`}>
         <div className="w-full h-40 sm:h-auto sm:w-32 flex-shrink-0 flex items-center justify-center">
@@ -205,6 +217,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   Completed
                 </Badge>
               )}
+              
               
             </div>
             <div className="text-sm text-muted-foreground">
@@ -354,22 +367,27 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   {hasAssignedTimeslot ? 'Timeslot Assigned' : 'Choose Timeslot'}
                 </Button>
                 <Button onClick={() => setIsDetailsOpen(true)} variant="outline" className="w-full sm:w-auto">View Details</Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPolicies(true)}
+                >
+                  <LucideShield className="h-3 w-3 mr-1" />
+                  Course Policies
+                </Button>
+                
               </>
             )}
-              {variant !== 'available' && enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && (
-              <>
-                {enrollment?.hpSystem && (
-                  <Button
-                    variant="outline"
-                    className="w-full sm:w-auto gap-2"
-                    onClick={() => navigate({ to: `/student/hp-system/${enrollment.courseVersionId}/${enrollment.cohortName}/activities`, state:{from: location.pathname} })}
-                  >
-                    <Activity className="h-4 w-4" />
-                    HP Dashboard
-                  </Button>
-                )}
-              </>
-            )}
+            <StudentPolicyModal
+                  open={showPolicies}
+                  onClose={() => setShowPolicies(false)}
+                  courseId={courseId}
+                  courseVersionId={versionId}
+                  cohortId={cohortId}
+                  enrollmentDate={enrollment.enrollmentDate}
+                  currentProgressPercent={progress}
+                />
+
             {variant !== 'available' && supportLink && (() => {
               const isEmail = supportLink.startsWith('mailto:') || (!supportLink.startsWith('http://') && !supportLink.startsWith('https://') && !supportLink.startsWith('//') && supportLink.includes('@'));
               const href = supportLink.startsWith('mailto:')
@@ -522,141 +540,91 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                               </div>
                             )}
 
-                            {copyError && (
-                              <div className="flex items-center gap-2 text-sm text-destructive bg-primary/5 px-3 py-2 rounded-lg border">
-                                <span>Failed to copy link</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  </ScrollArea>
-                </DialogContent>
-              </Dialog>
-            )}
+<!--       <div className="h-full">
+        <Card className={cn(
+          "group border-0 bg-white dark:bg-card overflow-hidden flex flex-col rounded-[24px] transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 h-full",
+          className
+        )}>
+          /* Thumbnail/Icon Area */}
+          <div className={cn("relative w-full aspect-[4/3] flex items-center justify-center transition-colors duration-300", theme.bg)}>
+            <div className={cn("transition-transform duration-500 group-hover:scale-110", theme.icon)}>
+<!--               {theme.iconComponent} -->
+<!--             </div> -->
+<!--             {enrollment.hasNewItemsAfterCompletion && (
+              <Badge className="absolute top-4 right-4 bg-yellow-400 text-yellow-900 border-0">New Content</Badge>
+            )} -->
+<!--           </div> --> -->
 
-            {/* Dynamic Support Link - shown if configured by instructor */}
-            {(enrollment.courseVersion as any)?.supportLink && (
-              <Button
-                variant="outline"
-                className="w-full sm:w-auto bg-green-500/10 border-green-500/30 hover:bg-green-500/20 text-green-700 dark:text-green-400"
-                asChild
-              >
-                <a
-                  href={
-                    (enrollment.courseVersion as any).supportLink.startsWith('mailto:') || (enrollment.courseVersion as any).supportLink.includes('@')
-                      ? (enrollment.courseVersion as any).supportLink.startsWith('mailto:')
-                        ? (enrollment.courseVersion as any).supportLink
-                        : `mailto:${(enrollment.courseVersion as any).supportLink}`
-                      : (enrollment.courseVersion as any).supportLink
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2"
-                >
-                  <Headphones className="h-4 w-4" />
-                  Get Support
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </Button>
-            )}
+          <CardContent className="p-6 flex flex-col flex-1">
+            <div className="flex items-center gap-2 mb-4">
+              <Badge variant="secondary" className="bg-[#F1F5F9] text-[#64748B] dark:bg-slate-800 dark:text-slate-400 border-0 font-medium px-3">Course</Badge>
+              {isCompleted && <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 font-medium">Completed</Badge>}
+            </div>
 
-            {/* Legacy hardcoded support - only show if no dynamic supportLink is configured */}
-            {!(enrollment.courseVersion as any)?.supportLink && (
-              enrollment.courseId === "6943b2cafa4e840eb39490b6" ||
-              enrollment.courseId === "692f030a945e82ec875e9116"
-            ) && (
-                <Dialog open={isSupportOpen} onOpenChange={setIsSupportOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full sm:w-auto">
-                      Support
-                    </Button>
-                  </DialogTrigger>
+            <h3 className="font-bold text-xl text-foreground mb-1 line-clamp-2">{enrollment?.course?.name || `Course ${index + 1}`}</h3>
+            <p className="text-sm text-muted-foreground mb-6 line-clamp-1">{enrollment?.course?.description || "Accelerate your learning journey"}</p>
 
-                  <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 max-h-full flex flex-col">
-                    <DialogHeader className="mb-3 text-left">
-                      <DialogTitle>Support Details</DialogTitle>
-                    </DialogHeader>
-
-                    <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[800px] overflow-y-auto">
-                      <>
-                        <Separator className="mb-6" />
-
-                        <div className="space-y-4">
-                          {/* Section Header */}
-                          <div className="flex items-center gap-2 mb-4">
-                            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                              <LifeBuoy className="w-4 h-4 text-primary-foreground" />
-                            </div>
-                            <h3 className="text-lg font-semibold">Internship Support</h3>
-                          </div>
-
-                          {/* Support Card */}
-                          <div className="rounded-xl border bg-primary/5 shadow-sm hover:shadow-md transition-all">
-                            <div className="p-6 space-y-5">
-                              {/* Top */}
-                              <div className="flex items-center gap-3">
-                                <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-md">
-                                  <Mail className="w-7 h-7" />
-                                </div>
-
-                                <div>
-                                  <p className="font-semibold text-base">
-                                    Contact Support
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    We usually respond within 24 hours
-                                  </p>
-                                </div>
-                              </div>
-
-                              {/* Description */}
-                              <p className="text-sm text-muted-foreground leading-relaxed px-4 py-3 rounded-lg border bg-primary/5">
-                                For course-related queries, guidance, or issues, feel free to
-                                reach out to our support team via email.
-                              </p>
-
-                              {/* Email */}
-                              <div className="flex items-center gap-2.5">
-                                <Button asChild className="flex-1">
-                                  <a
-                                    href={`mailto:${supportEmail}`}
-                                    className="flex items-center justify-center gap-2"
-                                  >
-                                    <Mail className="w-4 h-4" />
-                                    {supportEmail}
-                                  </a>
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    </ScrollArea>
-                  </DialogContent>
-                </Dialog>
+            <div className="mt-auto space-y-4">
+              {variant !== 'available' && (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-sm font-semibold">
+                    <span className="text-muted-foreground">Progress</span>
+                    <span className="text-foreground">{progress.toFixed(0)}%</span>
+                  </div>
+                  <div className="h-2 w-full bg-[#F1F5F9] dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className={cn("h-full rounded-full transition-all duration-700 ease-out", theme.progress)} style={{ width: `${progress}%` }} />
+                  </div>
+                </div>
               )}
 
+              {variant !== 'available' && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                  <Clock className="h-4 w-4" />
+                  <span>Enrolled: {enrollment.enrollmentDate ? new Date(enrollment.enrollmentDate).toLocaleDateString('en-GB') : 'Recently'}</span>
+                </div>
+              )}
 
+              <div className="grid grid-cols-1 gap-3 pt-2">
+                <Button
+                  onClick={handleContinue}
+                  disabled={!isCurrentTimeInTimeSlot(enrollment.assignedTimeSlot)}
+                  className={cn(
+                    "w-full h-12 rounded-xl text-lg font-bold transition-all duration-300 shadow-lg active:scale-95",
+                    variant === 'available' ? "bg-primary text-primary-foreground" : isStart ? "bg-[#22C55E] text-white" : "bg-[#FACC15] text-black"
+                  )}
+                >
+                  {variant === 'available' ? 'Register Now' : isStart ? 'Start Course' : isCompleted ? 'View Course' : 'Continue Learning'}
+                </Button>
 
-          </div>
-        </CardContent>
-      </Card>
+                <div className="flex gap-2">
+                  {variant !== 'available' && enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && (
+                    <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
+                      <DialogTrigger asChild><Button variant="outline" className="flex-1 rounded-lg border-2" size="sm"><Trophy className="h-4 w-4 mr-2 text-yellow-500" />Rank</Button></DialogTrigger>
+                      <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} />
+                    </Dialog>
+                  )}
+                  {variant !== 'available' && enrollment?.hpSystem && (
+                    <Button variant="outline" className="flex-1 rounded-lg border-2" size="sm" onClick={() => navigate({ to: `/student/hp-system/${enrollment.courseVersionId}/${enrollment.cohortName}/activities` })}><Activity className="h-4 w-4 mr-2" />HP</Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Student Timeslot Modal */}
-      <Suspense fallback={null}>
-        <StudentTimeslotModal
-          isOpen={isTimeslotModalOpen}
-          onClose={() => setIsTimeslotModalOpen(false)}
-          courseId={courseId}
-          courseVersionId={versionId}
-          currentUserId={""} // TODO: Get current user ID
-          hasAssignedTimeslot={hasAssignedTimeslot}
-        />
-      </Suspense>
-      </>
+        <Suspense fallback={null}>
+          <StudentTimeslotModal
+            isOpen={isTimeslotModalOpen}
+            onClose={() => setIsTimeslotModalOpen(false)}
+            courseId={courseId}
+            courseVersionId={versionId}
+            currentUserId={""}
+            hasAssignedTimeslot={hasAssignedTimeslot}
+          />
+        </Suspense>
+      </div>
     );
+
   }
 
   // Courses page variant
@@ -708,7 +676,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 };
 
 // Skeleton component for loading states
-export const CourseCardSkeleton = ({ variant = 'dashboard' }: { variant?: 'dashboard' | 'courses' }) => {
+export const CourseCardSkeleton = ({ variant = 'dashboard' }: { variant?: 'dashboard' | 'courses' | 'available' }) => {
   if (variant === 'dashboard') {
     return (
       <Card className="border border-border overflow-hidden flex flex-row student-card-hover p-0">
