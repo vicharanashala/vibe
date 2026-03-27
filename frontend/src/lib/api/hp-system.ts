@@ -647,6 +647,13 @@ export const hpApi = {
         });
     },
 
+    createActivityWithRule: async (payload: { activity: CreateHpActivityPayload; ruleConfig: Partial<HpRuleConfig>; }): Promise<{ success: boolean; data: HpRuleConfig }> => {
+        return apiFetch(`${BASE_URL}/activities/with-rule`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+    },
+
     // ── Rule Configs (real backend) ──────────────────────────
 
     getRuleConfigByActivityId: async (activityId: string): Promise<{ success: boolean; data: HpRuleConfig | null }> => {

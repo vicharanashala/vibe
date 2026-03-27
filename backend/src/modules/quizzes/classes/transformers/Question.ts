@@ -10,6 +10,7 @@ import {
   INATSolution,
   IDESSolution,
   Priority,
+  BloomLevel,
 } from '#shared/interfaces/quiz.js';
 import {ObjectId} from 'mongodb';
 import {QuestionBody} from '../validators/QuestionValidator.js';
@@ -20,6 +21,7 @@ abstract class BaseQuestion implements IQuestion {
   text: string;
   type: QuestionType;
   isParameterized: boolean;
+  bloomLevel?: BloomLevel;
   parameters?: IQuestionParameter[];
   hint?: string;
   timeLimitSeconds: number;
@@ -34,6 +36,7 @@ abstract class BaseQuestion implements IQuestion {
     this.text = question.text;
     this.type = question.type;
     this.isParameterized = question.isParameterized;
+    this.bloomLevel = question.bloomLevel;
     this.parameters = question.parameters;
     this.hint = question.hint;
     this.timeLimitSeconds = question.timeLimitSeconds;

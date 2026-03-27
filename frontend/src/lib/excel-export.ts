@@ -1,5 +1,10 @@
 import * as XLSX from 'xlsx';
 
+export interface StudentContactData {
+  name: string;
+  email: string;
+}
+
 interface QuestionScore {
   questionId: string;
   score: number;
@@ -495,4 +500,33 @@ export function generateExcel(
     console.error('Error generating Excel file:', error);
     throw error;
   }
+}
+
+export function generateStudentContactsExcel(
+  data: StudentContactData[],
+  filename: string = 'student_contacts.xlsx'
+): void {
+  const rows = data
+    .map((student, index) => [index + 1, student.name || 'Unknown User', student.email || ''])
+    .filter(([, name, email]) => Boolean(name) || Boolean(email));
+
+  if (!rows.length) {
+    console.warn('No student contact data to export');
+    return;
+  }
+
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.aoa_to_sheet([
+    ['S.No.', 'Name', 'Email'],
+    ...rows,
+  ]);
+
+  worksheet['!cols'] = [
+    { wch: 8 },
+    { wch: 32 },
+    { wch: 36 },
+  ];
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Students');
+  XLSX.writeFile(workbook, filename);
 }

@@ -34,8 +34,6 @@ export default function StudentActivityDetail() {
     const activity = activities?.find((a: HpActivity) => a._id === activityId);
     const { data: ruleConfig } = useHpRuleConfig(activity?._id);
 
-    console.log('Activity: ', activity)
-
     // Submit dialog state
     const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
     const [textResponse, setTextResponse] = useState("");
