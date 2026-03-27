@@ -292,7 +292,7 @@ useEffect(() => {
                 </Link>
               </Button>
             </div>
-          </div>
+          
 
           <div className="flex items-center gap-2 lg:gap-4">
             <div className="relative" ref={invitesRef}>
@@ -445,7 +445,8 @@ useEffect(() => {
             </div>
           </div>
         )}
-      </header>
+     
+          </header>
       {selectedInvite && (
         <PolicyAcknowledgementModal
           open={!!selectedInvite}
@@ -456,6 +457,7 @@ useEffect(() => {
           cohortId={selectedInvite?.cohortId}
         />
       )}
+    
 
       <main className="relative flex flex-1 flex-col p-6">
         {/* Content background gradient */}
