@@ -35,14 +35,17 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
+  const localStartDate = startDate ? new Date(`${startDate}T00:00:00`).toISOString() : undefined;
+  const localEndDate = endDate ? new Date(`${endDate}T23:59:59.999`).toISOString() : undefined;
+
   const { data, isLoading, isError, error: fetchError } = useEjectionHistory(courseId, versionId, {
     page,
     limit: 10,
     search,
     triggerType: triggerType === 'ALL' ? undefined : triggerType,
     cohortId,
-    startDate: startDate || undefined,
-    endDate: endDate || undefined,
+    startDate: localStartDate,
+    endDate: localEndDate,
   });
 
   const exportMutation = useExportEjectionHistory();
@@ -54,8 +57,8 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
       search,
       triggerType: triggerType === 'ALL' ? undefined : triggerType,
       cohortId,
-      startDate: startDate || undefined,
-      endDate: endDate || undefined,
+      startDate: localStartDate,
+      endDate: localEndDate,
     });
   };
 
