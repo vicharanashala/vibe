@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, type Dispatch, type SetStateAction } from "react"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check, Layers,Video, HelpCircle } from 'lucide-react'
@@ -48,7 +48,7 @@ import { useCourseStore } from "@/store/course-store"
 import type { EnrolledUser, EnrollmentDetails } from "@/types/course.types"
 import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
-import { generateExcel } from "@/lib/excel-export"
+import { generateExcel, type ExcelExportOptions } from "@/lib/excel-export"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -398,6 +398,11 @@ const moveToCohortMutation = useMoveToCohort();
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const [isSearching, setIsSearching] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingStudentContacts, setIsExportingStudentContacts] = useState(false);
+  const [quizExportOptions, setQuizExportOptions] = useState<ExcelExportOptions>({
+    includeAttempts: true,
+    includeQuestionScores: true,
+  });
 
   const [showContentSummary, setShowContentSummary] = useState(false)
   function SummaryRow({
@@ -429,6 +434,8 @@ const moveToCohortMutation = useMoveToCohort();
     sectionId?: string;
     quizId?: string;
     quizName?: string;
+    questionCount?: number;
+    quizMaxScore?: number;
     maxScore?: number;
     attempts?: number;
     questionScores?: Array<{
@@ -445,6 +452,13 @@ const moveToCohortMutation = useMoveToCohort();
     cohortName?: string | null;
     quizScores?: QuizScore[];
   }
+
+  const sanitizeFilenamePart = (value: string) =>
+    value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
 
   // Handle fetch and export quiz scores
   const handleFetchQuizScores = async () => {
@@ -501,6 +515,8 @@ const moveToCohortMutation = useMoveToCohort();
               sectionId: quiz.sectionId ?? 'unknown',
               quizId: quiz.quizId ?? 'unknown',
               quizName: quiz.quizName ?? 'Untitled Quiz',
+              questionCount: Number(quiz.questionCount) || 0,
+              quizMaxScore: Number(quiz.quizMaxScore) || 0,
               moduleName: quiz.moduleName ?? 'Module',
               sectionName: quiz.sectionName ?? 'Section',
               maxScore: Number(quiz.maxScore) || 0,
@@ -531,7 +547,7 @@ const moveToCohortMutation = useMoveToCohort();
       // ðŸ§  Let UI breathe before heavy Excel generation
       await new Promise(resolve => setTimeout(resolve, 0));
 // console.log("JSON.stringify(formattedData,---",JSON.stringify(formattedData, null, 2));
-      generateExcel(formattedData, filename);
+      generateExcel(formattedData, filename, quizExportOptions);
       toast.success(`${enrollmentTab.toLowerCase()} quiz scores exported successfully`);
     } catch (error) {
       console.error('Error exporting quiz scores:', error);
@@ -776,6 +792,23 @@ const moveToCohortMutation = useMoveToCohort();
 
   // Pagination state
   const totalDocuments = enrollmentsData?.totalDocuments || 0
+  const {
+    data: exportEnrollmentsData,
+    isLoading: isLoadingStudentContacts,
+  } = useCourseVersionEnrollments(
+    courseId,
+    versionId,
+    1,
+    Math.max(totalDocuments, 1),
+    debouncedSearch,
+    sortBy,
+    sortOrder,
+    isExportingStudentContacts,
+    'STUDENT',
+    statusTab,
+    cohort,
+  );
+
   useEffect(() => {
     if (enrollmentTab === "ACTIVE") {
       setActiveCount(totalDocuments)
@@ -806,6 +839,55 @@ const moveToCohortMutation = useMoveToCohort();
     setCurrentPage(1);
   };
 
+  const handleExportStudentContacts = async () => {
+    if (!courseId || !versionId) {
+      toast.error('Course ID or Version ID is missing');
+      return;
+    }
+
+    if (!totalDocuments) {
+      toast.warning('No students found to export');
+      return;
+    }
+
+    const enrollments = exportEnrollmentsData?.enrollments || [];
+
+    if (!enrollments.length) {
+      toast.warning('No students found to export');
+      return;
+    }
+
+    try {
+      const formattedData = enrollments.map((enrollment: any) => ({
+        name:
+          `${enrollment?.user?.firstName ?? ''} ${enrollment?.user?.lastName ?? ''}`.trim() ||
+          'Unknown User',
+        email: enrollment?.user?.email || '',
+      }));
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
+      const statusLabel = enrollmentTab === 'ACTIVE' ? 'active' : 'inactive';
+      const courseLabel = sanitizeFilenamePart(course?.name || 'course');
+      const cohortName = cohort
+        ? (version as any)?.cohortDetails?.find((item: any) => item.id === cohort)?.name
+        : null;
+      const cohortLabel = cohortName
+        ? `${sanitizeFilenamePart(cohortName)}_`
+        : '';
+      const filename = `${courseLabel}_${cohortLabel}${statusLabel}_student_contacts_${timestamp}.xlsx`;
+
+      generateStudentContactsExcel(formattedData, filename);
+      toast.success('Student contacts exported successfully');
+    } catch (error) {
+      console.error('Error exporting student contacts:', error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to export student contacts',
+      );
+    }
+  };
+
   useEffect(() => {
     if (isResetDialogOpen) {
       setResetScope("course")
@@ -831,7 +913,13 @@ const moveToCohortMutation = useMoveToCohort();
 
       handleFetchQuizScores().finally(() => setIsExporting(false));
     }
-  }, [isExporting, isLoadingQuizScores]);
+  }, [isExporting, isLoadingQuizScores, quizExportOptions]);
+
+  useEffect(() => {
+    if (isExportingStudentContacts && !isLoadingStudentContacts) {
+      handleExportStudentContacts().finally(() => setIsExportingStudentContacts(false));
+    }
+  }, [isExportingStudentContacts, isLoadingStudentContacts, exportEnrollmentsData]);
 
   const handleResetProgress = (user: EnrolledUser) => {
     setSelectedUser(user)
@@ -1375,6 +1463,10 @@ const handleMoveToCohort = async () => {
                 sortOrder={sortOrder}
                 isLoadingQuizScores={isLoadingQuizScores}
                 setIsExporting={setIsExporting}
+                isExportingStudentContacts={isLoadingStudentContacts}
+                setIsExportingStudentContacts={setIsExportingStudentContacts}
+                quizExportOptions={quizExportOptions}
+                setQuizExportOptions={setQuizExportOptions}
                 unenrollMutation={unenrollMutation}
                 changeStatusMutation={changeStatusMutation}
                 bulkChangeStatusMutation={bulkChangeStatusMutation}
@@ -1413,6 +1505,10 @@ const handleMoveToCohort = async () => {
                 sortOrder={sortOrder}
                 isLoadingQuizScores={isLoadingQuizScores}
                 setIsExporting={setIsExporting}
+                isExportingStudentContacts={isLoadingStudentContacts}
+                setIsExportingStudentContacts={setIsExportingStudentContacts}
+                quizExportOptions={quizExportOptions}
+                setQuizExportOptions={setQuizExportOptions}
                 unenrollMutation={unenrollMutation}
                 changeStatusMutation={changeStatusMutation}
                 bulkChangeStatusMutation={bulkChangeStatusMutation}
@@ -1503,7 +1599,7 @@ const handleMoveToCohort = async () => {
                       <>
                         <div className="flex justify-between items-center mb-3">
                           <p className="text-sm text-muted-foreground">Completion</p>
-                          <EnrollmentProgress progress={Math.min(progressDetail?.percentCompleted ?? 0, 100)} /> 
+                          <EnrollmentProgress progress={Math.min(selectedUser?.progress ?? progressDetail?.percentCompleted ?? 0, 100)} /> 
                         </div>
                         <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                           <SummaryRow label="Total Items" value={progressDetail.contentCounts?.totalItems ?? 0} />
@@ -1514,11 +1610,11 @@ const handleMoveToCohort = async () => {
                           <SummaryRow label="Feedbacks" value={progressDetail.contentCounts?.itemCounts?.FEEDBACK ?? 0} />
                           <SummaryRow
                             label="Quiz Score"
-                            value={`${progressDetail.totalQuizScore ?? 0} / ${progressDetail.totalQuizMaxScore ?? 0}`}
+                            value={`${(progressDetail.totalQuizScore ?? 0).toFixed(2)} / ${(progressDetail.totalQuizMaxScore ?? 0).toFixed(2)}`}
                           />
                           <SummaryRow
                             label="Items Completed"
-                            value={`${Math.min(progressDetail.completedItemsCount ?? 0, progressDetail.contentCounts?.totalItems ?? 0)} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
+                            value={`${Math.min(selectedUser?.completedItemsCount ?? progressDetail.completedItemsCount ?? 0, progressDetail.contentCounts?.totalItems ?? 0)} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
                           />
                            <SummaryRow
                             label="Watch Hours"
@@ -2689,6 +2785,10 @@ interface EnrollmentsTableProps {
   sortOrder: "asc" | "desc";
   isLoadingQuizScores: boolean;
   setIsExporting: (exporting: boolean) => void;
+  isExportingStudentContacts: boolean;
+  setIsExportingStudentContacts: (exporting: boolean) => void;
+  quizExportOptions: ExcelExportOptions;
+  setQuizExportOptions: Dispatch<SetStateAction<ExcelExportOptions>>;
   unenrollMutation: any;
   changeStatusMutation: any;
   bulkChangeStatusMutation: any;
@@ -2725,6 +2825,10 @@ function EnrollmentsTable({
   sortOrder,
   isLoadingQuizScores,
   setIsExporting,
+  isExportingStudentContacts,
+  setIsExportingStudentContacts,
+  quizExportOptions,
+  setQuizExportOptions,
   unenrollMutation,
   changeStatusMutation,
   bulkChangeStatusMutation,
@@ -2763,17 +2867,87 @@ function EnrollmentsTable({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setIsExporting(true)}
-            disabled={isLoadingQuizScores}
+            onClick={() => setIsExportingStudentContacts(true)}
+            disabled={isExportingStudentContacts || enrollmentsLoading || isSearching}
             className="flex items-center gap-2"
           >
-            {isLoadingQuizScores ? (
+            {isExportingStudentContacts ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <FileDown className="h-4 w-4" />
+              <Download className="h-4 w-4" />
             )}
-            <span>{isLoadingQuizScores ? "Exporting..." : "Export Quiz Scores"}</span>
+            <span>{isExportingStudentContacts ? "Exporting..." : "Export Student Contacts"}</span>
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isLoadingQuizScores}
+                className="flex items-center gap-2"
+              >
+                {isLoadingQuizScores ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileDown className="h-4 w-4" />
+                )}
+                <span>{isLoadingQuizScores ? "Exporting..." : "Export Quiz Scores"}</span>
+                {!isLoadingQuizScores && <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-72 rounded-xl border-border/70 p-3 shadow-xl">
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">Export options</p>
+                  <p className="text-xs text-muted-foreground">
+                    Choose which quiz detail columns to include in the Excel file.
+                  </p>
+                </div>
+
+                <label className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 cursor-pointer">
+                  <Checkbox
+                    checked={quizExportOptions.includeQuestionScores}
+                    onCheckedChange={(checked) =>
+                      setQuizExportOptions(prev => ({
+                        ...prev,
+                        includeQuestionScores: checked === true,
+                      }))
+                    }
+                  />
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium text-foreground">Individual question scores</p>
+                    <p className="text-xs text-muted-foreground">Include columns like `q1`, `q2`, `q3`.</p>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 cursor-pointer">
+                  <Checkbox
+                    checked={quizExportOptions.includeAttempts}
+                    onCheckedChange={(checked) =>
+                      setQuizExportOptions(prev => ({
+                        ...prev,
+                        includeAttempts: checked === true,
+                      }))
+                    }
+                  />
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium text-foreground">Total attempts</p>
+                    <p className="text-xs text-muted-foreground">Include the attempts column for each quiz.</p>
+                  </div>
+                </label>
+
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => setIsExporting(true)}
+                  disabled={isLoadingQuizScores}
+                >
+                  Export Excel
+                </Button>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <Button
             variant="outline"

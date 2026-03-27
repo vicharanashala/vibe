@@ -286,9 +286,11 @@ export class ModuleService extends BaseService {
         group._id = new ObjectId(group._id);
         group.isHidden = isHidden;
         group.items = group.items.map(item => {
+          item._id = typeof item._id === "string" ? new ObjectId(item._id) : item._id;
           item.isHidden = isHidden;
           return item;
         });
+        group.sectionId = typeof group.sectionId === "string" ? new ObjectId(group.sectionId) : group.sectionId;
       });
 
       module.isHidden = isHidden;

@@ -159,6 +159,7 @@ export class CourseVersionService extends BaseService {
   public async readCourseVersion(
     courseVersionId: string,
     userId: string,
+    cohortId?: string,
   ): Promise<CourseVersion & { hpSystem: boolean }> {
     return this._withTransaction(async session => {
       const readVersion = await this.courseRepo.getActiveVersion(
@@ -201,6 +202,7 @@ export class CourseVersionService extends BaseService {
           userId,
           courseId,
           courseVersionId,
+          cohortId,
         );
 
       if (!enrollment) {
@@ -264,6 +266,7 @@ export class CourseVersionService extends BaseService {
         createdAt: cohort.createdAt,
         updatedAt: cohort.updatedAt,
         isPublic: cohort.isPublic,
+        isActive: cohort.isActive ?? true
       })),
       version: courseVersion.version,
     };
@@ -271,14 +274,17 @@ export class CourseVersionService extends BaseService {
     return cohortDetails;
   }
 
+
   public async updateCohortInCourseVersion(
     cohortId: string,
-    cohortName: string,
-    isPublic: boolean,
-  ): Promise<boolean> {
+    cohortName?: string,
+    isPublic?: boolean,
+    isActive?: boolean
+  ): Promise<boolean>{
     return this._withTransaction(async session => {
-      if (!cohortName && (isPublic === null || isPublic === undefined)) {
-        throw new BadRequestError('No information provided in request body');
+      if (!cohortName && (isPublic === null || isPublic === undefined) && 
+        (isActive === null || isActive === undefined)) {
+        throw new BadRequestError("No information provided in request body");
       }
       const existingCohorts = await this.courseRepo.getCohortsByIds(
         [cohortId],
@@ -310,6 +316,7 @@ export class CourseVersionService extends BaseService {
         new ObjectId(cohortId),
         cohortName,
         isPublic,
+        isActive,
         session,
       );
     });
@@ -632,7 +639,7 @@ export class CourseVersionService extends BaseService {
               settings: { enabled: false, options: {} },
             })),
           },
-          linearProgressionEnabled: false,
+          linearProgressionEnabled: true,
           seekForwardEnabled: false,
         },
       };
