@@ -13,6 +13,7 @@ import { Separator } from "./ui/separator"
 import { Switch } from "./ui/switch"
 import { toast } from "sonner"
 import { ChevronDown, Loader2 } from "lucide-react"
+import { Input } from "./ui/input"
 
 enum ProctoringComponent {
   CAMERAMICRO = 'cameraMic',
@@ -42,12 +43,14 @@ export function ProctoringModal({
   courseId,
   courseVersionId,
   isNew,
+  onSuccess,
 }: {
   open: boolean
   onClose: () => void
   courseId: string
   courseVersionId: string
   isNew: boolean
+  onSuccess?: ()=> void
 }) {
   const { editSettings, loading, error } = useEditProctoringSettings()
   const { getSettings, settingLoading, settingError } = useGetProcotoringSettings();
@@ -58,6 +61,8 @@ export function ProctoringModal({
   )
   const [linearProgressionEnabled, setLinearProgressionEnabled] = useState(true);
   const [seekForwardEnabled, setSeekForwardEnabled] = useState(false);
+  const [hpSystemEnabled, setHpSystemEnabled] = useState(false);
+  const [baseHp, setbaseHp] = useState<number>(0);
   const [isPublic, setIsPublic] = useState(false);
   const [isAdditionalSettingsExpanded, setIsAdditionalSettingsExpanded] = useState(false);
   const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(courseVersionId || "")
@@ -71,6 +76,8 @@ export function ProctoringModal({
           setLinearProgressionEnabled(result.settings?.linearProgressionEnabled)
           setSeekForwardEnabled(result.settings?.seekForwardEnabled ?? false)
           setIsPublic(result.settings?.isPublic ?? false)
+          setHpSystemEnabled(result.settings?.hpSystem ?? false)
+          setbaseHp(result.settings?.baseHp ?? 0)
         }
       } catch (err) {
         console.error("Failed to fetch proctoring settings:", err)
@@ -92,8 +99,9 @@ export function ProctoringModal({
 
   const handleSubmit = async () => {
     try {
-      const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled, seekForwardEnabled, isPublic)
+      const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled, seekForwardEnabled, isPublic, hpSystemEnabled, baseHp)
       if (result != undefined) {
+        onSuccess?.();
         onClose();
       }
       toast.success("Settings updated!")
@@ -117,7 +125,7 @@ export function ProctoringModal({
   return (
     
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-background text-foreground md:max-w-md max-w-sm max-[425px]:w-[90vw]">
+      <DialogContent className="bg-background text-foreground md:max-w-md max-w-sm max-[425px]:w-[90vw] max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-center">Proctoring Settings</DialogTitle>
         </DialogHeader>
@@ -138,23 +146,39 @@ export function ProctoringModal({
                 <p className="text-xs text-muted-foreground">Configure monitoring and detection features</p>
               </div>
 
-              <div className="space-y-3">
-                {detectors.map((detector) => (
-                  <div key={detector.name} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={detector.name}
-                      checked={detector.enabled}
-                      onCheckedChange={() => toggle(detector.name)}
-                    />
-                    <label
-                      htmlFor={detector.name}
-                      className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      {labelMap[detector.name] || detector.name}
-                    </label>
-                  </div>
-                ))}
-              </div>
+<div className="space-y-3">
+  {detectors.map((detector) => (
+    detector.name === ProctoringComponent.BLURDETECTION ? (
+      <div key={detector.name} className="flex items-center space-x-2">
+        <Checkbox
+          id={detector.name}
+          checked={detector.enabled}
+          disabled
+        />
+        <label
+          htmlFor={detector.name}
+          className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          {labelMap[detector.name] || detector.name}
+        </label>
+      </div>
+    ) : (
+      <div key={detector.name} className="flex items-center space-x-2">
+        <Checkbox
+          id={detector.name}
+          checked={detector.enabled}
+          onCheckedChange={() => toggle(detector.name)}
+        />
+        <label
+          htmlFor={detector.name}
+          className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          {labelMap[detector.name] || detector.name}
+        </label>
+      </div>
+    )
+  ))}
+</div>
             </div>
 
             <Separator className="my-6" />
@@ -185,7 +209,9 @@ export function ProctoringModal({
                       <Label className="text-sm font-medium">Linear Course Progression</Label>
                       <p className="text-xs text-muted-foreground">Students must follow lessons sequentially</p>
                     </div>
-                    <Switch checked={linearProgressionEnabled} onCheckedChange={()=>setLinearProgressionEnabled(prev=>!prev)} />
+                    <Switch checked={linearProgressionEnabled}
+                    //  onCheckedChange={()=>setLinearProgressionEnabled(prev=>!prev)}
+                     disabled />
                   </div>
 
                   <div className="flex items-center justify-between space-x-3">
@@ -203,6 +229,32 @@ export function ProctoringModal({
                         <p className="text-xs text-muted-foreground">Make this course available to all students</p>
                       </div>
                       <Switch checked={isPublic} onCheckedChange={() => setIsPublic(prev => !prev)} />
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="flex items-center justify-between space-x-3">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">Hp System</Label>
+                        <p className="text-xs text-muted-foreground">Enable HP system for this course</p>
+                      </div>
+                      <Switch checked={hpSystemEnabled} onCheckedChange={() => setHpSystemEnabled(prev => !prev)} />
+                    </div>
+                  </div>
+                  {hpSystemEnabled && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Base HP</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Set the base HP value for students
+                      </p>
+                      <Input
+                        type="number"
+                        value={baseHp}
+                        min={0}
+                        max={100}
+                        onChange={(e) => setbaseHp(Number(e.target.value))}
+                        placeholder="Enter base HP"
+                      />
                     </div>
                   )}
                 </div>

@@ -51,6 +51,7 @@ const AiModule = () => {
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editQuestion, setEditQuestion] = useState<any>(null);
+  const [showGenerateQuestion, setShowGeneateQuestion] = useState(false)
 
   const STEP_ORDER = {
     AUDIO_EXTRACTION: 0,
@@ -212,6 +213,14 @@ const AiModule = () => {
       setIsCreatingAiJob(false);
     }
   };
+
+    const handleDeleteSegmentation = (indexToDelete: number) => {
+
+  setChunkTranscription((prev) =>
+    prev.filter((_, index) => index !== indexToDelete)
+  );
+};
+
 
   const getCurrentTask = (jobStatus: JobStatus["jobStatus"]): { task: any, status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" } | null => {
     if (!jobStatus) return null;
@@ -445,6 +454,7 @@ const AiModule = () => {
 
               setIsPaused(true);
               setEndTime(endTimeRef.current);
+              setShowGeneateQuestion(true)
             }
           },
         }
@@ -923,7 +933,7 @@ const AiModule = () => {
                       endTime={endTime}
                       isPaused={isPaused}
                       chunkTranscription={chunkTranscription}
-                      setChunkTranscription={setChunkTranscription}
+                      handleDeleteSegmentation= {handleDeleteSegmentation}
                     /> : showQuestions ? null : <SegmentationView
                       isLoading={isLoading}
                       isTaskResultLoading={isTaskResultLoading}
@@ -949,7 +959,7 @@ const AiModule = () => {
 
                   {showSegments && showContinueButton && <Button onClick={handleContinueClick}>Continue</Button>}
 
-                  {endTime === videoDuration && showSegments === false && (
+                  {(endTime === videoDuration || showGenerateQuestion === true) && showSegments === false && (
                     <Button onClick={handleGenerateQuestions}>
                       Generate Questions
                     </Button>

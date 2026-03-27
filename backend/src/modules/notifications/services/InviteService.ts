@@ -509,7 +509,7 @@ export class InviteService extends BaseService {
           isNewUser: !user,
           expiresAt: oneWeekFromNow,
           type: InviteType.SINGLE,
-          cohortId: role === 'STUDENT' ? new ObjectId(cohortId) : undefined,
+          cohortId: role === "STUDENT" && ObjectId.isValid(cohortId) ? new ObjectId(cohortId) : undefined,
         });
 
         const id = await this.inviteRepo.create(invite, session);

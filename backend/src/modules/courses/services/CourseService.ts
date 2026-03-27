@@ -59,6 +59,8 @@ class CourseService extends BaseService {
     versionDescription: string,
     userId: string,
     cohorts: string[],
+    hpSystem: boolean,
+    baseHp: number,
   ): Promise<Course> {
     return this._withTransaction(async session => {
       const createdCourse = await this.courseRepo.create(course, session);
@@ -106,24 +108,30 @@ class CourseService extends BaseService {
         session,
       );
 
-      // const defaultSettingsPayload: CreateCourseSettingBody = {
-      //   courseId,
-      //   courseVersionId: versionId,
-      //   settings: {
-      //     proctors: {
-      //       detectors: Object.values(ProctoringComponent).map(detector => ({
-      //         detectorName: detector,
-      //         settings: { enabled: false, options: {} },
-      //       })),
-      //     },
-      //     linearProgressionEnabled: false,
-      //     seekForwardEnabled: false,
-      //   },
-      // };
-      // const courseSettings = new CourseSetting(defaultSettingsPayload);
-      // const settingsPromise = this.settingsRepo.createCourseSettings(courseSettings, session);
+      const defaultSettingsPayload: CreateCourseSettingBody = {
+        courseId: courseId,
+        courseVersionId: versionId,
+        settings: {
+          proctors: {
+            detectors: Object.values(ProctoringComponent).map(detector => ({
+              detectorName: detector,
+              settings: {enabled: false, options: {}},
+            })),
+          },
+          linearProgressionEnabled: true,
+          seekForwardEnabled: false,
+          isPublic: false,
+          hpSystem: hpSystem,
+          baseHp: baseHp,
+        },
+      };
+      const courseSettings = new CourseSetting(defaultSettingsPayload);
+      const settingsPromise = this.settingsRepo.createCourseSettings(
+        courseSettings,
+        session,
+      );
 
-      await enrollPromise;
+      await Promise.all([enrollPromise, settingsPromise]);
 
       return createdCourse;
     });
@@ -286,18 +294,14 @@ class CourseService extends BaseService {
     totalDocuments: number;
   }> {
     // return this._withTransaction(async session => {
-    // Get enrolled course IDs by userId through enrollmentService
-    const userEnrollments =
-      await this.enrollmentService.getAllEnrollments(userId);
-    const enrolledCourseIds = userEnrollments.map(enrollment =>
-      enrollment.courseId.toString(),
-    );
-    const enrolledVersionIds = userEnrollments.map(enrollment =>
-      enrollment.courseVersionId.toString(),
-    );
-    const enrolledCohortIds = userEnrollments.map(enrollment =>
-      enrollment?.cohortId?.toString(),
-    );
+      // Get enrolled course IDs by userId through enrollmentService
+      const userEnrollments =
+        await this.enrollmentService.getAllEnrollments(userId);
+      const enrolledCourseIds = userEnrollments.map(enrollment =>
+        enrollment.courseId.toString(),
+      );
+      const enrolledVersionIds = userEnrollments.map(enrollment => enrollment.courseVersionId.toString());
+      const enrolledCohortIds = userEnrollments.map(e => e?.cohortId?.toString()).filter((id): id is string => id != null);
 
     // Query public courses
     const skip = (page - 1) * limit;

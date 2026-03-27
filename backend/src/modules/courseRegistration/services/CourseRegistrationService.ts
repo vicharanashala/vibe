@@ -281,6 +281,7 @@ export class CourseRegistrationService extends BaseService {
         cohorts = cohortsDetails.map(c => ({
           cohortId: c._id.toString(),
           cohortName: c.name,
+          isActive: c.isActive ?? true,
         }));
       }
 

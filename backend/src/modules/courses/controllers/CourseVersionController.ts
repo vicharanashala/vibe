@@ -17,6 +17,7 @@ import {
   UseInterceptor,
   Req,
   QueryParams,
+  QueryParam,
   Param,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
@@ -64,6 +65,8 @@ import { setAuditTrail } from '#root/utils/setAuditTrail.js';
 import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 import { ObjectId } from 'mongodb';
 import { ICourseVersion } from '#root/shared/index.js';
+
+const BLOCKED_COHORT_NAMES = new Set(["euclideans", "dijkstrians", "kruskalians", "rsaians", "aksians"]);
 
 @OpenAPI({
   tags: ['Course Versions'],
@@ -181,7 +184,8 @@ Accessible to:
   async read(
     @Params() params: ReadCourseVersionParams,
     @Ability(getCourseVersionAbility) { ability, user },
-  ): Promise<CourseVersion> {
+    @QueryParam('cohortId') cohortId?: string,
+  ): Promise<CourseVersion & {hpSystem: boolean}> {
     const { versionId } = params;
 
     // Build the subject context first
@@ -194,7 +198,11 @@ Accessible to:
     }
 
     const retrievedCourseVersion =
-      await this.courseVersionService.readCourseVersion(versionId, user._id);
+      await this.courseVersionService.readCourseVersion(
+        versionId,
+        user._id,
+        cohortId,
+      );
     return retrievedCourseVersion;
   }
 
@@ -662,6 +670,23 @@ Accessible to:
     if(!body.newCohortName){
       throw new BadRequestError("Cohort name required for creating a cohort");
     }
+    if (BLOCKED_COHORT_NAMES.has(body.newCohortName.trim().toLowerCase())) {
+      throw new BadRequestError(`"${body.newCohortName}" is a reserved cohort name and cannot be used.`);
+    }
+
+    // Restricting cohort creation for already existing course versions because these versions are already published and have students enrolled in them
+
+    const restrictedVersionIds = [
+      '6968e12cbf2860d6e39051af',
+      '6970f87e30644cbc74b67150',
+      '697b4e262942654879011c57',
+      '69903415e1930c015760a719',
+      '69942dc6d6d99b252e3a54ff',
+    ];
+
+    if (restrictedVersionIds.includes(versionId)) {
+      throw new BadRequestError('Cohort creation is restricted for this course version');
+    }
 
     const existingVersion = await this.courseVersionService.readCourseVersion(versionId, user._id);
     if(existingVersion.cohortDetails && existingVersion.cohortDetails?.some(cohort=> cohort.name === body.newCohortName)){
@@ -742,7 +767,7 @@ Accessible to:
       );
     }
 
-    if (!body.newCohortName && (body.isPublic === null || body.isPublic === undefined)) {
+    if (!body.newCohortName && (body.isPublic === null || body.isPublic === undefined) && (body.isActive === null || body.isActive === undefined)) {
         throw new BadRequestError("No information provided in request body");
     }
     const existingVersion = await this.courseVersionService.readCourseVersion(versionId, user._id);
@@ -756,11 +781,14 @@ Accessible to:
       throw new BadRequestError("The requested cohort does not exists in the course version");
     }
     if(body.newCohortName){
-        if(existingVersion.cohortDetails && existingVersion.cohortDetails.some(cohort=> cohort.name === body.newCohortName)){
+      if (BLOCKED_COHORT_NAMES.has(body.newCohortName.trim().toLowerCase())) {
+        throw new BadRequestError(`"${body.newCohortName}" is a reserved cohort name and cannot be used.`);
+      }
+      if(existingVersion.cohortDetails && existingVersion.cohortDetails.some(cohort=> cohort.name === body.newCohortName)){
           throw new BadRequestError("The requested cohort name already exists in the course version");
         }
     }
-    await this.courseVersionService.updateCohortInCourseVersion(cohortId, body?.newCohortName?.toLowerCase(), body?.isPublic );
+    await this.courseVersionService.updateCohortInCourseVersion(cohortId, body?.newCohortName?.toLowerCase(), body?.isPublic, body?.isActive );
 
     setAuditTrail(req, {
       category: AuditCategory.COHORT,
@@ -779,6 +807,8 @@ Accessible to:
       changes:{
         after:{
           cohort: body.newCohortName,
+          isPublic: body.isPublic,
+          isActive: body.isActive,
         }
       },
       outcome:{

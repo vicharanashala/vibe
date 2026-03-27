@@ -1177,7 +1177,7 @@ export const RegistrationActions = ({
           ? "Approve Selected"
           : `Approve Selected (${selectedIds.length})`}
       </Button>
-
+{!(courseVersion?.cohortDetails?.length > 0) && (
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -1209,7 +1209,7 @@ export const RegistrationActions = ({
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-
+)}
       <Button
         variant="outline"
         size="sm"

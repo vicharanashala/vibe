@@ -406,6 +406,7 @@ export interface IEnrollment {
   isDeleted?: boolean;
   deletedAt?: Date;
   unenrolledAt?: Date;
+  hpPoints?:number;
   hasNewItemsAfterCompletion?: boolean;
   cohortId?: ID;
   policyAcknowledgedAt?: Date;
@@ -460,6 +461,7 @@ export interface ICohort {
   createdAt: Date;
   updatedAt: Date;
   isPublic: boolean;
+  isActive?: boolean;
 }
 
 export interface ICohortSettings {
@@ -571,7 +573,9 @@ export interface ISettings {
   proctors: IProctoringSettings;
   linearProgressionEnabled: boolean;
   seekForwardEnabled: boolean;
+  hpSystem?: boolean;
   isPublic?: boolean;
+  baseHp?: number;
   // registration_settings?: IRegistrationSettings[];
   registration?: {
     jsonSchema?: any;

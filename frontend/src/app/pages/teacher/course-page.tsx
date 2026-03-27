@@ -38,6 +38,8 @@ import {
   ArchiveRestore,
   Layers,
   Shield,
+  Activity,
+  MoreVertical,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -150,13 +152,12 @@ export default function TeacherCoursesPage() {
   }, [])
 
   const handleSearchQueryChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(event.target.value)
-    if (event.target.value && enrollments.length === 0) {
-      setLastEmptyState(searchQuery)
-    } else if (event.target.value === "") {
-      setLastEmptyState(null)
-    } else {
-      return;
+    const value = event.target.value;
+    setSearchQuery(value);
+    if (value && enrollments.length === 0) {
+      setLastEmptyState(value);
+    } else if (value === "") {
+      setLastEmptyState(null);
     }
   }
 
@@ -190,10 +191,11 @@ export default function TeacherCoursesPage() {
 }, [searchQuery])
 
   useEffect(() => {
-    if (initialDocumentCount === 0) {
+    if (initialDocumentCount === 0 && !searchQuery) {
       return;
     }
     if (!searchQuery.trim()) {
+      setDebouncedSearchQuery("");
       return;
     }
     if (lastEmptyState && searchQuery.startsWith(lastEmptyState) && searchQuery.length >= lastEmptyState.length) {
@@ -474,6 +476,7 @@ function CourseCard({
     description: "",
   })
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false)
+  const [expandedDescription, setExpandedDescription] = useState(false)
 
   const [creatingErrors, setCreatingErrors] = useState<{ name?: string; description?: string }>({});
   const [editingErrors, setEditingErrors] = useState<{ name?: string; description?: string }>({});
@@ -700,6 +703,13 @@ function CourseCard({
     </div>
   );
 }
+  const MAX_DESC_LENGTH = 80;
+
+  const isLongDescription = course.description?.length > MAX_DESC_LENGTH;
+
+  const displayedDescription = expandedDescription
+    ? course.description
+    : course.description?.slice(0, MAX_DESC_LENGTH);
 
   return (
     <div className="relative group">
@@ -942,7 +952,20 @@ function CourseCard({
                     <div className="relative">
                       <div className="absolute inset-0  rounded-lg "></div>
                       <div className="relative bg-accent/1 rounded-lg p-4 border border-accent/10">
-                        <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{course.description}</p>
+                        <div className="relative bg-accent/1 rounded-lg p-4 border border-accent/10">
+                          <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                            {displayedDescription}
+                            {!expandedDescription && isLongDescription && "..."}
+                            {isLongDescription && (
+                                <span
+                                  onClick={() => setExpandedDescription(!expandedDescription)}
+                                  className="text-primary cursor-pointer hover:underline text-xs"
+                                >
+                                  {expandedDescription ? " View Less" : "View More"}
+                                </span>
+                            )}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1558,132 +1581,93 @@ function VersionCard({
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center lg:justify-end gap-2 shrink-0 mt-3 md:mt-0 flex-wrap">
-                  <ProjectSubmissionsDownloadButton 
+                <div className="flex items-center gap-2 flex-wrap">
+
+                  <ProjectSubmissionsDownloadButton
                     courseId={courseId || ""} 
                     versionId={versionId || ""} 
                     cohorts={existingCohorts}
                   />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsCopyModalOpen(true)}
-                    className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-                    disabled={copyVersionIsPending || isArchived}
-                    title={isArchived ? "Cannot clone archived version" : undefined}
-                  >
-                    {copyVersionIsPending ? (
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    ) : (
-                      <Copy className="h-3 w-3 mr-1" />
-                    )}
-                    Clone
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowAnnouncementModal(true)}
-                    className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-                    disabled={isArchived}
-                    title={isArchived ? "Cannot announce on archived version" : undefined}
-                  >
-                    <Megaphone className="h-3 w-3 mr-1" />
-                    Announce
-                  </Button>
-                  {(version as any)?.supportLink && (() => {
-                    const link = (version as any).supportLink;
-                    const isEmail = link.startsWith('mailto:') || (!link.startsWith('http://') && !link.startsWith('https://') && !link.startsWith('//') && link.includes('@'));
-                    const href = link.startsWith('mailto:')
-                      ? link
-                      : link.startsWith('http://') || link.startsWith('https://') || link.startsWith('//')
-                        ? link
-                        : link.includes('@')
-                          ? `mailto:${link}`
-                          : link;
-                    return (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                        className="h-8 border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-                      >
-                        <a
-                          href={href}
-                          target={isEmail ? undefined : "_blank"}
-                          rel={isEmail ? undefined : "noopener noreferrer"}
-                          className="flex items-center gap-1"
-                        >
-                          <Headphones className="h-3 w-3" />
-                          Support
-                          <ExternalLink className="h-2.5 w-2.5" />
-                        </a>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="icon">
+                        <MoreVertical className="h-4 w-4" />
                       </Button>
-                    );
-                  })()}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={startEditingVersion}
-                    className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-                    disabled={updateVersionMutation.isPending || isArchived}
-                    title={isArchived ? "Cannot edit archived version" : undefined}
-                  >
-                    {updateVersionMutation.isPending ? (
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    ) : (
-                      <Edit3 className="h-3 w-3 mr-1" />
-                    )}
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowArchiveModal(true)}
-                    disabled={isArchivePending}
-                    className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-                  >
-                    {isArchivePending ? (
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    ) : isArchived ? (
-                      <Archive className="h-3 w-3 mr-1" />
-                    ) : (
-                      <ArchiveRestore className="h-3 w-3 mr-1" />
-                    )}
-                    {isArchived ? "Unarchive" : "Archive"}
-                  </Button>
-                  <ConfirmationModal
-                    isOpen={showArchiveModal}
-                    onClose={() => setShowArchiveModal(false)}
-                    onConfirm={async () => {
-                      await handleArchive();
-                      setShowArchiveModal(false);
-                    }}
-                    title={isArchived ? "Unarchive Version" : "Archive Version"}
-                    description={
-                      isArchived
-                        ? "Are you sure you want to unarchive this version? Students will be able to access it again. Note: Only administrators can use this feature."
-                        : "Are you sure you want to archive this version? Students will no longer be able to access it. Note: Only administrators can use this feature."
-                    }
-                    confirmText={isArchived ? "Unarchive" : "Archive"}
-                    cancelText="Cancel"
-                    isDestructive={false}
-                    isLoading={isArchivePending}
-                    loadingText={isArchived ? "Unarchiving..." : "Archiving..."}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowDeleteVersionModel(true)}
-                    className="h-8 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300 text-xs"
-                    disabled={deleteVersionMutation.isPending}
-                  >
-                    {deleteVersionMutation.isPending ? (
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-3 w-3 mr-1" />
-                    )}
-                    Delete Version
-                  </Button>
+                    </DropdownMenuTrigger>
+
+                    <DropdownMenuContent align="end" className="w-48">
+
+                      {(version as any)?.supportLink && (() => {
+                        const link = (version as any).supportLink;
+                        const isEmail = link.startsWith('mailto:') || 
+                          (!link.startsWith('http://') && !link.startsWith('https://') && link.includes('@'));
+
+                        const href = link.startsWith('mailto:')
+                          ? link
+                          : link.startsWith('http://') || link.startsWith('https://')
+                            ? link
+                            : link.includes('@')
+                              ? `mailto:${link}`
+                              : link;
+
+                        return (
+                          <DropdownMenuItem asChild>
+                            <a
+                              href={href}
+                              target={isEmail ? undefined : "_blank"}
+                              rel={isEmail ? undefined : "noopener noreferrer"}
+                              className="flex items-center"
+                            >
+                              <Headphones className="mr-2 h-4 w-4" />
+                              Support
+                            </a>
+                          </DropdownMenuItem>
+                        );
+                      })()}
+
+                      <DropdownMenuItem onClick={() => setIsCopyModalOpen(true)}>
+                        <Copy className="mr-2 h-4 w-4" />
+                        Clone
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem onClick={() => setShowAnnouncementModal(true)}>
+                        <Megaphone className="mr-2 h-4 w-4" />
+                        Announce
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem onClick={startEditingVersion} disabled={isArchived}>
+                        <Edit3 className="h-4 w-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+
+                      <DropdownMenuSeparator />
+
+                      <DropdownMenuItem onClick={() => setShowArchiveModal(true)}>
+                        {isArchived ? (
+                          <>
+                            <Archive className="mr-2 h-4 w-4" />
+                            Unarchive
+                          </>
+                        ) : (
+                          <>
+                            <ArchiveRestore className="mr-2 h-4 w-4" />
+                            Archive
+                          </>
+                        )}
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem
+                        onClick={() => setShowDeleteVersionModel(true)}
+                        className="h-9 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive dark:hover:text-destructive-foreground transition-all duration-300"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2 " />
+                        Delete Version
+                      </DropdownMenuItem>
+
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
                 </div>
 
                 <div className="relative group">
@@ -1700,6 +1684,25 @@ function VersionCard({
                     isDestructive={true}
                     isLoading={deleteVersionMutation.isPending}
                     loadingText="Deleting..."
+                  />
+                  <ConfirmationModal
+                    isOpen={showArchiveModal}
+                    onClose={() => setShowArchiveModal(false)}
+                    onConfirm={async () => {
+                      await handleArchive();  
+                      setShowArchiveModal(false);
+                    }}
+                    title={isArchived ? "Unarchive Version" : "Archive Version"}
+                    description={
+                      isArchived
+                        ? "Are you sure you want to unarchive this version? Students will be able to access it again."
+                        : "Are you sure you want to archive this version? Students will no longer be able to access it."
+                    }
+                    confirmText={isArchived ? "Unarchive" : "Archive"}
+                    cancelText="Cancel"
+                    isDestructive={false}
+                    isLoading={isArchivePending}
+                    loadingText={isArchived ? "Unarchiving..." : "Archiving..."}
                   />
                   <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                   <AnnouncementModal
@@ -1957,6 +1960,23 @@ function VersionCard({
                   <BookOpenIcon className="h-3 w-3 mr-1" />
                   Manage
                 </Button>
+                {version.hpSystem &&
+                    <Button 
+                    variant="outline"
+                    size="sm" 
+                    className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                    onClick={()=>{
+                      navigate({
+                        to: `/teacher/hp-system/${version._id}/cohorts`,
+                        state: {
+                          from: location.pathname,
+                        }});
+                      }}
+                    >
+                      <Activity className="h-3 w-3 mr-1" />
+                      Hp System
+                    </Button>
+                }
                 <Button
                   variant="outline"
                   size="sm"
@@ -1984,7 +2004,6 @@ function VersionCard({
                   <Settings2 className="h-3 w-3 mr-1" />
                   Settings
                 </Button>
-
                 <Button
                     variant="outline"
                     size="sm"
@@ -2005,6 +2024,15 @@ function VersionCard({
               courseId={courseId}
               courseVersionId={versionId}
               isNew={false}
+              onSuccess={() => {
+                queryClient.invalidateQueries({
+                  queryKey: [
+                    "get",
+                    "/courses/versions/{id}",
+                    { params: { path: { id: selectedVersionId } } },
+                  ],
+                })
+              }}
             />
 
             <LinkModal
@@ -2016,13 +2044,6 @@ function VersionCard({
               link={generatedLink}
             />
           </div>
-          <ProctoringModal
-            open={showProctoringModal}
-            onClose={() => setShowProctoringModal(false)}
-            courseId={courseId}
-            courseVersionId={versionId}
-            isNew={false}
-          />
 
         </CardContent>
       </Card>
@@ -2040,6 +2061,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 
 interface LinkModalProps {

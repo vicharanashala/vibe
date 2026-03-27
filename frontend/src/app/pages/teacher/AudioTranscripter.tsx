@@ -22,7 +22,7 @@ interface IAudioTranscripter {
     endTime?: number | null;
     isPaused?: boolean;
     chunkTranscription?: object[];
-    setChunkTranscription?: (chunks: object[]) => void;
+   handleDeleteSegmentation?: (index:number)=>void
 }
 
 // Validation
@@ -142,7 +142,7 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
                         endTime={props.endTime}
                         isAIModulePage={props.isAIModulePage}
                         chunkTranscription={props.chunkTranscription}
-                        setChunkTranscription={props.setChunkTranscription}
+                        handleDeleteSegmentation = {props.handleDeleteSegmentation}
 
                       />
                     </div>)}
