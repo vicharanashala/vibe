@@ -589,52 +589,54 @@ export function RuleSettingsDialog({
                                 </p>
                             </div>
                         )}
-                        <div className="space-y-4">
-                            <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                                Submission Requirements
-                            </h4>
+                        {activity?.activityType !== "VIBE_MILESTONE" && 
+                            <div className="space-y-4">
+                                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                                    Submission Requirements
+                                </h4>
 
-                            <div className="grid grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
-                                
-                                {[
-                                { label: "Text Response", value: SubmissionField.TEXT },
-                                { label: "PDF Upload", value: SubmissionField.PDF },
-                                { label: "Images", value: SubmissionField.IMAGE },
-                                { label: "URL Links", value: SubmissionField.URL },
-                                ].map((item) => {
-                                const selected = config?.submissionValidation || [];
+                                <div className="grid grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
+                                    
+                                    {[
+                                    { label: "Text Response", value: SubmissionField.TEXT },
+                                    { label: "PDF Upload", value: SubmissionField.PDF },
+                                    { label: "Images", value: SubmissionField.IMAGE },
+                                    { label: "URL Links", value: SubmissionField.URL },
+                                    ].map((item) => {
+                                    const selected = config?.submissionValidation || [];
 
-                                return (
-                                    <div key={item.value} className="flex items-center justify-between">
-                                    <Label>{item.label}</Label>
-                                    <Switch
-                                        checked={selected.includes(item.value)}
-                                        onCheckedChange={(checked) => {
-                                        let updated = [...selected];
+                                    return (
+                                        <div key={item.value} className="flex items-center justify-between">
+                                        <Label>{item.label}</Label>
+                                        <Switch
+                                            checked={selected.includes(item.value)}
+                                            onCheckedChange={(checked) => {
+                                            let updated = [...selected];
 
-                                        if (checked) {
-                                            updated.push(item.value);
-                                        } else {
-                                            updated = updated.filter(v => v !== item.value);
-                                        }
+                                            if (checked) {
+                                                updated.push(item.value);
+                                            } else {
+                                                updated = updated.filter(v => v !== item.value);
+                                            }
 
-                                        // ❗ Prevent removing all
-                                        if (updated.length === 0) {
-                                            toast.error("At least one submission field must be required");
-                                            return;
-                                        }
+                                            // ❗ Prevent removing all
+                                            if (updated.length === 0) {
+                                                toast.error("At least one submission field must be required");
+                                                return;
+                                            }
 
-                                        setConfig(prev => ({
-                                            ...prev,
-                                            submissionValidation: updated
-                                        }));
-                                        }}
-                                    />
-                                    </div>
-                                );
-                                })}
+                                            setConfig(prev => ({
+                                                ...prev,
+                                                submissionValidation: updated
+                                            }));
+                                            }}
+                                        />
+                                        </div>
+                                    );
+                                    })}
+                                </div>
                             </div>
-                        </div>
+                        }
                     </div>
                 )}
                 {saveError && (

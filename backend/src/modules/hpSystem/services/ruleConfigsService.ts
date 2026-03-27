@@ -119,7 +119,7 @@ export class RuleConfigService extends BaseService {
                 }
             }
 
-            if (!body.submissionValidation || body.submissionValidation.length === 0) {
+            if (!isVibeMilestone && (!body.submissionValidation || body.submissionValidation.length === 0)) {
                 throw new BadRequestError("At least one submission field must be required");
             }
 
@@ -308,7 +308,7 @@ export class RuleConfigService extends BaseService {
                     ? patch.submissionValidation
                     : existing.submissionValidation;
 
-            if (!finalSubmissionValidation || finalSubmissionValidation.length === 0) {
+            if (!isVibeMilestone && (!finalSubmissionValidation || finalSubmissionValidation.length === 0)) {
                 throw new BadRequestError("At least one submission field must be required");
             }
             

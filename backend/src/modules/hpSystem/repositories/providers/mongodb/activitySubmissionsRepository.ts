@@ -396,7 +396,11 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                         isMandatory: "$rule.isMandatory",
                         allowLateSubmission: "$rule.allowLateSubmission",
                         submissionValidation: {
-                            $ifNull: ["$rule.submissionValidation", ["TEXT"]],
+                            $cond: [
+                                { $eq: ["$activity.activityType", "VIBE_MILESTONE"] },
+                                [],
+                                { $ifNull: ["$rule.submissionValidation", ["TEXT"]] }
+                            ]
                         },
                         lateRewardPolicy: "$rule.lateRewardPolicy",
 
