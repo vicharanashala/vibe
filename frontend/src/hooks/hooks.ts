@@ -798,7 +798,11 @@ export function useCreateCourseVersion(): {
 
 
 // GET /courses/versions/{id}
-export function useCourseVersionById(id: string, enabled?: boolean): {
+export function useCourseVersionById(
+  id: string,
+  enabled?: boolean,
+  cohortId?: string,
+): {
   data: components['schemas']['CourseVersionDataResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -810,7 +814,10 @@ export function useCourseVersionById(id: string, enabled?: boolean): {
     : undefined;
 
   const result = api.useQuery("get", "/courses/versions/{id}", {
-    params: { path: { id } }
+    params: {
+      path: { id },
+      ...(cohortId ? { query: { cohortId } } : {}),
+    }
   }, enabledOptions
   );
 
@@ -882,7 +889,7 @@ export function useCourseVersionCohorts(
   page: number = 1,
   limit: number = 10,
   search: string = "",
-  sortBy: 'name' | 'createdAt' | 'updatedAt',
+  sortBy: 'name' | 'createdAt' | 'updatedAt' | 'baseHp' | 'safeHp',
   sortOrder: 'asc' | 'desc' = 'desc',
   // enabled: boolean = true,
   // filter: 'STUDENT' | 'OTHER',
@@ -947,8 +954,8 @@ export function useCreateCohort(): {
 }
 
 export function useUpdateCohort(): {
-  mutate: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: { newCohortName?: string, isPublic?: boolean } }) => void,
-  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: { newCohortName?: string, isPublic?: boolean } }) => Promise<CohortsResponse>,
+  mutate: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: { newCohortName?: string, isPublic?: boolean, isActive?: boolean, baseHp?: number, safeHp?: number } }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: { newCohortName?: string, isPublic?: boolean, isActive?: boolean, baseHp?: number, safeHp?: number } }) => Promise<CohortsResponse>,
   data: CohortsResponse | undefined,
   error: string | null,
   isPending: boolean,
@@ -970,7 +977,7 @@ export function useUpdateCohort(): {
     reset: result.reset,
     status: result.status,
     error: result.error
-      ? result.error.message || "Create cohort failed"
+      ? result.error.message || "Update cohort failed"
       : null
   };
 }
@@ -1000,7 +1007,7 @@ export function useDeleteCohort(): {
     reset: result.reset,
     status: result.status,
     error: result.error
-      ? result.error.message || "Create cohort failed"
+      ? result.error.message || "Delete cohort failed"
       : null
   };
 }
@@ -4608,8 +4615,8 @@ export const useHideSection = (): {
 }
 
 export const useHideItem = (): {
-  mutate: (variables: { params: { path: { versionId: string, itemId: string } }, body: { hide: boolean } }) => void,
-  mutateAsync: (variables: { params: { path: { versionId: string, itemId: string } }, body: { hide: boolean } }) => Promise<void>,
+  mutate: (variables: { params: { path: {courseId: string, versionId: string, itemId: string } }, body: { hide: boolean } }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, itemId: string } }, body: { hide: boolean } }) => Promise<void>,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
@@ -4619,7 +4626,7 @@ export const useHideItem = (): {
   status: 'idle' | 'pending' | 'success' | 'error'
 } => {
 
-  const result = api.useMutation('put', '/courses/versions/{versionId}/items/{itemId}/toggle-visibility');
+  const result = api.useMutation('put', '/courses/{courseId}/versions/{versionId}/items/{itemId}/toggle-visibility');
   return {
     ...result,
     error: result.error ? (result?.error?.message || 'Failed to hide/unhide item') : null
