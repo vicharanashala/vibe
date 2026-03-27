@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useHpStudents } from "@/hooks/hooks";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, History, Mail, FileText } from "lucide-react";
+import { Search, History, Mail, FileText, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card"
 import { ArrowUp, ArrowDown } from "lucide-react"
 import { Pagination } from "@/components/ui/Pagination";
@@ -22,7 +22,7 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
   const itemsPerPage = 10;
   const navigate = useNavigate();
 
-  const { data: students = [], isLoading } = useHpStudents(
+  const { data: students = [], isLoading, refetch, isRefetching } = useHpStudents(
     courseVersionId,
     cohortName
   );
@@ -81,17 +81,28 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
     <div className="space-y-6">
 
       {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search students by name or email..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value)
-            setCurrentPage(1)
-          }}
-          className="pl-10"
-        />
+      <div className="flex items-center gap-3">
+        <div className="relative max-w-md flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search students by name or email..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setCurrentPage(1)
+            }}
+            className="pl-10"
+          />
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => refetch()}
+          disabled={isRefetching || isLoading}
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+          {isRefetching ? "Refreshing..." : "Refresh"}
+        </Button>
       </div>
 
       {/* Student Count */}
