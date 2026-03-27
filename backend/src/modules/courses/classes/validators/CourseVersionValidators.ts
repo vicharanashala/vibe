@@ -194,6 +194,22 @@ class CohortResponse {
     readOnly: true,
   })
   updatedAt: Date;
+
+  @JSONSchema({
+    description: "Indicates if the cohort is public or private",
+    example: true,
+    type: "boolean",
+  })
+  @IsBoolean()
+  isPublic: boolean;
+
+  @JSONSchema({
+    description: "Indicates if the cohort is active for registrations",
+    example: true,
+    type: "boolean",
+  })
+  @IsBoolean()
+  isActive: boolean;
 }
 
 class CohortsResponse {
@@ -235,6 +251,10 @@ class NewCohortBody{
   @IsOptional()
   @IsBoolean()
   isPublic?: boolean
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean
 }
 
 class CohortUpdatedMessage{

@@ -225,6 +225,7 @@ export class ItemRepository implements IItemRepository {
         ? new ObjectId(item._id)
         : item._id,
     }));
+    fields.sectionId = typeof fields.sectionId === "string" ? new ObjectId(fields.sectionId) : fields.sectionId;
     const result = await this.itemsGroupCollection.updateOne(
       { _id: new ObjectId(itemsGroupId) },
       { $set: fields },

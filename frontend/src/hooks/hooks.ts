@@ -796,7 +796,11 @@ export function useCreateCourseVersion(): {
 
 
 // GET /courses/versions/{id}
-export function useCourseVersionById(id: string, enabled?: boolean): {
+export function useCourseVersionById(
+  id: string,
+  enabled?: boolean,
+  cohortId?: string,
+): {
   data: components['schemas']['CourseVersionDataResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -808,7 +812,10 @@ export function useCourseVersionById(id: string, enabled?: boolean): {
     : undefined;
 
   const result = api.useQuery("get", "/courses/versions/{id}", {
-    params: { path: { id } }
+    params: {
+      path: { id },
+      ...(cohortId ? { query: { cohortId } } : {}),
+    }
   }, enabledOptions
   );
 
@@ -943,8 +950,8 @@ export function useCreateCohort(): {
 }
 
 export function useUpdateCohort(): {
-  mutate: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: { newCohortName?: string, isPublic?: boolean } }) => void,
-  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: { newCohortName?: string, isPublic?: boolean } }) => Promise<CohortsResponse>,
+  mutate: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: { newCohortName?: string, isPublic?: boolean, isActive?: boolean } }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: { newCohortName?: string, isPublic?: boolean, isActive?: boolean } }) => Promise<CohortsResponse>,
   data: CohortsResponse | undefined,
   error: string | null,
   isPending: boolean,
@@ -966,7 +973,7 @@ export function useUpdateCohort(): {
     reset: result.reset,
     status: result.status,
     error: result.error
-      ? result.error.message || "Create cohort failed"
+      ? result.error.message || "Update cohort failed"
       : null
   };
 }
@@ -996,7 +1003,7 @@ export function useDeleteCohort(): {
     reset: result.reset,
     status: result.status,
     error: result.error
-      ? result.error.message || "Create cohort failed"
+      ? result.error.message || "Delete cohort failed"
       : null
   };
 }
@@ -4593,8 +4600,8 @@ export const useHideSection = (): {
 }
 
 export const useHideItem = (): {
-  mutate: (variables: { params: { path: { versionId: string, itemId: string } }, body: { hide: boolean } }) => void,
-  mutateAsync: (variables: { params: { path: { versionId: string, itemId: string } }, body: { hide: boolean } }) => Promise<void>,
+  mutate: (variables: { params: { path: {courseId: string, versionId: string, itemId: string } }, body: { hide: boolean } }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, itemId: string } }, body: { hide: boolean } }) => Promise<void>,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
@@ -4604,7 +4611,7 @@ export const useHideItem = (): {
   status: 'idle' | 'pending' | 'success' | 'error'
 } => {
 
-  const result = api.useMutation('put', '/courses/versions/{versionId}/items/{itemId}/toggle-visibility');
+  const result = api.useMutation('put', '/courses/{courseId}/versions/{versionId}/items/{itemId}/toggle-visibility');
   return {
     ...result,
     error: result.error ? (result?.error?.message || 'Failed to hide/unhide item') : null
@@ -5421,13 +5428,26 @@ export function useCreateHpRuleConfig() {
   };
 }
 
+export function useCreateActivityWithRule() {
+  return useMutation({
+    mutationFn: async (payload: {
+      activity: CreateHpActivityPayload;
+      ruleConfig: Partial<HpRuleConfig>;
+    }) => {
+      const res = await hpApi.createActivityWithRule(payload);
+      if (!res.success) throw res;
+      return res.data;
+    },
+  });
+}
+
 export function useUpdateHpRuleConfig() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async ({ ruleConfigId, updates }: { ruleConfigId: string, updates: Partial<HpRuleConfig> }) => {
       console.log("Updating rule config with ID:", ruleConfigId, "and updates:", updates);
       const res = await hpApi.updateRuleConfig(ruleConfigId, updates);
-      if (!res.success) throw new Error(res.message || 'Failed to update rule config');
+      if (!res.success) throw res;
       return res.data;
     },
     onSuccess: () => {
