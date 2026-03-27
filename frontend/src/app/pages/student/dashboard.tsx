@@ -12,7 +12,6 @@ import { getGreeting } from "@/utils/helpers";
 import type { CoursePctCompletion, CourseCardProps } from '@/types/course.types';
 import { stopAllStreams } from "@/lib/MediaRegistry";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
 import { CourseCard } from "@/components/course/CourseCard";
 import { BookOpen, TrendingUp } from "lucide-react";
 
@@ -138,56 +137,65 @@ function DashboardContent() {
 
   return (
     <>
-      {/* Greeting and Stat Cards in two separate flex boxes */}
-      <div className="flex flex-col lg:flex-row justify-between items-start mb-8 px-0 sm:px-6 lg:px-8 xl:px-0 gap-6 transition-all duration-300">
-        {/* Left: Greeting Box */}
-        <div className="flex-1 bg-background rounded-lg lg:px-6 py-6 px-0">
-          <h1 className="text-3xl font-bold mb-1">
-            {greeting}, {studentName} 👋
-          </h1>
-          <p className="text-muted-foreground">
-            Welcome to your learning dashboard, check your priority learning.
-          </p>
-        </div>
-        {/* Right: Stat Cards */}
-        <div className="flex flex-col sm:flex-row gap-4 items-stretch w-full sm:w-auto">
-          <StatCard
-            icon={<BookOpen className="h-5 w-5" />}
-            value={enrollmentsLoading ? "—" : `${totalEnrollments}`}
-            label="Enrolled Courses"
-          />
-          <StatCard icon={<TrendingUp className="h-5 w-5 text-green-500" />}
-            value={`${totalProgress}%`} label="Completion Percentage" />
-        </div>
-      </div>
-
-      {/* Main content and sidebar */}
-      <div className="mb-6 px-0 sm:px-6 lg:px-8 xl:px-0">
-
-      </div>
-
       <div className="container mx-auto px-0 sm:px-6 lg:px-8 xl:px-0 py-6 flex flex-col lg:flex-row gap-6 transition-all duration-300">
-        <main className="flex-1 w-full">
+        <main className="flex-1 w-full space-y-8">
+          {/* Greeting and Stat Cards Section */}
+          <div className="bg-background rounded-lg lg:px-6 py-6 px-0">
+            <h1 className="text-3xl font-bold mb-2">
+              {greeting}, {studentName} 👋
+            </h1>
+            <p className="text-muted-foreground mb-8 text-lg">
+              Welcome to your learning dashboard, check your priority learning.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-stretch w-full max-w-2xl">
+              <StatCard
+                icon={<BookOpen className="h-5 w-5" />}
+                value={enrollmentsLoading ? "—" : `${totalEnrollments}`}
+                label="Enrolled Courses"
+              />
+              <StatCard
+                icon={<TrendingUp className="h-5 w-5 text-green-500" />}
+                value={`${totalProgress}%`}
+                label="Completion Percentage"
+              />
+            </div>
+          </div>
 
           <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6 w-full">
-            <TabsList className="w-full md:w-auto grid grid-cols-3 h-auto p-1 bg-muted/20 rounded-xl">
+            <TabsList className="w-full md:w-fit flex h-auto p-1 bg-slate-100/80 dark:bg-slate-800/50 rounded-full border border-slate-200/50 dark:border-slate-700/50 overflow-x-auto scrollbar-hide">
               <TabsTrigger
                 value="available"
-                className="py-3 px-6 text-lg font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200 cursor-pointer"
+                className="rounded-full py-2 px-3 md:py-2.5 md:px-6 text-xs md:text-sm font-semibold transition-all duration-300 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-primary data-[state=active]:shadow-sm whitespace-nowrap"
               >
-                Available {(publicCoursesData?.totalDocuments || 0) > 0 && <span className="ml-2 text-sm opacity-80 bg-primary-foreground/20 px-2 py-0.5 rounded-full">{publicCoursesData?.totalDocuments || 0}</span>}
+                Available
+                {(publicCoursesData?.totalDocuments || 0) > 0 && (
+                  <span className="ml-1.5 md:ml-2 px-1.5 py-0.5 text-[9px] md:text-[10px] font-bold rounded-full bg-primary/10 text-primary border border-primary/20">
+                    {publicCoursesData?.totalDocuments}
+                  </span>
+                )}
               </TabsTrigger>
               <TabsTrigger
                 value="enrolled"
-                className="py-3 px-6 text-lg font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200 cursor-pointer"
+                className="rounded-full py-2 px-3 md:py-2.5 md:px-6 text-xs md:text-sm font-semibold transition-all duration-300 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-primary data-[state=active]:shadow-sm whitespace-nowrap"
               >
-                Enrolled {activeEnrollments.length > 0 && <span className="ml-2 text-sm opacity-80 bg-primary-foreground/20 px-2 py-0.5 rounded-full">{activeEnrollments.length}</span>}
+                Enrolled
+                {activeEnrollments.length > 0 && (
+                  <span className="ml-1.5 md:ml-2 px-1.5 py-0.5 text-[9px] md:text-[10px] font-bold rounded-full bg-blue-100 text-blue-600 border border-blue-200">
+                    {activeEnrollments.length}
+                  </span>
+                )}
               </TabsTrigger>
               <TabsTrigger
                 value="completed"
-                className="py-3 px-6 text-lg font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200 cursor-pointer"
+                className="rounded-full py-2 px-3 md:py-2.5 md:px-6 text-xs md:text-sm font-semibold transition-all duration-300 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-primary data-[state=active]:shadow-sm whitespace-nowrap"
               >
-                Completed {completedEnrollments.length > 0 && <span className="ml-2 text-sm opacity-80 bg-primary-foreground/20 px-2 py-0.5 rounded-full">{completedEnrollments.length}</span>}
+                Completed
+                {completedEnrollments.length > 0 && (
+                  <span className="ml-1.5 md:ml-2 px-1.5 py-0.5 text-[9px] md:text-[10px] font-bold rounded-full bg-green-100 text-green-600 border border-green-200">
+                    {completedEnrollments.length}
+                  </span>
+                )}
               </TabsTrigger>
             </TabsList>
 
@@ -226,19 +234,13 @@ function DashboardContent() {
                 </div>
 
                 {enrollmentsLoading ? (
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {Array.from({ length: 3 }).map((_, i) => (
-                      <Card key={i}>
-                        <CardContent className="p-6">
-                          <div className="h-6 w-1/3 bg-muted rounded animate-pulse mb-4" />
-                          <div className="h-4 w-2/3 bg-muted/60 rounded animate-pulse mb-6" />
-                          <div className="h-2 w-full bg-muted/40 rounded animate-pulse" />
-                        </CardContent>
-                      </Card>
+                      <div key={i} className="h-[400px] w-full bg-muted rounded-[24px] animate-pulse" />
                     ))}
                   </div>
                 ) : activeEnrollments.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {activeEnrollments.map((enrollment, index) => (
                       <CourseCard
                         key={enrollment._id || index}
@@ -269,19 +271,13 @@ function DashboardContent() {
                 </div>
 
                 {enrollmentsLoading ? (
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {Array.from({ length: 2 }).map((_, i) => (
-                      <Card key={i}>
-                        <CardContent className="p-6">
-                          <div className="h-6 w-1/3 bg-muted rounded animate-pulse mb-4" />
-                          <div className="h-4 w-2/3 bg-muted/60 rounded animate-pulse mb-6" />
-                          <div className="h-2 w-full bg-muted/40 rounded animate-pulse" />
-                        </CardContent>
-                      </Card>
+                      <div key={i} className="h-[400px] w-full bg-muted rounded-[24px] animate-pulse" />
                     ))}
                   </div>
                 ) : completedEnrollments.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {completedEnrollments.map((enrollment, index) => (
                       <CourseCard
                         key={enrollment._id || index}
