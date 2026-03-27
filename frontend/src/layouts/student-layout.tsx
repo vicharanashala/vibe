@@ -217,8 +217,10 @@ useEffect(() => {
                 </span>
               </div>
             </Link>
+          </div>
 
-            <div className="hidden md:flex items-center gap-1">
+          <div className="flex gap-4">
+            <div className="">
               <Button
                 variant="ghost"
                 size="sm"
@@ -339,7 +341,7 @@ useEffect(() => {
                 />}
               </div>
 
-              <Button
+              {/* <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowInvites((prev) => !prev)}
@@ -347,9 +349,9 @@ useEffect(() => {
               >
                 <Bell className="h-5 w-5" />
                 {(pendingInvites.length > 0 || approvedNotificationsList.length > 0 || (pendingStudentRegistrations?.length ?? 0) > 0 || localRejectedRegistrations.length > 0) && <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500" />}
-              </Button>
+              </Button> */}
 
-              {showInvites && <InviteDropdown
+              {/* {showInvites && <InviteDropdown
                 setPendingInvites={setPendingInvites}
                 pendingInvites={pendingInvites}
                 approvedNotifications={approvedNotificationsList}
@@ -359,7 +361,7 @@ useEffect(() => {
                 onDismissRejected={(id) => {
                   setLocalRejectedRegistrations(prev => prev.filter(r => r._id !== id));
                 }}
-              />}
+              />} */}
             </div>
 
             <div className="relative">
