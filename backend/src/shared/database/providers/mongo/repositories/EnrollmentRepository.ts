@@ -3604,6 +3604,7 @@ export class EnrollmentRepository {
   async getEnrollmentsByCourseVersion(
     courseId: string,
     courseVersionId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<IEnrollment[]> {
     try {
@@ -3619,6 +3620,7 @@ export class EnrollmentRepository {
             role: 'STUDENT',
             status: {$regex: /^active$/i},
             isDeleted: {$ne: true},
+            ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {cohortId: null}),
           },
           {session},
         )

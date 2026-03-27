@@ -4495,14 +4495,15 @@ export const useLeaderboard = (
   page: number,
   limit: number = 10,
   enabled: boolean = true,
+  cohortId?: string
 ) => {
   const authToken = localStorage.getItem('firebase-auth-token');
 
   const result = useQuery({
-    queryKey: ['leaderboard', courseId, versionId, page, limit],
+    queryKey: ['leaderboard', courseId, versionId, page, limit, cohortId],
     queryFn: async () => {
       const response = await fetch(
-        `${import.meta.env.VITE_BASE_URL}/users/progress/courses/${courseId}/versions/${versionId}/leaderboard?page=${page}&limit=${limit}`,
+        `${import.meta.env.VITE_BASE_URL}/users/progress/courses/${courseId}/versions/${versionId}/leaderboard?page=${page}&limit=${limit}${cohortId ? `&cohortId=${cohortId}` : ''}`,
         {
           method: 'GET',
           headers: {
