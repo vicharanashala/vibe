@@ -61,6 +61,8 @@ export default function ConfigureCohorts() {
   const [selectedCohortForAnnouncement, setSelectedCohortForAnnouncement] = useState<any>(null)
 
   const isRestricted = versionId && RESTRICTED_VERSION_IDS.includes(versionId);
+  const [isRegistrationDialogOpen, setIsRegistrationDialogOpen] = useState(false)
+  const [nextActiveState, setNextActiveState] = useState(false)
 
   useEffect(() => {
     setIsSearching(true);
@@ -202,6 +204,28 @@ export default function ConfigureCohorts() {
         toast.error(err?.message || "Failed to delete cohort");
     }
 
+  }
+
+  const updateCohortActiveStatus = async () => {
+    try {
+      await updateMutation.mutateAsync({
+        params: {
+          path: {
+            courseId: courseId ?? "",
+            versionId: versionId ?? "",
+            cohortId: selectedCohort.id
+          }
+        },
+        body: {
+          isActive: nextActiveState
+        }
+      })
+
+      setIsRegistrationDialogOpen(false)
+      refetch()
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update cohort status")
+    }
   }
 
   if (isLoading) {
@@ -365,6 +389,19 @@ export default function ConfigureCohorts() {
                         <Megaphone className="h-3 w-3 mr-1" />
                         Announce
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedCohort(cohort)
+                          setTargetCohort(cohort)
+                          setNextActiveState(!cohort.isActive) // toggle
+                          setIsRegistrationDialogOpen(true)
+                        }}
+                      >
+                        {cohort.isActive ? "Pause Registrations" : "Resume Registrations"}
+                      </Button>
+
                     <span className="flex items-center space-x-2 ml-4">
                       <div className="space-y-1">
                         <Label className="text-sm font-medium">Is Public</Label>
@@ -517,6 +554,7 @@ export default function ConfigureCohorts() {
         </DialogContent>
       </Dialog>
 
+      {/* Public/Private Toggle Dialog */}
       <Dialog
         open={isPublicDialogOpen}
         onOpenChange={setIsPublicDialogOpen}
@@ -549,6 +587,48 @@ export default function ConfigureCohorts() {
             {updateMutation.isPending
               ? <Loader2 className="animate-spin mr-2"/>
               : null}
+              Confirm
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Active/Inactive for Registrations*/}
+      <Dialog
+        open={isRegistrationDialogOpen}
+        onOpenChange={setIsRegistrationDialogOpen}
+      >
+        <DialogContent className="p-10">
+          <DialogHeader className="mb-4">
+            <DialogTitle>
+              {nextActiveState ? "Resume Registrations" : "Pause Registrations"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <p>
+            Are you sure you want to{" "}
+            <strong>
+              {nextActiveState ? "resume" : "pause"}
+            </strong>{" "}
+            registrations for{" "}
+            <strong>{targetCohort?.name}</strong>?
+          </p>
+
+          <div className="flex gap-3 mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setIsRegistrationDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              onClick={updateCohortActiveStatus}
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending && (
+                <Loader2 className="animate-spin mr-2" />
+              )}
               Confirm
             </Button>
           </div>

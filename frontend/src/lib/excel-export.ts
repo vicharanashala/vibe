@@ -193,7 +193,7 @@ export function transformDataForExcel(data: StudentData[]): TransformedData[] {
     }
     
     // Add Score (in %) and Total attempts columns
-    headerRow4[`col_${currentCol + questionsCount}`] = 'Score (in %)';
+    headerRow4[`col_${currentCol + questionsCount}`] = 'Score';
     headerRow4[`col_${currentCol + questionsCount + 1}`] = 'Total attempts';
     
     currentCol += totalColumnsForQuiz;
