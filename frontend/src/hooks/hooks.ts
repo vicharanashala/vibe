@@ -887,7 +887,7 @@ export function useCourseVersionCohorts(
   page: number = 1,
   limit: number = 10,
   search: string = "",
-  sortBy: 'name' | 'createdAt' | 'updatedAt',
+  sortBy: 'name' | 'createdAt' | 'updatedAt' | 'baseHp' | 'safeHp',
   sortOrder: 'asc' | 'desc' = 'desc',
   // enabled: boolean = true,
   // filter: 'STUDENT' | 'OTHER',
@@ -950,8 +950,8 @@ export function useCreateCohort(): {
 }
 
 export function useUpdateCohort(): {
-  mutate: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: { newCohortName?: string, isPublic?: boolean, isActive?: boolean } }) => void,
-  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: { newCohortName?: string, isPublic?: boolean, isActive?: boolean } }) => Promise<CohortsResponse>,
+  mutate: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: { newCohortName?: string, isPublic?: boolean, isActive?: boolean, baseHp?: number, safeHp?: number } }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: { newCohortName?: string, isPublic?: boolean, isActive?: boolean, baseHp?: number, safeHp?: number } }) => Promise<CohortsResponse>,
   data: CohortsResponse | undefined,
   error: string | null,
   isPending: boolean,
