@@ -157,6 +157,15 @@ export class SettingsDto {
     default: false,
   })
   isPublic?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Enables student crowdsourced question submission after video completion',
+    examples: [true, false],
+    default: false,
+  })
+  crowdsourcedQuestionSubmissionEnabled?: boolean;
   // jsonSchema?:any
   // uiSchema?:any
   @IsOptional()
@@ -361,6 +370,15 @@ export class AddCourseProctoringBody {
     default: false,
   })
   isPublic?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Enables student crowdsourced question submission after video completion',
+    examples: [true, false],
+    default: false,
+  })
+  crowdsourcedQuestionSubmissionEnabled?: boolean;
 
 }
 

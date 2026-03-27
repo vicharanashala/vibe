@@ -8,6 +8,7 @@ export enum AppModule {
   Users = 'users',
   Courses = 'courses', 
   Quizzes = 'quizzes',
+  StudentQuestions = 'studentQuestions',
 }
 
 export const appConfig = {

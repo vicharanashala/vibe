@@ -61,6 +61,7 @@ export interface ISettingRepository {
     linearProgressionEnabled: boolean,
     seekForwardEnabled: boolean,
     isPublic: boolean,
+    crowdsourcedQuestionSubmissionEnabled: boolean,
     audit: AuditingDto,
     session?: ClientSession,
   ): Promise<UpdateResult | null>;

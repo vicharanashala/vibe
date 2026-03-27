@@ -19,7 +19,9 @@ export interface VideoProps {
   isAlreadyWatched?: boolean;
   completedItemIdsRef: React.RefObject<Set<string>>;
   nextItemId: string;
+  nextItemType?: string | null;
   cohortId?:string;
+  crowdsourcedQuestionSubmissionEnabled?: boolean;
 }
 
 
@@ -79,6 +81,7 @@ export interface StudentProctoringSettings {
     };
     linearProgressionEnabled: boolean;
     seekForwardEnabled: boolean;
+    crowdsourcedQuestionSubmissionEnabled?: boolean;
   };
 }
 
@@ -111,7 +114,8 @@ export interface ProctoringSettings {
           enabled: boolean;
         }
       }[]
-    }
+    };
+    crowdsourcedQuestionSubmissionEnabled?: boolean;
   }
 }
 

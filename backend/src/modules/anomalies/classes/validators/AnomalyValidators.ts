@@ -7,7 +7,7 @@ import {
   IsString,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
-import {AnomalyType, FileType, IAnomalyData} from '../../index.js';
+import {AnomalyType, FileType, IAnomalyData} from '../transformers/Anomaly.js';
 import {ObjectId} from 'mongodb';
 import {
   SortOrder,

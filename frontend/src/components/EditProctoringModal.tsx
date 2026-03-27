@@ -59,6 +59,7 @@ export function ProctoringModal({
   const [linearProgressionEnabled, setLinearProgressionEnabled] = useState(true);
   const [seekForwardEnabled, setSeekForwardEnabled] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
+  const [crowdsourcedQuestionSubmissionEnabled, setCrowdsourcedQuestionSubmissionEnabled] = useState(false);
   const [isAdditionalSettingsExpanded, setIsAdditionalSettingsExpanded] = useState(false);
   const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(courseVersionId || "")
 
@@ -71,6 +72,9 @@ export function ProctoringModal({
           setLinearProgressionEnabled(result.settings?.linearProgressionEnabled)
           setSeekForwardEnabled(result.settings?.seekForwardEnabled ?? false)
           setIsPublic(result.settings?.isPublic ?? false)
+          setCrowdsourcedQuestionSubmissionEnabled(
+            result.settings?.crowdsourcedQuestionSubmissionEnabled ?? false,
+          )
         }
       } catch (err) {
         console.error("Failed to fetch proctoring settings:", err)
@@ -92,7 +96,16 @@ export function ProctoringModal({
 
   const handleSubmit = async () => {
     try {
-      const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled, seekForwardEnabled, isPublic)
+      const result = await editSettings(
+        courseId,
+        courseVersionId,
+        detectors,
+        isNew,
+        linearProgressionEnabled,
+        seekForwardEnabled,
+        isPublic,
+        crowdsourcedQuestionSubmissionEnabled,
+      )
       if (result != undefined) {
         onClose();
       }
@@ -205,6 +218,19 @@ export function ProctoringModal({
                       <Switch checked={isPublic} onCheckedChange={() => setIsPublic(prev => !prev)} />
                     </div>
                   )}
+
+                  <div className="flex items-center justify-between space-x-3">
+                    <div className="space-y-1">
+                      <Label className="text-sm font-medium">Student Question Submission</Label>
+                      <p className="text-xs text-muted-foreground">Allow students to submit post-video questions</p>
+                    </div>
+                    <Switch
+                      checked={crowdsourcedQuestionSubmissionEnabled}
+                      onCheckedChange={() =>
+                        setCrowdsourcedQuestionSubmissionEnabled(prev => !prev)
+                      }
+                    />
+                  </div>
                 </div>
               )}
             </div>

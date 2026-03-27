@@ -20,6 +20,7 @@ import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
 import StudentProjectItem from "./components/StudentProjectItem";
 import type { Item, ItemContainerRef } from "@/types/item-container.types";
+import type { PendingStudentQuestionContext } from "@/types/student-question.types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuroraText } from "@/components/magicui/aurora-text";
 import confetti from "canvas-confetti";
@@ -189,6 +190,7 @@ export default function CoursePage() {
   const [isQuizSkipped, setIsQuizSkipped] = useState(false);
   const [readyToDetect, setReadyToDetect] = useState(false);
   const [isNavigatingToPrev, setIsNavigatingToPrev] = useState<boolean>(false);
+  const [pendingStudentQuestionContext, setPendingStudentQuestionContext] = useState<PendingStudentQuestionContext | null>(null);
   const completedItemIdsRef = useRef<Set<string>>(new Set());
   // State for sidebar visibility
   const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
@@ -449,6 +451,10 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
       sectionItems[waitingForNextSection.sectionId].length > 0) {
 
       const firstItem = sectionItems[waitingForNextSection.sectionId][0];
+
+      if (firstItem?.type?.toLowerCase() !== 'quiz') {
+        setPendingStudentQuestionContext(null);
+      }
 
       // Clear waiting state
       setWaitingForNextSection(null);
@@ -720,6 +726,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemId: string) => {
     enqueueNavigation(async () => {
       setIsNavigatingToNext(true);
+      setPendingStudentQuestionContext(null);
 
       try {
         // Stop current item immediately
@@ -836,7 +843,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
       return {
         moduleId: selectedModuleId,
         sectionId: selectedSectionId,
-        itemId: nextItem._id
+        itemId: nextItem._id,
+        type: nextItem.type?.toLowerCase() ?? null,
       };
     }
 
@@ -848,7 +856,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
         return {
           moduleId: selectedModuleId,
           sectionId: nextSection.sectionId,
-          itemId: nextSectionItems[0]._id
+          itemId: nextSectionItems[0]._id,
+          type: nextSectionItems[0].type?.toLowerCase() ?? null,
         };
       } else {
         // Next section exists but items not loaded - return section info to trigger loading
@@ -856,6 +865,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
           moduleId: selectedModuleId,
           sectionId: nextSection.sectionId,
           itemId: null, // Will be set after items are loaded
+          type: null,
           needsLoading: true
         };
       }
@@ -872,7 +882,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
           return {
             moduleId: nextModule.moduleId,
             sectionId: firstNextSection.sectionId,
-            itemId: nextModuleItems[0]._id
+            itemId: nextModuleItems[0]._id,
+            type: nextModuleItems[0].type?.toLowerCase() ?? null,
           };
         } else {
           // Next section exists but items not loaded - return section info to trigger loading
@@ -880,6 +891,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
             moduleId: nextModule.moduleId,
             sectionId: firstNextSection.sectionId,
             itemId: null, // Will be set after items are loaded
+            type: null,
             needsLoading: true
           };
         }
@@ -1093,6 +1105,22 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
         // 2️⃣ Determine next item
         const nextItem = findNextItem();
+
+        const shouldShowQuestionOnQuizIntro =
+          currentItem?.type?.toLowerCase() === 'video' &&
+          nextItem?.type === 'quiz' &&
+          !!proctoringData?.settings?.crowdsourcedQuestionSubmissionEnabled &&
+          !!selectedItemId;
+
+        if (shouldShowQuestionOnQuizIntro) {
+          setPendingStudentQuestionContext({
+            courseId: COURSE_ID,
+            courseVersionId: VERSION_ID,
+            segmentId: selectedItemId,
+          });
+        } else {
+          setPendingStudentQuestionContext(null);
+        }
        
         if (!nextItem) {
           console.log("🎉 Course complete");
@@ -1229,6 +1257,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   }, [
     findNextItem,
     itemContainerRef,
+    currentItem,
+    proctoringData,
     selectedModuleId,
     selectedSectionId,
     selectedItemId,
@@ -1328,6 +1358,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   const handlePrevVideo = useCallback(async () => {
     // Set loading state
     setIsNavigatingToPrev(true);
+    setPendingStudentQuestionContext(null);
 
     try {
       // Stop current item before moving to previous video with proper cleanup
@@ -2149,6 +2180,14 @@ useEffect(() => {
                         nextItem={findNextItem()}
                         cohortId={COHORT_ID}
                         cohortName={COHORT_NAME}
+                        crowdsourcedQuestionSubmissionEnabled={
+                          proctoringData?.settings
+                            .crowdsourcedQuestionSubmissionEnabled || false
+                        }
+                        pendingStudentQuestionContext={pendingStudentQuestionContext}
+                        clearPendingStudentQuestionContext={() =>
+                          setPendingStudentQuestionContext(null)
+                        }
                       />
                     )}
 

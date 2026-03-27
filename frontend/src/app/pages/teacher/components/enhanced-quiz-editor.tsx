@@ -36,6 +36,8 @@ import {
 import {
   useGetAllQuestionBanksForQuiz,
   useQuestionBankById,
+  useCreateQuestion,
+  useAddQuestionToBank,
   useCreateQuestionBank,
   useAddQuestionBankToQuiz,
   useRemoveQuestionBankFromQuiz,
@@ -45,6 +47,8 @@ import {
   useUpdateItem,
   useEditQuestionBankInQuiz,
   useQuestionById,
+  useListStudentQuestionsBySegment,
+  useUpdateStudentQuestionStatus,
   useQuizSubmissions,
   useUpdateCourseItem,
   exportQuizSubmissions,
@@ -63,9 +67,12 @@ import { toast } from 'sonner';
 import { DownloadReportButton } from './DownloadReportButton';
 import Loader from '@/components/Loader';
 import { useTheme } from 'next-themes';
+import type { StudentQuestionListItem } from '@/types/student-question.types';
+import type { QuestionBody } from '@/hooks/hooks';
 
 interface EnhancedQuizEditorProps {
   quizId: string | null;
+  linkedVideoSegmentId?: string | null;
   courseId: string;
   courseVersionId: string;
   moduleId: string;
@@ -114,6 +121,9 @@ const QUESTION_TYPES = [
   { value: 'NUMERIC_ANSWER_TYPE', label: 'Numeric Answer' },
   { value: 'DESCRIPTIVE', label: 'Descriptive Answer' }
 ];
+
+const UNVERIFIED_BANK_KEY = '__UNVERIFIED_STUDENT_QUESTIONS__';
+const REJECTED_BANK_KEY = '__REJECTED_STUDENT_QUESTIONS__';
 
 // Question Performance Row Component
 interface QuestionPerformanceRowProps {
@@ -257,6 +267,7 @@ const calculatePerformanceFromSubmissions = (submissions: any[]): { questionId: 
 const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   isLoading,
   quizId,
+  linkedVideoSegmentId,
   courseId,
   courseVersionId,
   selectedItemName,
@@ -271,6 +282,12 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 }) => {
   const [selectedTab, setSelectedTab] = useState('analytics');
   const [selectedQuestionBank, setSelectedQuestionBank] = useState<string | null>(null);
+  const [approvalTargetBankId, setApprovalTargetBankId] = useState<string>('');
+  const [approvalExpandedQuestionId, setApprovalExpandedQuestionId] = useState<string | null>(null);
+  const [unverifiedStudentQuestions, setUnverifiedStudentQuestions] = useState<StudentQuestionListItem[]>([]);
+  const [rejectedStudentQuestions, setRejectedStudentQuestions] = useState<StudentQuestionListItem[]>([]);
+  const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
+  const [processingStudentQuestionId, setProcessingStudentQuestionId] = useState<string | null>(null);
   const [questionCacheUpdateTrigger, setQuestionCacheUpdateTrigger] = useState(0);
 
 
@@ -388,10 +405,23 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
   // Fetch data
   let { data: questionBanks, refetch: refetchQuestionBanks } = useGetAllQuestionBanksForQuiz(quizId || '');
-  const { data: selectedBankData, refetch: refetchSelectedBank } = useQuestionBankById(selectedQuestionBank || '');
+  const selectedQuestionBankId =
+    selectedQuestionBank &&
+    selectedQuestionBank !== UNVERIFIED_BANK_KEY &&
+    selectedQuestionBank !== REJECTED_BANK_KEY
+      ? selectedQuestionBank
+      : '';
+  const { data: selectedBankData, refetch: refetchSelectedBank } = useQuestionBankById(selectedQuestionBankId);
+  const {
+    getQuestions: getStudentQuestionsBySegment,
+    loading: studentQuestionsLoading,
+  } = useListStudentQuestionsBySegment();
+  const {updateStatus: updateStudentQuestionStatus} = useUpdateStudentQuestionStatus();
 
   // Mutations
   const createQuestionBank = useCreateQuestionBank();
+  const createQuestion = useCreateQuestion();
+  const addQuestionToBank = useAddQuestionToBank();
   const addQuestionBankToQuiz = useAddQuestionBankToQuiz();
   const removeQuestionBankFromQuiz = useRemoveQuestionBankFromQuiz();
   const removeQuestionFromBank = useRemoveQuestionFromBank();
@@ -400,6 +430,47 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   const updateItem = useUpdateCourseItem();
   // const updateItem = useUpdateItem();
   const editQuestionBankInQuiz = useEditQuestionBankInQuiz();
+
+  useEffect(() => {
+    const loadUnverifiedQuestions = async () => {
+      if (!linkedVideoSegmentId) {
+        setUnverifiedStudentQuestions([]);
+        setRejectedStudentQuestions([]);
+        return;
+      }
+
+      try {
+        const response = await getStudentQuestionsBySegment(
+          courseId,
+          courseVersionId,
+          linkedVideoSegmentId,
+          100,
+        );
+
+        const unverifiedOnly = (response.items || []).filter(
+          question => question.status === 'UNVERIFIED',
+        );
+        const rejectedOnly = (response.items || []).filter(
+          question => question.status === 'REJECTED',
+        );
+        setUnverifiedStudentQuestions(unverifiedOnly);
+        setRejectedStudentQuestions(rejectedOnly);
+      } catch {
+        setUnverifiedStudentQuestions([]);
+        setRejectedStudentQuestions([]);
+      }
+    };
+
+    if (selectedTab === 'questions') {
+      loadUnverifiedQuestions();
+    }
+  }, [
+    selectedTab,
+    linkedVideoSegmentId,
+    courseId,
+    courseVersionId,
+    getStudentQuestionsBySegment,
+  ]);
 
   // Auto-switch to questions tab when navigating from flagged question
   useEffect(() => {
@@ -707,11 +778,11 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   };
 
   const confirmDeleteQuestion = async () => {
-    if (!selectedQuestionBank || !questionToDelete) return;
+    if (!selectedQuestionBankId || !questionToDelete) return;
 
     try {
       await removeQuestionFromBank.mutateAsync({
-        params: { path: { questionBankId: selectedQuestionBank, questionId: questionToDelete } }
+        params: { path: { questionBankId: selectedQuestionBankId, questionId: questionToDelete } }
       });
       await deleteQuestion.mutateAsync({
         params: { path: { questionId: questionToDelete } }
@@ -914,15 +985,161 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   }, [quizId]);
 
   useEffect(() => {
-    if (!showCreateQuestionDialog && selectedQuestionBank) {
+    if (!showCreateQuestionDialog && selectedQuestionBankId) {
       refetchSelectedBank();
     }
-  }, [showCreateQuestionDialog, selectedQuestionBank]);
+  }, [showCreateQuestionDialog, selectedQuestionBankId]);
   useEffect(() => {
     if (!showCreateBankDialog) {
       refetchQuestionBanks();
     }
   }, [showCreateBankDialog]);
+
+  useEffect(() => {
+    if (questionBanks?.length && !approvalTargetBankId) {
+      setApprovalTargetBankId(questionBanks[0].bankId);
+    }
+  }, [questionBanks, approvalTargetBankId]);
+
+  useEffect(() => {
+    if (selectedQuestionBank !== UNVERIFIED_BANK_KEY) {
+      setApprovalExpandedQuestionId(null);
+    }
+  }, [selectedQuestionBank]);
+
+  const handleApproveStudentQuestion = async (studentQuestion: StudentQuestionListItem) => {
+    if (approvalExpandedQuestionId !== studentQuestion._id) {
+      setApprovalExpandedQuestionId(studentQuestion._id);
+      return;
+    }
+
+    if (!approvalTargetBankId) {
+      toast.error('Select a target question bank before approval.');
+      return;
+    }
+
+    const correctOption = studentQuestion.options[studentQuestion.correctOptionIndex];
+    if (!correctOption?.text?.trim()) {
+      toast.error('Cannot approve question because correct option text is missing.');
+      return;
+    }
+
+    const incorrectLotItems = studentQuestion.options
+      .map((option, index) => ({option, index}))
+      .filter(({index, option}) => index !== studentQuestion.correctOptionIndex && !!option.text?.trim())
+      .map(({option}) => ({
+        text: option.text?.trim() || '',
+        explaination: 'Nil',
+      }));
+
+    if (!incorrectLotItems.length) {
+      toast.error('At least one incorrect option is required for approval.');
+      return;
+    }
+
+    const payload: QuestionBody = {
+      question: {
+        text: studentQuestion.questionText,
+        type: 'SELECT_ONE_IN_LOT',
+        isParameterized: false,
+        parameters: [],
+        hint: '',
+        timeLimitSeconds: 60,
+        points: 5,
+        priority: 'LOW',
+      },
+      solution: {
+        correctLotItem: {
+          text: correctOption.text.trim(),
+          explaination: 'Nil',
+        },
+        incorrectLotItems,
+      },
+    };
+
+    try {
+      setProcessingStudentQuestionId(studentQuestion._id);
+      const created = await createQuestion.mutateAsync({body: payload});
+      await addQuestionToBank.mutateAsync({
+        params: {
+          path: {
+            questionBankId: approvalTargetBankId,
+            questionId: created.questionId,
+          },
+        },
+      });
+      if (linkedVideoSegmentId) {
+        await updateStudentQuestionStatus(
+          courseId,
+          courseVersionId,
+          linkedVideoSegmentId,
+          studentQuestion._id,
+          'VALIDATED',
+        );
+      }
+
+      setUnverifiedStudentQuestions(current =>
+        current.filter(question => question._id !== studentQuestion._id),
+      );
+      setApprovalExpandedQuestionId(null);
+      toast.success('Question approved and added to selected question bank.');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to approve and add question to bank.');
+    } finally {
+      setProcessingStudentQuestionId(null);
+    }
+  };
+
+  const handleRejectStudentQuestion = async (studentQuestion: StudentQuestionListItem) => {
+    const reason = rejectionReasons[studentQuestion._id]?.trim();
+    if (!reason || reason.length < 3) {
+      toast.error('Please provide a rejection reason (minimum 3 characters).');
+      return;
+    }
+
+    if (!linkedVideoSegmentId) {
+      toast.error('Unable to determine linked video segment for rejection.');
+      return;
+    }
+
+    try {
+      setProcessingStudentQuestionId(studentQuestion._id);
+      await updateStudentQuestionStatus(
+        courseId,
+        courseVersionId,
+        linkedVideoSegmentId,
+        studentQuestion._id,
+        'REJECTED',
+        reason,
+      );
+
+      setUnverifiedStudentQuestions(current =>
+        current.filter(question => question._id !== studentQuestion._id),
+      );
+      setRejectedStudentQuestions(current => [
+        {
+          ...studentQuestion,
+          status: 'REJECTED',
+          rejectionReason: reason,
+          reviewedAt: new Date().toISOString(),
+        },
+        ...current,
+      ]);
+      if (approvalExpandedQuestionId === studentQuestion._id) {
+        setApprovalExpandedQuestionId(null);
+      }
+      setRejectionReasons(current => {
+        const next = {...current};
+        delete next[studentQuestion._id];
+        return next;
+      });
+      toast.success('Question rejected with reason.');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to reject question.');
+    } finally {
+      setProcessingStudentQuestionId(null);
+    }
+  };
 
   async function handleDownloadCSV(event: any): Promise<void> {
     if (!quizId) {
@@ -1118,6 +1335,47 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     {/* List of question banks */}
                     <ScrollArea className="lg:h-[calc(100vh-200px)] h-auto">
                       <div className="p-4 space-y-2">
+                        <Card
+                          className={`cursor-pointer transition-colors hover:bg-accent ${selectedQuestionBank === UNVERIFIED_BANK_KEY ? 'border-primary bg-accent/40' : ''}`}
+                          onClick={() => setSelectedQuestionBank(UNVERIFIED_BANK_KEY)}
+                        >
+                          <CardContent className="px-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="h-5 w-5">
+                                  <FlagTriangleRight className="h-5 w-5 text-amber-600" />
+                                </div>
+                                <div>
+                                  <p className="text-md font-semibold">Crowdsourced QB - TO VALIDATE</p>
+                                  <p className="text-[12px] font-normal">Student submissions from linked video</p>
+                                </div>
+                              </div>
+                              {studentQuestionsLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                              ) : (
+                                <Badge variant="secondary">{unverifiedStudentQuestions.length}</Badge>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Button
+                          variant={selectedQuestionBank === REJECTED_BANK_KEY ? 'secondary' : 'outline'}
+                          size="sm"
+                          className="w-full justify-between"
+                          onClick={() => setSelectedQuestionBank(REJECTED_BANK_KEY)}
+                        >
+                          <span className="flex items-center gap-2 text-xs font-medium">
+                            <X className="h-4 w-4 text-red-600" />
+                            Rejected QB (look back)
+                          </span>
+                          {studentQuestionsLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          ) : (
+                            <Badge variant="secondary">{rejectedStudentQuestions.length}</Badge>
+                          )}
+                        </Button>
+
                         {questionBanks?.map((bank: any) => (
                           <Card
                             key={bank.bankId}
@@ -1184,38 +1442,193 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     {selectedQuestionBank ? (
                       <div className="h-full flex flex-col">
                         {/* Add Question trigger for questions */}
-                        <CreateQuestionDialog
-                          showCreateQuestionDialog={showCreateQuestionDialog}
-                          setShowCreateQuestionDialog={setShowCreateQuestionDialog}
-                          selectedBankId={selectedQuestionBank}
-                        />
+                        {selectedQuestionBank !== UNVERIFIED_BANK_KEY && (
+                          <CreateQuestionDialog
+                            showCreateQuestionDialog={showCreateQuestionDialog}
+                            setShowCreateQuestionDialog={setShowCreateQuestionDialog}
+                            selectedBankId={selectedQuestionBank}
+                          />
+                        )}
                         <ScrollArea className="flex-1">
                           <div className="xl:p-4 py-4 space-y-4">
-                            {selectedBankData?.questions?.map((qId: string) => (
-                              <ExpandableQuestionCard
-                                key={qId}
-                                questionId={qId}
-                                isFlagged={questionId === qId}
-                                onDelete={() => handleDeleteQuestion(qId)}
-                                onDuplicate={async () => {
-                                  await replaceQuestionWithDuplicate.mutateAsync({
-                                    params: { path: { questionBankId: selectedQuestionBank, questionId: qId } }
-                                  });
-                                  refetchSelectedBank();
-                                }}
-                              />
-                            ))}
+                            {selectedQuestionBank === UNVERIFIED_BANK_KEY ? (
+                              <>
+                                {unverifiedStudentQuestions.map(question => (
+                                  <Card key={question._id}>
+                                    <CardContent className="pt-4 space-y-3">
+                                      <div className="flex items-start justify-between gap-2">
+                                        <p className="font-medium text-sm leading-relaxed">{question.questionText}</p>
+                                        <Badge variant="outline" className="border-amber-500 text-amber-700">UNVERIFIED</Badge>
+                                      </div>
+                                      {!!question.questionImageUrl && (
+                                        <img
+                                          src={question.questionImageUrl}
+                                          alt="Submitted question"
+                                          className="max-h-36 rounded border object-contain"
+                                        />
+                                      )}
+                                      <div className="grid gap-2">
+                                        {question.options.map((option, index) => (
+                                          <div key={`${question._id}-opt-${index}`} className="rounded border px-2 py-1.5 text-sm">
+                                            <div className="flex items-center justify-between gap-2">
+                                              <span>{option.text || 'Option without text'}</span>
+                                              {question.correctOptionIndex === index && (
+                                                <Badge variant="secondary">Correct</Badge>
+                                              )}
+                                            </div>
+                                            {!!option.imageUrl && (
+                                              <img
+                                                src={option.imageUrl}
+                                                alt={`Option ${index + 1}`}
+                                                className="mt-2 max-h-28 rounded border object-contain"
+                                              />
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground">
+                                        Submitted {new Date(question.createdAt).toLocaleString()}
+                                      </p>
+                                      <div className="grid gap-2">
+                                        <Label htmlFor={`reject-reason-${question._id}`} className="text-xs font-medium">
+                                          Rejection reason (required if rejecting)
+                                        </Label>
+                                        <Textarea
+                                          id={`reject-reason-${question._id}`}
+                                          value={rejectionReasons[question._id] || ''}
+                                          onChange={event =>
+                                            setRejectionReasons(current => ({
+                                              ...current,
+                                              [question._id]: event.target.value,
+                                            }))
+                                          }
+                                          placeholder="Write why this submission is rejected"
+                                          className="min-h-[70px]"
+                                        />
+                                      </div>
+                                      {approvalExpandedQuestionId === question._id && (
+                                        <div className="grid gap-2 rounded-md border bg-muted/20 p-3">
+                                          <Label className="text-sm font-medium">Approve to question bank</Label>
+                                          <Select
+                                            value={approvalTargetBankId}
+                                            onValueChange={setApprovalTargetBankId}
+                                          >
+                                            <SelectTrigger>
+                                              <SelectValue placeholder="Select target question bank" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {(questionBanks || []).map((bank: any) => (
+                                                <SelectItem key={`approve-target-${bank.bankId}`} value={bank.bankId}>
+                                                  {bank.title}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                          <p className="text-xs text-muted-foreground">
+                                            Approved student questions will be converted to quiz questions and added to this bank.
+                                          </p>
+                                        </div>
+                                      )}
+                                      <div className="flex justify-end gap-2">
+                                        {approvalExpandedQuestionId === question._id && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => setApprovalExpandedQuestionId(null)}
+                                            disabled={processingStudentQuestionId === question._id}
+                                          >
+                                            Cancel
+                                          </Button>
+                                        )}
+                                        <Button
+                                          size="sm"
+                                          variant="destructive"
+                                          onClick={() => handleRejectStudentQuestion(question)}
+                                          disabled={processingStudentQuestionId === question._id}
+                                        >
+                                          Reject
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          onClick={() => handleApproveStudentQuestion(question)}
+                                          disabled={processingStudentQuestionId === question._id || createQuestion.isPending || addQuestionToBank.isPending}
+                                        >
+                                          {approvalExpandedQuestionId === question._id ? 'Confirm Approve to QB' : 'Approve to QB'}
+                                        </Button>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                ))}
 
-                            {(!selectedBankData?.questions || selectedBankData.questions?.length === 0) && (
-                              <div className="text-center text-muted-foreground py-12">
-                                <HelpCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                                <h3 className="font-medium mb-2">No questions yet</h3>
-                                <p className="text-sm mb-4">Add your first question to get started</p>
-                                <Button onClick={() => setShowCreateQuestionDialog(true)}>
-                                  <Plus className="h-4 w-4 mr-2" />
-                                  Create Question
-                                </Button>
-                              </div>
+                                {!studentQuestionsLoading && unverifiedStudentQuestions.length === 0 && (
+                                  <div className="text-center text-muted-foreground py-12">
+                                    <FlagTriangleRight className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                                    <h3 className="font-medium mb-2">No unverified student submissions</h3>
+                                    <p className="text-sm">
+                                      When students submit questions from the linked video, they will appear here.
+                                    </p>
+                                  </div>
+                                )}
+                              </>
+                            ) : selectedQuestionBank === REJECTED_BANK_KEY ? (
+                              <>
+                                {rejectedStudentQuestions.map(question => (
+                                  <Card key={`rejected-${question._id}`}>
+                                    <CardContent className="pt-4 space-y-3">
+                                      <div className="flex items-start justify-between gap-2">
+                                        <p className="font-medium text-sm leading-relaxed">{question.questionText}</p>
+                                        <Badge variant="outline" className="border-red-500 text-red-700">REJECTED</Badge>
+                                      </div>
+                                      <div className="rounded-md border border-red-200 bg-red-50 p-2">
+                                        <p className="text-xs font-medium text-red-700">Reason</p>
+                                        <p className="text-sm text-red-800">
+                                          {question.rejectionReason || 'No reason recorded'}
+                                        </p>
+                                      </div>
+                                      <p className="text-xs text-muted-foreground">
+                                        Reviewed {question.reviewedAt ? new Date(question.reviewedAt).toLocaleString() : 'recently'}
+                                      </p>
+                                    </CardContent>
+                                  </Card>
+                                ))}
+
+                                {!studentQuestionsLoading && rejectedStudentQuestions.length === 0 && (
+                                  <div className="text-center text-muted-foreground py-12">
+                                    <X className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                                    <h3 className="font-medium mb-2">No rejected student submissions</h3>
+                                    <p className="text-sm">Rejected questions and reasons will appear here.</p>
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                {selectedBankData?.questions?.map((qId: string) => (
+                                  <ExpandableQuestionCard
+                                    key={qId}
+                                    questionId={qId}
+                                    isFlagged={questionId === qId}
+                                    onDelete={() => handleDeleteQuestion(qId)}
+                                    onDuplicate={async () => {
+                                      await replaceQuestionWithDuplicate.mutateAsync({
+                                        params: { path: { questionBankId: selectedQuestionBankId, questionId: qId } }
+                                      });
+                                      refetchSelectedBank();
+                                    }}
+                                  />
+                                ))}
+
+                                {(!selectedBankData?.questions || selectedBankData.questions?.length === 0) && (
+                                  <div className="text-center text-muted-foreground py-12">
+                                    <HelpCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                                    <h3 className="font-medium mb-2">No questions yet</h3>
+                                    <p className="text-sm mb-4">Add your first question to get started</p>
+                                    <Button onClick={() => setShowCreateQuestionDialog(true)}>
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Create Question
+                                    </Button>
+                                  </div>
+                                )}
+                              </>
                             )}
                           </div>
                         </ScrollArea>

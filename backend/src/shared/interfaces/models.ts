@@ -553,6 +553,7 @@ export interface ISettings {
   linearProgressionEnabled: boolean;
   seekForwardEnabled: boolean;
   isPublic?: boolean;
+  crowdsourcedQuestionSubmissionEnabled?: boolean;
   // registration_settings?: IRegistrationSettings[];
   registration?: {
     jsonSchema?: any;

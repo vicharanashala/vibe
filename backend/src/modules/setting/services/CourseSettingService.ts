@@ -157,6 +157,7 @@ class CourseSettingService extends BaseService {
     linearProgressionEnabled: boolean,
     seekForwardEnabled: boolean,
     isPublic: boolean,
+    crowdsourcedQuestionSubmissionEnabled: boolean,
     userId: string,
   ): Promise<boolean> {
     return this._withTransaction(async session => {
@@ -182,6 +183,8 @@ class CourseSettingService extends BaseService {
         settings.linearProgressionEnabled = linearProgressionEnabled;
         settings.seekForwardEnabled = seekForwardEnabled;
         settings.isPublic = isPublic;
+        settings.crowdsourcedQuestionSubmissionEnabled =
+          crowdsourcedQuestionSubmissionEnabled;
 
         settings.audit = [
           {
@@ -195,6 +198,7 @@ class CourseSettingService extends BaseService {
                 linearProgressionEnabled,
                 seekForwardEnabled,
                 isPublic,
+                crowdsourcedQuestionSubmissionEnabled,
               },
             },
           },
@@ -224,6 +228,8 @@ class CourseSettingService extends BaseService {
           courseSettings.settings?.linearProgressionEnabled,
         seekForwardEnabled: courseSettings.settings?.seekForwardEnabled,
         isPublic: courseSettings.settings?.isPublic,
+        crowdsourcedQuestionSubmissionEnabled:
+          courseSettings.settings?.crowdsourcedQuestionSubmissionEnabled,
       };
 
       const afterState = {
@@ -231,6 +237,7 @@ class CourseSettingService extends BaseService {
         linearProgressionEnabled,
         seekForwardEnabled,
         isPublic,
+        crowdsourcedQuestionSubmissionEnabled,
       };
 
       const audit: AuditingDto = {
@@ -250,6 +257,7 @@ class CourseSettingService extends BaseService {
         linearProgressionEnabled,
         seekForwardEnabled,
         isPublic,
+        crowdsourcedQuestionSubmissionEnabled,
         audit,
         session,
       );

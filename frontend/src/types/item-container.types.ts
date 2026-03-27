@@ -1,4 +1,5 @@
 import type { questionBankRef } from './quiz.types';
+import type { PendingStudentQuestionContext } from './student-question.types';
 
 export interface Item {
   _id: string;
@@ -67,9 +68,16 @@ export interface ItemContainerProps {
   courseId: string;
   versionId: string;
   completedItemIdsRef: React.RefObject<Set<string>>;
-  nextItem: {itemId:string};
+  nextItem: {
+    itemId?: string | null;
+    type?: string | null;
+    needsLoading?: boolean;
+  } | null;
   cohortId?: string;
-  cohortname?: string;
+  cohortName?: string;
+  crowdsourcedQuestionSubmissionEnabled?: boolean;
+  pendingStudentQuestionContext?: PendingStudentQuestionContext | null;
+  clearPendingStudentQuestionContext?: () => void;
 }
 
 export interface ItemContainerRef {

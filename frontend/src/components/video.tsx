@@ -3,17 +3,20 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, Loader2, XCircle, Maximize, Minimize, FastForward } from 'lucide-react';
-import { useSkipOptionalItem, useStartItem, useStopItem, useStoreWatchTimeTrack, } from '../hooks/hooks';
+import { useSkipOptionalItem, useStartItem, useStopItem, useStoreWatchTimeTrack, useSubmitStudentQuestion, } from '../hooks/hooks';
 
 
 import { useCourseStore } from '../store/course-store';
 import { usePlayerStore } from '../store/player-store'; // Import the new store
 import type { VideoProps, YTPlayerInstance } from '@/types/video.types';
+import type { StudentQuestionSubmissionPayload } from '@/types/student-question.types';
 
 import { toast } from 'sonner';
 import { Badge } from './ui/badge';
 import { WatchTimeTrackData } from '@/types/user_activity_event.types';
+import StudentQuestionComposer from './StudentQuestionComposer';
 
 
 // Helper to format seconds to HH:MM:SS
@@ -43,7 +46,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef}: VideoProps) {
+export default function Video({ URL, startTime, nextItemId, nextItemType, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef, crowdsourcedQuestionSubmissionEnabled = false}: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -167,6 +170,49 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   // HANDLE STOP FAILED CASE, SHOW SKIP OPTION IF FAILED
   const [isStopFailed, setIsStopFailed] = useState(false);
   const { mutateAsync: skipItemAsync, isPending: isSkipping } = useSkipOptionalItem();
+  const {
+    submitQuestion,
+    loading: isSubmittingQuestion,
+  } = useSubmitStudentQuestion();
+  const [showCompletionPrompt, setShowCompletionPrompt] = useState(false);
+  const [showQuestionModal, setShowQuestionModal] = useState(false);
+
+  const handleCompletionNextStep = useCallback(() => {
+    if (crowdsourcedQuestionSubmissionEnabled && nextItemType !== 'quiz') {
+      setShowCompletionPrompt(true);
+      return;
+    }
+    onNext?.();
+  }, [crowdsourcedQuestionSubmissionEnabled, nextItemType, onNext]);
+
+  const handleSkipQuestionSubmission = useCallback(() => {
+    setShowCompletionPrompt(false);
+    setShowQuestionModal(false);
+    onNext?.();
+  }, [onNext]);
+
+  const handleOpenQuestionModal = useCallback(() => {
+    setShowQuestionModal(true);
+  }, []);
+
+  const handleQuestionSubmit = useCallback(async (payload: StudentQuestionSubmissionPayload) => {
+    const courseId = currentCourse?.courseId;
+    const courseVersionId = currentCourse?.versionId;
+    const segmentId = currentCourse?.itemId;
+
+    if (!courseId || !courseVersionId || !segmentId) {
+      toast.error('Unable to submit question for this video.');
+      return;
+    }
+
+    try {
+      await submitQuestion(courseId, courseVersionId, segmentId, payload);
+      toast.success('Question submitted successfully');
+      handleSkipQuestionSubmission();
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to submit question');
+    }
+  }, [currentCourse?.courseId, currentCourse?.itemId, currentCourse?.versionId, handleSkipQuestionSubmission, submitQuestion]);
 
 
   const handleSkipItem = async () => {
@@ -176,7 +222,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
       await skipItemAsync({ params: { path: { itemId: currentCourse?.itemId } } });
       // toast.success('Item skipped successfully');
       handlePlayPause()
-      onNext?.();
+      handleCompletionNextStep();
     } catch (error) {
       console.error('Error skipping item:', error);
       toast.error('Failed to skip item');
@@ -683,7 +729,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
                 if (watchItemId) {
                   const success = await handleStopItem(watchItemId, 0); // No debounce on natural end
                   if (success) {
-                    onNext?.();
+                    handleCompletionNextStep();
                   }
                 }
               }
@@ -824,7 +870,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
               const success = await handleStopItem(watchItemId, debounceTime);
               if (success) {
                 await sendWatchTimeTrackData(capturedTrackData);
-                onNext?.();
+                handleCompletionNextStep();
               }
             // }
           }
@@ -845,7 +891,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
               const success = await handleStopItem(watchItemId, debounceTime);
               if (success) {
                 await sendWatchTimeTrackData(capturedTrackData);
-                onNext?.();
+                handleCompletionNextStep();
               }
             }
           }
@@ -1795,6 +1841,57 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
           </div>
 
           {/* Next Lesson Button */}
+          {showCompletionPrompt && (
+            <div
+              style={{
+                borderTop: '1px solid hsl(var(--border))',
+                paddingTop: '12px',
+                marginTop: '12px',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '8px',
+              }}
+            >
+              <Button
+                variant="outline"
+                onClick={handleSkipQuestionSubmission}
+                disabled={isSubmittingQuestion}
+              >
+                Skip
+              </Button>
+              <Button
+                onClick={handleOpenQuestionModal}
+                disabled={isSubmittingQuestion}
+              >
+                Submit a Question
+              </Button>
+            </div>
+          )}
+
+          <Dialog
+            open={showQuestionModal}
+            onOpenChange={open => {
+              if (!isSubmittingQuestion) {
+                setShowQuestionModal(open);
+              }
+            }}
+          >
+            <DialogContent
+              className="sm:max-w-[760px] max-h-[90vh] overflow-y-auto"
+              onInteractOutside={e => e.preventDefault()}
+            >
+              <DialogHeader>
+                <DialogTitle>Submit an MCQ Question</DialogTitle>
+              </DialogHeader>
+              <StudentQuestionComposer
+                isOpen={showQuestionModal}
+                isSubmitting={isSubmittingQuestion}
+                onCancel={() => setShowQuestionModal(false)}
+                onSubmit={handleQuestionSubmit}
+              />
+            </DialogContent>
+          </Dialog>
+
           {/*onNext && (
             <div style={{
               borderTop: '1px solid hsl(var(--border))',

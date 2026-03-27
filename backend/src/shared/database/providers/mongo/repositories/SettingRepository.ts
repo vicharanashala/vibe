@@ -273,6 +273,7 @@ export class SettingRepository implements ISettingRepository {
     linearProgressionEnabled: boolean,
     seekForwardEnabled: boolean,
     isPublic: boolean,
+    crowdsourcedQuestionSubmissionEnabled: boolean,
     audit: AuditingDto,
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
@@ -329,6 +330,8 @@ export class SettingRepository implements ISettingRepository {
           'settings.linearProgressionEnabled': linearProgressionEnabled,
           'settings.seekForwardEnabled': seekForwardEnabled,
           'settings.isPublic': isPublic,
+          'settings.crowdsourcedQuestionSubmissionEnabled':
+            crowdsourcedQuestionSubmissionEnabled,
         },
         $push: {
           'settings.audit': audit,

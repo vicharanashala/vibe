@@ -97,7 +97,13 @@ export class CourseSettingController {
   ): Promise<{ success: boolean }> {
     // This method updates proctoring settings for a course version.
     const { courseId, versionId } = params;
-    const { detectors, linearProgressionEnabled, seekForwardEnabled, isPublic } = body;
+    const {
+      detectors,
+      linearProgressionEnabled,
+      seekForwardEnabled,
+      isPublic,
+      crowdsourcedQuestionSubmissionEnabled,
+    } = body;
     const userId = user._id.toString();
     
     const result = await this.courseSettingService.updateCourseSettings(
@@ -107,6 +113,7 @@ export class CourseSettingController {
       linearProgressionEnabled,
       seekForwardEnabled,
       isPublic ?? false,
+      crowdsourcedQuestionSubmissionEnabled ?? false,
       userId
     );
 
@@ -127,7 +134,9 @@ export class CourseSettingController {
         after:{
           dectors: detectors,
           linearProgressionEnabled: linearProgressionEnabled,
-          seekForwardEnabled: seekForwardEnabled
+          seekForwardEnabled: seekForwardEnabled,
+          crowdsourcedQuestionSubmissionEnabled:
+            crowdsourcedQuestionSubmissionEnabled ?? false,
         }
       }, 
       outcome:{

@@ -1,3 +1,5 @@
+import type { PendingStudentQuestionContext } from './student-question.types';
+
 export interface QuizSubmissionResponse {
   _id?: string;
   quizId: string;
@@ -77,6 +79,8 @@ export interface QuizProps {
   isAlreadyWatched?: boolean;
   completedItemIdsRef: React.RefObject<Set<string>>;
   nextItemId?: string;
+  pendingStudentQuestionContext?: PendingStudentQuestionContext | null;
+  clearPendingStudentQuestionContext?: () => void;
 }
 
 export interface QuizRef {

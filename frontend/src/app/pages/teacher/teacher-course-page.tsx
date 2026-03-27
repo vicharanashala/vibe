@@ -406,6 +406,31 @@ function TeacherCourseContent() {
 
   const selectedQuizId = selectedEntity?.type === 'item' && selectedEntity?.data?.type === 'QUIZ' ? selectedEntity.data._id : null;
 
+  const linkedVideoSegmentId = useMemo(() => {
+    if (
+      selectedEntity?.type !== 'item' ||
+      selectedEntity?.data?.type !== 'QUIZ' ||
+      !selectedEntity.parentIds?.sectionId
+    ) {
+      return null;
+    }
+
+    const sectionId = selectedEntity.parentIds.sectionId;
+    const items = sectionItems[sectionId] || [];
+    const quizIndex = items.findIndex((item: any) => item?._id === selectedEntity.data._id);
+    if (quizIndex <= 0) {
+      return null;
+    }
+
+    for (let i = quizIndex - 1; i >= 0; i--) {
+      if (items[i]?.type === 'VIDEO' && items[i]?._id) {
+        return items[i]._id;
+      }
+    }
+
+    return null;
+  }, [sectionItems, selectedEntity]);
+
   const { data: quizDetails } = useQuizDetails(selectedQuizId);
   const { data: quizAnalytics } = useQuizAnalytics(selectedQuizId);
   // const { data: quizSubmissions } = useQuizSubmissions(selectedQuizId, selectedGradeStatus, sort, currentPage, limit);
@@ -3067,6 +3092,7 @@ function TeacherCourseContent() {
                           isLoading={isLoading}
                           selectedItemName={selectedItem.name}
                           quizId={selectedQuizId}
+                          linkedVideoSegmentId={linkedVideoSegmentId}
                           moduleId={selectedEntity.parentIds?.moduleId || ""}
                           sectionId={selectedEntity.parentIds?.sectionId || ""}
                           courseId={courseId}
