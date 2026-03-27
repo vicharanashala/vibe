@@ -97,7 +97,6 @@ export default function ConfigureCohorts() {
       sortBy,
       sortOrder,
     );
-    console.log("Cohorts Data",cohortsData)
 
   const handleSort = (key: "name" | "createdAt" | "updatedAt" | "baseHp" | "safeHp") => {
     if (sortBy === key) {
