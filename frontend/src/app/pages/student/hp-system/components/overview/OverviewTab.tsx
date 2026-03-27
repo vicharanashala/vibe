@@ -9,7 +9,7 @@ import {
     LineChart, 
     Line, 
     XAxis, 
-    YAxis, 
+    YAxis,
     CartesianGrid, 
     Tooltip as RechartsTooltip, 
     Legend, 

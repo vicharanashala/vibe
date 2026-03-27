@@ -14,6 +14,7 @@ import {
     Pie,
     Cell
 } from "recharts";
+import { AlertCircle } from "lucide-react";
 
 interface ProgressChartProps {
     title: string;
@@ -37,6 +38,21 @@ export function ProgressChart({
     const renderChart = () => {
         switch (type) {
             case 'bar':
+                // Handle empty data for bar charts
+                if (!data || data.length === 0) {
+                    return (
+                        <div className="h-[400px] w-full flex flex-col items-center justify-center text-muted-foreground">
+                            <AlertCircle className="h-12 w-12 mb-4 text-muted-foreground/50" />
+                            <p className="text-center text-sm">
+                                No activity data available
+                            </p>
+                            <p className="text-center text-xs text-muted-foreground/70 mt-2">
+                                There are no activities to display for the selected filters
+                            </p>
+                        </div>
+                    );
+                }
+                
                 return (
                     <ResponsiveContainer width="100%" height={height}>
                         <BarChart
@@ -66,6 +82,21 @@ export function ProgressChart({
                 );
 
             case 'line':
+                // Handle empty data for line charts
+                if (!data || data.length === 0) {
+                    return (
+                        <div className="h-[400px] w-full flex flex-col items-center justify-center text-muted-foreground">
+                            <AlertCircle className="h-12 w-12 mb-4 text-muted-foreground/50" />
+                            <p className="text-center text-sm">
+                                No submission data available
+                            </p>
+                            <p className="text-center text-xs text-muted-foreground/70 mt-2">
+                                There are no submissions to display for the selected period
+                            </p>
+                        </div>
+                    );
+                }
+                
                 return (
                     <ResponsiveContainer width="100%" height={height}>
                         <LineChart
@@ -94,6 +125,21 @@ export function ProgressChart({
                 );
 
             case 'pie':
+                // Handle empty data for pie charts
+                if (!data || data.length === 0 || data.every(item => item.count === 0)) {
+                    return (
+                        <div className="h-[400px] w-full flex flex-col items-center justify-center text-muted-foreground">
+                            <AlertCircle className="h-12 w-12 mb-4 text-muted-foreground/50" />
+                            <p className="text-center text-sm">
+                                No HP data available yet
+                            </p>
+                            <p className="text-center text-xs text-muted-foreground/70 mt-2">
+                                Students haven't earned any House Points in this cohort
+                            </p>
+                        </div>
+                    );
+                }
+                
                 return (
                     <ResponsiveContainer width="100%" height={height}>
                         <PieChart>
