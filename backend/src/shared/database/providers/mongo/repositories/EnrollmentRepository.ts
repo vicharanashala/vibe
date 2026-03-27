@@ -2539,7 +2539,7 @@ export class EnrollmentRepository {
    */
   private async getQuizDetails(
     quizIds: ObjectId[],
-  ): Promise<Map<string, { name: string }>> {
+  ): Promise<Map<string, { name: string; questionCount: number }>> {
     const quizzes = await this.quizCollection
       .find({
         _id: { $in: quizIds },
@@ -2547,13 +2547,20 @@ export class EnrollmentRepository {
       .project({
         _id: 1,
         name: 1,
+        'details.questionBankRefs.count': 1,
       })
       .toArray();
 
-    const quizDetails = new Map<string, { name: string }>();
+    const quizDetails = new Map<string, { name: string; questionCount: number }>();
     quizzes.forEach(quiz => {
+      const questionCount = (quiz.details?.questionBankRefs ?? []).reduce(
+        (sum: number, ref: { count?: number }) => sum + (Number(ref?.count) || 0),
+        0,
+      );
+
       quizDetails.set(quiz._id.toString(), {
         name: quiz.name,
+        questionCount,
       });
     });
 
@@ -3299,6 +3306,7 @@ export class EnrollmentRepository {
               $ifNull: [{ $toString: '$cohortId' }, 'no-cohort'],
             },
             totalScore: '$gradingResult.totalScore',
+            totalMaxScore: '$gradingResult.totalMaxScore',
           },
         },
         {
@@ -3310,6 +3318,7 @@ export class EnrollmentRepository {
             },
             attempts: { $sum: 1 },
             maxScore: { $max: '$totalScore' },
+            quizMaxScore: { $max: '$totalMaxScore' },
           },
         },
       ])
@@ -3381,6 +3390,7 @@ export class EnrollmentRepository {
     const scoreMap = new Map<string, Map<string, Map<string, Map<string, number>>>>();
     const maxScoreMap = new Map<string, Map<string, Map<string, number>>>();
     const attemptsMap = new Map<string, Map<string, Map<string, number>>>();
+    const quizMaxScoreMap = new Map<string, number>();
 
     // Build attempts and max score maps from separate aggregation
     for (const row of attemptsAggregation) {
@@ -3401,6 +3411,11 @@ export class EnrollmentRepository {
         .set(cohortId, maxScoreMap.get(userId)?.get(cohortId) ?? new Map())
         .get(cohortId)!
         .set(quizId, row.maxScore ?? 0);
+
+      quizMaxScoreMap.set(
+        quizId,
+        Math.max(quizMaxScoreMap.get(quizId) ?? 0, row.quizMaxScore ?? 0),
+      );
     }
 
     for (const row of bestAttemptSubmissions) {
@@ -3440,6 +3455,8 @@ export class EnrollmentRepository {
               sectionId: section.sectionId,
               quizId,
               quizName: quizDetails.get(quizId)?.name ?? 'Untitled Quiz',
+              questionCount: quizDetails.get(quizId)?.questionCount ?? 0,
+              quizMaxScore: this.formatExportScore(quizMaxScoreMap.get(quizId) ?? 0),
               maxScore: this.formatExportScore(
                 maxScoreMap.get(userId)?.get(cohortId)?.get(quizId) ?? 0,
               ),

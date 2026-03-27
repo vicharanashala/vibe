@@ -32,6 +32,8 @@ export class StudentQuizScoreDto {
     sectionId: string;
     quizId: string;
     quizName: string;
+    questionCount: number;
+    quizMaxScore: number;
     maxScore: number;
     attempts: number;
     questionScores: Array<{
