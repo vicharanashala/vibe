@@ -853,6 +853,15 @@ class EditQuestionBankBody implements Partial<QuestionBankRef> {
     example: ['math', 'science'],
   })
   tags?: string[];
+
+  @IsNumber()
+  @IsOptional()
+  @JSONSchema({
+    description: 'Points for each question in the bank',
+    type: 'number',
+    example: 5,
+  })
+  points?: number;
 }
 
 class RegradeSubmissionBody implements Partial<IGradingResult> {

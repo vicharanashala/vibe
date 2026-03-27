@@ -13,18 +13,21 @@ interface CreateQuestionBankDialogProps {
     showCreateBankDialog: boolean;
     setShowCreateBankDialog: (value: boolean) => void;
     quizId?: string;
+    questionBanks?: any[];
+    onRequestEditBank?: (bankId: string) => void;
 }
 
 interface QuestionBankForm {
     title: string;
     description: string;
     tags: string[];
+    points: number;
 }
 
 const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
     showCreateBankDialog,
     setShowCreateBankDialog,
-    quizId
+    quizId,
 }) => {
     const course = useCourseStore().currentCourse;
     const createQuestionBank = useCreateQuestionBank();
@@ -34,7 +37,8 @@ const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
     const [bankForm, setBankForm] = useState<QuestionBankForm>({
         title: '',
         description: '',
-        tags: []
+        tags: [],
+        points: 5
     });
     const [count, setCount] = useState(3);
     const [currentTag, setCurrentTag] = useState('');
@@ -43,7 +47,7 @@ const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
     const handleDialogChange = (open: boolean) => {
         setShowCreateBankDialog(open);
         if (!open) {
-            setBankForm({ title: '', description: '', tags: [] });
+            setBankForm({ title: '', description: '', tags: [], points: 5 });
             setCurrentTag('');
         }
     };
@@ -91,6 +95,7 @@ const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
                 title: bankForm.title.trim(),
                 description: bankForm.description.trim(),
                 tags: bankForm.tags,
+                points: bankForm.points,
                 questions: [] // Empty array as requested
             };
 
@@ -194,6 +199,20 @@ const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
                                         </div>
                                     )}
                                 </div>
+                            </div>
+
+                            {/* Points Field */}
+                            <div className="space-y-2">
+                                <Label htmlFor="bankPoints">Points per Question *</Label>
+                                <Input
+                                    id="bankPoints"
+                                    type="number"
+                                    value={bankForm.points}
+                                    onChange={(e) => setBankForm({ ...bankForm, points: parseInt(e.target.value) || 1 })}
+                                    min={1}
+                                    className="w-full"
+                                    placeholder="Enter points for each question"
+                                />
                             </div>
 
                             {/* Count Field */}
