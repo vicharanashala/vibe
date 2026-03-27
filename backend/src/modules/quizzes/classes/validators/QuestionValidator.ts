@@ -169,14 +169,14 @@ class Question implements Partial<IQuestion> {
   })
   timeLimitSeconds: number;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
   @JSONSchema({
     description: 'Points for the question',
     type: 'number',
     example: 5,
   })
-  points: number;
+  points?: number;
 
   @IsNotEmpty()
   @IsString()
