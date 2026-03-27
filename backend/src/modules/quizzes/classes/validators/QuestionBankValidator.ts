@@ -53,6 +53,15 @@ class CreateQuestionBankBody implements Partial<IQuestionBank> {
   })
   tags?: string[];
 
+  @IsNumber()
+  @IsOptional()
+  @JSONSchema({
+    description: 'Points for each question in the bank',
+    type: 'number',
+    example: 5,
+  })
+  points?: number;
+
   @IsString()
   @IsNotEmpty()
   @JSONSchema({
@@ -160,6 +169,15 @@ class QuestionBankResponse implements Partial<IQuestionBank> {
     example: ['math', 'science'],
   })
   tags?: string[];
+
+  @IsNumber()
+  @IsOptional()
+  @JSONSchema({
+    description: 'Points for each question in the bank',
+    type: 'number',
+    example: 5,
+  })
+  points?: number;
 
   @IsString()
   @JSONSchema({

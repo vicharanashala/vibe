@@ -1,4 +1,4 @@
-import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play, Activity } from "lucide-react";
+import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play, Activity, Shield, LucideShield } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,7 @@ import type { CourseCardProps } from '@/types/course.types';
 import { Pagination } from "../ui/Pagination";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { lazy, Suspense } from "react";
-
+import { StudentPolicyModal } from "@/app/pages/student/components/policies/StudentPolicyModal";
 const EnrollmentDetailsDialog = lazy(() =>
   import("@/components/course/EnrollmentDetailsDialog").then(mod => ({
     default: mod.EnrollmentDetailsDialog
@@ -251,11 +251,29 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   {variant !== 'available' && enrollment?.hpSystem && (
                     <Button variant="outline" className="flex-1 rounded-lg border-2" size="sm" onClick={() => navigate({ to: `/student/hp-system/${enrollment.courseVersionId}/${enrollment.cohortName}/activities` })}><Activity className="h-4 w-4 mr-2" />HP</Button>
                   )}
+                   {<Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPolicies(true)}
+                >
+                  <LucideShield className="h-3 w-3 mr-1" />
+                  Policies
+                </Button>}
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
+        <StudentPolicyModal
+                  open={showPolicies}
+                  onClose={() => setShowPolicies(false)}
+                  courseId={courseId}
+                  courseVersionId={versionId}
+                  cohortId={cohortId}
+                  enrollmentDate={enrollment.enrollmentDate}
+                  currentProgressPercent={progress}
+                />
+
 
         <Suspense fallback={null}>
           <StudentTimeslotModal
