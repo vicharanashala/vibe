@@ -1047,7 +1047,7 @@ export const RegistrationActions = ({
   const [isRefresh, setIsRefresh] = useState(false);
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2 justify-end">
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
           <Button variant="outline" size="sm" className="gap-2">
