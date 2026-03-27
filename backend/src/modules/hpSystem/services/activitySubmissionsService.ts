@@ -741,6 +741,9 @@ export class ActivitySubmissionsService extends BaseService {
                     totalLateSubmissions: 0,
                     totalPendings: 0,
                     currentHp: 0,
+                    bestPerformingCohort: cohortName,
+                    coursePerformance: [],
+                    weeklyActivity: [],
                 },
             };
         }
@@ -770,6 +773,9 @@ export class ActivitySubmissionsService extends BaseService {
             totalLateSubmissions,
             totalPendings: totalPendingActivites,
             currentHp: enrollment?.hpPoints ?? 0,
+            bestPerformingCohort: cohortName,
+            coursePerformance: [],
+            weeklyActivity: [],
         };
 
         return {
@@ -1053,11 +1059,140 @@ export class ActivitySubmissionsService extends BaseService {
         });
     }
 
-    async getBulkCohortActivityStats(cohortName: string, courseVersionId: string, session?: ClientSession): Promise<any> {
+    async getBulkCohortActivityStats(cohortName: string, courseVersionId: string, session?: ClientSession): Promise<StudentActivitySubmissionStatsViewDto> {
         return this._withTransaction(async (session) => {
-            const data = await this.activitySubmissionsRepository.getCohortStatsMap(cohortName, courseVersionId, session);
-            return data;
+            
+            // Get cohort override info once to avoid repeated lookups
+            const cohortOverride = COHORT_OVERRIDES[cohortName];
+            const effectiveVersionId = cohortOverride?.versionId || courseVersionId;
+            
+            // Get cohort ID once if needed for HP calculations
+            let cohortId: string | null = null;
+            if (!cohortOverride) {
+                cohortId = await this.cohortRepository.getCohortIdByCohortName(cohortName);
+            }
+            
+            // Execute all queries in parallel for optimal performance
+            const [
+                statsMap,
+                totalActivitiesCounts,
+                weeklyActivity,
+                hpDistribution,
+                studentProgress,
+                lateSubmissionCount,
+                pendingSubmissionsCount
+            ] = await Promise.all([
+                // Get submission statistics
+                this.activitySubmissionsRepository.getCohortStatsMap(cohortName, courseVersionId, session),
+                
+                // Get total activities count only
+                this.activityRepository.getCountByCohortName(cohortName, courseVersionId, session),
+                
+                // Get weekly activity data
+                this.getWeeklyActivityData(cohortName, courseVersionId, session),
+                
+                // Get HP distribution data
+                this.ledgerRepository.getHpDistributionForCohort(cohortName, courseVersionId, session),
+                
+                // Get student progress data
+                this.activitySubmissionsRepository.getStudentProgressForCohort(cohortName, courseVersionId, session),
+                
+                // Get late submission count
+                this.activitySubmissionsRepository.getLateSubmissionCount(cohortName, courseVersionId, session),
+                
+                // Get pending submissions count
+                this.activitySubmissionsRepository.getPendingSubmissionsCount(cohortName, courseVersionId, session)
+            ]);
+
+            // Build result object
+            const result = {
+                totalActivities: totalActivitiesCounts || 0,
+                totalSubmissions: totalActivitiesCounts || 0,
+                totalPendings: pendingSubmissionsCount || 0,
+                totalLateSubmissions: lateSubmissionCount || 0,
+                currentHp: 0,
+                reward: null,
+                bestPerformingCohort: cohortName,
+                coursePerformance: [],
+                weeklyActivity: weeklyActivity || [],
+                completionRates: this.formatCompletionRates(statsMap),
+                hpDistribution: this.formatHpDistribution(hpDistribution),
+                studentProgress: [studentProgress || { completed: 0, inProgress: 0, notStarted: 0 }]
+            };
+            
+            return result;
         });
+    }
+
+    // Helper methods for data formatting to keep main method clean
+    private formatCompletionRates(statsMap: any): any[] {
+        if (!statsMap) return [];
+        
+        return Object.entries(statsMap).map(([activityId, stats]: [string, any]) => ({
+            activityId,
+            activityTitle: `Activity ${activityId}`,
+            submittedCount: stats.submittedCount || 0,
+            pendingCount: stats.submittedCount || 0,
+            revertedCount: stats.revertedCount || 0,
+            totalAssigned: (stats.submittedCount || 0) + (stats.approvedCount || 0) + (stats.rejectedCount || 0) + (stats.revertedCount || 0)
+        }));
+    }
+
+    private formatHpDistribution(distribution: any): any[] {
+        if (!distribution) return [];
+        
+        const total = distribution.low + distribution.medium + distribution.high + distribution.veryHigh;
+        
+        return [
+            { range: '0-50 HP', count: distribution.low, percentage: total > 0 ? Math.round((distribution.low / total) * 100) : 0 },
+            { range: '51-100 HP', count: distribution.medium, percentage: total > 0 ? Math.round((distribution.medium / total) * 100) : 0 },
+            { range: '101-200 HP', count: distribution.high, percentage: total > 0 ? Math.round((distribution.high / total) * 100) : 0 },
+            { range: '200+ HP', count: distribution.veryHigh, percentage: total > 0 ? Math.round((distribution.veryHigh / total) * 100) : 0 }
+        ];
+    }
+
+
+    private async getWeeklyActivityData(cohortName: string, courseVersionId: string, session: ClientSession): Promise<any[]> {
+        // Get real weekly activity data from activity submissions
+        try {
+            const weeklyData = [];
+            const today = new Date();
+            
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                const startDate = new Date(date);
+                startDate.setHours(0, 0, 0, 0);
+                const endDate = new Date(date);
+                endDate.setHours(23, 59, 59, 999);
+                
+                // Get activity counts for this specific day by status
+                const [submittedCount, approvedCount, rejectedCount] = await Promise.all([
+                    this.activitySubmissionsRepository.getDailyActivityCountByStatus(
+                        cohortName, courseVersionId, startDate, endDate, 'SUBMITTED', session
+                    ),
+                    this.activitySubmissionsRepository.getDailyActivityCountByStatus(
+                        cohortName, courseVersionId, startDate, endDate, 'APPROVED', session
+                    ),
+                    this.activitySubmissionsRepository.getDailyActivityCountByStatus(
+                        cohortName, courseVersionId, startDate, endDate, 'REJECTED', session
+                    )
+                ]);
+                
+                weeklyData.push({
+                    date: date.toISOString().split('T')[0], // YYYY-MM-DD format
+                    submitted: submittedCount || 0,
+                    approved: approvedCount || 0,
+                    rejected: rejectedCount || 0
+                });
+            }
+            
+            return weeklyData;
+        } catch (error) {
+            console.error('Error getting weekly activity data:', error);
+            // Fallback to empty array if there's an error
+            return [];
+        }
     }
 }
 

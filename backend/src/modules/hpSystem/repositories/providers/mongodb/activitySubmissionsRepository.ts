@@ -1,9 +1,11 @@
 import { SubmissionFeedbackItem } from "#root/modules/hpSystem/classes/transformers/ActivitySubmission.js";
 import { FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsViewDto, SubmissionPayloadDto } from "#root/modules/hpSystem/classes/validators/activitySubmissionValidators.js";
 import { IActivitySubmissionRepository } from "#root/modules/hpSystem/interfaces/IActivitySubmissionRepository.js";
+import { IActivityRepository } from "#root/modules/hpSystem/interfaces/IActivityRepository.js";
 import { HpActivitySubmission, HpRuleConfig, SubmissionSource, SubmissionStatus } from "#root/modules/hpSystem/models.js";
 import { ID, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
+import { HP_SYSTEM_TYPES } from "#root/modules/hpSystem/types.js";
 import { plainToInstance } from "class-transformer";
 import { inject, injectable } from "inversify";
 import { ClientSession, Collection, ObjectId } from "mongodb";
@@ -17,6 +19,8 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
     constructor(
         @inject(GLOBAL_TYPES.Database)
         private db: MongoDatabase,
+        @inject(HP_SYSTEM_TYPES.activityRepository)
+        private activityRepository: IActivityRepository,
     ) { }
 
     async init() {
@@ -630,6 +634,24 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         });
     }
 
+    async getLateSubmissionCount(cohortName: string, courseVersionId: string, session?: ClientSession): Promise<number> {
+        await this.init();
+        return await this.hpActivitySubmissionCollection.countDocuments({
+            cohort: cohortName,
+            courseVersionId: new ObjectId(courseVersionId),
+            isLate: true
+        }, { session });
+    }
+
+    async getPendingSubmissionsCount(cohortName: string, courseVersionId: string, session?: ClientSession): Promise<number> {
+        await this.init();
+        return await this.hpActivitySubmissionCollection.countDocuments({
+            cohort: cohortName,
+            courseVersionId: new ObjectId(courseVersionId),
+            status: 'SUBMITTED'
+        }, { session });
+    }
+
     async getCompletedActivitiesCountByStudentId(studentId: string): Promise<Array<{ cohort: string, count: number }>> {
         await this.init();
 
@@ -818,5 +840,122 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         });
 
         return statsMap;
+    }
+
+    async getDailyActivityCount(
+        cohortName: string, 
+        courseVersionId: string, 
+        startDate: Date, 
+        endDate: Date, 
+        session?: ClientSession
+    ): Promise<number> {
+        await this.init();
+        
+        const collection = this.hpActivitySubmissionCollection;
+
+        const filter = {
+            cohort: cohortName,
+            courseVersionId: new ObjectId(courseVersionId),
+            createdAt: {
+                $gte: startDate,
+                $lte: endDate
+            }
+        };
+
+        const count = await collection.countDocuments(filter, { session });
+        return count;
+    }
+
+    async getDailyActivityCountByStatus(
+        cohortName: string,
+        courseVersionId: string,
+        startDate: Date,
+        endDate: Date,
+        status: string,
+        session?: ClientSession
+    ): Promise<number> {
+        await this.init();
+        
+        const collection = this.hpActivitySubmissionCollection;
+
+        const filter = {
+            cohort: cohortName,
+            courseVersionId: new ObjectId(courseVersionId),
+            status: status as SubmissionStatus,
+            createdAt: {
+                $gte: startDate,
+                $lte: endDate
+            }
+        };
+
+        const count = await collection.countDocuments(filter, { session });
+        return count;
+    }
+
+    async getUniqueStudentCountForCohort(
+        cohortName: string,
+        courseVersionId: string,
+        session?: ClientSession
+    ): Promise<number> {
+        await this.init();
+        
+        const collection = this.hpActivitySubmissionCollection;
+
+        const filter = {
+            cohort: cohortName,
+            courseVersionId: new ObjectId(courseVersionId)
+        };
+
+        const uniqueStudents = await collection.distinct('studentId', filter, { session });
+        return uniqueStudents.length;
+    }
+
+    async getStudentProgressForCohort(
+        cohortName: string,
+        courseVersionId: string,
+        session?: ClientSession
+    ): Promise<{
+        completed: number;
+        inProgress: number;
+        notStarted: number;
+    }> {
+        await this.init();
+        
+        const collection = this.hpActivitySubmissionCollection;
+
+        // Get total activities for this cohort
+        const totalActivities = await this.activityRepository.getCountByCohortName(cohortName, courseVersionId);
+        
+        // Get unique students
+        const uniqueStudents = await collection.distinct('studentId', {
+            cohort: cohortName,
+            courseVersionId: new ObjectId(courseVersionId)
+        }, { session });
+
+        let completed = 0;
+        let inProgress = 0;
+        let notStarted = 0;
+
+        for (const studentId of uniqueStudents) {
+            // Get student's submissions
+            const submissions = await collection.find({
+                cohort: cohortName,
+                courseVersionId: new ObjectId(courseVersionId),
+                studentId
+            }, { session }).toArray();
+
+            const approvedCount = submissions.filter(s => s.status === 'APPROVED').length;
+            const submittedCount = submissions.filter(s => s.status === 'SUBMITTED').length;
+
+            if (approvedCount === totalActivities) {
+                completed++;
+            } else if (submittedCount > 0 || approvedCount > 0) {
+                inProgress++;
+            } else {
+                notStarted++;
+            }
+        }
+
+        return { completed, inProgress, notStarted };
     }
 }

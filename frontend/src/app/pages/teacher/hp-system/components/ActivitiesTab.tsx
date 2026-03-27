@@ -104,8 +104,8 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
     const { mutateAsync: archiveActivity } = useArchiveHpActivity();
     const {mutateAsync: deleteActivity} = useDeleteHpActivity();
 
-    const { data: statsMap } = useHpActivitiesStatsMap(cohortName, courseVersionId);
-    console.log("Stats Map:", statsMap);
+    // const { data: statsMap } = useHpActivitiesStatsMap(cohortName, courseVersionId);
+    // console.log("Stats Map:", statsMap);
 
     // Handle Search Debounce
     // useEffect(() => {
