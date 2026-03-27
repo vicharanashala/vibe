@@ -619,7 +619,7 @@ export const CourseCardSkeleton = ({ variant }: { variant: string }) => {
 };
 
 const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { courseId: string; versionId: string; courseName?: string; isOpen: boolean }) => {
-  const { data: leaderboardData, isLoading } = useLeaderboard(courseId, versionId, isOpen);
+  const { leaderboard: leaderboardData, isLoading } = useLeaderboard(courseId, versionId, 1, 100, isOpen);
 
   return (
     <DialogContent className="max-w-2xl">
