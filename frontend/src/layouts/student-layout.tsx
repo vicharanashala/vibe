@@ -217,8 +217,10 @@ useEffect(() => {
                 </span>
               </div>
             </Link>
+          </div>
 
-            <div className="hidden md:flex items-center gap-1">
+          <div className="flex gap-4">
+            <div className="">
               <Button
                 variant="ghost"
                 size="sm"
