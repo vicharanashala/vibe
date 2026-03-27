@@ -174,8 +174,8 @@ class InviteBody {
   @IsOptional()
   @JSONSchema({
     description: 'Cohort to which the users will be invited (if applicable)',
-    example: 'Cohort A', 
-    })
+    example: 'Cohort A',
+  })
   cohortId?: ID;
 }
 export type InviteStatus =
@@ -249,6 +249,12 @@ class InviteResult {
   @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
   courseVersionId?: string | ObjectId;
 
+  @IsString()
+  @IsOptional()
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  cohortId?: string | ObjectId;
+
   @JSONSchema({
     description: 'Date when the invite was accepted',
     type: 'string',
@@ -274,6 +280,7 @@ class InviteResult {
     acceptedAt?: Date,
     courseId?: string | ObjectId,
     courseVersionId?: string | ObjectId,
+    cohortId?: string | ObjectId,
     course?: Course,
   ) {
     this.inviteId = inviteId;
@@ -283,6 +290,7 @@ class InviteResult {
     this.course = course;
     this.courseId = courseId;
     this.courseVersionId = courseVersionId;
+    this.cohortId = cohortId;
     if (inviteStatus == 'ACCEPTED' && acceptedAt) {
       this.acceptedAt = acceptedAt;
     }
@@ -291,7 +299,7 @@ class InviteResult {
 
 class InviteResponse {
   @JSONSchema({
-    description:'Results of the invite'
+    description: 'Results of the invite',
   })
   @IsArray()
   @ArrayNotEmpty()
@@ -302,14 +310,14 @@ class InviteResponse {
   @IsOptional()
   @IsInt()
   @JSONSchema({
-    description:'total documents returned'
+    description: 'total documents returned',
   })
   totalDocuments?: number;
 
   @IsOptional()
   @IsInt()
   @JSONSchema({
-    description:'total pages'
+    description: 'total pages',
   })
   totalPages?: number;
 
@@ -326,11 +334,10 @@ class InviteResponse {
 
 class InviteLinkResponse {
   @JSONSchema({
-    description:'Invite link',
+    description: 'Invite link',
   })
   @IsString()
   link: string;
-
 }
 
 export {
@@ -342,5 +349,5 @@ export {
   InviteIdParams,
   InviteQueryParams,
   CourseVersionIdParams,
-  InviteLinkResponse
+  InviteLinkResponse,
 };
