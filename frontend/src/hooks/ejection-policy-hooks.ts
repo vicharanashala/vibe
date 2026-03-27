@@ -181,7 +181,7 @@ export const useEjectionHistory = (
   courseId: string,
   courseVersionId: string,
   query: {
-    triggerType?: string;
+    eventType?: string;
     cohortId?: string;
     startDate?: string;
     endDate?: string;
@@ -222,7 +222,7 @@ export const useExportEjectionHistory = () => {
     mutationFn: async (params: {
       courseId: string;
       courseVersionId: string;
-      triggerType?: string;
+      eventType?: string;
       cohortId?: string;
       startDate?: string;
       endDate?: string;

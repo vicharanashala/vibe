@@ -31,7 +31,7 @@ interface EjectionHistoryTabProps {
 const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versionId, cohortId, onBack }) => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [triggerType, setTriggerType] = useState<string>('ALL');
+  const [eventType, setEventType] = useState<string>('ALL');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -42,7 +42,7 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
     page,
     limit: 10,
     search,
-    triggerType: triggerType === 'ALL' ? undefined : triggerType,
+    eventType: eventType === 'ALL' ? undefined : eventType,
     cohortId,
     startDate: localStartDate,
     endDate: localEndDate,
@@ -55,7 +55,7 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
       courseId,
       courseVersionId: versionId,
       search,
-      triggerType: triggerType === 'ALL' ? undefined : triggerType,
+      eventType: eventType === 'ALL' ? undefined : eventType,
       cohortId,
       startDate: localStartDate,
       endDate: localEndDate,
@@ -64,7 +64,7 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
 
   const handleResetFilters = () => {
     setSearch('');
-    setTriggerType('ALL');
+    setEventType('ALL');
     setStartDate('');
     setEndDate('');
     setPage(1);
@@ -95,14 +95,15 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
             />
           </div>
           
-          <Select value={triggerType} onValueChange={(val) => { setTriggerType(val); setPage(1); }}>
+          <Select value={eventType} onValueChange={(val) => { setEventType(val); setPage(1); }}>
             <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Trigger Type" />
+              <SelectValue placeholder="Event Type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All Triggers</SelectItem>
-              <SelectItem value="MANUAL">Manual</SelectItem>
-              <SelectItem value="POLICY">Policy</SelectItem>
+              <SelectItem value="ALL">All Events</SelectItem>
+              <SelectItem value="EJECTED">Ejection</SelectItem>
+              <SelectItem value="REINSTATED">Reinstatement</SelectItem>
+              <SelectItem value="APPEAL">Appeal</SelectItem>
             </SelectContent>
           </Select>
 
@@ -201,19 +202,13 @@ const EjectionHistoryTab: React.FC<EjectionHistoryTabProps> = ({ courseId, versi
                     {entry.type === 'APPEAL_REJECTED' && <Badge variant="outline" className="text-red-600 border-red-200 bg-red-50">Appeal Rej.</Badge>}
                   </TableCell>
                   <TableCell>
-                    {entry.triggerType === 'APPEAL' ? (
-                       <span className="text-muted-foreground text-xs">-</span>
-                    ) : (
-                      <>
-                        <Badge variant={entry.triggerType === 'POLICY' ? 'default' : 'secondary'}>
-                          {entry.triggerType}
-                        </Badge>
-                        {entry.policyName && (
-                          <div className="text-[10px] mt-1 text-muted-foreground truncate max-w-[120px]" title={entry.policyName}>
-                            {entry.policyName}
-                          </div>
-                        )}
-                      </>
+                    <Badge variant={entry.triggerType === 'POLICY' ? 'default' : entry.triggerType === 'APPEAL' ? 'outline' : 'secondary'}>
+                      {entry.triggerType}
+                    </Badge>
+                    {entry.policyName && (
+                      <div className="text-[10px] mt-1 text-muted-foreground truncate max-w-[120px]" title={entry.policyName}>
+                        {entry.policyName}
+                      </div>
                     )}
                   </TableCell>
                   <TableCell className="max-w-[200px]">

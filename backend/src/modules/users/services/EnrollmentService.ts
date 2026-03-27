@@ -2243,7 +2243,7 @@ export class EnrollmentService extends BaseService {
     courseId: string,
     courseVersionId: string,
     params: {
-      triggerType?: string;
+      eventType?: string;
       startDate?: Date;
       endDate?: Date;
       search?: string;
@@ -2270,7 +2270,7 @@ export class EnrollmentService extends BaseService {
     courseId: string,
     courseVersionId: string,
     params: {
-      triggerType?: string;
+      eventType?: string;
       startDate?: Date;
       endDate?: Date;
       search?: string;
@@ -2285,6 +2285,8 @@ export class EnrollmentService extends BaseService {
 
     const {createObjectCsvStringifier} = await import('csv-writer');
 
+    const hasPolicyName = history.some(item => !!item.policyName && item.policyName !== 'N/A' && item.policyName !== '-');
+
     const header = [
       {id: 'firstName', title: 'First Name'},
       {id: 'lastName', title: 'Last Name'},
@@ -2293,8 +2295,8 @@ export class EnrollmentService extends BaseService {
       {id: 'date', title: 'Date'},
       {id: 'type', title: 'Event Type'},
       {id: 'triggerType', title: 'Trigger Type'},
-      {id: 'policyName', title: 'Policy Name'},
-      {id: 'ejectionReason', title: 'Context / Reason'},
+      ...(hasPolicyName ? [{id: 'policyName', title: 'Policy Name'}] : []),
+      {id: 'ejectionReason', title: 'Reason'},
       {id: 'adminName', title: 'Stored By'},
     ];
 
@@ -2305,9 +2307,9 @@ export class EnrollmentService extends BaseService {
     const formattedHistory = history.map(item => ({
       ...item,
       date: item.date ? new Date(item.date).toLocaleString() : '',
-      policyName: item.policyName || 'N/A',
-      cohortName: item.cohortName || 'N/A',
-      adminName: item.adminName || 'N/A'
+      policyName: item.policyName || '',
+      cohortName: item.cohortName || '',
+      adminName: item.adminName || ''
     }));
 
     return (

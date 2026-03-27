@@ -4857,7 +4857,7 @@ export class EnrollmentRepository {
     courseId: string,
     courseVersionId: string,
     params: {
-      triggerType?: string;
+      eventType?: string;
       startDate?: Date;
       endDate?: Date;
       search?: string;
@@ -4870,7 +4870,7 @@ export class EnrollmentRepository {
     await this.init();
 
     const {
-      triggerType,
+      eventType,
       startDate,
       endDate,
       search,
@@ -4917,6 +4917,7 @@ export class EnrollmentRepository {
                     type: 'REINSTATED',
                     date: '$ejectionHistory.reinstatedAt',
                     adminId: '$ejectionHistory.reinstatedBy',
+                    ejectionReason: { $cond: [{ $eq: ['$ejectionHistory.triggerType', 'APPEAL'] }, 'Reinstated from appeal', 'Reinstated by admin'] },
                     policyId: '$ejectionHistory.policyId',
                     triggerType: { $cond: [{ $ifNull: ['$ejectionHistory.policyId', false] }, 'POLICY', 'MANUAL'] }
                   }],
@@ -4969,12 +4970,12 @@ export class EnrollmentRepository {
                     ],
                     {
                       $cond: [
-                        { $and: [{ $ne: ['$status', 'PENDING'] }, { $ifNull: ['$processedAt', false] }] },
+                        { $and: [{ $ne: ['$status', 'PENDING'] }, { $ifNull: ['$reviewedAt', false] }] },
                         [{
                           type: { $cond: [{ $eq: ['$status', 'APPROVED'] }, 'APPEAL_APPROVED', 'APPEAL_REJECTED'] },
-                          date: '$processedAt',
+                          date: '$reviewedAt',
                           ejectionReason: { $concat: ['Appeal ', { $toLower: '$status' }] },
-                          adminId: '$processedBy',
+                          adminId: '$reviewedBy',
                           triggerType: 'APPEAL'
                         }],
                         []
@@ -5054,17 +5055,29 @@ export class EnrollmentRepository {
           adminId: 1,
           adminName: {
             $cond: [
-              { $ifNull: ['$admin', false] },
-              { $concat: ['$admin.firstName', ' ', '$admin.lastName'] },
-              'System'
+              { $eq: ['$type', 'APPEAL_SUBMITTED'] },
+              'Student',
+              {
+                $cond: [
+                  { $ifNull: ['$admin', false] },
+                  { $trim: { input: { $concat: [{ $ifNull: ['$admin.firstName', ''] }, ' ', { $ifNull: ['$admin.lastName', ''] }] } } },
+                  'System'
+                ]
+              }
             ]
           },
           policyId: 1,
-          policyName: '$policy.name',
+          policyName: {
+            $cond: [
+              { $eq: ['$triggerType', 'APPEAL'] },
+              '',
+              '$policy.name'
+            ]
+          },
           triggerType: 1
         }
       },
-      ...(triggerType ? [ { $match: { triggerType } } ] : []),
+      ...(eventType ? [ { $match: { type: { $regex: `^${eventType}`, $options: 'i' } } } ] : []),
       ...(startDate || endDate ? [
         {
           $match: {

@@ -33,9 +33,9 @@ export class EjectionHistoryQuery {
   cohortId?: string;
 
   @IsOptional()
-  @IsEnum(EjectionTriggerType)
-  @JSONSchema({description: 'Filter by trigger type (MANUAL or POLICY)'})
-  triggerType?: EjectionTriggerType;
+  @IsString()
+  @JSONSchema({description: 'Filter by event type (EJECTED, REINSTATED, APPEAL)'})
+  eventType?: string;
 
   @IsOptional()
   @IsDate()
