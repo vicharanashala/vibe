@@ -142,13 +142,15 @@ export class EnrollmentRepository {
     return await this.enrollmentCollection
       .find(
         {
-          userId: { $in: [userId, new ObjectId(userId)] },
-          courseId: { $in: [courseId, new ObjectId(courseId)] },
-          courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+          userId: {$in: [userId, new ObjectId(userId)]},
+          courseId: {$in: [courseId, new ObjectId(courseId)]},
+          courseVersionId: {
+            $in: [courseVersionId, new ObjectId(courseVersionId)],
+          },
           role: 'STUDENT',
-          isDeleted: { $ne: true },
+          isDeleted: {$ne: true},
         },
-        { session },
+        {session},
       )
       .toArray();
   }
@@ -164,13 +166,15 @@ export class EnrollmentRepository {
     return await this.enrollmentCollection
       .find(
         {
-          userId: { $in: [userId, new ObjectId(userId)] },
-          courseId: { $in: [courseId, new ObjectId(courseId)] },
-          courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+          userId: {$in: [userId, new ObjectId(userId)]},
+          courseId: {$in: [courseId, new ObjectId(courseId)]},
+          courseVersionId: {
+            $in: [courseVersionId, new ObjectId(courseVersionId)],
+          },
           status: 'ACTIVE',
-          isDeleted: { $ne: true },
+          isDeleted: {$ne: true},
         },
-        { session },
+        {session},
       )
       .toArray();
   }
@@ -180,7 +184,7 @@ export class EnrollmentRepository {
     session?: ClientSession,
   ): Promise<IEnrollment[]> {
     await this.init();
-    return await this.enrollmentCollection.find(filter, { session }).toArray();
+    return await this.enrollmentCollection.find(filter, {session}).toArray();
   }
 
   async findAnyEnrollment(
@@ -359,7 +363,7 @@ export class EnrollmentRepository {
         userId: {$in: userFilter},
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
+        ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {cohortId: null}),
       },
       {
         $set: {
@@ -1366,10 +1370,10 @@ export class EnrollmentRepository {
       userId: e.userId,
       courseId: e.courseId,
       courseVersionId: e.courseVersionId,
-      ...(e.cohortId ? { cohortId: e.cohortId } : {}),
-      isHidden: { $ne: true },
-      isDeleted: { $ne: true },
-      endTime: { $exists: true, $ne: null },
+      ...(e.cohortId ? {cohortId: e.cohortId} : {}),
+      isHidden: {$ne: true},
+      isDeleted: {$ne: true},
+      endTime: {$exists: true, $ne: null},
     }));
 
     const results = await this.watchTimeCollection
@@ -1425,10 +1429,10 @@ export class EnrollmentRepository {
       userId: e.userId,
       courseId: e.courseId,
       courseVersionId: e.courseVersionId,
-      ...(e.cohortId ? { cohortId: e.cohortId } : {}),
-      isHidden: { $ne: true },
-      isDeleted: { $ne: true },
-      endTime: { $exists: true, $ne: null },
+      ...(e.cohortId ? {cohortId: e.cohortId} : {}),
+      isHidden: {$ne: true},
+      isDeleted: {$ne: true},
+      endTime: {$exists: true, $ne: null},
     }));
 
     const watchedItems = await this.watchTimeCollection
@@ -1440,7 +1444,7 @@ export class EnrollmentRepository {
               userId: '$userId',
               courseId: '$courseId',
               courseVersionId: '$courseVersionId',
-              cohortId: { $ifNull: ['$cohortId', ''] },
+              cohortId: {$ifNull: ['$cohortId', '']},
               itemId: '$itemId',
             },
           },
@@ -1681,31 +1685,25 @@ export class EnrollmentRepository {
     ];
 
     // 4. Enrich only with basic user data and assigned time slots (no heavy watchTime/itemsGroup lookups)
-    paginatedPipeline.push(
-      {
-        $addFields: {
-          userId: { $toString: '$userInfo._id' },
-          _id: { $toString: '$_id' },
-          courseId: { $toString: '$courseId' },
-          courseVersionId: { $toString: '$courseVersionId' },
-          firstName: '$userInfo.firstName',
-          lastName: '$userInfo.lastName',
-          email: '$userInfo.email',
-          completedItemsCount: { $ifNull: ['$completedItemsCount', 0] },
-          cohortId: {
-            $cond: [
-              { $ifNull: ["$cohort._id", false] },
-              { $toString: "$cohort._id" },
-              null
-            ]
-          },
-          cohortName: {
-            $cond: [
-              { $ifNull: ["$cohort.name", false] },
-              "$cohort.name",
-              null
-            ]
-          },
+    paginatedPipeline.push({
+      $addFields: {
+        userId: {$toString: '$userInfo._id'},
+        _id: {$toString: '$_id'},
+        courseId: {$toString: '$courseId'},
+        courseVersionId: {$toString: '$courseVersionId'},
+        firstName: '$userInfo.firstName',
+        lastName: '$userInfo.lastName',
+        email: '$userInfo.email',
+        completedItemsCount: {$ifNull: ['$completedItemsCount', 0]},
+        cohortId: {
+          $cond: [
+            {$ifNull: ['$cohort._id', false]},
+            {$toString: '$cohort._id'},
+            null,
+          ],
+        },
+        cohortName: {
+          $cond: [{$ifNull: ['$cohort.name', false]}, '$cohort.name', null],
         },
       },
     });
@@ -1798,12 +1796,12 @@ export class EnrollmentRepository {
           assignedTimeSlots: 1,
           cohortId: {
             $cond: [
-              { $ifNull: ["$cohort._id", false] },
-              { $toString: "$cohort._id" },
-              null
-            ]
+              {$ifNull: ['$cohort._id', false]},
+              {$toString: '$cohort._id'},
+              null,
+            ],
           },
-          cohortName: "$cohort.name",
+          cohortName: '$cohort.name',
           contentCounts: {
             totalItems: {$ifNull: ['$courseVersionInfo.totalItems', 0]},
             itemCounts: {$ifNull: ['$courseVersionInfo.itemCounts', {}]},
@@ -1926,10 +1924,10 @@ export class EnrollmentRepository {
     const pipeline: any[] = [
       {
         $match: {
-          userId: { $in: [userId, userIdObj] },
-          courseId: { $in: [courseId, courseIdObj] },
-          courseVersionId: { $in: [courseVersionId, versionIdObj] },
-          ...(cohortIdObj ? { cohortId: cohortIdObj } : {cohortId: null}),
+          userId: {$in: [userId, userIdObj]},
+          courseId: {$in: [courseId, courseIdObj]},
+          courseVersionId: {$in: [courseVersionId, versionIdObj]},
+          ...(cohortIdObj ? {cohortId: cohortIdObj} : {cohortId: null}),
           role: 'STUDENT',
         },
       },
@@ -2607,7 +2605,7 @@ export class EnrollmentRepository {
    */
   private async getQuizDetails(
     quizIds: ObjectId[],
-  ): Promise<Map<string, { name: string; questionCount: number }>> {
+  ): Promise<Map<string, {name: string; questionCount: number}>> {
     const quizzes = await this.quizCollection
       .find({
         _id: {$in: quizIds},
@@ -2619,10 +2617,13 @@ export class EnrollmentRepository {
       })
       .toArray();
 
-    const quizDetails = new Map<string, { name: string; questionCount: number }>();
+    const quizDetails = new Map<
+      string,
+      {name: string; questionCount: number}
+    >();
     quizzes.forEach(quiz => {
       const questionCount = (quiz.details?.questionBankRefs ?? []).reduce(
-        (sum: number, ref: { count?: number }) => sum + (Number(ref?.count) || 0),
+        (sum: number, ref: {count?: number}) => sum + (Number(ref?.count) || 0),
         0,
       );
 
@@ -3368,10 +3369,10 @@ export class EnrollmentRepository {
         },
         {
           $project: {
-            userId: { $toString: '$userId' },
-            quizId: { $toString: '$quizId' },
+            userId: {$toString: '$userId'},
+            quizId: {$toString: '$quizId'},
             cohortId: {
-              $ifNull: [{ $toString: '$cohortId' }, 'no-cohort'],
+              $ifNull: [{$toString: '$cohortId'}, 'no-cohort'],
             },
             totalScore: '$gradingResult.totalScore',
             totalMaxScore: '$gradingResult.totalMaxScore',
@@ -3384,9 +3385,9 @@ export class EnrollmentRepository {
               quizId: '$quizId',
               cohortId: '$cohortId',
             },
-            attempts: { $sum: 1 },
-            maxScore: { $max: '$totalScore' },
-            quizMaxScore: { $max: '$totalMaxScore' },
+            attempts: {$sum: 1},
+            maxScore: {$max: '$totalScore'},
+            quizMaxScore: {$max: '$totalMaxScore'},
           },
         },
       ])
@@ -3407,10 +3408,10 @@ export class EnrollmentRepository {
         },
         {
           $project: {
-            userId: { $toString: '$userId' },
-            quizId: { $toString: '$quizId' },
+            userId: {$toString: '$userId'},
+            quizId: {$toString: '$quizId'},
             cohortId: {
-              $ifNull: [{ $toString: '$cohortId' }, 'no-cohort'],
+              $ifNull: [{$toString: '$cohortId'}, 'no-cohort'],
             },
             overallFeedback: '$gradingResult.overallFeedback',
             totalScore: '$gradingResult.totalScore',
@@ -3432,7 +3433,7 @@ export class EnrollmentRepository {
               quizId: '$quizId',
               cohortId: '$cohortId',
             },
-            overallFeedback: { $first: '$overallFeedback' },
+            overallFeedback: {$first: '$overallFeedback'},
           },
         },
         {
@@ -3448,7 +3449,6 @@ export class EnrollmentRepository {
             questionScore: '$overallFeedback.score',
           },
         },
-        
       ])
       .toArray();
 
@@ -3521,8 +3521,8 @@ export class EnrollmentRepository {
       for (const module of quizzesByModuleSection) {
         for (const section of module.sections) {
           for (const quizId of section.quizIds) {
-
-            const qScoreMap = scoreMap.get(userId)?.get(cohortId)?.get(quizId) ?? new Map();
+            const qScoreMap =
+              scoreMap.get(userId)?.get(cohortId)?.get(quizId) ?? new Map();
 
             quizScores.push({
               moduleId: module.moduleId?.toString() ?? '',
@@ -3530,15 +3530,20 @@ export class EnrollmentRepository {
               quizId,
               quizName: quizDetails.get(quizId)?.name ?? 'Untitled Quiz',
               questionCount: quizDetails.get(quizId)?.questionCount ?? 0,
-              quizMaxScore: this.formatExportScore(quizMaxScoreMap.get(quizId) ?? 0),
+              quizMaxScore: this.formatExportScore(
+                quizMaxScoreMap.get(quizId) ?? 0,
+              ),
               maxScore: this.formatExportScore(
                 maxScoreMap.get(userId)?.get(cohortId)?.get(quizId) ?? 0,
               ),
-              attempts: attemptsMap.get(userId)?.get(cohortId)?.get(quizId) ?? 0,
-              questionScores: Array.from(qScoreMap.entries()).map(([questionId, score]) => ({
-                questionId,
-                score: this.formatExportScore(score),
-              })),
+              attempts:
+                attemptsMap.get(userId)?.get(cohortId)?.get(quizId) ?? 0,
+              questionScores: Array.from(qScoreMap.entries()).map(
+                ([questionId, score]) => ({
+                  questionId,
+                  score: this.formatExportScore(score),
+                }),
+              ),
             });
           }
         }
