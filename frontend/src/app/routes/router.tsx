@@ -666,7 +666,7 @@ const routeTree = rootRoute.addChildren([
     teacherStudentLedgerRoute,
     teacherStudentSubmissionsRoute,
     teacherSubmissionDetailsRoute,
-    teacherConfigureCohortsRoute
+    
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
