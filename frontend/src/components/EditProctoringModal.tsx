@@ -146,23 +146,39 @@ export function ProctoringModal({
                 <p className="text-xs text-muted-foreground">Configure monitoring and detection features</p>
               </div>
 
-              <div className="space-y-3">
-                {detectors.map((detector) => (
-                  <div key={detector.name} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={detector.name}
-                      checked={detector.enabled}
-                      onCheckedChange={() => toggle(detector.name)}
-                    />
-                    <label
-                      htmlFor={detector.name}
-                      className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      {labelMap[detector.name] || detector.name}
-                    </label>
-                  </div>
-                ))}
-              </div>
+<div className="space-y-3">
+  {detectors.map((detector) => (
+    detector.name === ProctoringComponent.BLURDETECTION ? (
+      <div key={detector.name} className="flex items-center space-x-2">
+        <Checkbox
+          id={detector.name}
+          checked={detector.enabled}
+          disabled
+        />
+        <label
+          htmlFor={detector.name}
+          className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          {labelMap[detector.name] || detector.name}
+        </label>
+      </div>
+    ) : (
+      <div key={detector.name} className="flex items-center space-x-2">
+        <Checkbox
+          id={detector.name}
+          checked={detector.enabled}
+          onCheckedChange={() => toggle(detector.name)}
+        />
+        <label
+          htmlFor={detector.name}
+          className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          {labelMap[detector.name] || detector.name}
+        </label>
+      </div>
+    )
+  ))}
+</div>
             </div>
 
             <Separator className="my-6" />
