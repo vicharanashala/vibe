@@ -1450,42 +1450,8 @@ const handleMoveToCohort = async () => {
                   Inactive Students({inactiveCount})
                 </TabsTrigger>
               </TabsList>
+
             <div className="flex items-center justify-center space-x-2">
-              {(version as any)?.cohortDetails?.length > 0 && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                              >
-                              <Layers className="h-4 w-4 text-muted-foreground" />
-                      {cohort ? (version as any).cohortDetails.find((c: any) => c.id === cohort)?.name : "Select Cohort"}
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                              <DropdownMenuRadioGroup
-                                value={cohort ?? ""}
-                                onValueChange={(id) => {
-                                  setCohort(id);
-                                }}
-                              >
-                          <DropdownMenuRadioItem
-                            value={""}
-                            onClick={() => setCohort(null)}>
-                            All Cohorts
-                          </DropdownMenuRadioItem>
-                                {(version as any)?.cohortDetails?.map((cohort: any) => (
-                                  <DropdownMenuRadioItem
-                                    key={cohort.id}
-                                    value={cohort.id}
-                                  >
-                                    {cohort.name}
-                                  </DropdownMenuRadioItem>
-                                ))}
-                              </DropdownMenuRadioGroup>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                )}
               {(version as any)?.cohortDetails?.length > 0 && (
                 <span className="relative flex justify-end right-0">
                   <Button
