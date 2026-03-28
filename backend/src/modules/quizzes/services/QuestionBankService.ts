@@ -76,10 +76,11 @@ class QuestionBankService extends BaseService {
       const questionBankId = await this.questionBankRepository.create(questionBank, session);
       
       // If points is set, cascade to all questions in the bank
-      if (questionBank.points !== undefined && questionBank.questions && questionBank.questions.length > 0) {
+      const pointsToUse = questionBank.points !== undefined ? questionBank.points : 5;
+      if (pointsToUse !== undefined && questionBank.questions && questionBank.questions.length > 0) {
         await this.questionBankRepository.updateQuestionsPoints(
           questionBankId,
-          questionBank.points,
+          pointsToUse,
           session,
         );
       }
