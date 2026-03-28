@@ -1311,6 +1311,275 @@ export class CohortRepository implements ICohortRepository {
         //     students
         // };
 
+
+
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
+        // TO GET FEEDBACK SUBMISSION DETAILS OF ENRLLED STUDENTS IN A COURSE
+
+
+        const courseId = new ObjectId("6981df886e100cfe04f9c4ad");
+        const versionId = new ObjectId("6981df886e100cfe04f9c4ae");
+
+        const result = await this.enrollmentCollection.aggregate([
+            {
+                $match: {
+                    courseId,
+                    courseVersionId: versionId,
+                    role: "STUDENT",
+                    isDeleted: { $ne: true }
+                }
+            },
+
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "userId",
+                    foreignField: "_id",
+                    as: "user"
+                }
+            },
+            {
+                $unwind: {
+                    path: "$user",
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+
+            {
+                $lookup: {
+                    from: "feedback_submission",
+                    let: {
+                        uid: "$userId",
+                        cid: "$courseId",
+                        vid: "$courseVersionId"
+                    },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ["$userId", "$$uid"] },
+                                        { $eq: ["$courseId", "$$cid"] },
+                                        { $eq: ["$courseVersionId", "$$vid"] }
+                                    ]
+                                }
+                            }
+                        },
+
+                        // latest record first
+                        { $sort: { updatedAt: -1, createdAt: -1, _id: -1 } },
+
+                        // keep only one unique submission
+                        {
+                            $group: {
+                                _id: {
+                                    userId: "$userId",
+                                    feedbackFormId: "$feedbackFormId",
+                                    previousItemId: "$previousItemId"
+                                },
+                                doc: { $first: "$$ROOT" }
+                            }
+                        },
+                        { $replaceRoot: { newRoot: "$doc" } },
+
+                        {
+                            $lookup: {
+                                from: "feedback_forms",
+                                localField: "feedbackFormId",
+                                foreignField: "_id",
+                                as: "feedbackForm"
+                            }
+                        },
+                        {
+                            $unwind: {
+                                path: "$feedbackForm",
+                                preserveNullAndEmptyArrays: true
+                            }
+                        },
+
+                        // BLOG lookup
+                        {
+                            $lookup: {
+                                from: "blogs",
+                                let: {
+                                    prevId: "$previousItemId",
+                                    prevType: "$previousItemType"
+                                },
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    { $eq: ["$$prevType", "BLOG"] },
+                                                    { $eq: ["$_id", "$$prevId"] }
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    {
+                                        $project: {
+                                            _id: 1,
+                                            name: { $ifNull: ["$name", "$title"] }
+                                        }
+                                    }
+                                ],
+                                as: "blogItem"
+                            }
+                        },
+
+                        // VIDEO lookup
+                        {
+                            $lookup: {
+                                from: "videos",
+                                let: {
+                                    prevId: "$previousItemId",
+                                    prevType: "$previousItemType"
+                                },
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    { $eq: ["$$prevType", "VIDEO"] },
+                                                    { $eq: ["$_id", "$$prevId"] }
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    {
+                                        $project: {
+                                            _id: 1,
+                                            name: { $ifNull: ["$name", "$title"] }
+                                        }
+                                    }
+                                ],
+                                as: "videoItem"
+                            }
+                        },
+
+                        // QUIZ lookup
+                        {
+                            $lookup: {
+                                from: "quizzes",
+                                let: {
+                                    prevId: "$previousItemId",
+                                    prevType: "$previousItemType"
+                                },
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    { $eq: ["$$prevType", "QUIZ"] },
+                                                    { $eq: ["$_id", "$$prevId"] }
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    {
+                                        $project: {
+                                            _id: 1,
+                                            name: { $ifNull: ["$name", "$title"] }
+                                        }
+                                    }
+                                ],
+                                as: "quizItem"
+                            }
+                        },
+
+                        {
+                            $addFields: {
+                                previousItemName: {
+                                    $ifNull: [
+                                        { $arrayElemAt: ["$blogItem.name", 0] },
+                                        {
+                                            $ifNull: [
+                                                { $arrayElemAt: ["$videoItem.name", 0] },
+                                                { $arrayElemAt: ["$quizItem.name", 0] }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+
+                        {
+                            $project: {
+                                _id: 0,
+                                feedbackSubmissionId: { $toString: "$_id" },
+                                feedbackFormId: { $toString: "$feedbackFormId" },
+                                feedbackName: "$feedbackForm.name",
+                                previousItemId: {
+                                    $cond: [
+                                        { $ifNull: ["$previousItemId", false] },
+                                        { $toString: "$previousItemId" },
+                                        null
+                                    ]
+                                },
+                                previousItemType: 1,
+                                previousItemName: 1,
+                                details: 1,
+                                createdAt: 1,
+                                updatedAt: 1
+                            }
+                        },
+
+                        { $sort: { updatedAt: -1, createdAt: -1 } }
+                    ],
+                    as: "feedbackSubmissions"
+                }
+            },
+
+            // one row per feedback submission
+            {
+                $unwind: {
+                    path: "$feedbackSubmissions",
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+
+            {
+                $project: {
+                    _id: 0,
+                    enrollmentId: { $toString: "$_id" },
+                    userId: { $toString: "$userId" },
+                    userEmail: "$user.email",
+                    userName: {
+                        $trim: {
+                            input: {
+                                $concat: [
+                                    { $ifNull: ["$user.firstName", ""] },
+                                    " ",
+                                    { $ifNull: ["$user.lastName", ""] }
+                                ]
+                            }
+                        }
+                    },
+                    role: 1,
+                    status: 1,
+
+                    feedbackSubmissionId: "$feedbackSubmissions.feedbackSubmissionId",
+                    feedbackFormId: "$feedbackSubmissions.feedbackFormId",
+                    feedbackName: "$feedbackSubmissions.feedbackName",
+                    previousItemId: "$feedbackSubmissions.previousItemId",
+                    previousItemType: "$feedbackSubmissions.previousItemType",
+                    previousItemName: "$feedbackSubmissions.previousItemName",
+                    details: "$feedbackSubmissions.details",
+                    createdAt: "$feedbackSubmissions.createdAt",
+                    updatedAt: "$feedbackSubmissions.updatedAt"
+                }
+            },
+
+            {
+                $sort: {
+                    userEmail: 1,
+                    updatedAt: -1
+                }
+            }
+        ], { allowDiskUse: true }).toArray();
+
+        return result;
     }
 
 }

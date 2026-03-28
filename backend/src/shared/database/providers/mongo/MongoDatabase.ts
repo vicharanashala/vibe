@@ -41,21 +41,21 @@ export class MongoDatabase implements IDatabase<Db> {
     }
 
     this.client = new MongoClient(uri, {
-      ssl: true,
-      tls: true,
-      tlsAllowInvalidCertificates: false,
-      tlsAllowInvalidHostnames: false,
+      // ssl: true,
+      // tls: true,
+      // tlsAllowInvalidCertificates: false,
+      // tlsAllowInvalidHostnames: false,
 
-      retryWrites: true,
+      // retryWrites: true,
 
-      // 🔹 CONNECTION POOL
-      maxPoolSize: 50,
-      minPoolSize: 10,
-      maxIdleTimeMS: 60000,
+      // // 🔹 CONNECTION POOL
+      // maxPoolSize: 50,
+      // minPoolSize: 10,
+      // maxIdleTimeMS: 60000,
 
-      // 🔹 TIMEOUTS
-      connectTimeoutMS: 20000,
-      socketTimeoutMS: 30000,
+      // // 🔹 TIMEOUTS
+      // connectTimeoutMS: 20000,
+      // socketTimeoutMS: 30000,
 
 
     });
