@@ -25,7 +25,7 @@ abstract class BaseQuestion implements IQuestion {
   parameters?: IQuestionParameter[];
   hint?: string;
   timeLimitSeconds: number;
-  points: number;
+  points?: number;
   priority: Priority;
   isDeleted?: boolean;
   deletedAt?: Date;

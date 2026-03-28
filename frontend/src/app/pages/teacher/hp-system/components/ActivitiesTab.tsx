@@ -4,7 +4,7 @@ import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { EditActivityDialog } from "./EditActivityDialog";
 import { RuleSettingsDialog } from "./RuleSettingsDialog";
 import { useHpActivities, useUpdateHpActivity, usePublishHpActivity, useArchiveHpActivity, useHpCourseVersions, useDeleteHpActivity, useHpActivitiesStatsMap } from "@/hooks/hooks";
-import { Plus, Search, Trash2, Paperclip, Edit, Link as LinkIcon, FileText, Send, Settings, LayoutGrid, List, Archive } from "lucide-react";
+import { Plus, Search, Trash2, Paperclip, Edit, Link as LinkIcon, FileText, Send, Settings, LayoutGrid, List, Archive, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -63,7 +63,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
     const courseId = courses.find(c =>
         c.versions.some(v => v.courseVersionId === courseVersionId)
     )?.courseId || "000000000000000000000001";
-    const { data: activities, isLoading: loading, refetch } = useHpActivities(
+    const { data: activities, isLoading: loading, refetch, isRefetching } = useHpActivities(
         courseVersionId, cohortName, statusFilter, "", activityFilter
     );
     
@@ -104,8 +104,8 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
     const { mutateAsync: archiveActivity } = useArchiveHpActivity();
     const {mutateAsync: deleteActivity} = useDeleteHpActivity();
 
-    const { data: statsMap } = useHpActivitiesStatsMap(cohortName, courseVersionId);
-    console.log("Stats Map:", statsMap);
+    // const { data: statsMap } = useHpActivitiesStatsMap(cohortName, courseVersionId);
+    // console.log("Stats Map:", statsMap);
 
     // Handle Search Debounce
     // useEffect(() => {
@@ -274,9 +274,20 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                         </Select>
                     </div>
                 </div>
-                <Button onClick={() => navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName)}/activities/create` , state: {from}})}>
-                    <Plus className="mr-2 h-4 w-4" /> Add Activity
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refetch()}
+                        disabled={isRefetching || loading}
+                    >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                        {isRefetching ? "Refreshing..." : "Refresh"}
+                    </Button>
+                    <Button onClick={() => navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName)}/activities/create` , state: {from}})}>
+                        <Plus className="mr-2 h-4 w-4" /> Add Activity
+                    </Button>
+                </div>
             </div>
 
             {loading ? (

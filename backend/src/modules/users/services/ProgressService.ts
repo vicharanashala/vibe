@@ -3484,6 +3484,7 @@ class ProgressService extends BaseService {
     courseVersionId: string,
     page: number = 1,
     limit: number = 10,
+    cohortId?: string,
   ): Promise<{
     data: Array<{
       userId: string;
@@ -3508,12 +3509,14 @@ class ProgressService extends BaseService {
       await this.progressRepository.getAllProgressForCourseVersion(
         courseId,
         courseVersionId,
+        cohortId,
       );
 
     // Get all enrollments to fetch completion percentages
     const enrollments = await this.enrollmentRepo.getEnrollmentsByCourseVersion(
       courseId,
       courseVersionId,
+      cohortId,
     );
 
     const enrollmentMap = new Map();

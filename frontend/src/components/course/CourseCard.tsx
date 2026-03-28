@@ -248,7 +248,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   {variant !== 'available' && enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && (
                     <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
                       <DialogTrigger asChild><Button variant="outline" className="flex-1 rounded-lg border-2" size="sm"><Trophy className="h-4 w-4 mr-2 text-yellow-500" />Rank</Button></DialogTrigger>
-                      <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} />
+                      <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} cohortId={enrollment?.cohortId} />
                     </Dialog>
                   )}
                   {variant !== 'available' && enrollment?.hpSystem && (
@@ -377,12 +377,12 @@ export const CourseCardSkeleton = ({ variant = 'dashboard' }: { variant?: 'dashb
 };
 
 // Leaderboard Dialog Component
-const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { courseId: string; versionId: string; courseName?: string, isOpen: boolean }) => {
+const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen, cohortId }: { courseId: string; versionId: string; courseName?: string, isOpen: boolean, cohortId?: string }) => {
   const [page, setPage] = useState(1);
   const { leaderboard,
     totalPages,
     totalDocuments,
-    isLoading, error, myStats } = useLeaderboard(courseId, versionId, page, 10, isOpen);
+    isLoading, error, myStats } = useLeaderboard(courseId, versionId, page, 10, isOpen, cohortId);
 
   const getInitials = (name: string) => {
     const parts = name.split(" ");
