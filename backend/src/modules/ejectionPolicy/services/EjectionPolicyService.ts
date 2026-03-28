@@ -231,7 +231,7 @@ export class EjectionPolicyService extends BaseService {
 
     const triggers = policy.triggers;
     const hasEnabledTrigger =
-      triggers.inactivity?.enabled ||
+      // triggers.inactivity?.enabled ||
       triggers.missedDeadlines?.enabled ||
       triggers.policyViolations?.enabled ||
       triggers.anomalyDetection?.enabled ||
@@ -244,9 +244,9 @@ export class EjectionPolicyService extends BaseService {
     }
 
     // Validate inactivity trigger
-    if (triggers.inactivity?.enabled) {
-      this.validateInactivityTrigger(triggers.inactivity);
-    }
+    // if (triggers.inactivity?.enabled) {
+    //   this.validateInactivityTrigger(triggers.inactivity);
+    // }
 
     // Validate missed deadlines trigger
     if (triggers.missedDeadlines?.enabled) {
@@ -300,23 +300,23 @@ export class EjectionPolicyService extends BaseService {
   /**
    * Validate inactivity trigger
    */
-  private validateInactivityTrigger(trigger: any): void {
-    if (trigger.thresholdDays <= 0) {
-      throw new BadRequestError(
-        'Inactivity threshold must be greater than 0 days',
-      );
-    }
+  // private validateInactivityTrigger(trigger: any): void {
+  //   if (trigger.thresholdDays <= 0) {
+  //     throw new BadRequestError(
+  //       'Inactivity threshold must be greater than 0 days',
+  //     );
+  //   }
 
-    if (trigger.warningDays < 0) {
-      throw new BadRequestError('Warning days cannot be negative');
-    }
+  //   if (trigger.warningDays < 0) {
+  //     throw new BadRequestError('Warning days cannot be negative');
+  //   }
 
-    if (trigger.warningDays >= trigger.thresholdDays) {
-      throw new BadRequestError(
-        'Warning days must be less than threshold days',
-      );
-    }
-  }
+  //   if (trigger.warningDays >= trigger.thresholdDays) {
+  //     throw new BadRequestError(
+  //       'Warning days must be less than threshold days',
+  //     );
+  //   }
+  // }
 
   /**
    * Validate missed deadlines trigger
