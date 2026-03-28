@@ -729,6 +729,7 @@ class ProgressRepository {
   async getAllProgressForCourseVersion(
     courseId: string,
     courseVersionId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<IProgress[]> {
     await this.init();
@@ -737,6 +738,7 @@ class ProgressRepository {
         {
           courseId: { $in: [new ObjectId(courseId), courseId] },
           courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
         },
         { session },
       )

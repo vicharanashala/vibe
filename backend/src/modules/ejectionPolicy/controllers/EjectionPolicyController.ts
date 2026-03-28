@@ -116,6 +116,11 @@ export class EjectionPolicyController {
       true,
       policy._id?.toString(),
     );
+    await this.enrollmentService.markPolicyReacknowledgementRequired(
+      policy.courseId.toString(),
+      policy.courseVersionId.toString(),
+      policy.cohortId.toString(),
+    );
     // audit trail stays the same
     return plainToClass(EjectionPolicyResponse, policy, {
       enableImplicitConversion: true,
@@ -307,6 +312,7 @@ export class EjectionPolicyController {
       false,
       policyId,
     );
+
     await this.enrollmentService.markPolicyReacknowledgementRequired(
       updatedPolicy.courseId.toString(),
       updatedPolicy.courseVersionId.toString(),
