@@ -48,7 +48,7 @@ export class CohortsService extends BaseService {
                     {
                         courseVersionId: "000000000000000000000002",
                         versionName: "Vinternship",
-                        totalCohorts: 2, // RSAians, AKSians
+                        totalCohorts: 3, // RSAians, AKSians, Testians
                         createdAt: "2025-12-18T07:52:42Z",
                     }
                 ]
@@ -73,6 +73,7 @@ export class CohortsService extends BaseService {
                 { pseudoVersionId: "000000000000000000000001", cohortVersionId: "697b4e262942654879011c57" },
                 { pseudoVersionId: "000000000000000000000002", cohortVersionId: "69903415e1930c015760a719" },
                 { pseudoVersionId: "000000000000000000000002", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
+                { pseudoVersionId: "000000000000000000000002", cohortVersionId: "69c77812b4ae917c56cf227f" },
             ];
 
             const enrolledPseudoIds = new Set<string>();
@@ -187,6 +188,7 @@ export class CohortsService extends BaseService {
             const cohorts = [
                 { cohortName: "RSAians", cohortVersionId: "69903415e1930c015760a719" },
                 { cohortName: "AKSians", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
+                { cohortName: "Testians", cohortVersionId: "69c77812b4ae917c56cf227f" },
             ] as const;
 
             const results = await Promise.all(
@@ -272,6 +274,7 @@ export class CohortsService extends BaseService {
                         { pseudoVersionId: "000000000000000000000001", cohortName: "Kruskalians", cohortVersionId: "697b4e262942654879011c57" },
                         { pseudoVersionId: "000000000000000000000002", cohortName: "RSAians", cohortVersionId: "69903415e1930c015760a719" },
                         { pseudoVersionId: "000000000000000000000002", cohortName: "AKSians", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
+                        { pseudoVersionId: "000000000000000000000002", cohortName: "Testians", cohortVersionId: "69c77812b4ae917c56cf227f" },
                     ];
 
 
@@ -385,6 +388,7 @@ export class CohortsService extends BaseService {
             "000000000000000000000002": {
                 rsaians: "69903415e1930c015760a719",
                 aksians: "69942dc6d6d99b252e3a54ff",
+                testians: "69c77812b4ae917c56cf227f",
             },
         };
 
@@ -462,6 +466,7 @@ export class CohortsService extends BaseService {
                 { pseudoVersionId: "000000000000000000000001", cohortName: "Kruskalians", cohortVersionId: "697b4e262942654879011c57" },
                 { pseudoVersionId: "000000000000000000000002", cohortName: "RSAians", cohortVersionId: "69903415e1930c015760a719" },
                 { pseudoVersionId: "000000000000000000000002", cohortName: "AKSians", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
+                { pseudoVersionId: "000000000000000000000002", cohortName: "Testians", cohortVersionId: "69c77812b4ae917c56cf227f" },
             ];
 
             for (const mapping of hardcodedMappings) {

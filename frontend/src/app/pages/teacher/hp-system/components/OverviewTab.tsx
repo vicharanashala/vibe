@@ -12,6 +12,7 @@ const cohortPerformance = [
     { name: 'Kruskalians', value: 780 },
     { name: 'AKSians', value: 880 },
     { name: 'RSAians', value: 950 },
+    { name: 'Testians', value: 900 },
 ];
 
 const coursePerformance = [
@@ -26,6 +27,7 @@ const hpDistribution = [
     { name: 'Dijkstrians', value: 5200 },
     { name: 'Kruskalians', value: 3800 },
     { name: 'RSAians', value: 6100 },
+    { name: 'Testians', value: 4200 },
 ];
 
 const courseVersions = [

@@ -35,6 +35,7 @@ export const COHORT_ID_MAP: Record<string, { courseId: string; versionId: string
     Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57" },
     RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719" },
     AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
+    Testians: { courseId: "69c77812b4ae917c56cf227e", versionId: "69c77812b4ae917c56cf227f" },
 };
 
 export function getEffectiveIds(cohortName: string, fallbackCourseId: string, fallbackVersionId: string) {
