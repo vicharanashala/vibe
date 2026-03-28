@@ -4,7 +4,7 @@ import { AnnouncementItem } from "./AnnouncementItem";
 import { AnnouncementModal } from "./AnnouncementModal";
 import { Announcement, AnnouncementType } from "@/types/announcement.types";
 import { Button } from "@/components/ui/button";
-import { Plus, Filter, Loader2, Megaphone, Search } from "lucide-react";
+import { Plus, Filter, Loader2, Megaphone, Search, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
     DropdownMenu,
@@ -29,7 +29,7 @@ interface AnnouncementListProps {
 }
 
 export function AnnouncementList({ courseId, versionId, isInstructor, cohortId }: AnnouncementListProps) {
-    const { data, isLoading, isAdmin, refetch } = useAnnouncements(
+    const { data, isLoading, isAdmin, refetch, isRefetching } = useAnnouncements(
         undefined, // fetch all initially, filter locally or let hook handle
         courseId,
         versionId,
@@ -86,6 +86,15 @@ export function AnnouncementList({ courseId, versionId, isInstructor, cohortId }
                 </div>
 
                 <div className="flex gap-2 w-full sm:w-auto">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refetch()}
+                        disabled={isRefetching}
+                    >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                        {isRefetching ? "Refreshing..." : "Refresh"}
+                    </Button>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="sm" className="gap-2">

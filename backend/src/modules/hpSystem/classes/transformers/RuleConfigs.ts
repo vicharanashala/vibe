@@ -4,10 +4,11 @@
 ========================================================= */
 
 import { Expose, Transform, Type } from "class-transformer";
-import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
+import { IsArray, IsBoolean, IsEnum, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
 import { JSONSchema } from "class-validator-jsonschema";
 import { HpRuleStatus, LateBehavior, PenaltyApplyWhen, RewardApplyWhen, RuleType } from "../../constants.js";
 import { ID, ObjectIdToString, StringToObjectId } from "#root/shared/index.js";
+import { SubmissionField } from "../../models.js";
 
 export class HpRewardRule {
     @Expose()
@@ -194,6 +195,17 @@ export class HpRuleConfigTransformer {
     status: HpRuleStatus;
 
     @Expose()
+    @IsArray()
+    @IsEnum(SubmissionField, { each: true })
+    @JSONSchema({
+    title: "Submission Validation",
+    type: "array",
+    items: { type: "string", enum: Object.values(SubmissionField) },
+    example: ["TEXT", "PDF"]
+    })
+    submissionValidation: SubmissionField[];
+
+    @Expose()
     @Type(() => Date)
     @JSONSchema({ title: 'Created At', type: 'string', format: 'date-time' })
     createdAt?: Date;
@@ -208,5 +220,6 @@ export class HpRuleConfigTransformer {
         this.reward = this.reward ?? ({} as any);
         this.penalty = this.penalty ?? ({} as any);
         this.limits = this.limits ?? ({} as any);
+        this.submissionValidation = this.submissionValidation ?? [SubmissionField.TEXT];
     }
 }
