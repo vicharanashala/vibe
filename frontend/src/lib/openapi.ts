@@ -15,7 +15,7 @@ export const setTokenRefreshFunction = (refreshFn: () => Promise<void>) => {
   refreshTokenFunction = refreshFn;
 };
 
-const fetchClient = createFetchClient<paths>({
+export const fetchClient = createFetchClient<paths>({
   baseUrl: `${import.meta.env.VITE_BASE_URL}`,
   fetch: (url, options) => {
     // openapi-fetch passes a Request object for some requests (like DELETE without body)

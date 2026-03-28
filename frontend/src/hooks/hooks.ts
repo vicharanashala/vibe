@@ -50,7 +50,7 @@ export interface QuestionBody {
     }>;
     hint?: string;
     timeLimitSeconds: number;
-    points: number;
+    points?: number;
     priority: 'LOW' | 'MEDIUM' | 'HIGH';
   };
   solution: any; // Union type based on question type
@@ -172,6 +172,7 @@ export interface EditQuestionBankBody {
   count: number;
   difficulty?: string[];
   tags?: string[];
+  points?: number;
 }
 
 export interface GetUserMatricesParams {
@@ -529,7 +530,7 @@ export function useCreateCourse(): {
   };
 }
 
-export async function useProcessInvites(inviteId: string, action: "ACCEPT" | "REJECTED" = "ACCEPT",
+export async function processInviteApi(inviteId: string, action: "ACCEPT" | "REJECTED" = "ACCEPT", policyAcknowledged: boolean = false
 
 ): Promise<{
   data: null,
@@ -539,10 +540,11 @@ export async function useProcessInvites(inviteId: string, action: "ACCEPT" | "RE
 }> {
   let isLoading = true;
   const baseUrl = `${import.meta.env.VITE_BASE_URL}/notifications/invite/${inviteId}`;
-  const url =
-    action === "REJECTED"
-      ? `${baseUrl}?action=REJECTED`
-      : baseUrl;
+  const params = new URLSearchParams();
+  if (action === "REJECTED") params.set("action", "REJECTED");
+  if (policyAcknowledged) params.set("policyAcknowledged", "true");
+  const queryString = params.toString();
+  const url = queryString ? `${baseUrl}?${queryString}` : baseUrl;
 
   const res = await fetch(url, {
     method: "POST",
@@ -2531,6 +2533,9 @@ export interface AddFeedbackBody {
 export interface GetAllQuestionBanksResponse extends Array<{
   questionBankId: string;
   questionsCount?: number;
+  title?: string;
+  description?: string;
+  points?: number;
 }> { }
 
 // Attempt types

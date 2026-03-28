@@ -17,6 +17,8 @@ interface CreateQuestionDialogProps {
     showCreateQuestionDialog: boolean;
     setShowCreateQuestionDialog: (value: boolean) => void;
     selectedBankId?: string;
+    questionBanks?: any[];
+    onRequestEditBank?: (bankId: string) => void;
 }
 
 interface LotItem {
@@ -43,7 +45,9 @@ type QuestionType = 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'DESCRIPTIVE' |
 const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
     showCreateQuestionDialog,
     setShowCreateQuestionDialog,
-    selectedBankId
+    selectedBankId,
+    questionBanks,
+    onRequestEditBank
 }) => {
     const [questionForm, setQuestionForm] = useState({
         text: '',
@@ -51,7 +55,6 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
         isParameterized: false,
         hint: '',
         timeLimitSeconds: 60,
-        points: 5,
         options: [] as OptionWithSelection[],
         priority: 'LOW' as PRIORITIES,
         decimalPrecision: 0,
@@ -235,7 +238,6 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
             isParameterized: false,
             hint: '',
             timeLimitSeconds: 60,
-            points: 5,
             options: [],
             priority: 'LOW',
             decimalPrecision: 0,
@@ -350,7 +352,6 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                 parameters: questionForm.isParameterized ? questionForm.parameters : [],
                 hint: questionForm.hint || undefined,
                 timeLimitSeconds: questionForm.timeLimitSeconds,
-                points: questionForm.points,
                 priority: questionForm.priority,
                 incorrectLotItems: incorrectOptions.map(({ text, explaination }) => ({
                     text,
@@ -418,7 +419,6 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                             : [],
                         hint: questionData.hint,
                         timeLimitSeconds: questionData.timeLimitSeconds,
-                        points: questionData.points,
                         priority: questionData.priority
                     },
                     solution: solutionData
@@ -443,12 +443,33 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
         }
     };
 
+    // Handler to check if points are set before opening the dialog
+    const handleAddQuestionClick = () => {
+        if (!selectedBankId) return;
+
+        // Get the current bank from questionBanks array
+        const currentBank = questionBanks?.find((b: any) => b.bankId === selectedBankId);
+
+        // Check if the selected bank has points configured
+        if (!currentBank?.points) {
+            // Bank doesn't have points set - request parent to open edit dialog
+            toast.warning("Please set points for this question bank before adding questions.");
+            if (onRequestEditBank) {
+                onRequestEditBank(selectedBankId);
+            }
+            return;
+        }
+
+        // Points are set - open the dialog
+        setShowCreateQuestionDialog(true);
+    };
+
     return (
         <div className="p-4 border-b">
             <div className="flex items-center justify-end">
                 <Dialog open={showCreateQuestionDialog} onOpenChange={setShowCreateQuestionDialog}>
                     <DialogTrigger asChild>
-                        <Button>
+                        <Button onClick={handleAddQuestionClick}>
                             <Plus className="h-4 w-4 mr-2" />
                             Add Question
                         </Button>
@@ -557,16 +578,6 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                             />
                                         </div>
 
-                                        <div>
-                                            <Label htmlFor="points" className='mb-3'>Points *</Label>
-                                            <Input
-                                                id="points"
-                                                type="number"
-                                                min="1"
-                                                value={questionForm.points}
-                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, points: parseInt(e.target.value) || 1 }))}
-                                            />
-                                        </div>
                                     </div>
                                     <div className="col-span-1 lg:col-span-2 overflow-hidden transition-all duration-300 ease-in-out transform flex flex-wrap gap-4 items-end mt-4"
                                     >
@@ -906,7 +917,6 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                     !questionForm.text.trim() ||
                                     !questionForm.hint.trim() ||
                                     !questionForm.timeLimitSeconds ||
-                                    !questionForm.points ||
                                     !questionForm.priority ||
 
                                     (questionForm.type === "DESCRIPTIVE" && !questionForm.solutionText.trim()) ||

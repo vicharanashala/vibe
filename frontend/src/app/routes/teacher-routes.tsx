@@ -18,6 +18,7 @@ import RegisteredUsers from "../pages/teacher/CourseRegistrationRequests";
 import FeedbackFormEditor from "../pages/teacher/FeedbackFormEditor";
 import TeacherAnnouncements from "../pages/teacher/announcements";
 import AuditPage from "../pages/teacher/AuditPage";
+import EjectionPoliciesPage from "../pages/teacher/ejection-policies";
 import HpSystemVersions from "../pages/teacher/hp-system/HpSystemPage";
 import HpSystemCohorts from "../pages/teacher/hp-system/CohortsList";
 import HpSystemDashboard from "../pages/teacher/hp-system/CohortDetails";
@@ -32,6 +33,7 @@ const teacherRoutes: RouteObject = {
     //   path: "dashboard",
     //   element: <Dashboard />,
     // },
+    {path:"ejection-policies",element: <EjectionPoliciesPage />,},
     {
       path: "profile",
       element: <TeacherProfile />,

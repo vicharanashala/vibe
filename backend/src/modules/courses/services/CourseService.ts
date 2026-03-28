@@ -105,6 +105,7 @@ class CourseService extends BaseService {
         'INSTRUCTOR',
         false,
         undefined,
+        undefined,
         session,
       );
 
