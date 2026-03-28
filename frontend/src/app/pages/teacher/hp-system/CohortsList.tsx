@@ -104,7 +104,7 @@ export default function HpSystemCohorts() {
 
                                 <div className="flex justify-between">
                                     <span>HP Distributed:</span>
-                                    <span className="font-medium text-foreground">{c.stats.totalHpDistributed || <Ban className="w-3 h-3 text-muted-foreground" />}</span>
+                                    <span className="font-medium text-foreground">{c.stats.totalHpDistributed ?? <Ban className="w-3 h-3 text-muted-foreground" />}</span>
                                 </div>
                             </div>
                         </CardContent>
