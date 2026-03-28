@@ -25,7 +25,7 @@ type Invite = {
   inviteId: string;
   courseId: string;
   courseVersionId: string;
-  cohortId:string;
+  cohortId: string;
 };
 
 export default function StudentLayout() {
@@ -43,9 +43,9 @@ export default function StudentLayout() {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const invitesRef = useRef<HTMLDivElement | null>(null);
-  const [selectedInvite, setSelectedInvite] = useState<Invite|null>(null);
+  const [selectedInvite, setSelectedInvite] = useState<Invite | null>(null);
   const [systemNotifications, setSystemNotifications] = useState<SystemNotification[]>([])
-  
+
   const { hasNew: hasNewAnnouncements, markSeen: markAnnouncementsSeen } = useNewAnnouncementIndicator();
   // const location = useLocation();
   const [pathname, setPathname] = useState(
@@ -108,14 +108,14 @@ export default function StudentLayout() {
     window.history.back()
   }
   const { notifications: fetchedSystemNotifications, unreadCount: systemUnreadCount } =
-  useGetSystemNotifications(user?.uid || '', false, !!user?.uid);
-const { mutate: markSystemRead } = useMarkSystemNotificationAsRead();
-const { mutate: markAllSystemRead } = useMarkAllSystemNotificationsAsRead();
-useEffect(() => {
-  if (fetchedSystemNotifications) {
-    setSystemNotifications(fetchedSystemNotifications);
-  }
-}, [fetchedSystemNotifications]);
+    useGetSystemNotifications(user?.uid || '', false, !!user?.uid);
+  const { mutate: markSystemRead } = useMarkSystemNotificationAsRead();
+  const { mutate: markAllSystemRead } = useMarkAllSystemNotificationsAsRead();
+  useEffect(() => {
+    if (fetchedSystemNotifications) {
+      setSystemNotifications(fetchedSystemNotifications);
+    }
+  }, [fetchedSystemNotifications]);
   useEffect(() => {
     if (!isAuthReady || !user) return;
 
@@ -159,14 +159,14 @@ useEffect(() => {
     if (!showInvites) return;
 
     const handlePointerDown = (event: MouseEvent | TouchEvent) => {
-  const target = event.target as Node | null;
-  if (selectedInvite) return;
-  // Don't close if the click is inside any open dialog portal
-  if ((target as Element)?.closest?.('[role="dialog"]')) return;
-  if (invitesRef.current && target && !invitesRef.current.contains(target)) {
-    setShowInvites(false);
-  }
-};
+      const target = event.target as Node | null;
+      if (selectedInvite) return;
+      // Don't close if the click is inside any open dialog portal
+      if ((target as Element)?.closest?.('[role="dialog"]')) return;
+      if (invitesRef.current && target && !invitesRef.current.contains(target)) {
+        setShowInvites(false);
+      }
+    };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -316,6 +316,7 @@ useEffect(() => {
                   }}
                   systemNotifications={systemNotifications}
                   onMarkSystemRead={(id) => {
+                    // @ts-ignore - notificationId type mismatch in generated client
                     markSystemRead({ params: { path: { notificationId: id } } });
                     setSystemNotifications(prev =>
                       prev.map(n => n._id === id ? { ...n, read: true } : n)

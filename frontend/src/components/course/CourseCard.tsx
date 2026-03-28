@@ -1,4 +1,4 @@
-import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Play, Activity, Users, Shield, LucideShield, MessageCircle, Sparkles, Check, Copy } from "lucide-react";
+import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Play, Activity, Users, LucideShield, MessageCircle, Sparkles, Check, Copy } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,11 +17,7 @@ import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { StudentPolicyModal } from "@/app/pages/student/components/policies/StudentPolicyModal";
 
-const EnrollmentDetailsDialog = lazy(() =>
-  import("@/components/course/EnrollmentDetailsDialog").then(mod => ({
-    default: mod.EnrollmentDetailsDialog
-  }))
-);
+import { EnrollmentDetailsDialog } from "@/components/course/EnrollmentDetailsDialog";
 
 const StudentTimeslotModal = lazy(() =>
   import("@/components/course/StudentTimeslotModal").then(mod => ({
@@ -192,8 +188,13 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               </div>
 
               <CardContent className="p-6 pb-10 flex flex-col">
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex flex-wrap items-center gap-2 mb-4">
                   <Badge variant="secondary" className="bg-[#F1F5F9] text-[#64748B] dark:bg-slate-800 dark:text-slate-400 border-0 font-medium px-3">Course</Badge>
+                  {enrollment.cohortName && (
+                    <Badge variant="outline" className="border-primary/30 text-primary dark:bg-primary/10 dark:text-blue-400 dark:border-blue-400/30 font-medium px-3">
+                      {enrollment.cohortName}
+                    </Badge>
+                  )}
                   {isCompleted && <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 font-medium">Completed</Badge>}
                 </div>
 
@@ -401,6 +402,12 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                     <span className="text-muted-foreground font-medium">Version</span>
                     <span className="text-foreground font-bold">{courseVersionData?.version || courseVersionData?.name || versionId.substring(0, 8)}</span>
                   </div>
+                  {enrollment.cohortName && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground font-medium">Cohort</span>
+                      <span className="text-foreground font-bold truncate max-w-[120px]">{enrollment.cohortName}</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground font-medium">Progress</span>
                     <span className="text-foreground font-bold italic">
@@ -455,36 +462,30 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           </div>
         </div>
 
-        <Suspense fallback={null}>
-          {isDetailsOpen && (
-            <div onClick={(e) => e.stopPropagation()}>
-              <EnrollmentDetailsDialog
-                isOpen={isDetailsOpen}
-                onOpenChange={setIsDetailsOpen}
-                enrollment={enrollment}
-              />
-            </div>
-          )}
-          <div onClick={(e) => e.stopPropagation()}>
-            <StudentTimeslotModal
-              isOpen={isTimeslotModalOpen}
-              onClose={() => setIsTimeslotModalOpen(false)}
-              courseId={courseId}
-              courseVersionId={versionId}
-              currentUserId={""}
-              hasAssignedTimeslot={!!hasAssignedTimeslot}
-            />
-          </div>
-          <StudentPolicyModal
-            open={showPolicies}
-            onClose={() => setShowPolicies(false)}
+        <EnrollmentDetailsDialog
+          isOpen={isDetailsOpen}
+          onOpenChange={setIsDetailsOpen}
+          enrollment={enrollment}
+        />
+        <div onClick={(e) => e.stopPropagation()}>
+          <StudentTimeslotModal
+            isOpen={isTimeslotModalOpen}
+            onClose={() => setIsTimeslotModalOpen(false)}
             courseId={courseId}
             courseVersionId={versionId}
-            cohortId={cohortId}
-            enrollmentDate={enrollment.enrollmentDate}
-            currentProgressPercent={progress}
+            currentUserId={""}
+            hasAssignedTimeslot={!!hasAssignedTimeslot}
           />
-        </Suspense>
+        </div>
+        <StudentPolicyModal
+          open={showPolicies}
+          onClose={() => setShowPolicies(false)}
+          courseId={courseId}
+          courseVersionId={versionId}
+          cohortId={cohortId}
+          enrollmentDate={enrollment.enrollmentDate}
+          currentProgressPercent={progress}
+        />
       </div>
     );
   }
