@@ -1,8 +1,7 @@
 import { HpActivityTransformer } from '#root/modules/hpSystem/classes/transformers/Activity.js';
 import { ListActivitiesQuery } from '#root/modules/hpSystem/classes/validators/activityValidators.js';
 import { IActivityRepository } from '#root/modules/hpSystem/interfaces/IActivityRepository.js';
-import { HpActivity } from '#root/modules/hpSystem/models.js';
-// import { HpActivity, HpActivitySubmission } from "#root/modules/hpSystem/models.js";
+import { HpActivity, HpActivitySubmission } from '#root/modules/hpSystem/models.js';
 import { MongoDatabase } from '#root/shared/index.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { plainToInstance } from 'class-transformer';
@@ -372,7 +371,7 @@ export class ActivityRepository implements IActivityRepository {
     return await this.hpActivityCollection.countDocuments(query);
   }
 
-  async getCountByCohortName(cohortName: string, courseVersionId?: string): Promise<number> {
+  async getCountByCohortName(cohortName: string, courseVersionId?: string, session?: ClientSession): Promise<number> {
     await this.init();
 
     const query: any = {
@@ -384,7 +383,7 @@ export class ActivityRepository implements IActivityRepository {
       query.courseVersionId = new ObjectId(courseVersionId);
     }
 
-    return await this.hpActivityCollection.countDocuments(query);
+    return await this.hpActivityCollection.countDocuments(query, session ? { session } : {});
   }
 
   async getPendingActivitesCount(

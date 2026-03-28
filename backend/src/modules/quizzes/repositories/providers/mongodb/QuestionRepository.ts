@@ -251,6 +251,20 @@ class QuestionRepository {
 
     return results;
   }
+
+  public async updatePoints(
+    questionId: string,
+    points: number,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+    const result = await this.questionCollection.updateOne(
+      {_id: new ObjectId(questionId)},
+      {$set: {points}},
+      {session},
+    );
+    return result.modifiedCount === 1;
+  }
 }
 
 export {QuestionRepository};

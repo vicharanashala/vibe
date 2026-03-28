@@ -6,8 +6,7 @@ import { AlertCircle, Loader2, Users, FileText, CheckCircle, TrendingUp, Clock, 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MetricCard } from "./dashboard/MetricCard";
 import { ProgressChart } from "./dashboard/ProgressChart";
-import { StudentPerformanceTable } from "./dashboard/StudentPerformanceTable";
-import { FilterPanel, FilterState } from "./dashboard/FilterPanel";
+// import { FilterPanel, FilterState } from "./dashboard/FilterPanel";
 
 interface CohortOverviewTabProps {
     courseVersionId: string;
@@ -16,12 +15,13 @@ interface CohortOverviewTabProps {
 
 export function CohortOverviewTab({ courseVersionId, cohortName }: CohortOverviewTabProps) {
     const { data: stats, isLoading, error } = useHpCohortOverviewStats(courseVersionId, cohortName);
-    const [, setFilters] = useState<FilterState>({
-        dateRange: '30days',
-        activityType: 'all',
-        status: 'all',
-        studentProgress: 'all',
-    });
+
+    // const [, setFilters] = useState<FilterState>({
+    //     dateRange: '30days',
+    //     activityType: 'all',
+    //     status: 'all',
+    //     studentProgress: 'all',
+    // });
 
     if (isLoading) {
         return (
@@ -58,33 +58,23 @@ export function CohortOverviewTab({ courseVersionId, cohortName }: CohortOvervie
         <TooltipProvider>
             <div className="space-y-6">
                 {/* Filter Panel */}
-                <div className="flex items-center gap-2 rounded-md border px-4 py-2 text-amber-600 text-sm">
-                    <AlertTriangle className="h-4 w-4" />
-                    <p>The dashboard is currently under development. Displayed data may not be fully accurate.</p>
-                </div>
-                <FilterPanel
+                {/* <FilterPanel
                     onFiltersChange={setFilters}
                     className="mb-6"
-                />
+                /> */}
 
                 {/* Metrics Overview */}
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <MetricCard
-                        title="Total Students"
-                        value={stats.totalStudents}
-                        icon={Users}
-                        tooltip="Total number of students enrolled in this cohort"
-                    />
+                <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-3">
                     <MetricCard
                         title="Active Activities"
-                        value={stats.activeActivities}
+                        value={stats.totalActivities}
                         icon={FileText}
-                        subtitle="Published activities"
-                        tooltip="Number of published activities in this cohort"
+                        subtitle="Total activities"
+                        tooltip="Number of activities in this cohort"
                     />
                     <MetricCard
                         title="Pending Reviews"
-                        value={stats.pendingReviews}
+                        value={stats.totalPendings}
                         icon={Clock}
                         subtitle="Awaiting approval"
                         tooltip="Number of submissions waiting for teacher review"
@@ -92,10 +82,10 @@ export function CohortOverviewTab({ courseVersionId, cohortName }: CohortOvervie
                     />
                     <MetricCard
                         title="Overdue Submissions"
-                        value={stats.totalOverdue}
+                        value={stats.totalLateSubmissions}
                         icon={AlertCircle}
-                        subtitle="Across all activities"
-                        tooltip="Number of students who missed the deadline across all activities in this cohort"
+                        subtitle="Late submissions"
+                        tooltip="Number of late submissions in this cohort"
                         iconColor="text-destructive"
                     />
                 </div>
@@ -112,7 +102,7 @@ export function CohortOverviewTab({ courseVersionId, cohortName }: CohortOvervie
                             <div className="h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart
-                                        data={stats.completionRates}
+                                        data={stats.completionRates || []}
                                         margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
                                     >
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -144,7 +134,7 @@ export function CohortOverviewTab({ courseVersionId, cohortName }: CohortOvervie
                         title="HP Distribution"
                         description="Distribution of House Points among students"
                         type="pie"
-                        data={stats.hpDistribution}
+                        data={stats.hpDistribution || []}
                         height={300}
                     />
                 </div>
@@ -154,35 +144,29 @@ export function CohortOverviewTab({ courseVersionId, cohortName }: CohortOvervie
                     title="Submission Timeline"
                     description="Daily submission trends over the selected period"
                     type="line"
-                    data={stats.submissionTimeline}
+                    data={stats.weeklyActivity || []}
                     height={350}
-                />
-
-                {/* Student Performance Table */}
-                <StudentPerformanceTable
-                    data={stats.studentPerformance}
-                    className="mt-6"
                 />
 
                 {/* Student Progress Overview */}
                 <div className="grid gap-6 lg:grid-cols-3">
                     <MetricCard
                         title="Completed Activities"
-                        value={stats.studentProgress[0]?.completed || 0}
+                        value={stats.studentProgress?.[0]?.completed || 0}
                         icon={CheckCircle}
                         subtitle="Students finished"
                         iconColor="text-green-600"
                     />
                     <MetricCard
                         title="In Progress"
-                        value={stats.studentProgress[0]?.inProgress || 0}
+                        value={stats.studentProgress?.[0]?.inProgress || 0}
                         icon={TrendingUp}
                         subtitle="Currently working"
                         iconColor="text-blue-600"
                     />
                     <MetricCard
                         title="Not Started"
-                        value={stats.studentProgress[0]?.notStarted || 0}
+                        value={stats.studentProgress?.[0]?.notStarted || 0}
                         icon={AlertCircle}
                         subtitle="Yet to begin"
                         iconColor="text-orange-600"

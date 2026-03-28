@@ -26,7 +26,7 @@ export const CourseSection = ({
   const renderContent = () => {
     if (isLoading) {
       return (
-        <div className={variant === 'dashboard' ? "space-y-2" : "grid gap-4 md:grid-cols-2"}>
+        <div className={variant === 'dashboard' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "grid gap-4 md:grid-cols-2"}>
           {Array.from({ length: skeletonCount }, (_, i) => (
             <CourseCardSkeleton key={i} variant={variant} />
           ))}
@@ -72,7 +72,7 @@ export const CourseSection = ({
 
     return (
       <>
-        <div className={variant === 'dashboard' ? "space-y-2" : "grid gap-4 md:grid-cols-2"}>
+        <div className={variant === 'dashboard' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "grid gap-4 md:grid-cols-2"}>
           {enrollments
             .filter((enrollment: any) => enrollment && enrollment.courseVersionId)
             .map((enrollment: any, index) => {
