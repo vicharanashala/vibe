@@ -28,9 +28,11 @@ export default function Leaderboard() {
     }
   }, [enrollmentsData, selectedCourseId]);
 
-  const { data: leaderboardData, isLoading, error, refetch, isFetching } = useLeaderboard(
+  const { leaderboard: leaderboardData, isLoading, error } = useLeaderboard(
     selectedCourseId, 
     selectedVersionId, 
+    1,
+    100,
     !!selectedCourseId && !!selectedVersionId
   );
 
