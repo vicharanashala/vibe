@@ -546,7 +546,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                 </div>
             )}
 
-            {activities && activities.length > 0 && (
+            {activities && activities.length > itemsPerPage && (
                 <Card>
                     <CardContent className="p-3">
                         <div className="flex items-center justify-between mb-2">
