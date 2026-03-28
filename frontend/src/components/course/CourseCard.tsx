@@ -84,8 +84,41 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
     Array.isArray(enrollment.assignedTimeSlot) &&
     enrollment.assignedTimeSlot.length > 0;
 
-  const contentCounts = enrollment.contentCounts as { totalItems?: number } || {};
-  const totalLessons = contentCounts.totalItems || 0;
+  const contentCounts = enrollment.contentCounts || {};
+  const itemCounts = (contentCounts as any).itemCounts || {};
+  
+  // Also get counts from courseVersionData as fallback
+  const versionItemCounts = (courseVersionData as any)?.itemCounts || {};
+  const totalLessons = Number(contentCounts.totalItems || (courseVersionData as any)?.totalItems || 0);
+
+  const videoCount = Number(
+    (contentCounts as any).videos ?? itemCounts.VIDEO ?? itemCounts.video ?? itemCounts.videos ?? 
+    versionItemCounts.VIDEO ?? versionItemCounts.video ?? versionItemCounts.videos ?? 0
+  );
+  const quizCount = Number(
+    (contentCounts as any).quizzes ?? itemCounts.QUIZ ?? itemCounts.quiz ?? itemCounts.quizzes ?? 
+    versionItemCounts.QUIZ ?? versionItemCounts.quiz ?? versionItemCounts.quizzes ?? 0
+  );
+  const articleCount = Number(
+    (contentCounts as any).articles ?? itemCounts.BLOG ?? itemCounts.blog ?? itemCounts.articles ?? 
+    versionItemCounts.BLOG ?? versionItemCounts.blog ?? versionItemCounts.articles ?? 0
+  );
+  const projectCount = Number(
+    (contentCounts as any).project ?? (contentCounts as any).projects ?? itemCounts.PROJECT ?? itemCounts.project ?? itemCounts.projects ?? 
+    versionItemCounts.PROJECT ?? versionItemCounts.project ?? versionItemCounts.projects ?? 0
+  );
+
+  const modules = (courseVersionData as any)?.modules || [];
+  const moduleCount = modules.length;
+  const sectionCount = modules.reduce((sum: number, m: any) => sum + (m.sections?.length || 0), 0);
+
+  const timeSlot = Array.isArray(enrollment.assignedTimeSlot)
+    ? enrollment.assignedTimeSlot[0]
+    : enrollment.assignedTimeSlot;
+  const timeslotStr = timeSlot
+    ? `${timeSlot.from} - ${timeSlot.to} (IST)`
+    : 'Access Anytime';
+
   const completedLessons = enrollment.completedItems as number || 0;
   const isCompleted = (typeof enrollment.percentCompleted === 'number' && enrollment.percentCompleted >= 100) || false;
 
@@ -412,16 +445,54 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                       <span className="text-foreground font-bold truncate max-w-[120px]">{enrollment.cohortName}</span>
                     </div>
                   )}
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground font-medium">Progress</span>
-                    <span className="text-foreground font-bold italic">
-                      {isCompleted ? 'Finished' : (progress === 0) ? 'Not Started' : `MOD ${module_number} • SEC ${section_number} • ${item_type}`}
-                    </span>
+                  {/* Detailed Counts */}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-1">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">Total Items</span>
+                      <span className="text-foreground font-bold">{totalLessons}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">Modules</span>
+                      <span className="text-foreground font-bold">{moduleCount}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">Sections</span>
+                      <span className="text-foreground font-bold">{sectionCount}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">Videos</span>
+                      <span className="text-foreground font-bold">{videoCount}</span>
+                    </div>
+                    {quizCount > 0 && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-muted-foreground">Quizzes</span>
+                        <span className="text-foreground font-bold">{quizCount}</span>
+                      </div>
+                    )}
+                    {articleCount > 0 && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-muted-foreground">Articles</span>
+                        <span className="text-foreground font-bold">{articleCount}</span>
+                      </div>
+                    )}
+                    {projectCount > 0 && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-muted-foreground">Projects</span>
+                        <span className="text-foreground font-bold">{projectCount}</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground font-medium">Instructors</span>
-                    <span className="text-foreground font-bold text-right truncate max-w-[120px]">
-                      {enrollment?.course?.instructors?.join(', ') || "ViBe Team"}
+
+                  {/* Timeslot Info */}
+                  <div className="flex items-center justify-between text-xs pt-2 mt-1 border-t border-slate-50 dark:border-slate-800/50">
+                    <span className="text-muted-foreground font-medium flex items-center gap-1">
+                      <Clock className="h-3 w-3" /> Timeslot
+                    </span>
+                    <span className={cn(
+                      "font-bold truncate max-w-[140px]",
+                      timeSlot ? "text-green-600 dark:text-green-400" : "text-muted-foreground"
+                    )}>
+                      {timeslotStr}
                     </span>
                   </div>
                 </div>
@@ -430,24 +501,28 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
             <div className="mt-auto space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
               <div className={cn("grid gap-3", isTimeslotActive ? "grid-cols-2" : "grid-cols-1")} onClick={(e) => e.stopPropagation()}>
-                <Button
-                  variant="outline"
-                  className="w-full rounded-lg h-9 text-[10px] font-bold border-2"
-                  onClick={() => setIsDetailsOpen(true)}
-                >
-                  <Info className="h-3.5 w-3.5 mr-1 text-blue-500" />
-                  Full Details
-                </Button>
-                {isTimeslotActive && (
-                  <Button
-                    variant="outline"
-                    className="w-full rounded-lg h-9 text-[10px] font-bold border-2"
-                    onClick={() => setIsTimeslotModalOpen(true)}
-                    disabled={hasAssignedTimeslot}
-                  >
-                    <Clock className="h-3.5 w-3.5 mr-1 text-green-500" />
-                    {hasAssignedTimeslot ? 'Timeslot' : 'Pick Slot'}
-                  </Button>
+                {variant !== 'available' && (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="w-full rounded-lg h-9 text-[10px] font-bold border-2"
+                      onClick={() => setIsDetailsOpen(true)}
+                    >
+                      <Info className="h-3.5 w-3.5 mr-1 text-blue-500" />
+                      Full Details
+                    </Button>
+                    {isTimeslotActive && (
+                      <Button
+                        variant="outline"
+                        className="w-full rounded-lg h-9 text-[10px] font-bold border-2"
+                        onClick={() => setIsTimeslotModalOpen(true)}
+                        disabled={hasAssignedTimeslot}
+                      >
+                        <Clock className="h-3.5 w-3.5 mr-1 text-green-500" />
+                        {hasAssignedTimeslot ? 'Timeslot' : 'Pick Slot'}
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
 
