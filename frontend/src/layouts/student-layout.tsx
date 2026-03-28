@@ -25,7 +25,7 @@ type Invite = {
   inviteId: string;
   courseId: string;
   courseVersionId: string;
-  cohortId:string;
+  cohortId: string;
 };
 
 export default function StudentLayout() {
@@ -43,9 +43,9 @@ export default function StudentLayout() {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const invitesRef = useRef<HTMLDivElement | null>(null);
-  const [selectedInvite, setSelectedInvite] = useState<Invite|null>(null);
+  const [selectedInvite, setSelectedInvite] = useState<Invite | null>(null);
   const [systemNotifications, setSystemNotifications] = useState<SystemNotification[]>([])
-  
+
   const { hasNew: hasNewAnnouncements, markSeen: markAnnouncementsSeen } = useNewAnnouncementIndicator();
   // const location = useLocation();
   const [pathname, setPathname] = useState(
@@ -108,14 +108,14 @@ export default function StudentLayout() {
     window.history.back()
   }
   const { notifications: fetchedSystemNotifications, unreadCount: systemUnreadCount } =
-  useGetSystemNotifications(user?.uid || '', false, !!user?.uid);
-const { mutate: markSystemRead } = useMarkSystemNotificationAsRead();
-const { mutate: markAllSystemRead } = useMarkAllSystemNotificationsAsRead();
-useEffect(() => {
-  if (fetchedSystemNotifications) {
-    setSystemNotifications(fetchedSystemNotifications);
-  }
-}, [fetchedSystemNotifications]);
+    useGetSystemNotifications(user?.uid || '', false, !!user?.uid);
+  const { mutate: markSystemRead } = useMarkSystemNotificationAsRead();
+  const { mutate: markAllSystemRead } = useMarkAllSystemNotificationsAsRead();
+  useEffect(() => {
+    if (fetchedSystemNotifications) {
+      setSystemNotifications(fetchedSystemNotifications);
+    }
+  }, [fetchedSystemNotifications]);
   useEffect(() => {
     if (!isAuthReady || !user) return;
 
@@ -159,14 +159,14 @@ useEffect(() => {
     if (!showInvites) return;
 
     const handlePointerDown = (event: MouseEvent | TouchEvent) => {
-  const target = event.target as Node | null;
-  if (selectedInvite) return;
-  // Don't close if the click is inside any open dialog portal
-  if ((target as Element)?.closest?.('[role="dialog"]')) return;
-  if (invitesRef.current && target && !invitesRef.current.contains(target)) {
-    setShowInvites(false);
-  }
-};
+      const target = event.target as Node | null;
+      if (selectedInvite) return;
+      // Don't close if the click is inside any open dialog portal
+      if ((target as Element)?.closest?.('[role="dialog"]')) return;
+      if (invitesRef.current && target && !invitesRef.current.contains(target)) {
+        setShowInvites(false);
+      }
+    };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -292,31 +292,32 @@ useEffect(() => {
                 </Link>
               </Button>
             </div>
-          
+          </div>
 
-            <div className="flex items-center gap-2 lg:gap-4 sm:gap-2">
-              <div className="relative" ref={invitesRef}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowInvites((prev) => !prev)}
-                  className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
-                >
-                  <Bell className="h-4 w-4" />
-                  <span className="hidden sm:block ml-2">Notifications</span>
-                  {(pendingInvites.length > 0 || approvedNotificationsList.length > 0 || (pendingStudentRegistrations?.length ?? 0) > 0 || localRejectedRegistrations.length > 0|| systemUnreadCount > 0) && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />}
-                </Button>
+          <div className="flex items-center gap-2 lg:gap-4">
+            <div className="relative" ref={invitesRef}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowInvites((prev) => !prev)}
+                className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:shadow-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10"
+              >
+                <Bell className="h-4 w-4" />
+                <span className="hidden sm:block ml-2">Notifications</span>
+                {(pendingInvites.length > 0 || approvedNotificationsList.length > 0 || (pendingStudentRegistrations?.length ?? 0) > 0 || localRejectedRegistrations.length > 0 || systemUnreadCount > 0) && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />}
+              </Button>
 
-                {showInvites && <InviteDropdown
-                 setShowInvites={setShowInvites}
+              {showInvites && (
+                <InviteDropdown
+                  setShowInvites={setShowInvites}
                   onRejectClick={(invite) => {
                     setSelectedInvite(null);
                     setShowInvites(false);
                   }}
                   systemNotifications={systemNotifications}
                   onMarkSystemRead={(id) => {
-                    markSystemRead({ params: { path: { notificationId: id,
- } } });
+                    // @ts-ignore - notificationId type mismatch in generated client
+                    markSystemRead({ params: { path: { notificationId: id } } });
                     setSystemNotifications(prev =>
                       prev.map(n => n._id === id ? { ...n, read: true } : n)
                     );
@@ -336,30 +337,8 @@ useEffect(() => {
                   onDismissRejected={(id) => {
                     setLocalRejectedRegistrations(prev => prev.filter(r => r._id !== id));
                   }}
-                />}
-              </div>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowInvites((prev) => !prev)}
-                className="relative h-10 w-10 transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10"
-              >
-                <Bell className="h-5 w-5" />
-                {(pendingInvites.length > 0 || approvedNotificationsList.length > 0 || (pendingStudentRegistrations?.length ?? 0) > 0 || localRejectedRegistrations.length > 0) && <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500" />}
-              </Button>
-
-              {showInvites && <InviteDropdown
-                setPendingInvites={setPendingInvites}
-                pendingInvites={pendingInvites}
-                approvedNotifications={approvedNotificationsList}
-                setApprovedNotifications={setApprovedNotificationsList}
-                pendingStudentRegistrations={pendingStudentRegistrations ?? []}
-                rejectedStudentRegistrations={localRejectedRegistrations}
-                onDismissRejected={(id) => {
-                  setLocalRejectedRegistrations(prev => prev.filter(r => r._id !== id));
-                }}
-              />}
+                />
+              )}
             </div>
 
             <div className="relative">

@@ -135,7 +135,24 @@ export class EnrollmentService extends BaseService {
         );
       }
       const versionSetting = await this.settingsRepository.getSettingsByVersionIds([new ObjectId(courseVersionId)]);
-      const baseHpValue = versionSetting?.[0]?.settings?.hpSystem === true ? versionSetting?.[0]?.settings?.baseHp ?? 0 : 0;
+      
+      let baseHpValue = 0;
+
+      if(versionSetting?.[0]?.settings?.hpSystem === true){
+        let cohortBaseHp;
+        if (cohort){
+          const cohortTobeEnrolled = await this.courseRepo.getCohortsByIds([cohort]);
+          if(cohortTobeEnrolled?.[0]?.baseHp){
+            cohortBaseHp = cohortTobeEnrolled[0].baseHp;
+          }
+        }
+        if(cohortBaseHp != null){
+          baseHpValue=cohortBaseHp;
+        }
+        else{
+          baseHpValue = versionSetting?.[0]?.settings?.baseHp ?? 0;
+        }
+      }
       const enrollmentData = {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),

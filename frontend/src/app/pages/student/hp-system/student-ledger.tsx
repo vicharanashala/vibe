@@ -33,6 +33,7 @@ import {
     AlertCircle,
     CheckCircle2,
     Search,
+    RefreshCw,
 } from "lucide-react";
 import { DirectionBadge } from "@/app/pages/teacher/hp-system/components/DirectionBadge";
 import { useQueries } from "@tanstack/react-query";
@@ -58,7 +59,7 @@ export default function StudentLedgerPage() {
     );
 
     // 2. Fetch Ledger Data
-    const { data: ledger = [], studentDetails, isLoading: isLoadingLedger, error } = useMyHpLedger(
+    const { data: ledger = [], studentDetails, isLoading: isLoadingLedger, error, refetch, isRefetching } = useMyHpLedger(
         effectiveCourseId,
         effectiveVersionId,
         firstCohort?.cohortName || ""
@@ -173,6 +174,15 @@ export default function StudentLedgerPage() {
                         Your House Points transaction history across all cohorts
                     </p>
                 </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetch()}
+                    disabled={isRefetching || totalLoading}
+                >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                    {isRefetching ? "Refreshing..." : "Refresh"}
+                </Button>
             </div>
 
             {/* Student Info Card */}

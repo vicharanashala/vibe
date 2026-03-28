@@ -89,6 +89,7 @@ class CourseService extends BaseService {
       const cohortIds = await this.courseRepo.createCohorts(
         versionId,
         cohorts,
+        baseHp,
         session,
       );
 

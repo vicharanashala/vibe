@@ -761,7 +761,7 @@ It returns an empty body with a 200 status code.
     currentPage: number;
   }> {
     const { courseId, versionId } = params;
-    const { page = 1, limit = 10 } = query;
+    const { page = 1, limit = 10, cohortId } = query;
     const userId = user._id?.toString();
     return await this.progressService.getLeaderboard(
       userId,
@@ -769,6 +769,7 @@ It returns an empty body with a 200 status code.
       versionId,
       page,
       limit,
+      cohortId
     );
   }
 

@@ -10,6 +10,7 @@ class QuestionBank implements IQuestionBank {
   tags?: string[];
   title: string;
   description: string;
+  points?: number;
   createdAt: Date;
   updatedAt: Date;
   isDeleted?: boolean;
@@ -24,6 +25,7 @@ class QuestionBank implements IQuestionBank {
     this.tags = questionBank.tags || [];
     this.title = questionBank.title;
     this.description = questionBank.description;
+    this.points = questionBank.points;
     this.createdAt = questionBank.createdAt ?? new Date();
     this.updatedAt = questionBank.updatedAt ?? new Date();
     this.isDeleted = false;

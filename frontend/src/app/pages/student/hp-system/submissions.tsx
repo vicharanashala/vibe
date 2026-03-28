@@ -4,7 +4,7 @@ import { useHpCourseVersions, useStudentMySubmissions, useUpdateActivitySubmissi
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SubmissionStatusBadge } from "@/components/hp-system/SubmissionStatusBadge";
-import { Eye, ChevronDown, ChevronUp, Search } from "lucide-react";
+import { Eye, ChevronDown, ChevronUp, Search, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Pagination } from "@/components/ui/Pagination";
 import { ArrowLeft, Loader2, Link as LinkIcon, FileText, Clock, Edit, Plus, Trash2, Send } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { CourseWithVersions, CourseVersionStats, getEffectiveIds } from "@/lib/api/hp-system";
+import { CourseWithVersions, CourseVersionStats, getEffectiveIds, SubmissionField } from "@/lib/api/hp-system";
 
 export default function StudentSubmissions() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
@@ -26,7 +26,7 @@ export default function StudentSubmissions() {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
-    const { data: submissions, isLoading, error } = useStudentMySubmissions(
+    const { data: submissions, isLoading, error, refetch, isRefetching } = useStudentMySubmissions(
         courseVersionId as string,
         cohortName as string
     );
@@ -47,6 +47,17 @@ export default function StudentSubmissions() {
     const [existingFiles, setExistingFiles] = useState<any[]>([]);
     const [existingImages, setExistingImages] = useState<any[]>([]);
     const [editError, setEditError] = useState<string | null>(null);
+
+    const getValidation = (sub: any): SubmissionField[] => {
+        return sub?.rule?.submissionValidation ?? [SubmissionField.TEXT];
+    };
+
+    const validation = getValidation(editingSubmission);
+
+    const isTextRequired = validation.includes(SubmissionField.TEXT);
+    const isPdfRequired = validation.includes(SubmissionField.PDF);
+    const isImageRequired = validation.includes(SubmissionField.IMAGE);
+    const isUrlRequired = validation.includes(SubmissionField.URL);
 
     const toggleExpanded = (submissionId: string) => {
         setExpandedCards(prev => {
@@ -128,11 +139,40 @@ export default function StudentSubmissions() {
 
     const removeEditLink = (index: number) => setEditLinks(editLinks.filter((_, i) => i !== index));
 
+    const isValidSubmission =
+        (!isTextRequired || editTextResponse.trim()) &&
+        (!isPdfRequired || (existingFiles.length + editFiles.length) > 0) &&
+        (!isImageRequired || (existingImages.length + editImages.length) > 0) &&
+        (!isUrlRequired || editLinks.some(l => l.url.trim()));
+
     const handleUpdateSubmission = async () => {
         if (!editingSubmission || !courseVersionId || !cohortName) return;
         setEditError(null);
 
         const validLinks = editLinks.filter(l => l.url.trim() !== "");
+
+        const totalFiles = existingFiles.length + editFiles.length;
+        const totalImages = existingImages.length + editImages.length;
+
+        if (isTextRequired && !editTextResponse.trim()) {
+            setEditError("Text response is required");
+            return;
+        }
+
+        if (isPdfRequired && totalFiles === 0) {
+            setEditError("At least one PDF file is required");
+            return;
+        }
+
+        if (isImageRequired && totalImages === 0) {
+            setEditError("At least one image is required");
+            return;
+        }
+
+        if (isUrlRequired && validLinks.length === 0) {
+            setEditError("At least one URL is required");
+            return;
+        }
         const hasText = editTextResponse.trim() !== "";
         if (!hasText) {
             setEditError("Please provide a text response.");
@@ -214,12 +254,21 @@ export default function StudentSubmissions() {
                     >
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
-                    <div>
+                    <div className="flex-1">
                         <h1 className="text-3xl font-bold tracking-tight">My Submissions</h1>
                         <p className="text-muted-foreground">
                             {decodeURIComponent(cohortName as string)}
                         </p>
                     </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refetch()}
+                        disabled={isRefetching}
+                    >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                        {isRefetching ? "Refreshing..." : "Refresh"}
+                    </Button>
                 </div>
 
                 {(!submissions || submissions.length === 0) ? (
@@ -462,7 +511,14 @@ export default function StudentSubmissions() {
                                         <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto px-1 pr-4 -mr-4">
                                             <div className="space-y-2">
                                                 <Label htmlFor="editTextResponse" className="flex justify-between items-center">
-                                                    <span>Your Response</span>
+                                                    <span>
+                                                        Your Response{" "}
+                                                        {isTextRequired ? (
+                                                            <span className="text-red-500">*</span>
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground">(optional)</span>
+                                                        )}
+                                                    </span>
                                                     <span className={`text-[10px] font-medium ${editTextResponse.length > 5000 ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
                                                         {editTextResponse.length}/5000 characters
                                                     </span>
@@ -481,7 +537,14 @@ export default function StudentSubmissions() {
                                             </div>
 
                                             <div className="space-y-3">
-                                                <Label>Files (PDF, DOCX, etc)</Label>
+                                                <Label>
+                                                    Files (PDF){" "}
+                                                    {isPdfRequired ? (
+                                                        <span className="text-red-500">*</span>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">(optional)</span>
+                                                    )}
+                                                </Label>
                                                 <Input
                                                     type="file"
                                                     multiple
@@ -528,7 +591,14 @@ export default function StudentSubmissions() {
                                             </div>
 
                                             <div className="space-y-3">
-                                                <Label>Images (JPG, PNG)</Label>
+                                                <Label>
+                                                    Images{" "}
+                                                    {isImageRequired ? (
+                                                        <span className="text-red-500">*</span>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">(optional)</span>
+                                                    )}
+                                                </Label>
                                                 <Input
                                                     type="file"
                                                     accept="image/*"
@@ -571,7 +641,14 @@ export default function StudentSubmissions() {
 
                                             <div className="space-y-3">
                                                 <div className="flex items-center justify-between">
-                                                    <Label>Links</Label>
+                                                    <Label>
+                                                        Links{" "}
+                                                        {isUrlRequired ? (
+                                                            <span className="text-red-500">*</span>
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground">(optional)</span>
+                                                        )}
+                                                    </Label>
                                                     <Button
                                                         type="button"
                                                         variant="outline"
@@ -618,7 +695,7 @@ export default function StudentSubmissions() {
 
                                             {editError && (
                                                 <div className="text-sm text-red-500 bg-red-50 p-3 rounded-md">
-                                                   fdssfdsdf {editError}423342
+                                                    {editError}
                                                 </div>
                                             )}
                                         </div>
@@ -629,7 +706,7 @@ export default function StudentSubmissions() {
                                             </Button>
                                             <Button
                                                 onClick={handleUpdateSubmission}
-                                                disabled={isUpdating || !editTextResponse.trim() || editTextResponse.length > 5000}
+                                                disabled={isUpdating || !isValidSubmission || editTextResponse.length > 5000}
                                             >
                                                 {isUpdating ? (
                                                     <>

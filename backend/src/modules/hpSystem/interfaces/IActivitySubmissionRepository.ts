@@ -53,6 +53,8 @@ export interface IActivitySubmissionRepository {
 
     getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string, cohortName: string): Promise<number>
 
+    getLateSubmissionCount(cohortName: string, courseVersionId: string, session?: ClientSession): Promise<number>
+
     updateFeedbackById(id: string, feedback: SubmissionFeedbackItem, session?: ClientSession): Promise<boolean>
 
     getCompletedActivitiesCountByStudentId(studentId: string): Promise<Array<{ cohort: string, count: number }>>
@@ -63,5 +65,40 @@ export interface IActivitySubmissionRepository {
         rejectedCount: number;
         revertedCount: number;
     }>
+
+    getDailyActivityCount(
+        cohortName: string,
+        courseVersionId: string,
+        startDate: Date,
+        endDate: Date,
+        session?: ClientSession
+    ): Promise<number>;
+
+    getDailyActivityCountByStatus(
+        cohortName: string,
+        courseVersionId: string,
+        startDate: Date,
+        endDate: Date,
+        status: string,
+        session?: ClientSession
+    ): Promise<number>;
+
+
+    getStudentProgressForCohort(
+        cohortName: string,
+        courseVersionId: string,
+        session?: ClientSession
+    ): Promise<{
+        completed: number;
+        inProgress: number;
+        notStarted: number;
+    }>;
+
+    getPendingSubmissionsCount(
+        cohortName: string,
+        courseVersionId: string,
+        session?: ClientSession
+    ): Promise<number>;
+
     listSubmissionsBeforeDeadline(activityId: string): Promise<HpActivitySubmission[]>
 }
