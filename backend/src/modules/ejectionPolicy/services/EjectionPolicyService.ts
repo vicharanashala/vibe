@@ -1,17 +1,12 @@
 import 'reflect-metadata';
 import {injectable, inject} from 'inversify';
-import {
-  BadRequestError,
-  NotFoundError,
-  ForbiddenError,
-} from 'routing-controllers';
+import {BadRequestError, NotFoundError} from 'routing-controllers';
 import {EjectionPolicyRepository} from '../repositories/providers/mongodb/EjectionPolicyRepository.js';
 import {EjectionPolicy} from '../classes/transformers/EjectionPolicy.js';
 import {EJECTION_POLICY_TYPES} from '../types.js';
 import {BaseService} from '#shared/classes/BaseService.js';
 import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
 import {GLOBAL_TYPES} from '#root/types.js';
-import {ClientSession, ObjectId} from 'mongodb';
 
 @injectable()
 export class EjectionPolicyService extends BaseService {
@@ -61,18 +56,18 @@ export class EjectionPolicyService extends BaseService {
       });
 
       try {
-      const policyId = await this.policyRepo.create(policy, session);
-      const createdPolicy = await this.policyRepo.findById(policyId, session);
+        const policyId = await this.policyRepo.create(policy, session);
+        const createdPolicy = await this.policyRepo.findById(policyId, session);
 
-      if (!createdPolicy) {
-        throw new Error('Failed to create policy');
-      }
+        if (!createdPolicy) {
+          throw new Error('Failed to create policy');
+        }
 
-      return createdPolicy;
+        return createdPolicy;
       } catch (err: any) {
         if (err.code === 11000) {
           throw new BadRequestError(
-            'A policy already exists for this cohort. Only one policy per cohort is allowed.'
+            'A policy already exists for this cohort. Only one policy per cohort is allowed.',
           );
         }
         throw err;
@@ -94,11 +89,7 @@ export class EjectionPolicyService extends BaseService {
 
     if (!policy) {
       // Check if policy exists but is deleted
-      const collection = await this.database.getCollection('ejectionPolicies');
-      const deletedPolicy = await collection.findOne({
-        _id: new ObjectId(policyId),
-        isDeleted: true,
-      });
+      const deletedPolicy = await this.policyRepo.findDeletedById(policyId);
 
       if (deletedPolicy) {
         throw new NotFoundError(
@@ -155,12 +146,10 @@ export class EjectionPolicyService extends BaseService {
 
       if (!existingPolicy) {
         // Check if deleted
-        const collection =
-          await this.database.getCollection('ejectionPolicies');
-        const deletedPolicy = await collection.findOne({
-          _id: new ObjectId(policyId),
-          isDeleted: true,
-        });
+        const deletedPolicy = await this.policyRepo.findDeletedById(
+          policyId,
+          session,
+        );
 
         if (deletedPolicy) {
           throw new BadRequestError('Cannot update a deleted policy');
@@ -197,8 +186,7 @@ export class EjectionPolicyService extends BaseService {
    */
   async deletePolicy(policyId: string): Promise<void> {
     // First check if the policy exists (even if deleted)
-    const collection = await this.database.getCollection('ejectionPolicies');
-    const policy = await collection.findOne({_id: new ObjectId(policyId)});
+    const policy = await this.policyRepo.findByIdIncludingDeleted(policyId);
 
     if (!policy) {
       throw new NotFoundError('Policy not found');
@@ -354,7 +342,9 @@ export class EjectionPolicyService extends BaseService {
           throw new BadRequestError('Timeframe days must be greater than 0');
         }
         if (rule.targetPercentage < 0 || rule.targetPercentage > 100) {
-          throw new BadRequestError('Target percentage must be between 0 and 100');
+          throw new BadRequestError(
+            'Target percentage must be between 0 and 100',
+          );
         }
       }
     }
