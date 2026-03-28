@@ -851,6 +851,67 @@ export class GenAIService extends BaseService {
     ].join(':');
   }
 
+  private isYoutubeUrl(url: string): boolean {
+    try {
+      const parsed = new URL(url);
+      const host = parsed.hostname.toLowerCase();
+      return (
+        host === 'youtube.com' ||
+        host === 'www.youtube.com' ||
+        host === 'm.youtube.com' ||
+        host === 'youtu.be' ||
+        host === 'www.youtu.be'
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  private async extractYoutubeTitle(videoUrl: string): Promise<string | null> {
+    if (!this.isYoutubeUrl(videoUrl)) {
+      return null;
+    }
+
+    try {
+      const agent =
+        appConfig.isProduction || appConfig.isStaging
+          ? new SocksProxyAgent(aiConfig.proxyAddress)
+          : undefined;
+
+      const response = await axios.get('https://www.youtube.com/oembed', {
+        params: {
+          url: videoUrl,
+          format: 'json',
+        },
+        httpAgent: agent,
+        httpsAgent: agent,
+      });
+
+      const title = response?.data?.title;
+      if (typeof title === 'string' && title.trim().length > 0) {
+        return title.trim();
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  private normalizeVideoBaseName(input?: string): string | null {
+    const trimmed = input?.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    // Treat the legacy UI default as "not provided" so we can fall back to YouTube title.
+    const canonical = trimmed.toLowerCase().replace(/[\s_-]+/g, '');
+    if (canonical === 'videoitem') {
+      return null;
+    }
+
+    return trimmed;
+  }
+
   async uploadContent(jobId: string, jobState: JobState): Promise<any> {
     return this._withTransaction(async session => {
       const jobData = await this.genAIRepository.getById(jobId, session);
@@ -1060,6 +1121,14 @@ export class GenAIService extends BaseService {
         if (!jobData) {
           throw new NotFoundError(`Job with ID ${jobId} not found`);
         }
+        const instructorProvidedVideoBaseName = this.normalizeVideoBaseName(
+          (jobState.parameters as UploadParameters)?.videoItemBaseName ||
+            jobData.uploadParameters.videoItemBaseName,
+        );
+        const youtubeTitle = await this.extractYoutubeTitle(jobData.url);
+        const videoBaseName =
+          instructorProvidedVideoBaseName || youtubeTitle || 'Video';
+
         let allQuestionsData: any[] = [];
         const uploadParams =
           (jobState.parameters as UploadParameters) ?? jobData.uploadParameters;
@@ -1131,15 +1200,14 @@ export class GenAIService extends BaseService {
         }> = [];
 
         let previousSegmentEndTime = 0.0;
+        let segmentPartNumber = 1;
 
         for (const currentSegmentId of jobState.segmentMap) {
           const segmentStartTime = previousSegmentEndTime;
           const currentSegmentEndTime = currentSegmentId;
 
           // Create Video Item for the segment
-          const videoSegName = jobData.uploadParameters.videoItemBaseName
-            ? jobData.uploadParameters.videoItemBaseName
-            : `Video`;
+          const videoSegName = `${videoBaseName} - Part ${segmentPartNumber}`;
 
           const videoItemBody: CreateItemBody = {
             name: videoSegName,
@@ -1524,6 +1592,7 @@ export class GenAIService extends BaseService {
           }
 
           previousSegmentEndTime = currentSegmentEndTime;
+          segmentPartNumber += 1;
         }
         jobData.jobStatus.uploadContent = TaskStatus.COMPLETED;
         const taskDAta = await this.genAIRepository.getTaskDataByJobId(
