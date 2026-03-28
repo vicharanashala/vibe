@@ -562,7 +562,7 @@
 
 
 
-import { ArrowUp, ArrowDown, Search as SearchIcon } from "lucide-react";
+import { ArrowUp, ArrowDown, Search as SearchIcon, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   Card,
@@ -656,7 +656,7 @@ export default function CourseIssueReports() {
     limit: PAGE_LIMIT,
   }), [filterStatus, debouncedSearchTerm, sortBy, sortOrder, currentPage]);
 
-  const { data: issuesData, isLoading, refetch: issuesRefetch } = useGetCourseIssueReports(versionId as string, params);
+  const { data: issuesData, isLoading, refetch: issuesRefetch, isRefetching } = useGetCourseIssueReports(versionId as string, params);
   const issues = issuesData?.issues || []
 
 
@@ -698,6 +698,15 @@ export default function CourseIssueReports() {
               Review and manage all the issues you raised.
             </p>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => issuesRefetch()}
+            disabled={isRefetching}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+            {isRefetching ? "Refreshing..." : "Refresh"}
+          </Button>
         </div>
 
         <IssueFilters
