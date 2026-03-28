@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, Loader2, Search, X, Download } from 'lucide-react';
+import { Eye, Loader2, Search, X, Download, RefreshCw } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -20,12 +20,12 @@ export const FeedbackSubmissionsTable: React.FC<FeedbackSubmissionsTableProps> =
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [showSubmissionDialog, setShowSubmissionDialog] = useState(false);
 
-  const { data: submissionsData, isLoading: submissionsLoading } = useFeedbackSubmissions({
+  const { data: submissionsData, isLoading: submissionsLoading, refetch, isRefetching } = useFeedbackSubmissions({
     feedbackId,
     courseId,
     searchQuery,
     page: currentPage,
-  });
+  }) as any;
 
   const { exportCSV: handleDownloadCSV, isExporting } = useExportFeedbackSubmissions({
     courseId,
@@ -103,6 +103,15 @@ export const FeedbackSubmissionsTable: React.FC<FeedbackSubmissionsTableProps> =
             />
           )}
         </div>
+        <Button
+          variant="outline"
+          onClick={() => refetch()}
+          disabled={isRefetching}
+          className="w-full lg:w-auto"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+          {isRefetching ? "Refreshing..." : "Refresh"}
+        </Button>
         <Button
           onClick={handleDownloadCSV}
           disabled={isExporting || submissions.length === 0}

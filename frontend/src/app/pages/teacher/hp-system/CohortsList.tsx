@@ -1,9 +1,10 @@
 import { useParams, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, ArrowLeft, Loader2, Ban } from "lucide-react";
+import { Users, ArrowLeft, Loader2, Ban, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useHpCohorts } from "@/hooks/hooks";
 import { CohortStats } from "@/lib/api/hp-system";
+import { useState } from "react";
 
 export default function HpSystemCohorts() {
     const { courseVersionId } = useParams({ strict: false });
@@ -11,7 +12,8 @@ export default function HpSystemCohorts() {
     const router = useRouterState();
     const from = router.location.state?.from;
 
-    const { data, isLoading, error } = useHpCohorts(courseVersionId as string);
+    const { data, isLoading, error, refetch } = useHpCohorts(courseVersionId as string) as any;
+    const [isRefetching, setIsRefetching] = useState(false);
 
     const courseVersionName = data?.courseVersionName ?? "";
     const cohorts = data?.data ?? [];
@@ -22,10 +24,23 @@ export default function HpSystemCohorts() {
                 <Button variant="outline" size="icon" onClick={() => navigate({ to: from || "/teacher/hp-system" })}>
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
-                <div>
+                <div className="flex-1">
                     <h2 className="text-2xl font-bold tracking-tight">Cohorts for Version: {courseVersionName || "N/A"}</h2>
                     <p className="text-muted-foreground">Select a cohort to manage its activities.</p>
                 </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                        setIsRefetching(true);
+                        await refetch();
+                        setIsRefetching(false);
+                    }}
+                    disabled={isRefetching}
+                >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                    {isRefetching ? "Refreshing..." : "Refresh"}
+                </Button>
             </div>
 
             {isLoading && (
@@ -89,7 +104,7 @@ export default function HpSystemCohorts() {
 
                                 <div className="flex justify-between">
                                     <span>HP Distributed:</span>
-                                    <span className="font-medium text-foreground">{c.stats.totalHpDistributed || <Ban className="w-3 h-3 text-muted-foreground" />}</span>
+                                    <span className="font-medium text-foreground">{c.stats.totalHpDistributed ?? <Ban className="w-3 h-3 text-muted-foreground" />}</span>
                                 </div>
                             </div>
                         </CardContent>

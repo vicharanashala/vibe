@@ -19,6 +19,13 @@ export type SubmissionMode = "IN_PLATFORM" | "EXTERNAL_LINK";
 
 export type AttachmentKind = "PDF" | "LINK" | "OTHER";
 
+export enum SubmissionField {
+    TEXT = "TEXT",
+    PDF = "PDF",
+    IMAGE = "IMAGE",
+    URL = "URL",
+}
+
 export interface HpActivity {
     _id: ID;
 
@@ -174,6 +181,8 @@ export interface HpRuleConfig {
 
     deadlineAt: Date;
     allowLateSubmission: boolean;
+
+    submissionValidation: SubmissionField[];
 
     // Reward rule
     reward: {
