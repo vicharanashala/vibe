@@ -509,6 +509,8 @@ const moveToCohortMutation = useMoveToCohort();
           name: student.name ?? 'Unknown Student',
           email: student.email ?? '',
           cohortName: student.cohortName ?? null,
+          totalCourseScore: Number(student.totalCourseScore) || 0,
+          totalCourseMaxScore: Number(student.totalCourseMaxScore) || 0,
           quizScores: Array.isArray(student.quizScores)
             ? student.quizScores.map((quiz: any) => ({
               moduleId: quiz.moduleId ?? 'unknown',
