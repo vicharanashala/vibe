@@ -23,11 +23,11 @@ import {
   ChangeEnrollmentStatusBody,
   BulkChangeEnrollmentStatusBody,
 } from '#users/classes/validators/EnrollmentValidators.js';
-import { QuizScoresExportResponseDto } from '../dtos/QuizScoresExportDto.js';
-import { EnrollmentService } from '#users/services/EnrollmentService.js';
+import {QuizScoresExportResponseDto} from '../dtos/QuizScoresExportDto.js';
+import {EnrollmentService} from '#users/services/EnrollmentService.js';
 
-import { USERS_TYPES } from '#users/types.js';
-import { injectable, inject } from 'inversify';
+import {USERS_TYPES} from '#users/types.js';
+import {injectable, inject} from 'inversify';
 import {
   JsonController,
   Post,
@@ -45,33 +45,37 @@ import {
   Req,
   QueryParam,
   UseInterceptor,
-
+  CurrentUser,
 } from 'routing-controllers';
-import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {
   EnrollmentActions,
   getEnrollmentAbility,
 } from '../abilities/enrollmentAbilities.js';
-import { Ability } from '#root/shared/functions/AbilityDecorator.js';
-import { subject } from '@casl/ability';
+import {Ability} from '#root/shared/functions/AbilityDecorator.js';
+import {subject} from '@casl/ability';
 
-import { BadRequestErrorResponse } from '#root/shared/index.js';
-import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
-import { QuizNotFoundErrorResponse } from '#root/modules/quizzes/classes/index.js';
-import { setAuditTrail } from '#root/utils/setAuditTrail.js';
-import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
-import { ObjectId } from 'mongodb';
+import {BadRequestErrorResponse} from '#root/shared/index.js';
+import {AuditTrailsHandler} from '#root/shared/middleware/auditTrails.js';
+import {QuizNotFoundErrorResponse} from '#root/modules/quizzes/classes/index.js';
+import {setAuditTrail} from '#root/utils/setAuditTrail.js';
+import {
+  AuditAction,
+  AuditCategory,
+  OutComeStatus,
+} from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
+import {ObjectId} from 'mongodb';
 
 @OpenAPI({
   tags: ['Enrollments'],
 })
-@JsonController('/users', { transformResponse: true })
+@JsonController('/users', {transformResponse: true})
 @injectable()
 export class EnrollmentController {
   constructor(
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
-  ) { }
+  ) {}
 
   @OpenAPI({
     summary: 'Enroll a user in a course version',
@@ -96,10 +100,10 @@ export class EnrollmentController {
   async enrollUser(
     @Params() params: EnrollmentParams,
     @Body() body: EnrollmentBody,
-    @Ability(getEnrollmentAbility) { ability, user },
+    @Ability(getEnrollmentAbility) {ability, user},
     @Req() req: Request,
   ): Promise<EnrollUserResponse> {
-    const { userId, courseId, versionId } = params;
+    const {userId, courseId, versionId} = params;
 
     // Create an enrollment resource object for permission checking
     const enrollmentResource = subject('Enrollment', {
@@ -115,13 +119,13 @@ export class EnrollmentController {
       );
     }
 
-    const { role } = body;
+    const {role} = body;
     const responseData = (await this.enrollmentService.enrollUser(
       userId,
       courseId,
       versionId,
       role,
-    )) as { enrollment: IEnrollment; progress: IProgress; role: EnrollmentRole };
+    )) as {enrollment: IEnrollment; progress: IProgress; role: EnrollmentRole};
 
     setAuditTrail(req, {
       category: AuditCategory.ENROLLMENT,
@@ -135,17 +139,17 @@ export class EnrollmentController {
       context: {
         courseId: ObjectId.createFromHexString(courseId),
         courseVersionId: ObjectId.createFromHexString(versionId),
-        userId: ObjectId.createFromHexString(userId)
+        userId: ObjectId.createFromHexString(userId),
       },
       changes: {
         after: {
-          role: body.role
-        }
+          role: body.role,
+        },
       },
       outcome: {
-        status: OutComeStatus.SUCCESS
-      }
-    })
+        status: OutComeStatus.SUCCESS,
+      },
+    });
 
     return new EnrollUserResponse(
       responseData.enrollment,
@@ -174,21 +178,22 @@ export class EnrollmentController {
   })
   async unenrollUser(
     @Params() params: EnrollmentParams,
-    @Ability(getEnrollmentAbility) { ability, user },
-    @Body() body: { cohortId?: string },
+    @Ability(getEnrollmentAbility) {ability, user},
+    @Body() body: {cohortId?: string},
     @Req() req: Request,
   ): Promise<EnrollUserResponse> {
-
-    const { userId, courseId, versionId } = params;
+    const {userId, courseId, versionId} = params;
     const enrollmentData = await this.enrollmentService.findActiveEnrollment(
       userId,
       courseId,
       versionId,
-      body.cohortId
+      body.cohortId,
     );
 
     if (!enrollmentData) {
-      throw new NotFoundError('Enrollment not found for the user in the specified course version');
+      throw new NotFoundError(
+        'Enrollment not found for the user in the specified course version',
+      );
     }
 
     // Create an enrollment resource object for permission checking
@@ -214,7 +219,10 @@ export class EnrollmentController {
 
     setAuditTrail(req, {
       category: AuditCategory.ENROLLMENT,
-      action: enrollmentData.role === "INSTRUCTOR" ? AuditAction.ENROLLMENT_REMOVE_INSTRUCTOR : AuditAction.ENROLLMENT_REMOVE_STUDENT,
+      action:
+        enrollmentData.role === 'INSTRUCTOR'
+          ? AuditAction.ENROLLMENT_REMOVE_INSTRUCTOR
+          : AuditAction.ENROLLMENT_REMOVE_STUDENT,
       actor: {
         id: ObjectId.createFromHexString(user._id.toString()),
         name: `${user.firstName} ${user.lastName}`,
@@ -224,18 +232,17 @@ export class EnrollmentController {
       context: {
         courseId: ObjectId.createFromHexString(courseId),
         courseVersionId: ObjectId.createFromHexString(versionId),
-        userId: ObjectId.createFromHexString(userId)
+        userId: ObjectId.createFromHexString(userId),
       },
       changes: {
         before: {
-          role: enrollmentData.role
-        }
+          role: enrollmentData.role,
+        },
       },
       outcome: {
-        status: OutComeStatus.SUCCESS
-      }
-
-    })
+        status: OutComeStatus.SUCCESS,
+      },
+    });
 
     return new EnrollUserResponse(
       responseData.enrollment,
@@ -265,10 +272,10 @@ export class EnrollmentController {
     @Param('courseId') courseId: string,
     @Param('versionId') versionId: string,
     @Body() body: BulkUnenrollBody,
-    @Ability(getEnrollmentAbility) { ability, user },
+    @Ability(getEnrollmentAbility) {ability, user},
     @Req() req: Request,
   ): Promise<BulkUnenrollResponse> {
-    const { userIds, cohortId } = body;
+    const {userIds, cohortId} = body;
 
     if (!userIds || userIds.length === 0) {
       throw new BadRequestError(
@@ -288,12 +295,11 @@ export class EnrollmentController {
       );
     }
 
-
     const results = await this.enrollmentService.bulkUnenrollUsers(
       userIds,
       courseId,
       versionId,
-      cohortId
+      cohortId,
     );
 
     setAuditTrail(req, {
@@ -315,13 +321,13 @@ export class EnrollmentController {
           successCount: results.successCount,
           failureCount: results.failureCount,
           errors: results.errors,
-          userId: userIds.map(id => new ObjectId(id))
-        }
+          userId: userIds.map(id => new ObjectId(id)),
+        },
       },
       outcome: {
-        status: OutComeStatus.SUCCESS
-      }
-    })
+        status: OutComeStatus.SUCCESS,
+      },
+    });
 
     return {
       success: true,
@@ -334,7 +340,8 @@ export class EnrollmentController {
 
   @OpenAPI({
     summary: 'Change enrollment status for a user',
-    description: 'Updates the status (ACTIVE/INACTIVE) of a specific enrollment.',
+    description:
+      'Updates the status (ACTIVE/INACTIVE) of a specific enrollment.',
   })
   @Authorized()
   @Patch('/:userId/enrollments/courses/:courseId/versions/:versionId/status')
@@ -343,7 +350,7 @@ export class EnrollmentController {
   async changeStatus(
     @Params() params: EnrollmentParams,
     @Body() body: ChangeEnrollmentStatusBody,
-    @Ability(getEnrollmentAbility) { ability, user },
+    @Ability(getEnrollmentAbility) {ability, user},
     @Req() req: Request,
   ): Promise<any> {
     const { userId, courseId, versionId } = params;
@@ -381,7 +388,10 @@ export class EnrollmentController {
 
     setAuditTrail(req, {
       category: AuditCategory.ENROLLMENT,
-      action: status === 'ACTIVE' ? AuditAction.ENROLLMENT_ENABLE : AuditAction.ENROLLMENT_DISABLE,
+      action:
+        status === 'ACTIVE'
+          ? AuditAction.ENROLLMENT_ENABLE
+          : AuditAction.ENROLLMENT_DISABLE,
       actor: {
         id: ObjectId.createFromHexString(user._id.toString()),
         name: `${user.firstName} ${user.lastName}`,
@@ -394,10 +404,10 @@ export class EnrollmentController {
         userId: ObjectId.createFromHexString(userId),
       },
       changes: {
-        before: { status: status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' },
-        after: { status },
+        before: {status: status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'},
+        after: {status},
       },
-      outcome: { status: OutComeStatus.SUCCESS },
+      outcome: {status: OutComeStatus.SUCCESS},
     });
 
     return response;
@@ -405,7 +415,8 @@ export class EnrollmentController {
 
   @OpenAPI({
     summary: 'Bulk change enrollment status',
-    description: 'Updates the status (ACTIVE/INACTIVE) of multiple enrollments in a course version.',
+    description:
+      'Updates the status (ACTIVE/INACTIVE) of multiple enrollments in a course version.',
   })
   @Authorized()
   @Patch('/enrollments/courses/:courseId/versions/:versionId/bulk-status')
@@ -415,20 +426,21 @@ export class EnrollmentController {
     @Param('courseId') courseId: string,
     @Param('versionId') versionId: string,
     @Body() body: BulkChangeEnrollmentStatusBody,
-    @Ability(getEnrollmentAbility) { ability, user },
+    @Ability(getEnrollmentAbility) {ability, user},
     @Req() req: Request,
   ): Promise<any> {
-    const { userIds, status, cohortId } = body;
+    const {userIds, status, cohortId} = body;
 
     if (!userIds || userIds.length === 0) {
-      throw new BadRequestError('User IDs array is required and cannot be empty');
+      throw new BadRequestError(
+        'User IDs array is required and cannot be empty',
+      );
     }
-
 
     const enrollmentResource = subject('Enrollment', {
       courseId,
       versionId,
-      role: 'STUDENT'
+      role: 'STUDENT',
     });
     if (!ability.can(EnrollmentActions.Modify, enrollmentResource)) {
       throw new ForbiddenError(
@@ -446,7 +458,10 @@ export class EnrollmentController {
 
     setAuditTrail(req, {
       category: AuditCategory.ENROLLMENT,
-      action: status === 'ACTIVE' ? AuditAction.BULK_ENROLLMENT_ENABLE : AuditAction.BULK_ENROLLMENT_DISABLE,
+      action:
+        status === 'ACTIVE'
+          ? AuditAction.BULK_ENROLLMENT_ENABLE
+          : AuditAction.BULK_ENROLLMENT_DISABLE,
       actor: {
         id: ObjectId.createFromHexString(user._id.toString()),
         name: `${user.firstName} ${user.lastName}`,
@@ -458,9 +473,9 @@ export class EnrollmentController {
         courseVersionId: ObjectId.createFromHexString(versionId),
       },
       changes: {
-        after: { userIds: userIds.map(id => new ObjectId(id)), status },
+        after: {userIds: userIds.map(id => new ObjectId(id)), status},
       },
-      outcome: { status: OutComeStatus.SUCCESS },
+      outcome: {status: OutComeStatus.SUCCESS},
     });
 
     return response;
@@ -487,19 +502,27 @@ export class EnrollmentController {
   })
   async getUserEnrollments(
     @QueryParams() query: EnrollmentFilterQuery,
-    @Ability(getEnrollmentAbility) { user },
+    @Ability(getEnrollmentAbility) {user},
     @Req() req: any,
   ): Promise<EnrollmentResponse> {
-    const { page, limit, search = '', role, tab = 'active' } = query;
+    const {page, limit, search = '', role, tab = 'active'} = query;
     const userId = user._id.toString();
     const skip = (page - 1) * limit;
     // 🚀 Run DB queries in parallel
-    const [enrollments, totalDocuments, activeCount, archivedCount] = await Promise.all([
-      this.enrollmentService.getEnrollments(userId, skip, limit, role, search, tab),
-      this.enrollmentService.countEnrollments(userId, role, tab, search),
-      this.enrollmentService.getActiveCount(userId, role),
-      this.enrollmentService.getArchiveCount(userId, role)
-    ]);
+    const [enrollments, totalDocuments, activeCount, archivedCount] =
+      await Promise.all([
+        this.enrollmentService.getEnrollments(
+          userId,
+          skip,
+          limit,
+          role,
+          search,
+          tab,
+        ),
+        this.enrollmentService.countEnrollments(userId, role, tab, search),
+        this.enrollmentService.getActiveCount(userId, role),
+        this.enrollmentService.getArchiveCount(userId, role),
+      ]);
 
     if (!enrollments || enrollments.length === 0) {
       return {
@@ -540,9 +563,9 @@ export class EnrollmentController {
   })
   async getEnrollment(
     @Params() params: EnrollmentParams,
-    @Ability(getEnrollmentAbility) { ability },
+    @Ability(getEnrollmentAbility) {ability},
   ): Promise<EnrolledUserResponse> {
-    const { userId, courseId, versionId } = params;
+    const {userId, courseId, versionId} = params;
     // Create an enrollment resource object for permission checking
     const enrollmentResource = subject('Enrollment', {
       userId,
@@ -588,9 +611,9 @@ export class EnrollmentController {
     @Param('courseId') courseId: string,
     @Param('versionId') versionId: string,
     @QueryParams() query: EnrollmentsQuery,
-    @Ability(getEnrollmentAbility) { ability },
+    @Ability(getEnrollmentAbility) {ability},
   ): Promise<CourseVersionEnrollmentResponse> {
-    const enrollmentResource = subject('Enrollment', { courseId, versionId });
+    const enrollmentResource = subject('Enrollment', {courseId, versionId});
 
     if (!ability.can(EnrollmentActions.ViewAll, enrollmentResource)) {
       throw new ForbiddenError(
@@ -628,7 +651,7 @@ export class EnrollmentController {
         sortOrder,
         filter,
         statusTab,
-        cohort
+        cohort,
       );
     if (
       !enrollmentsData ||
@@ -661,7 +684,7 @@ export class EnrollmentController {
           isDeleted: enrollment.isDeleted || false,
           enrollmentDate: enrollment.enrollmentDate,
           unenrolledAt: enrollment.unenrolledAt,
-          user: { ...enrollment.userInfo, _id: enrollment.userId },
+          user: {...enrollment.userInfo, _id: enrollment.userId},
           progress: enrollment.percentCompleted,
           completedItemsCount: enrollment.completedItemsCount || 0,
           assignedTimeSlots: enrollment.assignedTimeSlots || [],
@@ -686,18 +709,21 @@ export class EnrollmentController {
 
   @OpenAPI({
     summary: 'Get student progress detail for the View Progress modal',
-    description: 'Returns content summary (completion %, total items, quiz score, item type counts) for a specific enrolled student. Intended to be called only when the instructor opens the View Progress modal.',
+    description:
+      'Returns content summary (completion %, total items, quiz score, item type counts) for a specific enrolled student. Intended to be called only when the instructor opens the View Progress modal.',
   })
   @Authorized()
-  @Get('/:userId/enrollments/courses/:courseId/versions/:versionId/progress-detail')
+  @Get(
+    '/:userId/enrollments/courses/:courseId/versions/:versionId/progress-detail',
+  )
   @HttpCode(200)
   async getStudentProgressDetail(
     @Params() params: EnrollmentParams,
-    @Ability(getEnrollmentAbility) { ability }: any,
+    @Ability(getEnrollmentAbility) {ability}: any,
     @QueryParam('cohortId') cohortId?: string,
   ): Promise<any> {
-    const { userId, courseId, versionId } = params;
-    const enrollmentResource = subject('Enrollment', { courseId, versionId });
+    const {userId, courseId, versionId} = params;
+    const enrollmentResource = subject('Enrollment', {courseId, versionId});
     if (!ability.can(EnrollmentActions.ViewAll, enrollmentResource)) {
       throw new ForbiddenError(
         'You do not have permission to view this student progress',
@@ -708,11 +734,11 @@ export class EnrollmentController {
       userId,
       courseId,
       versionId,
-      cohortId
+      cohortId,
     );
 
     if (!detail) {
-      return { message: 'Enrollment not found' };
+      return {message: 'Enrollment not found'};
     }
 
     return detail;
@@ -720,19 +746,22 @@ export class EnrollmentController {
 
   @OpenAPI({
     summary: 'Get student course structure for the View Course Structure panel',
-    description: 'Returns the full course module/section structure and the current learning position for a specific enrolled student. Intended to be called lazily when the instructor clicks View Course Structure.',
+    description:
+      'Returns the full course module/section structure and the current learning position for a specific enrolled student. Intended to be called lazily when the instructor clicks View Course Structure.',
   })
   @Authorized()
-  @Get('/:userId/enrollments/courses/:courseId/versions/:versionId/course-structure')
+  @Get(
+    '/:userId/enrollments/courses/:courseId/versions/:versionId/course-structure',
+  )
   @HttpCode(200)
   async getStudentCourseStructure(
     @Params() params: EnrollmentParams,
-    @Ability(getEnrollmentAbility) { ability }: any,
+    @Ability(getEnrollmentAbility) {ability}: any,
     @QueryParam('cohortId') cohortId?: string,
   ): Promise<any> {
-    const { userId, courseId, versionId } = params;
+    const {userId, courseId, versionId} = params;
 
-    const enrollmentResource = subject('Enrollment', { courseId, versionId });
+    const enrollmentResource = subject('Enrollment', {courseId, versionId});
     if (!ability.can(EnrollmentActions.ViewAll, enrollmentResource)) {
       throw new ForbiddenError(
         'You do not have permission to view this student course structure',
@@ -743,10 +772,10 @@ export class EnrollmentController {
       userId,
       courseId,
       versionId,
-      cohortId
+      cohortId,
     );
     if (!structure) {
-      return { message: 'Enrollment not found' };
+      return {message: 'Enrollment not found'};
     }
 
     return structure;
@@ -757,7 +786,7 @@ export class EnrollmentController {
       'Recomputes and updates progress for all enrollments across all courses or a specific course if courseId is provided.',
   })
   @Authorized()
-  @Patch('/enrollments/progress', { transformResponse: true })
+  @Patch('/enrollments/progress', {transformResponse: true})
   @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(UpdateEnrollmentProgressResponse, {
     description: 'Enrollment progress updated successfully',
@@ -768,11 +797,11 @@ export class EnrollmentController {
     statusCode: 400,
   })
   async updateAllEnrollmentsProgress(
-    @Ability(getEnrollmentAbility) { ability, user },
+    @Ability(getEnrollmentAbility) {ability, user},
     @QueryParams() query: BulkEnrollmentsQuery,
     @Req() req: any,
   ) {
-    const { courseId, userId } = query;
+    const {courseId, userId} = query;
     const updatedEnrollment =
       await this.enrollmentService.bulkUpdateAllEnrollments(courseId, userId);
 
@@ -792,14 +821,14 @@ export class EnrollmentController {
       changes: {
         after: {
           totalCount: updatedEnrollment.totalCount,
-          progressUpdatedCount: updatedEnrollment.updatedCount
-        }
+          progressUpdatedCount: updatedEnrollment.updatedCount,
+        },
       },
 
       outcome: {
-        status: OutComeStatus.SUCCESS
-      }
-    })
+        status: OutComeStatus.SUCCESS,
+      },
+    });
     return updatedEnrollment;
   }
 
@@ -821,9 +850,9 @@ export class EnrollmentController {
   async getCourseVersionEnrollmentStatistics(
     @Param('courseId') courseId: string,
     @Param('versionId') versionId: string,
-    @Ability(getEnrollmentAbility) { ability },
+    @Ability(getEnrollmentAbility) {ability},
   ): Promise<EnrollmentStatisticsResponse> {
-    const enrollmentResource = subject('Enrollment', { courseId, versionId });
+    const enrollmentResource = subject('Enrollment', {courseId, versionId});
 
     if (!ability.can(EnrollmentActions.ViewAll, enrollmentResource)) {
       throw new ForbiddenError(
@@ -889,16 +918,22 @@ export class EnrollmentController {
     @Param('courseId') courseId: string,
     @Param('versionId') versionId: string,
     @QueryParam('statusTab') statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
-    @Ability(getEnrollmentAbility) { ability, user },
+    @Ability(getEnrollmentAbility) {ability, user},
     @QueryParam('cohortId') cohortId?: string,
   ): Promise<QuizScoresExportResponseDto> {
     // Check if user has instructor or manager role (can view course-level enrollments)
-    const courseResource = subject('Enrollment', { courseId });
-    const hasCourseLevelAccess = ability.can(EnrollmentActions.ViewAll, courseResource);
+    const courseResource = subject('Enrollment', {courseId});
+    const hasCourseLevelAccess = ability.can(
+      EnrollmentActions.ViewAll,
+      courseResource,
+    );
 
     // Check if user has TA role (can view version-level enrollments)
-    const versionResource = subject('Enrollment', { courseId, versionId });
-    const hasVersionLevelAccess = ability.can(EnrollmentActions.ViewAll, versionResource);
+    const versionResource = subject('Enrollment', {courseId, versionId});
+    const hasVersionLevelAccess = ability.can(
+      EnrollmentActions.ViewAll,
+      versionResource,
+    );
 
     if (!hasCourseLevelAccess && !hasVersionLevelAccess) {
       throw new ForbiddenError(
@@ -928,10 +963,10 @@ export class EnrollmentController {
     statusCode: 400,
   })
   async updateAllCompletedItemsCount(
-    @Ability(getEnrollmentAbility) { ability },
+    @Ability(getEnrollmentAbility) {ability},
     @QueryParams() query: BulkEnrollmentsQuery,
-  ): Promise<{ message: string; totalUpdated: any }> {
-    const { courseId, versionId, userId } = query;
+  ): Promise<{message: string; totalUpdated: any}> {
+    const {courseId, versionId, userId} = query;
     const totalUpdated =
       await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion(
         courseId,
@@ -961,7 +996,7 @@ export class EnrollmentController {
     statusCode: 400,
   })
   async bulk_update_watchtime_progress_completeCounts(
-    @Ability(getEnrollmentAbility) { ability },
+    @Ability(getEnrollmentAbility) {ability},
     @QueryParams() query: BulkEnrollmentsQuery,
   ): Promise<{
     message: string;
@@ -969,7 +1004,7 @@ export class EnrollmentController {
     progressRecalculated: number;
   }> {
     try {
-      const { courseId, versionId, userId } = query;
+      const {courseId, versionId, userId} = query;
       const hasAtleastOneParam = courseId || userId || versionId;
 
       // Validate at least one parameter is provided
@@ -1024,10 +1059,10 @@ export class EnrollmentController {
   })
   async getUserEnrollmentsDetails(
     @QueryParams() query: EnrollmentFilterQuery,
-    @Ability(getEnrollmentAbility) { user },
+    @Ability(getEnrollmentAbility) {user},
     @Req() req: any,
   ): Promise<EnrollmentResponse> {
-    const { page, limit, search = '', role, courseVersionId } = query;
+    const {page, limit, search = '', role, courseVersionId} = query;
     const userId = user._id.toString();
     const skip = (page - 1) * limit;
     // 🚀 Run DB queries in parallel
@@ -1068,7 +1103,9 @@ export class EnrollmentController {
       'Returns completion statistics for each module for a specific student',
   })
   @Authorized()
-  @Get('/:userId/enrollments/courses/:courseId/versions/:versionId/modules/progress')
+  @Get(
+    '/:userId/enrollments/courses/:courseId/versions/:versionId/modules/progress',
+  )
   @HttpCode(200)
   @ResponseSchema(Object, {
     description: 'Module-wise progress for the student',
@@ -1079,7 +1116,7 @@ export class EnrollmentController {
   })
   async getUserModuleProgress(
     @Params() params: EnrollmentParams,
-    @Ability(getEnrollmentAbility) { ability }: any,
+    @Ability(getEnrollmentAbility) {ability}: any,
     @QueryParam('cohortId') cohortId?: string,
   ): Promise<{
     modules: Array<{
@@ -1089,7 +1126,7 @@ export class EnrollmentController {
       completedItems: number;
     }>;
   }> {
-    const { userId, courseId, versionId } = params;
+    const {userId, courseId, versionId} = params;
     // Check permission
     const enrollmentResource = subject('Enrollment', {
       userId,
@@ -1103,13 +1140,34 @@ export class EnrollmentController {
       );
     }
 
-    const moduleProgress = await this.enrollmentService.getModuleProgressForUser(
-      userId,
-      courseId,
-      versionId,
-      cohortId
-    );
+    const moduleProgress =
+      await this.enrollmentService.getModuleProgressForUser(
+        userId,
+        courseId,
+        versionId,
+        cohortId,
+      );
 
-    return { modules: moduleProgress };
+    return {modules: moduleProgress};
+  }
+
+  @Authorized()
+  @Post(
+    '/enrollments/courses/:courseId/versions/:courseVersionId/cohorts/:cohortId/policy-acknowledge',
+  )
+  @HttpCode(200)
+  async acknowledgePolicyUpdate(
+    @Param('courseId') courseId: string,
+    @Param('courseVersionId') courseVersionId: string,
+    @Param('cohortId') cohortId: string,
+    @CurrentUser() user: any,
+  ) {
+    await this.enrollmentService.clearPolicyReacknowledgement(
+      user._id.toString(),
+      courseId,
+      courseVersionId,
+      cohortId,
+    );
+    return {message: 'Policy acknowledged'};
   }
 }

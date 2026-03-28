@@ -185,6 +185,33 @@ class QuestionBankRepository {
     );
     return result.deletedCount > 0;
   }
+
+  async updateQuestionsPoints(
+    questionBankId: string,
+    points: number,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    const questionBank = await this.questionBankCollection.findOne(
+      {_id: new ObjectId(questionBankId)},
+      {session},
+    );
+    if (!questionBank) {
+      return 0;
+    }
+
+    const questionObjectIds = questionBank.questions.map(
+      qId => new ObjectId(qId),
+    );
+
+    const result = await this.questionsCollection.updateMany(
+      {_id: {$in: questionObjectIds}, isDeleted: {$ne: true}},
+      {$set: {points}},
+      {session},
+    );
+
+    return result.modifiedCount;
+  }
 }
 
 export {QuestionBankRepository};
