@@ -136,19 +136,7 @@ const { data: appeal } = useGetAppealById(
   )
 ) : null}
 
-          {!notification.read && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-xs h-6 px-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMarkRead(notification._id);
-              }}
-            >
-              Mark read
-            </Button>
-          )}
+          
         </div>
       </div>
     </div>

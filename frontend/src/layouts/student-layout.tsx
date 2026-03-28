@@ -446,7 +446,8 @@ export default function StudentLayout() {
             </div>
           </div>
         )}
-      </header>
+     
+          </header>
       {selectedInvite && (
         <PolicyAcknowledgementModal
           open={!!selectedInvite}
@@ -457,6 +458,7 @@ export default function StudentLayout() {
           cohortId={selectedInvite?.cohortId}
         />
       )}
+    
 
       <main className="relative flex flex-1 flex-col p-6">
         {/* Content background gradient */}

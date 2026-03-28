@@ -1,4 +1,4 @@
-import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Play, Activity, Users, LucideShield, MessageCircle, Sparkles, Check, Copy } from "lucide-react";
+import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play, Activity, Shield as LucideShield } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,8 @@ import { bufferToHex } from "@/utils/helpers";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { StudentPolicyModal } from "@/app/pages/student/components/policies/StudentPolicyModal";
+import { Pagination } from "../ui/Pagination";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { EnrollmentDetailsDialog } from "@/components/course/EnrollmentDetailsDialog";
 
@@ -34,10 +36,10 @@ const isCurrentTimeInTimeSlot = (timeSlotData?: any) => {
   if (!timeSlot || !timeSlot.from || !timeSlot.to) return true;
 
   const now = new Date();
-  const currentTime = now.getHours() * 60 + now.getMinutes();
-
-  const [fromHours, fromMinutes] = (timeSlot.from as string).split(':').map(Number);
-  const [toHours, toMinutes] = (timeSlot.to as string).split(':').map(Number);
+  const currentTime = now.getHours() * 60 + now.getMinutes(); // Convert to minutes since midnight
+  
+  const [fromHours, fromMinutes] = timeSlot.from.split(':').map(Number);
+  const [toHours, toMinutes] = timeSlot.to.split(':').map(Number);
   const fromTime = fromHours * 60 + fromMinutes;
   const toTime = toHours * 60 + toMinutes;
 
@@ -60,6 +62,14 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
 
+  // Fetch course version to get supportLink
+  const { data: courseVersionData } = useCourseVersionById(
+    versionId,
+    variant !== 'available',
+    cohortId || undefined,
+  );
+  const supportLink = (courseVersionData as any)?.supportLink;
+
   const { setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
   const [isFlipped, setIsFlipped] = useState(false);
@@ -67,12 +77,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const [isTimeslotModalOpen, setIsTimeslotModalOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
 
-  // Fetch course version to get version name
-  const { data: courseVersionData } = useCourseVersionById(
-    versionId,
-    variant !== 'available',
-    cohortId || undefined,
-  );
 
   const progress = Number(Math.min(enrollment.percentCompleted ?? 0, 100).toFixed(2));
 
@@ -99,7 +103,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const isRankVisible = variant !== 'available' && isNotGuruSetu;
   const isTimeslotActive = variant !== 'available' && isNotGuruSetu;
 
-  const supportLink = enrollment?.course?.supportLink || "";
+  // const supportLink = enrollment?.course?.supportLink || "";
 
   // Use useEffect to update completion to avoid infinite re-renders
   useEffect(() => {
