@@ -24,8 +24,6 @@ const DEFAULT_CRON_SCHEDULE = '0 12 * * *';
 
 @injectable()
 export class AutoEjectionEngine extends BaseService {
-  private initialized = false;
-
   constructor(
     @inject(EJECTION_POLICY_TYPES.EjectionPolicyRepo)
     private readonly policyRepo: EjectionPolicyRepository,

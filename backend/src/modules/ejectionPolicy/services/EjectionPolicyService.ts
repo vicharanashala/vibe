@@ -221,7 +221,6 @@ export class EjectionPolicyService extends BaseService {
    */
   private validatePolicyData(policy: Partial<EjectionPolicy>): void {
     // Validate triggers
-    console.log('policy;;;;;;;;;;;;;;;;;;;;;;;:', policy);
 
     if (!policy.triggers) {
       throw new BadRequestError(

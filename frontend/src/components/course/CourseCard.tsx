@@ -11,13 +11,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useLeaderboard, useCourseVersionById } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import { useNavigate } from "@tanstack/react-router";
-import { useState, lazy, Suspense, useEffect } from "react";
+import { useState, lazy, useEffect } from "react";
 import { bufferToHex } from "@/utils/helpers";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { StudentPolicyModal } from "@/app/pages/student/components/policies/StudentPolicyModal";
-import { Pagination } from "../ui/Pagination";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 import { EnrollmentDetailsDialog } from "@/components/course/EnrollmentDetailsDialog";
 

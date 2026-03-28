@@ -116,10 +116,7 @@ export class AppealService {
         versionId,
       );
 
-    console.log('INSTRUCTORS:', instructors);
-
     if (!instructors.length) {
-      console.log('❌ No instructors found');
       return appealId;
     }
 

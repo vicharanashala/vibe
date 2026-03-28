@@ -53,7 +53,6 @@ export class ManualEjectionService {
 
     if (policyId) {
       policy = await this.policyService.getPolicyById(policyId);
-      console.log('IF:POLICY USED FOR EJECTION:', policy?.actions);
     } else {
       const [activePolicy] =
         await this.policyService.getActivePoliciesForCourse(
@@ -63,7 +62,6 @@ export class ManualEjectionService {
         );
 
       policy = activePolicy;
-      console.log('ELSE:POLICY USED FOR EJECTION:', policy?.actions);
     }
 
     const {enrollment} = await this.enrollmentService.ejectUser(
@@ -107,8 +105,6 @@ export class ManualEjectionService {
       <p>– Team</p>
     `,
       });
-
-      console.log('✅ Ejection email sent');
     } catch (error) {
       console.error('❌ Ejection email failed:', error);
     }
