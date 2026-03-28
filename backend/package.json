@@ -14,6 +14,9 @@
     "test": "vitest --ui",
     "test:watch": "vitest run --watch",
     "test:ci": "vitest run --coverage --reporter=html",
+    "migrate:student-questions": "pnpm build && node build/modules/studentQuestions/StudentQuestionMigration.js",
+    "migrate:student-questions:execute": "pnpm build && node build/modules/studentQuestions/StudentQuestionMigration.js --execute",
+    "migrate:student-questions:fixture": "pnpm build && node build/modules/studentQuestions/StudentQuestionMigrationFixture.js",
     "sentry:sourcemaps": "sentry-cli sourcemaps inject --org vicharana-shala --project vibe-server ./build && sentry-cli sourcemaps upload --org vicharana-shala --project vibe-server ./build"
   },
   "imports": {

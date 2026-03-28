@@ -5,6 +5,8 @@ import {GLOBAL_TYPES} from '#root/types.js';
 import {
   IStudentSegmentQuestion,
   StudentQuestionStatus,
+  CrowdValidationState,
+  ICrowdValidationMetrics,
 } from '../../../classes/transformers/StudentSegmentQuestion.js';
 
 @injectable()
@@ -28,6 +30,8 @@ export class StudentQuestionRepository {
         normalizedQuestionText: 1,
       });
       await this.collection.createIndex({courseVersionId: 1, segmentId: 1, createdAt: -1});
+      // Index for batch validation queries (V2.0)
+      await this.collection.createIndex({segmentId: 1, crowdValidationState: 1});
       this.initialized = true;
     }
   }
@@ -110,5 +114,49 @@ export class StudentQuestionRepository {
     );
 
     return result.matchedCount > 0;
+  }
+
+  async updateCrowdValidationMetrics(input: {
+    questionId: string;
+    metrics: ICrowdValidationMetrics;
+    validationState: CrowdValidationState;
+  }): Promise<boolean> {
+    await this.init();
+
+    const result = await this.collection.updateOne(
+      {
+        _id: new ObjectId(input.questionId),
+        $or: [{isDeleted: {$exists: false}}, {isDeleted: false}],
+      },
+      {
+        $set: {
+          crowdValidationMetrics: input.metrics,
+          crowdValidationState: input.validationState,
+          lastValidationCheck: new Date(),
+          updatedAt: new Date(),
+        },
+      },
+    );
+
+    return result.matchedCount > 0;
+  }
+
+  async findByValidationState(input: {
+    segmentId: string;
+    validationState: CrowdValidationState;
+    limit?: number;
+  }): Promise<IStudentSegmentQuestion[]> {
+    await this.init();
+
+    return await this.collection
+      .find(
+        {
+          segmentId: new ObjectId(input.segmentId),
+          crowdValidationState: input.validationState,
+          $or: [{isDeleted: {$exists: false}}, {isDeleted: false}],
+        },
+        {sort: {lastValidationCheck: -1}, limit: input.limit || 100},
+      )
+      .toArray();
   }
 }

@@ -182,6 +182,21 @@ export class StudentQuestionListItem {
   @IsOptional()
   @IsString()
   reviewedAt?: string;
+
+  // Crowd validation fields (V2.0 - internal staff only)
+  @IsOptional()
+  @IsString()
+  crowdValidationState?: string;
+
+  @IsOptional()
+  crowdValidationMetrics?: {
+    totalAttempts: number;
+    correctAttempts: number;
+    correctRate?: number;
+  };
+
+  @IsOptional()
+  lastValidationCheck?: string;
 }
 
 export class StudentQuestionListResponse {

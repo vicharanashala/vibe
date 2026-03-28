@@ -13,6 +13,19 @@ export type StudentQuestionSource =
 
 export type StudentQuestionType = 'SELECT_ONE_IN_LOT';
 
+export type CrowdValidationState =
+  | 'PENDING_CROWD_DATA'
+  | 'READY_FOR_CROWD'
+  | 'KEPT'
+  | 'DISCARDED'
+  | 'FLAGGED_FOR_REVISION';
+
+export interface ICrowdValidationMetrics {
+  totalAttempts: number;
+  correctAttempts: number;
+  correctRate?: number; // Computed: correctAttempts / totalAttempts
+}
+
 export interface IStudentQuestionOption {
   text?: string;
   imageUrl?: string;
@@ -39,6 +52,10 @@ export interface IStudentSegmentQuestion {
   updatedAt: Date;
   isDeleted?: boolean;
   deletedAt?: Date;
+  // Crowd validation fields (V2.0)
+  crowdValidationState?: CrowdValidationState;
+  crowdValidationMetrics?: ICrowdValidationMetrics;
+  lastValidationCheck?: Date;
 }
 
 export class StudentSegmentQuestion implements IStudentSegmentQuestion {
@@ -62,6 +79,10 @@ export class StudentSegmentQuestion implements IStudentSegmentQuestion {
   updatedAt: Date;
   isDeleted?: boolean;
   deletedAt?: Date;
+  // Crowd validation fields (V2.0)
+  crowdValidationState?: CrowdValidationState;
+  crowdValidationMetrics?: ICrowdValidationMetrics;
+  lastValidationCheck?: Date;
 
   constructor(input: {
     courseId: string;
@@ -93,5 +114,9 @@ export class StudentSegmentQuestion implements IStudentSegmentQuestion {
     this.createdAt = new Date();
     this.updatedAt = new Date();
     this.isDeleted = false;
+    // Initialize crowd validation fields
+    this.crowdValidationState = 'PENDING_CROWD_DATA';
+    this.crowdValidationMetrics = { totalAttempts: 0, correctAttempts: 0 };
+    this.lastValidationCheck = undefined;
   }
 }
