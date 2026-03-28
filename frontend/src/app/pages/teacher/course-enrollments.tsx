@@ -415,7 +415,7 @@ const moveToCohortMutation = useMoveToCohort();
     return (
       <div className="flex justify-between items-center">
         <span className="text-muted-foreground">{label}</span>
-        <span className="font-semibold text-right min-w-16">{value ?? 0}</span>
+        <span className="ml-0.5 font-semibold text-right min-w-16">{value ?? 0}</span>
       </div>
     )
   }
@@ -615,14 +615,19 @@ const moveToCohortMutation = useMoveToCohort();
 
   // const studentEnrollments = enrollmentsData?.enrollments || [];
   const studentEnrollments = enrollmentsData?.enrollments || []
+  const cohortFilteredEnrollments = cohort
+  ? studentEnrollments.filter((enrollment: any) => {
+      return String(enrollment.cohortId) === String(cohort);
+    })
+  : studentEnrollments;
   // Filter out already assigned students if excludeAssigned is true
   const filteredStudentEnrollments = excludeAssigned
-    ? studentEnrollments.filter((enrollment: any) => {
+    ? cohortFilteredEnrollments.filter((enrollment: any) => {
       const assignedIds = getAssignedStudentIds();
       const studentId = enrollment.user?._id || enrollment.user?.id;
       return !assignedIds.has(studentId);
     })
-    : studentEnrollments;
+    : cohortFilteredEnrollments;
 
 
   const handleSelectAll = (checked: boolean) => {
@@ -1445,6 +1450,42 @@ const handleMoveToCohort = async () => {
                   Inactive Students({inactiveCount})
                 </TabsTrigger>
               </TabsList>
+            <div className="flex items-center justify-center space-x-2">
+              {(version as any)?.cohortDetails?.length > 0 && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                              >
+                              <Layers className="h-4 w-4 text-muted-foreground" />
+                      {cohort ? (version as any).cohortDetails.find((c: any) => c.id === cohort)?.name : "Select Cohort"}
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              <DropdownMenuRadioGroup
+                                value={cohort ?? ""}
+                                onValueChange={(id) => {
+                                  setCohort(id);
+                                }}
+                              >
+                          <DropdownMenuRadioItem
+                            value={""}
+                            onClick={() => setCohort(null)}>
+                            All Cohorts
+                          </DropdownMenuRadioItem>
+                                {(version as any)?.cohortDetails?.map((cohort: any) => (
+                                  <DropdownMenuRadioItem
+                                    key={cohort.id}
+                                    value={cohort.id}
+                                  >
+                                    {cohort.name}
+                                  </DropdownMenuRadioItem>
+                                ))}
+                              </DropdownMenuRadioGroup>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                )}
               {(version as any)?.cohortDetails?.length > 0 && (
                 <span className="relative flex justify-end right-0">
                   <Button
@@ -1453,10 +1494,11 @@ const handleMoveToCohort = async () => {
                     onClick={() => setIsMoveCohortModalOpen(true)}
                   >
                     <Layers className="h-4 w-4 text-muted-foreground mr-2" />
-                    Move students to cohort
+                    Move students to a cohort
                   </Button>
                 </span>
               )}
+              </div>
             </div>
             {/* Active Tab */}
             <TabsContent value="ACTIVE" className="mt-4">
@@ -2991,41 +3033,6 @@ function EnrollmentsTable({
             )}
           </Button>
 
-          {(version as any)?.cohortDetails?.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                >
-                <Layers className="h-4 w-4 text-muted-foreground" />
-        {cohort ? (version as any).cohortDetails.find((c: any) => c.id === cohort)?.name : "Select Cohort"}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuRadioGroup
-                  value={cohort ?? ""}
-                  onValueChange={(id) => {
-                    setCohort(id);
-                  }}
-                >
-            <DropdownMenuRadioItem
-              value={""}
-              onClick={() => setCohort(null)}>
-              All Cohorts
-            </DropdownMenuRadioItem>
-                  {(version as any)?.cohortDetails?.map((cohort: any) => (
-                    <DropdownMenuRadioItem
-                      key={cohort.id}
-                      value={cohort.id}
-                    >
-                      {cohort.name}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
 
           {/* Bulk Actions Bar - Active tab: Disable + Unenroll */}
           {isSelectionMode && selectedUsers.size > 0 && !isInactiveTab && (

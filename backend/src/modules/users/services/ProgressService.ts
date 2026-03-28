@@ -221,7 +221,8 @@ class ProgressService extends BaseService {
     );
 
     if (!itemsGroup?.items?.length) return null;
-
+    // Remove hidden items from the progression path
+    itemsGroup.items = itemsGroup.items.filter(i => i.isHidden !== true);
     // 4. First item
     const firstItem = this.getFirstByOrder(itemsGroup.items);
     if (!firstItem) return null;
@@ -2671,6 +2672,7 @@ class ProgressService extends BaseService {
     courseId: string,
     courseVersionId: string,
     isPassed: boolean,
+    watchItemId: string,
     cohortId?: string,
   ) {
     // Fetch progress and course version in parallel
@@ -2761,6 +2763,9 @@ class ProgressService extends BaseService {
     //  and as the stop item is not called for that quiz endtime will never be created
     // Only mark quiz as completed (set endTime) if it was actually passed
     if (isPassed) {
+      if(!watchItemId) {
+        throw new BadRequestError('Watch item ID is required to stop tracking');
+      }
       const watchTime = await this.progressRepository.getWatchTime(
         userId,
         quizId,
@@ -2768,6 +2773,9 @@ class ProgressService extends BaseService {
         courseVersionId,
         cohortId,
       );
+      if(watchTime[watchTime.length - 1].itemId.toString() !== quizId) {
+        throw new BadRequestError('Watch item does not correspond to the quiz');
+      }
       const isItemCompleted = await this.progressRepository.isItemCompleted(
         userId.toString(),
         courseId,
@@ -2776,9 +2784,9 @@ class ProgressService extends BaseService {
         cohortId,
       )
 
-      if (!isItemCompleted && watchTime && watchTime.length > 0) {
+      if (!isItemCompleted && watchItemId) {
         await this.progressRepository.stopItemTracking(
-          watchTime[0]._id.toString(),
+          watchItemId,
         );
       }
     }

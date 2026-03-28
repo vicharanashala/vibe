@@ -2639,8 +2639,8 @@ export function useSaveQuiz(): {
 }
 
 export function useSubmitQuiz(): {
-  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, cohortId?: string } }) => void,
-  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, cohortId?: string } }) => Promise<SubmitAttemptResponse>,
+  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined,  watchItemId?: string, cohortId?: string } }) => void,
+  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined,  watchItemId?: string, cohortId?: string } }) => Promise<SubmitAttemptResponse>,
   data: SubmitAttemptResponse | undefined,
   error: string | null,
   isPending: boolean,
