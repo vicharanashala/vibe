@@ -1,5 +1,5 @@
-import {injectable, inject} from 'inversify';
-import {GLOBAL_TYPES} from '#root/types.js';
+import { injectable, inject } from 'inversify';
+import { GLOBAL_TYPES } from '#root/types.js';
 import {
   AuditingDto,
   CourseSetting,
@@ -20,8 +20,8 @@ import {
   ISettingRepository,
   ICourseRepository,
 } from '#shared/index.js';
-import {getISTFormattedTimestamp} from '#root/utils/toISOFormat.js';
-import {ObjectId} from 'mongodb';
+import { getISTFormattedTimestamp } from '#root/utils/toISOFormat.js';
+import { ObjectId } from 'mongodb';
 
 /**
  * Service responsible for course settings operations.
@@ -127,8 +127,10 @@ class CourseSettingService extends BaseService {
         settings.linearProgressionEnabled = true;
         settings.seekForwardEnabled = false;
         settings.isPublic = false;
-        settings.registration = {isActive: true};
-        settings.timeslots = {isActive: false, slots: []};
+        settings.hpSystem = false;
+        settings.registration = { isActive: true };
+        settings.timeslots = { isActive: false, slots: [] };
+        settings.baseHp = 0;
 
         const created = await this.createCourseSettings(
           new CourseSetting({
@@ -156,8 +158,10 @@ class CourseSettingService extends BaseService {
     detectors: DetectorSettingsDto[],
     linearProgressionEnabled: boolean,
     seekForwardEnabled: boolean,
+    hpSystem: boolean,
     isPublic: boolean,
     crowdsourcedQuestionSubmissionEnabled: boolean,
+    baseHp: number,
     userId: string,
   ): Promise<boolean> {
     return this._withTransaction(async session => {
@@ -185,6 +189,8 @@ class CourseSettingService extends BaseService {
         settings.isPublic = isPublic;
         settings.crowdsourcedQuestionSubmissionEnabled =
           crowdsourcedQuestionSubmissionEnabled;
+        settings.hpSystem = hpSystem;
+        settings.baseHp = baseHp;
 
         settings.audit = [
           {
@@ -199,6 +205,8 @@ class CourseSettingService extends BaseService {
                 seekForwardEnabled,
                 isPublic,
                 crowdsourcedQuestionSubmissionEnabled,
+                hpSystem,
+                baseHp,
               },
             },
           },
@@ -230,6 +238,8 @@ class CourseSettingService extends BaseService {
         isPublic: courseSettings.settings?.isPublic,
         crowdsourcedQuestionSubmissionEnabled:
           courseSettings.settings?.crowdsourcedQuestionSubmissionEnabled,
+        hpSystem: courseSettings.settings?.hpSystem,
+        baseHp: courseSettings.settings?.baseHp,
       };
 
       const afterState = {
@@ -238,6 +248,8 @@ class CourseSettingService extends BaseService {
         seekForwardEnabled,
         isPublic,
         crowdsourcedQuestionSubmissionEnabled,
+        hpSystem,
+        baseHp,
       };
 
       const audit: AuditingDto = {
@@ -256,8 +268,10 @@ class CourseSettingService extends BaseService {
         detectors,
         linearProgressionEnabled,
         seekForwardEnabled,
+        hpSystem,
         isPublic,
         crowdsourcedQuestionSubmissionEnabled,
+        baseHp,
         audit,
         session,
       );
@@ -331,6 +345,17 @@ class CourseSettingService extends BaseService {
       return isCourseEnabled;
     });
   }
+
+  async getSettingsByVersionIds(
+    courseVersionIds: ObjectId[],
+  ): Promise<CourseSetting[] | null> {
+    return this._withTransaction(async session => {
+      return await this.settingsRepo.getSettingsByVersionIds(
+        courseVersionIds,
+        session,
+      );
+    });
+  }
 }
 
-export {CourseSettingService};
+export { CourseSettingService };

@@ -45,6 +45,7 @@ export interface CourseCardProps {
     _id?: string;
     cohortId?: string;
     cohortName?: string;
+    hpSystem?: boolean;
   };
   isLoading: boolean;
   index: number;
@@ -102,6 +103,7 @@ export type RawEnrollment = {
   courseId: { buffer: { data: number[] } }
   courseVersionId: { buffer: { data: number[] } }
   course?: components['schemas']['CourseDataResponse'] & { versionDetails?: components['schemas']['CourseVersionDataResponse'][] };
+  policyReacknowledgementRequired?: boolean;
 }
 
 export interface EnrolledUser {

@@ -1,7 +1,7 @@
 import 'reflect-metadata';
-import {Collection, ObjectId, UpdateResult, ClientSession} from 'mongodb';
-import {injectable, inject} from 'inversify';
-import {MongoDatabase} from '../MongoDatabase.js';
+import { Collection, ObjectId, UpdateResult, ClientSession } from 'mongodb';
+import { injectable, inject } from 'inversify';
+import { MongoDatabase } from '../MongoDatabase.js';
 import {
   ICourseSetting,
   IRegistrationSettings,
@@ -22,8 +22,8 @@ import {
   ProctoringSettingsDto,
   UserSetting,
 } from '#root/modules/setting/classes/index.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {NotFoundError} from 'routing-controllers';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { NotFoundError } from 'routing-controllers';
 
 /**
  * Implementation of the Settings Repository for MongoDB.
@@ -37,16 +37,15 @@ export class SettingRepository implements ISettingRepository {
   private userSettingsCollection: Collection<UserSetting>;
   private cohortsCollection: Collection<ICohort>;
 
-  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
   private initialized = false;
 
   private async init() {
     if (!this.initialized) {
       this.courseSettingsCollection =
         await this.db.getCollection<CourseSetting>('courseSettings');
-      this.userSettingsCollection = await this.db.getCollection<UserSetting>(
-        'userSettings',
-      );
+      this.userSettingsCollection =
+        await this.db.getCollection<UserSetting>('userSettings');
       this.cohortsCollection = await this.db.getCollection<ICohort>('cohorts');
       this.initialized = true;
 
@@ -75,8 +74,8 @@ export class SettingRepository implements ISettingRepository {
 
     if (result.acknowledged) {
       const createdSettings = await this.userSettingsCollection.findOne(
-        {_id: result.insertedId},
-        {session},
+        { _id: result.insertedId },
+        { session },
       );
 
       return Object.assign(new UserSetting(), createdSettings) as UserSetting;
@@ -98,7 +97,7 @@ export class SettingRepository implements ISettingRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {session},
+      { session },
     );
 
     if (!userSettings) {
@@ -212,15 +211,15 @@ export class SettingRepository implements ISettingRepository {
   ): Promise<ICourseSetting | null> {
     await this.init();
     const result = await this.courseSettingsCollection.insertOne(
-      courseSettings,
-      {session},
+      { ...courseSettings, settings: { ...courseSettings.settings, linearProgressionEnabled: true } },
+      { session },
     );
     if (result.acknowledged) {
       const createdSettings = await this.courseSettingsCollection.findOne(
         {
           _id: result.insertedId,
         },
-        {session},
+        { session },
       );
 
       // Create a proper CourseSetting instance without Object.assign
@@ -245,7 +244,7 @@ export class SettingRepository implements ISettingRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {session},
+      { session },
     );
 
     if (!courseSettings) {
@@ -272,8 +271,10 @@ export class SettingRepository implements ISettingRepository {
     detectors: DetectorSettingsDto[],
     linearProgressionEnabled: boolean,
     seekForwardEnabled: boolean,
+    hpSystem: boolean,
     isPublic: boolean,
     crowdsourcedQuestionSubmissionEnabled: boolean,
+    baseHp: number,
     audit: AuditingDto,
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
@@ -329,9 +330,11 @@ export class SettingRepository implements ISettingRepository {
           'settings.proctors.detectors': detectors,
           'settings.linearProgressionEnabled': linearProgressionEnabled,
           'settings.seekForwardEnabled': seekForwardEnabled,
+          'settings.hpSystem': hpSystem,
           'settings.isPublic': isPublic,
           'settings.crowdsourcedQuestionSubmissionEnabled':
             crowdsourcedQuestionSubmissionEnabled,
+          'settings.baseHp': baseHp,
         },
         $push: {
           'settings.audit': audit,
@@ -392,7 +395,7 @@ export class SettingRepository implements ISettingRepository {
           'settings.registration_settings': settings,
         },
       },
-      {session},
+      { session },
     );
     return result;
   }
@@ -427,7 +430,30 @@ export class SettingRepository implements ISettingRepository {
             schemas.autoapproval_emails,
         },
       },
-      {session},
+      { session },
+    );
+    return result;
+  }
+
+  async updateCohortSettings(
+    courseId: string,
+    versionId: string,
+    schemas: { cohortSettings: ObjectId[] },
+    session?: ClientSession,
+  ): Promise<UpdateResult | null> {
+    await this.init();
+
+    const result = await this.courseSettingsCollection.updateOne(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(versionId),
+      },
+      {
+        $set: {
+          'settings.registration.cohortSettings': schemas.cohortSettings,
+        },
+      },
+      { session },
     );
     return result;
   }
@@ -435,7 +461,7 @@ export class SettingRepository implements ISettingRepository {
   async updateRegistrationSchemas(
     courseId: string,
     versionId: string,
-    schemas: {jsonSchema?: any; uiSchema?: any; isActive?: boolean}, // Partial update for schemas only
+    schemas: { jsonSchema?: any; uiSchema?: any; isActive?: boolean }, // Partial update for schemas only
     session?: ClientSession,
   ): Promise<UpdateResult> {
     await this.init();
@@ -459,7 +485,7 @@ export class SettingRepository implements ISettingRepository {
       {
         $set: updateFields,
       },
-      {session},
+      { session },
     );
 
     if (result.matchedCount === 0) {
@@ -474,14 +500,14 @@ export class SettingRepository implements ISettingRepository {
   async readSettingsSchema(versionId: string, session?: ClientSession) {
     await this.init();
     const result = await this.courseSettingsCollection.findOne(
-      {courseVersionId: new ObjectId(versionId)},
-      {session},
+      { courseVersionId: new ObjectId(versionId) },
+      { session },
     );
     const registration = result.settings.registration || {};
     const jsonSchema = registration.jsonSchema;
     const uiSchema = registration.uiSchema;
     const isActive = registration.isActive;
-    return {jsonSchema, uiSchema, isActive};
+    return { jsonSchema, uiSchema, isActive };
   }
 
   async deleteCourseSettingsbyVersionId(
@@ -490,8 +516,8 @@ export class SettingRepository implements ISettingRepository {
   ) {
     await this.init();
     const result = await this.courseSettingsCollection.deleteOne(
-      {courseVersionId: new ObjectId(versionId)},
-      {session},
+      { courseVersionId: new ObjectId(versionId) },
+      { session },
     );
     return result.deletedCount > 0;
   }
@@ -564,7 +590,7 @@ export class SettingRepository implements ISettingRepository {
 
       {
         $match: {
-          'courseData.isDeleted': {$ne: true},
+          'courseData.isDeleted': { $ne: true },
         },
       },
 
@@ -588,7 +614,7 @@ export class SettingRepository implements ISettingRepository {
       // remove archived versions
       {
         $match: {
-          'courseVersionData.versionStatus': {$ne: 'archived'},
+          'courseVersionData.versionStatus': { $ne: 'archived' },
         },
       },
     ];
@@ -607,8 +633,8 @@ export class SettingRepository implements ISettingRepository {
       pipeline.push({
         $match: {
           $or: [
-            {'courseData.name': {$regex: search, $options: 'i'}},
-            {'courseData.description': {$regex: search, $options: 'i'}},
+            { 'courseData.name': { $regex: search, $options: 'i' } },
+            { 'courseData.description': { $regex: search, $options: 'i' } },
           ],
         },
       });
@@ -617,19 +643,19 @@ export class SettingRepository implements ISettingRepository {
     pipeline.push({
       $project: {
         _id: 0,
-        courseId: {$toString: '$courseId'},
-        courseVersionId: {$toString: '$courseVersionId'},
+        courseId: { $toString: '$courseId' },
+        courseVersionId: { $toString: '$courseVersionId' },
         courseName: '$courseData.name',
         courseDescription: '$courseData.description',
         isPublic: '$settings.isPublic',
       },
     });
 
-    pipeline.push({$skip: skip});
-    pipeline.push({$limit: limit});
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: limit });
 
     const result = await this.courseSettingsCollection
-      .aggregate(pipeline, {session})
+      .aggregate(pipeline, { session })
       .toArray();
 
     return result;
@@ -667,7 +693,7 @@ export class SettingRepository implements ISettingRepository {
 
       {
         $match: {
-          'courseData.isDeleted': {$ne: true},
+          'courseData.isDeleted': { $ne: true },
         },
       },
 
@@ -689,7 +715,7 @@ export class SettingRepository implements ISettingRepository {
 
       {
         $match: {
-          'courseVersionData.versionStatus': {$ne: 'archived'},
+          'courseVersionData.versionStatus': { $ne: 'archived' },
         },
       },
     ];
@@ -708,8 +734,8 @@ export class SettingRepository implements ISettingRepository {
       pipeline.push({
         $match: {
           $or: [
-            {'courseData.name': {$regex: search, $options: 'i'}},
-            {'courseData.description': {$regex: search, $options: 'i'}},
+            { 'courseData.name': { $regex: search, $options: 'i' } },
+            { 'courseData.description': { $regex: search, $options: 'i' } },
           ],
         },
       });
@@ -720,7 +746,7 @@ export class SettingRepository implements ISettingRepository {
     });
 
     const result = await this.courseSettingsCollection
-      .aggregate(pipeline, {session})
+      .aggregate(pipeline, { session })
       .toArray();
 
     return result.length > 0 ? result[0].total : 0;
@@ -729,7 +755,7 @@ export class SettingRepository implements ISettingRepository {
   async updateTimeslotsSettings(
     courseId: string,
     courseVersionId: string,
-    timeslots: {isActive: boolean; slots: ITimeSlot[]},
+    timeslots: { isActive: boolean; slots: ITimeSlot[] },
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
     await this.init();
@@ -745,7 +771,7 @@ export class SettingRepository implements ISettingRepository {
           'settings.timeslots': timeslots as any,
         },
       },
-      {session},
+      { session },
     );
     return result;
   }
@@ -754,7 +780,7 @@ export class SettingRepository implements ISettingRepository {
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
-  ): Promise<{isActive: boolean; slots: ITimeSlot[]} | null> {
+  ): Promise<{ isActive: boolean; slots: ITimeSlot[] } | null> {
     await this.init();
 
     const courseSettings = await this.courseSettingsCollection.findOne(
@@ -762,7 +788,7 @@ export class SettingRepository implements ISettingRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {session},
+      { session },
     );
 
     // Use type assertion to access timeslots property
@@ -772,19 +798,17 @@ export class SettingRepository implements ISettingRepository {
     return result;
   }
 
-
   async getPublicCatalog(
     enrolledVersionIds: string[],
     enrolledCohortIds: string[],
     skip: number,
     limit: number,
     search: string,
-    session?: ClientSession
+    session?: ClientSession,
   ) {
-    await this.init()
+    await this.init();
 
     const pipeline: any[] = [
-
       /*
       -------------------------
       PART 1: PUBLIC COHORTS
@@ -795,53 +819,53 @@ export class SettingRepository implements ISettingRepository {
         $match: {
           isPublic: true,
           isDeleted: { $ne: true },
-          _id: { $nin: enrolledCohortIds.map(id => new ObjectId(id)) }
-        }
+          _id: { $nin: enrolledCohortIds.map(id => new ObjectId(id)) },
+        },
       },
 
       {
         $lookup: {
-          from: "newCourseVersion",
-          localField: "courseVersionId",
-          foreignField: "_id",
-          as: "version"
-        }
+          from: 'newCourseVersion',
+          localField: 'courseVersionId',
+          foreignField: '_id',
+          as: 'version',
+        },
       },
 
-      { $unwind: "$version" },
+      { $unwind: '$version' },
 
       {
         $lookup: {
-          from: "newCourse",
-          localField: "version.courseId",
-          foreignField: "_id",
-          as: "course"
-        }
+          from: 'newCourse',
+          localField: 'version.courseId',
+          foreignField: '_id',
+          as: 'course',
+        },
       },
 
-      { $unwind: "$course" },
+      { $unwind: '$course' },
 
       {
         $match: {
-          "course.isDeleted": { $ne: true }
-        }
+          'course.isDeleted': { $ne: true },
+        },
       },
 
       {
         $project: {
-          type: { $literal: "COHORT" },
+          type: { $literal: 'COHORT' },
 
-          cohortId: { $toString: "$_id" },
-          cohortName: "$name",
+          cohortId: { $toString: '$_id' },
+          cohortName: '$name',
 
-          courseId: { $toString: "$course._id" },
-          courseName: "$course.name",
-          courseDescription: "$course.description",
+          courseId: { $toString: '$course._id' },
+          courseName: '$course.name',
+          courseDescription: '$course.description',
 
-          courseVersionId: { $toString: "$version._id" },
-          versionName: "$version.version",
-          versionDescription: "$version.description"
-        }
+          courseVersionId: { $toString: '$version._id' },
+          versionName: '$version.version',
+          versionDescription: '$version.description',
+        },
       },
 
       /*
@@ -852,65 +876,65 @@ export class SettingRepository implements ISettingRepository {
 
       {
         $unionWith: {
-          coll: "courseSettings",
+          coll: 'courseSettings',
           pipeline: [
-
             {
               $match: {
-                "settings.isPublic": true,
-                courseVersionId: { $nin: enrolledVersionIds.map(id => new ObjectId(id)) }
-              }
+                'settings.isPublic': true,
+                courseVersionId: {
+                  $nin: enrolledVersionIds.map(id => new ObjectId(id)),
+                },
+              },
             },
 
             {
               $lookup: {
-                from: "newCourse",
-                localField: "courseId",
-                foreignField: "_id",
-                as: "course"
-              }
+                from: 'newCourse',
+                localField: 'courseId',
+                foreignField: '_id',
+                as: 'course',
+              },
             },
 
-            { $unwind: "$course" },
+            { $unwind: '$course' },
 
             {
               $lookup: {
-                from: "newCourseVersion",
-                localField: "courseVersionId",
-                foreignField: "_id",
-                as: "version"
-              }
+                from: 'newCourseVersion',
+                localField: 'courseVersionId',
+                foreignField: '_id',
+                as: 'version',
+              },
             },
 
-            { $unwind: "$version" },
+            { $unwind: '$version' },
 
             {
               $match: {
-                "course.isDeleted": { $ne: true }
-              }
+                'course.isDeleted': { $ne: true },
+              },
             },
 
             {
               $project: {
-                type: { $literal: "COURSE" },
+                type: { $literal: 'COURSE' },
 
                 cohortId: null,
                 cohortName: null,
 
-                courseId: { $toString: "$course._id" },
-                courseName: "$course.name",
-                courseDescription: "$course.description",
+                courseId: { $toString: '$course._id' },
+                courseName: '$course.name',
+                courseDescription: '$course.description',
 
-                courseVersionId: { $toString: "$version._id" },
-                versionName: "$version.version",
-                versionDescription: "$version.description"
-              }
-            }
-          ]
-        }
-      }
-
-    ]
+                courseVersionId: { $toString: '$version._id' },
+                versionName: '$version.version',
+                versionDescription: '$version.description',
+              },
+            },
+          ],
+        },
+      },
+    ];
 
     /*
     -------------------------
@@ -922,12 +946,12 @@ export class SettingRepository implements ISettingRepository {
       pipeline.push({
         $match: {
           $or: [
-            { courseName: { $regex: search, $options: "i" } },
-            { versionName: { $regex: search, $options: "i" } },
-            { cohortName: { $regex: search, $options: "i" } }
-          ]
-        }
-      })
+            { courseName: { $regex: search, $options: 'i' } },
+            { versionName: { $regex: search, $options: 'i' } },
+            { cohortName: { $regex: search, $options: 'i' } },
+          ],
+        },
+      });
     }
 
     /*
@@ -936,10 +960,26 @@ export class SettingRepository implements ISettingRepository {
     -------------------------
     */
 
-    pipeline.push({ $skip: skip }, { $limit: limit })
+    pipeline.push({ $skip: skip }, { $limit: limit });
 
     return await this.cohortsCollection
       .aggregate(pipeline, { session })
-      .toArray()
+      .toArray();
+  }
+
+  async getSettingsByVersionIds(
+    courseVersionIds: ObjectId[],
+    session?: ClientSession,
+  ): Promise<ICourseSetting[] | null> {
+    await this.init();
+    return this.courseSettingsCollection
+      .find({ courseVersionId: { $in: courseVersionIds } }, { session })
+      .toArray();
+  }
+
+  async getisHpSystemEnabled(courseVersionId: ObjectId): Promise<boolean> {
+    await this.init();
+    const result = await this.courseSettingsCollection.findOne({ courseVersionId: courseVersionId });
+    return result.settings?.hpSystem ?? false;
   }
 }

@@ -1,10 +1,11 @@
-import { ClientSession, UpdateResult } from 'mongodb';
+import { ClientSession, ObjectId, UpdateResult } from 'mongodb';
 import {
   ICourseSetting,
   IRegistrationSettings,
   ISettings,
   IUserSetting,
   ITimeSlot,
+  ICohortSettings,
 } from '../../interfaces/models.js';
 import {
   AuditingDto,
@@ -60,8 +61,10 @@ export interface ISettingRepository {
     detectors: DetectorSettingsDto[],
     linearProgressionEnabled: boolean,
     seekForwardEnabled: boolean,
+    hpSystem: boolean,
     isPublic: boolean,
     crowdsourcedQuestionSubmissionEnabled: boolean,
+    baseHp: number,
     audit: AuditingDto,
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
@@ -71,7 +74,7 @@ export interface ISettingRepository {
     versionId: string,
     schemas: { jsonSchema?: any; uiSchema?: any; isActive?: boolean }, // Partial update for schemas only
     session?: ClientSession,
-  ): Promise<UpdateResult>
+  ): Promise<UpdateResult>;
 
   /**
    * Reads course settings for a specific course and version.
@@ -100,7 +103,21 @@ export interface ISettingRepository {
   updateRegistrationSettings(
     courseId: string,
     versionId: string,
-    schemas: { jsonSchema: any; uiSchema: any; isActive: boolean, registrationsAutoApproved?: boolean, autoapproval_emails?: string[] },
+    schemas: {
+      jsonSchema: any;
+      uiSchema: any;
+      isActive: boolean;
+      registrationsAutoApproved?: boolean;
+      autoapproval_emails?: string[];
+      cohortSettings?: ObjectId[];
+    },
+    session?: ClientSession,
+  ): Promise<UpdateResult | null>;
+
+  updateCohortSettings(
+    courseId: string,
+    versionId: string,
+    schemas: { cohortSettings: ObjectId[] },
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
 
@@ -231,4 +248,13 @@ export interface ISettingRepository {
     courseVersionId: string,
     session?: ClientSession,
   ): Promise<{ isActive: boolean; slots: ITimeSlot[] } | null>;
+
+  getSettingsByVersionIds(
+    courseVersionIds: ObjectId[],
+    session?: ClientSession,
+  ): Promise<ICourseSetting[] | null>;
+
+  getisHpSystemEnabled(
+    courseVersionId: ObjectId,
+  ): Promise<boolean>;
 }

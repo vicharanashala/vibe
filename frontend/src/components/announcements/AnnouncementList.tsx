@@ -4,7 +4,7 @@ import { AnnouncementItem } from "./AnnouncementItem";
 import { AnnouncementModal } from "./AnnouncementModal";
 import { Announcement, AnnouncementType } from "@/types/announcement.types";
 import { Button } from "@/components/ui/button";
-import { Plus, Filter, Loader2, Megaphone, Search } from "lucide-react";
+import { Plus, Filter, Loader2, Megaphone, Search, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
     DropdownMenu,
@@ -25,14 +25,16 @@ interface AnnouncementListProps {
     courseId?: string;
     versionId?: string;
     isInstructor?: boolean;
+    cohortId?: string;
 }
 
-export function AnnouncementList({ courseId, versionId, isInstructor }: AnnouncementListProps) {
-    const { data, isLoading, isAdmin, refetch } = useAnnouncements(
+export function AnnouncementList({ courseId, versionId, isInstructor, cohortId }: AnnouncementListProps) {
+    const { data, isLoading, isAdmin, refetch, isRefetching } = useAnnouncements(
         undefined, // fetch all initially, filter locally or let hook handle
         courseId,
         versionId,
-        !isInstructor // student mode if not instructor
+        !isInstructor, // student mode if not instructor
+        cohortId,
     );
 
     const [search, setSearch] = useState("");
@@ -42,7 +44,7 @@ export function AnnouncementList({ courseId, versionId, isInstructor }: Announce
     const [deleteId, setDeleteId] = useState<string | null>(null);
 
     // Decide default type for creation based on context
-    const defaultCreateType = versionId ? AnnouncementType.VERSION_SPECIFIC : courseId ? AnnouncementType.COURSE_SPECIFIC : AnnouncementType.GENERAL;
+    const defaultCreateType = cohortId ? AnnouncementType.COHORT_SPECIFIC : versionId ? AnnouncementType.VERSION_SPECIFIC : courseId ? AnnouncementType.COURSE_SPECIFIC : AnnouncementType.GENERAL;
 
     const filteredData = data.filter(item => {
         const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -84,6 +86,15 @@ export function AnnouncementList({ courseId, versionId, isInstructor }: Announce
                 </div>
 
                 <div className="flex gap-2 w-full sm:w-auto">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refetch()}
+                        disabled={isRefetching}
+                    >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                        {isRefetching ? "Refreshing..." : "Refresh"}
+                    </Button>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="sm" className="gap-2">
@@ -103,6 +114,9 @@ export function AnnouncementList({ courseId, versionId, isInstructor }: Announce
                             </DropdownMenuCheckboxItem>
                             <DropdownMenuCheckboxItem checked={filterType === AnnouncementType.VERSION_SPECIFIC} onCheckedChange={() => setFilterType(AnnouncementType.VERSION_SPECIFIC)}>
                                 Version Specific
+                            </DropdownMenuCheckboxItem>
+                            <DropdownMenuCheckboxItem checked={filterType === AnnouncementType.COHORT_SPECIFIC} onCheckedChange={() => setFilterType(AnnouncementType.COHORT_SPECIFIC)}>
+                                Cohort Specific
                             </DropdownMenuCheckboxItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -155,6 +169,7 @@ export function AnnouncementList({ courseId, versionId, isInstructor }: Announce
                     courseId={courseId}
                     versionId={versionId}
                     isAdmin={isAdmin}
+                    cohortId={cohortId}
                 />
             )}
 

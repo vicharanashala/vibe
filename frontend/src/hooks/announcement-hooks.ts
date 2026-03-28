@@ -26,7 +26,8 @@ export function useAnnouncements(
     type?: AnnouncementType,
     courseId?: string,
     versionId?: string,
-    studentMode: boolean = false
+    studentMode: boolean = false,
+    cohortId?: string,
 ) {
     const [data, setData] = useState<Announcement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -34,8 +35,9 @@ export function useAnnouncements(
     const [totalDocuments, setTotalDocuments] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     const [isAdmin, setIsAdmin] = useState(false);
-
-    const fetchAnnouncements = useCallback(async () => {
+    const [isRefetching, setIsRefetching] = useState(false);
+    const fetchAnnouncements = useCallback(async (isManualRefetch = false) => {
+        if (isManualRefetch) setIsRefetching(true);
         setIsLoading(true);
         try {
             let url: string;
@@ -50,6 +52,7 @@ export function useAnnouncements(
                 if (type) params.set('type', type);
                 if (courseId) params.set('courseId', courseId);
                 if (versionId) params.set('courseVersionId', versionId);
+                if (cohortId) params.set('cohortId', cohortId);
                 url = `${BASE_URL}/instructor?${params.toString()}`;
             }
 
@@ -80,14 +83,15 @@ export function useAnnouncements(
             console.error('useAnnouncements error:', err);
         } finally {
             setIsLoading(false);
+            setIsRefetching(false);
         }
-    }, [type, courseId, versionId, studentMode]);
+    }, [type, courseId, versionId, studentMode, cohortId]);
 
     useEffect(() => {
         fetchAnnouncements();
     }, [fetchAnnouncements]);
 
-    return { data, isLoading, error, totalDocuments, totalPages, isAdmin, refetch: fetchAnnouncements };
+    return { data, isLoading, error, totalDocuments, totalPages, isAdmin, refetch: () => fetchAnnouncements(true), isRefetching };
 }
 
 export function useCreateAnnouncement() {

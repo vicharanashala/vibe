@@ -149,7 +149,7 @@ class QuizService extends BaseService {
   }
   editQuestionBankConfiguration(
     quizId: string,
-    updatedQuestionBankRef: Partial<IQuestionBankRef>,
+    updatedQuestionBankRef: Partial<IQuestionBankRef> & { points?: number },
   ) {
     return this._withTransaction(async session => {
       const quiz = await this.quizRepo.getById(quizId, session);
@@ -198,6 +198,21 @@ class QuizService extends BaseService {
           'Failed to update question bank configuration.',
         );
       }
+
+      // If points is being updated and changed from previous value, update the question bank and cascade to questions
+      if (updatedQuestionBankRef.points !== undefined && updatedQuestionBankRef.points !== questionBank.points) {
+        await this.questionBankRepo.update(
+          questionBank._id.toString(),
+          { points: updatedQuestionBankRef.points },
+          session,
+        );
+        await this.questionBankRepo.updateQuestionsPoints(
+          questionBank._id.toString(),
+          updatedQuestionBankRef.points,
+          session,
+        );
+      }
+
       return result;
     });
   }
@@ -223,18 +238,19 @@ class QuizService extends BaseService {
             title: bank.title,
             description: bank.description,
             tags: bank.tags,
+            points: bank.points,
           };
         }),
       );
       return banks.filter(Boolean);
     });
   }
-  getUserMetricsForQuiz(userId: string, quizId: string) {
+  getUserMetricsForQuiz(userId: string, quizId: string, cohortId?: string) {
     return this._withTransaction(async session => {
       const metrics = await this.userQuizMetricsRepo.get(
         userId,
         quizId,
-        undefined,
+        cohortId,
         session,
       );
       if (!metrics) {

@@ -190,7 +190,7 @@ export class AnomalyController {
     @Ability(getAnomalyAbility) {ability}
   ): Promise<PaginatedResponse<AnomalyData>> {
     const { courseId, versionId } = params;
-    const { page = 1, limit = 10, sortField, sortOrder, search, type } = query;
+    const { page = 1, limit = 10, sortField, sortOrder, search, type , cohort } = query;
     const skip = (page - 1) * limit;
 
     const anomalyRes = subject('Anomaly', { courseId, versionId });
@@ -207,7 +207,8 @@ export class AnomalyController {
       sortOptions, 
       search,
       type,
-      page
+      page,
+      cohort
     );
   }
 

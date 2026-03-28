@@ -9,11 +9,12 @@ import {
   useNavigate
 } from '@tanstack/react-router'
 import { useAuthStore } from '@/store/auth-store'
-import { useEffect } from 'react'
+import React, { useEffect } from 'react'
 
 // Import pages and layouts
 import AuthPage from '@/app/pages/auth-page'
 import TeacherLayout from '@/layouts/teacher-layout'
+import EjectionPoliciesPage from '../pages/teacher/ejection-policies'
 import StudentLayout from '@/layouts/student-layout'
 import StudentDashboard from "@/app/pages/student/dashboard";
 import StudentCourses from "@/app/pages/student/courses";
@@ -52,6 +53,18 @@ import SelectRolePage from '../pages/SelectRolePage'
 import AuditPage from '../pages/teacher/AuditPage'
 import ConfigureCohorts from '../pages/teacher/configure-cohorts'
 
+import HpSystemVersions from '../pages/teacher/hp-system/HpSystemPage'
+import HpSystemCohorts from '../pages/teacher/hp-system/CohortsList'
+import HpSystemDashboard from '../pages/teacher/hp-system/CohortDetails'
+import CreateHpActivityPage from '../pages/teacher/hp-system/create-activity'
+import StudentLedgerPage from '../pages/teacher/hp-system/student-ledger'
+import StudentSubmissionsPage from '../pages/teacher/hp-system/student-submissions'
+import SubmissionDetailsPage from '../pages/teacher/hp-system/submission-details'
+import StudentCohorts from '@/app/pages/student/hp-system/cohorts'
+import StudentActivities from '@/app/pages/student/hp-system/activities'
+import StudentSubmissions from '@/app/pages/student/hp-system/submissions'
+import StudentMyLedgerPage from '@/app/pages/student/hp-system/student-ledger'
+import StudentActivityDetail from '@/app/pages/student/hp-system/activity-detail'
 
 // Root route with error and notFound handling
 const rootRoute = new RootRoute({
@@ -96,6 +109,12 @@ const authRoute = new Route({
       }
     }
   },
+});
+// Teacher Ejection Policies route
+const teacherEjectionPoliciesRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/ejection-policies',
+  component: EjectionPoliciesPage,
 });
 
 // Forgot Password route - accessible only when NOT authenticated
@@ -393,6 +412,48 @@ const teacherAuditRoute = new Route({
   component: AuditPage,
 })
 
+const teacherHpSystemVersionsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system',
+  component: HpSystemVersions,
+})
+
+const teacherHpSystemCohortsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system/$courseVersionId/cohorts',
+  component: HpSystemCohorts,
+})
+
+const teacherHpSystemDashboardRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system/$courseVersionId/cohort/$cohortName/activities',
+  component: HpSystemDashboard,
+})
+
+const teacherCreateHpActivityRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system/$courseVersionId/cohort/$cohortName/activities/create',
+  component: CreateHpActivityPage,
+})
+
+const teacherStudentLedgerRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system/$courseVersionId/cohort/$cohortName/student/$studentId/ledger',
+  component: StudentLedgerPage,
+})
+
+const teacherStudentSubmissionsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system/$courseVersionId/cohort/$cohortName/student/$studentId/submissions',
+  component: StudentSubmissionsPage,
+})
+
+const teacherSubmissionDetailsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system/$courseVersionId/cohort/$cohortName/student/$studentId/submission/$submissionId',
+  component: SubmissionDetailsPage,
+})
+
 // Student dashboard route
 const studentDashboardRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -436,6 +497,37 @@ const studentAnnouncementsRoute = new Route({
   component: StudentAnnouncements,
 });
 
+// Student cohorts route
+const studentHpSystemCohortsRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/hp-system/cohorts',
+  component: StudentCohorts,
+});
+
+// Student activities route
+const studentHpSystemActivitiesRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/hp-system/$courseVersionId/$cohortName/activities',
+  component: StudentActivities,
+});
+
+const studentHpSystemSubmissionsRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/hp-system/$courseVersionId/$cohortName/submissions',
+  component: StudentSubmissions,
+});
+
+const studentHpSystemLedgerRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/hp-system/ledger',
+  component: StudentMyLedgerPage,
+});
+
+const studentHpSystemActivitiesDetailRoute = new Route({
+  getParentRoute: () =>studentLayoutRoute,
+  path: '/hp-system/$courseVersionId/$cohortName/activities/$activityId',
+  component: StudentActivityDetail,
+});
 // export const studentCourseInviteRegistration = new Route({
 //   getParentRoute: () => studentLayoutRoute,
 //   path: "/course-registration/$versionId",
@@ -565,7 +657,16 @@ const routeTree = rootRoute.addChildren([
     teacherFeedBackEditorRoute,
     teacherAnnouncementsRoute,
     teacherAuditRoute,
-    teacherConfigureCohortsRoute
+    teacherConfigureCohortsRoute,
+      teacherEjectionPoliciesRoute, 
+    teacherHpSystemVersionsRoute,
+    teacherHpSystemCohortsRoute,
+    teacherHpSystemDashboardRoute,
+    teacherCreateHpActivityRoute,
+    teacherStudentLedgerRoute,
+    teacherStudentSubmissionsRoute,
+    teacherSubmissionDetailsRoute,
+    
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
@@ -575,6 +676,11 @@ const routeTree = rootRoute.addChildren([
     studentIssuesRoute,
     studentLeaderboardRoute,
     studentAnnouncementsRoute,
+    studentHpSystemCohortsRoute,
+    studentHpSystemActivitiesRoute,
+    studentHpSystemActivitiesDetailRoute,
+    studentHpSystemSubmissionsRoute,
+    studentHpSystemLedgerRoute
   ]),
   coursePageRoute,
 ]);

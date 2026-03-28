@@ -18,7 +18,13 @@ import RegisteredUsers from "../pages/teacher/CourseRegistrationRequests";
 import FeedbackFormEditor from "../pages/teacher/FeedbackFormEditor";
 import TeacherAnnouncements from "../pages/teacher/announcements";
 import AuditPage from "../pages/teacher/AuditPage";
-
+import EjectionPoliciesPage from "../pages/teacher/ejection-policies";
+import HpSystemVersions from "../pages/teacher/hp-system/HpSystemPage";
+import HpSystemCohorts from "../pages/teacher/hp-system/CohortsList";
+import HpSystemDashboard from "../pages/teacher/hp-system/CohortDetails";
+import StudentLedgerPage from "../pages/teacher/hp-system/student-ledger";
+import StudentSubmissionsPage from "../pages/teacher/hp-system/student-submissions";
+import SubmissionDetailsPage from "../pages/teacher/hp-system/submission-details";
 const teacherRoutes: RouteObject = {
   path: "/teacher",
   element: <TeacherLayout />,
@@ -27,6 +33,7 @@ const teacherRoutes: RouteObject = {
     //   path: "dashboard",
     //   element: <Dashboard />,
     // },
+    {path:"ejection-policies",element: <EjectionPoliciesPage />,},
     {
       path: "profile",
       element: <TeacherProfile />,
@@ -99,6 +106,24 @@ const teacherRoutes: RouteObject = {
     }, {
       path: "audit",
       element: <AuditPage />
+    }, {
+      path: "hp-system",
+      element: <HpSystemVersions />
+    }, {
+      path: "hp-system/:courseVersionId/cohorts",
+      element: <HpSystemCohorts />
+    }, {
+      path: "hp-system/:courseVersionId/cohort/:cohortName/activities",
+      element: <HpSystemDashboard />
+    }, {
+      path: "hp-system/:courseVersionId/cohort/:cohortName/student/:studentId/ledger",
+      element: <StudentLedgerPage />
+    }, {
+      path: "hp-system/:courseVersionId/cohort/:cohortName/student/:studentId/submissions",
+      element: <StudentSubmissionsPage />
+    }, {
+      path: "hp-system/:courseVersionId/cohort/:cohortName/student/:studentId/submission/:submissionId",
+      element: <SubmissionDetailsPage />
     }
   ],
 };

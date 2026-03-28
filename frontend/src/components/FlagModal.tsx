@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle  } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Select,
@@ -6,7 +7,10 @@ import { Select,
   SelectValue,
   SelectContent,
   SelectItem, } from './ui/select';
+import { AlertTriangle } from 'lucide-react';
 import { useEffect, useState } from 'react';
+
+const FLAG_SKIP_ALERT_KEY = 'flag-skip-submit-alert';
 
 type FlagModalProps = {
   open: boolean;
@@ -46,6 +50,8 @@ export const FlagModal = ({
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
   const [status, setStatus] = useState(selectedStatus);
+  const [showConfirmAlert, setShowConfirmAlert] = useState(false);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
 
 const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setReason(e.target.value);
@@ -60,22 +66,103 @@ const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       return;
     }
     setError('');
-    if(teacher)
-      onSubmit(reason,status);
-    else
+    if (teacher) {
+      onSubmit(reason, status);
+    } else {
       onSubmit(reason);
-    
+    }
     setReason('');
+  };
+
+  // Called when user clicks "Raise Flag" on the pre-alert.
+  // It only reveals the form; actual submit happens via handleSubmit.
+  const handleRaiseFlag = () => {
+    if (dontShowAgain) {
+      localStorage.setItem(FLAG_SKIP_ALERT_KEY, 'true');
+    }
+    setShowConfirmAlert(false);
   };
 
   useEffect(()=>{
 setStatus(selectedStatus)
   },[selectedStatus])
 
+  useEffect(() => {
+    if (open && !teacher && localStorage.getItem(FLAG_SKIP_ALERT_KEY) !== 'true') {
+      setShowConfirmAlert(true);
+      return;
+    }
+    setShowConfirmAlert(false);
+  }, [open, teacher]);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} >
-      <DialogContent className="sm:max-w-[425px] max-w-sm max-[425px]:w-[90vw]"
+    <>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isOpen) {
+        setShowConfirmAlert(false);
+        setDontShowAgain(false);
+      }
+      onOpenChange(isOpen);
+    }}>
+      <DialogContent className="sm:max-w-[425px] max-w-sm max-[425px]:w-[90vw] overflow-hidden"
       onInteractOutside={(e) => e.preventDefault()} >
+
+        {/* Confirmation overlay — covers the form when showConfirmAlert is true */}
+        {showConfirmAlert && (
+          <div className="absolute inset-0 z-10 flex flex-col rounded-lg overflow-hidden bg-gradient-to-b from-background to-muted/20 backdrop-blur-sm">
+            {/* Header */}
+            <div className="px-5 pt-4 pb-3 shrink-0 border-b bg-background/80">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+                  <AlertTriangle className="size-4 shrink-0" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold tracking-tight">Before You Flag</h2>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Please confirm this is related to content quality.</p>
+                </div>
+              </div>
+            </div>
+            {/* Body */}
+            <div className="flex-1 px-5 py-3 space-y-3 overflow-hidden">
+              <div className="rounded-md border bg-card p-2.5">
+                <p className="text-xs text-muted-foreground leading-normal">
+                  Flags should only be raised when you have a genuine{' '}
+                  <span className="font-medium text-foreground">issue or doubt regarding the content</span>{' '}
+                  in the video or quiz.
+                </p>
+                <p className="text-xs text-muted-foreground leading-normal mt-1.5">
+                  Please do not flag content for other reasons.
+                </p>
+              </div>
+              <label className="flex items-center gap-2.5 cursor-pointer select-none rounded-md border bg-background/80 p-2.5">
+                <Checkbox
+                  id="dont-show-again"
+                  checked={dontShowAgain}
+                  onCheckedChange={(checked) => setDontShowAgain(checked === true)}
+                />
+                <span className="text-xs text-muted-foreground leading-snug">Don't show this next time</span>
+              </label>
+            </div>
+            {/* Buttons — always pinned at bottom */}
+            <div className="flex justify-end gap-2 px-5 py-3 border-t bg-background/90 shrink-0">
+              <Button
+                variant="outline"
+                className="min-w-20 h-8 text-xs"
+                onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="min-w-24 h-8 text-xs"
+                onClick={handleRaiseFlag}
+              >
+                Raise Flag
+              </Button>
+            </div>
+          </div>
+        )}
+
         <DialogHeader>
           <DialogTitle>{teacher?Teacher.title:Student.title}</DialogTitle>
         </DialogHeader>
@@ -127,7 +214,7 @@ setStatus(selectedStatus)
             <Button 
               variant="destructive" 
               onClick={handleSubmit}
-              disabled={!reason.trim() || isSubmitting || !!error}
+              disabled={isSubmitting}
             >
               {isSubmitting ? teacher?Teacher.submittingText:Student.submittingText :teacher?Teacher.buttonText:Student.buttonText}
             </Button>
@@ -135,5 +222,6 @@ setStatus(selectedStatus)
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 };

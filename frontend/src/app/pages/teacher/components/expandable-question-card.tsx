@@ -73,13 +73,15 @@ interface ExpandableQuestionCardProps {
   onDelete: () => void;
   onDuplicate: () => void;
   isFlagged?: boolean;
+  refreshTrigger?: number;
 }
 
 const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
   questionId,
   onDelete,
   onDuplicate,
-  isFlagged = false
+  isFlagged = false,
+  refreshTrigger
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -99,6 +101,13 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
 
   const { data: question, refetch: refetchQuestion } = useQuestionById(questionId);
   const updateQuestion = useUpdateQuestion();
+
+  // Refetch when refreshTrigger changes (called from parent after bank update)
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      refetchQuestion();
+    }
+  }, [refreshTrigger, refetchQuestion]);
 
   // Initialize edit form when question data is loaded
   useEffect(() => {

@@ -112,6 +112,7 @@ interface QuestionBankEditFormData {
   tags: string[];
   difficultyLevel: string;
   questionsToSelect: number;
+  points?: number;
 }
 
 const QUESTION_TYPES = [
@@ -289,6 +290,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
   const [processingStudentQuestionId, setProcessingStudentQuestionId] = useState<string | null>(null);
   const [questionCacheUpdateTrigger, setQuestionCacheUpdateTrigger] = useState(0);
+  const [questionRefreshTrigger, setQuestionRefreshTrigger] = useState(0);
 
 
   // Dialog states
@@ -369,7 +371,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
     description: '',
     tags: [],
     difficultyLevel: '',
-    questionsToSelect: 3
+    questionsToSelect: 3,
+    points: undefined
   });
   const [currentTag, setCurrentTag] = useState('');
 
@@ -673,7 +676,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
       description: questionBank.description || '',
       tags: questionBank.tags || [],
       difficultyLevel: (questionBank.difficulty && questionBank.difficulty.length > 0) ? questionBank.difficulty[0] : '',
-      questionsToSelect: questionBank.count || 3
+      questionsToSelect: questionBank.count || 3,
+      points: questionBank.points
     });
     setShowEditQuestionBankDialog(true);
   };
@@ -721,9 +725,13 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
           questionBankId: questionBankEditForm.questionBankId,
           count: questionBankEditForm.questionsToSelect,
           tags: questionBankEditForm.tags,
-          difficulty: questionBankEditForm.difficultyLevel ? [questionBankEditForm.difficultyLevel] : []
+          difficulty: questionBankEditForm.difficultyLevel ? [questionBankEditForm.difficultyLevel] : [],
+          points: questionBankEditForm.points
         }
       });
+
+      // Trigger refresh of all question cards to show updated points
+      setQuestionRefreshTrigger(prev => prev + 1);
 
       // Close dialog and reset state
       setShowEditQuestionBankDialog(false);
@@ -747,7 +755,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
         description: questionBankToEdit.description || '',
         tags: questionBankToEdit.tags || [],
         difficultyLevel: (questionBankToEdit.difficulty && questionBankToEdit.difficulty.length > 0) ? questionBankToEdit.difficulty[0] : '',
-        questionsToSelect: questionBankToEdit.count || 3
+        questionsToSelect: questionBankToEdit.count || 3,
+        points: questionBankToEdit.points
       });
     }
     setShowEditQuestionBankDialog(false);
@@ -1559,6 +1568,35 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                                     </CardContent>
                                   </Card>
                                 ))}
+                        <CreateQuestionDialog
+                          showCreateQuestionDialog={showCreateQuestionDialog}
+                          setShowCreateQuestionDialog={setShowCreateQuestionDialog}
+                          selectedBankId={selectedQuestionBank}
+                          questionBanks={questionBanks}
+                          onRequestEditBank={(bankId) => {
+                            const bank = questionBanks?.find((b: any) => b.bankId === bankId);
+                            if (bank) {
+                              handleEditQuestionBank(bank);
+                            }
+                          }}
+                        />
+                        <ScrollArea className="flex-1">
+                          <div className="xl:p-4 py-4 space-y-4">
+                            {selectedBankData?.questions?.map((qId: string) => (
+                              <ExpandableQuestionCard
+                                key={qId}
+                                questionId={qId}
+                                isFlagged={questionId === qId}
+                                refreshTrigger={questionRefreshTrigger}
+                                onDelete={() => handleDeleteQuestion(qId)}
+                                onDuplicate={async () => {
+                                  await replaceQuestionWithDuplicate.mutateAsync({
+                                    params: { path: { questionBankId: selectedQuestionBank, questionId: qId } }
+                                  });
+                                  refetchSelectedBank();
+                                }}
+                              />
+                            ))}
 
                                 {!studentQuestionsLoading && unverifiedStudentQuestions.length === 0 && (
                                   <div className="text-center text-muted-foreground py-12">
@@ -1569,6 +1607,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                                     </p>
                                   </div>
                                 )}
+                                </div></ScrollArea>
                               </>
                             ) : selectedQuestionBank === REJECTED_BANK_KEY ? (
                               <>
@@ -2078,6 +2117,23 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     className="w-full"
                     placeholder="Enter number of questions to select"
                   />
+                </div>
+
+                {/* Points Field */}
+                <div className="space-y-2">
+                  <Label htmlFor="editPoints">Points per Question</Label>
+                  <Input
+                    id="editPoints"
+                    type="number"
+                    value={questionBankEditForm.points || ''}
+                    onChange={(e) => setQuestionBankEditForm({ ...questionBankEditForm, points: e.target.value ? Number(e.target.value) : undefined })}
+                    min={1}
+                    className="w-full"
+                    placeholder="Enter points for each question in this bank"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    If set, all questions in this bank will be assigned these points.
+                  </p>
                 </div>
 
                 {/* Error Display */}

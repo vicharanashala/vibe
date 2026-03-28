@@ -392,10 +392,10 @@ export class AnnouncementController {
             );
         }
 
-        const { page, limit, type, courseId, courseVersionId } = query;
+        const { page, limit, type, courseId, courseVersionId, cohortId } = query;
 
         const result = await this.announcementService.getAnnouncementsForInstructor(
-            { type, courseId, courseVersionId },
+            { type, courseId, courseVersionId, cohortId },
             page,
             limit,
         );
@@ -441,6 +441,7 @@ export class AnnouncementController {
         const enrollmentData = enrollments.map((e: any) => ({
             courseId: e.courseId.toString(),
             versionId: e.courseVersionId.toString(),
+            cohortId: e?.cohortId?.toString()
         }));
 
         const result = await this.announcementService.getAnnouncementsForStudent(

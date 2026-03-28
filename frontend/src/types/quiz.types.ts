@@ -184,6 +184,7 @@ export interface QuestionBank {
   tags?: string[];
   title: string;
   description: string;
+  points?: number;
   createdAt: Date;
   updatedAt: Date;
 }

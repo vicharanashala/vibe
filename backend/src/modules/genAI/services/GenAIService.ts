@@ -49,6 +49,15 @@ import { CloudStorageService } from '#root/modules/anomalies/index.js';
 import { storageConfig } from '#root/config/storage.js';
 import { ObjectId } from 'mongodb';
 
+type BloomLevelKey =
+  | 'knowledge'
+  | 'understanding'
+  | 'application'
+  | 'analysis'
+  | 'evaluation'
+  | 'creation'
+  | 'unclassified';
+
 @injectable()
 export class GenAIService extends BaseService {
   constructor(
@@ -219,14 +228,31 @@ export class GenAIService extends BaseService {
       }
       if (jobState.currentTask === TaskType.UPLOAD_CONTENT) {
         // Persist upload parameters to DB before content upload
+        let resolvedUploadParameters = {
+          ...job.uploadParameters,
+        } as UploadParameters;
+
         if (parameters) {
+          resolvedUploadParameters = {
+            ...job.uploadParameters,
+            ...this.removeUndefined(parameters as Partial<UploadParameters>),
+          };
+
+          // Keep upload destination stable for the life of this job.
+          // UI-provided module/section at upload time should not redirect content elsewhere.
+          if (job.uploadParameters.moduleId) {
+            resolvedUploadParameters.moduleId = job.uploadParameters.moduleId;
+          }
+          if (job.uploadParameters.sectionId) {
+            resolvedUploadParameters.sectionId = job.uploadParameters.sectionId;
+          }
+
           await this.genAIRepository.update(jobId, {
-            uploadParameters: {
-              ...job.uploadParameters,
-              ...this.removeUndefined(parameters as Partial<UploadParameters>),
-            },
+            uploadParameters: resolvedUploadParameters,
           }, session);
         }
+
+        jobState.parameters = resolvedUploadParameters;
         const result = await this.uploadContent(jobId, jobState);
         return result;
       }
@@ -269,14 +295,30 @@ export class GenAIService extends BaseService {
       };
       if (jobState.currentTask === TaskType.UPLOAD_CONTENT) {
         // Persist upload parameters to DB before content upload
+        let resolvedUploadParameters = {
+          ...job.uploadParameters,
+        } as UploadParameters;
+
         if (parameters) {
+          resolvedUploadParameters = {
+            ...job.uploadParameters,
+            ...this.removeUndefined(parameters as Partial<UploadParameters>),
+          };
+
+          // Keep upload destination stable for the life of this job.
+          if (job.uploadParameters.moduleId) {
+            resolvedUploadParameters.moduleId = job.uploadParameters.moduleId;
+          }
+          if (job.uploadParameters.sectionId) {
+            resolvedUploadParameters.sectionId = job.uploadParameters.sectionId;
+          }
+
           await this.genAIRepository.update(jobId, {
-            uploadParameters: {
-              ...job.uploadParameters,
-              ...this.removeUndefined(parameters as Partial<UploadParameters>),
-            },
+            uploadParameters: resolvedUploadParameters,
           }, session);
         }
+
+        jobState.parameters = resolvedUploadParameters;
         const result = await this.uploadContent(jobId, jobState);
         return result;
       }
@@ -331,38 +373,90 @@ export class GenAIService extends BaseService {
    * @param type The type of task to retrieve status for
    * @returns Task status data
    */
+  // async getTaskStatus(
+  //   jobId: string,
+  //   type: TaskType,
+  // ): Promise<
+  //   | audioData[]
+  //   | trascriptGenerationData[]
+  //   | segmentationData[]
+  //   | questionGenerationData[]
+  //   | contentUploadData[]
+  // > {
+  //   return this._withTransaction(async session => {
+  //     const taskData = await this.genAIRepository.getTaskDataByJobId(
+  //       jobId,
+  //       session,
+  //     );
+  //     if (!taskData) {
+  //       throw new NotFoundError(`Task data for job ID ${jobId} not found`);
+  //     }
+  //     switch (type) {
+  //       case TaskType.AUDIO_EXTRACTION:
+  //         return taskData.audioExtraction;
+  //       case TaskType.TRANSCRIPT_GENERATION:
+  //         return taskData.transcriptGeneration;
+  //       case TaskType.SEGMENTATION:
+  //         return taskData.segmentation;
+  //       case TaskType.QUESTION_GENERATION:
+  //         return taskData.questionGeneration;
+  //       case TaskType.UPLOAD_CONTENT:
+  //         return taskData.uploadContent;
+  //       default:
+  //         throw new BadRequestError(`Invalid task type: ${type}`);
+  //     }
+  //   });
+  // }
+
   async getTaskStatus(
     jobId: string,
     type: TaskType,
-  ): Promise<
-    | audioData[]
-    | trascriptGenerationData[]
-    | segmentationData[]
-    | questionGenerationData[]
-    | contentUploadData[]
-  > {
+  ): Promise<any> {
     return this._withTransaction(async session => {
+
       const taskData = await this.genAIRepository.getTaskDataByJobId(
         jobId,
         session,
       );
+
       if (!taskData) {
-        throw new NotFoundError(`Task data for job ID ${jobId} not found`);
+        return {
+          task: type,
+          status: "WAITING",
+          message: "Job not initialized yet"
+        };
       }
+
+      let result;
+
       switch (type) {
         case TaskType.AUDIO_EXTRACTION:
-          return taskData.audioExtraction;
+          result = taskData.audioExtraction;
+          break;
         case TaskType.TRANSCRIPT_GENERATION:
-          return taskData.transcriptGeneration;
+          result = taskData.transcriptGeneration;
+          break;
         case TaskType.SEGMENTATION:
-          return taskData.segmentation;
+          result = taskData.segmentation;
+          break;
         case TaskType.QUESTION_GENERATION:
-          return taskData.questionGeneration;
+          result = taskData.questionGeneration;
+          break;
         case TaskType.UPLOAD_CONTENT:
-          return taskData.uploadContent;
+          result = taskData.uploadContent;
+          break;
         default:
           throw new BadRequestError(`Invalid task type: ${type}`);
       }
+
+      if (!result) {
+        return {
+          task: type,
+          status: "WAITING"
+        };
+      }
+
+      return result;
     });
   }
 
@@ -760,36 +854,246 @@ export class GenAIService extends BaseService {
   async uploadContent(jobId: string, jobState: JobState): Promise<any> {
     return this._withTransaction(async session => {
       const jobData = await this.genAIRepository.getById(jobId, session);
+      const normalizeBloomLevel = (input: unknown): BloomLevelKey => {
+        if (typeof input === 'number') {
+          if (input === 1) return 'knowledge';
+          if (input === 2) return 'understanding';
+          if (input === 3) return 'application';
+          if (input === 4) return 'analysis';
+          if (input === 5) return 'evaluation';
+          if (input === 6) return 'creation';
+          return 'unclassified';
+        }
+
+        const normalized = String(input || '')
+          .trim()
+          .toLowerCase()
+          .replace(/[\s_-]+/g, '');
+
+        if (
+          normalized === 'knowledge' ||
+          normalized === 'remember' ||
+          normalized === 'remembering' ||
+          normalized === 'recall' ||
+          normalized === '1' ||
+          normalized === 'l1' ||
+          normalized === 'level1'
+        ) {
+          return 'knowledge';
+        }
+
+        if (
+          normalized === 'understanding' ||
+          normalized === 'understand' ||
+          normalized === 'comprehension' ||
+          normalized === '2' ||
+          normalized === 'l2' ||
+          normalized === 'level2'
+        ) {
+          return 'understanding';
+        }
+
+        if (
+          normalized === 'application' ||
+          normalized === 'apply' ||
+          normalized === '3' ||
+          normalized === 'l3' ||
+          normalized === 'level3'
+        ) {
+          return 'application';
+        }
+
+        if (
+          normalized === 'analysis' ||
+          normalized === 'analyze' ||
+          normalized === 'analytical' ||
+          normalized === '4' ||
+          normalized === 'l4' ||
+          normalized === 'level4'
+        ) {
+          return 'analysis';
+        }
+
+        if (
+          normalized === 'evaluation' ||
+          normalized === 'evaluate' ||
+          normalized === '5' ||
+          normalized === 'l5' ||
+          normalized === 'level5'
+        ) {
+          return 'evaluation';
+        }
+
+        if (
+          normalized === 'creation' ||
+          normalized === 'create' ||
+          normalized === 'synthesis' ||
+          normalized === '6' ||
+          normalized === 'l6' ||
+          normalized === 'level6'
+        ) {
+          return 'creation';
+        }
+
+        return 'unclassified';
+      };
+      const extractBloomLevel = (question: any): BloomLevelKey => {
+        const candidates: unknown[] = [
+          question?.bloomLevel,
+          question?.question?.bloomLevel,
+          question?.level,
+          question?.question?.level,
+          question?.bloom,
+          question?.question?.bloom,
+          question?.taxonomy?.bloomLevel,
+          question?.metadata?.bloomLevel,
+          question?.question?.metadata?.bloomLevel,
+        ];
+
+        for (const candidate of candidates) {
+          if (candidate && typeof candidate === 'object') {
+            const objectLevel = normalizeBloomLevel(
+              (candidate as any).level ?? (candidate as any).name,
+            );
+            if (objectLevel !== 'unclassified') {
+              return objectLevel;
+            }
+          }
+
+          const level = normalizeBloomLevel(candidate);
+          if (level !== 'unclassified') {
+            return level;
+          }
+        }
+
+        return 'unclassified';
+      };
+
+      const allocateBloomCountsForAttempt = (
+        bankQuestionCounts: Array<{ bloomLevel: BloomLevelKey; availableCount: number }>,
+        distribution?: {
+          knowledge: number;
+          understanding: number;
+          application: number;
+          analysis?: number;
+          evaluation?: number;
+          creation?: number;
+        },
+      ): Record<BloomLevelKey, number> => {
+        const allocations: Record<BloomLevelKey, number> = {
+          knowledge: 0,
+          understanding: 0,
+          application: 0,
+          analysis: 0,
+          evaluation: 0,
+          creation: 0,
+          unclassified: 0,
+        };
+
+        const eligibleBanks = bankQuestionCounts.filter(bank => bank.availableCount > 0);
+        if (!eligibleBanks.length) {
+          return allocations;
+        }
+
+        const percentageByBloom: Record<BloomLevelKey, number> = {
+          knowledge: distribution?.knowledge ?? 0,
+          understanding: distribution?.understanding ?? 0,
+          application: distribution?.application ?? 0,
+          analysis: distribution?.analysis ?? 0,
+          evaluation: distribution?.evaluation ?? 0,
+          creation: distribution?.creation ?? 0,
+          unclassified: 0,
+        };
+
+        const totalVisibleQuestions = eligibleBanks.reduce(
+          (sum, bank) => sum + bank.availableCount,
+          0,
+        );
+        const activeTotalPercentage = eligibleBanks.reduce(
+          (sum, bank) => sum + (percentageByBloom[bank.bloomLevel] || 0),
+          0,
+        );
+
+        const weighted = eligibleBanks.map(bank => {
+          const percentage = activeTotalPercentage > 0
+            ? (percentageByBloom[bank.bloomLevel] || 0) / activeTotalPercentage
+            : 1 / eligibleBanks.length;
+          const expected = totalVisibleQuestions * percentage;
+          const base = Math.min(bank.availableCount, Math.floor(expected));
+          return {
+            bloomLevel: bank.bloomLevel,
+            availableCount: bank.availableCount,
+            allocated: base,
+            remainder: expected - Math.floor(expected),
+          };
+        });
+
+        let remaining = totalVisibleQuestions - weighted.reduce((sum, bank) => sum + bank.allocated, 0);
+
+        weighted
+          .slice()
+          .sort((left, right) => right.remainder - left.remainder)
+          .forEach(bank => {
+            if (remaining <= 0) return;
+            if (bank.allocated >= bank.availableCount) return;
+            bank.allocated += 1;
+            remaining -= 1;
+          });
+
+        if (remaining > 0) {
+          weighted.forEach(bank => {
+            while (remaining > 0 && bank.allocated < bank.availableCount) {
+              bank.allocated += 1;
+              remaining -= 1;
+            }
+          });
+        }
+
+        weighted.forEach(bank => {
+          allocations[bank.bloomLevel] = bank.allocated;
+        });
+
+        return allocations;
+      };
+
       try {
         if (!jobData) {
           throw new NotFoundError(`Job with ID ${jobId} not found`);
         }
-        // Fetch and parse the .json questions file from GCloud link
         let allQuestionsData: any[] = [];
-        try {
-          const agent =
-            appConfig.isProduction || appConfig.isStaging
-              ? new SocksProxyAgent(aiConfig.proxyAddress)
-              : undefined;
+        const uploadParams =
+          (jobState.parameters as UploadParameters) ?? jobData.uploadParameters;
+        const curatedQuestions = uploadParams?.questions;
 
-          const axiosOptions = {
-            httpAgent: agent,
-            httpsAgent: agent,
-          };
+        // Prefer curated questions from the upload payload when provided.
+        if (Array.isArray(curatedQuestions) && curatedQuestions.length > 0) {
+          allQuestionsData = curatedQuestions;
+        } else {
+          // Fallback to generated questions file when no curated payload is provided.
+          try {
+            const agent =
+              appConfig.isProduction || appConfig.isStaging
+                ? new SocksProxyAgent(aiConfig.proxyAddress)
+                : undefined;
 
-          const response = await axios.get(jobState.file, axiosOptions);
-          // Expecting { segmentsMap: {...}, questionsData: [...] }
-          if (response.data) {
-            allQuestionsData = response.data;
-          } else {
+            const axiosOptions = {
+              httpAgent: agent,
+              httpsAgent: agent,
+            };
+
+            const response = await axios.get(jobState.file, axiosOptions);
+            if (response.data) {
+              allQuestionsData = response.data;
+            } else {
+              throw new Error(
+                'JSON file must contain segmentsMap and questionsData',
+              );
+            }
+          } catch (error) {
             throw new Error(
-              'JSON file must contain segmentsMap and questionsData',
+              `Failed to fetch or parse questions file from URL: ${jobState.file}. Error: ${error}`,
             );
           }
-        } catch (error) {
-          throw new Error(
-            `Failed to fetch or parse questions file from URL: ${jobState.file}. Error: ${error}`,
-          );
         }
         const questionsGroupedBySegment: Record<string, any[]> = {};
         if (Array.isArray(allQuestionsData)) {
@@ -821,6 +1125,7 @@ export class GenAIService extends BaseService {
           id: string;
           name: string;
           segmentId: string;
+          bloomLevel: string;
           questionCount: number;
           questionIds: string[];
         }> = [];
@@ -866,75 +1171,173 @@ export class GenAIService extends BaseService {
           const questionsForSegment =
             questionsGroupedBySegment[currentSegmentId] || [];
           if (questionsForSegment.length > 0) {
-            // Create Question Bank for this segment
-            const questionBankName = `Question Bank - Segment (${segmentStartTime} - ${currentSegmentEndTime})`;
-            const questionBank = new QuestionBank({
-              title: questionBankName,
-              description: `Question bank for video segment from ${segmentStartTime} to ${currentSegmentEndTime}."`,
-              courseId: new ObjectId(
-                (jobState.parameters as UploadParameters).courseId,
-              ),
-              courseVersionId: new ObjectId(
-                (jobState.parameters as UploadParameters).versionId,
-              ),
-              questions: [], // Will be populated after creating questions
-              tags: [`segment_${currentSegmentId}`, 'ai_generated'],
-            });
-
-            const questionBankId = await this.questionBankService.create(
-              questionBank,
+            // Always enable Smart Bloom mode if flag is set, regardless of Bloom level tags
+            const isSmartBloom = !!(
+              jobData.questionGenerationParameters?.smartBloom?.enabled ||
+              uploadParams?.smartBloomEnabled
             );
 
-            // Create individual questions and add them to the question bank
-            const createdQuestionIds: string[] = [];
-            for (const questionData of questionsForSegment) {
-              try {
-                // Validate and truncate hint if it's too long
-                let hint = questionData.question.hint;
-                const MAX_HINT_LENGTH = 80; // Maximum hint length in characters
+            if (isSmartBloom) {
+              // Initialize bloom level buckets
+              const questionsGroupedByBloom: Record<BloomLevelKey, any[]> = {
+                knowledge: [],
+                understanding: [],
+                application: [],
+                analysis: [],
+                evaluation: [],
+                creation: [],
+                unclassified: [],
+              };
 
-                if (
-                  hint &&
-                  typeof hint === 'string' &&
-                  hint.length > MAX_HINT_LENGTH
-                ) {
-                  // Truncate hint and add ellipsis
-                  hint = hint.substring(0, MAX_HINT_LENGTH - 3) + '...';
+              // First pass: group by existing Bloom levels
+              for (const question of questionsForSegment) {
+                const bloomLevel = extractBloomLevel(question);
+                questionsGroupedByBloom[bloomLevel].push(question);
+              }
+
+              // Second pass: redistribute unclassified questions across all Bloom levels
+              // using weighted distribution to match instructor's intended Bloom percentages
+              if (questionsGroupedByBloom.unclassified.length > 0) {
+                const bloomDistribution = jobData.questionGenerationParameters?.smartBloom?.distribution || {
+                  knowledge: 40,
+                  understanding: 35,
+                  application: 25,
+                  analysis: 0,
+                  evaluation: 0,
+                  creation: 0,
+                };
+
+                // Calculate total distribution percentage
+                const totalDistPercent = Object.values(bloomDistribution).reduce((sum, pct) => sum + pct, 0);
+                const bloomLevels: BloomLevelKey[] = ['knowledge', 'understanding', 'application', 'analysis', 'evaluation', 'creation'];
+
+                // Distribute unclassified questions based on the distribution percentages
+                const unclassifiedQuestions = questionsGroupedByBloom.unclassified;
+                let qIndex = 0;
+
+                for (const bloomLevel of bloomLevels) {
+                  const distribution = bloomDistribution[bloomLevel] || 0;
+                  if (distribution === 0) continue;
+
+                  // Calculate how many unclassified questions should go to this level
+                  const proportion = distribution / totalDistPercent;
+                  const countForThisLevel = Math.round(proportion * unclassifiedQuestions.length);
+
+                  for (let i = 0; i < countForThisLevel && qIndex < unclassifiedQuestions.length; i++) {
+                    questionsGroupedByBloom[bloomLevel].push(unclassifiedQuestions[qIndex]);
+                    qIndex++;
+                  }
                 }
 
-                const questionnew = QuestionFactory.createQuestion(
-                  {
-                    question: questionData.question,
-                    solution: questionData.solution,
-                  },
-                  jobData.userId.toString(),
-                );
+                // Assign remaining questions using round-robin as fallback
+                if (qIndex < unclassifiedQuestions.length) {
+                  let fallbackIndex = 0;
+                  for (; qIndex < unclassifiedQuestions.length; qIndex++) {
+                    const assignedBloom = bloomLevels[fallbackIndex % bloomLevels.length];
+                    questionsGroupedByBloom[assignedBloom].push(unclassifiedQuestions[qIndex]);
+                    fallbackIndex++;
+                  }
+                }
 
-                const questionId = await this.questionService.create(
-                  questionnew,
-                );
-                createdQuestionIds.push(questionId);
-
-                // Add question to the question bank
-                await this.questionBankService.addQuestion(
-                  questionBankId,
-                  questionId,
-                );
-              } catch (questionError) {
-                console.warn(
-                  `Failed to create question for segment ${currentSegmentId}:`,
-                  questionError,
-                );
+                questionsGroupedByBloom.unclassified = [];
               }
-            }
 
-            createdQuestionBanksInfo.push({
-              id: questionBankId,
-              name: questionBankName,
-              segmentId: String(currentSegmentId),
-              questionCount: createdQuestionIds.length,
-              questionIds: createdQuestionIds,
-            });
+              const segmentQuestionBanks: Array<{
+                id: string;
+                bloomLevel: BloomLevelKey;
+                questionCount: number;
+              }> = [];
+              let totalQuestionsForSegment = 0;
+
+              // Create a Question Bank for EVERY Bloom level (including empty ones for consistency)
+              const allBloomLevels: BloomLevelKey[] = [
+                'knowledge',
+                'understanding',
+                'application',
+                'analysis',
+                'evaluation',
+                'creation',
+              ];
+
+              for (const bloomLevel of allBloomLevels) {
+                const bloomQuestions = questionsGroupedByBloom[bloomLevel] || [];
+                const questionBankName = `Question Bank - Segment (${segmentStartTime} - ${currentSegmentEndTime}) - ${bloomLevel.toUpperCase()}`;
+                const questionBank = new QuestionBank({
+                  title: questionBankName,
+                  description: `Question bank for video segment from ${segmentStartTime} to ${currentSegmentEndTime} (Bloom: ${bloomLevel}).`,
+                  courseId: new ObjectId(
+                    (jobState.parameters as UploadParameters).courseId,
+                  ),
+                  courseVersionId: new ObjectId(
+                    (jobState.parameters as UploadParameters).versionId,
+                  ),
+                  questions: [],
+                  tags: [
+                    `segment_${currentSegmentId}`,
+                    `bloom_${bloomLevel}`,
+                    'ai_generated',
+                  ],
+                });
+
+                const questionBankId = await this.questionBankService.create(
+                  questionBank,
+                );
+
+                const createdQuestionIds: string[] = [];
+                for (const questionData of bloomQuestions) {
+                  try {
+                    const hint = questionData?.question?.hint;
+                    const MAX_HINT_LENGTH = 80;
+                    const safeHint =
+                      hint && typeof hint === 'string' && hint.length > MAX_HINT_LENGTH
+                        ? hint.substring(0, MAX_HINT_LENGTH - 3) + '...'
+                        : hint;
+
+                    const questionnew = QuestionFactory.createQuestion(
+                      {
+                        question: {
+                          ...questionData.question,
+                          hint: safeHint,
+                          bloomLevel,
+                        },
+                        solution: questionData.solution,
+                      },
+                      jobData.userId.toString(),
+                    );
+
+                    const questionId = await this.questionService.create(
+                      questionnew,
+                    );
+                    createdQuestionIds.push(questionId);
+
+                    await this.questionBankService.addQuestion(
+                      questionBankId,
+                      questionId,
+                    );
+                  } catch (questionError) {
+                    console.warn(
+                      `Failed to create question for segment ${currentSegmentId} and bloom ${bloomLevel}:`,
+                      questionError,
+                    );
+                  }
+                }
+
+                totalQuestionsForSegment += createdQuestionIds.length;
+                segmentQuestionBanks.push({
+                  id: questionBankId,
+                  bloomLevel,
+                  questionCount: createdQuestionIds.length,
+                });
+
+                createdQuestionBanksInfo.push({
+                  id: questionBankId,
+                  name: questionBankName,
+                  segmentId: String(currentSegmentId),
+                  bloomLevel,
+                  questionCount: createdQuestionIds.length,
+                  questionIds: createdQuestionIds,
+                });
+              }
 
             const quizSegName = jobData.uploadParameters.quizItemBaseName
               ? jobData.uploadParameters.quizItemBaseName
@@ -955,7 +1358,7 @@ export class GenAIService extends BaseService {
                 showCorrectAnswersAfterSubmission: true,
                 showExplanationAfterSubmission: true,
                 showScoreAfterSubmission: true,
-                questionVisibility: createdQuestionIds.length,
+                questionVisibility: totalQuestionsForSegment,
                 releaseTime: new Date(),
                 deadline: undefined,
               },
@@ -968,20 +1371,30 @@ export class GenAIService extends BaseService {
               quizItemBody,
             );
 
-            // Link the QuestionBank to the Quiz
+            // Link each Bloom-specific QuestionBank to the Quiz
             const quizId = createdQuizItem.createdItem?._id?.toString();
-            if (quizId && questionBankId) {
-              try {
-                await this.quizService.addQuestionBank(quizId, {
-                  bankId: questionBankId,
-                  count: jobData.uploadParameters.questionsPerQuiz ?? 2,
-                  tags: ['AI Generated'],
-                });
-              } catch (linkError) {
-                console.warn(
-                  `Failed to link question bank ${questionBankId} to quiz ${quizId}:`,
-                  linkError,
-                );
+            if (quizId) {
+              const bloomCountsForAttempt = allocateBloomCountsForAttempt(
+                segmentQuestionBanks.map(bank => ({
+                  bloomLevel: bank.bloomLevel,
+                  availableCount: bank.questionCount,
+                })),
+                jobData.questionGenerationParameters?.smartBloom?.distribution,
+              );
+
+              for (const bank of segmentQuestionBanks) {
+                try {
+                  await this.quizService.addQuestionBank(quizId, {
+                    bankId: bank.id,
+                    count: bloomCountsForAttempt[bank.bloomLevel],
+                    tags: [`bloom_${bank.bloomLevel}`, 'ai_generated'],
+                  });
+                } catch (linkError) {
+                  console.warn(
+                    `Failed to link question bank ${bank.id} to quiz ${quizId}:`,
+                    linkError,
+                  );
+                }
               }
             }
 
@@ -989,8 +1402,125 @@ export class GenAIService extends BaseService {
               id: createdQuizItem.createdItem?._id?.toString(),
               name: quizSegName,
               segmentId: String(currentSegmentId),
-              questionCount: createdQuestionIds.length,
+              questionCount: totalQuestionsForSegment,
             });
+            } else {
+              // Original single-bank path (AiWorkflow and other non-SmartBloom workflows)
+              const legacyBankName = `Question Bank - Segment (${segmentStartTime} - ${currentSegmentEndTime})`;
+              const legacyQuestionBank = new QuestionBank({
+                title: legacyBankName,
+                description: `Question bank for video segment from ${segmentStartTime} to ${currentSegmentEndTime}.`,
+                courseId: new ObjectId(
+                  (jobState.parameters as UploadParameters).courseId,
+                ),
+                courseVersionId: new ObjectId(
+                  (jobState.parameters as UploadParameters).versionId,
+                ),
+                questions: [],
+                tags: [`segment_${currentSegmentId}`, 'ai_generated'],
+              });
+
+              const legacyBankId = await this.questionBankService.create(
+                legacyQuestionBank,
+              );
+
+              const legacyQuestionIds: string[] = [];
+              for (const questionData of questionsForSegment) {
+                try {
+                  const hint = questionData?.question?.hint;
+                  const MAX_HINT_LENGTH = 80;
+                  const safeHint =
+                    hint &&
+                    typeof hint === 'string' &&
+                    hint.length > MAX_HINT_LENGTH
+                      ? hint.substring(0, MAX_HINT_LENGTH - 3) + '...'
+                      : hint;
+
+                  const legacyQuestion = QuestionFactory.createQuestion(
+                    {
+                      question: {
+                        ...questionData.question,
+                        hint: safeHint,
+                      },
+                      solution: questionData.solution,
+                    },
+                    jobData.userId.toString(),
+                  );
+
+                  const questionId = await this.questionService.create(
+                    legacyQuestion,
+                  );
+                  legacyQuestionIds.push(questionId);
+
+                  await this.questionBankService.addQuestion(
+                    legacyBankId,
+                    questionId,
+                  );
+                } catch (questionError) {
+                  console.warn(
+                    `Failed to create question for segment ${currentSegmentId}:`,
+                    questionError,
+                  );
+                }
+              }
+
+              const legacyQuizName = jobData.uploadParameters.quizItemBaseName
+                ? jobData.uploadParameters.quizItemBaseName
+                : `Quiz`;
+
+              const legacyQuizItemBody: CreateItemBody = {
+                name: legacyQuizName,
+                description: `Quiz for video segment from ${segmentStartTime} to ${currentSegmentEndTime}. This quiz's points are based on its questions.`,
+                type: ItemType.QUIZ,
+                quizDetails: {
+                  passThreshold: 0.7,
+                  maxAttempts: 1000,
+                  quizType: 'NO_DEADLINE',
+                  approximateTimeToComplete: '00:05:00',
+                  allowPartialGrading: true,
+                  allowSkip: false,
+                  allowHint: true,
+                  showCorrectAnswersAfterSubmission: true,
+                  showExplanationAfterSubmission: true,
+                  showScoreAfterSubmission: true,
+                  questionVisibility: legacyQuestionIds.length,
+                  releaseTime: new Date(),
+                  deadline: undefined,
+                },
+              };
+
+              const legacyQuizItem = await this.itemService.createItem(
+                (jobState.parameters as UploadParameters).versionId,
+                (jobState.parameters as UploadParameters).moduleId,
+                (jobState.parameters as UploadParameters).sectionId,
+                legacyQuizItemBody,
+              );
+
+              const legacyQuizId = legacyQuizItem.createdItem?._id?.toString();
+              if (legacyQuizId) {
+                await this.quizService.addQuestionBank(legacyQuizId, {
+                  bankId: legacyBankId,
+                  count: jobData.uploadParameters.questionsPerQuiz ?? 2,
+                  tags: ['AI Generated'],
+                });
+              }
+
+              createdQuestionBanksInfo.push({
+                id: legacyBankId,
+                name: legacyBankName,
+                segmentId: String(currentSegmentId),
+                bloomLevel: 'n/a',
+                questionCount: legacyQuestionIds.length,
+                questionIds: legacyQuestionIds,
+              });
+
+              createdQuizItemsInfo.push({
+                id: legacyQuizItem.createdItem?._id?.toString(),
+                name: legacyQuizName,
+                segmentId: String(currentSegmentId),
+                questionCount: legacyQuestionIds.length,
+              });
+            }
           }
 
           previousSegmentEndTime = currentSegmentEndTime;

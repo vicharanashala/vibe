@@ -724,9 +724,12 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
               }, 500);
             } else if (window.YT && event.data === window.YT.PlayerState.ENDED) {
               setPlaying(false);
-              if (!progressStoppedRef.current && watchItemIdRef.current && currentCourse) {
+              if (!progressStoppedRef.current && currentCourse) {
                 const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-                if (watchItemId) {
+                if(!watchItemId && isAlreadyWatched){
+                  onNext?.();
+                }
+                else if (watchItemId) {
                   const success = await handleStopItem(watchItemId, 0); // No debounce on natural end
                   if (success) {
                     handleCompletionNextStep();

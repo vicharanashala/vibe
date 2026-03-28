@@ -1,6 +1,6 @@
-import {ObjectId} from 'mongodb';
-import {ProctoringComponent} from '../database/index.js';
-import {Type} from 'class-transformer';
+import { ObjectId } from 'mongodb';
+import { ProctoringComponent } from '../database/index.js';
+import { Type } from 'class-transformer';
 import {
   IsOptional,
   IsInt,
@@ -406,8 +406,20 @@ export interface IEnrollment {
   isDeleted?: boolean;
   deletedAt?: Date;
   unenrolledAt?: Date;
+  hpPoints?: number;
   hasNewItemsAfterCompletion?: boolean;
-  cohortId?: ID
+  cohortId?: ID;
+  policyAcknowledgedAt?: Date;
+  policyReacknowledgementRequired?: boolean;
+  isEjected?: boolean;
+  ejectionHistory?: Array<{
+    ejectedAt: Date;
+    ejectionReason: string;
+    ejectedBy: string | ObjectId;
+    policyId?: string | ObjectId;
+    reinstatedAt?: Date;
+    reinstatedBy?: string | ObjectId;
+  }>;
 }
 
 export interface IProgress {
@@ -424,9 +436,9 @@ export interface IProgress {
 }
 
 export interface ICurrentProgressPath {
-  module: {id: string; name: string} | null;
-  section: {id: string; name: string} | null;
-  item: {id: string; name: string; type: string} | null;
+  module: { id: string; name: string } | null;
+  section: { id: string; name: string } | null;
+  item: { id: string; name: string; type: string } | null;
   message?: string;
 }
 
@@ -449,6 +461,17 @@ export interface ICohort {
   createdAt: Date;
   updatedAt: Date;
   isPublic: boolean;
+  isActive?: boolean;
+  baseHp?: number;
+  safeHp?: number;
+}
+
+export interface ICohortSettings {
+  _id?: string | ObjectId | null;
+  courseVersionId: string | ObjectId;
+  cohortId: string | ObjectId;
+  registrationsAutoApproved: boolean;
+  autoapproval_emails: string[];
 }
 
 export interface IUserActivityEvent {
@@ -528,14 +551,14 @@ export interface IRegistrationSettings {
   _id?: ID;
   label: string;
   type:
-    | 'TEXT'
-    | 'TEXTAREA'
-    | 'EMAIL'
-    | 'TEL'
-    | 'DATE'
-    | 'NUMBER'
-    | 'URL'
-    | 'SELECT';
+  | 'TEXT'
+  | 'TEXTAREA'
+  | 'EMAIL'
+  | 'TEL'
+  | 'DATE'
+  | 'NUMBER'
+  | 'URL'
+  | 'SELECT';
   isDefault: boolean;
   required: boolean;
   options?: string[];
@@ -552,8 +575,10 @@ export interface ISettings {
   proctors: IProctoringSettings;
   linearProgressionEnabled: boolean;
   seekForwardEnabled: boolean;
+  hpSystem?: boolean;
   isPublic?: boolean;
   crowdsourcedQuestionSubmissionEnabled?: boolean;
+  baseHp?: number;
   // registration_settings?: IRegistrationSettings[];
   registration?: {
     jsonSchema?: any;
@@ -561,6 +586,7 @@ export interface ISettings {
     isActive?: boolean;
     registrationsAutoApproved?: boolean;
     autoapproval_emails?: string[];
+    cohortSettings?: ObjectId[];
   };
   timeslots?: {
     isActive: boolean;
@@ -747,8 +773,8 @@ export interface AuthenticatedUser {
 // }
 
 export interface ICohortResponse {
-  _id: ID,
-  name: string
+  _id: ID;
+  name: string;
 }
 export interface ICourseRegistration {
   _id?: string | ObjectId;
@@ -798,6 +824,7 @@ export enum AnnouncementType {
   GENERAL = 'GENERAL',
   VERSION_SPECIFIC = 'VERSION_SPECIFIC',
   COURSE_SPECIFIC = 'COURSE_SPECIFIC',
+  COHORT_SPECIFIC = 'COHORT_SPECIFIC',
 }
 
 export interface IAnnouncementAttachment {
@@ -824,6 +851,8 @@ export interface IAnnouncement {
   deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
+  cohortId?: ID;
+  cohortName?: string;
 }
 
 // export type AuditCategory =

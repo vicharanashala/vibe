@@ -31,6 +31,8 @@ import {
   AutoApprovalSettingsBody,
   BulkUpdateStatusBody,
   CourseVersionDetailsResponse,
+  GetPendingStudentRegistrationsParams,
+  GetRejectedStudentRegistrationsParams,
   GetPendingRegistrationsParams,
   GetUnreadApprovedRegistrationsParams,
   markNotificationAsReadResponse,
@@ -54,6 +56,8 @@ import { setAuditTrail } from '#root/utils/setAuditTrail.js';
 import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 import { ObjectId } from 'mongodb';
 import { query } from 'winston';
+import { COURSES_TYPES } from '#root/modules/courses/types.js';
+import { CourseVersionService } from '#root/modules/courses/services/index.js';
 
 @OpenAPI({
   tags: ['CourseRegistration'],
@@ -68,6 +72,8 @@ class CourseRegistrationController {
     private readonly courseRegistrationService: CourseRegistrationService,
     @inject(GLOBAL_TYPES.UserRepo)
     private readonly userRepository: IUserRepository,
+    @inject(COURSES_TYPES.CourseVersionService)
+    private readonly courseVersionService: CourseVersionService,
   ) { }
 
   @OpenAPI({
@@ -169,15 +175,46 @@ class CourseRegistrationController {
       status: 'PENDING' as const,
     };
 
+    // Check for auto-approval settings
+    const [registrationSettings, version] = await Promise.all([
+      this.courseRegistrationService.getSettings(versionId),
+      this.courseVersionService.getVersionDetails(versionId)
+    ]);
+
+    if(version?.cohorts?.length > 0){
+      if(!registrationData?.detail?.cohort){
+        throw new BadRequestError('Cohort information is required for registration');
+      }
+    }
+
+    const cohortId = registrationData?.detail?.cohort;
     const result = await this.courseRegistrationService.create(
       registrationData,
     );
 
-    // Check for auto-approval settings
-    const courseSettings = await this.courseRegistrationService.getSettings(versionId);
-    const registrationSettings = courseSettings;
-
-    if (registrationSettings.registrationsAutoApproved) {
+    if(version?.cohorts?.length > 0){
+      if(registrationSettings?.cohortSettings?.length > 0 && registrationSettings?.cohortSettingDetails?.some(c => c.cohortId === cohortId)){
+        const cohortSetting = registrationSettings.cohortSettingDetails.find(
+          c => c.cohortId === cohortId
+        );
+        if(cohortSetting?.registrationsAutoApproved){
+          if (!cohortSetting.autoapproval_emails || cohortSetting.autoapproval_emails.length === 0) {
+            await this.courseRegistrationService.updateStatus(result, "APPROVED", cohortId);
+          } else {
+            const userDetails = await this.userRepository.findById(userId);
+            if (userDetails?.email) {
+              const userEmail = userDetails.email.toLowerCase();
+              const shouldAutoApprove = cohortSetting.autoapproval_emails.some(pattern =>
+                userEmail.includes(pattern.toLowerCase())
+              );
+              if (shouldAutoApprove) {
+                await this.courseRegistrationService.updateStatus(result, "APPROVED", cohortId);
+              }
+            }
+          }
+        }
+      }
+    } else if (registrationSettings.registrationsAutoApproved) {
       // Auto-approval is enabled
       if (!registrationSettings.autoapproval_emails || registrationSettings.autoapproval_emails.length === 0) {
         // No specific emails set - auto-approve all
@@ -433,13 +470,18 @@ class CourseRegistrationController {
     // Get current settings to preserve existing schema and isActive
     const currentSettings = await this.courseRegistrationService.getSettings(versionId);
 
-    return this.courseRegistrationService.updateSettings(versionId, {
-      jsonSchema: currentSettings.jsonSchema,
-      uiSchema: currentSettings.uiSchema,
-      isActive: currentSettings.isActive,
-      registrationsAutoApproved: body.registrationsAutoApproved,
-      autoapproval_emails: body.autoapproval_emails,
-    });
+    return this.courseRegistrationService.updateAutoApprovalSettings(
+      versionId, 
+      {
+        jsonSchema: currentSettings.jsonSchema,
+        uiSchema: currentSettings.uiSchema,
+        isActive: currentSettings.isActive,
+        registrationsAutoApproved: body.registrationsAutoApproved,
+        autoapproval_emails: body.autoapproval_emails,
+        cohortSettings: currentSettings.cohortSettings,
+      },
+      body.cohortId
+    );
   }
 
   @OpenAPI({
@@ -559,6 +601,76 @@ class CourseRegistrationController {
     const result = await this.courseRegistrationService.getPendingRegistrations(mongoInstructorId);
 
     return result;
+  }
+
+  @OpenAPI({
+    summary: 'Get pending registrations for student dashboard',
+    description:
+      'Get all pending course registrations for a student to display waiting-for-approval status.',
+  })
+  @Get('/pending/student')
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(PendingRegistrationResponse, {
+    description: 'Pending student registrations retrieved successfully',
+    statusCode: 200,
+    isArray: true,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async getPendingRegistrationsForStudent(
+    @QueryParams() query: GetPendingStudentRegistrationsParams,
+    @Ability(getCourseRegistrationAbility) { user },
+  ) {
+    const { studentId } = query;
+
+    if (user.firebaseUID !== studentId && user.role !== 'ADMIN') {
+      throw new ForbiddenError('You can only view your own pending registrations');
+    }
+
+    const userRecord = await this.userRepository.findByFirebaseUID(studentId);
+    if (!userRecord) {
+      throw new NotFoundError('User not found');
+    }
+
+    return this.courseRegistrationService.getPendingRegistrationsByStudent(userRecord._id.toString());
+  }
+
+  @OpenAPI({
+    summary: 'Get rejected registrations for student notifications',
+    description:
+      'Get all unread rejected course registrations for a student to display in notifications.',
+  })
+  @Get('/rejected/student')
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(PendingRegistrationResponse, {
+    description: 'Rejected student registrations retrieved successfully',
+    statusCode: 200,
+    isArray: true,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async getRejectedRegistrationsForStudent(
+    @QueryParams() query: GetRejectedStudentRegistrationsParams,
+    @Ability(getCourseRegistrationAbility) { user },
+  ) {
+    const { studentId } = query;
+
+    if (user.firebaseUID !== studentId && user.role !== 'ADMIN') {
+      throw new ForbiddenError('You can only view your own registrations');
+    }
+
+    const userRecord = await this.userRepository.findByFirebaseUID(studentId);
+    if (!userRecord) {
+      throw new NotFoundError('User not found');
+    }
+
+    return this.courseRegistrationService.getRejectedRegistrationsByStudent(userRecord._id.toString());
   }
 
 

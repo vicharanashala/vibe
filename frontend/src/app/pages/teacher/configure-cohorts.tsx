@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Loader2, ArrowUp, ArrowDown, Plus, Pencil, Trash } from "lucide-react"
+import { Loader2, ArrowUp, ArrowDown, Plus, Pencil, Trash, Megaphone, AlertCircle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -18,6 +18,18 @@ import {
 import { toast } from "sonner"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { AnnouncementType } from "@/types/announcement.types"
+import { AnnouncementModal } from "@/components/announcements/AnnouncementModal"
+import { Ban } from "lucide-react"
+
+
+const RESTRICTED_VERSION_IDS = [
+  '6968e12cbf2860d6e39051af',
+  '6970f87e30644cbc74b67150',
+  '697b4e262942654879011c57',
+  '69903415e1930c015760a719',
+  '69942dc6d6d99b252e3a54ff',
+];
 
 export default function ConfigureCohorts() {
 
@@ -27,8 +39,9 @@ export default function ConfigureCohorts() {
   const createMutation = useCreateCohort()
   const updateMutation = useUpdateCohort()
   const deleteMutation = useDeleteCohort()
+  const [cohortError, setCohortError] = useState("")
   const [sortBy, setSortBy] =
-    useState<"name" | "createdAt" | "updatedAt">("createdAt")
+    useState<"name" | "createdAt" | "updatedAt" | "baseHp" | "safeHp">("createdAt")
   const [sortOrder, setSortOrder] =
     useState<"asc" | "desc">("asc")
   const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -44,6 +57,17 @@ export default function ConfigureCohorts() {
   const [isPublicDialogOpen, setIsPublicDialogOpen] = useState(false)
   const [targetCohort, setTargetCohort] = useState<any>(null)
   const [nextPublicState, setNextPublicState] = useState(false)
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false)
+  const [selectedCohortForAnnouncement, setSelectedCohortForAnnouncement] = useState<any>(null)
+
+  const isRestricted = versionId && RESTRICTED_VERSION_IDS.includes(versionId);
+  const [isRegistrationDialogOpen, setIsRegistrationDialogOpen] = useState(false)
+  const [nextActiveState, setNextActiveState] = useState(false)
+
+  const [baseHp, setBaseHp] = useState(0);
+  const [safeHp, setSafeHp] = useState(0);
+  const [baseHpError, setBaseHpError] = useState("");
+  const [safeHpError, setSafeHpError] = useState("");
 
   useEffect(() => {
     setIsSearching(true);
@@ -64,6 +88,7 @@ export default function ConfigureCohorts() {
       isLoading: isLoading,
       error: cohortsError,
       refetch: refetch,
+      isRefetching: isRefetching,
     } = useCourseVersionCohorts(
       courseId,
       versionId ?? '',
@@ -74,7 +99,7 @@ export default function ConfigureCohorts() {
       sortOrder,
     );
 
-  const handleSort = (key: "name" | "createdAt" | "updatedAt") => {
+  const handleSort = (key: "name" | "createdAt" | "updatedAt" | "baseHp" | "safeHp") => {
     if (sortBy === key) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc")
     } else {
@@ -88,6 +113,11 @@ export default function ConfigureCohorts() {
     if(cohortName.length >=50){
         toast.error("Keep cohort name length below 50");
         return;
+    }
+    const BLOCKED_COHORT_NAMES = ["euclideans", "dijkstrians", "kruskalians", "rsaians", "aksians"];
+    if (BLOCKED_COHORT_NAMES.includes(cohortName.trim().toLowerCase())) {
+      setCohortError(`"${cohortName.trim()}" is a reserved cohort name and cannot be used.`);
+      return;
     }
     try{
         await createMutation.mutateAsync({
@@ -115,6 +145,18 @@ export default function ConfigureCohorts() {
         toast.error("Keep cohort name length below 50");
         return;
     }
+    const BLOCKED_COHORT_NAMES = ["euclideans", "dijkstrians", "kruskalians", "rsaians", "aksians"];
+    if (BLOCKED_COHORT_NAMES.includes(cohortName.trim().toLowerCase())) {
+      setCohortError(`"${cohortName.trim()}" is a reserved cohort name and cannot be used.`);
+      return;
+    }
+
+    if (baseHp < 0 || safeHp < 0) {
+    setBaseHpError(baseHp < 0 ? "Base HP cannot be negative" : "");
+    setSafeHpError(safeHp < 0 ? "Safe HP cannot be negative" : "");
+    return;
+  }
+
     try{
         await updateMutation.mutateAsync({
         params: {
@@ -125,11 +167,14 @@ export default function ConfigureCohorts() {
             }
         },
         body: {
-            newCohortName: cohortName.toLowerCase()
-        }
+            newCohortName: cohortName.toLowerCase(),
+            baseHp,
+            safeHp
+          }
         })
         setIsEditOpen(false)
         refetch()
+        toast.success("Cohort updated successfully")
     } catch(err: any){
         toast.error(err?.message || "Failed to update cohort");
     }
@@ -171,10 +216,33 @@ export default function ConfigureCohorts() {
         })
         setIsDeleteOpen(false)
         refetch()
+        toast.success("Cohort deleted successfully")
     }catch(err: any){
         toast.error(err?.message || "Failed to delete cohort");
     }
 
+  }
+
+  const updateCohortActiveStatus = async () => {
+    try {
+      await updateMutation.mutateAsync({
+        params: {
+          path: {
+            courseId: courseId ?? "",
+            versionId: versionId ?? "",
+            cohortId: selectedCohort.id
+          }
+        },
+        body: {
+          isActive: nextActiveState
+        }
+      })
+
+      setIsRegistrationDialogOpen(false)
+      refetch()
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update cohort status")
+    }
   }
 
   if (isLoading) {
@@ -187,6 +255,13 @@ export default function ConfigureCohorts() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      {/* Restricting cohort creation for already existing course versions because these versions are already published and have students enrolled in them */}
+      {isRestricted && (
+        <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg flex items-center gap-2 mb-2 animate-in fade-in slide-in-from-top-2 duration-300">
+          <Ban className="h-4 w-4" />
+          <p className="text-sm font-medium">Cohorts cannot be created for this version since the version itself acts as a cohort.</p>
+        </div>
+      )}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">
           Manage Cohorts (Version {cohortsData?.version})
@@ -194,8 +269,10 @@ export default function ConfigureCohorts() {
         <Button
           onClick={() => {
             setCohortName("")
+            setCohortError("")
             setIsCreateOpen(true)
           }}
+          disabled={isRestricted}
         >
           <Plus className="w-4 h-4 mr-2"/>
           Add Cohort
@@ -231,8 +308,10 @@ export default function ConfigureCohorts() {
             <Button
               variant="outline"
               onClick={() => refetch()}
+              disabled={isRefetching}
             >
-              Refresh
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+              {isRefetching ? "Refreshing..." : "Refresh"}
             </Button>
           </div>
         </div>):(<div></div>)}
@@ -243,6 +322,8 @@ export default function ConfigureCohorts() {
               <TableRow>
                 {[
                   { key: "name", label: "Cohort Name" },
+                  { key: "baseHp", label: "Base HP" },
+                  { key: "safeHp", label: "Safe HP" },
                   { key: "createdAt", label: "Created" },
                   { key: "updatedAt", label: "Updated" }
                 ].map(({ key, label }) => (
@@ -278,6 +359,12 @@ export default function ConfigureCohorts() {
                     {cohort.name}
                   </TableCell>
                   <TableCell>
+                    {cohort.baseHp ?? 0}
+                  </TableCell>
+                  <TableCell>
+                    {cohort.safeHp ?? 0}
+                  </TableCell>
+                  <TableCell>
                     {new Date(cohort.createdAt)
                       .toLocaleDateString()}
                   </TableCell>
@@ -293,6 +380,8 @@ export default function ConfigureCohorts() {
                         onClick={() => {
                           setSelectedCohort(cohort)
                           setCohortName(cohort.name)
+                          setBaseHp(cohort.baseHp ?? 0)
+                          setSafeHp(cohort.safeHp ?? 0)
                           setIsEditOpen(true)
                         }}
                       >
@@ -308,6 +397,40 @@ export default function ConfigureCohorts() {
                       >
                         <Trash className="w-4 h-4"/>
                       </Button>
+                    <AnnouncementModal
+                        isOpen={showAnnouncementModal}
+                        onClose={() => setShowAnnouncementModal(false)}
+                        defaultType={AnnouncementType.COHORT_SPECIFIC}
+                        courseId={courseId}
+                        versionId={versionId}
+                        cohortId={selectedCohortForAnnouncement?.id}
+                      />
+                      <Button
+                            variant="outline"
+                            size="sm"
+  
+                            onClick={() => {
+                              setSelectedCohortForAnnouncement(cohort)
+                              setShowAnnouncementModal(true)
+                            }}
+                            className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                          >
+                        <Megaphone className="h-3 w-3 mr-1" />
+                        Announce
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedCohort(cohort)
+                          setTargetCohort(cohort)
+                          setNextActiveState(!cohort.isActive) // toggle
+                          setIsRegistrationDialogOpen(true)
+                        }}
+                      >
+                        {cohort.isActive ? "Pause Registrations" : "Resume Registrations"}
+                      </Button>
+
                     <span className="flex items-center space-x-2 ml-4">
                       <div className="space-y-1">
                         <Label className="text-sm font-medium">Is Public</Label>
@@ -373,12 +496,18 @@ export default function ConfigureCohorts() {
             <DialogTitle >Enter Cohort Name</DialogTitle>
           </DialogHeader>
           <Input
-            placeholder="Cohort name"
-            value={cohortName}
-            onChange={(e) =>
-              setCohortName(e.target.value)
-            }
-          />
+              placeholder="Cohort name"
+              value={cohortName}
+              onChange={(e) => {
+                setCohortName(e.target.value);
+                if (cohortError) setCohortError("");
+              }}
+            />
+            {cohortError && (
+              <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" /> {cohortError}
+              </p>
+            )}
           <Button
             className="mt-8"
             onClick={createCohort}
@@ -393,28 +522,107 @@ export default function ConfigureCohorts() {
       </Dialog>
 
       {/* Edit Dialog */}
-      <Dialog open={isEditOpen}
-              onOpenChange={setIsEditOpen}>
-        <DialogContent className="p-10">
-          <DialogHeader className="mb-4">
-            <DialogTitle>Edit Cohort</DialogTitle>
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="sm:max-w-[500px] p-6">
+          <DialogHeader className="space-y-1">
+            <DialogTitle className="text-xl font-semibold">
+              Edit Cohort Details
+            </DialogTitle>
           </DialogHeader>
-          <Input
-            value={cohortName}
-            onChange={(e) =>
-              setCohortName(e.target.value)
-            }
-          />
-          <Button
-            onClick={updateCohort}
-            disabled={updateMutation.isPending}
-            className="mt-6"
-          >
-            {updateMutation.isPending
-              ? <Loader2 className="animate-spin mr-2"/>
-              : null}
-            Update
-          </Button>
+
+          <div className="space-y-5 mt-4">
+            
+            <div className="space-y-2">
+              <Label>Cohort Name</Label>
+              <Input
+                value={cohortName}
+                onChange={(e) => {
+                  setCohortName(e.target.value);
+                  if (cohortError) setCohortError("");
+                }}
+              />
+            </div>
+
+            <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+              <p className="text-sm font-medium text-muted-foreground">
+                HP Configuration
+              </p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Base HP</Label>
+                  <Input
+                    type="number"
+                    value={baseHp}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      setBaseHp(value);
+
+                      if (value < 0) {
+                        setBaseHpError("Base HP cannot be negative");
+                      } else {
+                        setBaseHpError("");
+                      }
+                    }}
+                  />
+
+                  {baseHpError && (
+                    <p className="text-xs text-red-500">{baseHpError}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Safe HP</Label>
+                  <Input
+                    type="number"
+                    value={safeHp}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      setSafeHp(value);
+
+                      if (value < 0) {
+                        setSafeHpError("Safe HP cannot be negative");
+                      } else if (value > baseHp) {
+                        setSafeHpError("Safe HP cannot exceed Base HP");
+                      } else {
+                        setSafeHpError("");
+                      }
+                    }}
+                  />
+
+                  {safeHpError && (
+                    <p className="text-xs text-red-500">{safeHpError}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {cohortError && (
+              <p className="text-xs text-red-500 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" /> {cohortError}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsEditOpen(false)}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                onClick={updateCohort}
+                disabled={updateMutation.isPending}
+              >
+                {updateMutation.isPending && (
+                  <Loader2 className="animate-spin mr-2" />
+                )}
+                Save Changes
+              </Button>
+            </div>
+
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -448,6 +656,7 @@ export default function ConfigureCohorts() {
         </DialogContent>
       </Dialog>
 
+      {/* Public/Private Toggle Dialog */}
       <Dialog
         open={isPublicDialogOpen}
         onOpenChange={setIsPublicDialogOpen}
@@ -480,6 +689,48 @@ export default function ConfigureCohorts() {
             {updateMutation.isPending
               ? <Loader2 className="animate-spin mr-2"/>
               : null}
+              Confirm
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Active/Inactive for Registrations*/}
+      <Dialog
+        open={isRegistrationDialogOpen}
+        onOpenChange={setIsRegistrationDialogOpen}
+      >
+        <DialogContent className="p-10">
+          <DialogHeader className="mb-4">
+            <DialogTitle>
+              {nextActiveState ? "Resume Registrations" : "Pause Registrations"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <p>
+            Are you sure you want to{" "}
+            <strong>
+              {nextActiveState ? "resume" : "pause"}
+            </strong>{" "}
+            registrations for{" "}
+            <strong>{targetCohort?.name}</strong>?
+          </p>
+
+          <div className="flex gap-3 mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setIsRegistrationDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              onClick={updateCohortActiveStatus}
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending && (
+                <Loader2 className="animate-spin mr-2" />
+              )}
               Confirm
             </Button>
           </div>

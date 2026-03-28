@@ -26,6 +26,8 @@ interface TranscriberCompleteData {
     };
 }
 
+export type TranscriptionMode = "FULL" | "SEGMENTED";
+
 export interface TranscriberData {
     isBusy: boolean;
     text: string;
@@ -38,6 +40,11 @@ export interface Transcriber {
     isModelLoading: boolean;
     progressItems: ProgressItem[];
     start: (audioData: AudioBuffer | undefined) => void;
+
+    mode: TranscriptionMode;
+    setMode: (mode: TranscriptionMode) => void;
+
+
     output?: TranscriberData;
     model: string;
     setModel: (model: string) => void;
@@ -60,11 +67,13 @@ export function useTranscriber(): Transcriber {
 
     const [progressItems, setProgressItems] = useState<ProgressItem[]>([]);
 
-    
+    const [mode, setMode] = useState<TranscriptionMode>("FULL");
+
+
     const webWorker = useWorker((event) => {
         const message = event.data;
         // Update the state with the result
-        switch (message.status) { 
+        switch (message.status) {
             case "progress":
                 // Model file progress: update one of the progress items.
                 setProgressItems((prev) =>
@@ -92,11 +101,23 @@ export function useTranscriber(): Transcriber {
                 // console.log("complete", message);
                 // eslint-disable-next-line no-case-declarations
                 const completeMessage = message as TranscriberCompleteData;
-                setTranscript({
-                    isBusy: false,
-                    text: completeMessage.data.text,
-                    chunks: completeMessage.data.chunks,
+                setTranscript((prev) => {
+                    if (!prev || mode === "FULL") {
+                        return {
+                            isBusy: false,
+                            text: completeMessage.data.text,
+                            chunks: completeMessage.data.chunks,
+                        };
+                    }
+
+                    // SEGMENTED mode → append
+                    return {
+                        isBusy: false,
+                        text: prev.text + " " + completeMessage.data.text,
+                        chunks: [...prev.chunks, ...completeMessage.data.chunks],
+                    };
                 });
+
                 setIsBusy(false);
                 break;
 
@@ -147,40 +168,79 @@ export function useTranscriber(): Transcriber {
         setTranscript(undefined);
     }, []);
 
+    // const postRequest = useCallback(
+    //     async (audioData: AudioBuffer | undefined) => {
+    //         if (audioData) {
+    //             setTranscript(undefined);
+    //             setIsBusy(true);
+
+    //             let audio;
+    //             if (audioData.numberOfChannels === 2) {
+    //                 const SCALING_FACTOR = Math.sqrt(2);
+
+    //                 let left = audioData.getChannelData(0);
+    //                 let right = audioData.getChannelData(1);
+
+    //                 audio = new Float32Array(left.length);
+    //                 for (let i = 0; i < audioData.length; ++i) {
+    //                     audio[i] = SCALING_FACTOR * (left[i] + right[i]) / 2;
+    //                 }
+    //             } else {
+    //                 // If the audio is not stereo, we can just use the first channel:
+    //                 audio = audioData.getChannelData(0);
+    //             }
+
+    //             webWorker.postMessage({
+    //                 audio, 
+    //                 model, 
+    //                 multilingual, 
+    //                 quantized, 
+    //                 subtask: multilingual ? subtask : null, 
+    //                 language: 
+    //                     multilingual && language !== "auto" ? language : null, 
+    //             });
+    //         }
+    //     },
+    //     [webWorker, model, multilingual, quantized, subtask, language],
+    // );
+
     const postRequest = useCallback(
         async (audioData: AudioBuffer | undefined) => {
-            if (audioData) {
+            if (!audioData) return;
+
+            // 🔥 Only reset transcript for FULL mode
+            if (mode === "FULL") {
                 setTranscript(undefined);
-                setIsBusy(true);
-
-                let audio;
-                if (audioData.numberOfChannels === 2) {
-                    const SCALING_FACTOR = Math.sqrt(2);
-
-                    let left = audioData.getChannelData(0);
-                    let right = audioData.getChannelData(1);
-
-                    audio = new Float32Array(left.length);
-                    for (let i = 0; i < audioData.length; ++i) {
-                        audio[i] = SCALING_FACTOR * (left[i] + right[i]) / 2;
-                    }
-                } else {
-                    // If the audio is not stereo, we can just use the first channel:
-                    audio = audioData.getChannelData(0);
-                }
-
-                webWorker.postMessage({
-                    audio, 
-                    model, 
-                    multilingual, 
-                    quantized, 
-                    subtask: multilingual ? subtask : null, 
-                    language: 
-                        multilingual && language !== "auto" ? language : null, 
-                });
             }
+
+            setIsBusy(true);
+
+            let audio: Float32Array;
+
+            if (audioData.numberOfChannels === 2) {
+                const SCALING_FACTOR = Math.sqrt(2);
+                const left = audioData.getChannelData(0);
+                const right = audioData.getChannelData(1);
+
+                audio = new Float32Array(left.length);
+                for (let i = 0; i < audioData.length; ++i) {
+                    audio[i] = SCALING_FACTOR * (left[i] + right[i]) / 2;
+                }
+            } else {
+                audio = audioData.getChannelData(0);
+            }
+
+            webWorker.postMessage({
+                audio,
+                model,
+                multilingual,
+                quantized,
+                subtask: multilingual ? subtask : null,
+                language:
+                    multilingual && language !== "auto" ? language : null,
+            });
         },
-        [webWorker, model, multilingual, quantized, subtask, language],
+        [webWorker, model, multilingual, quantized, subtask, language, mode],
     );
 
     const transcriber = useMemo(() => {
@@ -201,6 +261,8 @@ export function useTranscriber(): Transcriber {
             setSubtask,
             language,
             setLanguage,
+            setMode,
+            mode,
         };
     }, [
         isBusy,
