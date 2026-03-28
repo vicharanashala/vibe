@@ -3552,6 +3552,22 @@ export class EnrollmentRepository {
       const cohortName =
         cohortMap?.get(enrollment.cohortId?.toString()) ?? null;
 
+      // Calculate total course score (raw sum of all quiz scores)
+      let totalCourseScore = 0;
+      for (const quiz of quizScores) {
+        totalCourseScore += quiz.maxScore;
+      }
+
+      // Calculate total course max score (sum of all quiz max scores)
+      let totalCourseMaxScore = 0;
+      for (const [quizId, maxScore] of quizMaxScoreMap.entries()) {
+        totalCourseMaxScore += maxScore;
+      }
+
+      // Format total score: round to 2 decimal places if needed, remove .00 if whole number
+      const formattedTotalScore = this.formatExportScore(totalCourseScore);
+      const formattedTotalMaxScore = this.formatExportScore(totalCourseMaxScore);
+
       return {
         studentId: userId,
         cohortName: cohortName,
@@ -3560,6 +3576,8 @@ export class EnrollmentRepository {
             enrollment.user.lastName ?? ''
           }`.trim() || 'Unknown',
         email: enrollment.user.email ?? '',
+        totalCourseScore: formattedTotalScore,
+        totalCourseMaxScore: formattedTotalMaxScore,
         quizScores,
       };
     });

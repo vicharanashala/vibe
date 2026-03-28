@@ -26,6 +26,14 @@ export class StudentQuizScoreDto {
   cohortName?: string;
 
   @Expose()
+  @IsNumber()
+  totalCourseScore: number;
+
+  @Expose()
+  @IsNumber()
+  totalCourseMaxScore: number;
+
+  @Expose()
   @IsArray()
   quizScores: Array<{
     moduleId: string;
