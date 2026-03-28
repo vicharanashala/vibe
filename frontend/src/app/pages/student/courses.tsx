@@ -8,7 +8,7 @@ import { useUserEnrollments, usePublicCourses } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 
 // Import new components
-import { CourseCard } from "@/components/course/CourseCard";
+import { CourseCard, CourseCardSkeleton } from "@/components/course/CourseCard";
 import { Pagination } from "@/components/ui/Pagination";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
@@ -175,21 +175,14 @@ export default function StudentCourses() {
           </div>
           <TabsContent value="enrolled" className="space-y-4">
             {isLoading || isSearching ? (
-              <div className="space-y-2">
-                {Array.from({ length: 4 }, (_, i) => (
-                  <Card key={i}>
-                    <CardContent className="p-4">
-                      <div className="h-4 bg-muted rounded animate-pulse mb-2" />
-                      <div className="h-3 bg-muted rounded animate-pulse w-2/3 mb-4" />
-                      <div className="h-2 bg-muted rounded animate-pulse mb-4" />
-                      <div className="h-10 bg-muted rounded animate-pulse" />
-                    </CardContent>
-                  </Card>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <CourseCardSkeleton key={i} variant="dashboard" />
                 ))}
               </div>
             ) : activeEnrollments.length > 0 ? (
               <>
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {activeEnrollments.map((enrollment, index) =>
                     renderEnrollmentCard(enrollment, index, isLoading)
                   )}
@@ -212,21 +205,14 @@ export default function StudentCourses() {
           </TabsContent>
           <TabsContent value="available" className="space-y-4">
             {loadingPublic || isSearching ? (
-              <div className="space-y-2">
-                {Array.from({ length: 4 }, (_, i) => (
-                  <Card key={i}>
-                    <CardContent className="p-4">
-                      <div className="h-4 bg-muted rounded animate-pulse mb-2" />
-                      <div className="h-3 bg-muted rounded animate-pulse w-2/3 mb-4" />
-                      <div className="h-2 bg-muted rounded animate-pulse mb-4" />
-                      <div className="h-10 bg-muted rounded animate-pulse" />
-                    </CardContent>
-                  </Card>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <CourseCardSkeleton key={i} variant="available" />
                 ))}
               </div>
             ) : publicCoursesData?.courses && publicCoursesData.courses.length > 0 ? (
               <>
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {publicCoursesData.courses.map((course: any, index: number) => (
                     <CourseCard
                       key={index}
@@ -265,20 +251,13 @@ export default function StudentCourses() {
 
           <TabsContent value="completed" className="space-y-4">
             {isLoading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 4 }, (_, i) => (
-                  <Card key={i}>
-                    <CardContent className="p-4">
-                      <div className="h-4 bg-muted rounded animate-pulse mb-2" />
-                      <div className="h-3 bg-muted rounded animate-pulse w-2/3 mb-4" />
-                      <div className="h-2 bg-muted rounded animate-pulse mb-4" />
-                      <div className="h-10 bg-muted rounded animate-pulse" />
-                    </CardContent>
-                  </Card>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <CourseCardSkeleton key={i} variant="dashboard" />
                 ))}
               </div>
             ) : completedEnrollments.length > 0 ? (
-              <div className="space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {completedEnrollments.map((enrollment, index) =>
                   renderEnrollmentCard(enrollment, index, isLoading)
                 )}
