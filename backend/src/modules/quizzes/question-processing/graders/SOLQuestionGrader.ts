@@ -19,13 +19,28 @@ class SOLQuestionGrader implements IGrader {
     const correctLotItemId = this.question.correctLotItem._id;
     const isCorrect =
       answer.lotItemId.toString() === correctLotItemId.toString();
-        let answerFeedback = isCorrect
-          ? 'Correct answer!'
-          : 'Incorrect answer.';
+
+    let answerFeedback = isCorrect
+      ? 'Correct answer!'
+      : 'Incorrect answer.';
 
     if (selectedAnswerTexts?.length) {
       const selectedTextList = selectedAnswerTexts.join(', ');
       answerFeedback += ` Selected answer(s): ${selectedTextList}.`;
+    }
+
+    // Include the lot item explanation if available
+    let explaination = '';
+    if (isCorrect) {
+      explaination = this.question.correctLotItem.explaination || '';
+    } else {
+      const selectedItem = this.question.incorrectLotItems?.find(
+        item => item._id?.toString() === answer.lotItemId.toString(),
+      );
+      explaination = selectedItem?.explaination || this.question.correctLotItem.explaination || '';
+    }
+    if (explaination) {
+      answerFeedback += ` ${explaination}`;
     }
 
     const feedback: IQuestionAnswerFeedback = {

@@ -729,6 +729,7 @@ class AttemptService extends BaseService {
   ): Promise<{
     status: 'saved' | 'failed to save';
     message?: string;
+    perQuestionFeedback?: IQuestionAnswerFeedback[];
   }> {
     /* -------------------- READS OUTSIDE TRANSACTION -------------------- */
 
@@ -747,6 +748,7 @@ class AttemptService extends BaseService {
     }
 
     /* -------------------- TRANSACTION (WRITE ONLY) -------------------- */
+    let savedAttemptDetails: { questionDetails: IQuestionDetails[] } | null = null;
     try {
       await this._withTransaction(async session => {
         const attempt = await this.attemptRepository.getById(
@@ -778,19 +780,53 @@ class AttemptService extends BaseService {
         } else {
           attempt.answers = await (this._normalizeAnswers(answers));
         }
+        savedAttemptDetails = { questionDetails: attempt.questionDetails };
         await this.attemptRepository.update(attemptId, {...attempt, quizId: new ObjectId(attempt.quizId), userId: new ObjectId(attempt.userId), });
       });
-
-      return {
-        status: 'saved',
-        message: 'Answers saved successfully',
-      };
     } catch (error) {
       return {
         status: 'failed to save',
         message: 'Failed to save answers',
       };
     }
+
+    // Grade the submitted answers if the quiz shows correct answers
+    if (
+      !isSkipped &&
+      answers.length > 0 &&
+      quiz.details.showCorrectAnswersAfterSubmission &&
+      savedAttemptDetails
+    ) {
+      try {
+        const feedbacks: IQuestionAnswerFeedback[] = [];
+        for (const answer of answers) {
+          const question = await this.questionService.getById(
+            answer.questionId.toString(),
+            true,
+          );
+          const questionDetail = (savedAttemptDetails as { questionDetails: IQuestionDetails[] }).questionDetails.find(
+            qd => qd.questionId.toString() === answer.questionId.toString(),
+          );
+          const parameterMap = questionDetail?.parameterMap;
+          const selectedAnswerTexts = getSelectedItemTexts(question, answer.answer);
+          const feedback: IQuestionAnswerFeedback = await new QuestionProcessor(question).grade(
+            answer.answer,
+            quiz,
+            parameterMap,
+            selectedAnswerTexts,
+          );
+          feedbacks.push(instanceToPlain(new QuestionAnswerFeedback(feedback)) as IQuestionAnswerFeedback);
+        }
+        return { status: 'saved', message: 'Answers saved successfully', perQuestionFeedback: feedbacks };
+      } catch {
+        // Grading failed — still return saved status
+      }
+    }
+
+    return {
+      status: 'saved',
+      message: 'Answers saved successfully',
+    };
   }
 
   async getAttempt(

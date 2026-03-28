@@ -46,6 +46,17 @@ class SMLQuestionGrader implements IGrader {
       let feedbackText = `You got ${correctAnswers.length} out of ${correctLotItemIds.length} correct.`;
       feedbackText = appendSelectedTexts(feedbackText);
 
+      // Append explanations for selected items
+      const selectedExplainations = answer.lotItemIds
+        .map(id => {
+          const item = [...(this.question.correctLotItems || []), ...(this.question.incorrectLotItems || [])]
+            .find(i => i._id?.toString() === id.toString());
+          return item?.explaination || '';
+        })
+        .filter(Boolean)
+        .join(' ');
+      if (selectedExplainations) feedbackText += ` ${selectedExplainations}`;
+
       const feedback: IQuestionAnswerFeedback = {
         questionId: this.question._id,
         status:
@@ -68,6 +79,17 @@ class SMLQuestionGrader implements IGrader {
         ? 'Correct answer!'
         : 'Incorrect answer. Please try again.';
       feedbackText = appendSelectedTexts(feedbackText);
+
+      // Append explanations for selected items
+      const selectedExplainations = answer.lotItemIds
+        .map(id => {
+          const item = [...(this.question.correctLotItems || []), ...(this.question.incorrectLotItems || [])]
+            .find(i => i._id?.toString() === id.toString());
+          return item?.explaination || '';
+        })
+        .filter(Boolean)
+        .join(' ');
+      if (selectedExplainations) feedbackText += ` ${selectedExplainations}`;
 
       const feedback: IQuestionAnswerFeedback = {
         questionId: this.question._id,

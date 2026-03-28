@@ -2608,9 +2608,17 @@ export function useFlagQuestion(): {
 }
 
 
+export interface SaveQuizQuestionFeedback {
+  questionId: string;
+  status: 'CORRECT' | 'INCORRECT' | 'PARTIAL';
+  score: number;
+  answerFeedback?: string;
+}
+
 export interface SaveQuizResponse {
-  result: 'CORRECT' | 'INCORRECT' | 'PARTIALLY_CORRECT';
-  explanation?: string;
+  status: 'saved' | 'failed to save';
+  message?: string;
+  perQuestionFeedback?: SaveQuizQuestionFeedback[];
 }
 
 export function useSaveQuiz(): {

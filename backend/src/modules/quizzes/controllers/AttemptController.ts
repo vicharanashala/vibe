@@ -38,6 +38,7 @@ import {
 } from '#quizzes/classes/validators/QuizValidator.js';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import {IAttempt} from '#quizzes/interfaces/index.js';
+import {IQuestionAnswerFeedback} from '#quizzes/interfaces/grading.js';
 import {BadRequestErrorResponse} from '#root/shared/index.js';
 import {getCourseAbility} from '#root/modules/courses/abilities/courseAbilities.js';
 import {createObjectCsvStringifier} from 'csv-writer';
@@ -117,11 +118,10 @@ class AttemptController {
 
   @OpenAPI({
     summary: 'Save answers for an ongoing attempt',
-    description: `Saves the current answers for a quiz attempt without submitting.<br/>
-      It returns an empty body with a 200 status code.`,
+    description: `Saves the current answers for a quiz attempt without submitting. Returns per-question grading feedback when the quiz is configured to show correct answers.`,
   })
   @Authorized()
-  @OnUndefined(200)
+  @HttpCode(200)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request',
     statusCode: 400,
@@ -140,6 +140,7 @@ class AttemptController {
   ): Promise<{
     status: 'saved' | 'failed to save';
     message?: string;
+    perQuestionFeedback?: IQuestionAnswerFeedback[];
   }> {
     const body: QuestionAnswersBodydto = await new Promise(
       (resolve, reject) => {

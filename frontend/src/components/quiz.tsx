@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion, ChevronDown } from "lucide-react";
+import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion, ChevronDown, CheckCircle, XCircle } from "lucide-react";
 import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, CreateAttemptResponse, SaveQuizResponse, useSkipOptionalItem, useSubmitStudentQuestion } from '@/hooks/hooks';
 import { useCourseStore } from "@/store/course-store";
 import MathRenderer from "./math-renderer";
@@ -88,6 +88,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const emptyQuizNextTimerRef = useRef<ReturnType<typeof window.setTimeout> | undefined>(undefined);
   const [finshingQuiz, setFinshingQuiz] = useState(false);
   const [showQuestionModal, setShowQuestionModal] = useState(false);
+  const [showingAnswerFeedback, setShowingAnswerFeedback] = useState(false);
+  const [currentAnswerExplanation, setCurrentAnswerExplanation] = useState<string>('');
+  const [currentAnswerResult, setCurrentAnswerResult] = useState<'CORRECT' | 'INCORRECT' | 'PARTIALLY_CORRECT' | null>(null);
+  const answerFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // ===== REFS AND CONSTANTS =====
   const itemStartedRef = useRef(false);
@@ -771,36 +775,77 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }
   }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem, saveQuiz]);
 
+  const getExplanationForAnswer = useCallback((question: QuizQuestion, userAnswer: string | number | number[] | string[] | undefined): string => {
+    if (userAnswer === undefined || userAnswer === null) return '';
+    if ((question.type === 'SELECT_ONE_IN_LOT') && question.lotItems) {
+      const selectedIndex = typeof userAnswer === 'number' ? userAnswer : parseInt(String(userAnswer), 10);
+      return question.lotItems[selectedIndex]?.explaination || '';
+    }
+    if (question.type === 'SELECT_MANY_IN_LOT' && question.lotItems) {
+      const selectedIndexes = Array.isArray(userAnswer) ? (userAnswer as number[]) : [];
+      return selectedIndexes
+        .map(i => question.lotItems![i]?.explaination)
+        .filter(Boolean)
+        .join(' | ');
+    }
+    return '';
+  }, []);
+
   const handleNextQuestion = useCallback(async () => {
     setTimeLeft(0);
 
-    //   if (attemptId && quizQuestions.length > 0) {
-    //   try {
-    //     const answersForSaving = convertAnswersToSaveFormat();
-    //     const response = await saveQuiz({
-    //       params: { path: { quizId: processedQuizId, attemptId: attemptId } },
-    //       body: { answers: answersForSaving }
-    //     });
+    const advanceToNext = () => {
+      if (currentQuestionIndex < quizQuestions.length - 1) {
+        setCurrentQuestionIndex(prev => prev + 1);
+      } else {
+        completeQuiz();
+      }
+    };
 
-    //     // Use response explanation and result if available
-    //     if (response && response.explanation && response.explanation.trim() && response.explanation !== 'Nil') {
-    //       await showExplanationBox(response.explanation, response.result);
-    //     }
-    //   } catch (err: any) {
-    //     const errorMessage =
-    //       err?.message || (typeof err === 'string' ? err : null) ||
-    //       "Failed to save, try again!";
-    //     toast.error(errorMessage);
-    //     console.error('Failed to auto-save progress:', err);
-    //   }
-    // }
+    // Derive current question inline to avoid TDZ — `currentQuestion` is
+    // declared further down in the component body.
+    const question = quizQuestions[currentQuestionIndex];
 
-    if (currentQuestionIndex < quizQuestions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
-    } else {
-      completeQuiz();
+    if (!question) {
+      advanceToNext();
+      return;
     }
-  }, [currentQuestionIndex, quizQuestions.length, completeQuiz, timeLeft, quizStarted]);
+
+    // Save the current answer and get per-question grading from backend
+    // (backend only grades if showCorrectAnswersAfterSubmission is enabled on the quiz)
+    let result: 'CORRECT' | 'INCORRECT' | 'PARTIALLY_CORRECT' | null = null;
+    let explanation = '';
+    if (attemptId) {
+      try {
+        const answersForSaving = convertAnswersToSaveFormat().filter(
+          a => a.questionId === question.id
+        );
+        const saveResponse = await saveQuiz({
+          params: { path: { quizId: processedQuizId, attemptId } },
+          body: { answers: answersForSaving, cohortId: currentCourse?.cohortId ?? '' },
+        });
+        if (saveResponse?.perQuestionFeedback?.length) {
+          const fb = saveResponse.perQuestionFeedback[0];
+          // Map backend PARTIAL -> frontend PARTIALLY_CORRECT for display
+          result = fb.status === 'PARTIAL' ? 'PARTIALLY_CORRECT' : (fb.status as 'CORRECT' | 'INCORRECT');
+          explanation = fb.answerFeedback ?? '';
+        }
+      } catch {
+        // If save fails, still show the card without result info
+      }
+    }
+
+    setCurrentAnswerResult(result);
+    setCurrentAnswerExplanation(explanation);
+    setShowingAnswerFeedback(true);
+    clearTimeout(answerFeedbackTimerRef.current);
+    answerFeedbackTimerRef.current = setTimeout(() => {
+      setShowingAnswerFeedback(false);
+      setCurrentAnswerExplanation('');
+      setCurrentAnswerResult(null);
+      advanceToNext();
+    }, 2000);
+  }, [currentQuestionIndex, quizQuestions, completeQuiz, answers, attemptId, saveQuiz, processedQuizId, currentCourse, convertAnswersToSaveFormat]);
 
   // Track attempts using the attempt data from the hook
   useEffect(() => {
@@ -869,6 +914,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     setTimeLeft(0);
     setIsEmptyQuiz(false);
     setNoAttemptsLeft(false);
+    setShowingAnswerFeedback(false);
+    setCurrentAnswerExplanation('');
+    setCurrentAnswerResult(null);
+    clearTimeout(answerFeedbackTimerRef.current);
     // Reset the attempt flag so quiz can be started again
     quizAttemptedRef.current = false;
   }, [setAttemptId]);
@@ -1451,52 +1500,65 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
     return (
       <Card className="mx-auto">
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold">Quiz Completed!</CardTitle>
-          <CardDescription>Great job! Here are your results.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Score Display - only show if allowed */}
-          {showScoreAfterSubmission && (
-            <div className="text-center space-y-4">
-              <div className="text-6xl font-bold text-primary drop-shadow-sm">
-                {submissionResults?.totalScore !== undefined && submissionResults?.totalMaxScore !== undefined
-                  ? `${submissionResults.totalScore}/${submissionResults.totalMaxScore}`
-                  : `${score}/${getTotalPoints()}`
-                }
-              </div>
-              <p className="text-xl text-foreground">
-                You scored {submissionResults?.totalScore !== undefined && submissionResults?.totalMaxScore !== undefined
-                  ? Math.round((submissionResults.totalScore / submissionResults.totalMaxScore) * 100)
-                  : Math.round((score / getTotalPoints()) * 100)
-                }%
-              </p>
+        <CardContent className="pt-4 space-y-4">
+          {/* Compact results summary */}
+          {showScoreAfterSubmission && (() => {
+            const totalScore = submissionResults?.totalScore !== undefined ? submissionResults.totalScore : score;
+            const totalMax = submissionResults?.totalMaxScore !== undefined ? submissionResults.totalMaxScore : getTotalPoints();
+            const pct = totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : 0;
+            const status = submissionResults?.gradingStatus;
+            const isPassed = status === 'PASSED';
+            const isFailed = status === 'FAILED';
+            const isPerfect = submissionResults?.totalScore !== undefined && submissionResults.totalScore === submissionResults.totalMaxScore;
 
-              {/* Grading Status Badge */}
-              {submissionResults?.gradingStatus && (
-                <Badge
-                  variant={
-                    submissionResults.gradingStatus === 'PASSED' ? 'success' :
-                      submissionResults.gradingStatus === 'FAILED' ? 'destructive' :
-                        'secondary'
+            return (
+              <div className={`flex items-center gap-4 p-4 rounded-xl border-2 ${
+                isPassed ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' :
+                isFailed ? 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800' :
+                'bg-muted/40 border-border'
+              }`}>
+                {/* Status icon */}
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  isPassed ? 'bg-green-100 dark:bg-green-900/40' :
+                  isFailed ? 'bg-red-100 dark:bg-red-900/40' :
+                  'bg-primary/10'
+                }`}>
+                  {isPassed
+                    ? <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+                    : isFailed
+                      ? <XCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                      : <Trophy className="w-6 h-6 text-primary" />
                   }
-                  className="text-lg px-4 py-2 mx-2"
-                >
-                  {submissionResults.gradingStatus === 'PASSED' && '🎉 Passed!'}
-                  {submissionResults.gradingStatus === 'FAILED' && 'Attempt Unsuccessful'}
-                  {submissionResults.gradingStatus === 'PENDING' && '⏳ Pending Review'}
-                </Badge>
-              )}
-              {(submissionResults?.totalScore === submissionResults?.totalMaxScore) && (
-                <Badge variant="success" className="text-lg px-4 py-2 from-primary to-chart-2 mx-2">
-                  Perfect Score! 🎉
-                </Badge>
-              )}
+                </div>
 
-              {/* Action Buttons - side by side */}
-              <div className="pt-4 flex flex-col items-center gap-3">
-                <div className="flex flex-wrap justify-center gap-3">
-                  {/* Rewatch Video Button - always available */}
+                {/* Score + status */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-3xl font-bold text-primary leading-none">{totalScore}/{totalMax}</span>
+                    <span className="text-muted-foreground text-sm">·</span>
+                    <span className="text-lg font-semibold text-foreground">{pct}%</span>
+                    {status && (
+                      <Badge
+                        variant={isPassed ? 'success' : isFailed ? 'destructive' : 'secondary'}
+                        className="text-sm px-2.5 py-1"
+                      >
+                        {isPassed ? '🎉 Passed' : isFailed ? 'Unsuccessful' : '⏳ Pending'}
+                      </Badge>
+                    )}
+                    {isPerfect && (
+                      <Badge variant="success" className="text-sm px-2.5 py-1">Perfect 🎉</Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">Quiz Completed</p>
+                  {failedRedirectCountdown !== null && (
+                    <p className="text-sm text-destructive font-medium animate-pulse mt-1">
+                      Auto-redirecting in {failedRedirectCountdown} second{failedRedirectCountdown !== 1 ? 's' : ''}...
+                    </p>
+                  )}
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-2 flex-shrink-0 flex-wrap justify-end">
                   {onPrevVideo && (
                     <Button
                       onClick={() => {
@@ -1506,62 +1568,41 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                       }}
                       disabled={isProgressUpdating}
                       variant="outline"
-                      className="min-w-[180px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
-                      size="lg"
+                      size="default"
+                      className="font-medium hover:bg-accent transition-all duration-200"
                     >
                       {isNavigatingToPrev ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2" />
-                          Processing
-                        </>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
                       ) : (
-                        <>
-                          <ChevronLeft className="h-4 w-4 mr-2" />
-                          Rewatch Video
-                        </>
+                        <><ChevronLeft className="h-4 w-4 mr-1" />Rewatch</>
                       )}
                     </Button>
                   )}
-
-                  {/* Next Lesson Button - only for passed quizzes */}
-                  {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
+                  {onNext && !isFailed && (
                     <Button
                       onClick={onNext}
                       disabled={isProgressUpdating}
-                      className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
-                      size="lg"
+                      size="default"
+                      className="font-medium shadow hover:shadow-md transition-all duration-200 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground border-0"
                     >
                       {isProgressUpdating ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
-                          Processing
-                        </>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground" />
                       ) : (
-                        <>
-                          Next Lesson
-                          <ChevronRight className="h-4 w-4 ml-2" />
-                        </>
+                        <>Next<ChevronRight className="h-4 w-4 ml-1" /></>
                       )}
                     </Button>
                   )}
                 </div>
-
-                {/* Live countdown timer for failed quizzes */}
-                {failedRedirectCountdown !== null && (
-                  <p className="text-sm text-destructive font-medium animate-pulse">
-                    Auto-redirecting in {failedRedirectCountdown} second{failedRedirectCountdown !== 1 ? 's' : ''}...
-                  </p>
-                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           <Separator />
 
-          {/* Question Details with scrollable container */}
+          {/* Question Details - fully expanded */}
           <div>
             <h3 className="text-xl font-semibold mb-4">Question Details</h3>
-            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+            <div className="space-y-4">
               {quizQuestions.map((question, index) => {
                 const userAnswer = answers[question.id];
                 const hasAnswer = userAnswer !== undefined && userAnswer !== null && userAnswer !== '';
@@ -1573,6 +1614,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                     return fbId === question.id;
                   }
                 );
+                // Explanation from the selected lotItem (client-side) as fallback
+                const localExplanation = getExplanationForAnswer(question, userAnswer);
 
                 return (
                   <Card
@@ -1589,77 +1632,75 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                           : 'border-gray-200'
                     }
                   >
-                    <CardContent className="px-4 py-2">
-                      <div
-                        className="flex items-center justify-between cursor-pointer select-none"
-                        onClick={() =>
-                          setOpenQuestionId(openQuestionId === question.id ? null : question.id)
-                        }
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <Badge variant="outline">
-                              Q{index + 1}: {getQuestionTypeLabel(question.type)}
-                            </Badge>
-                            {questionFeedback && (
-                              <Badge variant={
-                                questionFeedback.status === 'CORRECT' ? 'default' :
-                                  questionFeedback.status === 'PARTIAL' ? 'secondary' :
-                                    'destructive'
-                              }>
-                                {questionFeedback.status === 'CORRECT' ? '✓ Correct' :
-                                  questionFeedback.status === 'PARTIAL' ? '◐ Partial' :
-                                    '✗ Incorrect'}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <div className='flex justify-center items-center'>
-                          <Badge variant={
-                            questionFeedback
-                              ? questionFeedback.status === 'CORRECT' ? 'default' : 'destructive'
-                              : hasAnswer ? 'secondary' : 'destructive'
-                          }>
-                            {showScoreAfterSubmission && questionFeedback
-                              ? `${questionFeedback.score}/${question.points} Points`
-                              : hasAnswer ? `+${question.points}` : '0'
-                            }
+                    <CardContent className="px-4 py-3 space-y-3">
+                      {/* Header row */}
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline">
+                            Q{index + 1}: {getQuestionTypeLabel(question.type)}
                           </Badge>
-                          <ChevronDown className={`w-5 h-5 ml-5 transition-transform ${openQuestionId === question.id ? 'rotate-180' : ''}`} />
+                          {questionFeedback && (
+                            <Badge variant={
+                              questionFeedback.status === 'CORRECT' ? 'default' :
+                                questionFeedback.status === 'PARTIAL' ? 'secondary' :
+                                  'destructive'
+                            }>
+                              {questionFeedback.status === 'CORRECT' ? '✓ Correct' :
+                                questionFeedback.status === 'PARTIAL' ? '◐ Partial' :
+                                  '✗ Incorrect'}
+                            </Badge>
+                          )}
                         </div>
+                        <Badge variant={
+                          questionFeedback
+                            ? questionFeedback.status === 'CORRECT' ? 'default' : 'destructive'
+                            : hasAnswer ? 'secondary' : 'destructive'
+                        }>
+                          {showScoreAfterSubmission && questionFeedback
+                            ? `${questionFeedback.score}/${question.points} pts`
+                            : hasAnswer ? `${question.points} pts` : '0 pts'
+                          }
+                        </Badge>
                       </div>
-                      {openQuestionId === question.id && (<>
-                        <p className="text-sm text-muted-foreground my-3 ml-2">
-                          <MathRenderer>
-                            {preprocessMathContent(question.question)}
-                          </MathRenderer>
-                        </p>
 
-                        {/* Show user's answer if any */}
-                        {hasAnswer && (
-                          <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
-                            <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                              Your Answer: {formatUserAnswer(question, userAnswer)}
+                      {/* Question text */}
+                      <p className="text-sm text-foreground font-medium">
+                        <MathRenderer>
+                          {preprocessMathContent(question.question)}
+                        </MathRenderer>
+                      </p>
+
+                      {/* User's answer */}
+                      {hasAnswer && (
+                        <div className="p-2 bg-amber-50 dark:bg-amber-950/20 rounded">
+                          <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                            <strong>Your Answer:</strong> {formatUserAnswer(question, userAnswer)}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Grading status from server */}
+                      {showCorrectAnswersAfterSubmission && questionFeedback && questionFeedback.status !== 'CORRECT' && (
+                        <div className="p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                          <p className="text-sm font-medium text-green-700 dark:text-green-300">
+                            Status: {questionFeedback.status}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Explanation — server feedback takes priority, fallback to local lotItem explanation */}
+                      {showExplanationAfterSubmission && (
+                        (questionFeedback?.answerFeedback || localExplanation) && (
+                          <div className="p-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded">
+                            <p className="text-sm text-amber-800 dark:text-amber-200">
+                              <strong>Explanation:</strong>{' '}
+                              <MathRenderer>
+                                {preprocessMathContent(questionFeedback?.answerFeedback || localExplanation)}
+                              </MathRenderer>
                             </p>
                           </div>
-                        )}
-                        {/* Show correct answers if enabled and available */}
-                        {showCorrectAnswersAfterSubmission && questionFeedback && (
-                          <div className="mt-3 p-2 bg-green-50 dark:bg-green-950/20 rounded">
-                            <p className="text-sm font-medium text-green-700 dark:text-green-300">
-                              Status: {questionFeedback.status}
-                            </p>
-                          </div>
-                        )}
-                        {/* Show explanation if enabled and available */}
-                        {showExplanationAfterSubmission && questionFeedback?.answerFeedback && (
-                          <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-950/20 rounded">
-                            <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                              <strong>Explanation:</strong> {questionFeedback.answerFeedback}
-                            </p>
-                          </div>
-                        )}
-                      </>)}
+                        )
+                      )}
                     </CardContent>
                   </Card>
                 );
@@ -1772,6 +1813,52 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       </CardHeader>
 
       <CardContent className="space-y-6">
+        {/* Answer feedback overlay shown for 2 seconds after answering */}
+        {showingAnswerFeedback && (() => {
+          const isCorrect = currentAnswerResult === 'CORRECT';
+          const isPartial = currentAnswerResult === 'PARTIALLY_CORRECT';
+          const isIncorrect = currentAnswerResult === 'INCORRECT';
+          const hasResult = currentAnswerResult !== null;
+
+          if (!hasResult) return null;
+
+          const bgClass = isCorrect
+            ? 'bg-green-50 dark:bg-green-950/20 border-green-300 dark:border-green-700'
+            : isPartial
+            ? 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-300 dark:border-yellow-700'
+            : 'bg-red-50 dark:bg-red-950/20 border-red-300 dark:border-red-700';
+          const icon = isCorrect ? '✓' : isPartial ? '◐' : '✗';
+          const iconBg = isCorrect ? 'bg-green-500' : isPartial ? 'bg-yellow-500' : 'bg-red-500';
+          const heading = isCorrect
+            ? 'Congratulations!'
+            : isPartial
+            ? 'Partially Correct!'
+            : 'Sorry!';
+          const subtext = isCorrect
+            ? 'Correct Answer'
+            : isPartial
+            ? 'Partially Correct Answer'
+            : 'Wrong Answer';
+          const headingColor = isCorrect
+            ? 'text-green-800 dark:text-green-200'
+            : isPartial
+            ? 'text-yellow-800 dark:text-yellow-200'
+            : 'text-red-800 dark:text-red-200';
+          const subtextColor = isCorrect
+            ? 'text-green-600 dark:text-green-300'
+            : isPartial
+            ? 'text-yellow-600 dark:text-yellow-300'
+            : 'text-red-600 dark:text-red-300';
+          return (
+            <div className={`p-5 border-2 rounded-xl text-center space-y-1 ${bgClass}`}>
+              <div className="flex items-center justify-center gap-2">
+                <div className={`w-7 h-7 rounded-full ${iconBg} flex items-center justify-center text-white text-sm font-bold`}>{icon}</div>
+                <p className={`text-lg font-bold ${headingColor}`}>{heading}</p>
+              </div>
+              <p className={`text-sm font-medium ${subtextColor}`}>{subtext}</p>
+            </div>
+          );
+        })()}
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <Badge variant={currentQuestion.type === 'SELECT_ONE_IN_LOT' ? 'default' :
@@ -1995,12 +2082,17 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
             <Button
               onClick={handleNextQuestion}
-              disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id]) || isSubmitting || finshingQuiz}
+              disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id]) || isSubmitting || finshingQuiz || showingAnswerFeedback}
             >
               {isSubmitting ? (
                 <>
                   <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
                   Submitting...
+                </>
+              ) : showingAnswerFeedback ? (
+                <>
+                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                  Next…
                 </>
               ) : (
                 <>
