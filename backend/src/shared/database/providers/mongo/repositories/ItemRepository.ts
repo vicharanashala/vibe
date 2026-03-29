@@ -735,7 +735,9 @@ export class ItemRepository implements IItemRepository {
     const allItemsPromises = version.modules.flatMap(module =>
       module.sections.map(section =>
         this.readItemsGroup(section.itemsGroupId.toString(), session)
-          .then(group => group.items.length)
+          .then(group =>
+            group.items.filter(item => !item.isHidden).length
+          )
           .catch(err =>
             err instanceof NotFoundError ? 0 : Promise.reject(err),
           ),
