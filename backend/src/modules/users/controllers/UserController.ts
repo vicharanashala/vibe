@@ -13,11 +13,13 @@ import {
   Post,
   Patch,
   Authorized,
+  UploadedFile,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {EditUserBody, GetUserParams, GetUserResponse, UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
-import { AUTH_TYPES } from '#root/modules/auth/types.js';
-import { IAuthService } from '#root/modules/auth/interfaces/IAuthService.js';
+import {EditUserBody, GetUserParams, GetUserResponse, UserNotFoundErrorResponse} from '../classes/validators/UserValidators.js';
+import {AUTH_TYPES} from '#root/modules/auth/types.js';
+import {IAuthService} from '#root/modules/auth/interfaces/IAuthService.js';
+import {imageUploadOptions} from '#root/modules/anomalies/classes/validators/fileUploadOptions.js';
 
 @OpenAPI({
   tags: ['Users'],
@@ -28,7 +30,6 @@ export class UserController {
   constructor(
     @inject(USERS_TYPES.UserService)
     private readonly userService: UserService,
-    
     @inject(AUTH_TYPES.AuthService)
     private readonly authService: IAuthService,
   ) {}
@@ -50,13 +51,13 @@ export class UserController {
   async getUserById(
     @Params() params: GetUserParams,
   ): Promise<GetUserResponse> {
-    const { userId } = params;
+    const {userId} = params;
     return await this.userService.getUserById(userId);
   }
 
   @OpenAPI({
     summary: 'Edit user information',
-    description: `Edit user information like first and last name.<br/>
+    description: `Edit user information like first name, last name, and avatar.<br/>
     It returns an empty body with a 200 status code.`,
   })
   @Authorized()
@@ -69,13 +70,20 @@ export class UserController {
   async editUser(
     @Req() req: any,
     @Body() body: EditUserBody,
+    @UploadedFile('avatar', {required: false, options: imageUploadOptions})
+    file?: Express.Multer.File,
   ): Promise<void> {
     const token = req.headers.authorization?.split(' ')[1];
     const user = await this.authService.getCurrentUserFromToken(token);
     const userId = user._id.toString();
     const firebaseUID = user.firebaseUID;
-    await this.userService.editUser(userId, body);
-    await this.authService.updateFirebaseUser(firebaseUID, body);
+    await this.userService.editUser(userId, body, file);
+    if (body.firstName || body.lastName) {
+      await this.authService.updateFirebaseUser(firebaseUID, {
+        firstName: body.firstName ?? user.firstName,
+        lastName: body.lastName ?? user.lastName,
+      });
+    }
   }
 
   @OpenAPI({
@@ -92,9 +100,9 @@ export class UserController {
   })
   async makeAdmin(
     @Params() params: GetUserParams,
-    @Body() body: { password: string }
+    @Body() body: {password: string},
   ): Promise<void> {
-    const { userId } = params;
+    const {userId} = params;
     await this.userService.makeAdmin(userId, body.password);
   }
 }

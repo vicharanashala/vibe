@@ -20,6 +20,7 @@ export interface IUser {
   firstName: string;
   lastName?: string;
   roles: 'admin' | 'user';
+  avatar?: string;
 }
 
 export type Versions = {

@@ -88,21 +88,19 @@ export class EditUserBody{
     description: "User's first name",
     example: 'John',
     type: 'string',
-    readOnly: true,
   })
   @IsString()
-  @IsNotEmpty()
-  firstName: string;
+  @IsOptional()
+  firstName?: string;
 
   @JSONSchema({
     description: "User's last name",
     example: 'Smith',
     type: 'string',
-    readOnly: true,
   })
   @IsString()
-  @IsNotEmpty()
-  lastName: string;
+  @IsOptional()
+  lastName?: string;
 }
 
 /**

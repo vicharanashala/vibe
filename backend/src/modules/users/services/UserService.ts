@@ -1,14 +1,17 @@
-import { appConfig } from '#root/config/app.js';
+import {appConfig} from '#root/config/app.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import { IUser } from '#root/shared/index.js';
+import {IUser} from '#root/shared/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
 import {BadRequestError, NotFoundError} from 'routing-controllers';
+import {CloudStorageService} from '#root/modules/anomalies/services/CloudStorageService.js';
 
 @injectable()
 export class UserService extends BaseService {
+  private cloudStorageService = new CloudStorageService();
+
   constructor(
     @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
     @inject(GLOBAL_TYPES.Database)
@@ -22,25 +25,33 @@ export class UserService extends BaseService {
     if (!user) {
       throw new NotFoundError(`User with ID ${userId} not found`);
     }
-    user._id = user._id.toString(); // Ensure id is a string
+    user._id = user._id.toString();
     return user;
   }
 
   async editUser(
     userId: string,
-    userData: Partial<IUser>
+    userData: Partial<IUser>,
+    file?: Express.Multer.File,
   ): Promise<void> {
-    return this._withTransaction(async (session) => {
-    const user = await this.userRepo.findById(userId);
-    if (!user) {
-      throw new NotFoundError(`User with ID ${userId} not found`);
-    }
-    await this.userRepo.edit(userId, userData, session);
-  });
+    return this._withTransaction(async session => {
+      const user = await this.userRepo.findById(userId);
+      if (!user) {
+        throw new NotFoundError(`User with ID ${userId} not found`);
+      }
+
+      const updateData: Partial<IUser> = {...userData};
+
+      if (file) {
+        updateData.avatar = await this.cloudStorageService.uploadAvatar(file, userId);
+      }
+
+      await this.userRepo.edit(userId, updateData, session);
+    });
   }
 
   async makeAdmin(userId: string, password: string): Promise<void> {
-    return this._withTransaction(async (session) => {
+    return this._withTransaction(async session => {
       if (appConfig.adminPassword !== password) {
         throw new BadRequestError('Invalid admin password');
       }

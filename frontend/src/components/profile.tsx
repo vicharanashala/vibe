@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useState } from "react"
-import { Mail, User, Shield, Pencil, BookOpen, Clock, Award } from "lucide-react"
+import React, { useState, useRef } from "react"
+import { Mail, User, Shield, Pencil, BookOpen, Award, Camera } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -18,41 +18,31 @@ import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function UserProfile({ role = "student" }: { role?: "student" | "teacher" | "admin" }) {
-  const { user, setUser } = useAuthStore()
+  const { user, setUser, token } = useAuthStore()
   const navigate = useNavigate()
   const handleLogout = () => {
     logout();
     navigate({ to: "/auth" });
   };
 
-  // Fetch user data and statistics
-  const { token } = useAuthStore();
   const { data: enrollmentsData, isLoading: enrollmentsLoading } = useUserEnrollments(1, 100, !!token);
 
-  // Calculate statistics
   const totalEnrollments = enrollmentsData?.totalDocuments || 0;
-
   const enrollments = enrollmentsData?.enrollments || [];
 
-  // Calculate progress including all enrolled courses
   const totalProgress = React.useMemo(() => {
     if (enrollments.length === 0) return 0;
-
-    // Calculate total completed items and total items across all enrollments
     const { totalCompleted, totalItems } = enrollments.reduce((acc, enrollment) => {
       const completed = typeof enrollment.completedItems === 'number' ? enrollment.completedItems : 0;
       const total = enrollment.contentCounts?.totalItems || 0;
       return {
         totalCompleted: acc.totalCompleted + completed,
-        totalItems: acc.totalItems + (total > 0 ? total : 1) // Avoid division by zero
+        totalItems: acc.totalItems + (total > 0 ? total : 1)
       };
     }, { totalCompleted: 0, totalItems: 0 });
-
-    // Calculate overall progress percentage
     return Number(((totalCompleted / totalItems) * 100).toFixed(2)) || 0;
   }, [enrollments]);
 
-  // Fallback data if user is not available
   const firstName = user?.name?.split(" ")[0] || ""
   const lastName = user?.name?.split(" ")[1] || ""
   const displayName = user?.name || `${firstName || ""} ${lastName || ""}`.trim() || (role === "teacher" ? "Teacher" : "Student")
@@ -65,6 +55,9 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
   const [newFirstName, setNewFirstName] = useState(firstName || "")
   const [newLastName, setNewLastName] = useState(lastName || "")
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const { mutateAsync: editUser } = useEditUser();
 
@@ -97,6 +90,37 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
     }
   }
 
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append("avatar", file);
+
+      const res = await fetch(`${import.meta.env.VITE_BASE_URL}/users/edit`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("Upload failed");
+
+      const objectUrl = URL.createObjectURL(file);
+      if (user && user.uid) {
+        setUser({ ...user, avatar: objectUrl, uid: user.uid });
+      }
+      toast.success("Profile picture updated");
+    } catch {
+      toast.error("Failed to update profile picture");
+    } finally {
+      setIsUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:p-4 pt-0">
@@ -117,13 +141,40 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
             <div className="absolute inset-0 bg-card text-card-foreground" />
             <CardContent className="relative xl:p-6 lg:p-2 p-6">
               <div className="flex flex-col items-center space-y-6">
-                <div className="relative">
+                <div className="relative group">
                   <Avatar className="h-28 w-28 ring-4 ring-white dark:ring-gray-800 shadow-xl">
                     <AvatarImage src={user?.avatar || "/placeholder.svg"} alt="Profile" />
                     <AvatarFallback className="text-lg md:text-xl font-semibold bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
                       {avatarFallback.toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
+
+                  {/* Loading overlay */}
+                  {isUploadingAvatar && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    </div>
+                  )}
+
+                  {/* Edit overlay on hover */}
+                  {!isUploadingAvatar && (
+                    <button
+                      onClick={() => avatarInputRef.current?.click()}
+                      className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                      aria-label="Change profile picture"
+                    >
+                      <Camera className="h-6 w-6 text-white" />
+                    </button>
+                  )}
+
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarChange}
+                  />
+
                   <div className="absolute -bottom-2 right-4">
                     <Badge variant="secondary" className="text-xs px-3 py-1 bg-white dark:bg-gray-800 shadow-lg border">
                       {displayRole}
@@ -166,17 +217,6 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                     </Badge>
                   </div>
 
-                  {/* <div className="text-center pt-4">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleLogout}
-                      className="relative h-9 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:text-red-600 dark:hover:text-red-400 hover:shadow-lg hover:shadow-red-500/10"
-                    >
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Logout
-                    </Button>
-                  </div> */}
                   <div className="text-center pt-4">
                     <Button
                       variant="ghost"
@@ -257,7 +297,6 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
         </div>
 
         {/* Learning Stats */}
-
         {role === "student" && (
           <Card>
             <CardHeader>
@@ -267,7 +306,6 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
             <CardContent>
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="text-center">
-                  {/* Enrolled Courses */}
                   {enrollmentsLoading ? (
                     <Skeleton className="h-8 w-12 mx-auto mb-1" />
                   ) : (
@@ -279,7 +317,6 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                   <p className="text-sm text-muted-foreground">Enrolled Courses</p>
                 </div>
 
-                {/* Overall Progress */}
                 <div className="text-center">
                   {enrollmentsLoading ? (
                     <Skeleton className="h-8 w-16 mx-auto mb-1" />
@@ -291,43 +328,10 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                   )}
                   <p className="text-sm text-muted-foreground">Overall Progress</p>
                 </div>
-                {/* <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">7</div>
-                  <p className="text-sm text-muted-foreground">Day Streak</p>
-                </div> */}
               </div>
             </CardContent>
           </Card>
-        )
-        }
-        {/* : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Teaching Statistics</CardTitle>
-              <CardDescription>Your contributions and activities</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">3</div>
-                  <p className="text-sm text-muted-foreground">Courses Created</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">10</div>
-                  <p className="text-sm text-muted-foreground">Articles</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">19</div>
-                  <p className="text-sm text-muted-foreground">Blogs</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">100</div>
-                  <p className="text-sm text-muted-foreground">Assignments Given</p>
-                </div>
-                
-              </div>
-            </CardContent>
-          </Card> */}
+        )}
 
       </div>
     </div>

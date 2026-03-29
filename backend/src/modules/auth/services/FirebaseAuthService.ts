@@ -331,9 +331,12 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     firebaseUID: string,
     body: Partial<IUser>,
   ): Promise<void> {
-    // Update user in Firebase Auth
-    await this.auth.updateUser(firebaseUID, {
+    const update: Record<string, string> = {
       displayName: `${body.firstName} ${body.lastName}`,
-    });
+    };
+    if (body.avatar) {
+      update.photoURL = body.avatar;
+    }
+    await this.auth.updateUser(firebaseUID, update);
   }
 }
