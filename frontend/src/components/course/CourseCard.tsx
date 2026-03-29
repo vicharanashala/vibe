@@ -1,4 +1,4 @@
-import { Clock, Trophy, Medal, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, Play, Activity, Shield as LucideShield } from "lucide-react";
+import { Clock, Trophy, Medal, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, Play, Activity, Award, Shield as LucideShield } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -800,8 +800,8 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen, cohortId }
                         ) : (
                           <span className="text-muted-foreground">In Progress: {entry.completionPercentage.toFixed(2)}%</span>
                         )}
-                        <span className="mx-1.5 opacity-20">|</span>
-                        <span className="opacity-70">{entry.completedCount || 0} Lessons &bull; {entry.score || 0} XP</span>
+                        {/* <span className="mx-1.5 opacity-20">|</span> */}
+                        {/* <span className="opacity-70">{entry.completedCount || 0} Lessons &bull; {entry.score || 0} XP</span> */}
                       </div>
                     </div>
                     <div className="text-right">
@@ -824,11 +824,11 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen, cohortId }
               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Your Rank</span>
               <span className="font-bold text-xl text-yellow-500">#{myStats.rank}</span>
             </div>
-            <div className="w-px h-6 bg-border/50" />
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Stats</span>
-              <span className="font-semibold text-sm">{myStats.completedCount || 0} Lessons &bull; {myStats.score || 0} XP</span>
-            </div>
+            {/* <div className="w-px h-6 bg-border/50" /> */}
+            {/* <div className="flex items-center gap-2"> */}
+              {/* <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Stats</span> */}
+              {/* <span className="font-semibold text-sm">{myStats.completedCount || 0} Lessons &bull; {myStats.score || 0} XP</span> */}
+            {/* </div> */}
             <div className="w-px h-6 bg-border/50" />
             <div className="flex items-center gap-2">
               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Progress</span>
@@ -842,4 +842,4 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen, cohortId }
       </div>
     </DialogContent>
   );
-};
+};
