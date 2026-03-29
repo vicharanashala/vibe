@@ -7,6 +7,7 @@ import { Search, History, Mail, FileText, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card"
 import { ArrowUp, ArrowDown } from "lucide-react"
 import { Pagination } from "@/components/ui/Pagination";
+import { ResetHpDialog } from "./ResetHpDialog";
 
 export interface StudentsTabProps {
   courseVersionId: string;
@@ -18,6 +19,7 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
   const [sortKey, setSortKey] = useState<"name" | "hp" | "completion">("name")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
   const [currentPage, setCurrentPage] = useState(1);
+  const [openReset, setOpenReset] = useState(false);
 
   const itemsPerPage = 10;
   const navigate = useNavigate();
@@ -79,9 +81,7 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
 
   return (
     <div className="space-y-6">
-
-      {/* Search */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
         <div className="relative max-w-md flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -94,15 +94,26 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
             className="pl-10"
           />
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isRefetching || isLoading}
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
-          {isRefetching ? "Refreshing..." : "Refresh"}
-        </Button>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isRefetching || isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+            {isRefetching ? "Refreshing..." : "Refresh"}
+          </Button>
+
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setOpenReset(true)}
+          >
+            Reset HP
+          </Button>
+        </div>
       </div>
 
       {/* Student Count */}
@@ -253,6 +264,13 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
           />
         </CardContent>
       </Card>
+      <ResetHpDialog
+        open={openReset}
+        onOpenChange={setOpenReset}
+        courseVersionId={courseVersionId}
+        cohortName={cohortName}
+        onSuccess={refetch}
+      />
     </div>
   );
 }

@@ -1,110 +1,117 @@
-import { IsArray, IsNumber, IsOptional, IsString, ValidateNested, IsBoolean, Min, IsIn, IsEmail, IsInt } from "class-validator";
-import { Expose, Type } from "class-transformer";
-import { ToNumber } from "../../utils/toNumber.js";
+import {
+  IsArray,
+  IsNumber,
+  IsOptional,
+  IsString,
+  ValidateNested,
+  IsBoolean,
+  Min,
+  IsIn,
+  IsEmail,
+  IsInt,
+  IsNotEmpty,
+} from 'class-validator';
+import {Expose, Type} from 'class-transformer';
+import {ToNumber} from '../../utils/toNumber.js';
+import {HpResetMode} from '../../models.js';
+import {JSONSchema} from 'class-validator-jsonschema';
 
 export class CourseVersionDto {
+  @IsString()
+  courseVersionId!: string;
 
-    @IsString()
-    courseVersionId!: string;
+  @IsString()
+  versionName!: string;
 
-    @IsString()
-    versionName!: string;
+  @IsNumber()
+  totalCohorts!: number;
 
-    @IsNumber()
-    totalCohorts!: number;
-
-    @IsString() // ISO date string
-    createdAt!: string;
+  @IsString() // ISO date string
+  createdAt!: string;
 }
 
 export class CourseWithVersionsDto {
+  @IsString()
+  courseId!: string;
 
-    @IsString()
-    courseId!: string;
+  @IsString()
+  courseName!: string;
 
-    @IsString()
-    courseName!: string;
-
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => CourseVersionDto)
-    versions!: CourseVersionDto[];
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => CourseVersionDto)
+  versions!: CourseVersionDto[];
 }
-
 
 export class CourseVersionListMetaDto {
+  @IsNumber()
+  totalCourses!: number;
 
-    @IsNumber()
-    totalCourses!: number;
+  @IsNumber()
+  totalVersions!: number;
 
-    @IsNumber()
-    totalVersions!: number;
+  @IsNumber()
+  page!: number;
 
-    @IsNumber()
-    page!: number;
+  @IsNumber()
+  limit!: number;
 
-    @IsNumber()
-    limit!: number;
+  @IsString()
+  sortBy!: string;
 
-    @IsString()
-    sortBy!: string;
+  @IsString()
+  sortOrder!: string;
 
-    @IsString()
-    sortOrder!: string;
-
-    @IsOptional()
-    @IsString()
-    search?: string;
+  @IsOptional()
+  @IsString()
+  search?: string;
 }
-
 
 export class CourseVersionListResponseDto {
+  @IsBoolean()
+  success!: boolean;
 
-    @IsBoolean()
-    success!: boolean;
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => CourseWithVersionsDto)
+  data!: CourseWithVersionsDto[];
 
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => CourseWithVersionsDto)
-    data!: CourseWithVersionsDto[];
-
-    @ValidateNested()
-    @Type(() => CourseVersionListMetaDto)
-    meta!: CourseVersionListMetaDto;
+  @ValidateNested()
+  @Type(() => CourseVersionListMetaDto)
+  meta!: CourseVersionListMetaDto;
 }
-
 
 /* =========================================================
    Cohort Stats
 ========================================================= */
 
 export class CohortStatsDto {
-    @IsNumber()
-    totalStudents!: number;
+  @IsNumber()
+  totalStudents!: number;
 
-    @IsNumber()
-    totalActivities!: number;
+  @IsNumber()
+  totalActivities!: number;
 
-    @IsNumber()
-    publishedActivities!: number;
+  @IsNumber()
+  publishedActivities!: number;
 
-    @IsNumber()
-    draftActivities!: number;
+  @IsNumber()
+  draftActivities!: number;
 
-    @IsNumber()
-    totalHpDistributed!: number;
+  @IsNumber()
+  totalHpDistributed!: number;
 
-    @IsNumber()
-    totalCredits!: number;
+  @IsNumber()
+  totalCredits!: number;
 
-    @IsNumber()
-    totalDebits!: number;
+  @IsNumber()
+  totalDebits!: number;
 
-    @IsNumber()
-    pendingApprovals!: number;
+  @IsNumber()
+  pendingApprovals!: number;
 
-    @IsNumber()
-    overdueActivities!: number;
+  @IsNumber()
+  overdueActivities!: number;
 }
 
 /* =========================================================
@@ -112,32 +119,32 @@ export class CohortStatsDto {
 ========================================================= */
 
 export class CohortListItemDto {
-    // @IsString()
-    // cohortId!: string;
+  // @IsString()
+  // cohortId!: string;
 
-    @IsString()
-    cohortName!: string;
+  @IsString()
+  cohortName!: string;
 
-    @IsString()
-    courseId!: string;
+  @IsString()
+  courseId!: string;
 
-    @IsString()
-    courseVersionId!: string;
+  @IsString()
+  courseVersionId!: string;
 
-    @ValidateNested()
-    @Type(() => CohortStatsDto)
-    stats!: CohortStatsDto;
+  @ValidateNested()
+  @Type(() => CohortStatsDto)
+  stats!: CohortStatsDto;
 
-    @IsString() // ISO date string
-    lastActivityAt!: string;
+  @IsString() // ISO date string
+  lastActivityAt!: string;
 
-    @IsString() // ISO date string
-    createdAt!: string;
+  @IsString() // ISO date string
+  createdAt!: string;
 
-    @IsNumber()
-    percentCompleted?: number;
-    // @IsBoolean()
-    // isPublic!: boolean;
+  @IsNumber()
+  percentCompleted?: number;
+  // @IsBoolean()
+  // isPublic!: boolean;
 }
 
 /* =========================================================
@@ -145,27 +152,27 @@ export class CohortListItemDto {
 ========================================================= */
 
 export class CohortListMetaDto {
-    @IsNumber()
-    totalRecords!: number;
+  @IsNumber()
+  totalRecords!: number;
 
-    @IsNumber()
-    totalPages!: number;
+  @IsNumber()
+  totalPages!: number;
 
-    @IsNumber()
-    currentPage!: number;
+  @IsNumber()
+  currentPage!: number;
 
-    @IsNumber()
-    limit!: number;
+  @IsNumber()
+  limit!: number;
 
-    @IsString()
-    sortBy!: string;
+  @IsString()
+  sortBy!: string;
 
-    @IsString()
-    sortOrder!: string;
+  @IsString()
+  sortOrder!: string;
 
-    @IsOptional()
-    @IsString()
-    search?: string;
+  @IsOptional()
+  @IsString()
+  search?: string;
 }
 
 /* =========================================================
@@ -173,53 +180,51 @@ export class CohortListMetaDto {
 ========================================================= */
 
 export class CohortListResponseDto {
-    @IsBoolean()
-    success!: boolean;
+  @IsBoolean()
+  success!: boolean;
 
-    @IsString()
-    message!: string;
+  @IsString()
+  message!: string;
 
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => CohortListItemDto)
-    data!: CohortListItemDto[];
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => CohortListItemDto)
+  data!: CohortListItemDto[];
 
-    @ValidateNested()
-    @Type(() => CohortListMetaDto)
-    meta!: CohortListMetaDto;
+  @ValidateNested()
+  @Type(() => CohortListMetaDto)
+  meta!: CohortListMetaDto;
 }
-
-
 
 /* =========================================================
    CourseVersionListQuery (Validator DTO)
 ========================================================= */
 
 export class CourseVersionListQueryDto {
-    @IsOptional()
-    @ToNumber()
-    @IsNumber()
-    @Min(1)
-    page?: number;
+  @IsOptional()
+  @ToNumber()
+  @IsNumber()
+  @Min(1)
+  page?: number;
 
-    @IsOptional()
-    @ToNumber()
-    @IsNumber()
-    @Min(1)
-    limit?: number;
+  @IsOptional()
+  @ToNumber()
+  @IsNumber()
+  @Min(1)
+  limit?: number;
 
-    @IsOptional()
-    @IsString()
-    sortBy?: string;
+  @IsOptional()
+  @IsString()
+  sortBy?: string;
 
-    @IsOptional()
-    @IsString()
-    @IsIn(["asc", "desc"])
-    sortOrder?: "asc" | "desc";
+  @IsOptional()
+  @IsString()
+  @IsIn(['asc', 'desc'])
+  sortOrder?: 'asc' | 'desc';
 
-    @IsOptional()
-    @IsString()
-    search?: string;
+  @IsOptional()
+  @IsString()
+  search?: string;
 }
 
 /* =========================================================
@@ -227,103 +232,128 @@ export class CourseVersionListQueryDto {
 ========================================================= */
 
 export class CohortListQueryDto {
-    @IsOptional()
-    @ToNumber()
-    @IsNumber()
-    @Min(1)
-    page?: number;
+  @IsOptional()
+  @ToNumber()
+  @IsNumber()
+  @Min(1)
+  page?: number;
 
-    @IsOptional()
-    @ToNumber()
-    @IsNumber()
-    @Min(1)
-    limit?: number;
+  @IsOptional()
+  @ToNumber()
+  @IsNumber()
+  @Min(1)
+  limit?: number;
 
-    @IsOptional()
-    @IsString()
-    sortBy?: string;
+  @IsOptional()
+  @IsString()
+  sortBy?: string;
 
-    @IsOptional()
-    @IsString()
-    @IsIn(["asc", "desc"])
-    sortOrder?: "asc" | "desc";
+  @IsOptional()
+  @IsString()
+  @IsIn(['asc', 'desc'])
+  sortOrder?: 'asc' | 'desc';
 
-    @IsOptional()
-    @IsString()
-    search?: string;
+  @IsOptional()
+  @IsString()
+  search?: string;
 
-    @IsOptional()
-    @IsString()
-    courseVersionId?: string;
+  @IsOptional()
+  @IsString()
+  courseVersionId?: string;
 }
 
-
-
 export class CohortStudentItemDto {
-    @Expose()
-    @IsString()
-    _id!: string;
+  @Expose()
+  @IsString()
+  _id!: string;
 
-    @Expose()
-    @IsString()
-    enrollmentId!: string;
+  @Expose()
+  @IsString()
+  enrollmentId!: string;
 
-    @Expose()
-    @IsString()
-    name!: string;
+  @Expose()
+  @IsString()
+  name!: string;
 
-    @Expose()
-    @IsEmail()
-    email!: string;
+  @Expose()
+  @IsEmail()
+  email!: string;
 
-    @Expose()
-    @IsInt()
-    @Min(0)
-    totalHp!: number;
+  @Expose()
+  @IsInt()
+  @Min(0)
+  totalHp!: number;
 
-    @Expose()
-    @IsInt()
-    @Min(0)
-    completionPercentage!: number;
+  @Expose()
+  @IsInt()
+  @Min(0)
+  completionPercentage!: number;
 }
 
 export class CohortStudentsResponseDto {
-    @Expose()
-    @IsBoolean()
-    success!: boolean;
+  @Expose()
+  @IsBoolean()
+  success!: boolean;
 
-    @Expose()
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => CohortStudentItemDto)
-    data!: CohortStudentItemDto[];
+  @Expose()
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => CohortStudentItemDto)
+  data!: CohortStudentItemDto[];
 }
 
-
-
 export class CohortStudentsListQueryDto {
-    @IsOptional()
-    @ToNumber()
-    @IsNumber()
-    @Min(1)
-    page?: number;
+  @IsOptional()
+  @ToNumber()
+  @IsNumber()
+  @Min(1)
+  page?: number;
 
-    @IsOptional()
-    @ToNumber()
-    @IsNumber()
-    @Min(1)
-    limit?: number;
+  @IsOptional()
+  @ToNumber()
+  @IsNumber()
+  @Min(1)
+  limit?: number;
 
-    @IsOptional()
-    @IsString()
-    sortBy?: string;
+  @IsOptional()
+  @IsString()
+  sortBy?: string;
 
-    @IsOptional()
-    @IsString()
-    @IsIn(["asc", "desc"])
-    sortOrder?: "asc" | "desc";
+  @IsOptional()
+  @IsString()
+  @IsIn(['asc', 'desc'])
+  sortOrder?: 'asc' | 'desc';
 
-    @IsOptional()
-    @IsString()
-    search?: string;
+  @IsOptional()
+  @IsString()
+  search?: string;
+}
+
+export class ResetHpRequest {
+  @IsNumber()
+  @Min(0)
+  targetHp: number;
+
+  @IsIn(['ALL', 'ONLY_ZERO_HP', 'ONLY_WITH_HP'])
+  mode: HpResetMode;
+}
+
+export class ResetRequestParams {
+  @JSONSchema({
+    description: 'Course version id',
+    example: '69bed49fc461e665a086938c',
+    type: 'string',
+  })
+  @IsString()
+  @IsNotEmpty()
+  versionId: string;
+
+  @JSONSchema({
+    description: 'Name of the cohort',
+    example: 'Krushkalians',
+    type: 'string',
+  })
+  @IsString()
+  @IsNotEmpty()
+  cohortName: string;
 }

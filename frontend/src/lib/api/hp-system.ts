@@ -424,6 +424,12 @@ export type HpCohortsResponse = {
     data: CohortStats[];
     courseVersionName: string;
 };
+export type ResetHpPayload = {
+  courseVersionId: string;
+  cohortName: string;
+  mode: "ALL" | "ONLY_ZERO_HP" | "ONLY_WITH_HP";
+  targetHp: number;
+};
 // ─── API Functions ───────────────────────────────────────────
 
 export const hpApi = {
@@ -854,4 +860,11 @@ export const hpApi = {
             body: JSON.stringify({ feedback }),
         });
     },
+
+    resetHp: async ({courseVersionId,cohortName,targetHp,mode}:ResetHpPayload ): Promise<{success: boolean, documentsUpdated: number}> => {
+        return apiFetch(`${BASE_URL}/courses-cohorts/version/${courseVersionId}/cohort/${cohortName}/reset-hp`, {
+            method: 'POST',
+            body:JSON.stringify({targetHp:targetHp,mode:mode})
+        });
+    }
 };
