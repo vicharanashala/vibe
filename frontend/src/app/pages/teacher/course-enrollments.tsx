@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { QuizSubmissionDisplay } from "./QuizSubmissionDisplay"
 import { WatchTimeDisplay } from "./WatchTimeDisplay"
 import TimeSlotsModal from "./components/TimeSlotsModal"
@@ -22,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { MoreVertical, Trash2 } from "lucide-react"
 import CourseBackButton from "./CourseBackButton";
+import { EmotionAnalyticsDashboard } from "./components/EmotionAnalyticsDashboard";
 
 // Import hooks - including the new quiz hooks
 import {
@@ -1399,6 +1401,38 @@ function CourseEnrollments() {
               </Card>
             ))}
           </div>}
+
+          {/* Emotion Analytics Dashboard */}
+          <Collapsible defaultOpen={false} className="group/collapsible">
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="py-4">
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between text-left"
+                  >
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <span>😊 Learner Emotion Analytics</span>
+                      </CardTitle>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Expand to view emotion insights without affecting the rest of the dashboard.
+                      </p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                  </button>
+                </CollapsibleTrigger>
+              </CardHeader>
+              <CollapsibleContent>
+                <CardContent className="pt-0">
+                  <EmotionAnalyticsDashboard 
+                    courseId={courseId || ""} 
+                    courseVersionId={versionId || ""} 
+                  />
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
           {/* Search */}
           <div className="flex flex-col sm:flex-row gap-4">
