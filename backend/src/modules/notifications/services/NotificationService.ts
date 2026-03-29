@@ -4,6 +4,7 @@ import {ObjectId, ClientSession} from 'mongodb';
 import {NotificationRepository} from '#root/shared/database/providers/mongo/repositories/NotificationRepository.js';
 import {NOTIFICATIONS_TYPES} from '../types.js';
 import {INotification} from '#root/shared/database/interfaces/INotification.js';
+import {AchievementTier} from '#root/shared/interfaces/models.js';
 import {EnrollmentRepository} from '#root/shared/database/providers/mongo/repositories/EnrollmentRepository.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {UserRepository} from '#root/shared/database/providers/mongo/repositories/UserRepository.js';
@@ -192,6 +193,38 @@ export class NotificationService {
     notification: Omit<INotification, '_id'>,
     session?: ClientSession,
   ): Promise<void> {
+    await this.notificationRepo.create(notification, session);
+  }
+
+  // ── Achievement Notification ─────────────────────────────────────
+
+  async notifyAchievementEarned(
+    userId: string,
+    achievementTitle: string,
+    tier: AchievementTier,
+    session?: ClientSession,
+  ): Promise<void> {
+    const tierEmoji: Record<AchievementTier, string> = {
+      BRONZE: '🥉',
+      SILVER: '🥈',
+      GOLD: '🥇',
+      PLATINUM: '💎',
+      DIAMOND: '👑',
+    };
+
+    const notification: Omit<INotification, '_id'> = {
+      userId: new ObjectId(userId),
+      type: 'achievement_earned',
+      title: `Achievement Unlocked: ${achievementTitle} ${tierEmoji[tier]}`,
+      message: `Congratulations! You earned the "${achievementTitle}" achievement.`,
+      read: false,
+      createdAt: new Date(),
+      extra: {
+        achievementTitle,
+        tier,
+      },
+    };
+
     await this.notificationRepo.create(notification, session);
   }
 

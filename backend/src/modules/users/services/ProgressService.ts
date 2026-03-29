@@ -46,6 +46,8 @@ import { GetCurrentProgressPathResponse } from '../classes/dtos/GetCurrentProgre
 import { SETTING_TYPES } from '#root/modules/setting/types.js';
 import { CourseSettingService } from '#root/modules/setting/index.js';
 import { getContainer } from '#root/bootstrap/loadModules.js';
+import { ACHIEVEMENTS_TYPES } from '#root/modules/achievements/types.js';
+import { AchievementService } from '#root/modules/achievements/services/AchievementService.js';
 
 const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
 const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
@@ -54,6 +56,12 @@ const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
 class ProgressService extends BaseService {
   private getCourseSettingService(): CourseSettingService {
     return getContainer().get<CourseSettingService>(SETTING_TYPES.SettingRepo);
+  }
+
+  private getAchievementService(): AchievementService {
+    return getContainer().get<AchievementService>(
+      ACHIEVEMENTS_TYPES.AchievementService,
+    );
   }
 
   constructor(
@@ -2075,6 +2083,8 @@ class ProgressService extends BaseService {
       this.validateProgressPosition(progress, moduleId, sectionId, itemId);
     }
 
+    let courseJustCompleted = false;
+
     await this._withTransaction(async session => {
       let stoppedWatchTime = null;
       let shouldCountCurrentItemAsCompleted = false;
@@ -2177,6 +2187,7 @@ class ProgressService extends BaseService {
       }
 
       // Prepare the progress update payload
+      if (isCompleted) courseJustCompleted = true;
       let newProgress: Partial<IProgress> = isCompleted
         ? {
           currentModule: moduleId,
@@ -2322,6 +2333,13 @@ class ProgressService extends BaseService {
       }
 
     });
+
+    // Fire achievement check outside the transaction — non-critical, must not crash stopItem
+    if (courseJustCompleted) {
+      this.getAchievementService().checkAndAward(userId).catch(err =>
+        console.error('[ProgressService] Achievement check failed:', err?.message),
+      );
+    }
   }
 
   private validateProgressPosition(
@@ -2717,6 +2735,11 @@ class ProgressService extends BaseService {
           courseVersionId,
           newProgress,
           cohortId,
+        );
+
+        // Non-critical — fire and forget outside transaction
+        this.getAchievementService().checkAndAward(userId.toString()).catch(err =>
+          console.error('[ProgressService] Achievement check failed:', err?.message),
         );
       } else {
         const newProgress = {
@@ -3447,6 +3470,13 @@ class ProgressService extends BaseService {
         cohortId,
         session,
       );
+
+      // Non-critical — fire and forget
+      if (!alreadyCompleted) {
+        this.getAchievementService().checkAndAward(userId).catch(err =>
+          console.error('[ProgressService] Achievement check failed:', err?.message),
+        );
+      }
 
       return { message: 'Course completed - reset to start', alreadyCompleted };
     }
