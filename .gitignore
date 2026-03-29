@@ -2,6 +2,13 @@
 .DS_Store
 Thumbs.db
 
+# Claude Code local config
+.claude/
+
+# Build artifacts
+backend/html/
+backend/package-lock.json
+
 # Ignore database files anywhere in the project
 **/lms_db/
 

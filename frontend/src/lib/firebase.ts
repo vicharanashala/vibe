@@ -1,16 +1,17 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getAuth, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signInWithEmailAndPassword, 
-  signOut, 
-  createUserWithEmailAndPassword, 
-  updateProfile, 
+import { getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  signOut,
+  createUserWithEmailAndPassword,
+  updateProfile,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   confirmPasswordReset,
-  verifyPasswordResetCode } from "firebase/auth";
+  verifyPasswordResetCode,
+  connectAuthEmulator } from "firebase/auth";
 import { useAuthStore } from "../store/auth-store";
 import { useLoginWithGoogle } from "@/hooks/hooks";
 
@@ -33,6 +34,12 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+
+// Connect to local Auth emulator in development
+if (import.meta.env.DEV) {
+  connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
+}
+
 export const provider = new GoogleAuthProvider();
 
 // Firebase authentication functions

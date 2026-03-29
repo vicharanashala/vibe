@@ -70,26 +70,14 @@ export class DeleteCronService extends BaseService {
     //     ),
     //   ),
     // );
-    const response = await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion();
-    // results.forEach((result, index) => {
-    //   const { courseId, versionId } = courseVersionMap[index];
-
-    //   if (result.status === 'fulfilled') {
-    //     console.log(
-    //       `✅ Course ${courseId} | Version ${versionId} completed`,
-    //       `Total count:${result.value.totalCount}`, `Updated count:${result.value.updatedCount}`,
-    //     );
-    //   } else {
-    //     console.error(
-    //       `❌ Course ${courseId} | Version ${versionId} failed`,
-    //       result.reason?.message || result.reason,
-    //     );
-    //   }
-    // });
-
-    console.log(`🎉 Parallel progress cron completed \n
+    try {
+      const response = await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion();
+      console.log(`🎉 Parallel progress cron completed \n
         Total count : ${response.totalCount} \n
         Updated count : ${response.updatedCount}`);
+    } catch (err) {
+      console.warn('⚠️ Progress update cron skipped on startup (no data):', (err as Error).message);
+    }
     // });
 
     // console.log('🗓️ Progress update cron scheduled (hourly, parallel)');
