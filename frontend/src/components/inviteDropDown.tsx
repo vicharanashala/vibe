@@ -9,6 +9,7 @@ import {
   UserCheck,
   Bell,
   Check,
+  Trophy,
 } from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {useMarkNotificationAsRead} from '@/hooks/hooks';
@@ -64,6 +65,8 @@ const getSystemNotificationIcon = (type: SystemNotification['type']) => {
       return <CheckCircle className="h-3 w-3 text-green-600" />;
     case 'appeal_rejected':
       return <XCircle className="h-3 w-3 text-red-600" />;
+    case 'achievement_earned':
+      return <Trophy className="h-3 w-3 text-yellow-500" />;
     default:
       return <Bell className="h-3 w-3 text-muted-foreground" />;
   }
@@ -89,6 +92,12 @@ const getSystemNotificationColors = (type: SystemNotification['type']) => {
         bg: 'bg-blue-100 dark:bg-blue-900/40',
         hover: 'hover:bg-blue-50 dark:hover:bg-blue-950/30',
         dot: 'bg-blue-500',
+      };
+    case 'achievement_earned':
+      return {
+        bg: 'bg-yellow-100 dark:bg-yellow-900/40',
+        hover: 'hover:bg-yellow-50 dark:hover:bg-yellow-950/30',
+        dot: 'bg-yellow-500',
       };
     default:
       return {

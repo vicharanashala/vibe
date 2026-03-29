@@ -95,8 +95,9 @@ export type SystemNotificationType =
   | 'policy_updated'
   | 'appeal_submitted'
   | 'appeal_approved'
-  | 'appeal_rejected';
- 
+  | 'appeal_rejected'
+  | 'achievement_earned';
+
 export interface SystemNotification {
   _id: string;
   type: SystemNotificationType;
@@ -117,6 +118,8 @@ export interface SystemNotification {
     studentId?: string;
     reason?: string;
     evidenceUrl?: string;
+    achievementTitle?: string;
+    tier?: string;
   };
 }
  
