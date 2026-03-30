@@ -441,4 +441,91 @@ export class ActivityRepository implements IActivityRepository {
     await this.init()
     await this.hpActivityCollection.deleteOne({ _id: new ObjectId(activityId) }, { session })
   }
+
+  
+  async getUpcomingDeadlinesForStudent(
+    studentId: string,
+    cohortName: string,
+    courseVersionId: string,
+    days: number = 7,
+    limit: number = 5,
+    session?: ClientSession
+  ): Promise<Array<{
+    activityTitle: string;
+    deadlineDate: string;
+    daysLeft: number;
+  }>> {
+    await this.init();
+
+    const today = new Date();
+    const futureDate = new Date(today);
+    futureDate.setDate(today.getDate() + days);
+
+    // Get activities with deadlines within the specified days
+    // Exclude activities where student already has approved submission
+    const pipeline = [
+      {
+        $match: {
+          cohort: cohortName,
+          courseVersionId: new ObjectId(courseVersionId),
+          status: "PUBLISHED",
+          isDeleted: { $ne: true },
+          "rules.deadlineAt": {
+            $gte: today,
+            $lte: futureDate
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: "hp_activity_submissions",
+          let: { activityId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$activityId", "$$activityId"] },
+                    { $eq: ["$studentId", new ObjectId(studentId)] },
+                    { $eq: ["$status", "APPROVED"] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: "approvedSubmission"
+        }
+      },
+      {
+        $match: {
+          approvedSubmission: { $size: 0 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          activityTitle: "$title",
+          deadlineDate: { $toString: "$rules.deadlineAt" },
+          daysLeft: {
+            $ceil: {
+              $divide: [
+                { $subtract: ["$rules.deadlineAt", today] },
+                1000 * 60 * 60 * 24
+              ]
+            }
+          }
+        }
+      },
+      { $sort: { daysLeft: 1 } },
+      { $limit: limit }
+    ];
+
+    const result = await this.hpActivityCollection.aggregate(pipeline, { session }).toArray();
+
+    return result.map(r => ({
+      activityTitle: r.activityTitle,
+      deadlineDate: r.deadlineDate,
+      daysLeft: Math.max(0, r.daysLeft)
+    }));
+  }
 }

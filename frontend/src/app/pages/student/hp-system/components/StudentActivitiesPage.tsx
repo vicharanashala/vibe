@@ -32,16 +32,16 @@ export function StudentActivitiesPage({ courseVersionId, cohortName }: StudentAc
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList className="w-full md:w-auto grid grid-cols-2 h-auto p-1 bg-muted/20 rounded-xl">
+                <TabsList className="grid w-full grid-cols-2 max-w-[400px] mb-6 p-1 bg-muted/50 border border-border/50 shadow-sm rounded-lg mx-auto lg:ml-0">
                     <TabsTrigger
                         value="activities"
-                        className="py-3 px-6 text-lg font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200 cursor-pointer"
+                        className="rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm"
                     >
                         Activities
                     </TabsTrigger>
                     <TabsTrigger
                         value="overview"
-                        className="py-3 px-6 text-lg font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200 cursor-pointer"
+                        className="rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm"
                     >
                         Overview
                     </TabsTrigger>
