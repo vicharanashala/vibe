@@ -31,6 +31,7 @@ import { NotFoundComponent } from '@/components/not-found'
 import { useCourseStore } from '@/store/course-store'
 // import CourseEnrollments from '../pages/teacher/course-enrollments'
 import CourseEnrollmentsContainer from '../pages/teacher/course-enrollments'
+import CourseEmotionAnalyticsPage from '../pages/teacher/course-emotion-analytics'
 import InvitePage from '../pages/teacher/invite'
 import GenerateSectionPage from '@/app/pages/teacher/create-job'
 import AISectionPage from '@/app/pages/teacher/AISectionPage';
@@ -319,6 +320,12 @@ const teacherCourseEnrollmentsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/courses/enrollments',
   component: CourseEnrollmentsContainer,
+});
+
+const teacherCourseEmotionAnalyticsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/emotion-analytics',
+  component: CourseEmotionAnalyticsPage,
 });
 
 // Teacher Course Instructors route
@@ -645,6 +652,7 @@ const routeTree = rootRoute.addChildren([
     teacherViewCourseRoute, teacherCourseFlagsRoute,
     teacherProfileRoute,
     teacherCourseEnrollmentsRoute,
+    teacherCourseEmotionAnalyticsRoute,
     teacherAudioManagerRoute,
     teacherAddCourseRoute,
     teacherCourseInviteRoute,

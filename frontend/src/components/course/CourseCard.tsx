@@ -1,4 +1,4 @@
-import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play, Activity, Shield as LucideShield } from "lucide-react";
+import { Clock, Trophy, Medal, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, Play, Activity, Award, Shield as LucideShield } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,13 +11,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useLeaderboard, useCourseVersionById } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import { useNavigate } from "@tanstack/react-router";
-import { useState, lazy, Suspense, useEffect } from "react";
+import { useState, lazy, useEffect } from "react";
 import { bufferToHex } from "@/utils/helpers";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { StudentPolicyModal } from "@/app/pages/student/components/policies/StudentPolicyModal";
-import { Pagination } from "../ui/Pagination";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 import { EnrollmentDetailsDialog } from "@/components/course/EnrollmentDetailsDialog";
 
@@ -37,7 +36,7 @@ const isCurrentTimeInTimeSlot = (timeSlotData?: any) => {
 
   const now = new Date();
   const currentTime = now.getHours() * 60 + now.getMinutes(); // Convert to minutes since midnight
-  
+
   const [fromHours, fromMinutes] = timeSlot.from.split(':').map(Number);
   const [toHours, toMinutes] = timeSlot.to.split(':').map(Number);
   const fromTime = fromHours * 60 + fromMinutes;
@@ -55,9 +54,9 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const courseId = bufferToHex(enrollment.courseId as string);
   const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
   const cohortId = enrollment?.cohortId ? (typeof enrollment.cohortId === 'string' ? enrollment.cohortId : bufferToHex(enrollment.cohortId as any)) : "";
-  const module_number = enrollment.moduleNumber || "";
-  const section_number = enrollment.sectionNumber || "";
-  const item_type = enrollment.itemType || "VIDEO";
+  // const module_number = enrollment.moduleNumber || "";
+  // const section_number = enrollment.sectionNumber || "";
+  // const item_type = enrollment.itemType || "VIDEO";
   const [showPolicies, setShowPolicies] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
@@ -86,25 +85,25 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   const contentCounts = enrollment.contentCounts || {};
   const itemCounts = (contentCounts as any).itemCounts || {};
-  
+
   // Also get counts from courseVersionData as fallback
   const versionItemCounts = (courseVersionData as any)?.itemCounts || {};
   const totalLessons = Number(contentCounts.totalItems || (courseVersionData as any)?.totalItems || 0);
 
   const videoCount = Number(
-    (contentCounts as any).videos ?? itemCounts.VIDEO ?? itemCounts.video ?? itemCounts.videos ?? 
+    (contentCounts as any).videos ?? itemCounts.VIDEO ?? itemCounts.video ?? itemCounts.videos ??
     versionItemCounts.VIDEO ?? versionItemCounts.video ?? versionItemCounts.videos ?? 0
   );
   const quizCount = Number(
-    (contentCounts as any).quizzes ?? itemCounts.QUIZ ?? itemCounts.quiz ?? itemCounts.quizzes ?? 
+    (contentCounts as any).quizzes ?? itemCounts.QUIZ ?? itemCounts.quiz ?? itemCounts.quizzes ??
     versionItemCounts.QUIZ ?? versionItemCounts.quiz ?? versionItemCounts.quizzes ?? 0
   );
   const articleCount = Number(
-    (contentCounts as any).articles ?? itemCounts.BLOG ?? itemCounts.blog ?? itemCounts.articles ?? 
+    (contentCounts as any).articles ?? itemCounts.BLOG ?? itemCounts.blog ?? itemCounts.articles ??
     versionItemCounts.BLOG ?? versionItemCounts.blog ?? versionItemCounts.articles ?? 0
   );
   const projectCount = Number(
-    (contentCounts as any).project ?? (contentCounts as any).projects ?? itemCounts.PROJECT ?? itemCounts.project ?? itemCounts.projects ?? 
+    (contentCounts as any).project ?? (contentCounts as any).projects ?? itemCounts.PROJECT ?? itemCounts.project ?? itemCounts.projects ??
     versionItemCounts.PROJECT ?? versionItemCounts.project ?? versionItemCounts.projects ?? 0
   );
 
@@ -127,12 +126,13 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   // Robust check for HP system availability
   const isHpSystem = !!(
-    enrollment.hpSystem ||
-    enrollment.course?.hpSystem ||
-    (enrollment.versionDetails && enrollment.versionDetails[0]?.hpSystem) ||
-    courseVersionData?.hpSystem
+    (enrollment.hpSystem || (enrollment as any).hpSystem) ||
+    ((enrollment.course as any)?.hpSystem) ||
+    ((enrollment as any).versionDetails && (enrollment as any).versionDetails[0]?.hpSystem) ||
+    (courseVersionData as any)?.hpSystem
   );
 
+  const isStart = progress === 0 && variant !== 'available';
   const isRankVisible = variant !== 'available' && isNotGuruSetu;
   const isTimeslotActive = variant !== 'available' && isNotGuruSetu;
 
@@ -143,6 +143,9 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
     const existingCompletionIndex = completion?.findIndex(
       (c) => c.courseVersionId === versionId
     );
+
+
+
 
     if (existingCompletionIndex === -1 && enrollment) {
       setCompletion?.([
@@ -156,6 +159,12 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       ]);
     }
   }, [completion, versionId, enrollment, progress, contentCounts.totalItems, completedLessons, setCompletion]);
+
+
+  useEffect(() => {
+    if (!enrollment) return
+    console.log("Enrollment of the course -> ", enrollment)
+  })
 
   const handleContinue = () => {
     if (variant === 'available') {
@@ -197,7 +206,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       { bg: "bg-[#FCE7F3]", icon: "text-[#EC4899]", progress: "bg-[#EC4899]", iconComponent: <Users className="h-10 w-10 md:h-12 md:w-12" /> },
     ];
     const theme = themes[index % themes.length];
-    const isStart = progress === 0 && variant !== 'available';
 
     return (
       <div className={cn("[perspective:1000px] transition-all duration-300 hover:-translate-y-1", className)}>
@@ -235,19 +243,34 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   {isCompleted && <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 font-medium">Completed</Badge>}
                 </div>
 
-                <h3 className="font-bold text-xl text-foreground mb-1 line-clamp-2 leading-tight">{enrollment?.course?.name || `Course ${index + 1}`}</h3>
-                <p className="text-sm text-muted-foreground mb-6 line-clamp-1">{enrollment?.course?.description || "Accelerate your learning journey"}</p>
+                <h3
+                  className="font-bold text-xl text-foreground mb-1 line-clamp-2 leading-tight break-words min-h-[3.25rem]"
+                  title={enrollment?.course?.name || `Course ${index + 1}`}
+                >
+                  {enrollment?.course?.name || `Course ${index + 1}`}
+                </h3>
+                <p
+                  className="text-sm text-muted-foreground mb-6 line-clamp-1 break-words min-h-[1.25rem]"
+                  title={enrollment?.course?.description || "Accelerate your learning journey"}
+                >
+                  {enrollment?.course?.description || "Accelerate your learning journey"}
+                </p>
 
                 <div className="space-y-4">
                   {variant !== 'available' && (
                     <div className="space-y-2">
                       <div className="flex justify-between items-center text-sm font-semibold">
-                        <span className="text-muted-foreground">Progress</span>
-                        <span className="text-foreground">{progress.toFixed(0)}%</span>
+
+                        {enrollment.courseId !== "6981df886e100cfe04f9c4ad" && <> <span className="text-muted-foreground">Progress</span><span className="text-foreground">{progress.toFixed(0)}%</span></>}
                       </div>
-                      <div className="h-2 w-full bg-[#F1F5F9] dark:bg-slate-800 rounded-full overflow-hidden">
+
+                      {enrollment.courseId !== "6981df886e100cfe04f9c4ad" ? (<div className="h-2 w-full bg-[#F1F5F9] dark:bg-slate-800 rounded-full overflow-hidden">
                         <div className={cn("h-full rounded-full transition-all duration-700 ease-out", theme.progress)} style={{ width: `${progress}%` }} />
-                      </div>
+                      </div>) : (<div className="flex justify-between items-center text-sm font-semibold">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span>{enrollment.completedItems}/{enrollment.contentCounts?.totalItems} (More videos soon)</span>
+                      </div>)}
+
                     </div>
                   )}
 
@@ -362,48 +385,48 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                                         </div>
                                       </div>
                                     </div>
-                                      <p className="text-sm text-muted-foreground leading-relaxed">
-                                        Get help, share resources, and connect with your coursemates in our exclusive Discord server.
-                                      </p>
-                                      <div className="flex items-center gap-2.5 pt-1">
-                                        <Button asChild className="flex-1">
-                                          <a href={supportLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
-                                            <ExternalLink className="w-4 h-4" />
-                                            Join Discord
-                                          </a>
-                                        </Button>
-                                        <Button
-                                          variant="outline"
-                                          size="icon"
-                                          onClick={async () => {
-                                            try {
-                                              await navigator.clipboard.writeText(supportLink);
-                                              setCopied(true);
-                                              setTimeout(() => setCopied(false), 2000);
-                                            } catch {
-                                              setCopyError(true);
-                                              setTimeout(() => setCopyError(false), 2000);
-                                            }
-                                          }}
-                                          disabled={copied}
-                                        >
-                                          {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
-                                        </Button>
-                                      </div>
-                                      {(copied || copyError) && (
-                                        <div className={cn("text-xs px-3 py-2 rounded-lg border flex items-center gap-2", copied ? "text-primary bg-primary/10 border-primary/20" : "text-red-500 bg-red-50 border-red-100")}>
-                                          {copied ? <Check className="w-3 h-3" /> : <Info className="w-3 h-3" />}
-                                          {copied ? "Link copied to clipboard" : "Failed to copy link"}
-                                        </div>
-                                      )}
+                                    <p className="text-sm text-muted-foreground leading-relaxed">
+                                      Get help, share resources, and connect with your coursemates in our exclusive Discord server.
+                                    </p>
+                                    <div className="flex items-center gap-2.5 pt-1">
+                                      <Button asChild className="flex-1">
+                                        <a href={supportLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
+                                          <ExternalLink className="w-4 h-4" />
+                                          Join Discord
+                                        </a>
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={async () => {
+                                          try {
+                                            await navigator.clipboard.writeText(supportLink);
+                                            setCopied(true);
+                                            setTimeout(() => setCopied(false), 2000);
+                                          } catch {
+                                            setCopyError(true);
+                                            setTimeout(() => setCopyError(false), 2000);
+                                          }
+                                        }}
+                                        disabled={copied}
+                                      >
+                                        {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
+                                      </Button>
                                     </div>
+                                    {(copied || copyError) && (
+                                      <div className={cn("text-xs px-3 py-2 rounded-lg border flex items-center gap-2", copied ? "text-primary bg-primary/10 border-primary/20" : "text-red-500 bg-red-50 border-red-100")}>
+                                        {copied ? <Check className="w-3 h-3" /> : <Info className="w-3 h-3" />}
+                                        {copied ? "Link copied to clipboard" : "Failed to copy link"}
+                                      </div>
+                                    )}
                                   </div>
-                                </DialogContent>
-                              </Dialog>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -601,7 +624,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>Overall Progress</span>
-              <span>{progress.toFixed(2)}%</span>
+               <span>{progress.toFixed(2)}%</span>
             </div>
             <Progress value={progress} className="h-2" />
           </div>
@@ -631,7 +654,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                       <Trophy className="h-4 w-4 text-yellow-500" />
                     </Button>
                   </DialogTrigger>
-                  <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} />
+                  <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} cohortId={cohortId} />
                 </Dialog>
               )}
               {isHpSystem && (
@@ -698,68 +721,146 @@ export const CourseCardSkeleton = ({ variant }: { variant: string }) => {
   );
 };
 
-const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { courseId: string; versionId: string; courseName?: string; isOpen: boolean }) => {
-  const { leaderboard: leaderboardData, isLoading } = useLeaderboard(courseId, versionId, 1, 100, isOpen);
+const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen, cohortId }: { courseId: string; versionId: string; courseName?: string; isOpen: boolean; cohortId?: string }) => {
+  const [page, setPage] = useState(1);
+  const { leaderboard, totalPages, totalDocuments, isLoading, error, myStats } = useLeaderboard(courseId, versionId, page, 10, isOpen, cohortId);
+
+  const getInitials = (name: string) => {
+    const parts = name.split(" ");
+    return parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : name.substring(0, 2).toUpperCase();
+  };
+
+  const getRankStyle = (rank: number) => {
+    switch (rank) {
+      case 1:
+        return {
+          bgColor: "bg-gradient-to-br from-yellow-400 to-yellow-600",
+          textColor: "text-yellow-900",
+          icon: <Crown className="h-5 w-5" />,
+        };
+      case 2:
+        return {
+          bgColor: "bg-gradient-to-br from-gray-300 to-gray-500",
+          textColor: "text-gray-900",
+          icon: <Medal className="h-5 w-5" />,
+        };
+      case 3:
+        return {
+          bgColor: "bg-gradient-to-br from-orange-400 to-orange-700",
+          textColor: "text-orange-900",
+          icon: <Award className="h-5 w-5" />,
+        };
+      default:
+        return {
+          bgColor: "bg-muted",
+          textColor: "text-muted-foreground",
+          icon: null,
+        };
+    }
+  };
 
   return (
-    <DialogContent className="max-w-2xl">
-      <DialogHeader>
+    <DialogContent className="max-w-4xl h-[85vh] flex flex-col overflow-hidden">
+      <DialogHeader className="flex-shrink-0 pb-4">
         <DialogTitle className="flex items-center gap-2">
-          <Trophy className="h-6 w-6 text-yellow-500" />
-          Leaderboard - {courseName || 'Course'}
+          <Trophy className="h-5 w-5 text-yellow-600" />
+          {courseName || 'Course'} Leaderboard
         </DialogTitle>
+        <p className="text-sm text-muted-foreground">
+          Students ranked by completion percentage and performance.
+        </p>
       </DialogHeader>
 
-      <div className="mt-4">
-        {isLoading ? (
-          <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex items-center gap-4">
-                <Skeleton className="h-10 w-10 rounded-full" />
-                <Skeleton className="h-6 flex-1" />
-                <Skeleton className="h-6 w-16" />
-              </div>
-            ))}
-          </div>
-        ) : leaderboardData?.length > 0 ? (
-          <ScrollArea className="h-[400px] pr-4">
-            <div className="space-y-2">
-              {leaderboardData.map((entry: any, i: number) => (
-                <div key={entry.userId} className={cn(
-                  "flex items-center gap-4 p-3 rounded-xl transition-colors",
-                  i === 0 ? "bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-900/30" :
-                    i === 1 ? "bg-slate-50 dark:bg-slate-900/10 border border-slate-200 dark:border-slate-800/30" :
-                      i === 2 ? "bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-900/30" :
-                        "hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                )}>
-                  <div className="flex items-center justify-center w-8 font-bold text-lg">
-                    {i === 0 ? <Medal className="text-yellow-500" /> :
-                      i === 1 ? <Medal className="text-slate-400" /> :
-                        i === 2 ? <Medal className="text-orange-400" /> :
-                          i + 1}
-                  </div>
-                  <Avatar className="h-10 w-10 border-2 border-white dark:border-slate-800">
-                    <AvatarFallback>{entry.userName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="font-bold flex items-center gap-2">
-                      {entry.userName}
-                      {i === 0 && <Crown className="h-4 w-4 text-yellow-500" />}
-                    </div>
-                    <div className="text-xs text-muted-foreground">{entry.completedCount || 0} lessons completed</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-primary">{entry.score || 0} XP</div>
-                  </div>
-                </div>
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full pr-4">
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
-          </ScrollArea>
-        ) : (
-          <div className="py-12 text-center text-muted-foreground">
-            <Trophy className="h-12 w-12 mx-auto mb-4 opacity-20" />
-            <p>No leaderboard data available for this course yet.</p>
+          ) : error ? (
+            <p className="text-muted-foreground text-center py-8">{error}</p>
+          ) : !leaderboard || leaderboard.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No leaderboard data available.</p>
+          ) : (
+            <div className="space-y-2 pb-4">
+              {leaderboard.map((entry) => {
+                const rankStyle = getRankStyle(entry.rank);
+                return (
+                  <div key={entry.userId} className={cn(
+                    "flex items-center gap-3 p-3 rounded-lg transition-colors border-2",
+                    entry.rank === 1 ? "bg-yellow-400/10 border-yellow-400/30 shadow-sm" :
+                    entry.rank === 2 ? "bg-gray-400/10 border-gray-400/30" :
+                    entry.rank === 3 ? "bg-orange-400/10 border-orange-400/30" :
+                    "bg-muted/20 border-transparent hover:bg-muted/30"
+                  )}>
+                    <div className="flex-shrink-0 w-10 text-center">
+                      {entry.rank <= 3 ? (
+                        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center mx-auto", rankStyle.bgColor)}>
+                          <span className={cn("font-bold text-sm", rankStyle.textColor)}>{entry.rank}</span>
+                        </div>
+                      ) : (
+                        <span className="text-base font-semibold text-muted-foreground">{entry.rank}</span>
+                      )}
+                    </div>
+                    <Avatar className="h-10 w-10 border border-white dark:border-slate-800 shadow-sm">
+                      <AvatarFallback>{getInitials(entry.userName)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold truncate text-sm flex items-center gap-2">
+                        {entry.userName}
+                        {entry.rank === 1 && <Crown className="h-3.5 w-3.5 text-yellow-500" />}
+                      </p>
+                      <div className="text-xs truncate">
+                        {Math.round(entry.completionPercentage) === 100 ? (
+                          <>
+                            <span className="text-green-600 font-medium">✓ Completed</span>
+                            {entry.completedAt && (
+                              <span className="ml-1 opacity-60 text-[10px]">on {new Date(entry.completedAt).toLocaleDateString()}</span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">In Progress: {entry.completionPercentage.toFixed(2)}%</span>
+                        )}
+                        {/* <span className="mx-1.5 opacity-20">|</span> */}
+                        {/* <span className="opacity-70">{entry.completedCount || 0} Lessons &bull; {entry.score || 0} XP</span> */}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Badge variant={entry.completionPercentage === 100 ? "default" : "secondary"} className="font-bold text-[10px] min-w-[45px] justify-center">
+                        {Math.round(entry.completionPercentage)}%
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </ScrollArea>
+      </div>
+
+      <div className="flex-shrink-0 pt-4 border-t border-border/50 bg-background flex items-center justify-between">
+        {myStats ? (
+          <div className="flex items-center gap-6 px-4 py-3 rounded-xl bg-primary/5 border border-primary/10">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Your Rank</span>
+              <span className="font-bold text-xl text-yellow-500">#{myStats.rank}</span>
+            </div>
+            {/* <div className="w-px h-6 bg-border/50" /> */}
+            {/* <div className="flex items-center gap-2"> */}
+              {/* <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Stats</span> */}
+              {/* <span className="font-semibold text-sm">{myStats.completedCount || 0} Lessons &bull; {myStats.score || 0} XP</span> */}
+            {/* </div> */}
+            <div className="w-px h-6 bg-border/50" />
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Progress</span>
+              <Badge variant="outline" className="font-bold">{myStats.completionPercentage.toFixed(2)}%</Badge>
+            </div>
           </div>
+        ) : <div />}
+        {(totalPages || 0) > 1 && (
+          <Pagination currentPage={page} totalPages={totalPages || 1} totalDocuments={totalDocuments || 0} onPageChange={setPage} />
         )}
       </div>
     </DialogContent>
