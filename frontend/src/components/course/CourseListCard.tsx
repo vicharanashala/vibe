@@ -31,7 +31,7 @@ const isCurrentTimeInTimeSlot = (timeSlotData?: any) => {
 
   const now = new Date();
   const currentTime = now.getHours() * 60 + now.getMinutes();
-  
+
   const [fromHours, fromMinutes] = timeSlot.from.split(':').map(Number);
   const [toHours, toMinutes] = timeSlot.to.split(':').map(Number);
   const fromTime = fromHours * 60 + fromMinutes;
@@ -73,7 +73,7 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
   const contentCounts = enrollment.contentCounts || {};
   const itemCounts = (contentCounts as any).itemCounts || {};
   const versionItemCounts = (courseVersionData as any)?.itemCounts || {};
-  
+
   const videoCount = Number((contentCounts as any).videos ?? itemCounts.VIDEO ?? versionItemCounts.VIDEO ?? 0);
   const quizCount = Number((contentCounts as any).quizzes ?? itemCounts.QUIZ ?? versionItemCounts.QUIZ ?? 0);
 
@@ -165,7 +165,7 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
         </div>
 
         <h3 className="font-bold text-lg mb-1 leading-tight text-foreground">{enrollment?.course?.name || `Course ${index + 1}`}</h3>
-        
+
         <p className="text-xs text-muted-foreground mb-4">
           {variant === 'available' ? 'Discover and enroll' : isCompleted ? 'Course completed!' : progress === 0 ? 'Start your learning journey' : 'Continue Learning'}
           {variant !== 'available' && !isCompleted && progress !== 0 && (
@@ -198,7 +198,7 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
                     <Trophy className="h-3.5 w-3.5 mr-1.5 text-yellow-500" /> Rank
                   </Button>
                 </DialogTrigger>
-                <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} />
+                <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} cohortId={cohortId} />
               </Dialog>
               {supportLink && (
                 <Button variant="outline" size="sm" className="h-9 rounded-xl text-[11px] font-bold" asChild>
@@ -280,9 +280,9 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
 };
 
 // Internal Leaderboard Dialog
-const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { courseId: string; versionId: string; courseName?: string, isOpen: boolean }) => {
+const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen, cohortId }: { courseId: string; versionId: string; courseName?: string, isOpen: boolean, cohortId?: string }) => {
   const [page, setPage] = useState(1);
-  const { leaderboard, totalPages, totalDocuments, isLoading, error, myStats } = useLeaderboard(courseId, versionId, page, 10, isOpen);
+  const { leaderboard, totalPages, totalDocuments, isLoading, error, myStats } = useLeaderboard(courseId, versionId, page, 10, isOpen, cohortId);
 
   const getInitials = (name: string) => {
     const parts = name.split(" ");
@@ -291,54 +291,137 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { course
 
   const getRankStyle = (rank: number) => {
     switch (rank) {
-      case 1: return { bgColor: "bg-yellow-500", textColor: "text-white", icon: <Crown className="h-4 w-4" /> };
-      case 2: return { bgColor: "bg-gray-400", textColor: "text-white", icon: <Medal className="h-4 w-4" /> };
-      case 3: return { bgColor: "bg-orange-400", textColor: "text-white", icon: <Award className="h-4 w-4" /> };
-      default: return { bgColor: "bg-muted", textColor: "text-muted-foreground", icon: null };
+      case 1:
+        return {
+          bgColor: "bg-gradient-to-br from-yellow-400 to-yellow-600",
+          textColor: "text-yellow-900",
+          icon: <Crown className="h-5 w-5" />,
+        };
+      case 2:
+        return {
+          bgColor: "bg-gradient-to-br from-gray-300 to-gray-500",
+          textColor: "text-gray-900",
+          icon: <Medal className="h-5 w-5" />,
+        };
+      case 3:
+        return {
+          bgColor: "bg-gradient-to-br from-orange-400 to-orange-700",
+          textColor: "text-orange-900",
+          icon: <Award className="h-5 w-5" />,
+        };
+      default:
+        return {
+          bgColor: "bg-muted",
+          textColor: "text-muted-foreground",
+          icon: null,
+        };
     }
   };
 
   return (
-    <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-yellow-500" /> {courseName} Leaderboard</DialogTitle>
+    <DialogContent className="max-w-4xl h-[85vh] flex flex-col overflow-hidden">
+      <DialogHeader className="flex-shrink-0 pb-4">
+        <DialogTitle className="flex items-center gap-2">
+          <Trophy className="h-5 w-5 text-yellow-600" />
+          {courseName || 'Course'} Leaderboard
+        </DialogTitle>
+        <p className="text-sm text-muted-foreground">
+          Students ranked by completion percentage and performance.
+        </p>
       </DialogHeader>
-      <ScrollArea className="flex-1 pr-4">
-        {isLoading ? <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div> 
-        : error ? <p className="text-center py-10 text-muted-foreground">{error}</p>
-        : (leaderboard?.length || 0) === 0 ? <p className="text-center py-10 text-muted-foreground">No data available</p>
-        : <div className="space-y-2 pb-4">
-            {leaderboard?.map((entry) => {
-              const style = getRankStyle(entry.rank);
-              return (
-                <div key={entry.userId} className={cn("flex items-center gap-4 p-3 rounded-xl border transition-all", entry.rank <= 3 ? "bg-muted/30 border-primary/20" : "border-transparent")}>
-                  <div className={cn("w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs", style.bgColor, style.textColor)}>{entry.rank}</div>
-                  <Avatar className="h-10 w-10"><AvatarFallback>{getInitials(entry.userName)}</AvatarFallback></Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate text-sm">{entry.userName}</p>
-                    <p className="text-xs text-muted-foreground">{entry.completionPercentage.toFixed(2)}% Completed</p>
+
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full pr-4">
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : error ? (
+            <p className="text-muted-foreground text-center py-8">{error}</p>
+          ) : !leaderboard || leaderboard.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No leaderboard data available.</p>
+          ) : (
+            <div className="space-y-2 pb-4">
+              {leaderboard.map((entry) => {
+                const rankStyle = getRankStyle(entry.rank);
+                return (
+                  <div key={entry.userId} className={cn(
+                    "flex items-center gap-3 p-3 rounded-lg transition-colors border-2",
+                    entry.rank === 1 ? "bg-yellow-400/10 border-yellow-400/30 shadow-sm" :
+                    entry.rank === 2 ? "bg-gray-400/10 border-gray-400/30" :
+                    entry.rank === 3 ? "bg-orange-400/10 border-orange-400/30" :
+                    "bg-muted/20 border-transparent hover:bg-muted/30"
+                  )}>
+                    <div className="flex-shrink-0 w-10 text-center">
+                      {entry.rank <= 3 ? (
+                        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center mx-auto", rankStyle.bgColor)}>
+                          <span className={cn("font-bold text-sm", rankStyle.textColor)}>{entry.rank}</span>
+                        </div>
+                      ) : (
+                        <span className="text-base font-semibold text-muted-foreground">{entry.rank}</span>
+                      )}
+                    </div>
+                    <Avatar className="h-10 w-10 border border-white dark:border-slate-800 shadow-sm">
+                      <AvatarFallback>{getInitials(entry.userName)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold truncate text-sm flex items-center gap-2">
+                        {entry.userName}
+                        {entry.rank === 1 && <Crown className="h-3.5 w-3.5 text-yellow-500" />}
+                      </p>
+                      <div className="text-xs truncate">
+                        {Math.round(entry.completionPercentage) === 100 ? (
+                          <>
+                            <span className="text-green-600 font-medium">✓ Completed</span>
+                            {entry.completedAt && (
+                              <span className="ml-1 opacity-60 text-[10px]">on {new Date(entry.completedAt).toLocaleDateString()}</span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">In Progress: {entry.completionPercentage.toFixed(2)}%</span>
+                        )}
+                        {/* <span className="mx-1.5 opacity-20">|</span> */}
+                        {/* <span className="opacity-70">{entry.completedCount || 0} Lessons &bull; {entry.score || 0} XP</span> */}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Badge variant={entry.completionPercentage === 100 ? "default" : "secondary"} className="font-bold text-[10px] min-w-[45px] justify-center">
+                        {Math.round(entry.completionPercentage)}%
+                      </Badge>
+                    </div>
                   </div>
-                  <Badge variant={entry.completionPercentage === 100 ? "default" : "secondary"}>{Math.round(entry.completionPercentage)}%</Badge>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+          )}
+        </ScrollArea>
+      </div>
+
+      <div className="flex-shrink-0 pt-4 border-t border-border/50 bg-background flex items-center justify-between">
+        {myStats ? (
+          <div className="flex items-center gap-6 px-4 py-3 rounded-xl bg-primary/5 border border-primary/10">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Your Rank</span>
+              <span className="font-bold text-xl text-yellow-500">#{myStats.rank}</span>
+            </div>
+            {/* <div className="w-px h-6 bg-border/50" /> */}
+            {/* <div className="flex items-center gap-2"> */}
+              {/* <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Stats</span> */}
+              {/* <span className="font-semibold text-sm">{myStats.completedCount || 0} Lessons &bull; {myStats.score || 0} XP</span> */}
+            {/* </div> */}
+            <div className="w-px h-6 bg-border/50" />
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Progress</span>
+              <Badge variant="outline" className="font-bold">{myStats.completionPercentage.toFixed(2)}%</Badge>
+            </div>
           </div>
-        }
-      </ScrollArea>
-      {myStats && (
-        <div className="mt-4 p-4 rounded-xl bg-primary/5 border border-primary/10 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <span className="text-xs font-bold uppercase text-muted-foreground">Your Rank</span>
-            <span className="text-xl font-bold">#{myStats.rank}</span>
-          </div>
-          <Badge variant="outline" className="font-bold">{myStats.completionPercentage.toFixed(2)}%</Badge>
-        </div>
-      )}
-      {(totalPages || 0) > 1 && (
-        <div className="pt-4 mt-auto border-t">
+        ) : <div />}
+        {(totalPages || 0) > 1 && (
           <Pagination currentPage={page} totalPages={totalPages || 1} totalDocuments={totalDocuments || 0} onPageChange={setPage} />
-        </div>
-      )}
+        )}
+      </div>
     </DialogContent>
   );
 };
