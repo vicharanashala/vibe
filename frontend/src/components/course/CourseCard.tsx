@@ -37,7 +37,7 @@ const isCurrentTimeInTimeSlot = (timeSlotData?: any) => {
 
   const now = new Date();
   const currentTime = now.getHours() * 60 + now.getMinutes(); // Convert to minutes since midnight
-  
+
   const [fromHours, fromMinutes] = timeSlot.from.split(':').map(Number);
   const [toHours, toMinutes] = timeSlot.to.split(':').map(Number);
   const fromTime = fromHours * 60 + fromMinutes;
@@ -86,25 +86,25 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   const contentCounts = enrollment.contentCounts || {};
   const itemCounts = (contentCounts as any).itemCounts || {};
-  
+
   // Also get counts from courseVersionData as fallback
   const versionItemCounts = (courseVersionData as any)?.itemCounts || {};
   const totalLessons = Number(contentCounts.totalItems || (courseVersionData as any)?.totalItems || 0);
 
   const videoCount = Number(
-    (contentCounts as any).videos ?? itemCounts.VIDEO ?? itemCounts.video ?? itemCounts.videos ?? 
+    (contentCounts as any).videos ?? itemCounts.VIDEO ?? itemCounts.video ?? itemCounts.videos ??
     versionItemCounts.VIDEO ?? versionItemCounts.video ?? versionItemCounts.videos ?? 0
   );
   const quizCount = Number(
-    (contentCounts as any).quizzes ?? itemCounts.QUIZ ?? itemCounts.quiz ?? itemCounts.quizzes ?? 
+    (contentCounts as any).quizzes ?? itemCounts.QUIZ ?? itemCounts.quiz ?? itemCounts.quizzes ??
     versionItemCounts.QUIZ ?? versionItemCounts.quiz ?? versionItemCounts.quizzes ?? 0
   );
   const articleCount = Number(
-    (contentCounts as any).articles ?? itemCounts.BLOG ?? itemCounts.blog ?? itemCounts.articles ?? 
+    (contentCounts as any).articles ?? itemCounts.BLOG ?? itemCounts.blog ?? itemCounts.articles ??
     versionItemCounts.BLOG ?? versionItemCounts.blog ?? versionItemCounts.articles ?? 0
   );
   const projectCount = Number(
-    (contentCounts as any).project ?? (contentCounts as any).projects ?? itemCounts.PROJECT ?? itemCounts.project ?? itemCounts.projects ?? 
+    (contentCounts as any).project ?? (contentCounts as any).projects ?? itemCounts.PROJECT ?? itemCounts.project ?? itemCounts.projects ??
     versionItemCounts.PROJECT ?? versionItemCounts.project ?? versionItemCounts.projects ?? 0
   );
 
@@ -145,6 +145,9 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       (c) => c.courseVersionId === versionId
     );
 
+
+
+
     if (existingCompletionIndex === -1 && enrollment) {
       setCompletion?.([
         ...(completion || []),
@@ -157,6 +160,12 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       ]);
     }
   }, [completion, versionId, enrollment, progress, contentCounts.totalItems, completedLessons, setCompletion]);
+
+
+  useEffect(() => {
+    if (!enrollment) return
+    console.log("Enrollment of the course -> ", enrollment)
+  })
 
   const handleContinue = () => {
     if (variant === 'available') {
@@ -242,12 +251,17 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   {variant !== 'available' && (
                     <div className="space-y-2">
                       <div className="flex justify-between items-center text-sm font-semibold">
-                        <span className="text-muted-foreground">Progress</span>
-                        <span className="text-foreground">{progress.toFixed(0)}%</span>
+
+                        {enrollment.courseId !== "6981df886e100cfe04f9c4ad" && <> <span className="text-muted-foreground">Progress</span><span className="text-foreground">{progress.toFixed(0)}%</span></>}
                       </div>
-                      <div className="h-2 w-full bg-[#F1F5F9] dark:bg-slate-800 rounded-full overflow-hidden">
+
+                      {enrollment.courseId !== "6981df886e100cfe04f9c4ad" ? (<div className="h-2 w-full bg-[#F1F5F9] dark:bg-slate-800 rounded-full overflow-hidden">
                         <div className={cn("h-full rounded-full transition-all duration-700 ease-out", theme.progress)} style={{ width: `${progress}%` }} />
-                      </div>
+                      </div>) : (<div className="flex justify-between items-center text-sm font-semibold">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span>{enrollment.completedItems}/{enrollment.contentCounts?.totalItems} (More videos soon)</span>
+                      </div>)}
+
                     </div>
                   )}
 
@@ -362,48 +376,48 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                                         </div>
                                       </div>
                                     </div>
-                                      <p className="text-sm text-muted-foreground leading-relaxed">
-                                        Get help, share resources, and connect with your coursemates in our exclusive Discord server.
-                                      </p>
-                                      <div className="flex items-center gap-2.5 pt-1">
-                                        <Button asChild className="flex-1">
-                                          <a href={supportLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
-                                            <ExternalLink className="w-4 h-4" />
-                                            Join Discord
-                                          </a>
-                                        </Button>
-                                        <Button
-                                          variant="outline"
-                                          size="icon"
-                                          onClick={async () => {
-                                            try {
-                                              await navigator.clipboard.writeText(supportLink);
-                                              setCopied(true);
-                                              setTimeout(() => setCopied(false), 2000);
-                                            } catch {
-                                              setCopyError(true);
-                                              setTimeout(() => setCopyError(false), 2000);
-                                            }
-                                          }}
-                                          disabled={copied}
-                                        >
-                                          {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
-                                        </Button>
-                                      </div>
-                                      {(copied || copyError) && (
-                                        <div className={cn("text-xs px-3 py-2 rounded-lg border flex items-center gap-2", copied ? "text-primary bg-primary/10 border-primary/20" : "text-red-500 bg-red-50 border-red-100")}>
-                                          {copied ? <Check className="w-3 h-3" /> : <Info className="w-3 h-3" />}
-                                          {copied ? "Link copied to clipboard" : "Failed to copy link"}
-                                        </div>
-                                      )}
+                                    <p className="text-sm text-muted-foreground leading-relaxed">
+                                      Get help, share resources, and connect with your coursemates in our exclusive Discord server.
+                                    </p>
+                                    <div className="flex items-center gap-2.5 pt-1">
+                                      <Button asChild className="flex-1">
+                                        <a href={supportLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
+                                          <ExternalLink className="w-4 h-4" />
+                                          Join Discord
+                                        </a>
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={async () => {
+                                          try {
+                                            await navigator.clipboard.writeText(supportLink);
+                                            setCopied(true);
+                                            setTimeout(() => setCopied(false), 2000);
+                                          } catch {
+                                            setCopyError(true);
+                                            setTimeout(() => setCopyError(false), 2000);
+                                          }
+                                        }}
+                                        disabled={copied}
+                                      >
+                                        {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
+                                      </Button>
                                     </div>
+                                    {(copied || copyError) && (
+                                      <div className={cn("text-xs px-3 py-2 rounded-lg border flex items-center gap-2", copied ? "text-primary bg-primary/10 border-primary/20" : "text-red-500 bg-red-50 border-red-100")}>
+                                        {copied ? <Check className="w-3 h-3" /> : <Info className="w-3 h-3" />}
+                                        {copied ? "Link copied to clipboard" : "Failed to copy link"}
+                                      </div>
+                                    )}
                                   </div>
-                                </DialogContent>
-                              </Dialog>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -601,7 +615,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>Overall Progress</span>
-              <span>{progress.toFixed(2)}%</span>
+               <span>{progress.toFixed(2)}%</span>
             </div>
             <Progress value={progress} className="h-2" />
           </div>
