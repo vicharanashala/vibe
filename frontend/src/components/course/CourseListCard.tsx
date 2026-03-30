@@ -146,7 +146,7 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
                 <div className="flex items-center gap-2">
                   {enrollment.courseId !== "6981df886e100cfe04f9c4ad" ?  <div className="w-16 h-1.5 bg-secondary rounded-full overflow-hidden">
                     <div className="h-full bg-primary rounded-full transition-all duration-300 ease-out" style={{ width: `${progress}%` }} />
-                  </div> : (<span>{enrollment.completedItems}/{enrollment.contentCounts?.totalItems}</span>)}
+                  </div> : (<span>{enrollment.completedItems}/{enrollment.contentCounts?.totalItems} (More videos soon)</span>)}
                   {enrollment.courseId !== "6981df886e100cfe04f9c4ad" && <span>{progress.toFixed(2)}%</span>}
                 </div>
               </div>

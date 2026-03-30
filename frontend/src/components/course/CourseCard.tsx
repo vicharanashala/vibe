@@ -259,7 +259,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                         <div className={cn("h-full rounded-full transition-all duration-700 ease-out", theme.progress)} style={{ width: `${progress}%` }} />
                       </div>) : (<div className="flex justify-between items-center text-sm font-semibold">
                         <span className="text-muted-foreground">Progress</span>
-                        <span>{enrollment.completedItems}/{enrollment.contentCounts?.totalItems}</span>
+                        <span>{enrollment.completedItems}/{enrollment.contentCounts?.totalItems} (More videos soon)</span>
                       </div>)}
 
                     </div>
