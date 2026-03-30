@@ -434,6 +434,21 @@ const mostRecentEjectionIds = useMemo(() => {
             </>
           )}
         </ul>
+        <div className="p-2 border-t border-border/50">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-xs text-primary hover:text-primary hover:bg-primary/5"
+            onClick={() => {
+              const isTeacher = window.location.pathname.startsWith('/teacher');
+              const target = isTeacher ? '/teacher/notifications' : '/student/notifications';
+              window.location.href = target;
+              setShowInvites?.(false);
+            }}
+          >
+            View All Notifications
+          </Button>
+        </div>
       </div>
 
       {showPolicyModal && selectedInvite && (
