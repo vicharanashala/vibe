@@ -3,7 +3,7 @@
 import { useState, useEffect, type Dispatch, type SetStateAction } from "react"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
-import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check, Layers,Video, HelpCircle, RefreshCw } from 'lucide-react'
+import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check, Layers, Video, HelpCircle, RefreshCw } from 'lucide-react'
 import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -55,7 +55,9 @@ import {
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuItem
 } from "@/components/ui/dropdown-menu";
+import CourseInstructors from "./course-instructors"
 
 // Types for quiz functionality
 
@@ -164,7 +166,36 @@ const getItemIcon = (type: string) => {
   }
 }
 
-export default function CourseEnrollments() {
+export default function CourseEnrollmentsContainer() {
+  const [tabValues, setTabValues] = useState<"STUDENTS" | "INSTRUCTORS">("STUDENTS");
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <CourseBackButton />
+
+        <Select
+          value={tabValues}
+          onValueChange={(v) => setTabValues(v as "STUDENTS" | "INSTRUCTORS")}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Select View" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="STUDENTS">Students</SelectItem>
+            <SelectItem value="INSTRUCTORS">Instructors</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Content */}
+      {tabValues === "STUDENTS" && <CourseEnrollments />}
+      {tabValues === "INSTRUCTORS" && <CourseInstructors />}
+    </>
+  );
+}
+
+function CourseEnrollments() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
@@ -206,11 +237,11 @@ export default function CourseEnrollments() {
   const [selectedModule, setSelectedModule] = useState<string>("")
   const [selectedSection, setSelectedSection] = useState<string>("")
   const [selectedItem, setSelectedItem] = useState<string>("")
-const [isMoveCohortModalOpen, setIsMoveCohortModalOpen] = useState(false);
-const [isMoveSelectionMode, setIsMoveSelectionMode] = useState(false);
-const [moveSelectedUsers, setMoveSelectedUsers] = useState<Set<string>>(new Set());
-const [selectedMoveCohort, setSelectedMoveCohort] = useState<string | null>(null);
-const moveToCohortMutation = useMoveToCohort();
+  const [isMoveCohortModalOpen, setIsMoveCohortModalOpen] = useState(false);
+  const [isMoveSelectionMode, setIsMoveSelectionMode] = useState(false);
+  const [moveSelectedUsers, setMoveSelectedUsers] = useState<Set<string>>(new Set());
+  const [selectedMoveCohort, setSelectedMoveCohort] = useState<string | null>(null);
+  const moveToCohortMutation = useMoveToCohort();
 
   // New states for view progress functionality
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
@@ -315,7 +346,7 @@ const moveToCohortMutation = useMoveToCohort();
     versionId || "",
     selectedUser?.cohortId,
   )
-// console.log("selectedUser cohort", selectedUser);
+  // console.log("selectedUser cohort", selectedUser);
   const toggleSelectionMode = () => {
     setIsSelectionMode((prev) => {
       if (prev) {
@@ -350,7 +381,7 @@ const moveToCohortMutation = useMoveToCohort();
       toast.error('Course or version information missing')
       return
     }
-    if(version?.cohorts?.length > 0 && !cohort) {
+    if (version?.cohorts?.length > 0 && !cohort) {
       toast.error('Please select a cohort for unenrollment')
       return;
     }
@@ -470,17 +501,17 @@ const moveToCohortMutation = useMoveToCohort();
     // Frontend validation: Check if cohort is selected and has students
     if (cohort) {
       const cohortName = (version as any)?.cohortDetails?.find((c: any) => c.id === cohort)?.name;
-      
+
       const cohortStudents = filteredStudentEnrollments.filter((enrollment: any) => {
         // The cohort ID is stored directly on the enrollment object
         return enrollment.cohortId === cohort;
       });
-      
+
       if (!cohortName) {
         toast.error('Selected cohort not found');
         return;
       }
-      
+
       if (cohortStudents.length === 0) {
         toast.warning(`No students found in cohort: ${cohortName}`);
         return;
@@ -489,7 +520,7 @@ const moveToCohortMutation = useMoveToCohort();
 
     if (!quizScores?.data?.length || isLoadingQuizScores) {
       const cohortName = cohort ? (version as any)?.cohortDetails?.find((c: any) => c.id === cohort)?.name : null;
-      const message = cohort 
+      const message = cohort
         ? `No quiz scores available for cohort: ${cohortName || 'selected cohort'}`
         : 'No quiz scores available';
       toast.warning(message);
@@ -509,6 +540,8 @@ const moveToCohortMutation = useMoveToCohort();
           name: student.name ?? 'Unknown Student',
           email: student.email ?? '',
           cohortName: student.cohortName ?? null,
+          totalCourseScore: Number(student.totalCourseScore) || 0,
+          totalCourseMaxScore: Number(student.totalCourseMaxScore) || 0,
           quizScores: Array.isArray(student.quizScores)
             ? student.quizScores.map((quiz: any) => ({
               moduleId: quiz.moduleId ?? 'unknown',
@@ -546,8 +579,8 @@ const moveToCohortMutation = useMoveToCohort();
 
       // ðŸ§  Let UI breathe before heavy Excel generation
       await new Promise(resolve => setTimeout(resolve, 0));
-// console.log("JSON.stringify(formattedData,---",JSON.stringify(formattedData, null, 2));
-      generateExcel(formattedData, filename, quizExportOptions);
+      // console.log("JSON.stringify(formattedData,---",JSON.stringify(formattedData, null, 2));
+      generateExcel(formattedData, filename);
       toast.success(`${enrollmentTab.toLowerCase()} quiz scores exported successfully`);
     } catch (error) {
       console.error('Error exporting quiz scores:', error);
@@ -695,9 +728,9 @@ const moveToCohortMutation = useMoveToCohort();
               versionId,
             },
           },
-          body: { 
+          body: {
             status: 'INACTIVE',
-            cohortId: userToDisable.cohortId 
+            cohortId: userToDisable.cohortId
           },
         })
         toast.success(`${userToDisable.name} has been disabled`)
@@ -722,7 +755,7 @@ const moveToCohortMutation = useMoveToCohort();
               versionId,
             },
           },
-          body: { 
+          body: {
             status: 'ACTIVE',
             cohortId: userToEnable.cohortId
           },
@@ -818,7 +851,7 @@ const moveToCohortMutation = useMoveToCohort();
     }
   }, [totalDocuments, enrollmentTab])
   const totalPages = enrollmentsData?.totalPages || 1
-// console.log("enrollmentsData--------------", enrollmentsData);
+  // console.log("enrollmentsData--------------", enrollmentsData);
 
   // Sorting handler
   const handleSort = (column: 'name' | 'enrollmentDate' | 'progress' | "scoreObtained" | "unenrolledAt") => {
@@ -1010,7 +1043,7 @@ const moveToCohortMutation = useMoveToCohort();
         requestBody.sectionId = selectedSection
         requestBody.itemId = selectedItem
       }
-      if(selectedUser.cohortId) {
+      if (selectedUser.cohortId) {
         requestBody.cohortId = selectedUser.cohortId
       }
 
@@ -1062,88 +1095,88 @@ const moveToCohortMutation = useMoveToCohort();
     }
   }
 
-const handleMoveSelectUser = (enrollment: any, checked: boolean) => {
-  const enrollmentId = enrollment.id;
+  const handleMoveSelectUser = (enrollment: any, checked: boolean) => {
+    const enrollmentId = enrollment.id;
 
-  setMoveSelectedUsers(prev => {
-    const newSet = new Set(prev);
+    setMoveSelectedUsers(prev => {
+      const newSet = new Set(prev);
 
-    if (checked) newSet.add(enrollmentId);
-    else newSet.delete(enrollmentId);
+      if (checked) newSet.add(enrollmentId);
+      else newSet.delete(enrollmentId);
 
-    return newSet;
-  });
-};
-
-
-const handleMoveSelectAll = (checked: boolean) => {
-  const validEnrollmentIds = filteredStudentEnrollments
-    .filter((e: any) => !e.cohortId)
-    .map((e: any) => e.id);
-
-  setMoveSelectedUsers(prev => {
-    const newSet = new Set(prev);
-
-    validEnrollmentIds.forEach(id => {
-      if (checked) newSet.add(id);
-      else newSet.delete(id);
+      return newSet;
     });
+  };
 
-    return newSet;
-  });
-};
 
-const handleMoveToCohort = async () => {
-  if (!selectedMoveCohort) {
-    toast.error("Select target cohort");
-    return;
-  }
+  const handleMoveSelectAll = (checked: boolean) => {
+    const validEnrollmentIds = filteredStudentEnrollments
+      .filter((e: any) => !e.cohortId)
+      .map((e: any) => e.id);
 
-  if (moveSelectedUsers.size === 0) {
-    toast.error("No students selected");
-    return;
-  }
+    setMoveSelectedUsers(prev => {
+      const newSet = new Set(prev);
 
-  const enrollmentIds = Array.from(moveSelectedUsers);
+      validEnrollmentIds.forEach(id => {
+        if (checked) newSet.add(id);
+        else newSet.delete(id);
+      });
 
-  if (!enrollmentIds.length) {
-    toast.warning("Nothing to move");
-    return;
-  }
+      return newSet;
+    });
+  };
 
-  if(!courseId || !versionId) {
-    toast.error("Course or version information missing");
-    return;
-  }
+  const handleMoveToCohort = async () => {
+    if (!selectedMoveCohort) {
+      toast.error("Select target cohort");
+      return;
+    }
 
-  try {
-    await moveToCohortMutation.mutateAsync({
-      params: {
-        path: {
-          courseId,
-          versionId,
+    if (moveSelectedUsers.size === 0) {
+      toast.error("No students selected");
+      return;
+    }
+
+    const enrollmentIds = Array.from(moveSelectedUsers);
+
+    if (!enrollmentIds.length) {
+      toast.warning("Nothing to move");
+      return;
+    }
+
+    if (!courseId || !versionId) {
+      toast.error("Course or version information missing");
+      return;
+    }
+
+    try {
+      await moveToCohortMutation.mutateAsync({
+        params: {
+          path: {
+            courseId,
+            versionId,
+          },
         },
-      },
-      body: {
-        enrollmentIds,
-        targetCohortId: selectedMoveCohort,
-      },
-    });
+        body: {
+          enrollmentIds,
+          targetCohortId: selectedMoveCohort,
+        },
+      });
 
-    toast.success("Students moved successfully");
+      toast.success("Students moved successfully");
 
-    // Reset state
-    setMoveSelectedUsers(new Set());
-    setIsMoveSelectionMode(false);
-    setIsMoveCohortModalOpen(false);
+      // Reset state
+      setMoveSelectedUsers(new Set());
+      setIsMoveSelectionMode(false);
+      setIsMoveCohortModalOpen(false);
 
-    // Refresh data
-    refetchEnrollments();
+      // Refresh data
+      refetchEnrollments();
 
-  } catch (error: any) {
-    toast.error(error?.message || "Failed to move students");
-  }
-};
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to move students");
+    }
+  };
 
 
   // Toggle functions for expanding/collapsing modules and sections
@@ -1204,7 +1237,7 @@ const handleMoveToCohort = async () => {
       color: "text-purple-600",
       bgColor: "bg-purple-50",
     },
-     {
+    {
       title: "Avg Watch Hours",
       value: (() => {
         const v = enrollmentStats?.averageWatchHoursPerUser ?? 0;
@@ -1297,12 +1330,11 @@ const handleMoveToCohort = async () => {
     <>
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-4 space-y-8">
-          <CourseBackButton />
           {/* Enhanced Header */}
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="space-y-4">
               <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Course Enrollments
+                Course Students
               </h1>
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
@@ -1345,14 +1377,14 @@ const handleMoveToCohort = async () => {
           </div>
 
           {/* Stats */}
-          {statsLoading?<>
-           <div className="ml-6 p-2">
-        <div className="flex items-center gap-2">
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Loading statistics...</span>
-        </div>
-      </div>
-          </>:<div className="flex lg:flex-nowrap flex-wrap gap-6">
+          {statsLoading ? <>
+            <div className="ml-6 p-2">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Loading statistics...</span>
+              </div>
+            </div>
+          </> : <div className="flex lg:flex-nowrap flex-wrap gap-6">
             {stats.map((stat) => (
               <Card key={stat.title} className="border-0 shadow-sm hover:shadow-md transition-shadow w-full">
                 <CardContent className="p-6">
@@ -1369,6 +1401,25 @@ const handleMoveToCohort = async () => {
               </Card>
             ))}
           </div>}
+
+          {/* Emotion Analytics Navigation */}
+          <Card
+            className="border-0 shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/20"
+            onClick={() => navigate({ to: "/teacher/courses/emotion-analytics" })}
+          >
+            <CardHeader className="py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <span>😊 Learner Emotion Analytics</span>
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Open a dedicated analytics page for module-level insights.
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
 
           {/* Search */}
           <div className="flex flex-col sm:flex-row gap-4">
@@ -1423,30 +1474,34 @@ const handleMoveToCohort = async () => {
 
           {/* Students Table */}
           {/* Students Table + Tabs */}
-          <Tabs
-            value={enrollmentTab}
-            onValueChange={(v) => setEnrollmentTab(v as "ACTIVE" | "INACTIVE")}
-            className="w-full"
-          >
-            {/* Tabs Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <TabsList className="grid w-full sm:w-[420px] grid-cols-2 h-11 bg-muted/30 p-1 rounded-xl">
-                <TabsTrigger
-                  value="ACTIVE"
-                  className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
-                >
-                  Active Students({activeCount})
-                </TabsTrigger>
 
-                <TabsTrigger
-                  value="INACTIVE"
-                  className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
-                >
-                  Inactive Students({inactiveCount})
-                </TabsTrigger>
-              </TabsList>
+
+          <div className="w-full">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+              {/* Dropdown */}
+              <Select
+                value={enrollmentTab}
+                onValueChange={(v) => setEnrollmentTab(v as "ACTIVE" | "INACTIVE")}
+              >
+                <SelectTrigger className="w-full sm:w-[260px] h-11">
+                  <SelectValue />
+                </SelectTrigger>
+
+                <SelectContent>
+                  <SelectItem value="ACTIVE">
+                    Active Students ({activeCount})
+                  </SelectItem>
+                  <SelectItem value="INACTIVE">
+                    Inactive Students ({inactiveCount})
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Button (unchanged) */}
               {(version as any)?.cohortDetails?.length > 0 && (
-                <span className="relative flex justify-end right-0">
+                <span className="flex justify-end">
                   <Button
                     variant="outline"
                     size="sm"
@@ -1458,103 +1513,101 @@ const handleMoveToCohort = async () => {
                 </span>
               )}
             </div>
-            {/* Active Tab */}
-            <TabsContent value="ACTIVE" className="mt-4">
-              <EnrollmentsTable
-                studentEnrollments={filteredStudentEnrollments}
-                enrollmentsLoading={enrollmentsLoading}
-                isSearching={isSearching}
-                enrollmentTab={enrollmentTab}
-                searchQuery={searchQuery}
-                limit={limit}
-                handleLimitChange={handleLimitChange}
-                handleSort={handleSort}
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                isLoadingQuizScores={isLoadingQuizScores}
-                setIsExporting={setIsExporting}
-                isExportingStudentContacts={isLoadingStudentContacts}
-                setIsExportingStudentContacts={setIsExportingStudentContacts}
-                quizExportOptions={quizExportOptions}
-                setQuizExportOptions={setQuizExportOptions}
-                unenrollMutation={unenrollMutation}
-                changeStatusMutation={changeStatusMutation}
-                bulkChangeStatusMutation={bulkChangeStatusMutation}
-                user={user}
-                handleViewProgress={handleViewProgress}
-                handleRemoveStudent={handleRemoveStudent}
-                handleDisableStudent={handleDisableStudent}
-                handleEnableStudent={handleEnableStudent}
-                isSelectionMode={isSelectionMode}
-                selectedUsers={selectedUsers}
-                onSelectUser={handleSelectUser}
-                onSelectAll={handleSelectAll}
-                toggleSelectionMode={toggleSelectionMode}
-                handleBulkUnenroll={handleBulkUnenroll}
-                handleBulkDisable={handleBulkDisable}
-                setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
-                getStudentTimeSlot={getStudentTimeSlot}
-                version={version}
-                cohort={cohort}
-                setCohort={setCohort}
-              />
-            </TabsContent>
 
-            {/* Inactive Tab */}
-            <TabsContent value="INACTIVE" className="mt-4">
-              <EnrollmentsTable
-                studentEnrollments={studentEnrollments}
-                enrollmentsLoading={enrollmentsLoading}
-                isSearching={isSearching}
-                enrollmentTab={enrollmentTab}
-                searchQuery={searchQuery}
-                limit={limit}
-                handleLimitChange={handleLimitChange}
-                handleSort={handleSort}
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                isLoadingQuizScores={isLoadingQuizScores}
-                setIsExporting={setIsExporting}
-                isExportingStudentContacts={isLoadingStudentContacts}
-                setIsExportingStudentContacts={setIsExportingStudentContacts}
-                quizExportOptions={quizExportOptions}
-                setQuizExportOptions={setQuizExportOptions}
-                unenrollMutation={unenrollMutation}
-                changeStatusMutation={changeStatusMutation}
-                bulkChangeStatusMutation={bulkChangeStatusMutation}
-                user={user}
-                handleViewProgress={handleViewProgress}
-                handleRemoveStudent={handleRemoveStudent}
-                handleDisableStudent={handleDisableStudent}
-                handleEnableStudent={handleEnableStudent}
-                isSelectionMode={isInactiveSelectionMode}
-                selectedUsers={selectedInactiveUsers}
-                onSelectUser={(userId, checked) => {
-                  const newSet = new Set(selectedInactiveUsers)
-                  checked ? newSet.add(userId) : newSet.delete(userId)
-                  setSelectedInactiveUsers(newSet)
-                }}
-                onSelectAll={(checked) => {
-                  const visibleIds = studentEnrollments.map((e: any) => e.user?._id || e.user?.id).filter(Boolean)
-                  if (checked) {
-                    setSelectedInactiveUsers(prev => { const s = new Set(prev); visibleIds.forEach((id: string) => s.add(id)); return s })
-                  } else {
-                    setSelectedInactiveUsers(prev => { const s = new Set(prev); visibleIds.forEach((id: string) => s.delete(id)); return s })
-                  }
-                }}
-                toggleSelectionMode={() => {
-                  setIsInactiveSelectionMode(prev => { if (prev) setSelectedInactiveUsers(new Set()); return !prev })
-                }}
-                handleBulkUnenroll={handleBulkUnenroll}
-                handleBulkEnable={handleBulkEnable}
-                setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
-                getStudentTimeSlot={getStudentTimeSlot}
-                version={version}
-                cohort={cohort}
-                setCohort={setCohort}
-              />
-            </TabsContent>
-          </Tabs>
+            {/* Content */}
+            <div className="mt-4">
+              {enrollmentTab === "ACTIVE" && (
+                <EnrollmentsTable
+                  studentEnrollments={filteredStudentEnrollments}
+                  enrollmentsLoading={enrollmentsLoading}
+                  isSearching={isSearching}
+                  enrollmentTab={enrollmentTab}
+                  searchQuery={searchQuery}
+                  limit={limit}
+                  handleLimitChange={handleLimitChange}
+                  handleSort={handleSort}
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  isLoadingQuizScores={isLoadingQuizScores}
+                  setIsExporting={setIsExporting}
+                  isExportingStudentContacts={isLoadingStudentContacts}
+                  setIsExportingStudentContacts={setIsExportingStudentContacts}
+                  unenrollMutation={unenrollMutation}
+                  changeStatusMutation={changeStatusMutation}
+                  bulkChangeStatusMutation={bulkChangeStatusMutation}
+                  user={user}
+                  handleViewProgress={handleViewProgress}
+                  handleRemoveStudent={handleRemoveStudent}
+                  handleDisableStudent={handleDisableStudent}
+                  handleEnableStudent={handleEnableStudent}
+                  isSelectionMode={isSelectionMode}
+                  selectedUsers={selectedUsers}
+                  onSelectUser={handleSelectUser}
+                  onSelectAll={handleSelectAll}
+                  toggleSelectionMode={toggleSelectionMode}
+                  handleBulkUnenroll={handleBulkUnenroll}
+                  handleBulkDisable={handleBulkDisable}
+                  setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
+                  getStudentTimeSlot={getStudentTimeSlot}
+                  version={version}
+                  cohort={cohort}
+                  setCohort={setCohort}
+                />
+              )}
+
+              {enrollmentTab === "INACTIVE" && (
+                <EnrollmentsTable
+                  studentEnrollments={studentEnrollments}
+                  enrollmentsLoading={enrollmentsLoading}
+                  isSearching={isSearching}
+                  enrollmentTab={enrollmentTab}
+                  searchQuery={searchQuery}
+                  limit={limit}
+                  handleLimitChange={handleLimitChange}
+                  handleSort={handleSort}
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  isLoadingQuizScores={isLoadingQuizScores}
+                  setIsExporting={setIsExporting}
+                  isExportingStudentContacts={isLoadingStudentContacts}
+                  setIsExportingStudentContacts={setIsExportingStudentContacts}
+                  unenrollMutation={unenrollMutation}
+                  changeStatusMutation={changeStatusMutation}
+                  bulkChangeStatusMutation={bulkChangeStatusMutation}
+                  user={user}
+                  handleViewProgress={handleViewProgress}
+                  handleRemoveStudent={handleRemoveStudent}
+                  handleDisableStudent={handleDisableStudent}
+                  handleEnableStudent={handleEnableStudent}
+                  isSelectionMode={isInactiveSelectionMode}
+                  selectedUsers={selectedInactiveUsers}
+                  onSelectUser={(userId, checked) => {
+                    const newSet = new Set(selectedInactiveUsers)
+                    checked ? newSet.add(userId) : newSet.delete(userId)
+                    setSelectedInactiveUsers(newSet)
+                  }}
+                  onSelectAll={(checked) => {
+                    const visibleIds = studentEnrollments.map((e: any) => e.user?._id || e.user?.id).filter(Boolean)
+                    if (checked) {
+                      setSelectedInactiveUsers(prev => { const s = new Set(prev); visibleIds.forEach((id: string) => s.add(id)); return s })
+                    } else {
+                      setSelectedInactiveUsers(prev => { const s = new Set(prev); visibleIds.forEach((id: string) => s.delete(id)); return s })
+                    }
+                  }}
+                  toggleSelectionMode={() => {
+                    setIsInactiveSelectionMode(prev => { if (prev) setSelectedInactiveUsers(new Set()); return !prev })
+                  }}
+                  handleBulkUnenroll={handleBulkUnenroll}
+                  handleBulkEnable={handleBulkEnable}
+                  setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
+                  getStudentTimeSlot={getStudentTimeSlot}
+                  version={version}
+                  cohort={cohort}
+                  setCohort={setCohort}
+                />
+              )}
+            </div>
+          </div>
 
 
           {/* Enhanced View Progress Modal */}
@@ -1609,7 +1662,7 @@ const handleMoveToCohort = async () => {
                       <>
                         <div className="flex justify-between items-center mb-3">
                           <p className="text-sm text-muted-foreground">Completion</p>
-                          <EnrollmentProgress progress={Math.min(selectedUser?.progress ?? progressDetail?.percentCompleted ?? 0, 100)} /> 
+                          <EnrollmentProgress progress={Math.min(selectedUser?.progress ?? progressDetail?.percentCompleted ?? 0, 100)} />
                         </div>
                         <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                           <SummaryRow label="Total Items" value={progressDetail.contentCounts?.totalItems ?? 0} />
@@ -1626,7 +1679,7 @@ const handleMoveToCohort = async () => {
                             label="Items Completed"
                             value={`${Math.min(selectedUser?.completedItemsCount ?? progressDetail.completedItemsCount ?? 0, progressDetail.contentCounts?.totalItems ?? 0)} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
                           />
-                           <SummaryRow
+                          <SummaryRow
                             label="Watch Hours"
                             value={`${(progressDetail.watchHours ?? 0).toFixed(2)}h`}
                           />
@@ -1930,14 +1983,14 @@ const handleMoveToCohort = async () => {
                   </Button>
                 </div>
 
-              <div className="space-y-8">
-                <p className="text-lg text-card-foreground">
-                  Want to remove <strong className="text-primary">{userToRemove?.name}</strong> from{" "}
-                  <strong className="text-primary">
-                    {course.name} ({version.version}) {userToRemove?.cohortName}
-                  </strong>
-                  ?
-                </p>
+                <div className="space-y-8">
+                  <p className="text-lg text-card-foreground">
+                    Want to remove <strong className="text-primary">{userToRemove?.name}</strong> from{" "}
+                    <strong className="text-primary">
+                      {course.name} ({version.version}) {userToRemove?.cohortName}
+                    </strong>
+                    ?
+                  </p>
 
                   <div className="flex gap-4 p-6 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl">
                     <div><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" /></div>
@@ -2164,7 +2217,7 @@ const handleMoveToCohort = async () => {
                 </div>
               </div>
             </div>
-        )}
+          )}
 
 
           {/* Enhanced Reset Progress Modal */}
@@ -2874,7 +2927,7 @@ function EnrollmentsTable({
 
         {/* SAME header functionality for both tabs */}
         <div className="flex items-center space-x-4 lg:flex-nowrap flex-wrap gap-3">
-          <Button
+          {/* <Button
             variant="outline"
             size="sm"
             onClick={() => setIsExportingStudentContacts(true)}
@@ -2888,78 +2941,23 @@ function EnrollmentsTable({
             )}
             <span>{isExportingStudentContacts ? "Exporting..." : "Export Student Contacts"}</span>
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isLoadingQuizScores}
-                className="flex items-center gap-2"
-              >
-                {isLoadingQuizScores ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FileDown className="h-4 w-4" />
-                )}
-                <span>{isLoadingQuizScores ? "Exporting..." : "Export Quiz Scores"}</span>
-                {!isLoadingQuizScores && <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-72 rounded-xl border-border/70 p-3 shadow-xl">
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-foreground">Export options</p>
-                  <p className="text-xs text-muted-foreground">
-                    Choose which quiz detail columns to include in the Excel file.
-                  </p>
-                </div>
-
-                <label className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 cursor-pointer">
-                  <Checkbox
-                    checked={quizExportOptions.includeQuestionScores}
-                    onCheckedChange={(checked) =>
-                      setQuizExportOptions(prev => ({
-                        ...prev,
-                        includeQuestionScores: checked === true,
-                      }))
-                    }
-                  />
-                  <div className="space-y-0.5">
-                    <p className="text-sm font-medium text-foreground">Individual question scores</p>
-                    <p className="text-xs text-muted-foreground">Include columns like `q1`, `q2`, `q3`.</p>
-                  </div>
-                </label>
-
-                <label className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 cursor-pointer">
-                  <Checkbox
-                    checked={quizExportOptions.includeAttempts}
-                    onCheckedChange={(checked) =>
-                      setQuizExportOptions(prev => ({
-                        ...prev,
-                        includeAttempts: checked === true,
-                      }))
-                    }
-                  />
-                  <div className="space-y-0.5">
-                    <p className="text-sm font-medium text-foreground">Total attempts</p>
-                    <p className="text-xs text-muted-foreground">Include the attempts column for each quiz.</p>
-                  </div>
-                </label>
-
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => setIsExporting(true)}
-                  disabled={isLoadingQuizScores}
-                >
-                  Export Excel
-                </Button>
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
 
           <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsExporting(true)}
+            disabled={isLoadingQuizScores}
+            className="flex items-center gap-2"
+          >
+            {isLoadingQuizScores ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown className="h-4 w-4" />
+            )}
+            <span>{isLoadingQuizScores ? "Exporting..." : "Export Quiz Scores"}</span>
+          </Button> */}
+
+          {/* <Button
             variant="outline"
             size="sm"
             onClick={() => {
@@ -2969,10 +2967,10 @@ function EnrollmentsTable({
           >
             <Clock className="h-4 w-4" />
             <span>Configure Time Slots</span>
-          </Button>
+          </Button> */}
 
           {/* Select Students Button - shown in both tabs */}
-          <Button
+          {/* <Button
             variant="outline"
             size="sm"
             onClick={toggleSelectionMode}
@@ -2989,7 +2987,7 @@ function EnrollmentsTable({
                 <span>Select Students</span>
               </>
             )}
-          </Button>
+          </Button> */}
 
           {(version as any)?.cohortDetails?.length > 0 && (
             <DropdownMenu>
@@ -2998,8 +2996,8 @@ function EnrollmentsTable({
                   variant="outline"
                   size="sm"
                 >
-                <Layers className="h-4 w-4 text-muted-foreground" />
-        {cohort ? (version as any).cohortDetails.find((c: any) => c.id === cohort)?.name : "Select Cohort"}
+                  <Layers className="h-4 w-4 text-muted-foreground" />
+                  {cohort ? (version as any).cohortDetails.find((c: any) => c.id === cohort)?.name : "Select Cohort"}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
@@ -3009,11 +3007,11 @@ function EnrollmentsTable({
                     setCohort(id);
                   }}
                 >
-            <DropdownMenuRadioItem
-              value={""}
-              onClick={() => setCohort(null)}>
-              All Cohorts
-            </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem
+                    value={""}
+                    onClick={() => setCohort(null)}>
+                    All Cohorts
+                  </DropdownMenuRadioItem>
                   {(version as any)?.cohortDetails?.map((cohort: any) => (
                     <DropdownMenuRadioItem
                       key={cohort.id}
@@ -3026,6 +3024,55 @@ function EnrollmentsTable({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => {
+                setIsTimeSlotsModalOpen(true);
+              }}
+              >
+                <Clock className="h-4 w-4 mr-2" />
+                Configure Time Slots
+              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={toggleSelectionMode}>
+                {isSelectionMode ? (
+                  <>
+                    <X className="h-4 w-4 mr-2" />
+                    Exit Selection
+                  </>
+                ) : (
+                  <>
+                    <CheckSquare className="h-4 w-4 mr-2" />
+                    Select Student
+                  </>
+                )}
+              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={() => setIsExportingStudentContacts(true)} disabled={isExportingStudentContacts || enrollmentsLoading || isSearching}>
+                {isExportingStudentContacts ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                <span>{isExportingStudentContacts ? "Exporting..." : "Export Student Contacts"}</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={() => setIsExporting(true)} disabled={isLoadingQuizScores}>
+                {isLoadingQuizScores ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileDown className="h-4 w-4" />
+                )}
+                <span>{isLoadingQuizScores ? "Exporting..." : "Export Quiz Scores"}</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Bulk Actions Bar - Active tab: Disable + Unenroll */}
           {isSelectionMode && selectedUsers.size > 0 && !isInactiveTab && (
@@ -3302,9 +3349,9 @@ function EnrollmentsTable({
                               {enrollment?.user?.email || ""}
                             </p>
                             {enrollment?.cohortName && (
-                            <p className="text-xs md:text-sm text-muted-foreground truncate">
-                              (Cohort- {enrollment?.cohortName || ""})
-                            </p>
+                              <p className="text-xs md:text-sm text-muted-foreground truncate">
+                                (Cohort- {enrollment?.cohortName || ""})
+                              </p>
                             )}
                           </div>
                         </div>
@@ -3447,8 +3494,8 @@ function EnrollmentsTable({
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() =>
-                                  {console.log("Remove student clicked:", enrollment);
+                              onClick={() => {
+                                console.log("Remove student clicked:", enrollment);
                                 handleRemoveStudent({
                                   id: enrollment.user?._id,
                                   name:
@@ -3459,7 +3506,8 @@ function EnrollmentsTable({
                                   progress: 0,
                                   cohortId: enrollment.cohortId,
                                   cohortName: enrollment.cohortName
-                                })}
+                                })
+                              }
                               }
                               className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
                               disabled={

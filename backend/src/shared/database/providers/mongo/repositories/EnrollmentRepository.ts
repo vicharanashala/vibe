@@ -3552,6 +3552,23 @@ export class EnrollmentRepository {
       const cohortName =
         cohortMap?.get(enrollment.cohortId?.toString()) ?? null;
 
+      // Calculate total course score (raw sum of all quiz scores)
+      let totalCourseScore = 0;
+      for (const quiz of quizScores) {
+        totalCourseScore += quiz.maxScore;
+      }
+
+      // Calculate total course max score (sum of all quiz max scores)
+      let totalCourseMaxScore = 0;
+      for (const [quizId, maxScore] of quizMaxScoreMap.entries()) {
+        totalCourseMaxScore += maxScore;
+      }
+
+      // Format total score: round to 2 decimal places if needed, remove .00 if whole number
+      const formattedTotalScore = this.formatExportScore(totalCourseScore);
+      const formattedTotalMaxScore =
+        this.formatExportScore(totalCourseMaxScore);
+
       return {
         studentId: userId,
         cohortName: cohortName,
@@ -3560,6 +3577,8 @@ export class EnrollmentRepository {
             enrollment.user.lastName ?? ''
           }`.trim() || 'Unknown',
         email: enrollment.user.email ?? '',
+        totalCourseScore: formattedTotalScore,
+        totalCourseMaxScore: formattedTotalMaxScore,
         quizScores,
       };
     });
@@ -3620,7 +3639,9 @@ export class EnrollmentRepository {
             role: 'STUDENT',
             status: {$regex: /^active$/i},
             isDeleted: {$ne: true},
-            ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {cohortId: null}),
+            ...(cohortId
+              ? {cohortId: new ObjectId(cohortId)}
+              : {cohortId: null}),
           },
           {session},
         )
@@ -5188,6 +5209,42 @@ export class EnrollmentRepository {
     await this.enrollmentCollection.updateOne(
       {_id: new ObjectId(enrollmentId)},
       {$set: update},
+    );
+  }
+  async findActiveStudentsForPolicy(
+    courseId?: ObjectId,
+    courseVersionId?: ObjectId,
+    cohortId?: ObjectId,
+  ): Promise<IEnrollment[]> {
+    const query: any = {
+      role: 'STUDENT',
+      status: 'ACTIVE',
+      isDeleted: {$ne: true},
+      isEjected: {$ne: true},
+    };
+    if (courseId) query.courseId = courseId;
+    if (courseVersionId) query.courseVersionId = courseVersionId;
+    if (cohortId) query.cohortId = cohortId;
+
+    return this.enrollmentCollection.find(query).toArray();
+  }
+  async findLastActivityForStudent(
+    userId: ObjectId,
+    courseId: ObjectId,
+    courseVersionId: ObjectId,
+    cohortId?: ObjectId,
+  ): Promise<{startTime: Date} | null> {
+    await this.init();
+
+    return this.watchTimeCollection.findOne(
+      {
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId: cohortId ?? {$exists: false},
+        isDeleted: {$ne: true},
+      },
+      {sort: {startTime: -1}, projection: {startTime: 1}},
     );
   }
 }

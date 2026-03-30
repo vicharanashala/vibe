@@ -37,13 +37,13 @@ export class EjectionPolicyRepository {
       } catch (e) {
         // ignore if index doesn't exist
       }
-      
+
       await this.collection.createIndex(
         {courseId: 1, courseVersionId: 1, cohortId: 1},
         {
-          name: 'course_version_cohort_unique_idx', 
+          name: 'course_version_cohort_unique_idx',
           unique: true,
-          partialFilterExpression: { isDeleted: false }
+          partialFilterExpression: {isDeleted: false},
         },
       );
       await this.collection.createIndex(
@@ -306,7 +306,30 @@ export class EjectionPolicyRepository {
       isActive: true,
     });
 
-    // since you enforce 1 policy per cohort
+    // since 1 policy per cohort
     return policies[0] ?? null;
+  }
+  // Finds a policy regardless of isDeleted status
+  async findByIdIncludingDeleted(
+    policyId: string,
+    session?: ClientSession,
+  ): Promise<EjectionPolicy | null> {
+    const doc = await this.collection.findOne(
+      {_id: new ObjectId(policyId)},
+      {session},
+    );
+    return doc ? new EjectionPolicy(doc) : null;
+  }
+
+  // Finds only a soft-deleted policy
+  async findDeletedById(
+    policyId: string,
+    session?: ClientSession,
+  ): Promise<EjectionPolicy | null> {
+    const doc = await this.collection.findOne(
+      {_id: new ObjectId(policyId), isDeleted: true},
+      {session},
+    );
+    return doc ? new EjectionPolicy(doc) : null;
   }
 }

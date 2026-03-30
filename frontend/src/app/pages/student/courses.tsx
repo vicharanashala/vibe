@@ -1,29 +1,43 @@
 import { useState, useMemo, useEffect } from "react";
 import { Search, X, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useNavigate } from "@tanstack/react-router";
 import { useUserEnrollments, usePublicCourses } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 
 // Import new components
-import { CourseCard } from "@/components/course/CourseCard";
+import { CourseCard, CourseCardSkeleton } from "@/components/course/CourseCard";
+import { CourseListCard } from "@/components/course/CourseListCard";
 import { Pagination } from "@/components/ui/Pagination";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
-import { stopAllStreams} from "@/lib/MediaRegistry";
+import { stopAllStreams } from "@/lib/MediaRegistry";
+import { LayoutGrid, List } from "lucide-react";
+import { cn } from "@/utils/utils";
+import { TooltipProvider as UTS_TooltipProvider, Tooltip as UTS_Tooltip, TooltipContent as UTS_TooltipContent, TooltipTrigger as UTS_TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function StudentCourses() {
   useEffect(() => {
     setTimeout(stopAllStreams, 1000);
   }, []);
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("enrolled");
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const [isSearching, setIsSearching] = useState(false);
+
+  // View Mode State (Persisted)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('student_dashboard_view_mode');
+      return (saved === 'list' ? 'list' : 'grid') as 'grid' | 'list';
+    }
+    return 'grid';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('student_dashboard_view_mode', viewMode);
+  }, [viewMode]);
 
   useEffect(() => {
     if (searchQuery !== debouncedSearch) {
@@ -94,7 +108,12 @@ export default function StudentCourses() {
   };
 
   const renderEnrollmentCard = (enrollment: any, index: number, isLoading: boolean) => {
-    return <CourseCard enrollment={enrollment} index={index} isLoading={isLoading} variant="dashboard" />;
+    const cardVariant = activeTab === "available" ? "available" : "dashboard";
+    return viewMode === 'grid' ? (
+      <CourseCard enrollment={enrollment} index={index} isLoading={isLoading} variant={cardVariant} />
+    ) : (
+      <CourseListCard enrollment={enrollment} index={index} isLoading={isLoading} variant={cardVariant} />
+    );
   };
 
   // Add authentication check at the beginning of the render
@@ -161,35 +180,74 @@ export default function StudentCourses() {
                 <X className="h-4 w-4 cursor-pointer" onClick={() => setSearchQuery('')} />
               </div>
             </div>
-            <TabsList className="md:w-fit w-full">
-              <TabsTrigger value="enrolled" className="cursor-pointer">
-                Enrolled ({isLoading ? "..." : totalDocuments})
-              </TabsTrigger>
-              <TabsTrigger value="available" className="cursor-pointer">
-                Available ({loadingPublic ? "..." : (publicCoursesData?.totalDocuments || 0)})
-              </TabsTrigger>
-              <TabsTrigger value="completed" className="cursor-pointer">
-                Completed ({isLoading ? "..." : completedEnrollments.length})
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex items-center gap-3">
+              <TabsList className="md:w-fit w-full">
+                <TabsTrigger value="enrolled" className="cursor-pointer">
+                  Enrolled ({isLoading ? "..." : totalDocuments})
+                </TabsTrigger>
+                <TabsTrigger value="available" className="cursor-pointer">
+                  Available ({loadingPublic ? "..." : (publicCoursesData?.totalDocuments || 0)})
+                </TabsTrigger>
+                <TabsTrigger value="completed" className="cursor-pointer">
+                  Completed ({isLoading ? "..." : completedEnrollments.length})
+                </TabsTrigger>
+              </TabsList>
+
+              {/* View Switcher Toggle */}
+              <div className="hidden sm:flex items-center bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
+                <UTS_TooltipProvider>
+                  <UTS_Tooltip>
+                    <UTS_TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => setViewMode('grid')}
+                        className={cn(
+                          "h-8 w-8 rounded-lg transition-all duration-300",
+                          viewMode === 'grid' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <LayoutGrid className="h-4.5 w-4.5" />
+                      </Button>
+                    </UTS_TooltipTrigger>
+                    <UTS_TooltipContent><p>Grid View</p></UTS_TooltipContent>
+                  </UTS_Tooltip>
+                  <UTS_Tooltip>
+                    <UTS_TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => setViewMode('list')}
+                        className={cn(
+                          "h-8 w-8 rounded-lg transition-all duration-300",
+                          viewMode === 'list' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <List className="h-4.5 w-4.5" />
+                      </Button>
+                    </UTS_TooltipTrigger>
+                    <UTS_TooltipContent><p>List View</p></UTS_TooltipContent>
+                  </UTS_Tooltip>
+                </UTS_TooltipProvider>
+              </div>
+            </div>
           </div>
           <TabsContent value="enrolled" className="space-y-4">
             {isLoading || isSearching ? (
-              <div className="space-y-2">
-                {Array.from({ length: 4 }, (_, i) => (
-                  <Card key={i}>
-                    <CardContent className="p-4">
-                      <div className="h-4 bg-muted rounded animate-pulse mb-2" />
-                      <div className="h-3 bg-muted rounded animate-pulse w-2/3 mb-4" />
-                      <div className="h-2 bg-muted rounded animate-pulse mb-4" />
-                      <div className="h-10 bg-muted rounded animate-pulse" />
-                    </CardContent>
-                  </Card>
+              <div className={cn(
+                "grid gap-6",
+                viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+              )}>
+                {Array.from({ length: 6 }, (_, i) => (
+                  <CourseCardSkeleton key={i} variant="dashboard" />
                 ))}
               </div>
             ) : activeEnrollments.length > 0 ? (
               <>
-                <div className="space-y-2">
+                <div className={cn(
+                  "grid gap-6",
+                  viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                )}>
                   {activeEnrollments.map((enrollment, index) =>
                     renderEnrollmentCard(enrollment, index, isLoading)
                   )}
@@ -212,38 +270,32 @@ export default function StudentCourses() {
           </TabsContent>
           <TabsContent value="available" className="space-y-4">
             {loadingPublic || isSearching ? (
-              <div className="space-y-2">
-                {Array.from({ length: 4 }, (_, i) => (
-                  <Card key={i}>
-                    <CardContent className="p-4">
-                      <div className="h-4 bg-muted rounded animate-pulse mb-2" />
-                      <div className="h-3 bg-muted rounded animate-pulse w-2/3 mb-4" />
-                      <div className="h-2 bg-muted rounded animate-pulse mb-4" />
-                      <div className="h-10 bg-muted rounded animate-pulse" />
-                    </CardContent>
-                  </Card>
+              <div className={cn(
+                "grid gap-6",
+                viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+              )}>
+                {Array.from({ length: 6 }, (_, i) => (
+                  <CourseCardSkeleton key={i} variant="available" />
                 ))}
               </div>
             ) : publicCoursesData?.courses && publicCoursesData.courses.length > 0 ? (
               <>
-                <div className="space-y-4">
+                <div className={cn(
+                  "grid gap-6",
+                  viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                )}>
                   {publicCoursesData.courses.map((course: any, index: number) => (
-                    <CourseCard
-                      key={index}
-                      index={index}
-                      isLoading={loadingPublic}
-                      variant="available"
-                      enrollment={{
-                        courseId: course.courseId,
-                        courseVersionId: course.courseVersionId,
-                        course: {
-                          name: course.courseName,
-                          description: course.courseDescription
-                        },
-                        cohortId: course.cohortId,
-                        cohortName: course.cohortName,
-                      }}
-                    />
+                    renderEnrollmentCard({
+                      courseId: course.courseId,
+                      courseVersionId: course.courseVersionId,
+                      course: {
+                        name: course.courseName,
+                        description: course.courseDescription,
+                        instructors: course.instructors
+                      },
+                      cohortId: course.cohortId,
+                      cohortName: course.cohortName,
+                    }, index, loadingPublic)
                   ))}
                 </div>
                 <Pagination
@@ -265,20 +317,16 @@ export default function StudentCourses() {
 
           <TabsContent value="completed" className="space-y-4">
             {isLoading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 4 }, (_, i) => (
-                  <Card key={i}>
-                    <CardContent className="p-4">
-                      <div className="h-4 bg-muted rounded animate-pulse mb-2" />
-                      <div className="h-3 bg-muted rounded animate-pulse w-2/3 mb-4" />
-                      <div className="h-2 bg-muted rounded animate-pulse mb-4" />
-                      <div className="h-10 bg-muted rounded animate-pulse" />
-                    </CardContent>
-                  </Card>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <CourseCardSkeleton key={i} variant="dashboard" />
                 ))}
               </div>
             ) : completedEnrollments.length > 0 ? (
-              <div className="space-y-2">
+              <div className={cn(
+                "grid gap-6",
+                viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+              )}>
                 {completedEnrollments.map((enrollment, index) =>
                   renderEnrollmentCard(enrollment, index, isLoading)
                 )}

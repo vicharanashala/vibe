@@ -8,7 +8,9 @@ import TeacherCoursesPage from "@/app/pages/teacher/course-page";
 import TeacherProfile from "@/app/pages/teacher/profile";
 import TeacherCoursePage from "@/app/pages/teacher/teacher-course-page";
 import { LiveQuiz } from "@/app/pages/teacher/AudioTranscripter" // Uncomment if you want to use AudioManager
-import CourseEnrollments from "../pages/teacher/course-enrollments";
+// import CourseEnrollments from "../pages/teacher/course-enrollments";
+import CourseEnrollmentsContainer from "../pages/teacher/course-enrollments";
+import CourseEmotionAnalyticsPage from "../pages/teacher/course-emotion-analytics";
 import FlaggedList from "../pages/teacher/FlaggedList";
 import AddCoursePage from "@/app/pages/teacher/AddCoursePage";
 import InvitePage from "../pages/teacher/invite";
@@ -57,7 +59,11 @@ const teacherRoutes: RouteObject = {
     },
     {
       path: "courses/enrollments",
-      element: <CourseEnrollments />,
+      element: <CourseEnrollmentsContainer />,
+    },
+    {
+      path: "courses/emotion-analytics",
+      element: <CourseEmotionAnalyticsPage />,
     },
     {
       path: "courses/flags",
