@@ -3,7 +3,7 @@
 import { useState, useEffect, type Dispatch, type SetStateAction } from "react"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
-import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check, Layers,Video, HelpCircle, RefreshCw } from 'lucide-react'
+import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check, Layers, Video, HelpCircle, RefreshCw } from 'lucide-react'
 import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -540,6 +540,8 @@ function CourseEnrollments() {
           name: student.name ?? 'Unknown Student',
           email: student.email ?? '',
           cohortName: student.cohortName ?? null,
+          totalCourseScore: Number(student.totalCourseScore) || 0,
+          totalCourseMaxScore: Number(student.totalCourseMaxScore) || 0,
           quizScores: Array.isArray(student.quizScores)
             ? student.quizScores.map((quiz: any) => ({
               moduleId: quiz.moduleId ?? 'unknown',
@@ -2925,7 +2927,7 @@ function EnrollmentsTable({
 
         {/* SAME header functionality for both tabs */}
         <div className="flex items-center space-x-4 lg:flex-nowrap flex-wrap gap-3">
-          <Button
+          {/* <Button
             variant="outline"
             size="sm"
             onClick={() => setIsExportingStudentContacts(true)}
@@ -2953,7 +2955,7 @@ function EnrollmentsTable({
               <FileDown className="h-4 w-4" />
             )}
             <span>{isLoadingQuizScores ? "Exporting..." : "Export Quiz Scores"}</span>
-          </Button>
+          </Button> */}
 
           {/* <Button
             variant="outline"
@@ -2986,10 +2988,6 @@ function EnrollmentsTable({
               </>
             )}
           </Button> */}
-
-
-
-
 
           {(version as any)?.cohortDetails?.length > 0 && (
             <DropdownMenu>
@@ -3027,7 +3025,7 @@ function EnrollmentsTable({
             </DropdownMenu>
           )}
 
-                    <DropdownMenu>
+          <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon">
                 <MoreVertical className="h-4 w-4" />
@@ -3054,6 +3052,24 @@ function EnrollmentsTable({
                     Select Student
                   </>
                 )}
+              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={() => setIsExportingStudentContacts(true)} disabled={isExportingStudentContacts || enrollmentsLoading || isSearching}>
+                {isExportingStudentContacts ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                <span>{isExportingStudentContacts ? "Exporting..." : "Export Student Contacts"}</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={() => setIsExporting(true)} disabled={isLoadingQuizScores}>
+                {isLoadingQuizScores ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileDown className="h-4 w-4" />
+                )}
+                <span>{isLoadingQuizScores ? "Exporting..." : "Export Quiz Scores"}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
