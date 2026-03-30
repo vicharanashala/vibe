@@ -4502,6 +4502,8 @@ export interface LeaderboardEntry {
   completionPercentage: number;
   completedAt: Date | null;
   rank: number;
+  completedCount?: number;
+  score?: number;
 }
 
 export const useLeaderboard = (
