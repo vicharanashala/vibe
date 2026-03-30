@@ -1,4 +1,4 @@
-﻿import { GLOBAL_TYPES } from '#root/types.js';
+import { GLOBAL_TYPES } from '#root/types.js';
 import { ICourseRepository } from '#shared/database/interfaces/ICourseRepository.js';
 import { IItemRepository } from '#shared/database/interfaces/IItemRepository.js';
 import { IQuizItem, ItemType } from '#shared/interfaces/models.js';
@@ -225,6 +225,7 @@ export class ItemRepository implements IItemRepository {
         ? new ObjectId(item._id)
         : item._id,
     }));
+    fields.sectionId = typeof fields.sectionId === "string" ? new ObjectId(fields.sectionId) : fields.sectionId;
     const result = await this.itemsGroupCollection.updateOne(
       { _id: new ObjectId(itemsGroupId) },
       { $set: fields },
@@ -465,6 +466,38 @@ export class ItemRepository implements IItemRepository {
     }
 
     return item;
+  }
+
+  async getFeedbackItems(versionId: string, session?: ClientSession): Promise<Item[]> {
+    await this.init();
+    const version = await this.courseRepo.readVersion(versionId, session);
+    if (!version) {
+      throw new NotFoundError(`Course version ${versionId} not found.`);
+    }
+
+    const feedbackItems: Item[] = [];
+
+    for (const module of version.modules) {
+      for (const section of module.sections) {
+        const itemsGroup = await this.readItemsGroup(
+          section.itemsGroupId.toString(),
+          session,
+        );
+        for (const itemRef of itemsGroup.items) {
+          if (itemRef.type === ItemType.FEEDBACK) {
+            const feedbackForm = await this.feedbackFormCollection.findOne(
+              { _id: new ObjectId(itemRef._id) },
+              { session },
+            );
+            if (feedbackForm) {
+              feedbackItems.push(feedbackForm as Item);
+            }
+          }
+        }
+      }
+    }
+
+    return feedbackItems;
   }
 
   async updateItem(

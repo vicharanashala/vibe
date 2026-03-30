@@ -69,7 +69,7 @@ export class CohortRepository implements ICohortRepository {
 
         const filter: any = { $or: orVersionMatch, isDeleted: { $ne: true } };
         if (typeof isPublic === "boolean") {
-            filter.isPublic = isPublic;
+            // filter.isPublic = isPublic;
         }
 
         return await this.cohortsCollection
@@ -298,6 +298,7 @@ export class CohortRepository implements ICohortRepository {
         const page = query.page ?? 1;
         const limit = query.limit ?? 20;
         const skip = (page - 1) * limit;
+        const status = query.status;
 
         const search = query.search?.trim();
         const sortOrder = query.sortOrder === "desc" ? -1 : 1;
@@ -375,6 +376,53 @@ export class CohortRepository implements ICohortRepository {
                     },
                 ]
                 : []),
+            {
+                $lookup: {
+                    from: "cohorts",
+                    localField: "cohortId",
+                    foreignField: "_id",
+                    as: "cohort",
+                },
+            },
+            {
+                $unwind: {
+                    path: "$cohort",
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
+                $addFields: {
+                    safeHp: { $ifNull: ["$cohort.safeHp", 0] },
+                },
+            },
+
+            ...(status === "SAFE"
+                ? [
+                    {
+                        $match: {
+                        $expr: {
+                            $gte: [
+                            { $ifNull: ["$hpPoints", 0] },
+                            "$safeHp",
+                            ],
+                        },
+                        },
+                    },
+                    ]
+                : status === "UNSAFE"
+                ? [
+                    {
+                        $match: {
+                        $expr: {
+                            $lt: [
+                            { $ifNull: ["$hpPoints", 0] },
+                            "$safeHp",
+                            ],
+                        },
+                        },
+                    },
+                    ]
+                : []),
 
             {
                 $project: {
@@ -383,6 +431,13 @@ export class CohortRepository implements ICohortRepository {
                     name: "$fullName",
                     completionPercentage: { $ifNull: ["$percentCompleted", 0] },
                     totalHp: { $ifNull: ["$hpPoints", 0] },
+
+                    isSafe: {
+                        $gte: [
+                            { $ifNull: ["$hpPoints", 0] },
+                            { $ifNull: ["$safeHp", 0] },
+                        ],
+                    },
                 },
             },
 
@@ -426,19 +481,35 @@ export class CohortRepository implements ICohortRepository {
     ): Promise<IEnrollment | null> {
         await this.init();
 
-        const isOverrideCohort = cohort in COHORT_OVERRIDES;
+        const override = COHORT_OVERRIDES[cohort];
+
+        const effectiveCourseId = override?.courseId ?? courseId;
+        const effectiveCourseVersionId = override?.versionId ?? courseVersionId;
+
+        const normalizedUserId =
+            typeof userId === "string" && ObjectId.isValid(userId)
+                ? [userId, new ObjectId(userId)]
+                : [userId];
+
+        const normalizedCourseId = ObjectId.isValid(effectiveCourseId)
+            ? [effectiveCourseId, new ObjectId(effectiveCourseId)]
+            : [effectiveCourseId];
+
+        const normalizedCourseVersionId = ObjectId.isValid(effectiveCourseVersionId)
+            ? [effectiveCourseVersionId, new ObjectId(effectiveCourseVersionId)]
+            : [effectiveCourseVersionId];
 
         const query: any = {
-            userId: { $in: [userId, new ObjectId(userId)] },
-            courseId: { $in: [courseId, new ObjectId(courseId)] },
-            courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+            userId: { $in: normalizedUserId },
+            courseId: { $in: normalizedCourseId },
+            courseVersionId: { $in: normalizedCourseVersionId },
             isDeleted: { $ne: true },
         };
 
-        if (!isOverrideCohort) {
+        if (!override) {
             const cohortConditions = await this._getCohortMatchConditions(
                 cohort,
-                courseVersionId
+                effectiveCourseVersionId
             );
 
             query.$or = [
@@ -534,6 +605,11 @@ export class CohortRepository implements ICohortRepository {
         await this.init();
         const userObjId = new ObjectId(userId);
 
+        const overridePairs = Object.values(COHORT_OVERRIDES).map(o => ({
+            courseId: new ObjectId(o.courseId),
+            courseVersionId: new ObjectId(o.versionId),
+        }));
+
         const result = await this.enrollmentCollection.aggregate([
             {
                 $match: {
@@ -543,6 +619,48 @@ export class CohortRepository implements ICohortRepository {
                     isDeleted: { $ne: true },
                 },
             },
+
+            {
+                $lookup: {
+                    from: "courseSettings",
+                    let: { versionId: "$courseVersionId" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ["$courseVersionId", "$$versionId"] },
+                                        { $eq: ["$settings.hpSystem", true] }
+                                    ]
+                                }
+                            }
+                        },
+                        { $project: { _id: 1 } }
+                    ],
+                    as: "courseSettingsDoc",
+                },
+            },
+
+            {
+                $addFields: {
+                    isOverride: {
+                        $in: [
+                            { courseId: "$courseId", courseVersionId: "$courseVersionId" },
+                            overridePairs
+                        ]
+                    }
+                }
+            },
+
+            {
+                $match: {
+                    $or: [
+                        { isOverride: true },
+                        { "courseSettingsDoc.0": { $exists: true } }
+                    ]
+                }
+            },
+
             {
                 $group: {
                     _id: null,
@@ -599,7 +717,7 @@ export class CohortRepository implements ICohortRepository {
             { session }
         );
 
-        return updateResult.modifiedCount > 0;
+        return updateResult.matchedCount > 0;
     }
 
     async getDynamicCoursesWithVersions(session?: ClientSession): Promise<CourseWithVersionsDto[]> {

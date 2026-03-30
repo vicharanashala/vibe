@@ -3,7 +3,7 @@ import { FilterQueryDto } from "#root/modules/hpSystem/classes/validators/activi
 import { LedgerListResponseDto } from "#root/modules/hpSystem/classes/validators/ledgerValidators.js";
 import { ILedgerRepository } from "#root/modules/hpSystem/interfaces/ILedgerRepository.js";
 import { HpActivity, HpLedger } from "#root/modules/hpSystem/models.js";
-import { MongoDatabase } from "#root/shared/index.js";
+import { EnrollmentRole, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { instanceToPlain, plainToInstance } from "class-transformer";
 import { inject, injectable } from "inversify";
@@ -36,6 +36,7 @@ export class LedgerRepository implements ILedgerRepository {
         studentId: string,
         filter: FilterQueryDto,
         cohortName: string,
+        role: EnrollmentRole,
     ): Promise<{
         data: HpLedgerTransformer[];
         total: number;
@@ -70,11 +71,17 @@ export class LedgerRepository implements ILedgerRepository {
             [sortBy]: sortOrder === "asc" ? 1 : -1,
         };
 
+        const matchQuery: any = { ...query };
+
+        if (role !== "STUDENT") {
+            matchQuery.cohort = cohortName;
+        }
+
         const [docs, total] = await Promise.all([
 
             this.hpLedgerCollection.aggregate([
 
-                { $match: { ...query, cohort: cohortName } },
+                { $match: matchQuery },
 
                 {
                     $lookup: {
@@ -159,10 +166,7 @@ export class LedgerRepository implements ILedgerRepository {
 
             ]).toArray(),
 
-            this.hpLedgerCollection.countDocuments({
-                ...query,
-                cohort: cohortName
-            })
+            this.hpLedgerCollection.countDocuments(matchQuery)
         ]);
 
         const data = docs.map((doc) => ({
@@ -273,7 +277,7 @@ export class LedgerRepository implements ILedgerRepository {
 
         return await this.hpLedgerCollection.find({
             activityId: new ObjectId(activityId),
-            "calc.reasonCode": "MILESTONE_REWARD"
+            // "calc.reasonCode": "MILESTONE_REWARD"
         }).toArray();
     }
 

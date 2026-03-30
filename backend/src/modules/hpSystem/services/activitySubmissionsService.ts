@@ -11,7 +11,7 @@ import path from "path";
 import { randomBytes } from "crypto";
 import { ActivityService } from "./activityService.js";
 import { RuleConfigService } from "./ruleConfigsService.js";
-import { HpActivitySubmission, HpLedger, HpLedgerDirection, HpLedgerEventType, HpReasonCode, ReviewDecision, TriggeredBy } from "../models.js";
+import { HpActivitySubmission, HpLedger, HpLedgerDirection, HpLedgerEventType, HpReasonCode, ReviewDecision, SubmissionField, TriggeredBy } from "../models.js";
 import { ClientSession, ObjectId } from "mongodb";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { SubmissionFeedbackItem } from "../classes/transformers/ActivitySubmission.js";
@@ -109,7 +109,13 @@ export class ActivitySubmissionsService extends BaseService {
         files: Express.Multer.File[],
         images: Express.Multer.File[]
     ) {
+
         const bucket = this.getActivitySubmissionBucket();
+        // Determine environment prefix
+        const isProduction = appConfig.isProduction;
+        const envPrefix = isProduction ? "" : `[${appConfig.sentry.environment}]`;
+
+        const basePath = `${envPrefix} hp-activity-submissions/${cohort}/${activityId}/${studentId}`;
 
         const [uploadedPdfs, uploadedImages] = await Promise.all([
             Promise.all(
@@ -118,7 +124,7 @@ export class ActivitySubmissionsService extends BaseService {
                         bucket,
                         studentId,
                         file,
-                        `hp-activity-submissions/${cohort}/${activityId}/${studentId}/files`
+                        `${basePath}/files`
                     )
                 )
             ),
@@ -128,7 +134,7 @@ export class ActivitySubmissionsService extends BaseService {
                         bucket,
                         studentId,
                         image,
-                        `hp-activity-submissions/${cohort}/${activityId}/${studentId}/images`
+                        `${basePath}/images`
                     )
                 )
             ),
@@ -243,7 +249,7 @@ export class ActivitySubmissionsService extends BaseService {
             }
 
             const ledger = await this.ledgerRepository.findByStudentAndActivityId(activityId, student.id);
-            if (ledger) {
+            if (ledger && ledger.direction == "CREDIT") {
                 throw new BadRequestError(
                     activityRuleConfig.reward.applyWhen === "ON_APPROVAL"
                         ? "This activity has already been submitted. Please wait for the instructor to review it and credit the HP points."
@@ -252,8 +258,8 @@ export class ActivitySubmissionsService extends BaseService {
             }
 
             const latestSubmissions = await this.activitySubmissionsRepository.getLatestByStudentId(student.id, activityId)
-            // if (latestSubmissions && latestSubmissions.status !== "REVERTED")
-            //     throw new BadRequestError("You have already attended this activity.")
+            if (latestSubmissions && latestSubmissions.status !== "REVERTED")
+                throw new BadRequestError("You have already attended this activity.")
 
             const cohort = body.cohort;
 
@@ -315,11 +321,21 @@ export class ActivitySubmissionsService extends BaseService {
             let uploadedPdfs: any[] = [];
             let uploadedImages: any[] = [];
 
+
+            // To create proper unique folder names based on cohort (exisiting cohort=>cohortName, new cohorts=>id)
+            let cohortFileName = body.cohort
+            const isOverride = COHORT_OVERRIDES[body.cohort]
+            if (!isOverride) {
+                const cohortId = await this.cohortRepository.getCohortIdByCohortName(body.cohort);
+                if (cohortId)
+                    cohortFileName = cohortId;
+            }
+
             // Only call upload when there are files/images
             if (files.length > 0 || images.length > 0) {
                 const uploadResult = await this.uploadSubmissionAssets(
                     student.id,
-                    body.cohort,
+                    cohortFileName,
                     body.activityId,
                     files,
                     images
@@ -349,6 +365,23 @@ export class ActivitySubmissionsService extends BaseService {
                 ],
             };
 
+            const validation = activityRuleConfig.submissionValidation ?? [SubmissionField.TEXT];
+
+            if (validation.includes(SubmissionField.TEXT) && !payload.textResponse?.trim()) {
+                throw new BadRequestError("Text response is required");
+            }
+
+            if (validation.includes(SubmissionField.PDF) && (!payload.files || payload.files.length === 0)) {
+                throw new BadRequestError("At least one PDF file is required");
+            }
+
+            if (validation.includes(SubmissionField.IMAGE) && (!payload.images || payload.images.length === 0)) {
+                throw new BadRequestError("At least one image is required");
+            }
+
+            if (validation.includes(SubmissionField.URL) && (!payload.links || payload.links.length === 0)) {
+                throw new BadRequestError("At least one URL is required");
+            }
 
             // Create submission record, then calculate and apply rewards if applicable
             const submissionId = await this.activitySubmissionsRepository.create(
@@ -561,6 +594,29 @@ export class ActivitySubmissionsService extends BaseService {
                 ],
             };
 
+            const activityRuleConfig = await this.ruleConfigService.getByActivityId(body.activityId);
+            if (!activityRuleConfig) {
+                throw new BadRequestError("Activity rule config not found");
+            }
+
+            const validation: SubmissionField[] = activityRuleConfig.submissionValidation ?? [SubmissionField.TEXT];
+
+            if (validation.includes(SubmissionField.TEXT) && !payload.textResponse?.trim()) {
+                throw new BadRequestError("Text response is required");
+            }
+
+            if (validation.includes(SubmissionField.PDF) && (!payload.files || payload.files.length === 0)) {
+                throw new BadRequestError("At least one PDF file is required");
+            }
+
+            if (validation.includes(SubmissionField.IMAGE) && (!payload.images || payload.images.length === 0)) {
+                throw new BadRequestError("At least one image is required");
+            }
+
+            if (validation.includes(SubmissionField.URL) && (!payload.links || payload.links.length === 0)) {
+                throw new BadRequestError("At least one URL is required");
+            }
+
             await this.activitySubmissionsRepository.updateById(
                 submissionId,
                 {
@@ -708,7 +764,7 @@ export class ActivitySubmissionsService extends BaseService {
             this.activitySubmissionsRepository.getLateSubmissionCountByStudentId(studentId, courseId, courseVersionId, cohortName),
             this.activityRepository.getPendingActivitesCount(studentId, courseId, courseVersionId, cohortName),
             this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId, cohortName),
-            this.activityRepository.getLatestActivityByCohortName(cohortName),
+            // this.activityRepository.getLatestActivityByCohortName(cohortName),
         ]);
 
         const data: StudentActivitySubmissionStatsViewDto = {
@@ -731,7 +787,6 @@ export class ActivitySubmissionsService extends BaseService {
 
     async listMySubmissions(studentId: string, query: FilterQueryDto, cohortName?: string): Promise<any> {
         const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined, undefined, cohortName);
-
         return {
             success: true,
             data: submissions,

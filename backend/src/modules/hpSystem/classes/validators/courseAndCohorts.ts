@@ -1,6 +1,7 @@
 import { IsArray, IsNumber, IsOptional, IsString, ValidateNested, IsBoolean, Min, IsIn, IsEmail, IsInt } from "class-validator";
 import { Expose, Type } from "class-transformer";
 import { ToNumber } from "../../utils/toNumber.js";
+import { statusFilter } from "../../models.js";
 
 export class CourseVersionDto {
 
@@ -136,8 +137,8 @@ export class CohortListItemDto {
 
     @IsNumber()
     percentCompleted?: number;
-    @IsBoolean()
-    isPublic!: boolean;
+    // @IsBoolean()
+    // isPublic!: boolean;
 }
 
 /* =========================================================
@@ -285,6 +286,11 @@ export class CohortStudentItemDto {
     @IsInt()
     @Min(0)
     completionPercentage!: number;
+
+    @Expose()
+    @IsOptional()
+    @IsBoolean()
+    isSafe?:boolean;
 }
 
 export class CohortStudentsResponseDto {
@@ -326,4 +332,8 @@ export class CohortStudentsListQueryDto {
     @IsOptional()
     @IsString()
     search?: string;
+
+    @IsOptional()
+    @IsIn(["ALL", "SAFE", "UNSAFE"])
+    status?: statusFilter;
 }

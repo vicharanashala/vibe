@@ -34,7 +34,8 @@ import {
     Calendar,
     AlertCircle,
     CheckCircle2,
-    Search
+    Search,
+    RefreshCw
 } from "lucide-react";
 
 export default function StudentLedgerPage() {
@@ -62,7 +63,7 @@ export default function StudentLedgerPage() {
     );
 
     // 3. Fetch Ledger Data
-    const { data: ledger = [], studentDetails, isLoading: isLoadingLedger, error } = useHpStudentLedger(
+    const { data: ledger = [], studentDetails, isLoading: isLoadingLedger, error, refetch, isRefetching } = useHpStudentLedger(
         studentId || "",
         cohortName || "",
         effectiveCourseId,
@@ -185,6 +186,15 @@ export default function StudentLedgerPage() {
                         Transaction ledger for {decodeURIComponent(cohortName || '')}
                     </p>
                 </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetch()}
+                    disabled={isRefetching || totalLoading}
+                >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                    {isRefetching ? "Refreshing..." : "Refresh"}
+                </Button>
             </div>
 
             {/* Student Info Card */}

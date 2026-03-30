@@ -123,6 +123,7 @@ export interface HpStudent {
     email: string;
     totalHp: number;
     completionPercentage: number;
+    isSafe: boolean;
     avatar?: string;
 }
 
@@ -328,12 +329,20 @@ export interface HpStudentSubmission {
     isRequiredInstructorApproval?: boolean;
 }
 
+export enum SubmissionField {
+    TEXT = "TEXT",
+    PDF = "PDF",
+    IMAGE = "IMAGE",
+    URL = "URL",
+}
+
 export interface HpRuleConfig {
     _id: string;
     courseId: string;
     courseVersionId: string;
     activityId: string;
     isMandatory: boolean;
+    submissionValidation:SubmissionField[];
     deadlineAt?: string;
     allowLateSubmission?: boolean;
     reward?: {
@@ -661,6 +670,13 @@ export const hpApi = {
         });
     },
 
+    createActivityWithRule: async (payload: { activity: CreateHpActivityPayload; ruleConfig: Partial<HpRuleConfig>; }): Promise<{ success: boolean; data: HpRuleConfig }> => {
+        return apiFetch(`${BASE_URL}/activities/with-rule`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+    },
+
     // ── Rule Configs (real backend) ──────────────────────────
 
     getRuleConfigByActivityId: async (activityId: string): Promise<{ success: boolean; data: HpRuleConfig | null }> => {
@@ -696,9 +712,16 @@ export const hpApi = {
     getStudents: async (
         courseVersionId: string,
         cohort: string,
+        params?: {
+        page?: number;
+        limit?: number;
+        search?: string;
+        status?: "ALL" | "SAFE" | "UNSAFE";
+    }
     ): Promise<{ success: boolean; data: HpStudent[] }> => {
-        // Pass a large limit so we get all students for client-side pagination
-        return apiFetch(`${BASE_URL}/courses-cohorts/version/${courseVersionId}/cohort/${cohort}/students?limit=1000&page=1`);
+        // Pass a large limit so we get all students for client-side pagination 
+        const { page = 1, limit = 10000, search = "", status = "ALL" } = params || {};
+        return apiFetch(`${BASE_URL}/courses-cohorts/version/${courseVersionId}/cohort/${cohort}/students?limit=${limit}&page=${page}&search=${search}&status=${status}`);
     },
 
     getCohortOverviewStats: async (

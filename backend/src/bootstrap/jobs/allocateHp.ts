@@ -6,7 +6,7 @@ import { dbConfig } from '#root/config/db.js';
 import cron from 'node-cron';
 
 cron.schedule(
-    '*/5 * * * *',
+    '*/1 * * * *',
     // "*/5 * * * * *",
     async () => {
 
@@ -22,8 +22,8 @@ cron.schedule(
 
                     console.log('⚡ Running penalty allocation job...');
                     await allocatePenalty();
-                    console.log('✅ Penalty allocation job completed');
-
+                    console.log('✅ Penalty allocation job completed'); 
+ 
 
                 } catch (error) {
                     console.error('❌ HP allocation job failed:', error);

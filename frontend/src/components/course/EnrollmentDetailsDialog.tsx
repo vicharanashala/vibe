@@ -1,10 +1,9 @@
 // Create a new component: EnrollmentDetailsDialog.tsx
 import { useUserEnrollmentsDetails, useCourseVersionById } from "@/hooks/hooks";
 import { bufferToHex } from '@/utils/helpers';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "../ui/button";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle2, Clock } from "lucide-react";
 
@@ -35,33 +34,80 @@ export function EnrollmentDetailsDialog({
   enrollment
 }: EnrollmentDetailsDialogProps) {
 
+  const normalizeId = (value: any): string | undefined => {
+    if (!value) return undefined;
+    if (typeof value === 'string') return value;
+    try {
+      return bufferToHex(value);
+    } catch {
+      return value?.toString?.();
+    }
+  };
+
   const courseVersionId = bufferToHex(enrollment.courseVersionId);
+  const cohortId = enrollment?.cohortId
+    ? bufferToHex(enrollment.cohortId)
+    : undefined;
+  const enrollmentId = normalizeId(enrollment?._id);
   // Hook is only called when this component is mounted
   const {
     data: enrollmentDetails,
     isLoading
   } = useUserEnrollmentsDetails(true, "", "STUDENT", courseVersionId);
 
-  const { data: versionDetails } = useCourseVersionById(courseVersionId);
+  const { data: versionDetails } = useCourseVersionById(
+    courseVersionId,
+    true,
+    cohortId,
+  );
 
 
-  // Use the fetched enrollment details if available, otherwise fall back to the passed enrollment prop
-  const enroll1 = enrollmentDetails?.enrollments?.[0] || enrollment;
+  const matchedEnrollment = enrollmentDetails?.enrollments?.find((entry: any) => {
+    const entryId = normalizeId(entry?._id);
+    const entryCohortId = normalizeId(entry?.cohortId);
+
+    if (enrollmentId && entryId === enrollmentId) {
+      return true;
+    }
+
+    if (cohortId) {
+      return entryCohortId === cohortId;
+    }
+
+    return !entryCohortId;
+  });
+
+  const enroll1 = matchedEnrollment || enrollment;
   // Extract data from enrollment prop
   const contentCounts = enroll1?.contentCounts || {};
+  const itemCounts = contentCounts.itemCounts || {};
 
   // Get values with fallbacks
-  const totalLessons = contentCounts.totalItems || 0;
-  const completedLessons = enroll1?.completedItems || 0;
+  const totalLessons = Number(contentCounts.totalItems ?? contentCounts.total ?? 0);
+  const completedLessons = Number(
+    enroll1?.completedItemsCount ?? enroll1?.completedItems ?? 0,
+  );
   const isCompleted = (enroll1?.percentCompleted >= 100) || false;
 
-  const totalQuizScore = contentCounts.totalQuizScore || 0;
-  const totalQuizMaxScore = contentCounts.totalQuizMaxScore || 0;
+  const totalQuizScore = Number(
+    contentCounts.totalQuizScore ?? enroll1?.totalQuizScore ?? 0,
+  );
+  const totalQuizMaxScore = Number(
+    contentCounts.totalQuizMaxScore ?? enroll1?.totalQuizMaxScore ?? 0,
+  );
 
-  const videoCount = contentCounts.videos || 0;
-  const quizCount = contentCounts.quizzes || 0;
-  const articleCount = contentCounts.articles || 0;
-  const projectCount = contentCounts.project || 0;
+  const videoCount = Number(
+    contentCounts.videos ?? itemCounts.VIDEO ?? itemCounts.video ?? itemCounts.videos ?? 0,
+  );
+  const quizCount = Number(
+    contentCounts.quizzes ?? itemCounts.QUIZ ?? itemCounts.quiz ?? itemCounts.quizzes ?? 0,
+  );
+  const articleCount = Number(
+    contentCounts.articles ?? itemCounts.BLOG ?? itemCounts.blog ?? itemCounts.articles ?? 0,
+  );
+  const projectCount = Number(
+    contentCounts.project ?? contentCounts.projects ?? itemCounts.PROJECT ?? itemCounts.project ?? itemCounts.projects ?? 0,
+  );
 
   const completedVideos = contentCounts.completedVideos || 0;
   const completedQuizzes = contentCounts.completedQuizzes || 0;
@@ -75,17 +121,27 @@ const versionDescription = versionDetails?.description || 'No version descriptio
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        {isLoading ?<Skeleton/>:<>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
-      </DialogTrigger>
-      
       <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 max-h-full flex flex-col">
         <DialogHeader className="mb-3 text-left">
           <DialogTitle>Course Details</DialogTitle>
         </DialogHeader>
-        
-        <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[700px] overflow-y-auto">
+
+        {isLoading ? (
+          <div className="flex-1 flex flex-col p-6 space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Skeleton className="h-4 w-20" /><Skeleton className="h-6 w-full" /></div>
+              <div className="space-y-2"><Skeleton className="h-4 w-20" /><Skeleton className="h-6 w-full" /></div>
+            </div>
+            <Skeleton className="h-24 w-full" />
+            <div className="grid grid-cols-4 gap-4">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          </div>
+        ) : (
+          <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[700px] overflow-y-auto">
           <div className="space-y-6 py-2">
             {/* Course Information */}
             <div>
@@ -101,10 +157,15 @@ const versionDescription = versionDetails?.description || 'No version descriptio
                 <div className="space-y-1 col-span-2">
                   <p className="text-sm font-medium text-muted-foreground">Assigned Timeslot</p>
                   <p className="text-sm">
-                    {enroll1?.assignedTimeSlot 
-                      ? `${enroll1.assignedTimeSlot.from} - ${enroll1.assignedTimeSlot.to} (IST)`
-                      : 'You can access course anytime'
-                    }
+                    {(() => {
+                      const timeSlot = Array.isArray(enroll1?.assignedTimeSlot) 
+                        ? enroll1.assignedTimeSlot[0] 
+                        : enroll1?.assignedTimeSlot;
+                      
+                      return timeSlot 
+                        ? `${timeSlot.from} - ${timeSlot.to} (IST)`
+                        : 'You can access course anytime';
+                    })()}
                   </p>
                 </div>
                 <div className="space-y-1 col-span-2">
@@ -224,8 +285,8 @@ const versionDescription = versionDetails?.description || 'No version descriptio
             </div>
           </div>
           </ScrollArea>
-        </DialogContent>
-      </>}
+        )}
+      </DialogContent>
     </Dialog>
   );
 }

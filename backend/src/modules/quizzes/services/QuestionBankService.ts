@@ -73,7 +73,19 @@ class QuestionBankService extends BaseService {
           throw new NotFoundError('Some questions not found');
         }
       }
-      return await this.questionBankRepository.create(questionBank, session);
+      const questionBankId = await this.questionBankRepository.create(questionBank, session);
+      
+      // If points is set, cascade to all questions in the bank
+      const pointsToUse = questionBank.points !== undefined ? questionBank.points : 5;
+      if (pointsToUse !== undefined && questionBank.questions && questionBank.questions.length > 0) {
+        await this.questionBankRepository.updateQuestionsPoints(
+          questionBankId,
+          pointsToUse,
+          session,
+        );
+      }
+      
+      return questionBankId;
     });
   }
   async getById(questionBankId: string): Promise<IQuestionBank | null> {
@@ -157,6 +169,11 @@ class QuestionBankService extends BaseService {
       questionBank.questions.push(questionObjectId);
       questionBank.courseVersionId = new ObjectId(questionBank.courseVersionId);
       questionBank.courseId = new ObjectId(questionBank.courseId.toString());
+
+      // If question bank has points set, update the new question's points
+      if (questionBank.points !== undefined) {
+        await this.questionRepository.updatePoints(questionId, questionBank.points, session);
+      }
 
       return this.questionBankRepository.update(
         questionBankId,
@@ -282,12 +299,68 @@ class QuestionBankService extends BaseService {
         questionId,
         session,
       );
+      
+      // Set the duplicated question's points to match the question bank's points
+      if (questionBank.points !== undefined) {
+        await this.questionRepository.updatePoints(
+          duplicatedQuestion._id.toString(),
+          questionBank.points,
+          session,
+        );
+      }
+      
       // Push the duplicated question into the question bank.
       questionBank.questions.push(duplicatedQuestion._id.toString());
       questionBank.courseVersionId = new ObjectId(questionBank.courseVersionId);
       questionBank.courseId = new ObjectId(questionBank.courseId.toString());
       await this.questionBankRepository.update(bankId, questionBank, session);
       return duplicatedQuestion._id.toString();
+    });
+  }
+  async updatePoints(
+    questionBankId: string,
+    points: number,
+  ): Promise<IQuestionBank | null> {
+    return this._withTransaction(async session => {
+      const questionBank = await this.questionBankRepository.getById(
+        questionBankId,
+        session,
+      );
+      if (!questionBank) {
+        throw new NotFoundError(
+          `Question bank with ID ${questionBankId} not found`,
+        );
+      }
+      const versionStatus = await this.courseRepository.getCourseVersionStatus(
+        questionBank.courseVersionId.toString(),
+      );
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'Course version is archived. You can not update question bank points',
+        );
+      }
+      
+      // Update the question bank's points
+      questionBank.points = points;
+      questionBank.courseVersionId = new ObjectId(questionBank.courseVersionId);
+      questionBank.courseId = new ObjectId(questionBank.courseId.toString());
+      
+      const updatedBank = await this.questionBankRepository.update(
+        questionBankId,
+        questionBank,
+        session,
+      );
+      
+      // Cascade points to all questions in the bank
+      if (questionBank.questions && questionBank.questions.length > 0) {
+        await this.questionBankRepository.updateQuestionsPoints(
+          questionBankId,
+          points,
+          session,
+        );
+      }
+      
+      return updatedBank;
     });
   }
   async getBanksUsingQuestion(questionId): Promise<IQuestionBank[]> {

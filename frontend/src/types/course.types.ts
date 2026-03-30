@@ -76,6 +76,7 @@ export interface CourseSectionProps {
   completion?: CoursePctCompletion[];
   setCompletion?: (completion: CoursePctCompletion[]) => void;
   className?: string;
+  viewMode?: 'grid' | 'list';
 }
 
 export interface CourseInfo {
@@ -103,6 +104,7 @@ export type RawEnrollment = {
   courseId: { buffer: { data: number[] } }
   courseVersionId: { buffer: { data: number[] } }
   course?: components['schemas']['CourseDataResponse'] & { versionDetails?: components['schemas']['CourseVersionDataResponse'][] };
+  policyReacknowledgementRequired?: boolean;
 }
 
 export interface EnrolledUser {

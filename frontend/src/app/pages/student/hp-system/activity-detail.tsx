@@ -16,7 +16,7 @@ import {
     HelpCircle,
     Info
 } from "lucide-react";
-import { HpActivity } from "@/lib/api/hp-system";
+import { HpActivity, SubmissionField } from "@/lib/api/hp-system";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function StudentActivityDetail() {
@@ -34,8 +34,6 @@ export default function StudentActivityDetail() {
     const activity = activities?.find((a: HpActivity) => a._id === activityId);
     const { data: ruleConfig } = useHpRuleConfig(activity?._id);
 
-    console.log('Activity: ', activity)
-
     // Submit dialog state
     const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
     const [textResponse, setTextResponse] = useState("");
@@ -43,6 +41,18 @@ export default function StudentActivityDetail() {
     const [files, setFiles] = useState<File[]>([]);
     const [images, setImages] = useState<File[]>([]);
     const [submitError, setSubmitError] = useState<string | null>(null);
+
+    const validation: SubmissionField[] = ruleConfig?.submissionValidation ?? [SubmissionField.TEXT];
+
+    const isTextRequired = validation.includes(SubmissionField.TEXT);
+    const isPdfRequired = validation.includes(SubmissionField.PDF);
+    const isImageRequired = validation.includes(SubmissionField.IMAGE);
+    const isUrlRequired = validation.includes(SubmissionField.URL);
+    const isValidSubmission =
+        (!isTextRequired || textResponse.trim()) &&
+        (!isPdfRequired || files.length > 0) &&
+        (!isImageRequired || images.length > 0) &&
+        (!isUrlRequired || links.some(l => l.url.trim()));
 
     const formatDate = (dateString: string) => {
         try {
@@ -85,6 +95,26 @@ export default function StudentActivityDetail() {
         //     setSubmitError("Please provide a text response AND at least one attachment (file, image, or link).");
         //     return;
         // }
+
+        if (isTextRequired && !textResponse.trim()) {
+            setSubmitError("Text response is required");
+            return;
+        }
+
+        if (isPdfRequired && files.length === 0) {
+            setSubmitError("At least one PDF file is required");
+            return;
+        }
+
+        if (isImageRequired && images.length === 0) {
+            setSubmitError("At least one image is required");
+            return;
+        }
+
+        if (isUrlRequired && validLinks.length === 0) {
+            setSubmitError("At least one URL is required");
+            return;
+        }
 
         try {
             await submitActivity({
@@ -806,7 +836,14 @@ export default function StudentActivityDetail() {
                         <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto px-1">
                             <div className="space-y-2">
                                 <Label htmlFor="textResponse" className="flex justify-between items-center">
-                                    <span>Your Response</span>
+                                    <span>
+                                        Your Response{" "}
+                                        {isTextRequired ? (
+                                        <span className="text-red-500">*</span>
+                                        ) : (
+                                        <span className="text-xs text-muted-foreground">(optional)</span>
+                                        )}
+                                    </span>
                                     <span className={`text-[10px] font-medium ${textResponse.length > 5000 ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
                                         {textResponse.length}/5000 characters
                                     </span>
@@ -825,7 +862,14 @@ export default function StudentActivityDetail() {
                             </div>
 
                             <div className="space-y-3">
-                                <Label>Files (PDF only)</Label>
+                                <Label>
+                                    Files (PDF only){" "}
+                                    {isPdfRequired ? (
+                                        <span className="text-red-500">*</span>
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground">(optional)</span>
+                                    )}
+                                </Label>
                                 <Input
                                     type="file"
                                     accept=".pdf"
@@ -858,7 +902,14 @@ export default function StudentActivityDetail() {
                             </div>
 
                             <div className="space-y-3">
-                                <Label>Images (JPG, PNG)</Label>
+                                <Label>
+                                    Images{" "}
+                                    {isImageRequired ? (
+                                        <span className="text-red-500">*</span>
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground">(optional)</span>
+                                    )}
+                                </Label>
                                 <Input type="file" accept="image/*" multiple onChange={(e) => {
                                     if (e.target.files) setImages((prev) => [...prev, ...Array.from(e.target.files as FileList)]);
                                 }} disabled={isSubmitting} />
@@ -877,7 +928,14 @@ export default function StudentActivityDetail() {
 
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
-                                    <Label>Links</Label>
+                                    <Label>
+                                        Links{" "}
+                                        {isUrlRequired ? (
+                                            <span className="text-red-500">*</span>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">(optional)</span>
+                                        )}
+                                    </Label>
                                     <Button type="button" variant="outline" size="sm" onClick={addLink} disabled={isSubmitting}>
                                         <Plus className="h-4 w-4 mr-1" /> Add Link
                                     </Button>
@@ -906,7 +964,7 @@ export default function StudentActivityDetail() {
 
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setSubmitDialogOpen(false)} disabled={isSubmitting}>Cancel</Button>
-                            <Button onClick={handleSubmit} disabled={isSubmitting || !textResponse.trim() || textResponse.length > 5000}>
+                            <Button onClick={handleSubmit} disabled={isSubmitting || !isValidSubmission || textResponse.length > 5000} >
                                 {isSubmitting ? (
                                     <><Loader2 className="h-4 w-4 animate-spin mr-2" />Submitting...</>
                                 ) : (

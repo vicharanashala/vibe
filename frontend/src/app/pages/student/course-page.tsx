@@ -91,6 +91,7 @@ export default function CoursePage() {
     };
   }, []);
   const [attemptId, setAttemptId] = useState<string | null>(null);
+  const [showPolicies, setShowPolicies] = useState(false)
   // Dialog state for proctoring declaration
   const [showProctorDialog, setShowProctorDialog] = useState(true);
   const { user } = useAuthStore();
@@ -220,7 +221,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
   // Fetch course version data
   const { data: courseVersionData, isLoading: versionLoading, error: versionError, refetch: refetchVersion } =
-    useCourseVersionById(VERSION_ID);
+    useCourseVersionById(VERSION_ID, undefined, COHORT_ID);
 
   // Fetch user progress
   const { data: progressData, isLoading: progressLoading, error: progressError } =
@@ -415,6 +416,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
       if (allProctorsDisabled) {
         setShowProctorDialog(false);
         setAllProctorsDisabled(true);
+        setReadyToDetect(true);
       }
     }
     fetch();
@@ -1146,9 +1148,9 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
               requestAnimationFrame(frame);
             };
             frame();
+            setTimeout(() => router.navigate({ to: "/student" }), 3500);
           }
 
-          setTimeout(() => router.navigate({ to: "/student" }), 3500);
           // Recalcualate and update the progress % and completed items count properly
           await recalculateStudentProgressAsync({
             body: {
@@ -1454,10 +1456,10 @@ useEffect(() => {
   const next = findNextItem();
   if (next) return; // not the last item
   // Small delay so the learner briefly sees the item before redirect
-  const timer = setTimeout(() => {
-    router.navigate({ to: '/student' });
-  }, 2000);
-  return () => clearTimeout(timer);
+  // const timer = setTimeout(() => {
+  //   router.navigate({ to: '/student' });
+  // }, 2000);
+  // return () => clearTimeout(timer);
 }, [currentItem, findNextItem, router]);
 
 

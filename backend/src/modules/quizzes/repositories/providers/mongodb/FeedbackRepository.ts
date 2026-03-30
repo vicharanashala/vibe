@@ -73,6 +73,21 @@ class FeedbackRepository {
     );
   }
 
+  async getAllByUserAndVersionId(
+    userId: string,
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<FeedbackSubmissionItem[]> {
+    await this.init();
+    return await this.feedbackSubmissionCollection.find(
+      {
+        userId: new ObjectId(userId),
+        courseVersionId: new ObjectId(versionId),
+      },
+      {session},
+    ).toArray();
+  }
+
   async createFeedback(
     feedback: FeedbackSubmissionItem,
     session?: ClientSession,

@@ -50,7 +50,7 @@ export interface QuestionBody {
     }>;
     hint?: string;
     timeLimitSeconds: number;
-    points: number;
+    points?: number;
     priority: 'LOW' | 'MEDIUM' | 'HIGH';
   };
   solution: any; // Union type based on question type
@@ -172,6 +172,7 @@ export interface EditQuestionBankBody {
   count: number;
   difficulty?: string[];
   tags?: string[];
+  points?: number;
 }
 
 export interface GetUserMatricesParams {
@@ -362,6 +363,7 @@ export function useAnomaliesByCourseItem(
   page: number;
   totalPages: number;
   cohort?: string;
+  isRefetching: boolean;
 } {
   const result: any = api.useQuery(
     "get",
@@ -402,7 +404,8 @@ export function useAnomaliesByCourseItem(
     refetch: result.refetch,
     total,
     page,
-    totalPages
+    totalPages,
+    isRefetching: result.isRefetching,
   };
 }
 
@@ -527,7 +530,7 @@ export function useCreateCourse(): {
   };
 }
 
-export async function useProcessInvites(inviteId: string, action: "ACCEPT" | "REJECTED" = "ACCEPT",
+export async function processInviteApi(inviteId: string, action: "ACCEPT" | "REJECTED" = "ACCEPT", policyAcknowledged: boolean = false
 
 ): Promise<{
   data: null,
@@ -537,10 +540,11 @@ export async function useProcessInvites(inviteId: string, action: "ACCEPT" | "RE
 }> {
   let isLoading = true;
   const baseUrl = `${import.meta.env.VITE_BASE_URL}/notifications/invite/${inviteId}`;
-  const url =
-    action === "REJECTED"
-      ? `${baseUrl}?action=REJECTED`
-      : baseUrl;
+  const params = new URLSearchParams();
+  if (action === "REJECTED") params.set("action", "REJECTED");
+  if (policyAcknowledged) params.set("policyAcknowledged", "true");
+  const queryString = params.toString();
+  const url = queryString ? `${baseUrl}?${queryString}` : baseUrl;
 
   const res = await fetch(url, {
     method: "POST",
@@ -796,7 +800,11 @@ export function useCreateCourseVersion(): {
 
 
 // GET /courses/versions/{id}
-export function useCourseVersionById(id: string, enabled?: boolean): {
+export function useCourseVersionById(
+  id: string,
+  enabled?: boolean,
+  cohortId?: string,
+): {
   data: components['schemas']['CourseVersionDataResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -808,7 +816,10 @@ export function useCourseVersionById(id: string, enabled?: boolean): {
     : undefined;
 
   const result = api.useQuery("get", "/courses/versions/{id}", {
-    params: { path: { id } }
+    params: {
+      path: { id },
+      ...(cohortId ? { query: { cohortId } } : {}),
+    }
   }, enabledOptions
   );
 
@@ -880,7 +891,7 @@ export function useCourseVersionCohorts(
   page: number = 1,
   limit: number = 10,
   search: string = "",
-  sortBy: 'name' | 'createdAt' | 'updatedAt',
+  sortBy: 'name' | 'createdAt' | 'updatedAt' | 'baseHp' | 'safeHp',
   sortOrder: 'asc' | 'desc' = 'desc',
   // enabled: boolean = true,
   // filter: 'STUDENT' | 'OTHER',
@@ -890,7 +901,8 @@ export function useCourseVersionCohorts(
   data: CohortsResponse | undefined,
   isLoading: boolean,
   error: string | null,
-  refetch: () => void
+  refetch: () => void,
+  isRefetching: boolean
 } {
 
   const result = api.useQuery(
@@ -910,6 +922,7 @@ export function useCourseVersionCohorts(
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch course version enrollments') : null,
     refetch: result.refetch,
+    isRefetching: result.isRefetching,
   };
 }
 
@@ -943,8 +956,8 @@ export function useCreateCohort(): {
 }
 
 export function useUpdateCohort(): {
-  mutate: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: { newCohortName?: string, isPublic?: boolean } }) => void,
-  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: { newCohortName?: string, isPublic?: boolean } }) => Promise<CohortsResponse>,
+  mutate: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: { newCohortName?: string, isPublic?: boolean, isActive?: boolean, baseHp?: number, safeHp?: number } }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: { newCohortName?: string, isPublic?: boolean, isActive?: boolean, baseHp?: number, safeHp?: number } }) => Promise<CohortsResponse>,
   data: CohortsResponse | undefined,
   error: string | null,
   isPending: boolean,
@@ -966,7 +979,7 @@ export function useUpdateCohort(): {
     reset: result.reset,
     status: result.status,
     error: result.error
-      ? result.error.message || "Create cohort failed"
+      ? result.error.message || "Update cohort failed"
       : null
   };
 }
@@ -996,7 +1009,7 @@ export function useDeleteCohort(): {
     reset: result.reset,
     status: result.status,
     error: result.error
-      ? result.error.message || "Create cohort failed"
+      ? result.error.message || "Delete cohort failed"
       : null
   };
 }
@@ -1592,7 +1605,8 @@ export function useUserEnrollments(page?: number, limit?: number, enabled: boole
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
-  refetch: () => void
+  refetch: () => void,
+  isRefetching: boolean
 } {
   const result = api.useQuery("get", "/users/enrollments", {
     params: {
@@ -1605,7 +1619,8 @@ export function useUserEnrollments(page?: number, limit?: number, enabled: boole
     data: result.data,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch user enrollments') : null,
-    refetch: result.refetch
+    refetch: result.refetch,
+    isRefetching: result.isRefetching,
   };
 }
 
@@ -1704,7 +1719,8 @@ export function useCourseVersionEnrollments(
   data: components['schemas']['CourseVersionEnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
-  refetch: () => void
+  refetch: () => void,
+  isRefetching: boolean
 } {
   const result = api.useQuery(
     "get",
@@ -1723,6 +1739,7 @@ export function useCourseVersionEnrollments(
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch course version enrollments') : null,
     refetch: result.refetch,
+    isRefetching: result.isRefetching,
   };
 }
 
@@ -2102,7 +2119,8 @@ export function usePublicCourses(
   data: { courses: any[]; currentPage: number; totalPages: number; totalDocuments: number } | undefined,
   isLoading: boolean,
   error: string | null,
-  refetch: () => void
+  refetch: () => void,
+  isRefetching: boolean
 } {
   const result = api.useQuery(
     "get",
@@ -2122,7 +2140,8 @@ export function usePublicCourses(
     data: result.data,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch public courses') : null,
-    refetch: result.refetch
+    refetch: result.refetch,
+    isRefetching: result.isRefetching,
   };
 }
 
@@ -2149,7 +2168,8 @@ export function useCourseInvites(courseId: string, courseVersionId: string, enab
   data: InviteResponse | undefined,
   isLoading: boolean,
   error: string | null,
-  refetch: () => void
+  refetch: () => void,
+  isRefetching: boolean
 } {
   const queryParams: any = { search, currentPage, limit };
   if (sort) queryParams.sort = sort;
@@ -2166,7 +2186,8 @@ export function useCourseInvites(courseId: string, courseVersionId: string, enab
     data: result.data,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch course invites') : null,
-    refetch: result.refetch
+    refetch: result.refetch,
+    isRefetching: result.isRefetching,
   };
 }
 
@@ -2210,14 +2231,14 @@ export function useCancelInvite(): {
 
 // GET /users/{id}/watchTime/item/itemId
 
-export function useWatchTimeByItemId(userId: string, courseId: string, courseVersionId: string, itemId: string, type: string): {
+export function useWatchTimeByItemId(userId: string, courseId: string, courseVersionId: string, itemId: string, type: string, cohortId?: string): {
   data: undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
   const result = api.useQuery("get", "/users/{id}/watchTime/course/{courseId}/version/{courseVersionId}/item/{itemId}/type/{type}", {
-    params: { path: { id: userId, courseId: courseId, courseVersionId: courseVersionId, itemId: itemId, type: type } }
+    params: { path: { id: userId, courseId: courseId, courseVersionId: courseVersionId, itemId: itemId, type: type }, query: { cohortId } }
   }, { enabled: !!userId && !!itemId && !!type },);
 
   return {
@@ -2263,6 +2284,27 @@ export function useWatchtimeTotal(): {
     refetch: result.refetch
   };
 }
+
+// GenAI hook;
+// GET  /:id/tasks/:type/status
+export function useGenAIResponse():{
+  data: any;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery("get", "/{id}/tasks/{type}/status" as any, {
+    params: { path: {id, type} }
+  })
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch GenAI response') : null,
+    refetch: result.refetch
+  }
+}
+
+
 
 
 // --- AnomalyController Hooks ---
@@ -2491,6 +2533,9 @@ export interface AddFeedbackBody {
 export interface GetAllQuestionBanksResponse extends Array<{
   questionBankId: string;
   questionsCount?: number;
+  title?: string;
+  description?: string;
+  points?: number;
 }> { }
 
 // Attempt types
@@ -2628,7 +2673,8 @@ interface IAttemptDetails {
 // GET /quizzes/{quizId}/user/{userId}
 export function useUserQuizMetrics(
   quizId: string,
-  userId: string
+  userId: string,
+  cohortId?: string
 ): {
   data: UserQuizMetricsResponse | undefined;
   isLoading: boolean;
@@ -2639,7 +2685,7 @@ export function useUserQuizMetrics(
     "get",
     "/quizzes/quiz/{quizId}/user/{userId}",
     {
-      params: { path: { quizId, userId } },
+      params: { path: { quizId, userId }, query: { cohortId } },
     },
     {
       enabled: !!quizId && !!userId,
@@ -3307,7 +3353,8 @@ export function useGetReports(courseId: string, versionId: string, limit = 10, c
     data: IReport[],
     isLoading: boolean,
     error: string | null,
-    refetch: () => void
+    refetch: () => void,
+    isRefetching: boolean
   } {
 
   const result = api.useQuery(
@@ -4084,6 +4131,7 @@ export const useGetCourseIssueReports = (
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
+  isRefetching: boolean;
 } => {
   const result = api.useQuery(
     "get",
@@ -4105,6 +4153,7 @@ export const useGetCourseIssueReports = (
       ? result.error.message || "Failed to fetch issue reports"
       : null,
     refetch: result.refetch,
+    isRefetching: result.isRefetching,
   };
 };
 
@@ -4453,6 +4502,8 @@ export interface LeaderboardEntry {
   completionPercentage: number;
   completedAt: Date | null;
   rank: number;
+  completedCount?: number;
+  score?: number;
 }
 
 export const useLeaderboard = (
@@ -4461,14 +4512,15 @@ export const useLeaderboard = (
   page: number,
   limit: number = 10,
   enabled: boolean = true,
+  cohortId?: string
 ) => {
   const authToken = localStorage.getItem('firebase-auth-token');
 
   const result = useQuery({
-    queryKey: ['leaderboard', courseId, versionId, page, limit],
+    queryKey: ['leaderboard', courseId, versionId, page, limit, cohortId],
     queryFn: async () => {
       const response = await fetch(
-        `${import.meta.env.VITE_BASE_URL}/users/progress/courses/${courseId}/versions/${versionId}/leaderboard?page=${page}&limit=${limit}`,
+        `${import.meta.env.VITE_BASE_URL}/users/progress/courses/${courseId}/versions/${versionId}/leaderboard?page=${page}&limit=${limit}${cohortId ? `&cohortId=${cohortId}` : ''}`,
         {
           method: 'GET',
           headers: {
@@ -4571,8 +4623,8 @@ export const useHideSection = (): {
 }
 
 export const useHideItem = (): {
-  mutate: (variables: { params: { path: { versionId: string, itemId: string } }, body: { hide: boolean } }) => void,
-  mutateAsync: (variables: { params: { path: { versionId: string, itemId: string } }, body: { hide: boolean } }) => Promise<void>,
+  mutate: (variables: { params: { path: {courseId: string, versionId: string, itemId: string } }, body: { hide: boolean } }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, itemId: string } }, body: { hide: boolean } }) => Promise<void>,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
@@ -4582,7 +4634,7 @@ export const useHideItem = (): {
   status: 'idle' | 'pending' | 'success' | 'error'
 } => {
 
-  const result = api.useMutation('put', '/courses/versions/{versionId}/items/{itemId}/toggle-visibility');
+  const result = api.useMutation('put', '/courses/{courseId}/versions/{versionId}/items/{itemId}/toggle-visibility');
   return {
     ...result,
     error: result.error ? (result?.error?.message || 'Failed to hide/unhide item') : null
@@ -5139,6 +5191,7 @@ export function useHpStudentCohorts() {
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,
+    isRefetching: query.isRefetching,
   };
 }
 
@@ -5159,6 +5212,7 @@ export function useHpStudentActivities(courseVersionId: string, cohortName: stri
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,
+    isRefetching: query.isRefetching,
   };
 }
 
@@ -5253,6 +5307,7 @@ export function useHpActivities(
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,
+    isRefetching: query.isRefetching,
   };
 }
 
@@ -5399,13 +5454,26 @@ export function useCreateHpRuleConfig() {
   };
 }
 
+export function useCreateActivityWithRule() {
+  return useMutation({
+    mutationFn: async (payload: {
+      activity: CreateHpActivityPayload;
+      ruleConfig: Partial<HpRuleConfig>;
+    }) => {
+      const res = await hpApi.createActivityWithRule(payload);
+      if (!res.success) throw res;
+      return res.data;
+    },
+  });
+}
+
 export function useUpdateHpRuleConfig() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async ({ ruleConfigId, updates }: { ruleConfigId: string, updates: Partial<HpRuleConfig> }) => {
       console.log("Updating rule config with ID:", ruleConfigId, "and updates:", updates);
       const res = await hpApi.updateRuleConfig(ruleConfigId, updates);
-      if (!res.success) throw new Error(res.message || 'Failed to update rule config');
+      if (!res.success) throw res;
       return res.data;
     },
     onSuccess: () => {
@@ -5420,11 +5488,16 @@ export function useUpdateHpRuleConfig() {
   };
 }
 
-export function useHpStudents(courseVersionId: string, cohort: string) {
+export function useHpStudents(courseVersionId: string, cohort: string, params?: {
+    page: number;
+    limit: number;
+    search: string;
+    status: "ALL" | "SAFE" | "UNSAFE";
+  }) {
   const query = useQuery({
-    queryKey: ['hp-students', courseVersionId, cohort],
+    queryKey: ['hp-students', courseVersionId, cohort, params],
     queryFn: async () => {
-      const res = await hpApi.getStudents(courseVersionId, cohort);
+      const res = await hpApi.getStudents(courseVersionId, cohort, params);
       if (!res.success) throw new Error(res.message || 'Failed to load students');
       return res.data;
     },
@@ -5437,6 +5510,7 @@ export function useHpStudents(courseVersionId: string, cohort: string) {
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,
+    isRefetching: query.isRefetching,
   };
 }
 
@@ -5463,6 +5537,7 @@ export function useHpStudentLedger(
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,
+    isRefetching: query.isRefetching,
   };
 }
 
@@ -5488,6 +5563,7 @@ export function useMyHpLedger(
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,
+    isRefetching: query.isRefetching,
   };
 }
 

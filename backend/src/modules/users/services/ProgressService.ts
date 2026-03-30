@@ -1,10 +1,10 @@
-import {Item, ItemsGroup} from '#courses/classes/transformers/Item.js';
-import {COURSES_TYPES} from '#courses/types.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { Item, ItemsGroup } from '#courses/classes/transformers/Item.js';
+import { COURSES_TYPES } from '#courses/types.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   ICourseVersion,
   IWatchTime,
@@ -13,22 +13,22 @@ import {
   IBlogDetails,
   ICurrentProgressPath,
 } from '#root/shared/interfaces/models.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {ProgressRepository} from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
-import {Progress} from '#users/classes/transformers/Progress.js';
-import {USERS_TYPES} from '#users/types.js';
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId} from 'mongodb';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { ProgressRepository } from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
+import { Progress } from '#users/classes/transformers/Progress.js';
+import { USERS_TYPES } from '#users/types.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId } from 'mongodb';
 import {
   NotFoundError,
   BadRequestError,
   InternalServerError,
   ForbiddenError,
 } from 'routing-controllers';
-import {SubmissionRepository} from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
-import {QUIZZES_TYPES} from '#quizzes/types.js';
-import {WatchTime} from '../classes/transformers/WatchTime.js';
-import {ISettingRepository} from '#shared/index.js';
+import { SubmissionRepository } from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
+import { QUIZZES_TYPES } from '#quizzes/types.js';
+import { WatchTime } from '../classes/transformers/WatchTime.js';
+import { ISettingRepository } from '#shared/index.js';
 import {
   CompletedProgressResponse,
   GetLeaderboardResponse,
@@ -38,14 +38,17 @@ import {
   QuizRepository,
   UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
-import {EnrollmentRepository} from '#root/shared/index.js';
-import {PROJECTS_TYPES} from '#root/modules/projects/types.js';
-import {IProjectSubmissionRepository} from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
-import {FeedbackRepository} from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
-import {GetCurrentProgressPathResponse} from '../classes/dtos/GetCurrentProgressPathResponse.js';
-import {SETTING_TYPES} from '#root/modules/setting/types.js';
-import {CourseSettingService} from '#root/modules/setting/index.js';
-import {getContainer} from '#root/bootstrap/loadModules.js';
+import { EnrollmentRepository } from '#root/shared/index.js';
+import { PROJECTS_TYPES } from '#root/modules/projects/types.js';
+import { IProjectSubmissionRepository } from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
+import { FeedbackRepository } from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
+import { GetCurrentProgressPathResponse } from '../classes/dtos/GetCurrentProgressPathResponse.js';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import { CourseSettingService } from '#root/modules/setting/index.js';
+import { getContainer } from '#root/bootstrap/loadModules.js';
+
+const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
+const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
 
 @injectable()
 class ProgressService extends BaseService {
@@ -93,12 +96,42 @@ class ProgressService extends BaseService {
     super(database);
   }
 
+  public async calculateGuruSetuProgress(
+    userId: string,
+    courseVersionId: string,
+  ): Promise<{ percentCompleted: number; completedItemsCount: number }> {
+    const feedbackItems = await this.itemRepo.getFeedbackItems(courseVersionId);
+    const totalFeedbackItems = feedbackItems.length;
+
+    if (totalFeedbackItems === 0) return { percentCompleted: 0, completedItemsCount: 0 };
+
+    const feedbackSubmissions = await this.feedbackRepository.getAllByUserAndVersionId(
+      userId,
+      courseVersionId,
+    );
+
+    const submittedItemIds = new Set(
+      feedbackSubmissions.map(s => s.feedbackFormId.toString())
+    );
+
+    const completedCount = feedbackItems.filter(item =>
+      submittedItemIds.has(item._id.toString())
+    ).length;
+
+    const percentCompleted = parseFloat(((completedCount / totalFeedbackItems) * 100).toFixed(2));
+
+    return {
+      percentCompleted,
+      completedItemsCount: completedCount,
+    };
+  }
+
   /**
    * Initialize student progress tracking to the first item in the course.
    * Private helper method for the enrollment process.
    */
 
-  private getFirstByOrder<T extends {order?: string}>(arr?: T[]): T | null {
+  private getFirstByOrder<T extends { order?: string }>(arr?: T[]): T | null {
     if (!arr?.length) return null;
 
     return arr.reduce((min, curr) => {
@@ -147,7 +180,7 @@ class ProgressService extends BaseService {
       }
     }
 
-    return {itemIds, quizItemIds};
+    return { itemIds, quizItemIds };
   }
 
   private async clearWatchTime(
@@ -157,7 +190,7 @@ class ProgressService extends BaseService {
   ) {
     if (!itemIds.length) return 0;
 
-    const {deletedCount} =
+    const { deletedCount } =
       await this.progressRepository.deleteUserWatchTimeByItemIds(
         userId,
         itemIds,
@@ -382,17 +415,37 @@ class ProgressService extends BaseService {
     completedItemCount?: number,
     cohort?: string,
   ): Promise<void> {
-    const enrollment = await this.enrollmentRepo.findEnrollment(
+    let enrollment = await this.enrollmentRepo.findEnrollment(
       userId,
       courseId,
       courseVersionId,
       cohort,
       session
     );
-    if (!enrollment) throw new NotFoundError('User has no enrollments');
+
+    if (!enrollment) {
+      if (isReset) return;
+      throw new NotFoundError('User has no enrollments');
+    }
 
     let percentCompleted = 0;
     let totalCompletedItemsCount = 0;
+
+    // Guru Setu Progress Override
+    if (courseId?.toString() === GURU_SETU_COURSE_ID && courseVersionId?.toString() === GURU_SETU_VERSION_ID) {
+      const guruProgress = await this.calculateGuruSetuProgress(userId, courseVersionId);
+      percentCompleted = guruProgress.percentCompleted;
+      totalCompletedItemsCount = guruProgress.completedItemsCount;
+
+      await this.enrollmentRepo.updateProgressPercentById(
+        enrollment._id.toString(),
+        percentCompleted,
+        totalCompletedItemsCount,
+        cohort,
+        session,
+      );
+      return;
+    }
 
     if (!isReset) {
       // const totalItems =
@@ -413,7 +466,7 @@ class ProgressService extends BaseService {
       //   ));
       const [totalItems, completedItems] = await Promise.all([
         totalItemCount ??
-          this.itemRepo.getTotalItemsCount(courseId, courseVersionId, session),
+        this.itemRepo.getTotalItemsCount(courseId, courseVersionId, session),
         completedItemCount ??
         this.getUserProgressPercentageWithoutTotal(
           userId,
@@ -459,6 +512,17 @@ class ProgressService extends BaseService {
 
         const completedItems = enrollment.completedItemsCount;
 
+        let percentCompleted = this._calculateProgress(
+          totalItems,
+          completedItems,
+        );
+
+        // Guru Setu Override
+        if (courseId?.toString() === GURU_SETU_COURSE_ID && versionId?.toString() === GURU_SETU_VERSION_ID) {
+          const guruProgress = await this.calculateGuruSetuProgress(userId, versionId);
+          percentCompleted = guruProgress.percentCompleted;
+        }
+
         return {
           updateOne: {
             filter: {
@@ -468,10 +532,7 @@ class ProgressService extends BaseService {
             },
             update: {
               $set: {
-                percentCompleted: this._calculateProgress(
-                  totalItems,
-                  completedItems,
-                ),
+                percentCompleted,
                 updatedAt: new Date(),
               },
             },
@@ -1012,7 +1073,7 @@ class ProgressService extends BaseService {
     currentItemId: string,
     quizMetrics: any,
     enrollment: any,
-  ): Promise<{nextItemId?: string}> {
+  ): Promise<{ nextItemId?: string }> {
     try {
       if (quizMetrics?.remainingAttempts !== 0) {
         return {}; // No permission update needed
@@ -1040,7 +1101,7 @@ class ProgressService extends BaseService {
       const nextItem = items[currentIndex + 1];
 
       if (nextItem && nextItem?._id) {
-        return {nextItemId: nextItem?._id?.toString()};
+        return { nextItemId: nextItem?._id?.toString() };
       }
 
       // No next item → check next section/module
@@ -1064,7 +1125,7 @@ class ProgressService extends BaseService {
         throw new NotFoundError('Invalid course version');
       }
 
-      const {moduleId, sectionId} = groupInfo;
+      const { moduleId, sectionId } = groupInfo;
       if (!moduleId || !sectionId) {
         throw new NotFoundError(
           'Invalid course mapping: Module or Section missing',
@@ -1079,7 +1140,7 @@ class ProgressService extends BaseService {
       );
 
       if (nextItemDetails?.itemId) {
-        return {nextItemId: nextItemDetails.itemId.toString()};
+        return { nextItemId: nextItemDetails.itemId.toString() };
       }
 
       return {};
@@ -1138,7 +1199,7 @@ class ProgressService extends BaseService {
     );
 
     if (!isBlank) {
-      return {moduleId, sectionId, itemId, skippedBlankQuizIds};
+      return { moduleId, sectionId, itemId, skippedBlankQuizIds };
     }
 
     // Blank quiz → auto-skip
@@ -1435,7 +1496,7 @@ class ProgressService extends BaseService {
       };
     }
 
-    const {currentModule, currentSection, currentItem} = progress;
+    const { currentModule, currentSection, currentItem } = progress;
 
     try {
       const module = await this.courseRepo.getModulebyId(
@@ -1458,7 +1519,7 @@ class ProgressService extends BaseService {
 
       if (!section) {
         return {
-          module: {id: module.moduleId.toString(), name: module.name},
+          module: { id: module.moduleId.toString(), name: module.name },
           section: null,
           item: null,
           message: 'Section not found',
@@ -1472,8 +1533,8 @@ class ProgressService extends BaseService {
       );
 
       return {
-        module: {id: module.moduleId.toString(), name: module.name},
-        section: {id: section.sectionId.toString(), name: section.name},
+        module: { id: module.moduleId.toString(), name: module.name },
+        section: { id: section.sectionId.toString(), name: section.name },
         item: {
           id: itemDetails?._id?.toString() || currentItem.toString(),
           name: itemDetails?.name || 'Unknown Item',
@@ -1542,7 +1603,7 @@ class ProgressService extends BaseService {
 
       return {
         completed: progress.completed,
-        percentCompleted: enrollment.percentCompleted,
+        percentCompleted: Math.min(100, enrollment.percentCompleted),
         totalItems,
         completedItems: completedItemsSet.size,
       };
@@ -1597,12 +1658,17 @@ class ProgressService extends BaseService {
     itemId: string,
     cohortId?: string,
   ): Promise<string> {
+    // Guru Setu Progress Override
+    if (courseId?.toString() === GURU_SETU_COURSE_ID && courseVersionId?.toString() === GURU_SETU_VERSION_ID) {
+      await this.updateEnrollmentProgressPercent(userId, courseId, courseVersionId, undefined, false, undefined, undefined, cohortId);
+    }
+
     // console.log(`Starting item tracking for user ${userId}, course ${courseId}, version ${courseVersionId}, item ${itemId}, cohort ${cohortId}`);
     return this._withTransaction(async session => {
 
-      const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId);
-      
-      if(versionStatus==="archived"){
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(courseVersionId);
+
+      if (versionStatus === "archived") {
         throw new ForbiddenError("This course version is inactive, you can't start item");
       }
       // Check if item is already completed before creating watchTime
@@ -1657,7 +1723,7 @@ class ProgressService extends BaseService {
           courseId,
           courseVersionId,
         );
-      if (!linearProgressionEnabled) {
+      if (!linearProgressionEnabled && (courseId?.toString() !== GURU_SETU_COURSE_ID || courseVersionId?.toString() !== GURU_SETU_VERSION_ID)) {
         const newProgress: Partial<IProgress> = {
           completed: isItemCompleted,
           currentModule: moduleId,
@@ -1962,6 +2028,13 @@ class ProgressService extends BaseService {
     nextItemId?: string,
     cohortId?: string,
   ): Promise<void> {
+    // Guru Setu Progress Override - The progress update is solely determined by 
+    // the completion of feedback forms, which is handled in updateEnrollmentProgressPercent.
+    // However, we still want to allow the user to advance through the course items normally.
+    // If the user wants to bypass the updateProgress call entirely, they can, but a partial bypass
+    // might be better if they still want to track "currentItem".
+    // According to the requirement: "Disable or bypass the updateProgress call".
+
     // console.log(`Stopping item tracking for user ${userId}, course ${courseId}, version ${courseVersionId}, item ${itemId}, cohort ${cohortId}`);
     // Fetch course version, progress, item, and linear progression setting in parallel
     const [courseVersion, progress, item, linearProgressionEnabled] = await Promise.all([
@@ -1977,10 +2050,10 @@ class ProgressService extends BaseService {
     if (!progress) throw new NotFoundError('Progress not found');
     if (!item) throw new NotFoundError('Item not found');
 
-    const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId);
-      
-    if(versionStatus==="archived"){
-        throw new ForbiddenError("This course version is inactive, you can't stop item");
+    const versionStatus = await this.courseRepo.getCourseVersionStatus(courseVersionId);
+
+    if (versionStatus === "archived") {
+      throw new ForbiddenError("This course version is inactive, you can't stop item");
     }
 
     /**
@@ -2010,7 +2083,11 @@ class ProgressService extends BaseService {
       // For non-quizzes, set endTime normally
       if (item.type !== 'QUIZ') {
         if (!isSkipped) {
-          stoppedWatchTime = await this.progressRepository.stopItemTracking(watchItemId, cohortId, session);
+          stoppedWatchTime = await this.progressRepository.stopItemTracking(
+            watchItemId,
+            cohortId,
+            session,
+          );
 
           if (!stoppedWatchTime) {
             throw new NotFoundError('Watch time not found or already stopped');
@@ -2153,7 +2230,11 @@ class ProgressService extends BaseService {
           };
         } else {
           // Quiz passed - set endTime, progress update is handled by the original logic above
-          await this.progressRepository.stopItemTracking(watchItemId, cohortId, session);
+          await this.progressRepository.stopItemTracking(
+            watchItemId,
+            cohortId,
+            session,
+          );
           shouldCountCurrentItemAsCompleted = true;
         }
       }
@@ -2170,7 +2251,7 @@ class ProgressService extends BaseService {
       );
       if (!enrollment) return;
 
-      const totalItems =
+      let totalItems =
         totalCourseItems;
 
       // Get completed items for progress calculation
@@ -2181,13 +2262,17 @@ class ProgressService extends BaseService {
           courseVersionId,
           cohortId,
         );
-      const completedItemsSet = new Set(
+      let completedItemsSet = new Set(
         completedItemsArray.map(id => id.toString()),
       );
       if (shouldCountCurrentItemAsCompleted) {
         completedItemsSet.add(itemId);
       }
-
+      // get hidden/deleted
+      const hiddenItems = await this.progressRepository.getHiddenOrDeletedItems(courseVersionId, session);
+      const hiddenSet = new Set(hiddenItems.map(i => i.itemId.toString()));
+      completedItemsSet = new Set(Array.from(completedItemsSet).filter(id => !hiddenSet.has(id)));
+      totalItems = totalItems - hiddenSet.size;
       const completedCourseItemsCount = Array.from(allCourseItemIdSet).filter(id =>
         completedItemsSet.has(id),
       ).length;
@@ -2197,26 +2282,45 @@ class ProgressService extends BaseService {
 
       const percentCompleted = Math.min(100, parseFloat(rawPercent.toFixed(2)));
 
-      await this.enrollmentRepo.updateProgressPercentById(
-        enrollment._id.toString(),
-        percentCompleted,
-        completedCourseItemsCount,
-        cohortId,
-      );
+      if (courseId?.toString() === GURU_SETU_COURSE_ID && courseVersionId?.toString() === GURU_SETU_VERSION_ID) {
+        const guruProgress = await this.calculateGuruSetuProgress(userId, courseVersionId);
+        await this.enrollmentRepo.updateProgressPercentById(
+          enrollment._id.toString(),
+          guruProgress.percentCompleted,
+          guruProgress.completedItemsCount,
+          cohortId,
+        );
+      } else {
+        await this.enrollmentRepo.updateProgressPercentById(
+          enrollment._id.toString(),
+          percentCompleted,
+          completedCourseItemsCount,
+          cohortId,
+        );
+      }
+
 
       if (percentCompleted > 99) {
-        await this.recalculateStudentProgress(userId, courseId, courseVersionId, cohortId);
+        await this.recalculateStudentProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          cohortId,
+        );
       }
 
       // Update progress in a transaction
-      await this.progressRepository.updateProgress( // pending
-        userId,
-        courseId,
-        courseVersionId,
-        newProgress,
-        cohortId,
-        session,
-      );
+      if (courseId !== GURU_SETU_COURSE_ID || courseVersionId !== GURU_SETU_VERSION_ID) {
+        await this.progressRepository.updateProgress( // pending
+          userId,
+          courseId,
+          courseVersionId,
+          newProgress,
+          cohortId,
+          session,
+        );
+      }
+
     });
   }
 
@@ -2518,7 +2622,7 @@ class ProgressService extends BaseService {
     );
 
     // Collect attemptIds to delete and bulk ops for all collections
-    const {attemptDeletes, metricsUpdates, submissionDeletes} =
+    const { attemptDeletes, metricsUpdates, submissionDeletes } =
       await this.progressRepository.prepareBulkQuizOperations(
         userId,
         quizItemIds,
@@ -2702,7 +2806,7 @@ class ProgressService extends BaseService {
         courseVersion,
         cohortId,
       );
-// console.log("Initialized progress for resetCourseProgress:", updatedProgress);
+      // console.log("Initialized progress for resetCourseProgress:", updatedProgress);
       // Collect itemsGroupIds from courseModules
       const itemsGroupIds: string[] = [];
       for (const module of courseVersion.modules || []) {
@@ -2756,12 +2860,12 @@ class ProgressService extends BaseService {
           : Promise.resolve(),
         projectItemIds.length
           ? this.resetUserProjectData(
-              userId,
-              projectItemIds,
-              courseVersionId,
-              session,
-              cohortId,
-            )
+            userId,
+            projectItemIds,
+            courseVersionId,
+            session,
+            cohortId,
+          )
           : Promise.resolve(),
       ]);
 
@@ -2799,15 +2903,6 @@ class ProgressService extends BaseService {
         this.verifyDetails(userId, courseId, courseVersionId),
         this.courseRepo.readVersion(courseVersionId),
       ]);
-
-      await this.enrollmentRepo.deleteEnrollment(
-        userId,
-        courseId,
-        courseVersionId,
-        enrollmentId,
-        cohortId,
-        session,
-      );
 
       // Collect quizItemIds and projectItemIds
       // const quizItemIds: string[] = [];
@@ -2883,12 +2978,12 @@ class ProgressService extends BaseService {
         //   : Promise.resolve(),
         projectItemIds.length
           ? this.resetUserProjectData(
-              userId,
-              projectItemIds,
-              courseVersionId,
-              session,
-              cohortId
-            )
+            userId,
+            projectItemIds,
+            courseVersionId,
+            session,
+            cohortId
+          )
           : Promise.resolve(),
       ]);
     });
@@ -2957,7 +3052,7 @@ class ProgressService extends BaseService {
 
       const itemsGroupIds = module.sections.map(s => s.itemsGroupId as string);
 
-      const {itemIds, quizItemIds} = await this.collectItemsFromGroups(
+      const { itemIds, quizItemIds } = await this.collectItemsFromGroups(
         itemsGroupIds,
         session,
       );
@@ -3033,7 +3128,7 @@ class ProgressService extends BaseService {
         cohort
       );
 
-      const {itemIds, quizItemIds} = await this.collectItemsFromGroups(
+      const { itemIds, quizItemIds } = await this.collectItemsFromGroups(
         [section.itemsGroupId as string],
         session,
       );
@@ -3168,6 +3263,7 @@ class ProgressService extends BaseService {
     itemId: string,
     courseId?: string,
     courseVersionId?: string,
+    cohortId?: string,
   ): Promise<WatchTime[]> {
     if (courseId && courseVersionId)
       await this.verifyDetails(userId, courseId, courseVersionId);
@@ -3176,6 +3272,7 @@ class ProgressService extends BaseService {
       itemId,
       courseId,
       courseVersionId,
+      cohortId,
     );
 
     if (!watchTime) {
@@ -3192,7 +3289,7 @@ class ProgressService extends BaseService {
     itemId: string,
     cohortId?: string,
     session?: ClientSession,
-  ): Promise<{message: String; alreadyCompleted: Boolean}> {
+  ): Promise<{ message: String; alreadyCompleted: Boolean }> {
     const item = await this.itemRepo.readItem(courseVersionId, itemId);
     if (!item) {
       throw new NotFoundError(`Item ${itemId} not found`);
@@ -3273,7 +3370,7 @@ class ProgressService extends BaseService {
         courseId,
         courseVersionId,
         cohortId,
-      session,
+        session,
       );
 
       if (!existingWatchTime || existingWatchTime.length === 0) {
@@ -3284,7 +3381,7 @@ class ProgressService extends BaseService {
           courseVersionId,
           itemId,
           cohortId,
-        session,
+          session,
         );
 
         if (!watchTimeId) {
@@ -3351,7 +3448,7 @@ class ProgressService extends BaseService {
         session,
       );
 
-      return {message: 'Course completed - reset to start', alreadyCompleted};
+      return { message: 'Course completed - reset to start', alreadyCompleted };
     }
 
     // Update progress to the next item
@@ -3387,6 +3484,7 @@ class ProgressService extends BaseService {
     courseVersionId: string,
     page: number = 1,
     limit: number = 10,
+    cohortId?: string,
   ): Promise<{
     data: Array<{
       userId: string;
@@ -3411,12 +3509,14 @@ class ProgressService extends BaseService {
       await this.progressRepository.getAllProgressForCourseVersion(
         courseId,
         courseVersionId,
+        cohortId,
       );
 
     // Get all enrollments to fetch completion percentages
     const enrollments = await this.enrollmentRepo.getEnrollmentsByCourseVersion(
       courseId,
       courseVersionId,
+      cohortId,
     );
 
     const enrollmentMap = new Map();
@@ -3445,7 +3545,7 @@ class ProgressService extends BaseService {
       userId: progress.userId?.toString(),
       userName: userMap.get(progress.userId?.toString()) || 'Unknown User',
       completionPercentage:
-        enrollmentMap.get(progress.userId?.toString())?.completionPercentage ||
+        Math.min(100, enrollmentMap.get(progress.userId?.toString())?.completionPercentage) ||
         0,
       completedAt:
         progress.completed && progress.completedAt
@@ -3485,6 +3585,7 @@ class ProgressService extends BaseService {
       ...student,
       rank: index + 1,
     }));
+    console.log(rankedLeaderboard[0])
 
     const myStats =
       rankedLeaderboard.find(entry => entry.userId === userId) || null;
@@ -3640,6 +3741,7 @@ class ProgressService extends BaseService {
         if (!group?.items) continue;
 
         for (const item of group.items) {
+          if (item.isHidden) continue; // skip hidden items
           moduleItemIds.push(item._id.toString());
         }
       }
@@ -3703,6 +3805,18 @@ class ProgressService extends BaseService {
       throw new NotFoundError('Enrollment not found');
     }
 
+    // Guru Setu Progress Override
+    if (courseId?.toString() === GURU_SETU_COURSE_ID && versionId?.toString() === GURU_SETU_VERSION_ID) {
+      const guruProgress = await this.calculateGuruSetuProgress(userId, versionId);
+      await this.enrollmentRepo.updateProgressPercentById(
+        enrollment._id!.toString(),
+        guruProgress.percentCompleted,
+        guruProgress.completedItemsCount,
+        cohortId,
+      );
+      return 'Progress recalculated successfully';
+    }
+
     let allRelevantItemIds: string[] = [];
 
     // If course is completed, we should check against ALL items, because currentItem reset to the start
@@ -3722,10 +3836,12 @@ class ProgressService extends BaseService {
     }
 
     const completedItemSet = new Set(completedItemIds);
-    const missedItemIds = allRelevantItemIds.filter(
+    let missedItemIds = allRelevantItemIds.filter(
       itemId => !completedItemSet.has(itemId),
     );
-
+    const hiddenItems = await this.progressRepository.getHiddenOrDeletedItems(versionId);
+    const hiddenSet = new Set(hiddenItems.map(i => i.itemId.toString()));
+    missedItemIds = missedItemIds.filter(itemId => !hiddenSet.has(itemId));
     // 3. Backfill missed watch-time records
     if (missedItemIds.length > 0) {
       await this.progressRepository.addBulkWatchTime(
@@ -3736,6 +3852,26 @@ class ProgressService extends BaseService {
         cohortId
       );
     }
+
+
+
+    ////////////////////////////////////// Handle if courVersion.totalItems if it is wrong ///////////////////////////////////////
+
+    const completedItemCount = enrollment.completedItemsCount ?? 0;
+
+    if (completedItemCount > 0 && courseVersion.totalItems != null) {
+      if (completedItemCount > courseVersion.totalItems) {
+        const actualTotalItemsCount = await this.itemRepo.CalculateTotalItemsCount(courseId, versionId);
+
+        if (actualTotalItemsCount) {
+          await this.courseRepo.updateTotalItemCount(versionId, actualTotalItemsCount);
+          courseVersion.totalItems = actualTotalItemsCount;
+        }
+
+      }
+    }
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
     // 4. Avoid recomputing totalItems if already stored
     const totalItemsCount =
@@ -3753,14 +3889,14 @@ class ProgressService extends BaseService {
     const percentCompleted =
       normalizedTotalItemsCount > 0
         ? Math.min(
-            parseFloat(
-              (
-                (totalCompletedItemsCount / normalizedTotalItemsCount) *
-                100
-              ).toFixed(2),
-            ),
-            100,
-          )
+          parseFloat(
+            (
+              (totalCompletedItemsCount / normalizedTotalItemsCount) *
+              100
+            ).toFixed(2),
+          ),
+          100,
+        )
         : 0;
 
     // 5. Update enrollment progress
@@ -3966,7 +4102,7 @@ class ProgressService extends BaseService {
         const fullName =
           `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
           'Unknown User';
-        userMap.set(user._id?.toString(), {name: fullName, email: user.email});
+        userMap.set(user._id?.toString(), { name: fullName, email: user.email });
       }
     }
 
@@ -3996,7 +4132,7 @@ class ProgressService extends BaseService {
         userName: user?.name || 'Unknown User',
         email: user?.email || 'No email',
 
-        completionPercentage: enrollment?.completionPercentage ?? 0,
+        completionPercentage: Math.min(100, enrollment?.completionPercentage) ?? 0,
 
         completedAt:
           progress.completed && progress.completedAt
@@ -4044,4 +4180,4 @@ class ProgressService extends BaseService {
   }
 }
 
-export {ProgressService};
+export { ProgressService };

@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, Award, BookOpen, Star } from "lucide-react";
+import { Users, Award, BookOpen, Star, AlertTriangle } from "lucide-react";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     AreaChart, Area, PieChart, Pie, Cell, Legend
@@ -39,6 +39,10 @@ const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 export default function OverviewTab() {
     return (
         <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center gap-2 rounded-md border px-4 py-2 text-amber-600 text-sm">
+                <AlertTriangle className="h-4 w-4" />
+                <p>The dashboard is currently under development. Displayed data may not be fully accurate.</p>
+            </div>
             {/* KPI Cards */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card className="bg-card/95 backdrop-blur-sm border border-border/50 hover:bg-accent/5 transition-colors">

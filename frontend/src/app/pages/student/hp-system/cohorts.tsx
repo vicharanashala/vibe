@@ -2,12 +2,12 @@ import { useHpStudentCohorts } from "@/hooks/hooks";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { BookOpen, ArrowRight, Trophy, CheckCircle2, LayoutDashboard, History } from "lucide-react";
+import { BookOpen, ArrowRight, Trophy, CheckCircle2, LayoutDashboard, History, RefreshCw } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function StudentCohorts() {
-    const { data: cohorts, totalHp, isLoading, error } = useHpStudentCohorts();
+    const { data: cohorts, totalHp, isLoading, error, refetch, isRefetching } = useHpStudentCohorts();
     const navigate = useNavigate();
 
     const getProgressColor = (progress: number) => {
@@ -62,14 +62,25 @@ export default function StudentCohorts() {
                         Select a cohort to view your activities, submissions, and current House Points (HP) standing.
                     </p>
                 </div>
-                <Button
-                    variant="outline"
-                    className="gap-2 shrink-0"
-                    onClick={() => navigate({ to: '/student/hp-system/ledger' as any })}
-                >
-                    <History className="h-4 w-4" />
-                    HP History
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refetch()}
+                        disabled={isRefetching}
+                    >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                        {isRefetching ? "Refreshing..." : "Refresh"}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        className="gap-2 shrink-0"
+                        onClick={() => navigate({ to: '/student/hp-system/ledger' as any })}
+                    >
+                        <History className="h-4 w-4" />
+                        HP History
+                    </Button>
+                </div>
             </div>
 
             {/* Mock Analytics Summary */}
@@ -106,7 +117,7 @@ export default function StudentCohorts() {
                     <CardContent>
                         <div className="text-2xl font-bold">{totalHp}</div>
                         <p className="text-xs text-muted-foreground mt-1">
-                            House Points earned
+                            Health Points earned
                         </p>
                     </CardContent>
                 </Card>

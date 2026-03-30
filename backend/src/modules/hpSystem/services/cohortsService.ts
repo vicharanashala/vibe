@@ -12,7 +12,7 @@ import { IActivitySubmissionRepository } from "../interfaces/IActivitySubmission
 
 @injectable()
 export class CohortsService extends BaseService {
-    constructor(
+    constructor( 
         @inject(GLOBAL_TYPES.Database)
         private readonly mongoDatabase: MongoDatabase,
 
@@ -177,7 +177,7 @@ export class CohortsService extends BaseService {
                         },
                         lastActivityAt: "2026-01-20T10:00:00Z",
                         createdAt: "2026-01-15T08:00:00Z",
-                        isPublic: true,
+                        // isPublic: true,
                     };
                 })
             );
@@ -228,7 +228,7 @@ export class CohortsService extends BaseService {
                         },
                         lastActivityAt: "2026-01-20T10:00:00Z",
                         createdAt: "2026-01-15T08:00:00Z",
-                        isPublic: true,
+                        // isPublic: true,
                     };
                 })
             );
@@ -305,7 +305,7 @@ export class CohortsService extends BaseService {
                 courseVersionName,
                 meta: {
                     totalRecords: cohorts.length,
-                    totalPages: 1,
+                    totalPages: 1, 
                     page: query.page ?? 1,
                     limit: query.limit ?? 10,
                     sortBy: query.sortBy ?? "createdAt",
@@ -495,7 +495,7 @@ export class CohortsService extends BaseService {
                     );
 
                     const hpEnabledVersionIds = new Set(
-                        (courseSettings ?? [])
+                        (courseSettings ?? []) 
                             .filter(s => s.settings?.hpSystem === true)
                             .map(s => s.courseVersionId.toString())
                     );
@@ -527,7 +527,7 @@ export class CohortsService extends BaseService {
                             const matched = dynamic.filter(
                                 c => enrolledCohortNames.has(c.cohortName.toLowerCase())
                             );
-                            console.log("matched--", matched);
+
                             studentCohorts.push(
                                 ...matched
                             );

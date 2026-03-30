@@ -7,7 +7,7 @@ import {
     HpLedgerEventType,
     HpLedgerDirection,
     COHORT_OVERRIDES
-} from "../constants.js"; 
+} from "../constants.js";
 import { ObjectId, ClientSession } from "mongodb";
 import { MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
@@ -117,13 +117,13 @@ const processMilestoneRewards = async (
 
     // OPTIMIZED: Batch fetch existing rewards upfront
     console.log('📦 Batch fetching existing rewards...');
-    const existingRewards = await ledgerRepo.findRewardsByActivityId(activity._id.toString()).catch(() => []);
+    const existingRewardsOrPenalty = await ledgerRepo.findRewardsByActivityId(activity._id.toString()).catch(() => []);
 
-    console.log(`📄 Found ${existingRewards.length} existing rewards`);
+    console.log(`📄 Found ${existingRewardsOrPenalty.length} existing rewards/penalty`);
 
     // Create lookup map for O(1) access
     const rewardMap = new Map<string, HpLedger>(
-        existingRewards.map((reward: HpLedger) => [reward.studentId.toString(), reward] as [string, HpLedger])
+        existingRewardsOrPenalty.map((reward: HpLedger) => [reward.studentId.toString(), reward] as [string, HpLedger])
     );
 
 
@@ -150,7 +150,7 @@ const processMilestoneRewards = async (
             console.log("No deadline configured for this activity...")
             return false
         }
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // Check if the milestone completed after deadline or not
         // const isAfterDeadline = Date.now() > activityConfig.deadlineAt.getTime();
 
