@@ -91,7 +91,7 @@ export default function StudentLayout() {
     if (approvedNotifications && approvedNotifications.length !== approvedNotificationsList.length) {
       setApprovedNotificationsList(approvedNotifications);
     }
-  }, [approvedNotifications]);
+  }, [approvedNotifications, setApprovedNotificationsList,approvedNotificationsList]);
 
   useEffect(() => {
     if (rejectedStudentRegistrations) {

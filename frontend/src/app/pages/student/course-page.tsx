@@ -56,6 +56,8 @@ import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
 import { useModuleProgress } from "@/hooks/hooks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MobileFallbackScreen from "@/components/MobileFallbackScreen";
+import { EmotionSelector, EmotionType } from "@/components/EmotionSelector";
+import { useSubmitEmotion } from "@/hooks/use-emotion";
 
 // Helper function to get icon for item type
 const getItemIcon = (type: string) => {
@@ -96,10 +98,11 @@ export default function CoursePage() {
   const [showProctorDialog, setShowProctorDialog] = useState(true);
   const { user } = useAuthStore();
   const router = useRouter();
-  const COURSE_ID = useCourseStore.getState().currentCourse?.courseId || "";
-  const VERSION_ID = useCourseStore.getState().currentCourse?.versionId || "";
-  const COHORT_ID = useCourseStore.getState().currentCourse?.cohortId || "";
-  const COHORT_NAME = useCourseStore.getState().currentCourse?.cohortName || "";
+  const currentCourse = useCourseStore((state) => state.currentCourse);
+  const COURSE_ID = currentCourse?.courseId || "";
+  const VERSION_ID = currentCourse?.versionId || "";
+  const COHORT_ID = currentCourse?.cohortId || "";
+  const COHORT_NAME = currentCourse?.cohortName || "";
   const { getSettings, settingLoading: proctoringLoading } = useGetProcotoringSettings();
 
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
@@ -112,6 +115,10 @@ export default function CoursePage() {
   const [allProctorsDisabled, setAllProctorsDisabled] = useState(false);
   const [previousItems, setPreviousItems] = useState<object | null >(null)
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Emotion tracking state
+  const [selectedEmotion, setSelectedEmotion] = useState<{ [key: string]: EmotionType }>({});
+  const { mutateAsync: submitEmotionAsync } = useSubmitEmotion();
 
   const isMobile = useIsMobile();
 
@@ -622,6 +629,34 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     } finally {
       setIsFlagSubmitted(true);
       setIsFlagModalOpen(false);
+    }
+  };
+
+  // Emotion tracking handler
+  const handleEmotionSubmit = async (emotion: EmotionType, feedbackText?: string) => {
+    try {
+      if (!currentItem?._id) return;
+      if (!COURSE_ID || !VERSION_ID) {
+        throw new Error("Course context is not ready yet. Please wait a moment and try again.");
+      }
+
+      const payload = {
+        courseId: COURSE_ID,
+        courseVersionId: VERSION_ID,
+        itemId: currentItem._id,
+        emotion,
+        feedbackText,
+        cohortId: COHORT_ID,
+      };
+
+      await submitEmotionAsync(payload);
+      setSelectedEmotion(prev => ({ ...prev, [currentItem._id]: emotion }));
+      toast.success(
+        feedbackText?.trim() ? "Your emotion and note have been recorded!" : "Your feedback has been recorded!",
+        { position: 'top-right', duration: 2000 }
+      );
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to record emotion", { position: 'top-right' });
     }
   };
   const moduleProgressMap = useMemo(() => {
@@ -1938,6 +1973,18 @@ useEffect(() => {
                   <ThemeToggle />
                 </div>
               </header>
+
+              {/* Emotion Selector Bar */}
+              {currentItem && (
+                <div className="border-b border-border/20 bg-background/50 backdrop-blur-sm px-4 py-2">
+                  <EmotionSelector
+                    itemId={currentItem._id}
+                    onEmotionSelect={handleEmotionSubmit}
+                    disabled={false}
+                    selectedEmotion={selectedEmotion[currentItem._id] || null}
+                  />
+                </div>
+              )}
 
               <div className="flex-1 overflow-hidden relative">
                 {/* Ambient background effect */}
