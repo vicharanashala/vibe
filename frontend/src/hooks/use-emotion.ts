@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { EmotionType, EmotionSubmission, EmotionResponse } from "@/types/emotion.types";
+import { EmotionType, EmotionSubmission, EmotionResponse, CourseEmotionReport } from "@/types/emotion.types";
 import { apiClient } from "@/lib/api-client";
 
 interface SubmitEmotionPayload {
@@ -7,6 +7,7 @@ interface SubmitEmotionPayload {
   courseVersionId: string;
   itemId: string;
   emotion: EmotionType;
+  feedbackText?: string;
   cohortId?: string;
 }
 
@@ -78,8 +79,8 @@ export function useEmotionHistory(courseId: string, courseVersionId: string) {
 /**
  * Get course-level emotion report
  */
-async function getCourseEmotionReport(courseId: string, courseVersionId: string) {
-  const response = await apiClient.get<EmotionApiResponse<any>>(`/emotions/report/${courseId}/${courseVersionId}`);
+async function getCourseEmotionReport(courseId: string, courseVersionId: string): Promise<CourseEmotionReport> {
+  const response = await apiClient.get<EmotionApiResponse<CourseEmotionReport>>(`/emotions/report/${courseId}/${courseVersionId}`);
   return unwrapEmotionResponse(response.data, "Failed to fetch course emotion report");
 }
 

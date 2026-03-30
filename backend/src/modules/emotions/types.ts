@@ -7,6 +7,7 @@ export interface IEmotionSubmission {
   courseVersionId: string;
   itemId: string;
   emotion: EmotionType;
+  feedbackText?: string;
   timestamp?: Date;
   cohortId?: string;
   createdAt?: Date;

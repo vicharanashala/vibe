@@ -630,7 +630,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   };
 
   // Emotion tracking handler
-  const handleEmotionSubmit = async (emotion: EmotionType) => {
+  const handleEmotionSubmit = async (emotion: EmotionType, feedbackText?: string) => {
     try {
       if (!currentItem?._id) return;
       if (!COURSE_ID || !VERSION_ID) {
@@ -642,12 +642,16 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
         courseVersionId: VERSION_ID,
         itemId: currentItem._id,
         emotion,
+        feedbackText,
         cohortId: COHORT_ID,
       };
 
       await submitEmotionAsync(payload);
       setSelectedEmotion(prev => ({ ...prev, [currentItem._id]: emotion }));
-      toast.success("Your feedback has been recorded!", { position: 'top-right', duration: 2000 });
+      toast.success(
+        feedbackText?.trim() ? "Your emotion and note have been recorded!" : "Your feedback has been recorded!",
+        { position: 'top-right', duration: 2000 }
+      );
     } catch (error: any) {
       toast.error(error?.message || "Failed to record emotion", { position: 'top-right' });
     }

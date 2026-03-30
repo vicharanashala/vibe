@@ -18,6 +18,7 @@ interface SubmitEmotionBody {
   courseVersionId: string;
   itemId: string;
   emotion: "very_sad" | "sad" | "neutral" | "happy" | "very_happy";
+  feedbackText?: string;
   cohortId?: string;
 }
 
@@ -44,7 +45,7 @@ class EmotionController {
     @Body() body: SubmitEmotionBody,
     @CurrentUser() user: { _id: string }
   ) {
-    const { courseId, courseVersionId, itemId, emotion, cohortId } = body;
+    const { courseId, courseVersionId, itemId, emotion, feedbackText, cohortId } = body;
     const studentId = user?._id?.toString();
 
     if (!studentId) {
@@ -61,6 +62,7 @@ class EmotionController {
         courseVersionId,
         itemId,
         emotion,
+        feedbackText,
         cohortId,
       });
 

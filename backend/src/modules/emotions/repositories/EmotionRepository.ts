@@ -11,15 +11,34 @@ type EmotionDocument = {
   courseVersionId: ObjectId;
   itemId: ObjectId;
   emotion: EmotionType;
+  feedbackText?: string;
   timestamp: Date;
   cohortId?: ObjectId;
   createdAt?: Date;
   updatedAt?: Date;
 };
 
+type ItemsGroupDocument = {
+  _id: ObjectId;
+  items?: Array<{
+    _id?: ObjectId | string;
+    name?: string;
+    type?: string;
+    order?: string;
+  }>;
+};
+
+type EmotionItemRef = {
+  itemId: string;
+  name: string;
+  type?: string;
+  order?: string;
+};
+
 @injectable()
 export class EmotionRepository {
   private emotionCollection: Collection<EmotionDocument>;
+  private itemsGroupCollection: Collection<ItemsGroupDocument>;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -30,6 +49,9 @@ export class EmotionRepository {
     if (!this.emotionCollection) {
       this.emotionCollection = await this.db.getCollection<EmotionDocument>(
         'emotions',
+      );
+      this.itemsGroupCollection = await this.db.getCollection<ItemsGroupDocument>(
+        'itemsGroup',
       );
       await this.emotionCollection.createIndex({ studentId: 1, courseId: 1 });
       await this.emotionCollection.createIndex({ itemId: 1 });
@@ -50,6 +72,7 @@ export class EmotionRepository {
       courseVersionId: document.courseVersionId.toString(),
       itemId: document.itemId.toString(),
       emotion: document.emotion,
+      feedbackText: document.feedbackText,
       timestamp: document.timestamp,
       cohortId: document.cohortId?.toString(),
       createdAt: document.createdAt,
@@ -74,6 +97,7 @@ export class EmotionRepository {
       courseVersionId: this.toObjectId(emotionData.courseVersionId),
       itemId: this.toObjectId(emotionData.itemId),
       emotion: emotionData.emotion,
+      feedbackText: emotionData.feedbackText,
       timestamp: emotionData.timestamp ?? now,
       cohortId: emotionData.cohortId ? this.toObjectId(emotionData.cohortId) : undefined,
       createdAt: now,
@@ -116,20 +140,31 @@ export class EmotionRepository {
   /**
    * Update emotion for a student on a specific item
    */
-  async updateEmotion(studentId: string, itemId: string, emotion: EmotionType): Promise<IEmotionSubmission | null> {
+  async updateEmotion(
+    studentId: string,
+    itemId: string,
+    emotion: EmotionType,
+    feedbackText?: string
+  ): Promise<IEmotionSubmission | null> {
     await this.init();
     const now = new Date();
+    const setPayload: Partial<EmotionDocument> = {
+      emotion,
+      timestamp: now,
+      updatedAt: now,
+    };
+
+    if (feedbackText !== undefined) {
+      setPayload.feedbackText = feedbackText;
+    }
+
     const updated = await this.emotionCollection.findOneAndUpdate(
       {
         studentId: this.toObjectId(studentId),
         itemId: this.toObjectId(itemId),
       },
       {
-        $set: {
-          emotion,
-          timestamp: now,
-          updatedAt: now,
-        },
+        $set: setPayload,
       },
       { returnDocument: 'after' },
     );
@@ -216,6 +251,75 @@ export class EmotionRepository {
       },
       { $sort: { count: -1 } },
     ]).toArray();
+  }
+
+  /**
+   * Resolve all item IDs grouped under itemsGroup IDs.
+   */
+  async getItemIdsByItemsGroupIds(
+    itemsGroupIds: string[],
+  ): Promise<Record<string, string[]>> {
+    await this.init();
+
+    const validIds = itemsGroupIds.filter(id => ObjectId.isValid(id));
+    if (validIds.length === 0) {
+      return {};
+    }
+
+    const groupObjectIds = validIds.map(id => this.toObjectId(id));
+    const groups = await this.itemsGroupCollection
+      .find({ _id: { $in: groupObjectIds } }, { projection: { items: 1 } })
+      .toArray();
+
+    const mapping: Record<string, string[]> = {};
+    groups.forEach(group => {
+      mapping[group._id.toString()] = (group.items || [])
+        .map(item => item?._id?.toString())
+        .filter((id): id is string => Boolean(id));
+    });
+
+    return mapping;
+  }
+
+  async getItemRefsByItemsGroupIds(
+    itemsGroupIds: string[],
+  ): Promise<Record<string, EmotionItemRef[]>> {
+    await this.init();
+
+    const validIds = itemsGroupIds.filter(id => ObjectId.isValid(id));
+    if (validIds.length === 0) {
+      return {};
+    }
+
+    const groups = await this.itemsGroupCollection
+      .find(
+        { _id: { $in: validIds.map(id => this.toObjectId(id)) } },
+        { projection: { items: 1 } },
+      )
+      .toArray();
+
+    const mapping: Record<string, EmotionItemRef[]> = {};
+    groups.forEach(group => {
+      const itemRefs = (group.items || []).reduce<EmotionItemRef[]>((accumulator, item) => {
+          const itemId = item?._id?.toString();
+          if (!itemId) {
+            return accumulator;
+          }
+
+          accumulator.push({
+            itemId,
+            name: item.name || 'Untitled Item',
+            type: item.type,
+            order: item.order,
+          });
+
+          return accumulator;
+        }, []);
+
+      mapping[group._id.toString()] = itemRefs;
+    });
+
+    return mapping;
   }
 
   /**
