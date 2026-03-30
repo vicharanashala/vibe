@@ -18,6 +18,7 @@ export interface IAchievementRepository {
   ): Promise<string>;
   findUserAchievements(userId: string): Promise<IUserAchievementWithDetails[]>;
   findEarnedSlugs(userId: string): Promise<string[]>;
+  deleteUserAchievements(userId: string): Promise<void>;
 
   // ── Progress Query ────────────────────────────────────────────────
   countCompletedCourses(userId: string): Promise<number>;

@@ -124,6 +124,11 @@ export class AchievementRepository implements IAchievementRepository {
 
   // ── Progress Query ─────────────────────────────────────────────────────────
 
+  async deleteUserAchievements(userId: string): Promise<void> {
+    await this.init();
+    await this.userAchievementsCollection.deleteMany({userId: new ObjectId(userId)});
+  }
+
   async countCompletedCourses(userId: string): Promise<number> {
     await this.init();
     const progressCollection =

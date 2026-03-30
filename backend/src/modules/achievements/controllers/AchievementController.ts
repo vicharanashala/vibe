@@ -3,6 +3,7 @@ import {
   JsonController,
   Get,
   Post,
+  Delete,
   HttpCode,
   Params,
   Authorized,
@@ -89,5 +90,17 @@ export class AchievementController {
     }
     await this.achievementService.devSeedForUser(user._id.toString());
     return {message: 'All achievements awarded for testing'};
+  }
+
+  @Authorized()
+  @Delete('/dev/seed')
+  @HttpCode(200)
+  @OpenAPI({summary: 'Dev only: remove all achievements and notifications for current user'})
+  async devUnseed(@CurrentUser() user: IUser) {
+    if (appConfig.isProduction || appConfig.isStaging) {
+      throw new ForbiddenError('Not available in production');
+    }
+    await this.achievementService.devUnseedForUser(user._id.toString());
+    return {message: 'All achievements and notifications removed'};
   }
 }

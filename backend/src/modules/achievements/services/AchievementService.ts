@@ -1,13 +1,12 @@
 import 'reflect-metadata';
 import {injectable, inject} from 'inversify';
-import {ObjectId, ClientSession} from 'mongodb';
+import {ObjectId} from 'mongodb';
 import {ACHIEVEMENTS_TYPES} from '../types.js';
-import {AchievementRepository} from '../repositories/AchievementRepository.js';
 import {IAchievementRepository} from '../interfaces/IAchievementRepository.js';
 import {ACHIEVEMENT_DEFINITIONS} from '../seeds/achievementDefinitions.js';
 import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
 import {NotificationService} from '#root/modules/notifications/services/NotificationService.js';
-import {IAchievement, IUserAchievement} from '#root/shared/interfaces/models.js';
+import {IAchievement} from '#root/shared/interfaces/models.js';
 
 @injectable()
 export class AchievementService {
@@ -110,10 +109,17 @@ export class AchievementService {
     return this.repo.findUserAchievements(userId);
   }
 
+  /** Dev/test only — removes all achievements and their notifications for a user. */
+  async devUnseedForUser(userId: string): Promise<void> {
+    await this.repo.deleteUserAchievements(userId);
+    await this.notificationService.deleteAchievementNotifications(userId);
+  }
+
   /** Dev/test only — directly awards every achievement to the given user. */
   async devSeedForUser(userId: string): Promise<void> {
     const allDefinitions = await this.repo.findAll();
     for (const achievement of allDefinitions) {
+      // Insert award — ignore if already exists (duplicate key)
       try {
         await this.repo.createUserAchievement({
           userId: new ObjectId(userId),
@@ -122,8 +128,15 @@ export class AchievementService {
           courseCompletionCountAtTime: achievement.requiredCourseCount,
         });
       } catch (err: any) {
-        if (err?.code !== 11000) throw err; // ignore duplicate key
+        if (err?.code !== 11000) throw err;
       }
+
+      // Always send notification so it shows up in the bell during testing
+      await this.notificationService.notifyAchievementEarned(
+        userId,
+        achievement.title,
+        achievement.tier,
+      );
     }
   }
 }
