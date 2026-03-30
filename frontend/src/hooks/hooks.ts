@@ -1,3 +1,64 @@
+// Extra type for extended signup (non-breaking addition)
+type SignUpRequestBody = components['schemas']['SignUpBody'] & {
+  recaptchaToken?: string;
+  profileImage?: string;
+  faceEmbedding?: number[];
+};
+
+// Overloaded useSignup for extended body (non-breaking addition)
+export function useSignupExtended(): {
+  mutate: (variables: { body: SignUpRequestBody }) => void,
+  mutateAsync: (variables: { body: SignUpRequestBody }) => Promise<components['schemas']['SignUpResponse']>,
+  data: components['schemas']['SignUpResponse'] | undefined,
+  error: unknown | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/auth/signup");
+  return {
+    ...result,
+    error: result.error ? (result.error) : null
+  };
+}
+
+// Add useProcessInvites (non-breaking addition)
+export async function useProcessInvites(inviteId: string, action: "ACCEPT" | "REJECTED" = "ACCEPT"): Promise<{
+  data: null,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+}> {
+  let isLoading = true;
+  const baseUrl = `${import.meta.env.VITE_BASE_URL}/notifications/invite/${inviteId}`;
+  const url =
+    action === "REJECTED"
+      ? `${baseUrl}?action=REJECTED`
+      : baseUrl;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      authorization: `Bearer ${localStorage.getItem("firebase-auth-token")}`,
+    },
+  });
+  isLoading = false;
+
+  if (!res.ok) {
+    throw new Error(`Failed to update settings: ${res.status}`);
+  }
+
+  return {
+    data: null,
+    isLoading: isLoading,
+    error: "",
+    refetch: () => { }
+  }
+}
 
 /*
 This file is Exports hooks for OpenAPI endpoints using the api client.

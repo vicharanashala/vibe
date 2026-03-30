@@ -67,6 +67,7 @@ function FloatingVideo({
   const [isFocused, setIsFocused] = useState(true); 
   const [facesCount, setFacesCount] = useState(0);
   const [recognizedFaces, setRecognizedFaces] = useState<any[]>([]);
+  const [hasFaceRecognitionMismatch, setHasFaceRecognitionMismatch] = useState(false);
   const [penaltyPoints, setPenaltyPoints] = useState(0);
   const [penaltyType, setPenaltyType] = useState("");
   const [contiguousAnomalyPoints, setContiguousAnomalyPoints] = useState(0);
@@ -148,6 +149,10 @@ function FloatingVideo({
     } else {
       // console.log('❓ [FloatingVideo] No known faces recognized');
     }
+  }, []);
+
+  const handleFaceRecognitionMismatchChange = useCallback((hasMismatch: boolean) => {
+    setHasFaceRecognitionMismatch(hasMismatch);
   }, []);
 
   // Handle face recognition debug info updates
@@ -304,25 +309,20 @@ const lastCalledRef = useRef<number>(0);
         // // Log for debugging
         // console.log("Image File", imageFile);
         // console.log('%c ', `font-size:1px; padding:40px 80px; background:url(${screenshot}); background-size:contain; background-repeat:no-repeat;`);
-        // console.log("anomalyType", reportAnomalyType, "====", "anamoly=", anomaly);
+        // console.log("anomalyType", reportAnomaly, "====", "anamoly=", anomaly);
         // console.log("courseId", courseStore.currentCourse?.courseId);
         // console.log("versionId", courseStore.currentCourse?.versionId);
         // console.log("itemId", courseStore.currentCourse?.itemId);
 
 
         try {
-          const body: any = {
-            type: reportAnomalyType,
-            courseId: courseStore.currentCourse?.courseId,
-            versionId: courseStore.currentCourse?.versionId,
-            itemId: courseStore.currentCourse?.itemId,
-          };
-
-          if (courseStore.currentCourse?.cohortId) {
-            body.cohortId = courseStore.currentCourse.cohortId;
-          }
           const response = await reportImage.mutateAsync({
-            body,
+            body: {
+              type: reportAnomalyType as AnomalyType,
+              courseId: courseStore.currentCourse?.courseId || "",
+              versionId: courseStore.currentCourse?.versionId || "",
+              itemId: courseStore.currentCourse?.itemId || "",
+            },
             file: imageFile,
           });
           // console.log("Post response", response);
@@ -576,6 +576,14 @@ const lastCalledRef = useRef<number>(0);
         newPenaltyPoints += 1;
       }
 
+      // Condition 5: Registered face does not match current camera frame
+      if (hasFaceRecognitionMismatch && isFaceRecognitionEnabled) {
+        setPauseVid(true);
+        setAnomalies([...anomalies, "faceRecognition"]);
+        newPenaltyType = "Face Recognition";
+        newPenaltyPoints += 2;
+      }
+
       // // Condition 1: If speaking is detected (only if voice detection is enabled)
       // if (isSpeaking === "Yes" && isVoiceDetectionEnabled) {
       //   // setRewindVid(true);
@@ -655,6 +663,8 @@ const lastCalledRef = useRef<number>(0);
     isFaceCountDetectionEnabled,
     isBlurDetectionEnabled,
     isFocusEnabled,
+    isFaceRecognitionEnabled,
+    hasFaceRecognitionMismatch,
     // data,
     // error,
     rewindVid,
@@ -751,7 +761,28 @@ const lastCalledRef = useRef<number>(0);
                               (facesCount !== 1 && isFaceCountDetectionEnabled) || 
                               (isBlur === "Yes" && isBlurDetectionEnabled) || 
                               (!isFocused && isFocusEnabled) ||
+                              (hasFaceRecognitionMismatch && isFaceRecognitionEnabled) ||
                               (isThumbsUpChallenge && isHandGestureDetectionEnabled);
+
+  useEffect(() => {
+    console.log('[FaceRecognitionDebug] floating-video state', {
+      hasFaceRecognitionMismatch,
+      isFaceRecognitionEnabled,
+      isAnomaliesDetected,
+      recognizedFaces,
+      readyToDetect,
+      modelReady,
+      isVideoActive,
+    });
+  }, [
+    hasFaceRecognitionMismatch,
+    isFaceRecognitionEnabled,
+    isAnomaliesDetected,
+    recognizedFaces,
+    readyToDetect,
+    modelReady,
+    isVideoActive,
+  ]);
 
 
   // Smart overlay positioning based on face detection
@@ -1327,6 +1358,7 @@ const lastCalledRef = useRef<number>(0);
                 Score: {penaltyPoints}
               </div>
             )}
+
           </>
         )}
       </div>
@@ -1361,6 +1393,7 @@ const lastCalledRef = useRef<number>(0);
             setIsFocused={()=>{}}
             videoRef={videoRef}
             onRecognitionResult={handleFaceRecognitionResult}
+            onMismatchChange={handleFaceRecognitionMismatchChange}
             settings={{
               isFaceCountDetectionEnabled,
               isFaceRecognitionEnabled, 

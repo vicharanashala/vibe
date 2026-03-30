@@ -19,6 +19,8 @@ export interface IUser {
   email: string;
   firstName: string;
   lastName?: string;
+  profileImage?: string;
+  faceEmbedding?: number[];
   roles: 'admin' | 'user';
 }
 

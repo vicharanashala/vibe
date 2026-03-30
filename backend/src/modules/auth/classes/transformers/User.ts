@@ -53,6 +53,21 @@ class User implements IUser {
   lastName: string;
 
   @Expose()
+  @JSONSchema({
+    title: 'Profile Image',
+    description: 'Profile image URL or data URL',
+  })
+  profileImage?: string;
+
+  @Expose()
+  @JSONSchema({
+    title: 'Face Embedding',
+    description: 'Stored face embedding used for verification',
+    type: 'array',
+  })
+  faceEmbedding?: number[];
+
+  @Expose()
   @IsString()
   @JSONSchema({
     title: 'Roles',
@@ -66,6 +81,8 @@ class User implements IUser {
     this.email = data?.email;
     this.firstName = data?.firstName;
     this.lastName = data?.lastName;
+    this.profileImage = data?.profileImage;
+    this.faceEmbedding = data?.faceEmbedding;
     this.roles = data?.roles || 'user';
   }
 }

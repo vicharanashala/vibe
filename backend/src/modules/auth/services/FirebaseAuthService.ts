@@ -165,6 +165,8 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       email: body.email,
       firstName: body.firstName,
       lastName: body.lastName || '',
+      profileImage: body.profileImage,
+      faceEmbedding: body.faceEmbedding,
       roles: 'user',
     };
 
