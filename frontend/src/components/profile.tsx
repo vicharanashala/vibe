@@ -64,6 +64,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
   const [isSaving, setIsSaving] = useState(false)
   const [newFirstName, setNewFirstName] = useState(firstName || "")
   const [newLastName, setNewLastName] = useState(lastName || "")
+  const [newAvatar, setNewAvatar] = useState< string | null>(null);
   const [confirmLogout, setConfirmLogout] = useState(false);
 
   const { mutateAsync: editUser } = useEditUser();
@@ -71,9 +72,10 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      const payload: { firstName: string; lastName: string } = {
+      const payload: { firstName: string; lastName: string; avatar: string } = {
         firstName: newFirstName,
         lastName: newLastName,
+        avatar: newAvatar,
       }
 
       await editUser({ body: payload })
@@ -119,11 +121,29 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
               <div className="flex flex-col items-center space-y-6">
                 <div className="relative">
                   <Avatar className="h-28 w-28 ring-4 ring-white dark:ring-gray-800 shadow-xl">
-                    <AvatarImage src={user?.avatar || "/placeholder.svg"} alt="Profile" />
-                    <AvatarFallback className="text-lg md:text-xl font-semibold bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
-                      {avatarFallback.toUpperCase()}
+                     {editField === "avatar" ? (
+                      <AvatarFallback className="text-lg md:text-xl font-semibold bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                    <div className="flex gap-2 items-center">
+                     
+                    
+                      <Input value={newAvatar} onChange={(e) => setNewAvatar(e.target.value)} />
+                      <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
+                        {isSaving ? "Saving..." : "Save"}
+                      </Button>
+                    </div>
                     </AvatarFallback>
+                  ) :(
+                    <AvatarImage src={user?.avatar || "/placeholder.svg"} alt="Profile" /> 
+                  )} 
                   </Avatar>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute bottom-0 right-0 rounded-full bg-white shadow"
+                      onClick={() => setEditField("avatar")}
+                        >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                   <div className="absolute -bottom-2 right-4">
                     <Badge variant="secondary" className="text-xs px-3 py-1 bg-white dark:bg-gray-800 shadow-lg border">
                       {displayRole}
