@@ -3279,14 +3279,45 @@ function TeacherCourseContent() {
                       </div>
                     </div>
 
+                    <div className="relative z-10 mb-6 w-full max-w-2xl px-4">
+                      <div className="rounded-xl border bg-background/80 px-5 py-4 text-left">
+                        {isLoading ? (
+                          <p className="text-sm text-muted-foreground">Loading course editor data...</p>
+                        ) : modules.length > 0 ? (
+                          <>
+                            <p className="text-sm font-medium text-foreground">
+                              Editor is ready.
+                            </p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Select a module, section, or item from the left panel to view the full edit card.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm font-medium text-foreground">
+                              No modules yet.
+                            </p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Add your first module to unlock all course editing components.
+                            </p>
+                          </>
+                        )}
+                        <p className={`text-xs mt-3 transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'} text-muted-foreground`}>
+                          {displayedMessage}
+                        </p>
+                      </div>
+                    </div>
+
                       {/* CTA Button */}
-                      <Button
-                        onClick={handleAddModule}
-                        className="relative z-10 bg-gradient-to-r from-primary to-accent hover:from-accent hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-sm md:text-base flex items-center gap-3 animate-bounce-slow group"
-                      >
-                        <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
-                        Add new module
-                      </Button>
+                      {!isLoading && modules.length === 0 && (
+                        <Button
+                          onClick={handleAddModule}
+                          className="relative z-10 bg-gradient-to-r from-primary to-accent hover:from-accent hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-sm md:text-base flex items-center gap-3 animate-bounce-slow group"
+                        >
+                          <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
+                          Add new module
+                        </Button>
+                      )}
 
                       {/* ViBe Features */}
                       <div className="relative z-10 mt-8 md:flex items-center gap-6 text-sm text-slate-500 dark:text-slate-400">
