@@ -42,7 +42,7 @@ export class CohortsService extends BaseService {
                     {
                         courseVersionId: "000000000000000000000001",
                         versionName: "Pinternship",
-                        totalCohorts: 3, // Euclideans, Dijkstrians, Kruskalians
+                        totalCohorts: 4, // Euclideans, Dijkstrians, Kruskalians
                         createdAt: "2025-12-18T07:52:42Z",
                     },
                     {
@@ -71,6 +71,7 @@ export class CohortsService extends BaseService {
                 { pseudoVersionId: "000000000000000000000001", cohortVersionId: "6968e12cbf2860d6e39051af" },
                 { pseudoVersionId: "000000000000000000000001", cohortVersionId: "6970f87e30644cbc74b67150" },
                 { pseudoVersionId: "000000000000000000000001", cohortVersionId: "697b4e262942654879011c57" },
+                { pseudoVersionId: "000000000000000000000001", cohortVersionId: "69c77763b4ae917c56cf1343" },
                 { pseudoVersionId: "000000000000000000000002", cohortVersionId: "69903415e1930c015760a719" },
                 { pseudoVersionId: "000000000000000000000002", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
                 { pseudoVersionId: "000000000000000000000002", cohortVersionId: "69c77812b4ae917c56cf227f" },
@@ -138,6 +139,7 @@ export class CohortsService extends BaseService {
                 { cohortName: "Euclideans", cohortVersionId: "6968e12cbf2860d6e39051af" },
                 { cohortName: "Dijkstrians", cohortVersionId: "6970f87e30644cbc74b67150" },
                 { cohortName: "Kruskalians", cohortVersionId: "697b4e262942654879011c57" },
+                { cohortName: "Scorchers", cohortVersionId: "69c77763b4ae917c56cf1343" },
             ] as const;
 
             const results = await Promise.all(
@@ -272,6 +274,7 @@ export class CohortsService extends BaseService {
                         { pseudoVersionId: "000000000000000000000001", cohortName: "Euclideans", cohortVersionId: "6968e12cbf2860d6e39051af" },
                         { pseudoVersionId: "000000000000000000000001", cohortName: "Dijkstrians", cohortVersionId: "6970f87e30644cbc74b67150" },
                         { pseudoVersionId: "000000000000000000000001", cohortName: "Kruskalians", cohortVersionId: "697b4e262942654879011c57" },
+                        { pseudoVersionId: "000000000000000000000001", cohortName: "Scorchers", cohortVersionId: "69c77763b4ae917c56cf1343" },
                         { pseudoVersionId: "000000000000000000000002", cohortName: "RSAians", cohortVersionId: "69903415e1930c015760a719" },
                         { pseudoVersionId: "000000000000000000000002", cohortName: "AKSians", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
                         { pseudoVersionId: "000000000000000000000002", cohortName: "Testians", cohortVersionId: "69c77812b4ae917c56cf227f" },
@@ -384,6 +387,7 @@ export class CohortsService extends BaseService {
                 euclideans: "6968e12cbf2860d6e39051af",
                 dijkstrians: "6970f87e30644cbc74b67150",
                 kruskalians: "697b4e262942654879011c57",
+                scorchers: "69c77763b4ae917c56cf1343",
             },
             "000000000000000000000002": {
                 rsaians: "69903415e1930c015760a719",
@@ -464,6 +468,7 @@ export class CohortsService extends BaseService {
                 { pseudoVersionId: "000000000000000000000001", cohortName: "Euclideans", cohortVersionId: "6968e12cbf2860d6e39051af" },
                 { pseudoVersionId: "000000000000000000000001", cohortName: "Dijkstrians", cohortVersionId: "6970f87e30644cbc74b67150" },
                 { pseudoVersionId: "000000000000000000000001", cohortName: "Kruskalians", cohortVersionId: "697b4e262942654879011c57" },
+                { pseudoVersionId: "000000000000000000000001", cohortName: "Scorchers", cohortVersionId: "69c77763b4ae917c56cf1343" },
                 { pseudoVersionId: "000000000000000000000002", cohortName: "RSAians", cohortVersionId: "69903415e1930c015760a719" },
                 { pseudoVersionId: "000000000000000000000002", cohortName: "AKSians", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
                 { pseudoVersionId: "000000000000000000000002", cohortName: "Testians", cohortVersionId: "69c77812b4ae917c56cf227f" },

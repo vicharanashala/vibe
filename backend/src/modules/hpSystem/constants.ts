@@ -112,6 +112,7 @@ export const COHORT_OVERRIDES: Record<string, { courseId: string; versionId: str
   RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719" },
   AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
   Testians: { courseId: "69c77812b4ae917c56cf227e", versionId: "69c77812b4ae917c56cf227f" },
+  Scorchers: { courseId: "69c77763b4ae917c56cf1342", versionId: "69c77763b4ae917c56cf1343" },
 };
 
 export const LEGACY_COURSE_KEYS = new Set([

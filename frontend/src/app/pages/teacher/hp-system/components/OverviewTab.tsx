@@ -10,6 +10,7 @@ const cohortPerformance = [
     { name: 'Euclideans', value: 850 },
     { name: 'Dijkstrians', value: 920 },
     { name: 'Kruskalians', value: 780 },
+    { name: 'Scorchers', value: 780 },
     { name: 'AKSians', value: 880 },
     { name: 'RSAians', value: 950 },
     { name: 'Testians', value: 900 },
