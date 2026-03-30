@@ -57,7 +57,12 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
   ) {
     super(database);
     if (!admin.apps.length) {
-      if (appConfig.isDevelopment) {
+      if (process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+        process.env.GCLOUD_PROJECT = process.env.FIREBASE_PROJECT_ID || 'vibe-dev-762399';
+        admin.initializeApp({
+          projectId: process.env.FIREBASE_PROJECT_ID || 'vibe-dev-762399',
+        });
+      } else if (appConfig.isDevelopment) {
         admin.initializeApp({
           credential: admin.credential.cert({
             clientEmail: appConfig.firebase.clientEmail,

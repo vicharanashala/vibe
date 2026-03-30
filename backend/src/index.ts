@@ -86,5 +86,7 @@ useExpressServer(app, moduleOptions);
 
 app.listen(appConfig.port, () => {
   printStartupSummary();
-  startCron();
+  startCron().catch(err =>
+    console.error('❌ startCron failed:', err?.message),
+  );
 });

@@ -86,18 +86,23 @@ export default function StudentLayout() {
     };
   }, []);
 
-  // Sync local state with hook data
+  // Sync local state with hook data — use stable ID keys to avoid infinite loops
+  // (react-query returns new array references on every render)
+  const approvedKey = (approvedNotifications ?? []).map(n => n._id).join(',');
   useEffect(() => {
-    if (approvedNotifications && approvedNotifications.length !== approvedNotificationsList.length) {
+    if (approvedNotifications?.length) {
       setApprovedNotificationsList(approvedNotifications);
     }
-  }, [approvedNotifications, setApprovedNotificationsList,approvedNotificationsList]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [approvedKey]);
 
+  const rejectedKey = (rejectedStudentRegistrations ?? []).map(r => r._id).join(',');
   useEffect(() => {
     if (rejectedStudentRegistrations) {
       setLocalRejectedRegistrations(rejectedStudentRegistrations);
     }
-  }, [rejectedStudentRegistrations]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rejectedKey]);
 
   const handleLogout = () => {
     logout()
@@ -111,11 +116,13 @@ export default function StudentLayout() {
     useGetSystemNotifications(user?.uid || '', false, !!user?.uid);
   const { mutate: markSystemRead } = useMarkSystemNotificationAsRead();
   const { mutate: markAllSystemRead } = useMarkAllSystemNotificationsAsRead();
+  const systemNotifKey = (fetchedSystemNotifications ?? []).map((n: { _id: string; read: boolean }) => n._id + String(n.read)).join(',');
   useEffect(() => {
     if (fetchedSystemNotifications) {
       setSystemNotifications(fetchedSystemNotifications);
     }
-  }, [fetchedSystemNotifications]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [systemNotifKey]);
   useEffect(() => {
     if (!isAuthReady || !user) return;
 
@@ -291,6 +298,20 @@ export default function StudentLayout() {
                   {hasNewAnnouncements && <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
                 </Link>
               </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300 ${isActive("/student/achievements")
+                  ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-md before:opacity-100"
+                  : ""
+                  }`}
+                asChild
+              >
+                <Link to="/student/achievements">
+                  <span className="relative z-10">Achievements</span>
+                </Link>
+              </Button>
             </div>
           </div>
 
@@ -441,6 +462,18 @@ export default function StudentLayout() {
                 <Link to="/student/announcements">
                   <span>Announcements</span>
                   {hasNewAnnouncements && <span className="ml-2 inline-block h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
+                </Link>
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground"
+                asChild
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <Link to="/student/achievements">
+                  <span>Achievements</span>
                 </Link>
               </Button>
             </div>

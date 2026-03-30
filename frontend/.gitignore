@@ -24,6 +24,9 @@ pnpm-lock.yaml
 *.sln
 *.sw?
 *.txt
+*.agents
+*.claude
 
 package.json
 package-lock.json
+skills-lock.json

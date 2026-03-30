@@ -854,6 +854,29 @@ export interface IAnnouncement {
   cohortName?: string;
 }
 
+// ── Achievements ────────────────────────────────────────────────────────────
+
+export type AchievementTier = 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'DIAMOND';
+
+export interface IAchievement {
+  _id?: string | ObjectId | null;
+  slug: string;
+  title: string;
+  description: string;
+  tier: AchievementTier;
+  requiredCourseCount: number;
+  badgeKey: string;
+  createdAt: Date;
+}
+
+export interface IUserAchievement {
+  _id?: string | ObjectId | null;
+  userId: string | ObjectId;
+  achievementId: string | ObjectId;
+  earnedAt: Date;
+  courseCompletionCountAtTime: number;
+}
+
 // export type AuditCategory =
 //   | "COURSE"
 //   | "COURSE_VERSION"

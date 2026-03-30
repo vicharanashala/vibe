@@ -6,4 +6,21 @@ packages:
   - cli
   - mcp
   - e2e
-  
+
+ignoredBuiltDependencies:
+  - '@firebase/util'
+  - '@parcel/watcher'
+  - '@sentry-internal/node-cpu-profiler'
+  - '@sentry/cli'
+  - '@swc/core'
+  - '@tensorflow/tfjs-node'
+  - bcrypt
+  - core-js
+  - core-js-pure
+  - esbuild
+  - mongodb-memory-server
+  - msw
+  - postman-code-generators
+  - protobufjs
+  - sharp
+  - yarn

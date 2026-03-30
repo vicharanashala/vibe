@@ -67,6 +67,7 @@ import StudentActivities from '@/app/pages/student/hp-system/activities'
 import StudentSubmissions from '@/app/pages/student/hp-system/submissions'
 import StudentMyLedgerPage from '@/app/pages/student/hp-system/student-ledger'
 import StudentActivityDetail from '@/app/pages/student/hp-system/activity-detail'
+import StudentAchievements from '@/app/pages/student/achievements'
 
 // Root route with error and notFound handling
 const rootRoute = new RootRoute({
@@ -536,6 +537,12 @@ const studentHpSystemActivitiesDetailRoute = new Route({
   path: '/hp-system/$courseVersionId/$cohortName/activities/$activityId',
   component: StudentActivityDetail,
 });
+
+const studentAchievementsRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/achievements',
+  component: StudentAchievements,
+});
 // export const studentCourseInviteRegistration = new Route({
 //   getParentRoute: () => studentLayoutRoute,
 //   path: "/course-registration/$versionId",
@@ -689,7 +696,8 @@ const routeTree = rootRoute.addChildren([
     studentHpSystemActivitiesRoute,
     studentHpSystemActivitiesDetailRoute,
     studentHpSystemSubmissionsRoute,
-    studentHpSystemLedgerRoute
+    studentHpSystemLedgerRoute,
+    studentAchievementsRoute,
   ]),
   coursePageRoute,
 ]);
