@@ -228,6 +228,10 @@ export class NotificationService {
     await this.notificationRepo.create(notification, session);
   }
 
+  async deleteAchievementNotifications(userId: string): Promise<void> {
+    await this.notificationRepo.deleteManyByTypeAndUser(userId, 'achievement_earned');
+  }
+
   async enrichWithAppealStatus(
     userId: string,
     notifications: INotification[],

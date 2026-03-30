@@ -101,4 +101,15 @@ export class NotificationRepository {
       {session},
     );
   }
+
+  async deleteManyByTypeAndUser(
+    userId: string,
+    type: NotificationType,
+  ): Promise<void> {
+    await this.init();
+    await this.notificationCollection.deleteMany({
+      userId: {$in: [userId, new ObjectId(userId)]},
+      type,
+    });
+  }
 }
