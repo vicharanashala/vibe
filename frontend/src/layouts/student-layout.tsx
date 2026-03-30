@@ -47,10 +47,26 @@ export default function StudentLayout() {
   const { hasNew: hasNewAnnouncements, markSeen: markAnnouncementsSeen } = useNewAnnouncementIndicator();
   const pathname = location.pathname;
 
+  const [approvedNotificationsList, setApprovedNotificationsList] = useState<any[]>([]);
+  const [localRejectedRegistrations, setLocalRejectedRegistrations] = useState<any[]>([]);
+
   const isActive = (path: string) => {
     if (path === "/student") return pathname === "/student";
     return pathname === path || pathname.startsWith(path + "/");
   };
+
+  // Sync local state with hook data
+  useEffect(() => {
+    if (approvedNotifications && approvedNotifications.length !== approvedNotificationsList.length) {
+      setApprovedNotificationsList(approvedNotifications);
+    }
+  }, [approvedNotifications, setApprovedNotificationsList, approvedNotificationsList]);
+
+  useEffect(() => {
+    if (rejectedStudentRegistrations) {
+      setLocalRejectedRegistrations(rejectedStudentRegistrations);
+    }
+  }, [rejectedStudentRegistrations]);
 
   const handleLogout = () => {
     logout()
@@ -282,12 +298,12 @@ export default function StudentLayout() {
                   setSelectedInvite={setSelectedInvite}
                   setPendingInvites={setPendingInvites}
                   pendingInvites={pendingInvites}
-                  approvedNotifications={approvedNotifications}
+                  approvedNotifications={approvedNotificationsList}
+                  setApprovedNotifications={setApprovedNotificationsList}
                   pendingStudentRegistrations={pendingStudentRegistrations ?? []}
-                  rejectedStudentRegistrations={rejectedStudentRegistrations}
+                  rejectedStudentRegistrations={localRejectedRegistrations}
                   onDismissRejected={(id) => {
-                    // In TanStack query we let the mutation invalidate the query
-                    // instead of manual filtering
+                    setLocalRejectedRegistrations(prev => prev.filter(r => r._id !== id));
                   }}
                 />
               )}
