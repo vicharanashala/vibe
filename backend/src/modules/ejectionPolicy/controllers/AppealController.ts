@@ -16,6 +16,8 @@ import {IsMongoId, IsOptional, IsString} from 'class-validator';
 
 import {AppealService} from '../services/AppealService.js';
 import {EJECTION_POLICY_TYPES} from '../types.js';
+import multer from 'multer';
+import {UseBefore, Req} from 'routing-controllers';
 
 // ================= DTOs =================
 
@@ -76,14 +78,30 @@ export class AppealController {
   @Authorized()
   @Post('/')
   @HttpCode(200)
-  async createAppeal(@Body() body: CreateAppealBody, @CurrentUser() user: any) {
+  @UseBefore(
+    multer({
+      storage: multer.memoryStorage(),
+      limits: {fileSize: 10 * 1024 * 1024, files: 5},
+      fileFilter: (_req, file, cb) => {
+        file.mimetype.startsWith('image/')
+          ? cb(null, true)
+          : cb(new Error('Only image files are allowed'));
+      },
+    }).array('images', 5),
+  )
+  async createAppeal(
+    @Body() body: CreateAppealBody,
+    @CurrentUser() user: any,
+    @Req() req: any,
+  ) {
+    const images: Express.Multer.File[] = req.files ?? [];
     return this.appealService.createAppeal(
       user._id.toString(),
       body.courseId,
       body.courseVersionId,
       body.cohortId,
       body.reason,
-      body.evidenceUrl,
+      images,
     );
   }
 
@@ -101,7 +119,7 @@ export class AppealController {
       cohortId: a.cohortId?.toString(),
       policyId: a.policyId?.toString(),
       reason: a.reason,
-      evidenceUrl: a.evidenceUrl,
+      evidenceImages: a.evidenceImages ?? [],
       status: a.status,
       createdAt: a.createdAt,
       updatedAt: a.updatedAt,
@@ -124,7 +142,8 @@ export class AppealController {
       cohortId: a.cohortId?.toString(),
       policyId: a.policyId?.toString(),
       reason: a.reason,
-      evidenceUrl: a.evidenceUrl,
+      evidenceImages: a.evidenceImages ?? [],
+
       status: a.status,
       createdAt: a.createdAt,
       updatedAt: a.updatedAt,

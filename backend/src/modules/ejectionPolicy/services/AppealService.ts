@@ -14,7 +14,10 @@ import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.
 import {NotificationService} from '#root/modules/notifications/services/NotificationService.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {UserService} from '#root/modules/users/services/UserService.js';
-
+import {Storage, Bucket} from '@google-cloud/storage';
+import path from 'path';
+import {randomBytes} from 'crypto';
+import {appConfig} from '#root/config/app.js';
 @injectable()
 export class AppealService {
   constructor(
@@ -34,6 +37,45 @@ export class AppealService {
     private readonly notificationService: NotificationService,
   ) {}
 
+  private getAppealBucket() {
+    const storage = new Storage({
+      keyFilename: appConfig.GOOGLE_APPLICATION_CREDENTIALS,
+    });
+    return storage.bucket(appConfig.GCP_BACKUP_BUCKET);
+  }
+
+  private async uploadAppealImage(
+    bucket: Bucket,
+    userId: string,
+    file: Express.Multer.File,
+    folder: string,
+  ) {
+    const ext = path.extname(file.originalname) || '';
+    const baseName = path.basename(file.originalname, ext);
+    const safeBase = baseName.replace(/[^\w\-]+/g, '_');
+    const unique = randomBytes(8).toString('hex');
+    const timestamp = Date.now();
+
+    const fileName = `${userId}_${safeBase}_${timestamp}_${unique}${ext}`;
+    const objectPath = `${folder}/${fileName}`;
+    const gcpFile = bucket.file(objectPath);
+
+    await gcpFile.save(file.buffer, {
+      resumable: false,
+      contentType: file.mimetype,
+      metadata: {
+        contentDisposition: `inline; filename="${file.originalname}"`,
+      },
+    });
+
+    const [signedUrl] = await gcpFile.getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 1000 * 60 * 60 * 24 * 7,
+    });
+
+    return signedUrl;
+  }
+
   // ================= CREATE =================
 
   async createAppeal(
@@ -42,7 +84,7 @@ export class AppealService {
     versionId: string,
     cohortId: string,
     reason: string,
-    evidenceUrl?: string,
+    images: Express.Multer.File[] = [],
   ): Promise<string> {
     const enrollment = await this.enrollmentService.findAnyEnrollment(
       userId,
@@ -88,14 +130,24 @@ export class AppealService {
       throw new BadRequestError('You already have a pending appeal');
     }
 
-    // validate URL
-    if (evidenceUrl) {
-      try {
-        new URL(evidenceUrl);
-      } catch {
-        throw new BadRequestError('Invalid evidence link');
-      }
+    if (images.length > 5) {
+      throw new BadRequestError('You can upload at most 5 images');
     }
+
+    const isProduction = appConfig.isProduction;
+    const envPrefix = isProduction ? '' : `[${appConfig.sentry.environment}]`;
+    const bucket = this.getAppealBucket();
+
+    const evidenceImages: string[] = await Promise.all(
+      images.map(img =>
+        this.uploadAppealImage(
+          bucket,
+          userId,
+          img,
+          `${envPrefix} ejection-appeals/${courseId}/${userId}`,
+        ),
+      ),
+    );
 
     const appealId = await this.appealRepo.create({
       userId: new ObjectId(userId),
@@ -104,7 +156,7 @@ export class AppealService {
       cohortId: new ObjectId(cohortId),
       policyId: new ObjectId(policy._id),
       reason,
-      evidenceUrl,
+      evidenceImages,
       status: 'PENDING',
       createdAt: new Date(),
       updatedAt: new Date(),
