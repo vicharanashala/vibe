@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, Share, RefreshCw, ListChecks, Hash, Calendar, Settings, FileText, Search, X, FilterIcon, Lock, Unlock, Layers } from "lucide-react";
+import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, Share, RefreshCw, ListChecks, Hash, Calendar, Settings, FileText, Search, X, FilterIcon, Lock, Unlock, Layers, MoreVertical } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
@@ -40,6 +40,8 @@ import {
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
 export interface Registration {
@@ -509,26 +511,19 @@ useEffect(() => {
             isActive={isActive}
             handleToggleRegistration={handleToggleRegistration}
             isTogglingStatus={isTogglingStatus}
-            courseVersion = {courseVersion}
-            cohort ={cohort}
-            setCohort = {setCohort}
+            courseVersion={courseVersion}
+            cohort={cohort}
+            setCohort={setCohort}
+            setIsAutoApprovalModalOpen={setIsAutoApprovalModalOpen}
           />
         </div>
-          <Dialog open={isAutoApprovalModalOpen} onOpenChange={setIsAutoApprovalModalOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Settings className="h-4 w-4" />
-                Configure Auto Approval
-              </Button>
-            </DialogTrigger>
-            <AutoApprovalModal
-              isOpen={isAutoApprovalModalOpen}
-              onOpenChange={setIsAutoApprovalModalOpen}
-              versionId={versionId!}
-              currentSettings={autoApprovalSettings}
-              courseVersion = {courseVersion}
-            />
-          </Dialog>
+          <AutoApprovalModal
+            isOpen={isAutoApprovalModalOpen}
+            onOpenChange={setIsAutoApprovalModalOpen}
+            versionId={versionId!}
+            currentSettings={autoApprovalSettings}
+            courseVersion={courseVersion}
+          />
         {/* <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
           <div className="flex-1 relative">
             <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
@@ -1019,6 +1014,7 @@ interface RegistrationActionsProps {
   courseVersion: any;
   cohort: string;
   setCohort : React.Dispatch<React.SetStateAction<string>>;
+  setIsAutoApprovalModalOpen: (val: boolean) => void;
 }
 
 export const RegistrationActions = ({
@@ -1042,19 +1038,85 @@ export const RegistrationActions = ({
   courseVersion,
   cohort,
   setCohort,
+  setIsAutoApprovalModalOpen,
 }: RegistrationActionsProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isRefresh, setIsRefresh] = useState(false);
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Share2 className="h-4 w-4" />
-            Get Registration URL
+    <div className="flex items-center gap-2 justify-end">
+      {/* Refresh stays visible */}
+      <Button
+        variant="outline"
+        onClick={() => {
+          setIsRefresh(true);
+          setTimeout(() => setIsRefresh(false), 2000);
+          registrationsRefetch();
+        }}
+        disabled={isLoading}
+        className="flex items-center gap-2"
+      >
+        <RefreshCw className={`w-4 h-4 ${(isLoading || isRefresh) ? "animate-spin" : ""}`} />
+        Refresh
+      </Button>
+
+      {/* ⋮ Actions menu */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm">
+            <MoreVertical className="h-4 w-4" />
           </Button>
-        </DialogTrigger>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+
+          <DropdownMenuItem onSelect={() => setIsOpen(true)}>
+            <Share2 className="h-4 w-4 mr-2" />
+            Get Registration URL
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            onSelect={() => setIsBulkApproveOpen(true)}
+            disabled={!selectedIds || selectedIds.length === 0}
+          >
+            <CheckCircle className="h-4 w-4 mr-2" />
+            {(!selectedIds || selectedIds.length === 0)
+              ? "Approve Selected"
+              : `Approve Selected (${selectedIds.length})`}
+          </DropdownMenuItem>
+
+          {!(courseVersion?.cohortDetails?.length > 0) && (
+            <DropdownMenuItem
+              onSelect={handleToggleRegistration}
+              disabled={isTogglingStatus}
+            >
+              {isTogglingStatus ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : isActive ? (
+                <Lock className="h-4 w-4 mr-2" />
+              ) : (
+                <Unlock className="h-4 w-4 mr-2" />
+              )}
+              {isActive ? "Pause registrations" : "Resume registrations"}
+            </DropdownMenuItem>
+          )}
+
+          <DropdownMenuItem onSelect={() => setShowFormBuilder(true)}>
+            <FileText className="h-4 w-4 mr-2" />
+            Build Form
+          </DropdownMenuItem>
+
+          <DropdownMenuSeparator />
+
+          <DropdownMenuItem onSelect={() => setIsAutoApprovalModalOpen(true)}>
+            <Settings className="h-4 w-4 mr-2" />
+            Configure Auto Approval
+          </DropdownMenuItem>
+
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Registration URL Dialog — controlled via state */}
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="sm:max-w-lg max-w-sm max-[425px]:w-[90vw]">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold flex items-center gap-3">
@@ -1066,31 +1128,21 @@ export const RegistrationActions = ({
             </p>
           </DialogHeader>
 
-          {/* // if we have cohorts in version then we should not allow registration without cohort */}
           {courseVersion?.cohorts?.length > 0 && (
-            
             <DropdownMenu>
               <span className="mr-4">Cohort Name:</span>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="mt-2 px-3 py-2 text-sm w-[30%]"
-                >
-                   {cohort ? courseVersion.cohortDetails.find(c => c.id === cohort)?.name : "Select Cohort"}
+                <Button variant="outline" className="mt-2 px-3 py-2 text-sm w-[30%]">
+                  {cohort ? courseVersion.cohortDetails.find(c => c.id === cohort)?.name : "Select Cohort"}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuRadioGroup
                   value={cohort ?? ""}
-                  onValueChange={(value) => {
-                    setCohort(value);
-                  }}
+                  onValueChange={(value) => setCohort(value)}
                 >
                   {courseVersion?.cohortDetails?.map((cohort) => (
-                    <DropdownMenuRadioItem
-                      key={cohort.id}
-                      value={cohort.id}
-                    >
+                    <DropdownMenuRadioItem key={cohort.id} value={cohort.id}>
                       {cohort.name}
                     </DropdownMenuRadioItem>
                   ))}
@@ -1099,45 +1151,36 @@ export const RegistrationActions = ({
             </DropdownMenu>
           )}
 
-          {(
-            !courseVersion?.cohortDetails?.length ||
-            cohort
-          ) && (
-              <div className="space-y-4 mt-6">
-                <div className="relative">
-                  <label className="text-sm font-medium text-foreground mb-2 block">
-                    Registration URL
-                  </label>
-                  <div className="flex items-center gap-2 p-3 bg-muted/50 border border-border rounded-lg">
-                    <code className="flex-1 text-sm font-mono text-foreground break-all">
-                      {courseVersion?.cohortDetails?.length > 0 ? registrationUrlWithCohort : registrationUrl}
-                    </code>
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={courseVersion?.cohortDetails?.length > 0 ? copyRegistrationUrlWithCohort: copyRegistrationUrl}
-                      className="h-8 w-8 p-0 flex-shrink-0"
-                    >
-                      {copied ? (
-                        <Check className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
+          {(!courseVersion?.cohortDetails?.length || cohort) && (
+            <div className="space-y-4 mt-6">
+              <div className="relative">
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Registration URL
+                </label>
+                <div className="flex items-center gap-2 p-3 bg-muted/50 border border-border rounded-lg">
+                  <code className="flex-1 text-sm font-mono text-foreground break-all">
+                    {courseVersion?.cohortDetails?.length > 0 ? registrationUrlWithCohort : registrationUrl}
+                  </code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={courseVersion?.cohortDetails?.length > 0 ? copyRegistrationUrlWithCohort : copyRegistrationUrl}
+                    className="h-8 w-8 p-0 flex-shrink-0"
+                  >
+                    {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                  </Button>
                 </div>
-                {copied && (
-                  <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
-                    <Check className="h-4 w-4" />
-                    URL copied to clipboard successfully!
-                  </div>
-                )}
               </div>
+              {copied && (
+                <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                  <Check className="h-4 w-4" />
+                  URL copied to clipboard successfully!
+                </div>
+              )}
+            </div>
           )}
 
-          {(!courseVersion?.cohortDetails?.length || cohort
-          ) && (
+          {(!courseVersion?.cohortDetails?.length || cohort) && (
             <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-6">
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
@@ -1145,12 +1188,10 @@ export const RegistrationActions = ({
                   size="sm"
                   onClick={() => {
                     if (navigator.share) {
-                      navigator
-                        .share({
-                          title: "Course Registration - Vibe Platform",
-                          text: courseVersion?.cohortDetails?.length > 0 ? registrationMessageWithCohort :registrationMessage,
-                        })
-                        .catch((err) => console.error("Error sharing:", err));
+                      navigator.share({
+                        title: "Course Registration - Vibe Platform",
+                        text: courseVersion?.cohortDetails?.length > 0 ? registrationMessageWithCohort : registrationMessage,
+                      }).catch((err) => console.error("Error sharing:", err));
                     } else {
                       toast.error("Web Share API not supported. Please copy the URL manually.");
                     }
@@ -1165,78 +1206,6 @@ export const RegistrationActions = ({
           )}
         </DialogContent>
       </Dialog>
-
-      <Button
-        onClick={() => setIsBulkApproveOpen(true)}
-        disabled={isUpdatingBulkStatus || isUpdatingStatus || !selectedIds || selectedIds.length === 0}
-        variant="outline"
-        className="hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 dark:hover:bg-blue-950 dark:hover:text-blue-300 dark:hover:border-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <CheckCircle className="h-4 w-4 mr-2" />
-        {(!selectedIds || selectedIds.length === 0)
-          ? "Approve Selected"
-          : `Approve Selected (${selectedIds.length})`}
-      </Button>
-{!(courseVersion?.cohortDetails?.length > 0) && (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleToggleRegistration}
-              disabled={isTogglingStatus}
-              className={`gap-2 ${!isActive
-                  ? "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950 dark:hover:text-green-300 dark:hover:border-green-700"
-                  : "hover:bg-red-50 hover:text-red-700 hover:border-red-300 dark:hover:bg-red-950 dark:hover:text-red-300 dark:hover:border-red-700"
-                } transition-colors`}
-            >
-              {isTogglingStatus ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : isActive ? (
-                <Lock className="h-4 w-4" />
-              ) : (
-                <Unlock className="h-4 w-4" />
-              )}
-              {isActive ? "Pause registrations" : "Resume registrations"}
-            </Button>
-          </TooltipTrigger>
-
-          <TooltipContent>
-            {isActive
-              ? "Disabling will restrict student registration"
-              : "Enabling will allow student registration"}
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-)}
-      <Button
-        variant="outline"
-        size="sm"
-        className="gap-2"
-        onClick={() => setShowFormBuilder(true)}
-      >
-        <FileText className="h-4 w-4" />
-        Build Form
-      </Button>
-
-      <Button
-        variant="outline"
-        onClick={() => {
-          setIsRefresh(true);
-          setTimeout(() => {
-            setIsRefresh(false);
-          }, 2000);
-          registrationsRefetch();
-        }}
-        disabled={isLoading}
-        className="flex items-center gap-2"
-      >
-        <RefreshCw
-          className={`w-4 h-4 ${(isLoading || isRefresh) ? "animate-spin" : ""}`}
-        />
-        Refresh
-      </Button>
     </div>
   );
 }

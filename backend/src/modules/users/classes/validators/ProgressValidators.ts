@@ -57,6 +57,14 @@ export class GetLeaderboardQuery {
   })
   @IsOptional()
   limit?: number = 10;
+
+  @JSONSchema({
+    description: 'Cohort ID to filter leaderboard by',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  cohortId?: string;
 }
 
 export class LeaderboardNoAuthResponse {

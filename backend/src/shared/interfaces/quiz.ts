@@ -32,7 +32,7 @@ interface IQuestion {
   parameters?: IQuestionParameter[];
   hint?: string;
   timeLimitSeconds: number;
-  points: number;
+  points?: number;
   priority: Priority;
 }
 
@@ -83,6 +83,7 @@ interface IQuestionBank {
   tags?: string[];
   title: string;
   description: string;
+  points?: number;
   createdAt: Date;
   updatedAt: Date;
 }

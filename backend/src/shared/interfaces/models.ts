@@ -409,6 +409,17 @@ export interface IEnrollment {
   hpPoints?:number;
   hasNewItemsAfterCompletion?: boolean;
   cohortId?: ID;
+  policyAcknowledgedAt?: Date;
+  policyReacknowledgementRequired?: boolean;
+  isEjected?: boolean;
+  ejectionHistory?: Array<{
+    ejectedAt: Date;
+    ejectionReason: string;
+    ejectedBy: string | ObjectId;
+    policyId?: string | ObjectId;
+    reinstatedAt?: Date;
+    reinstatedBy?: string | ObjectId;
+  }>;
 }
 
 export interface IProgress {
@@ -451,6 +462,8 @@ export interface ICohort {
   updatedAt: Date;
   isPublic: boolean;
   isActive?: boolean;
+  baseHp?: number;
+  safeHp?: number;
 }
 
 export interface ICohortSettings {

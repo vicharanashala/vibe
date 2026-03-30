@@ -2,8 +2,10 @@ import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CourseCard, CourseCardSkeleton } from "@/components/course/CourseCard";
+import { CourseListCard } from "@/components/course/CourseListCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/utils/utils";
 import type { CourseSectionProps } from '@/types/course.types';
 
 export const CourseSection = ({
@@ -21,12 +23,18 @@ export const CourseSection = ({
   className,
   completion,
   setCompletion,
-  cardVariant
+  cardVariant,
+  viewMode = 'grid'
 }: CourseSectionProps) => {
   const renderContent = () => {
     if (isLoading) {
       return (
-        <div className={variant === 'dashboard' ? "space-y-2" : "grid gap-4 md:grid-cols-2"}>
+        <div className={cn(
+          "grid gap-6",
+          viewMode === 'grid' 
+            ? (variant === 'dashboard' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1 md:grid-cols-2") 
+            : "grid-cols-1"
+        )}>
           {Array.from({ length: skeletonCount }, (_, i) => (
             <CourseCardSkeleton key={i} variant={variant} />
           ))}
@@ -72,14 +80,29 @@ export const CourseSection = ({
 
     return (
       <>
-        <div className={variant === 'dashboard' ? "space-y-2" : "grid gap-4 md:grid-cols-2"}>
+        <div className={cn(
+          "grid gap-6",
+          viewMode === 'grid' 
+            ? (variant === 'dashboard' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1 md:grid-cols-2") 
+            : "grid-cols-1"
+        )}>
           {enrollments
             .filter((enrollment: any) => enrollment && enrollment.courseVersionId)
             .map((enrollment: any, index) => {
               const courseId = enrollment.courseVersionId as string;
               const cohortId = enrollment?.cohortId as string;
-              return (
+              return viewMode === 'grid' ? (
                 <CourseCard
+                  key={courseId + cohortId}
+                  enrollment={enrollment}
+                  index={index}
+                  variant={cardVariant || variant}
+                  completion={completion}
+                  isLoading={isLoading}
+                  setCompletion={setCompletion}
+                />
+              ) : (
+                <CourseListCard
                   key={courseId + cohortId}
                   enrollment={enrollment}
                   index={index}

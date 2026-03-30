@@ -24,7 +24,8 @@ import {
     Flame,
     Eye,
     Filter,
-    FileSearch
+    FileSearch,
+    RefreshCw
 } from "lucide-react";
 import { HpActivity } from "@/lib/api/hp-system";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -118,7 +119,7 @@ export default function StudentActivities() {
 
     const [selectedActivityType, setSelectedActivityType] = useState<string>("ASSIGNMENT");
 
-    const { data: activities, isLoading, error, refetch } = useHpStudentActivities(
+    const { data: activities, isLoading, error, refetch, isRefetching } = useHpStudentActivities(
         courseVersionId as string,
         cohortName as string
     );
@@ -310,6 +311,15 @@ export default function StudentActivities() {
                             {decodeURIComponent(cohortName as string)}
                         </p>
                     </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refetch()}
+                        disabled={isRefetching}
+                    >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                        {isRefetching ? "Refreshing..." : "Refresh"}
+                    </Button>
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button

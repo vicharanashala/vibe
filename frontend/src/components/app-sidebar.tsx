@@ -12,6 +12,7 @@ import {
   Megaphone,
   PieChart,
   Settings2,
+  Shield,
   SquareTerminal,
 } from "lucide-react"
 
