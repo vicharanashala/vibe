@@ -634,8 +634,6 @@ export default function ConfigureCohorts() {
 
                       if (value < 0) {
                         setSafeHpError("Safe HP cannot be negative")
-                      } else if (value > baseHp) {
-                        setSafeHpError("Safe HP cannot exceed Base HP")
                       } else {
                         setSafeHpError("")
                       }
