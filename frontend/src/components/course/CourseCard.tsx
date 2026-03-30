@@ -16,8 +16,7 @@ import { bufferToHex } from "@/utils/helpers";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { StudentPolicyModal } from "@/app/pages/student/components/policies/StudentPolicyModal";
-// import { Pagination } from "../ui/Pagination";
-// import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 import { EnrollmentDetailsDialog } from "@/components/course/EnrollmentDetailsDialog";
 

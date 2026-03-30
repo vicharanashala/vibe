@@ -390,7 +390,7 @@ export const EjectionPolicyModal = ({
             </div>
 
             {/* Inactivity Trigger */}
-            <Card className={formData.inactivityEnabled ? "border-primary/50" : ""}>
+            {/* <Card className={formData.inactivityEnabled ? "border-primary/50" : ""}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -439,7 +439,7 @@ export const EjectionPolicyModal = ({
                   </div>
                 )}
               </CardContent>
-            </Card>
+            </Card> */}
 
             {/* Missed Deadlines Trigger */}
             <Card className={formData.missedDeadlinesEnabled ? "border-primary/50" : ""}>
