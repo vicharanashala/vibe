@@ -296,7 +296,7 @@ export default function CreateHpActivityPage() {
         const rulePayload = {
             courseId: courseId,
             courseVersionId: courseVersionId,
-            submissionValidation: ruleConfig.submissionValidation,
+            submissionValidation: isVibeMilestone ? [] : ruleConfig.submissionValidation,
             isMandatory: ruleConfig.isMandatory as boolean,
             deadlineAt: ruleConfig.deadlineAt as string | undefined,
             allowLateSubmission: ruleConfig.allowLateSubmission as boolean,
@@ -1060,72 +1060,59 @@ export default function CreateHpActivityPage() {
                                 </div>
                             )}
 
+                        {currentActivityType !== "VIBE_MILESTONE" &&  
                             <div className="space-y-4">
-                                <div className="flex items-center gap-2">
-                                    <h4 className="text-sm font-semibold uppercase tracking-wider text-foreground">
-                                        Submission Requirements
-                                    </h4>
-
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Info className="h-4 w-4 text-muted-foreground cursor-pointer" />
-                                            </TooltipTrigger>
-                                            <TooltipContent className="max-w-xs text-xs text-black">
-                                                These are the fields that will be shown to students when submitting this activity.
-                                                You can enable or disable the options to control whether each field is required
-                                                or optional for students during submission.
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                </div>
+                                <h4 className="text-sm font-semibold uppercase tracking-wider text-foreground">
+                                    Submission Requirements
+                                </h4>
 
                                 <div className="grid grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
-
+                                    
                                     {[
-                                        { label: "Text Response", value: SubmissionField.TEXT },
-                                        { label: "PDF Upload", value: SubmissionField.PDF },
-                                        { label: "Images", value: SubmissionField.IMAGE },
-                                        { label: "URL Links", value: SubmissionField.URL },
+                                    { label: "Text Response", value: SubmissionField.TEXT },
+                                    { label: "PDF Upload", value: SubmissionField.PDF },
+                                    { label: "Images", value: SubmissionField.IMAGE },
+                                    { label: "URL Links", value: SubmissionField.URL },
                                     ].map((item) => {
-                                        const selected = ruleConfig.submissionValidation || [];
+                                    const selected = ruleConfig.submissionValidation || [];
 
-                                        return (
-                                            <div key={item.value} className="flex items-center justify-between">
-                                                <Label>{item.label}</Label>
-                                                <Switch
-                                                    checked={selected.includes(item.value)}
-                                                    onCheckedChange={(checked) => {
-                                                        let updated = [...selected];
+                                    return (
+                                        <div key={item.value} className="flex items-center justify-between">
+                                        <Label>{item.label}</Label>
+                                        <Switch
+                                            checked={selected.includes(item.value)}
+                                            onCheckedChange={(checked) => {
+                                            let updated = [...selected];
 
-                                                        if (checked) {
-                                                            updated.push(item.value);
-                                                        } else {
-                                                            updated = updated.filter(v => v !== item.value);
-                                                        }
+                                            if (checked) {
+                                                updated.push(item.value);
+                                            } else {
+                                                updated = updated.filter(v => v !== item.value);
+                                            }
 
-                                                        if (updated.length === 0) {
-                                                            toast.error("At least one submission field must be required");
-                                                            return;
-                                                        }
+                                            if (updated.length === 0) {
+                                                toast.error("At least one submission field must be required");
+                                                return;
+                                            }
 
-                                                        setRuleConfig(prev => ({
-                                                            ...prev,
-                                                            submissionValidation: updated
-                                                        }));
-                                                    }}
-                                                />
-                                            </div>
-                                        );
+                                            setRuleConfig(prev => ({
+                                                ...prev,
+                                                submissionValidation: updated
+                                            }));
+                                            }}
+                                        />
+                                        </div>
+                                    );
                                     })}
                                 </div>
                             </div>
-                            {submitError && (
-                                <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-3 rounded-md flex items-start gap-2">
-                                    <span>{submitError}</span>
-                                </div>
-                            )}
-                        </div>
+                        }
+                        {submitError && (
+                            <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-3 rounded-md flex items-start gap-2">
+                                <span>{submitError}</span>
+                            </div>
+                        )}
+                    </div>
 
                         {/* Step 2 Actions */}
                         <div className="flex justify-end gap-4">

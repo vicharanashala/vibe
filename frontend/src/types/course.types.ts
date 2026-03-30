@@ -76,6 +76,7 @@ export interface CourseSectionProps {
   completion?: CoursePctCompletion[];
   setCompletion?: (completion: CoursePctCompletion[]) => void;
   className?: string;
+  viewMode?: 'grid' | 'list';
 }
 
 export interface CourseInfo {
