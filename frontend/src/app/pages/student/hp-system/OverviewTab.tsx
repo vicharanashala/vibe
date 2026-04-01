@@ -240,8 +240,6 @@ const ACTIVITY_TYPES = [
     { value: 'all', label: 'All Activities' },
     { value: 'assignment', label: 'Assignments' },
     { value: 'milestone', label: 'Milestones' },
-    { value: 'quiz', label: 'Quizzes' },
-    { value: 'project', label: 'Projects' },
 ];
 
 function ActivityBreakdown({ data, className }: { data: any; className?: string }) {

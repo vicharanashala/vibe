@@ -469,7 +469,36 @@ export class ActivityRepository implements IActivityRepository {
           cohort: cohortName,
           courseVersionId: new ObjectId(courseVersionId),
           status: "PUBLISHED",
-          isDeleted: { $ne: true },
+          isDeleted: { $ne: true }
+        }
+      },
+      {
+        $lookup: {
+          from: "hp_activity_rules",
+          let: { activityId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$activityId", "$$activityId"] },
+                    { $ne: ["$isDeleted", true] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: "rules"
+        }
+      },
+      {
+        $unwind: {
+          path: "$rules",
+          preserveNullAndEmptyArrays: false
+        }
+      },
+      {
+        $match: {
           "rules.deadlineAt": {
             $gte: today,
             $lte: futureDate
@@ -522,10 +551,12 @@ export class ActivityRepository implements IActivityRepository {
 
     const result = await this.hpActivityCollection.aggregate(pipeline, { session }).toArray();
 
-    return result.map(r => ({
+    const mapped = result.map(r => ({
       activityTitle: r.activityTitle,
       deadlineDate: r.deadlineDate,
       daysLeft: Math.max(0, r.daysLeft)
     }));
+
+    return mapped;
   }
 }

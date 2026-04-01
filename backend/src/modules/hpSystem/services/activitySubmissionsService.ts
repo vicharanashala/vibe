@@ -1232,8 +1232,12 @@ export class ActivitySubmissionsService extends BaseService {
         }>;
     }> {
         return this._withTransaction(async (session) => {
-            // Resolve effective versionId from legacy cohort overrides
-            const cohortOverride = COHORT_OVERRIDES[cohortName];
+            // Only apply cohort overrides for legacy courses
+            const legacyCourseIds = ["000000000000000000000001", "000000000000000000000002"];
+            const isLegacyCourse = legacyCourseIds.includes(courseVersionId);
+            
+            // Resolve effective versionId from legacy cohort overrides only for legacy courses
+            const cohortOverride = isLegacyCourse ? COHORT_OVERRIDES[cohortName] : null;
             const effectiveVersionId = cohortOverride?.versionId || courseVersionId;
 
             // 1. Get student dashboard stats from submissions repository
