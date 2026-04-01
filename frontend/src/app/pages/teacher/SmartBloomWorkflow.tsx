@@ -743,7 +743,44 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
           ]
         : [];
       const baseOptions = uniqueOptions([...explicitOptions, ...solutionOptions]);
-      const normalizedOptions = enforceBinaryOptionLimit(questionText, baseOptions.filter(Boolean));
+      let normalizedOptions = enforceBinaryOptionLimit(questionText, baseOptions.filter(Boolean));
+
+      // Enforce: correct option should not always be the longest
+      // Find correct option indexes
+      const correctTexts = new Set(
+        uniqueOptions([
+          ...(item?.solution?.correctLotItems || []).map((o: any) => o?.text),
+          item?.solution?.correctLotItem?.text,
+        ]).map((v) => v.toLowerCase()),
+      );
+      const correctIndexes = normalizedOptions
+        .map((opt, idx) => (correctTexts.has(opt.toLowerCase()) ? idx : -1))
+        .filter((idx) => idx >= 0);
+      if (normalizedOptions.length > 1 && correctIndexes.length > 0) {
+        const correctLengths = correctIndexes.map((idx) => normalizedOptions[idx]?.length || 0);
+        const maxDistractorLength = normalizedOptions
+          .filter((_, idx) => !correctIndexes.includes(idx))
+          .reduce((max, opt) => Math.max(max, opt.length), 0);
+        const maxCorrectLength = Math.max(...correctLengths);
+        // If correct is strictly the longest, try to shuffle or warn
+        if (maxCorrectLength > maxDistractorLength) {
+          // Try to swap with a distractor if possible
+          const distractorIdx = normalizedOptions.findIndex((opt, idx) => !correctIndexes.includes(idx) && opt.length === maxCorrectLength);
+          if (distractorIdx !== -1) {
+            // Swap correct and distractor
+            const temp = normalizedOptions[distractorIdx];
+            normalizedOptions[distractorIdx] = normalizedOptions[correctIndexes[0]];
+            normalizedOptions[correctIndexes[0]] = temp;
+          }
+          // If still not fixed, log a warning (dev only)
+          else {
+            if (typeof window !== 'undefined' && window?.console) {
+              // eslint-disable-next-line no-console
+              console.warn('Correct option is strictly the longest. Please revise options for question:', questionText);
+            }
+          }
+        }
+      }
 
       const segmentId = resolveSegmentId(item, fallbackSegment);
       const stableId = `${segmentId}-${(questionText || "q").slice(0, 32)}-${indexSeed}`;
