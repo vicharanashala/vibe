@@ -11,7 +11,8 @@ export interface IAppeal {
   policyId: ObjectId;
 
   reason: string;
-  evidenceUrl?: string;
+
+  evidenceImages?: string[];
 
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
 
