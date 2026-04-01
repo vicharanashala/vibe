@@ -5869,3 +5869,34 @@ export function useStudentMySubmissions(courseVersionId: string, cohort: string)
 
 
 }
+
+export interface UserEnrollmentStats {
+  totalCourses: number;
+  completedCourses: number;
+  totalItems: number;
+  completedItems: number;
+  overallProgress: number;
+}
+
+export function useUserEnrollmentStats(enabled: boolean = true): {
+  data: UserEnrollmentStats | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery(
+    "get",
+    "/users/enrollment-stats" as any,
+    {},
+    { enabled }
+  );
+
+  return {
+    data: result.data as UserEnrollmentStats | undefined,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || "Failed to fetch enrollment stats"
+      : null,
+    refetch: result.refetch,
+  };
+}
