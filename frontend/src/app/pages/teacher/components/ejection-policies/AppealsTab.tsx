@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Loader2, FileText, ExternalLink, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Loader2, FileText, ExternalLink, CheckCircle, XCircle, Clock, User, BookOpen, Users } from "lucide-react";
 import { useGetAppeals, useApproveAppeal, useRejectAppeal } from "@/hooks/system-notification-hooks";
 import { queryClient } from "@/lib/client";
 import {
@@ -34,6 +34,8 @@ type Props = {
   courseId: string;
   courseVersionId: string;
   cohortId: string;
+  courseName: string;
+  cohortName: string;
 };
 
 const statusConfig = {
@@ -57,9 +59,13 @@ const statusConfig = {
 function AppealCard({
   appeal,
   onAction,
+  courseName,
+  cohortName,
 }: {
   appeal: Appeal;
   onAction: () => void;
+  courseName: string;
+  cohortName: string;
 }) {
   const config = statusConfig[appeal.status];
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -108,10 +114,23 @@ function AppealCard({
                 {appeal.student.firstName} {appeal.student.lastName}
               </p>
 
-              <p className="text-xs text-muted-foreground">
-                {appeal.student.email}
-              </p>
-              <p className="text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                <p className="text-xs text-muted-foreground">
+                  {appeal.student.email}
+                </p>
+                <span className="text-[10px] text-muted-foreground/40">•</span>
+                <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+                  <BookOpen className="h-2.5 w-2.5" />
+                  {courseName || "Loading..." }
+                </p>
+                <span className="text-[10px] text-muted-foreground/40">•</span>
+                <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+                  <Users className="h-2.5 w-2.5" />
+                  {cohortName || "Loading..."}
+                </p>
+              </div>
+              
+              <p className="text-[10px] text-muted-foreground mt-1">
                 {new Date(appeal.createdAt).toLocaleDateString(undefined, {
                   year: "numeric", month: "short", day: "numeric",
                 })}
@@ -204,6 +223,35 @@ function AppealCard({
           <DialogHeader>
             <DialogTitle>Reject Appeal</DialogTitle>
           </DialogHeader>
+
+          <div className="bg-muted/30 rounded-lg p-4 space-y-3 border border-border/50">
+            <div className="flex items-center gap-3 text-sm">
+              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <User className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium uppercase">Student</p>
+                <p className="font-semibold">{appeal.student.firstName} {appeal.student.lastName}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border/50">
+              <div className="flex items-center gap-2 text-sm">
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
+                <div className="min-w-0">
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase">Course</p>
+                  <p className="font-medium truncate" title={courseName}>{courseName || "Unknown Course"}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <div className="min-w-0">
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase">Cohort</p>
+                  <p className="font-medium truncate" title={cohortName}>{cohortName || "Unknown Cohort"}</p>
+                </div>
+              </div>
+            </div>
+          </div>
           <div className="space-y-4 mt-8">
             <Textarea
               placeholder="Provide a reason for rejection..."
@@ -230,7 +278,7 @@ function AppealCard({
   );
 }
 
-export function AppealsTab({ courseId, courseVersionId, cohortId }: Props) {
+export function AppealsTab({ courseId, courseVersionId, cohortId, courseName, cohortName }: Props) {
   const [statusFilter, setStatusFilter] = useState<string>("PENDING");
 
   const { appeals, isLoading, refetch } = useGetAppeals(
@@ -278,7 +326,13 @@ export function AppealsTab({ courseId, courseVersionId, cohortId }: Props) {
       ) : (
         <div className="space-y-3">
           {appeals.map((appeal: Appeal) => (
-            <AppealCard key={appeal._id} appeal={appeal} onAction={refetch} />
+            <AppealCard 
+              key={appeal._id} 
+              appeal={appeal} 
+              onAction={refetch} 
+              courseName={courseName}
+              cohortName={cohortName}
+            />
           ))}
         </div>
       )}
