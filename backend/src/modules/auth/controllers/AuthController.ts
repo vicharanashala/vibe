@@ -178,37 +178,78 @@ export class AuthController {
     // Import verifyRecaptcha dynamically to avoid circular dependency
     const { verifyRecaptcha } = await import('#root/shared/functions/verifyRecaptcha.js');
 
-    // Verify reCAPTCHA token
-    try {
-      const isValidRecaptcha = await verifyRecaptcha(recaptchaToken);
-      if (!isValidRecaptcha) {
-        throw new HttpError(400, 'reCAPTCHA verification failed. Please try again.');
+    const isRecaptchaEnabled = process.env.IS_RECAPTCHA_ENABLED === 'true';
+
+    // Verify reCAPTCHA token only when enabled
+    if (isRecaptchaEnabled) {
+      if (!recaptchaToken) {
+        throw new HttpError(400, 'reCAPTCHA verification is required');
       }
+
+      try {
+        const isValidRecaptcha = await verifyRecaptcha(recaptchaToken);
+        if (!isValidRecaptcha) {
+          throw new HttpError(400, 'reCAPTCHA verification failed. Please try again.');
+        }
+      } catch (error) {
+        if (error instanceof HttpError) {
+          throw error;
+        }
+        throw new HttpError(500, 'Failed to verify reCAPTCHA. Please try again.');
+      }
+    }
+
+    if (!appConfig.firebase.apiKey) {
+      if (appConfig.isDevelopment) {
+        return {
+          localId: '',
+          email,
+          displayName: '',
+          idToken: '',
+          refreshToken: '',
+          expiresIn: 0,
+        };
+      }
+
+      throw new HttpError(500, 'FIREBASE_API_KEY is not configured');
+    }
+
+    // Proceed with Firebase authentication
+    try {
+      const data = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${appConfig.firebase.apiKey}`,
+        {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            email,
+            password,
+            returnSecureToken: true,
+          }),
+        },
+      );
+      const result = await data.json() as any;
+
+      if (!data.ok) {
+        throw new HttpError(
+          401,
+          result?.error?.message || 'Invalid email or password',
+        );
+      }
+
+      // ✅ fetch your app user from DB
+      // const user = await this.authService.getCurrentUserFromToken(result.idToken);
+      return result;
     } catch (error) {
       if (error instanceof HttpError) {
         throw error;
       }
-      throw new HttpError(500, 'Failed to verify reCAPTCHA. Please try again.');
+
+      throw new HttpError(
+        500,
+        'Firebase login request failed. Check FIREBASE_API_KEY or network connectivity.',
+      );
     }
-
-    // Proceed with Firebase authentication
-    const data = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${appConfig.firebase.apiKey}`,
-      {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          email,
-          password,
-          returnSecureToken: true,
-        }),
-      },
-    );
-    const result = await data.json();
-
-    // ✅ fetch your app user from DB
-    // const user = await this.authService.getCurrentUserFromToken(result.idToken);
-    return result;
   }
 
   @OpenAPI({
@@ -244,6 +285,42 @@ export class AuthController {
     return {
       success: true,
       message: 'If an account exists for this email, a reset link has been sent.',
+    };
+  }
+
+  @OpenAPI({
+    summary: 'Resend a password reset email',
+    description:
+      'Resends a password reset email if an account exists. Always returns success to prevent email enumeration.',
+  })
+  @Post('/resend-forgot-password')
+  @HttpCode(200)
+  @ResponseSchema(ForgotPasswordResponse, {
+    description: 'Password reset email resent',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async resendForgotPassword(@Body() body: ForgotPasswordBody) {
+    const {email, recaptchaToken} = body;
+    const { verifyRecaptcha } = await import('#root/shared/functions/verifyRecaptcha.js');
+
+    try {
+      const isValidRecaptcha = await verifyRecaptcha(recaptchaToken);
+      if (!isValidRecaptcha) {
+        throw new HttpError(400, 'reCAPTCHA verification failed. Please try again.');
+      }
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      throw new HttpError(500, 'Failed to verify reCAPTCHA. Please try again.');
+    }
+
+    await this.authService.sendPasswordResetEmail(email);
+    return {
+      success: true,
+      message: 'If an account exists for this email, a reset link has been resent.',
     };
   }
 

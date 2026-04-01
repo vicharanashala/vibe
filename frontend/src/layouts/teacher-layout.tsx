@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/auth-store";
 import { logout } from "@/utils/auth";
-import { LogOut, ArrowLeft, UserRoundCheck, UserCheck } from "lucide-react";
+import { LogOut, UserRoundCheck, UserCheck } from "lucide-react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -27,7 +27,6 @@ import InviteDropdown from "@/components/inviteDropDown";
 import RegistrationNotificationDropdown from "@/components/RegistrationNotificationDropdown";
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal";
 import { useInvites, useGetPendingRegistrations } from "@/hooks/hooks";
-import { PendingRegistrationNotification } from "@/types/notification.types";
 import { toast } from "sonner";
 
 export default function TeacherLayout() {
@@ -35,7 +34,7 @@ export default function TeacherLayout() {
   const navigate = useNavigate();
   const { user, isAuthReady } = useAuthStore(); // 🧠 from store
   const { data: pendingRegistrations } = useGetPendingRegistrations(user?.uid || '');
-  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
+  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItemment[]>([]);
   const [showInvites, setShowInvites] = useState(false);
   const [showRegistrations, setShowRegistrations] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
@@ -45,9 +44,9 @@ export default function TeacherLayout() {
   const registrationsRef = useRef<HTMLDivElement | null>(null);
   const { getInvites } = useInvites();
 
-  // Sync local state with hook data and show toast for NEW registrations
+  // Keep dropdown list in sync when the query refetches (not only when length changes)
   useEffect(() => {
-    if (pendingRegistrations && pendingRegistrations.length !== pendingRegistrationsList.length) {
+    if (pendingRegistrations != null) {
       setPendingRegistrationsList(pendingRegistrations);
     }
   }, [pendingRegistrations]);
@@ -57,12 +56,8 @@ export default function TeacherLayout() {
     navigate({ to: "/auth" });
   };
 
-  const handleGoBack = () => {
-    window.history.back();
-  };
-
   useEffect(() => {
-    const items: BreadcrumbItem[] = [];
+    const items: BreadcrumbItemment[] = [];
     items.push({
       label: "Dashboard",
       path: "/teacher",
@@ -147,7 +142,6 @@ export default function TeacherLayout() {
     if (!isAuthReady || !user) return;
 
     const toastShown = sessionStorage.getItem("inviteToastShown");
-    const registrationToastShown = sessionStorage.getItem("registrationToastShown");
 
     const getUserInvites = async () => {
       getInvites().then(result => {
@@ -165,6 +159,13 @@ export default function TeacherLayout() {
       })
     };
 
+    getUserInvites();
+
+  }, [user, isAuthReady, getInvites])
+
+  useEffect(() => {
+    const registrationToastShown = sessionStorage.getItem("registrationToastShown");
+    
     const checkRegistrations = () => {
       if (pendingRegistrations && pendingRegistrations.length > 0 && !registrationToastShown) {
         toast.info("New registration needs approval! Check registrations dropdown.", {
@@ -174,10 +175,9 @@ export default function TeacherLayout() {
       }
     };
 
-    getUserInvites();
     checkRegistrations();
 
-  }, [user, isAuthReady])
+  }, [pendingRegistrations])
 
   return (
     <SidebarProvider>

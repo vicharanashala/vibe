@@ -18,6 +18,7 @@ import {ProgressDataResponse} from './ProgressValidators.js';
 import {
   EnrollmentRole,
   EnrollmentStatus,
+  ICertificateSnapshot,
   ICourse,
   ID,
 } from '#root/shared/interfaces/models.js';
@@ -380,6 +381,28 @@ export class UpdateEnrollmentProgressResponse {
 
   @IsNumber()
   updatedCount: number;
+}
+
+export class CertificateSnapshotResponse implements ICertificateSnapshot {
+  @IsString()
+  @IsNotEmpty()
+  certificateId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  userName: string;
+
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  courseName: string;
+
+  @Type(() => Date)
+  @IsDate()
+  issuedAt: Date;
 }
 
 class AllEnrollmentsResponse {

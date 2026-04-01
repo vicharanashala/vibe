@@ -1,4 +1,4 @@
-﻿import { GLOBAL_TYPES } from '#root/types.js';
+import { GLOBAL_TYPES } from '#root/types.js';
 import { ICourseRepository } from '#shared/database/interfaces/ICourseRepository.js';
 import { IItemRepository } from '#shared/database/interfaces/IItemRepository.js';
 import { IQuizItem, ItemType } from '#shared/interfaces/models.js';
@@ -69,6 +69,39 @@ export class ItemRepository implements IItemRepository {
     this.auditCollection = await this.db.getCollection<AuditTrails>(
       'instructor_audit_trails',
     );
+  }
+
+  /**
+   * Some `videos` documents use root-level `url` / `startTime` instead of `details.URL`.
+   * Normalize so API responses match IVideoDetails.
+   */
+  private normalizeVideoDoc(doc: any): any {
+    if (!doc) return doc;
+    const d = doc.details;
+    const URL =
+      (typeof d?.URL === 'string' && d.URL) ||
+      (typeof doc.url === 'string' && doc.url) ||
+      (typeof doc.URL === 'string' && doc.URL) ||
+      '';
+    if (!URL) return doc;
+
+    const startRaw = d?.startTime ?? doc.startTime;
+    const endRaw = d?.endTime ?? doc.endTime;
+    const pointsRaw = d?.points ?? doc.points;
+
+    return {
+      ...doc,
+      type: doc.type ?? ItemType.VIDEO,
+      details: {
+        URL,
+        startTime:
+          startRaw !== undefined && startRaw !== null ? String(startRaw) : '0',
+        endTime:
+          endRaw !== undefined && endRaw !== null ? String(endRaw) : '',
+        points:
+          typeof pointsRaw === 'number' ? pointsRaw : Number(pointsRaw) || 0,
+      },
+    };
   }
 
   // Methods for ItemsGroup operations
@@ -392,10 +425,12 @@ export class ItemRepository implements IItemRepository {
           let item: Item = null;
           switch (found.type) {
             case ItemType.VIDEO:
-              item = (await this.videoCollection.findOne({
-                _id: new ObjectId(found._id),
-                isDeleted: { $ne: true },
-              })) as VideoItem;
+              item = this.normalizeVideoDoc(
+                await this.videoCollection.findOne({
+                  _id: new ObjectId(found._id),
+                  isDeleted: { $ne: true },
+                }),
+              ) as VideoItem;
               break;
             case ItemType.QUIZ:
               item = (await this.quizCollection.findOne({
@@ -423,6 +458,13 @@ export class ItemRepository implements IItemRepository {
             default:
               throw new InternalServerError(`Unknown item type: ${found.type}`);
           }
+          if (item) {
+            // Ensure type is set and it's a plain object if needed
+            (item as any).type = (item as any).type || found.type;
+            if (found.type === ItemType.VIDEO && !(item as any).type) {
+               (item as any).type = ItemType.VIDEO;
+            }
+          }
           return item;
         }
       }
@@ -439,11 +481,15 @@ export class ItemRepository implements IItemRepository {
 
     const objectId = new ObjectId(itemId);
 
+    const fromVideo = await this.videoCollection.findOne({
+      _id: objectId,
+      isDeleted: { $ne: true },
+    });
+    if (fromVideo) {
+      return this.normalizeVideoDoc(fromVideo) as Item;
+    }
+
     let item: Item =
-      (await this.videoCollection.findOne({
-        _id: objectId,
-        isDeleted: { $ne: true },
-      })) ||
       (await this.quizCollection.findOne({
         _id: objectId,
         isDeleted: { $ne: true },

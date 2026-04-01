@@ -142,6 +142,9 @@ backend/
 
 - See `.example.env` for all required variables.
 - Sensitive values (DB, Firebase, Sentry, etc.) should be set in `.env`.
+- For real email delivery, set `SMTP_USER` and `SMTP_PASS` in `.env`.
+- Gmail requires an App Password, not your normal account password.
+- You can keep `SMTP_SERVICE="gmail"` for Gmail, or set `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` for another SMTP provider.
 
 ## API Reference
 

@@ -16,6 +16,7 @@ import {InviteRepository} from '#root/shared/index.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {InviteResult, MailService} from '#root/modules/notifications/index.js';
 import {appConfig} from '#root/config/app.js';
+import {smtpConfig} from '#root/config/smtp.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
 import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
@@ -350,6 +351,17 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
         actionCodeSettings,
       );
 
+      const hasSmtpCredentials =
+        smtpConfig.auth.user !== 'user@example.com' &&
+        smtpConfig.auth.pass !== 'password';
+
+      if (!hasSmtpCredentials && appConfig.isDevelopment) {
+        console.info(
+          `Password reset email skipped because SMTP is not configured. Reset link for ${email}: ${resetLink}`,
+        );
+        return;
+      }
+
       await this.mailService.sendMail({
         to: email,
         subject: 'Reset your ViBe password',
@@ -371,6 +383,13 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       // Firebase may throw if user doesn't exist; we intentionally ignore that
       const code = error?.code ?? error?.errorInfo?.code;
       if (code === 'auth/user-not-found') return;
+      if (appConfig.isDevelopment) {
+        console.error(
+          'Password reset email send failed in development. Returning success so local development can continue:',
+          error,
+        );
+        return;
+      }
       console.error('Password reset email send failed:', error);
       throw new InternalServerError('Failed to send password reset email.');
     }

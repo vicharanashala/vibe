@@ -2,21 +2,19 @@ import { forwardRef, useImperativeHandle, useRef } from 'react';
 import Video from './video';
 import Quiz from './quiz';
 import Article from './article';
-import ProjectItem from '../app/pages/teacher/components/ProjectItem';
+import StudentProjectItem from '../app/pages/student/components/StudentProjectItem';
 import type { ArticleRef } from "@/types/article.types";
 import type { QuizRef } from "@/types/quiz.types";
 import type { ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
 import FeedbackForm from '@/app/pages/student/components/FeedbackForm';
-import { useSubmitFeedback } from '@/hooks/hooks';
 
 export interface ISubmitFeedbackBody {
   details: Record<string, any>;
   courseId: string;
   courseVersionId: string;
-  // isSkipped?: boolean;
   cohortId?: string;
 }
-const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, nextItem, doGesture, onNext, onPrevVideo, isProgressUpdating, isNavigatingToPrev, readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson, keyboardLockEnabled, setIsQuizSkipped, linearProgressionEnabled, seekForwardEnabled, courseId, versionId, completedItemIdsRef, cohortId, cohortName }, ref) => {
+const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, nextItem, doGesture, onNext, onPrevVideo, isProgressUpdating, isNavigatingToPrev, readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson, keyboardLockEnabled, setIsQuizSkipped, linearProgressionEnabled, seekForwardEnabled, completedItemIdsRef, cohortId, cohortName }, ref) => {
   const articleRef = useRef<ArticleRef>(null);
   const quizRef = useRef<QuizRef>(null);
 
@@ -36,7 +34,6 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
       return {};
     }
   }));
-  const submitFeedback = useSubmitFeedback(item._id.toString())
 
   const handleFeedbackSubmit = async (formData: any) => {
 
@@ -44,7 +41,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
   };
 
   const renderContent = () => {
-    const itemType = item.type.toLowerCase();
+    const itemType = item?.type?.toLowerCase() || '';
     switch (itemType) {
       case 'video':
         return <Video
@@ -120,18 +117,17 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
         />;
 
       case 'project':
-        return <ProjectItem
+        return <StudentProjectItem
           item={{
             _id: item._id,
             name: item.name,
             type: 'PROJECT',
             description: item.details?.description || item.description || ''
           }}
-          onSave={() => { }} // Not used in student view
-          onCancel={() => { }} // Not used in student view
-          isInstructor={false}
           onNext={onNext}
           isProgressUpdating={isProgressUpdating}
+          completedItemIdsRef={completedItemIdsRef}
+          isAlreadyWatched={item.isAlreadyWatched || false}
         />;
       case 'feedback':
         return <FeedbackForm
@@ -157,7 +153,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
   };
 
   return (
-    <div className={`${item.type.toLowerCase()==="video" ? "h-[85vh]" : "h-full" } w-full overflow-auto`}>
+    <div className={`${item?.type?.toLowerCase()==="video" ? "h-[85vh]" : "h-full" } w-full overflow-auto`}>
       {renderContent()}
     </div>
   );

@@ -19,8 +19,6 @@ export const CourseSection = ({
   skeletonCount = 3,
   emptyStateConfig,
   className,
-  completion,
-  setCompletion,
   cardVariant
 }: CourseSectionProps) => {
   const renderContent = () => {
@@ -84,9 +82,7 @@ export const CourseSection = ({
                   enrollment={enrollment}
                   index={index}
                   variant={cardVariant || variant}
-                  completion={completion}
                   isLoading={isLoading}
-                  setCompletion={setCompletion}
                 />
               );
             })}

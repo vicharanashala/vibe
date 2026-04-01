@@ -10,6 +10,7 @@ import { AnimatedGridPattern } from "@/components/magicui/animated-grid-pattern"
 import { ShineBorder } from "@/components/magicui/shine-border";
 import ReCAPTCHA from "react-google-recaptcha";
 import { useRef } from "react";
+import { toast } from "sonner";
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -56,6 +57,47 @@ export default function ForgotPasswordPage() {
       setSuccess(true);
     } catch (err: any) {
       setError(err.message || "Failed to send reset email");
+      if (recaptchaRef.current) {
+        recaptchaRef.current.reset();
+        setRecaptchaToken(null);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (isRecaptchaEnabled && !recaptchaToken) {
+        setError("Please complete the reCAPTCHA verification to resend");
+        return;
+      }
+
+      const backendUrl = `${import.meta.env.VITE_BASE_URL}/auth/resend-forgot-password`;
+      const response = await fetch(backendUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          recaptchaToken: isRecaptchaEnabled ? recaptchaToken : "NO_CAPTCHA",
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.message || "Failed to resend reset email");
+      }
+
+      toast.success("Password reset email resent successfully!");
+      if (recaptchaRef.current) {
+        recaptchaRef.current.reset();
+        setRecaptchaToken(null);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to resend reset email");
       if (recaptchaRef.current) {
         recaptchaRef.current.reset();
         setRecaptchaToken(null);
@@ -114,12 +156,48 @@ export default function ForgotPasswordPage() {
                 </div>
               </div>
 
+              {error && (
+                <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 mb-4">
+                  <div className="flex items-center space-x-2">
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                    <p className="text-sm text-destructive">{error}</p>
+                  </div>
+                </div>
+              )}
+
+              {isRecaptchaEnabled && (
+                <div className="flex justify-center scale-[0.95] origin-bottom mb-4">
+                  <ReCAPTCHA
+                    ref={recaptchaRef}
+                    sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                    theme="dark"
+                    onChange={(token) => {
+                      setRecaptchaToken(token);
+                      if (error) setError(null);
+                    }}
+                    onExpired={() => setRecaptchaToken(null)}
+                    onErrored={() => {
+                      setRecaptchaToken(null);
+                      setError("reCAPTCHA error. Please try again.");
+                    }}
+                  />
+                </div>
+              )}
+
               <p className="text-center text-sm text-muted-foreground">
                 Didn't receive the email? Check your spam folder or try again.
               </p>
             </CardContent>
 
             <CardFooter className="flex flex-col gap-2">
+              <Button
+                variant="default"
+                className="w-full bg-primary hover:bg-primary/90"
+                onClick={handleResend}
+                disabled={loading || (isRecaptchaEnabled && !recaptchaToken)}
+              >
+                {loading ? "Resending..." : "Resend Email"}
+              </Button>
               <Button
                 variant="outline"
                 className="w-full"
@@ -133,6 +211,8 @@ export default function ForgotPasswordPage() {
                 onClick={() => {
                   setSuccess(false);
                   setEmail("");
+                  setError(null);
+                  setRecaptchaToken(null);
                 }}
               >
                 Try Another Email

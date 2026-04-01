@@ -2,34 +2,30 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { useUserEnrollments, useWatchtimeTotal, usePublicCourses } from "@/hooks/hooks";
 import { useNavigate } from "@tanstack/react-router";
-
 // Import components
 import { StatCard } from "@/components/ui/StatCard";
 import { CourseSection } from "@/components/course/CourseSection";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getGreeting } from "@/utils/helpers";
-import type { CoursePctCompletion, CourseCardProps } from '@/types/course.types';
+import type { CourseCardProps } from "@/types/course.types";
 import { stopAllStreams } from "@/lib/MediaRegistry";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { CourseCard } from "@/components/course/CourseCard";
 import { BookOpen, TrendingUp } from "lucide-react";
-
 export default function Page() {
   useEffect(() => {
     setTimeout(stopAllStreams, 1000);
   }, []);
   const { isAuthenticated, isAuthReady } = useAuthStore();
   const navigate = useNavigate();
-
   useEffect(() => {
     if (isAuthReady && !isAuthenticated) {
       console.log("User not authenticated, redirecting to auth page");
       navigate({ to: '/auth' });
     }
   }, [isAuthenticated, isAuthReady, navigate]);
-
   if (!isAuthReady) {
     return (
       <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
@@ -42,7 +38,6 @@ export default function Page() {
       </div>
     );
   }
-
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
@@ -59,13 +54,10 @@ export default function Page() {
   }
   return <DashboardContent />;
 }
-
-
 function DashboardContent() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const studentName = user?.name || 'Student';
-
   // Greeting state & updater
   const [greeting, setGreeting] = useState(getGreeting());
   useEffect(() => {
@@ -76,50 +68,37 @@ function DashboardContent() {
   }, []);
   // Only fetch enrollments if user is authenticated (i.e., token is present)
   const { token } = useAuthStore();
-
   // Fetch more enrollments to properly populate tabs
   const {
     data: enrollmentsData,
     isLoading: enrollmentsLoading,
   } = useUserEnrollments(1, 100, !!token); // Fetching 100 to get a good list for client-side filtering safely for now
-
   // Cast to CourseCardProps['enrollment'][] to satisfy type checker if needed, 
   // but simpler to let TS infer from usage if types match. 
   // Explicitly casting here to be safe given previous type errors.
   const enrollments = (enrollmentsData?.enrollments || []) as unknown as CourseCardProps['enrollment'][];
   const totalEnrollments = enrollmentsData?.totalDocuments || 0;
-
   const {
     data: publicCoursesData,
     isLoading: publicCoursesLoading
   } = usePublicCourses(1, 5, !!token);
-
   useWatchtimeTotal();
-
-
-
   // const filteredEnrollement = enrollments.filter(enrollment=>enrollment.role == "STUDENT");
-  const [completion, setCompletion] = useState<CoursePctCompletion[]>([]);
-
   // Calculate distinct lists for tabs
   const activeEnrollments = useMemo(() => {
     return enrollments.filter(enrollment => enrollment.percentCompleted !== 100);
   }, [enrollments]);
-
   const completedEnrollments = useMemo(() => {
     return enrollments.filter(enrollment => enrollment.percentCompleted === 100);
   }, [enrollments]);
-
   const totalProgress = useMemo(() => {
-    const completed = completion.reduce((a, c) => a + (c.completedItems || 0), 0);
-    const total = completion.reduce((a, c) => a + (c.totalItems || 0), 0);
+    const completed = (enrollments as any[]).reduce((a, e) => a + (e.completedItems || 0), 0);
+    const total = (enrollments as any[]).reduce((a, e) => a + (e.contentCounts?.totalItems || 0), 0);
     return total ? Math.round((completed / total) * 100) : 0;
-  }, [completion]);
-
+  }, [enrollments]);
   // Tab State
   const [activeTab, setActiveTab] = useState("available");
   const [hasSetInitialTab, setHasSetInitialTab] = useState(false);
-
   // Set default tab based on enrollments once loaded
   useEffect(() => {
     if (!enrollmentsLoading && !hasSetInitialTab) {
@@ -131,11 +110,9 @@ function DashboardContent() {
       setHasSetInitialTab(true);
     }
   }, [enrollmentsLoading, activeEnrollments.length, hasSetInitialTab]);
-
   const handleTabChange = (value: string) => {
     setActiveTab(value);
   };
-
   return (
     <>
       {/* Greeting and Stat Cards in two separate flex boxes */}
@@ -160,15 +137,11 @@ function DashboardContent() {
             value={`${totalProgress}%`} label="Completion Percentage" />
         </div>
       </div>
-
       {/* Main content and sidebar */}
       <div className="mb-6 px-0 sm:px-6 lg:px-8 xl:px-0">
-
       </div>
-
       <div className="container mx-auto px-0 sm:px-6 lg:px-8 xl:px-0 py-6 flex flex-col lg:flex-row gap-6 transition-all duration-300">
         <main className="flex-1 w-full">
-
           <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6 w-full">
             <TabsList className="w-full md:w-auto grid grid-cols-3 h-auto p-1 bg-muted/20 rounded-xl">
               <TabsTrigger
@@ -190,7 +163,6 @@ function DashboardContent() {
                 Completed {completedEnrollments.length > 0 && <span className="ml-2 text-sm opacity-80 bg-primary-foreground/20 px-2 py-0.5 rounded-full">{completedEnrollments.length}</span>}
               </TabsTrigger>
             </TabsList>
-
             <TabsContent value="available" className="mt-6 space-y-4 animate-in fade-in-50 duration-300 slide-in-from-left-2">
               <CourseSection
                 title="Recommended for you"
@@ -218,13 +190,11 @@ function DashboardContent() {
                 }}
               />
             </TabsContent>
-
             <TabsContent value="enrolled" className="mt-6 space-y-4 animate-in fade-in-50 duration-300 slide-in-from-left-2">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold tracking-tight">Your Active Courses</h2>
                 </div>
-
                 {enrollmentsLoading ? (
                   <div className="space-y-4">
                     {Array.from({ length: 3 }).map((_, i) => (
@@ -246,8 +216,6 @@ function DashboardContent() {
                         index={index}
                         isLoading={false}
                         variant="dashboard"
-                        completion={completion}
-                        setCompletion={setCompletion}
                       />
                     ))}
                   </div>
@@ -261,13 +229,11 @@ function DashboardContent() {
                 )}
               </div>
             </TabsContent>
-
             <TabsContent value="completed" className="mt-6 space-y-4 animate-in fade-in-50 duration-300 slide-in-from-left-2">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold tracking-tight">Completed Courses</h2>
                 </div>
-
                 {enrollmentsLoading ? (
                   <div className="space-y-4">
                     {Array.from({ length: 2 }).map((_, i) => (
@@ -289,8 +255,6 @@ function DashboardContent() {
                         index={index}
                         isLoading={false}
                         variant="dashboard"
-                        completion={completion}
-                        setCompletion={setCompletion}
                       />
                     ))}
                   </div>
@@ -305,7 +269,6 @@ function DashboardContent() {
               </div>
             </TabsContent>
           </Tabs>
-
         </main>
         <aside className="w-full lg:w-80">
           <div className="sticky top-6">

@@ -389,6 +389,13 @@ export type EnrollmentRole =
   | 'TA'
   | 'STAFF';
 export type EnrollmentStatus = 'ACTIVE' | 'INACTIVE';
+export interface ICertificateSnapshot {
+  certificateId: string;
+  userName: string;
+  avatarUrl?: string;
+  courseName: string;
+  issuedAt: Date;
+}
 export interface IEnrollment {
   _id?: string | ObjectId | null;
   userId: string | ObjectId;
@@ -408,7 +415,8 @@ export interface IEnrollment {
   deletedAt?: Date;
   unenrolledAt?: Date;
   hasNewItemsAfterCompletion?: boolean;
-  cohortId?: ID
+  cohortId?: ID;
+  certificate?: ICertificateSnapshot;
 }
 
 export interface IProgress {

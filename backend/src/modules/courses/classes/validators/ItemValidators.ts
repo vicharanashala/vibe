@@ -914,6 +914,12 @@ class ItemDataResponse {
   version?: CourseVersion;
 
   @JSONSchema({
+    description: 'The specific item object',
+  })
+  @IsOptional()
+  item?: any;
+
+  @JSONSchema({
 
   })
   createdItem: ItemRef;

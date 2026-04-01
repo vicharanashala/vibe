@@ -7,6 +7,7 @@ export interface Item {
   type: string;
   order?: string;
   isCompleted?: boolean;
+  isOptional?: boolean;
   details?: {
     points?: string;
 
@@ -40,6 +41,10 @@ export interface Item {
     // For Project
     title?: string;
     description?: string;
+
+    // For Feedback
+    jsonSchema?: any;
+    uiSchema?: any;
   };
   isAlreadyWatched?: boolean;
 }
@@ -69,7 +74,7 @@ export interface ItemContainerProps {
   completedItemIdsRef: React.RefObject<Set<string>>;
   nextItem: {itemId:string};
   cohortId?: string;
-  cohortname?: string;
+  cohortName?: string;
 }
 
 export interface ItemContainerRef {

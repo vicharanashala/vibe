@@ -22,6 +22,7 @@ import {
   BulkUnenrollResponse,
   ChangeEnrollmentStatusBody,
   BulkChangeEnrollmentStatusBody,
+  CertificateSnapshotResponse,
 } from '#users/classes/validators/EnrollmentValidators.js';
 import { QuizScoresExportResponseDto } from '../dtos/QuizScoresExportDto.js';
 import { EnrollmentService } from '#users/services/EnrollmentService.js';
@@ -520,6 +521,29 @@ export class EnrollmentController {
       activeCount: activeCount,
       archivedCount: archivedCount,
     };
+  }
+
+  @OpenAPI({
+    summary: 'Get or create certificate snapshot for the current user',
+    description:
+      'Creates a certificate snapshot the first time it is requested and returns the same frozen certificate data on subsequent requests.',
+  })
+  @Authorized()
+  @Get('/enrollments/courses/:courseId/versions/:versionId/certificate')
+  @HttpCode(200)
+  @ResponseSchema(CertificateSnapshotResponse, {
+    description: 'Immutable certificate snapshot',
+  })
+  async getCertificateSnapshot(
+    @Param('courseId') courseId: string,
+    @Param('versionId') versionId: string,
+    @Ability(getEnrollmentAbility) {user},
+  ): Promise<CertificateSnapshotResponse> {
+    return this.enrollmentService.getOrCreateCertificateSnapshot(
+      user._id.toString(),
+      courseId,
+      versionId,
+    );
   }
 
   @OpenAPI({

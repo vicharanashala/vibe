@@ -509,6 +509,7 @@ export class ItemService extends BaseService {
     if (enrollment.role !== 'STUDENT') {
       return {
         ...item,
+        type: item.type,
         _id: item._id.toString(),
       };
     }
@@ -553,6 +554,7 @@ export class ItemService extends BaseService {
 
     const response = (isAlreadyWatched = isItemAlreadyCompleted) => ({
       ...item,
+      type: item.type,
       _id: item._id.toString(),
       isAlreadyWatched,
     });

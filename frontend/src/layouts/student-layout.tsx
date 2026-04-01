@@ -15,10 +15,8 @@ import InviteDropdown from "@/components/inviteDropDown"
 import { useNewAnnouncementIndicator } from "@/hooks/use-new-announcement-indicator"
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
 import { useInvites, useGetUnreadApprovedRegistrations, useGetPendingStudentRegistrations, useGetRejectedStudentRegistrations } from "@/hooks/hooks"
-import { ApprovedRegistrationNotification } from "@/types/notification.types"
 import { useRef, useEffect } from "react"
 import logo from "../../public/img/vibe_logo_img.ico"
-import { useLocation } from "react-router-dom";
 
 export default function StudentLayout() {
   const { user, isAuthReady } = useAuthStore()
@@ -26,9 +24,8 @@ export default function StudentLayout() {
   const { getInvites } = useInvites(); // run after login
   const { data: approvedNotifications } = useGetUnreadApprovedRegistrations(user?.uid || '');
   const { data: pendingStudentRegistrations } = useGetPendingStudentRegistrations(user?.uid || '');
-  const { data: rejectedStudentRegistrations, refetch: refetchRejected } = useGetRejectedStudentRegistrations(user?.uid || '');
+  const { data: rejectedStudentRegistrations } = useGetRejectedStudentRegistrations(user?.uid || '');
   const [localRejectedRegistrations, setLocalRejectedRegistrations] = useState<any[]>([]);
-  const hasShownToast = useRef(false);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   const [approvedNotificationsList, setApprovedNotificationsList] = useState<any[]>([]);
   const [showInvites, setShowInvites] = useState(false);
@@ -83,19 +80,16 @@ export default function StudentLayout() {
   }, [approvedNotifications]);
 
   useEffect(() => {
-    if (rejectedStudentRegistrations) {
+    if (rejectedStudentRegistrations && rejectedStudentRegistrations.length !== localRejectedRegistrations.length) {
       setLocalRejectedRegistrations(rejectedStudentRegistrations);
     }
-  }, [rejectedStudentRegistrations]);
+  }, [rejectedStudentRegistrations, localRejectedRegistrations.length]);
 
   const handleLogout = () => {
     logout()
     navigate({ to: "/auth" })
   }
 
-  const handleGoBack = () => {
-    window.history.back()
-  }
 
   useEffect(() => {
     if (!isAuthReady || !user) return;

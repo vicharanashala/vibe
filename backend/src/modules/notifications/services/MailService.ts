@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { injectable } from 'inversify';
 import nodemailer from 'nodemailer';
+import SMTPTransport from 'nodemailer/lib/smtp-transport/index.js';
 import { smtpConfig } from '#root/config/smtp.js';
 
 /**
@@ -13,18 +14,30 @@ export class MailService {
   private transporter: nodemailer.Transporter;
 
   constructor() {
-    this.transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: smtpConfig.auth.user,
-        pass: smtpConfig.auth.pass,
-      },
-    });
+    const transportOptions: SMTPTransport.Options = smtpConfig.host
+      ? {
+          host: smtpConfig.host,
+          port: smtpConfig.port,
+          secure: smtpConfig.secure,
+          auth: {
+            user: smtpConfig.auth.user,
+            pass: smtpConfig.auth.pass,
+          },
+        }
+      : {
+          service: smtpConfig.service,
+          auth: {
+            user: smtpConfig.auth.user,
+            pass: smtpConfig.auth.pass,
+          },
+        };
+
+    this.transporter = nodemailer.createTransport(transportOptions);
   }
 
   async sendMail(options: Omit<nodemailer.SendMailOptions, 'from'>): Promise<nodemailer.SentMessageInfo> {
     const mailOptions: nodemailer.SendMailOptions = {
-      from: smtpConfig.auth.user,
+      from: smtpConfig.from,
       ...options,
     };
 

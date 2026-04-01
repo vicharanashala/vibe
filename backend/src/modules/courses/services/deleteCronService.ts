@@ -1,14 +1,11 @@
 import cron from 'node-cron';
-import { injectable, inject } from 'inversify';
-import {
-  BaseService,
-  MongoDatabase,
-} from '#root/shared/index.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { USERS_TYPES } from '#root/modules/users/types.js';
-import { ItemRepository } from '#root/shared/database/providers/mongo/repositories/ItemRepository.js';
-import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
-import { ProgressService } from '#root/modules/users/services/ProgressService.js';
+import {injectable, inject} from 'inversify';
+import {BaseService, MongoDatabase} from '#root/shared/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
+import {ItemRepository} from '#root/shared/database/providers/mongo/repositories/ItemRepository.js';
+import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
+import {ProgressService} from '#root/modules/users/services/ProgressService.js';
 
 /**
  * Clean up Versions, modules, Sections, ItemsGroup, items.
@@ -58,7 +55,7 @@ export class DeleteCronService extends BaseService {
 
     cron.schedule('0 3 * * *', async () => {
       console.log(
-        `⏰ Running parallel progress cron for ${/*courseVersionMap.length*/''} course versions`,
+        `⏰ Running parallel progress cron for ${/*courseVersionMap.length*/ ''} course versions`,
       );
     });
 
@@ -70,32 +67,37 @@ export class DeleteCronService extends BaseService {
     //     ),
     //   ),
     // );
-    const response = await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion();
-    // results.forEach((result, index) => {
-    //   const { courseId, versionId } = courseVersionMap[index];
+    // const response =
+    //     await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion();
+    // // results.forEach((result, index) => {
+    // //   const { courseId, versionId } = courseVersionMap[index];
+    //
+    // //   if (result.status === 'fulfilled') {
+    // //     console.log(
+    // //       `✅ Course ${courseId} | Version ${versionId} completed`,
+    // //       `Total count:${result.value.totalCount}`, `Updated count:${result.value.updatedCount}`,
+    // //     );
+    // //   } else {
+    // //     console.error(
+    // //       `❌ Course ${courseId} | Version ${versionId} failed`,
+    // //       result.reason?.message || result.reason,
+    // //     );
+    // //   }
+    // // });
+    //
+    // console.log(`🎉 Parallel progress cron completed \n
+    //     Total count : ${response.totalCount} \n
+    //     Updated count : ${response.updatedCount}`);
 
-    //   if (result.status === 'fulfilled') {
-    //     console.log(
-    //       `✅ Course ${courseId} | Version ${versionId} completed`,
-    //       `Total count:${result.value.totalCount}`, `Updated count:${result.value.updatedCount}`,
-    //     );
-    //   } else {
-    //     console.error(
-    //       `❌ Course ${courseId} | Version ${versionId} failed`,
-    //       result.reason?.message || result.reason,
-    //     );
-    //   }
-    // });
-
-    console.log(`🎉 Parallel progress cron completed \n
-        Total count : ${response.totalCount} \n
-        Updated count : ${response.updatedCount}`);
-    // });
+    try {
+      const response = await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion();
+      console.log(`🎉 Parallel progress cron completed \n
+          Total count : ${response.totalCount} \n
+          Updated count : ${response.updatedCount}`);
+    } catch (error) {
+      console.log('Error running initial progress update cron:', error.message);
+    }
 
     // console.log('🗓️ Progress update cron scheduled (hourly, parallel)');
   }
-
-
-
-
 }

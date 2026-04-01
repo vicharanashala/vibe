@@ -575,7 +575,7 @@ class CourseRegistrationController {
   })
   async getPendingRegistrations(
     @QueryParams() query: GetPendingRegistrationsParams,
-    @Ability(getCourseRegistrationAbility) { ability, user },
+    @Ability(getCourseRegistrationAbility) { user },
   ) {
     const { instructorId } = query;
     const userId = user._id;
@@ -590,14 +590,18 @@ class CourseRegistrationController {
 
     const mongoInstructorId = instructorRecord._id.toString();
 
-    if (
-      !ability.can(
-        CourseRegistrationActions.View,
-        subject(courseRegistrationSubject, { instructorId: mongoInstructorId }),
-      )
-    ) {
-      throw new ForbiddenError('You do not have permission to view pending registrations');
+    // CASL rules key registrations by versionId, not instructorId — a plain
+    // instructorId subject never matched, so instructors always got 403 here.
+    const requesterId = user._id.toString();
+    const isOwnPendingList = requesterId === mongoInstructorId;
+    const isAdmin = user.globalRole === 'admin';
+
+    if (!isOwnPendingList && !isAdmin) {
+      throw new ForbiddenError(
+        'You can only view pending registrations for your own instructor account',
+      );
     }
+
     const result = await this.courseRegistrationService.getPendingRegistrations(mongoInstructorId);
 
     return result;

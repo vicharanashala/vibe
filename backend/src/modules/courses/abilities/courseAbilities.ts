@@ -33,6 +33,17 @@ export function setupCourseAbilities(
         return;
     }
 
+    // Global "create course" (not tied to courseId): instructors/managers, or users with
+    // no enrollments yet so they can create their first course before an INSTRUCTOR row exists.
+    const mayCreateCourse =
+        user.enrollments.length === 0 ||
+        user.enrollments.some(
+            e => e.role === 'INSTRUCTOR' || e.role === 'MANAGER',
+        );
+    if (mayCreateCourse) {
+        can(CourseActions.Create, 'Course');
+    }
+
     user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
         const courseBounded = { courseId: enrollment.courseId };
 

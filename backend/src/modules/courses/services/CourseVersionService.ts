@@ -194,13 +194,7 @@ export class CourseVersionService extends BaseService {
           courseVersionId,
         );
 
-      if (!enrollment) {
-        throw new NotFoundError(
-          'Enrollment not found for the user in this course version',
-        );
-      }
-
-      if (enrollment.role === 'STUDENT') {
+      if (enrollment?.role === 'STUDENT') {
         // filter out hidden modules for students and include only visible sections
         readVersion.modules = readVersion.modules
           .filter(module => !module.isHidden)

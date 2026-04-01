@@ -11,6 +11,7 @@ import {
   EnrollmentStatus,
   ICourseVersion,
   IEnrollment,
+  ICertificateSnapshot,
 } from '#root/shared/interfaces/models.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
@@ -1570,6 +1571,85 @@ export class EnrollmentService extends BaseService {
         courseId,
         courseVersionId,
         undefined,
+        session,
+      );
+    });
+  }
+
+  async getOrCreateCertificateSnapshot(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<ICertificateSnapshot> {
+    return this._withTransaction(async (session: ClientSession) => {
+      const enrollment = await this.enrollmentRepo.findEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        undefined,
+        session,
+      );
+
+      if (!enrollment || enrollment.isDeleted) {
+        throw new NotFoundError('Enrollment not found for this course version');
+      }
+
+      if (enrollment.role !== 'STUDENT') {
+        throw new ForbiddenError(
+          'Certificates are only available for student enrollments',
+        );
+      }
+
+      if ((enrollment.percentCompleted ?? 0) < 100) {
+        throw new ForbiddenError(
+          'Certificate is available only after completing the course',
+        );
+      }
+
+      const [user, course] = await Promise.all([
+        this.userRepo.findById(userId, session),
+        this.courseRepo.read(courseId, session),
+      ]);
+
+      if (!user) {
+        throw new NotFoundError('User not found');
+      }
+
+      if (!course) {
+        throw new NotFoundError('Course not found');
+      }
+
+      if (enrollment.certificate) {
+        if (!enrollment.certificate.avatarUrl && user.avatar) {
+          const repairedCertificate =
+            await this.enrollmentRepo.updateCertificateAvatarIfMissing(
+              enrollment._id!.toString(),
+              user.avatar,
+              session,
+            );
+
+          if (repairedCertificate) {
+            return repairedCertificate;
+          }
+        }
+
+        return enrollment.certificate;
+      }
+
+      const certificate: ICertificateSnapshot = {
+        certificateId: `CERT-${new ObjectId().toString().slice(-12).toUpperCase()}`,
+        userName:
+          `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
+          user.email ||
+          'Student',
+        avatarUrl: user.avatar || '',
+        courseName: course.name || 'Course',
+        issuedAt: new Date(),
+      };
+
+      return this.enrollmentRepo.setCertificateSnapshotIfAbsent(
+        enrollment._id!.toString(),
+        certificate,
         session,
       );
     });

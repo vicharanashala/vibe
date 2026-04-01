@@ -59,7 +59,7 @@ import MobileFallbackScreen from "@/components/MobileFallbackScreen";
 
 // Helper function to get icon for item type
 const getItemIcon = (type: string) => {
-  switch (type.toLowerCase()) {
+  switch (type?.toLowerCase() || '') {
     case 'video':
       return <Play className="h-3 w-3" />;
     case 'blog':

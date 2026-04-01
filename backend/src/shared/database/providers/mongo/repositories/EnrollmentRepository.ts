@@ -9,6 +9,7 @@ import {
   ID,
   courseVersionStatus,
   IUserActivityEvent,
+  ICertificateSnapshot,
 } from '#shared/interfaces/models.js';
 import { injectable, inject } from 'inversify';
 import { ClientSession, Collection, ObjectId, OptionalId } from 'mongodb';
@@ -97,6 +98,76 @@ export class EnrollmentRepository {
       console.error('Error finding enrollment by ID:', error);
       throw error;
     }
+  }
+
+  async setCertificateSnapshotIfAbsent(
+    enrollmentId: string,
+    certificate: ICertificateSnapshot,
+    session?: ClientSession,
+  ): Promise<ICertificateSnapshot> {
+    await this.init();
+
+    await this.enrollmentCollection.updateOne(
+      {
+        _id: new ObjectId(enrollmentId),
+        'certificate.certificateId': {$exists: false},
+      },
+      {
+        $set: {
+          certificate,
+          updatedAt: new Date(),
+        } as any,
+      },
+      {session},
+    );
+
+    const enrollment = await this.enrollmentCollection.findOne(
+      {_id: new ObjectId(enrollmentId)},
+      {session},
+    );
+
+    if (!enrollment?.certificate) {
+      throw new InternalServerError('Failed to persist certificate snapshot');
+    }
+
+    return enrollment.certificate;
+  }
+
+  async updateCertificateAvatarIfMissing(
+    enrollmentId: string,
+    avatarUrl: string,
+    session?: ClientSession,
+  ): Promise<ICertificateSnapshot | null> {
+    await this.init();
+
+    if (!avatarUrl) {
+      return null;
+    }
+
+    await this.enrollmentCollection.updateOne(
+      {
+        _id: new ObjectId(enrollmentId),
+        $or: [
+          {'certificate.avatarUrl': {$exists: false}},
+          {'certificate.avatarUrl': ''},
+          {'certificate.avatarUrl': null},
+        ],
+      },
+      {
+        $set: {
+          'certificate.avatarUrl': avatarUrl,
+          updatedAt: new Date(),
+        } as any,
+      },
+      {session},
+    );
+
+    const enrollment = await this.enrollmentCollection.findOne(
+      {_id: new ObjectId(enrollmentId)},
+      {session},
+    );
+
+    return enrollment?.certificate ?? null;
   }
 
   async findEnrollment(
@@ -3496,7 +3567,7 @@ export class EnrollmentRepository {
           userId: new ObjectId(userId),
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
-          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : { cohortId: null }),
+          ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
         },
         { session },
       )

@@ -105,7 +105,8 @@ class SignUpBody {
 
   @JSONSchema({
     title: 'reCAPTCHA Token',
-    description: 'reCAPTCHA verification token obtained from the frontend widget',
+    description:
+      'reCAPTCHA verification token obtained from the frontend widget',
     example: '03AGdBq27...',
     type: 'string',
   })
@@ -311,13 +312,14 @@ class LoginBody {
 
   @JSONSchema({
     title: 'reCAPTCHA Token',
-    description: 'reCAPTCHA verification token obtained from the frontend widget',
+    description:
+      'reCAPTCHA verification token obtained from the frontend widget',
     example: '03AGdBq27...',
     type: 'string',
   })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  recaptchaToken: string;
+  recaptchaToken?: string;
 }
 
 class LoginResponse {

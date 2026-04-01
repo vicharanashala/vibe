@@ -1,4 +1,4 @@
-import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play } from "lucide-react";
+import { Clock, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play, Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,12 @@ const StudentTimeslotModal = lazy(() =>
   }))
 );
 
+const CertificateModal = lazy(() =>
+  import("@/components/course/CertificateModal").then(mod => ({
+    default: mod.CertificateModal
+  }))
+);
+
 // Helper function to check if current time is within assigned time slot
 const isCurrentTimeInTimeSlot = (timeSlot?: { from: string; to: string }) => {
   if (!timeSlot || !timeSlot.from || !timeSlot.to) return true; // No time slot restriction
@@ -47,7 +53,7 @@ const isCurrentTimeInTimeSlot = (timeSlot?: { from: string; to: string }) => {
   return currentTime >= fromTime && currentTime <= toTime;
 };
 
-export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
+export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className }: CourseCardProps) => {
   // Add null checks to prevent errors when enrollment data is incomplete
   if (!enrollment || !enrollment.courseId || !enrollment.courseVersionId) {
     console.error('Invalid enrollment data:', enrollment);
@@ -74,6 +80,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const [copyError, setCopyError] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
+  const [isCertificateOpen, setIsCertificateOpen] = useState(false);
   const supportEmail =
     enrollment.courseId === "692f030a945e82ec875e9116"
       ? "vibe-support@vicharanashala.zohodesk"
@@ -106,23 +113,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   // const completedProjects: number = contentCounts.completedProjects || 0;
 
 
-  // Find if this courseVersionId is already in completion
-  const existingCompletionIndex = completion?.findIndex(
-    (c) => c.courseVersionId === versionId
-  );
 
-  // If not found, append the user progress percentage to the list
-  if (existingCompletionIndex === -1 && enrollment) {
-    setCompletion?.([
-      ...(completion || []),
-      {
-        courseVersionId: versionId,
-        percentage: typeof progress === 'number' ? progress : 0,
-        totalItems: typeof contentCounts.totalItems === 'number' ? contentCounts.totalItems : 0,
-        completedItems: typeof completedLessons === 'number' ? completedLessons : 0
-      },
-    ]);
-  }
 
   const formatDate = (dateString: string) => {
     try {
@@ -351,6 +342,16 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 </Button>
                 <Button onClick={() => setIsDetailsOpen(true)} variant="outline" className="w-full sm:w-auto">View Details</Button>
               </>
+            )}
+            {variant !== 'available' && isCompleted && (
+              <Button
+                onClick={() => setIsCertificateOpen(true)}
+                variant="outline"
+                className="w-full sm:w-auto bg-amber-50 border-amber-300 hover:bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/40"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download Certificate
+              </Button>
             )}
             
 
@@ -639,6 +640,18 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           hasAssignedTimeslot={hasAssignedTimeslot}
         />
       </Suspense>
+
+      {/* Certificate Modal */}
+      {isCertificateOpen && (
+        <Suspense fallback={null}>
+          <CertificateModal
+            isOpen={isCertificateOpen}
+            onOpenChange={setIsCertificateOpen}
+            courseId={courseId}
+            versionId={versionId}
+          />
+        </Suspense>
+      )}
       </>
     );
   }
@@ -692,7 +705,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 };
 
 // Skeleton component for loading states
-export const CourseCardSkeleton = ({ variant = 'dashboard' }: { variant?: 'dashboard' | 'courses' }) => {
+export const CourseCardSkeleton = ({ variant = 'dashboard' }: { variant?: 'dashboard' | 'courses' | 'available' }) => {
   if (variant === 'dashboard') {
     return (
       <Card className="border border-border overflow-hidden flex flex-row student-card-hover p-0">

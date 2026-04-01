@@ -745,9 +745,11 @@ Access control logic:
     //  throw new ForbiddenError('You do not have permission to view this item');
     // }
 
-    return {
+    const result = {
       item: await this.itemService.readItem(userId?.toString(), versionId, itemId, courseId, moduleId, sectionId, cohortId),
     };
+    console.log('DEBUG: getItem response:', JSON.stringify(result, null, 2));
+    return result;
   }
 
   async submitProject(): Promise<void> {}

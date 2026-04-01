@@ -81,3 +81,4 @@ build/
 *txt
 
 /gcp-service-account.json
+mongo_query.mjs
