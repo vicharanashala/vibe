@@ -237,6 +237,19 @@ export class LedgerRepository implements ILedgerRepository {
             }
         );
     }
+    
+    async findDebitBySubmissionId(submissionId: string): Promise<HpLedger | null> {
+    await this.init();
+    return await this.hpLedgerCollection.findOne(
+        {
+            submissionId: new ObjectId(submissionId),
+            direction: "DEBIT",
+        },
+        {
+            sort: { createdAt: -1 },
+        }
+    );
+}
     async findByStudentAndActivityId(
         activityId: string,
         studentId: string
