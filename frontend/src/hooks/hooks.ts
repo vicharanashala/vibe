@@ -4755,6 +4755,8 @@ export const useExportFeedbackSubmissions = ({ courseId, feedbackId }: ExportFee
   return { exportCSV, isExporting };
 };
 
+const EMPTY_ARRAY: any[] = [];
+
 // GET /course/registration/pending
 export function useGetPendingRegistrations(instructorId: string): {
   data: PendingRegistrationNotification[];
@@ -4772,7 +4774,7 @@ export function useGetPendingRegistrations(instructorId: string): {
   });
 
   return {
-    data: Array.isArray(result?.data) ? result?.data : [],
+    data: Array.isArray(result?.data) ? result?.data : (Array.isArray((result?.data as any)?.data) ? (result?.data as any)?.data : (Array.isArray((result?.data as any)?.registrations) ? (result?.data as any)?.registrations : EMPTY_ARRAY)),
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch pending registrations') : null,
     refetch: result.refetch
@@ -4796,7 +4798,7 @@ export function useGetUnreadApprovedRegistrations(studentId: string): {
   });
 
   return {
-    data: Array.isArray(result?.data) ? result?.data : [],
+    data: Array.isArray(result?.data) ? result?.data : (Array.isArray((result?.data as any)?.data) ? (result?.data as any)?.data : (Array.isArray((result?.data as any)?.registrations) ? (result?.data as any)?.registrations : EMPTY_ARRAY)),
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch unread notifications') : null,
     refetch: result.refetch
@@ -4821,7 +4823,7 @@ export function useGetPendingStudentRegistrations(studentId: string): {
   });
 
   return {
-    data: Array.isArray(result?.data) ? result?.data as PendingStudentRegistrationNotification[] : [],
+    data: Array.isArray(result?.data) ? result?.data as PendingStudentRegistrationNotification[] : (Array.isArray((result?.data as any)?.data) ? (result?.data as any)?.data : (Array.isArray((result?.data as any)?.registrations) ? (result?.data as any)?.registrations : EMPTY_ARRAY)),
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch pending student registrations') : null,
     refetch: result.refetch
@@ -4846,7 +4848,7 @@ export function useGetRejectedStudentRegistrations(studentId: string): {
   });
 
   return {
-    data: Array.isArray(result?.data) ? result?.data as RejectedStudentRegistrationNotification[] : [],
+    data: Array.isArray(result?.data) ? result?.data as RejectedStudentRegistrationNotification[] : (Array.isArray((result?.data as any)?.data) ? (result?.data as any)?.data : (Array.isArray((result?.data as any)?.registrations) ? (result?.data as any)?.registrations : EMPTY_ARRAY)),
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch rejected student registrations') : null,
     refetch: result.refetch
