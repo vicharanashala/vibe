@@ -1,7 +1,7 @@
-import {User} from '#auth/classes/transformers/User.js';
-import {UserService} from '#users/services/UserService.js';
-import {USERS_TYPES} from '#users/types.js';
-import {injectable, inject} from 'inversify';
+import { User } from '#auth/classes/transformers/User.js';
+import { UserService } from '#users/services/UserService.js';
+import { USERS_TYPES } from '#users/types.js';
+import { injectable, inject } from 'inversify';
 import {
   JsonController,
   Get,
@@ -15,7 +15,7 @@ import {
   Authorized,
   CurrentUser,
 } from 'routing-controllers';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import {
   EditUserBody,
   GetUserParams,
@@ -31,19 +31,19 @@ import { IUser } from '#root/shared/interfaces/models.js';
 @OpenAPI({
   tags: ['Users'],
 })
-@JsonController('/users', {transformResponse: true})
+@JsonController('/users', { transformResponse: true })
 @injectable()
 export class UserController {
   constructor(
     @inject(USERS_TYPES.UserService)
     private readonly userService: UserService,
-    
+
     @inject(AUTH_TYPES.AuthService)
     private readonly authService: IAuthService,
 
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
-  ) {}
+  ) { }
 
   @OpenAPI({
     summary: 'Get user-level enrollment statistics',
@@ -56,7 +56,7 @@ export class UserController {
     description: 'User-level enrollment statistics',
   })
   async getUserEnrollmentStatistics(
-    @CurrentUser({required: true}) user: IUser,
+    @CurrentUser({ required: true }) user: IUser,
   ): Promise<UserEnrollmentStatisticsResponse> {
     return await this.enrollmentService.getUserEnrollmentStatistics(
       user._id!.toString(),
@@ -96,7 +96,11 @@ export class UserController {
   })
   async getCurrentUser(@Req() req: any): Promise<User> {
     const token = req.headers.authorization?.split(' ')[1];
-    return (await this.authService.getCurrentUserFromToken(token)) as User;
+    const user = await this.authService.getCurrentUserFromToken(token);
+    return {
+      ...user,
+      _id: user._id!.toString(),
+    } as User;
   }
 
   @OpenAPI({
