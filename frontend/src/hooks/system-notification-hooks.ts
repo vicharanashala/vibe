@@ -78,6 +78,9 @@ export function useSubmitAppeal() {
         queryClient.invalidateQueries({
           queryKey: ["get", "/notifications/user"],
         });
+        queryClient.invalidateQueries({
+          queryKey: ["get", "/appeals"],
+        });
       },
     }
   );
@@ -107,6 +110,9 @@ export function useApproveAppeal() {
         queryClient.invalidateQueries({
           queryKey: ["get", "/notifications/user"],
         });
+        queryClient.invalidateQueries({
+          queryKey: ["get", "/appeals"],
+        });
       },
     }
   );
@@ -120,6 +126,9 @@ export function useRejectAppeal() {
       onSuccess: () => {
         queryClient.invalidateQueries({
           queryKey: ["get", "/notifications/user"],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["get", "/appeals"],
         });
       },
     }

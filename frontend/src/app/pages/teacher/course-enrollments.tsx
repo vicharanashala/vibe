@@ -1407,6 +1407,25 @@ function CourseEnrollments() {
             ))}
           </div>}
 
+          {/* Emotion Analytics Navigation */}
+          <Card
+            className="border-0 shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/20"
+            onClick={() => navigate({ to: "/teacher/courses/emotion-analytics" })}
+          >
+            <CardHeader className="py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <span>😊 Learner Emotion Analytics</span>
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Open a dedicated analytics page for module-level insights.
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
+
           {/* Search */}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">

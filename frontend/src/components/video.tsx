@@ -370,7 +370,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
     const executeStop = async () => {
       stopInFlightRef.current = true;
       try {
-        if(watchItemId && !isAlreadyWatched && !(currentCourse!.itemId && completedItemIdsRef.current.has(currentCourse!.itemId))){
+        if(watchItemId && !isAlreadyWatched && !(currentCourse!.itemId && completedItemIdsRef.current.has(currentCourse!.itemId)) && !isCompleted){
           await stopItem.mutateAsync({
             params: {
               path: {
@@ -578,7 +578,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
   function handleSendStartItem() {
 
     if (!currentCourse?.itemId) return;
-    if(!isAlreadyWatched && !completedItemIdsRef.current.has(currentCourse!.itemId)){
+    if(!isAlreadyWatched && !completedItemIdsRef.current.has(currentCourse!.itemId) && !isCompleted){
       startItem.mutate({
         params: {
           path: {
@@ -681,7 +681,11 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
               if (!progressStoppedRef.current && currentCourse) {
                 const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
                 if(!watchItemId && isAlreadyWatched){
-                  onNext?.();
+                  if(currentCourse.courseId ==="6981df886e100cfe04f9c4ad"){
+                    console.log("Stop API failed for this course")
+                  }else{
+                    onNext?.();
+                  }
                 }
                 else if (watchItemId) {
                   const success = await handleStopItem(watchItemId, 0); // No debounce on natural end

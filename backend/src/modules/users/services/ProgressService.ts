@@ -2126,6 +2126,7 @@ class ProgressService extends BaseService {
           sectionId,
           itemId: nextItemId,
         };
+
       } else {
         nextItem = await this.getNextItemInSequence(
           courseVersion,
@@ -2161,6 +2162,7 @@ class ProgressService extends BaseService {
         isCompleted = effectiveCompleted >= totalCourseItems;
 
         if (!isCompleted) {
+
           nextItem = await this.findFirstIncompleteItemInSequence(
             courseVersion,
             completedItemsSet,
@@ -2179,7 +2181,8 @@ class ProgressService extends BaseService {
 
       // Prepare the progress update payload
       let newProgress: Partial<IProgress> = isCompleted
-        ? {
+        ? 
+        {
           currentModule: moduleId,
           currentSection: sectionId,
           currentItem: itemId,
@@ -2292,14 +2295,15 @@ class ProgressService extends BaseService {
           guruProgress.completedItemsCount,
           cohortId,
         );
-      } else {
+      } 
+      
         await this.enrollmentRepo.updateProgressPercentById(
           enrollment._id.toString(),
           percentCompleted,
           completedCourseItemsCount,
           cohortId,
         );
-      }
+      
 
 
       if (percentCompleted > 99) {
@@ -2312,8 +2316,18 @@ class ProgressService extends BaseService {
       }
 
       // Update progress in a transaction
-      if (courseId !== GURU_SETU_COURSE_ID || courseVersionId !== GURU_SETU_VERSION_ID) {
-        await this.progressRepository.updateProgress( // pending
+      // if (courseId !== GURU_SETU_COURSE_ID || courseVersionId !== GURU_SETU_VERSION_ID) {
+      //   await this.progressRepository.updateProgress( // pending
+      //     userId,
+      //     courseId,
+      //     courseVersionId,
+      //     newProgress,
+      //     cohortId,
+      //     session,
+      //   );
+      // }
+
+      await this.progressRepository.updateProgress( // pending
           userId,
           courseId,
           courseVersionId,
@@ -2321,8 +2335,6 @@ class ProgressService extends BaseService {
           cohortId,
           session,
         );
-      }
-
     });
   }
 

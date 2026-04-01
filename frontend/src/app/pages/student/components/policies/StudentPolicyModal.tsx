@@ -23,6 +23,7 @@ export function StudentPolicyModal({
 
   const { policies, isLoading } = useActivePoliciesForCourse(courseId,courseVersionId,cohortId)
 
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh]">

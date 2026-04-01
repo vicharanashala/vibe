@@ -13,17 +13,17 @@ import {IEnrollment} from '#root/shared/interfaces/models.js';
 import {NotificationService} from '#root/modules/notifications/services/NotificationService.js';
 import {MailService} from '#root/modules/notifications/index.js';
 import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
-import {ICourseRepository, UserRepository} from '#root/shared/index.js';
+import {
+  EnrollmentRepository,
+  ICourseRepository,
+  UserRepository,
+} from '#root/shared/index.js';
 
-// Run at 2:00 AM every day by default — can be overridden
-const DEFAULT_CRON_SCHEDULE = '0 2 * * *';
+// Run at 12:00 AM every day by default — can be overridden
+const DEFAULT_CRON_SCHEDULE = '0 12 * * *';
 
 @injectable()
 export class AutoEjectionEngine extends BaseService {
-  private enrollmentCollection!: Collection<IEnrollment>;
-  private watchTimeCollection!: Collection<any>;
-  private initialized = false;
-
   constructor(
     @inject(EJECTION_POLICY_TYPES.EjectionPolicyRepo)
     private readonly policyRepo: EjectionPolicyRepository,
@@ -43,6 +43,9 @@ export class AutoEjectionEngine extends BaseService {
     @inject(GLOBAL_TYPES.UserRepo)
     private readonly userRepo: UserRepository,
 
+    @inject(GLOBAL_TYPES.EnrollmentRepo)
+    private readonly enrollmentRepo: EnrollmentRepository,
+
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -50,12 +53,7 @@ export class AutoEjectionEngine extends BaseService {
   }
 
   private async init(): Promise<void> {
-    if (this.initialized) return;
     await this.database.connect();
-    this.enrollmentCollection =
-      await this.database.getCollection<IEnrollment>('enrollment');
-    this.watchTimeCollection = await this.database.getCollection('watchTime');
-    this.initialized = true;
   }
 
   /**
@@ -171,11 +169,11 @@ export class AutoEjectionEngine extends BaseService {
     const triggers = policy.triggers;
 
     // ── Inactivity trigger ─────────────────────────────────────────
-    if (triggers.inactivity?.enabled) {
-      const result = await this.evaluateInactivityTrigger(policy, student);
-      if (result === 'ejected') return 'ejected';
-      if (result === 'warned') return 'warned';
-    }
+    // if (triggers.inactivity?.enabled) {
+    //   const result = await this.evaluateInactivityTrigger(policy, student);
+    //   if (result === 'ejected') return 'ejected';
+    //   if (result === 'warned') return 'warned';
+    // }
 
     // ── Missed Deadlines trigger ───────────────────────────────────
     if (triggers.missedDeadlines?.enabled) {
@@ -196,6 +194,8 @@ export class AutoEjectionEngine extends BaseService {
    * - If lastActive > (thresholdDays - warningDays) ago → warn (TODO: T-03)
    * - If no watchtime at all, use enrollment date as the baseline
    */
+  // NOT BEING USED RIGHT NOW BUT MIGHT NEED LATER FOR INACTIVITY TRIGGER
+  // TODO:add a courseCompletion check before ejection/warning student
   private async evaluateInactivityTrigger(
     policy: EjectionPolicy,
     student: IEnrollment,
@@ -207,15 +207,13 @@ export class AutoEjectionEngine extends BaseService {
     const now = new Date();
 
     // Get last activity timestamp
-    const lastActivity = await this.watchTimeCollection.findOne(
-      {
-        userId: student.userId,
-        courseId: student.courseId,
-        courseVersionId: student.courseVersionId,
-        cohortId: student.cohortId ?? {$exists: false},
-        isDeleted: {$ne: true},
-      },
-      {sort: {startTime: -1}, projection: {startTime: 1}},
+    const lastActivity = await this.enrollmentRepo.findLastActivityForStudent(
+      student.userId ? new ObjectId(student.userId) : undefined,
+      student.courseId ? new ObjectId(student.courseId) : undefined,
+      student.courseVersionId
+        ? new ObjectId(student.courseVersionId)
+        : undefined,
+      student.cohortId ? new ObjectId(student.cohortId) : undefined,
     );
 
     // Baseline: last active time or enrollment date
@@ -298,26 +296,11 @@ export class AutoEjectionEngine extends BaseService {
   private async getActiveStudentsForPolicy(
     policy: EjectionPolicy,
   ): Promise<IEnrollment[]> {
-    const query: any = {
-      role: 'STUDENT',
-      status: 'ACTIVE',
-      isDeleted: {$ne: true},
-      isEjected: {$ne: true},
-    };
-
-    if (policy.courseId) {
-      query.courseId = new ObjectId(policy.courseId);
-    }
-
-    if (policy.courseVersionId) {
-      query.courseVersionId = new ObjectId(policy.courseVersionId);
-    }
-
-    if (policy.cohortId) {
-      query.cohortId = new ObjectId(policy.cohortId);
-    }
-
-    return this.enrollmentCollection.find(query).toArray();
+    return this.enrollmentRepo.findActiveStudentsForPolicy(
+      policy.courseId ? new ObjectId(policy.courseId) : undefined,
+      policy.courseVersionId ? new ObjectId(policy.courseVersionId) : undefined,
+      policy.cohortId ? new ObjectId(policy.cohortId) : undefined,
+    );
   }
 
   /**
