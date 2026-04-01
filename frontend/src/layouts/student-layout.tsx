@@ -12,7 +12,7 @@ import { LogOut, Menu, X, Bell } from "lucide-react"
 import { AuroraText } from "@/components/magicui/aurora-text"
 import { useState, useRef, useEffect } from "react"
 import InviteDropdown from "@/components/inviteDropDown"
-import { useInvites, useGetUnreadApprovedRegistrations, useGetPendingStudentRegistrations, useGetRejectedStudentRegistrations } from "@/hooks/hooks"
+import { useInvites, useGetUnreadApprovedRegistrations, useGetPendingStudentRegistrations, useGetRejectedStudentRegistrations, useUserEnrollments } from "@/hooks/hooks"
 import logo from "../../public/img/vibe_logo_img.ico"
 import { PolicyAcknowledgementModal } from "@/app/pages/student/components/policies/PolicyAcknowledgementModal"
 import { useGetSystemNotifications, useMarkSystemNotificationAsRead, useMarkAllSystemNotificationsAsRead } from "@/hooks/system-notification-hooks"
@@ -49,6 +49,9 @@ export default function StudentLayout() {
 
   const [approvedNotificationsList, setApprovedNotificationsList] = useState<any[]>([]);
   const [localRejectedRegistrations, setLocalRejectedRegistrations] = useState<any[]>([]);
+  const { token } = useAuthStore();
+const { data: enrollmentsData } = useUserEnrollments(1, 100, !!token && !!user?.uid);
+const enrollments = enrollmentsData?.enrollments ?? [];
 
   const isActive = (path: string) => {
     if (path === "/student") return pathname === "/student";
@@ -282,6 +285,7 @@ export default function StudentLayout() {
               {showInvites && (
                 <InviteDropdown
                   setShowInvites={setShowInvites}
+                  enrollments={enrollments}
                   onRejectClick={(invite) => {
                     setSelectedInvite(null);
                     setShowInvites(false);
