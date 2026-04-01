@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal";
 
 type Appeal = {
   _id: string;
@@ -69,16 +70,22 @@ function AppealCard({
 }) {
   const config = statusConfig[appeal.status];
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const approveMutation = useApproveAppeal();
   const rejectMutation = useRejectAppeal();
 
-  const handleApprove = async (e: React.MouseEvent) => {
+  const handleApproveClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setShowApproveConfirm(true);
+  };
+
+  const handleApproveConfirm = async () => {
     try {
       await approveMutation.mutateAsync({ params: { path: { id: appeal._id } } });
       toast.success("Appeal approved — student reinstated.");
       queryClient.invalidateQueries({ queryKey: ["get", "/appeals"] });
+      setShowApproveConfirm(false);
       onAction();
     } catch {
       toast.error("Failed to approve appeal.");
@@ -95,6 +102,7 @@ function AppealCard({
       toast.success("Appeal rejected.");
       queryClient.invalidateQueries({ queryKey: ["get", "/appeals"] });
       setShowRejectModal(false);
+      setRejectReason("");
       onAction();
     } catch {
       toast.error("Failed to reject appeal.");
@@ -192,7 +200,7 @@ function AppealCard({
           <div className="flex gap-2 pt-1">
             <Button
               size="sm"
-              onClick={handleApprove}
+              onClick={handleApproveClick}
               disabled={approveMutation.isPending}
               className="bg-green-600 hover:bg-green-700 text-white h-8 text-xs"
             >
@@ -274,6 +282,18 @@ function AppealCard({
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmationModal
+        isOpen={showApproveConfirm}
+        onClose={() => setShowApproveConfirm(false)}
+        onConfirm={handleApproveConfirm}
+        title="Approve Appeal"
+        description={`This will approve the appeal and reinstate ${appeal.student.firstName} ${appeal.student.lastName}.`}
+        confirmText="Approve & Reinstate"
+        cancelText="Cancel"
+        isLoading={approveMutation.isPending}
+        loadingText="Approving..."
+      />
     </>
   );
 }
