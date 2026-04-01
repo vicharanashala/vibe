@@ -60,7 +60,8 @@ export class ActivityService extends BaseService {
                 {
                     courseId: new ObjectId(body.courseId),
                     courseVersionId: new ObjectId(body.courseVersionId),
-                    cohort: body.cohort,
+                    cohortId: new ObjectId(body.cohortId),
+                    cohort: body.cohortId, // Legacy fallback
 
                     createdByTeacherId: new ObjectId(teacherId),
                     publishedByTeacherId: body.status === "PUBLISHED" ? new ObjectId(teacherId) : undefined,
@@ -140,7 +141,7 @@ export class ActivityService extends BaseService {
                     ...(body.attachments !== undefined ? { attachments: body.attachments } : {}),
                     ...(body.ruleConfigId !== undefined ? { ruleConfigId: new ObjectId(body.ruleConfigId) } : {}),
                     ...(body.isMandatory !== undefined ? { isMandatory: body.isMandatory } : {}),
-                    ...(body.cohort !== undefined ? { cohort: body.cohort } : {}),
+                    ...(body.cohortId !== undefined ? { cohortId: new ObjectId(body.cohortId), cohort: body.cohortId } : {}),
                     ...(body.required_percentage !== undefined ? { required_percentage: body.required_percentage } : {}),
                     updatedAt: new Date(),
                 },

@@ -104,7 +104,7 @@ export class CreateOrUpdateHpActivitySubmissionBodyDto {
     @Expose()
     @IsString()
     @IsNotEmpty()
-    cohort!: string;
+    cohortId!: string;
 
     @Expose()
     @IsString()
@@ -194,7 +194,7 @@ export class ListSubmissionsQueryDto {
     @Expose()
     @IsOptional()
     @IsString()
-    cohort?: string;
+    cohortId?: string;
 
     @Expose()
     @IsOptional()

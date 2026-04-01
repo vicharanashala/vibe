@@ -32,6 +32,8 @@ export interface HpActivity {
     // Scoping
     courseVersionId: ID;
     courseId: ID;
+    cohortId: ID;
+    /** @deprecated Use cohortId instead. Kept for human-readable debugging. */
     cohort: string;
 
     // Authoring
@@ -95,6 +97,8 @@ export interface HpActivitySubmission {
 
     courseId: ID;
     courseVersionId: ID;
+    cohortId: ID;
+    /** @deprecated Use cohortId instead. Kept for human-readable debugging. */
     cohort: string;
     activityId: ID;
 
@@ -248,6 +252,8 @@ export interface HpLedger {
 
     courseId: ID;
     courseVersionId: ID;
+    cohortId: ID;
+    /** @deprecated Use cohortId instead. Kept for human-readable debugging. */
     cohort: String;
 
     // Identity

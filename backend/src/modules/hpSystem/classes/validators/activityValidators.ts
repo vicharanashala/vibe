@@ -22,8 +22,8 @@ export class CreateActivityBody {
     @IsString()
     courseId!: string;
 
-    @IsString()
-    cohort!: string;
+    @IsMongoId()
+    cohortId!: string;
 
     // Content
     @IsString()
@@ -121,8 +121,8 @@ export class UpdateActivityBody {
     isMandatory?: boolean;
 
     @IsOptional()
-    @IsString()
-    cohort?: string;
+    @IsMongoId()
+    cohortId?: string;
 
     @IsOptional()
     @IsNumber()
@@ -142,8 +142,8 @@ export class ListActivitiesQuery {
     courseVersionId?: string;
 
     @IsOptional()
-    @IsString({ message: "cohort must be a string" })
-    cohort?: string;
+    @IsMongoId({ message: "cohortId must be a valid MongoDB ObjectId" })
+    cohortId?: string;
 
     @IsOptional()
     @IsEnum(["DRAFT", "PUBLISHED", "ARCHIVED"], {

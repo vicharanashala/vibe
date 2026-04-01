@@ -333,7 +333,8 @@ async function processStudentPenalty(
             const ledgerEntry: Omit<HpLedger, "_id" | "createdAt"> = {
                 courseId: new ObjectId(activity.courseId.toString()),
                 courseVersionId: new ObjectId(activity.courseVersionId.toString()),
-                cohort: activity.cohort,
+                cohortId: new ObjectId(activity.cohortId.toString()),
+                cohort: activity.cohort || "",
                 studentId: new ObjectId(student._id),
                 studentEmail: student.email,
                 activityId: new ObjectId(activity._id),
@@ -373,7 +374,7 @@ async function processStudentPenalty(
                 student._id.toString(),
                 courseId,
                 courseVersionId,
-                activity.cohort,
+                activity.cohortId.toString(),
                 newHp,
                 session
             );

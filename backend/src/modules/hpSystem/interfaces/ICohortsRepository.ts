@@ -60,7 +60,7 @@ export interface ICohortRepository {
         userId: string | ObjectId,
         courseId: string,
         courseVersionId: string,
-        cohort: string,
+        cohortId: string,
         session?: ClientSession,
     ): Promise<IEnrollment | null>
 
@@ -68,7 +68,7 @@ export interface ICohortRepository {
         userId: ID,
         courseId: ID,
         courseVersionId: ID,
-        cohort: string,
+        cohortId: string,
         amount: number,
         session?: ClientSession,
     ): Promise<boolean>

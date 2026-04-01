@@ -35,7 +35,7 @@ export class LedgerRepository implements ILedgerRepository {
     async listByStudentId(
         studentId: string,
         filter: FilterQueryDto,
-        cohortName: string,
+        cohortId: string,
         role: EnrollmentRole,
     ): Promise<{
         data: HpLedgerTransformer[];
@@ -74,7 +74,7 @@ export class LedgerRepository implements ILedgerRepository {
         const matchQuery: any = { ...query };
 
         if (role !== "STUDENT") {
-            matchQuery.cohort = cohortName;
+            matchQuery.cohortId = new ObjectId(cohortId);
         }
 
         const [docs, total] = await Promise.all([
@@ -292,7 +292,7 @@ export class LedgerRepository implements ILedgerRepository {
     }
 
     async getHpDistributionForCohort(
-        cohortName: string,
+        cohortId: string,
         courseVersionId: string,
         session?: ClientSession
     ): Promise<{
@@ -306,7 +306,7 @@ export class LedgerRepository implements ILedgerRepository {
         const pipeline = [
             {
                 $match: {
-                    cohort: cohortName,
+                    cohortId: new ObjectId(cohortId),
                     courseVersionId: new ObjectId(courseVersionId)
                 }
             },

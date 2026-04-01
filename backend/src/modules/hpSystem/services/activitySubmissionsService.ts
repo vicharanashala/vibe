@@ -228,7 +228,7 @@ export class ActivitySubmissionsService extends BaseService {
     async submit(student: { id: string; email: string; name: string }, body: CreateOrUpdateHpActivitySubmissionBodyDto, upload?: { files?: Express.Multer.File[]; images?: Express.Multer.File[] }
     ) {
         return this._withTransaction(async (session) => {
-            if (!body.courseId || !body.courseVersionId || !body.activityId || !body.cohort) {
+            if (!body.courseId || !body.courseVersionId || !body.activityId || !body.cohortId) {
                 throw new BadRequestError("Missing required fields");
             }
 
@@ -261,7 +261,7 @@ export class ActivitySubmissionsService extends BaseService {
             if (latestSubmissions && latestSubmissions.status !== "REVERTED")
                 throw new BadRequestError("You have already attended this activity.")
 
-            const cohort = body.cohort;
+            const cohort = body.cohortId;
 
             // 2. Apply Overrides (Fall back to body values if cohort isn't in the map)
             const finalCourseId = COHORT_OVERRIDES[cohort]?.courseId ?? body.courseId;
@@ -323,10 +323,10 @@ export class ActivitySubmissionsService extends BaseService {
 
 
             // To create proper unique folder names based on cohort (exisiting cohort=>cohortName, new cohorts=>id)
-            let cohortFileName = body.cohort
-            const isOverride = COHORT_OVERRIDES[body.cohort]
+            let cohortFileName = body.cohortId
+            const isOverride = COHORT_OVERRIDES[body.cohortId]
             if (!isOverride) {
-                const cohortId = await this.cohortRepository.getCohortIdByCohortName(body.cohort);
+                const cohortId = await this.cohortRepository.getCohortIdByCohortName(body.cohortId);
                 if (cohortId)
                     cohortFileName = cohortId;
             }
@@ -388,7 +388,8 @@ export class ActivitySubmissionsService extends BaseService {
                 {
                     courseId: new ObjectId(body.courseId),
                     courseVersionId: new ObjectId(body.courseVersionId),
-                    cohort: body.cohort,
+                    cohortId: new ObjectId(body.cohortId),
+                    cohort: body.cohortId,
                     activityId: new ObjectId(body.activityId),
 
                     studentId: new ObjectId(student.id),
@@ -463,7 +464,8 @@ export class ActivitySubmissionsService extends BaseService {
                 const ledgerEntry: Omit<HpLedger, "_id" | "createdAt"> = {
                     courseId: new ObjectId(body.courseId),
                     courseVersionId: new ObjectId(body.courseVersionId),
-                    cohort: body.cohort,
+                    cohortId: new ObjectId(body.cohortId),
+                    cohort: body.cohortId,
                     studentId: new ObjectId(student.id),
                     studentEmail: student.email,
                     activityId: new ObjectId(body.activityId),
@@ -518,7 +520,7 @@ export class ActivitySubmissionsService extends BaseService {
         upload?: { files?: Express.Multer.File[]; images?: Express.Multer.File[] }
     ) {
         return this._withTransaction(async (session) => {
-            if (!body.courseId || !body.courseVersionId || !body.activityId || !body.cohort) {
+            if (!body.courseId || !body.courseVersionId || !body.activityId || !body.cohortId) {
                 throw new BadRequestError("Missing required fields");
             }
 
@@ -562,7 +564,7 @@ export class ActivitySubmissionsService extends BaseService {
             if (files.length > 0 || images.length > 0) {
                 const uploadResult = await this.uploadSubmissionAssets(
                     student.id,
-                    body.cohort,
+                    body.cohortId,
                     body.activityId,
                     files,
                     images
@@ -652,8 +654,8 @@ export class ActivitySubmissionsService extends BaseService {
 
         const effectiveQuery: ListSubmissionsQueryDto = { ...query };
 
-        if (query.cohort && COHORT_OVERRIDES[query.cohort])
-            effectiveQuery.courseVersionId = COHORT_OVERRIDES[query.cohort].versionId;
+        if (query.cohortId && COHORT_OVERRIDES[query.cohortId])
+            effectiveQuery.courseVersionId = COHORT_OVERRIDES[query.cohortId].versionId;
 
 
         const docs = await this.activitySubmissionsRepository.list(effectiveQuery);
@@ -730,7 +732,7 @@ export class ActivitySubmissionsService extends BaseService {
         //     courseId = override.courseId;
         //     courseVersionId = override.versionId;
         // } else {
-        const latestActivity = await this.activityRepository.getLatestActivityByCohortName(cohortName);
+        const latestActivity = await this.activityRepository.getLatestActivityByCohortId(cohortName);
 
         if (!latestActivity) {
             return {
@@ -759,12 +761,12 @@ export class ActivitySubmissionsService extends BaseService {
             totalPendingActivites,
             enrollment,
         ] = await Promise.all([
-            this.activityRepository.getCountByCohortName(cohortName),
+            this.activityRepository.getCountByCohortId(cohortName),
             this.activitySubmissionsRepository.getCountByStudentId(studentId, courseId, courseVersionId, cohortName),
             this.activitySubmissionsRepository.getLateSubmissionCountByStudentId(studentId, courseId, courseVersionId, cohortName),
             this.activityRepository.getPendingActivitesCount(studentId, courseId, courseVersionId, cohortName),
             this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId, cohortName),
-            // this.activityRepository.getLatestActivityByCohortName(cohortName),
+            // this.activityRepository.getLatestActivityByCohortId(cohortName),
         ]);
 
         const data: StudentActivitySubmissionStatsViewDto = {
@@ -986,7 +988,7 @@ export class ActivitySubmissionsService extends BaseService {
 
             await Promise.all([
                 ...ledgerPromises,
-                this.cohortRepository.setHPForEnrollment(submission.studentId.toString(), courseId, courseVersionId, submission.cohort, finalHpBalance, session)
+                this.cohortRepository.setHPForEnrollment(submission.studentId.toString(), courseId.toString(), courseVersionId.toString(), submission.cohortId.toString(), finalHpBalance, session)
             ]);
 
             return { success: true };
@@ -998,7 +1000,8 @@ export class ActivitySubmissionsService extends BaseService {
         return {
             courseId: new ObjectId(sub.courseId),
             courseVersionId: new ObjectId(sub.courseVersionId),
-            cohort: sub.cohort,
+            cohortId: new ObjectId(sub.cohortId),
+            cohort: (sub.cohort || sub.cohortId).toString(),
             studentId: new ObjectId(sub.studentId.toString()),
             studentEmail: user.email,
             activityId: new ObjectId(sub.activityId),
@@ -1086,7 +1089,7 @@ export class ActivitySubmissionsService extends BaseService {
                 this.activitySubmissionsRepository.getCohortStatsMap(cohortName, courseVersionId, session),
                 
                 // Get total activities count only
-                this.activityRepository.getCountByCohortName(cohortName, courseVersionId, session),
+                this.activityRepository.getCountByCohortId(cohortName, courseVersionId, session),
                 
                 // Get weekly activity data
                 this.getWeeklyActivityData(cohortName, courseVersionId, session),

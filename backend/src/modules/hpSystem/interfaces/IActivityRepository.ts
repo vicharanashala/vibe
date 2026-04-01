@@ -20,7 +20,7 @@ export interface IActivityRepository {
     listActivities(filters: {
         courseId?: string;
         courseVersionId?: string;
-        cohort?: string;
+        cohortId?: string;
         status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
         createdByTeacherId?: string;
     }, role?: EnrollmentRole): Promise<HpActivityTransformer[]>;
@@ -44,7 +44,7 @@ export interface IActivityRepository {
         session?: ClientSession,
     ): Promise<{ modifiedCount: number }>;
 
-    getCountByCohortName(cohortName: string, courseVersionId?: string, session?: ClientSession): Promise<number>;
-    getDraftCountByCohortName(cohortName: string, courseVersionId?: string): Promise<number>;
-    getPublishedCountByCohortName(cohortName: string, courseVersionId?: string): Promise<number>;
+    getCountByCohortId(cohortId: string, courseVersionId?: string, session?: ClientSession): Promise<number>;
+    getDraftCountByCohortId(cohortId: string, courseVersionId?: string): Promise<number>;
+    getPublishedCountByCohortId(cohortId: string, courseVersionId?: string): Promise<number>;
 }

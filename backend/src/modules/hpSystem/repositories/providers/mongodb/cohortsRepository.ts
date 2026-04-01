@@ -455,71 +455,45 @@ export class CohortRepository implements ICohortRepository {
     }
 
 
-    private async _getCohortMatchConditions(cohort: string, versionId: string): Promise<any[]> {
-        const orConditions: any[] = [{ tag: cohort }];
 
-        if (ObjectId.isValid(cohort)) {
-            orConditions.push({ cohortId: new ObjectId(cohort) });
-            orConditions.push({ cohortId: cohort });
-        } else {
-            const dynamicCohort = await this.cohortsCollection.findOne({ name: cohort, courseVersionId: new ObjectId(versionId) });
-            if (dynamicCohort) {
-                orConditions.push({ cohortId: dynamicCohort._id });
-                orConditions.push({ cohortId: dynamicCohort._id.toString() });
-            }
-        }
-
-        return orConditions;
-    }
 
     async findEnrollment(
         userId: string | ObjectId,
         courseId: string,
         courseVersionId: string,
-        cohort: string,
+        cohortId: string,
         session?: ClientSession,
     ): Promise<IEnrollment | null> {
         await this.init();
-
-        const override = COHORT_OVERRIDES[cohort];
-
-        const effectiveCourseId = override?.courseId ?? courseId;
-        const effectiveCourseVersionId = override?.versionId ?? courseVersionId;
 
         const normalizedUserId =
             typeof userId === "string" && ObjectId.isValid(userId)
                 ? [userId, new ObjectId(userId)]
                 : [userId];
 
-        const normalizedCourseId = ObjectId.isValid(effectiveCourseId)
-            ? [effectiveCourseId, new ObjectId(effectiveCourseId)]
-            : [effectiveCourseId];
+        const normalizedCourseId = ObjectId.isValid(courseId)
+            ? [courseId, new ObjectId(courseId)]
+            : [courseId];
 
-        const normalizedCourseVersionId = ObjectId.isValid(effectiveCourseVersionId)
-            ? [effectiveCourseVersionId, new ObjectId(effectiveCourseVersionId)]
-            : [effectiveCourseVersionId];
+        const normalizedCourseVersionId = ObjectId.isValid(courseVersionId)
+            ? [courseVersionId, new ObjectId(courseVersionId)]
+            : [courseVersionId];
+
+        const normalizedCohortId = ObjectId.isValid(cohortId)
+            ? [cohortId, new ObjectId(cohortId)]
+            : [cohortId];
 
         const query: any = {
             userId: { $in: normalizedUserId },
             courseId: { $in: normalizedCourseId },
             courseVersionId: { $in: normalizedCourseVersionId },
             isDeleted: { $ne: true },
-        };
-
-        if (!override) {
-            const cohortConditions = await this._getCohortMatchConditions(
-                cohort,
-                effectiveCourseVersionId
-            );
-
-            query.$or = [
+            $or: [
+                { cohortId: { $in: normalizedCohortId } },
                 { cohortId: { $exists: false } },
-                {
-                    cohortId: { $exists: true },
-                    $or: cohortConditions,
-                },
-            ];
-        }
+                { cohortId: null }
+            ]
+        };
 
         return await this.enrollmentCollection.findOne(query, { session });
     }
@@ -676,35 +650,23 @@ export class CohortRepository implements ICohortRepository {
         userId: ID,
         courseId: ID,
         courseVersionId: ID,
-        cohort: string,
+        cohortId: string,
         amount: number,
         session?: ClientSession,
     ): Promise<boolean> {
         await this.init();
-
-        const isOverrideCohort = cohort in COHORT_OVERRIDES;
 
         const query: any = {
             userId: { $in: [userId, new ObjectId(userId)] },
             courseId: { $in: [courseId, new ObjectId(courseId)] },
             courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
             isDeleted: { $ne: true },
-        };
-
-        if (!isOverrideCohort) {
-            const cohortConditions = await this._getCohortMatchConditions(
-                cohort,
-                courseVersionId.toString()
-            );
-
-            query.$or = [
+            $or: [
+                { cohortId: { $in: [cohortId, new ObjectId(cohortId)] } },
                 { cohortId: { $exists: false } },
-                {
-                    cohortId: { $exists: true },
-                    $or: cohortConditions,
-                },
-            ];
-        }
+                { cohortId: null }
+            ]
+        };
 
         const updateResult = await this.enrollmentCollection.updateOne(
             query,

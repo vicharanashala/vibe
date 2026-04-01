@@ -372,6 +372,7 @@ const applyStudentReward = async (
             const ledgerEntry: Omit<HpLedger, "_id" | "createdAt"> = {
                 courseId: new ObjectId(activity.courseId),
                 courseVersionId: new ObjectId(activity.courseVersionId),
+                cohortId: new ObjectId(activity.cohortId),
                 cohort: activity.cohort || "",
                 studentId: new ObjectId(studentId),
                 studentEmail: student.email,
@@ -412,7 +413,7 @@ const applyStudentReward = async (
                 studentId,
                 courseId.toString(),
                 courseVersionId.toString(),
-                activity.cohort,
+                activity.cohortId.toString(),
                 newHp,
                 session
             );

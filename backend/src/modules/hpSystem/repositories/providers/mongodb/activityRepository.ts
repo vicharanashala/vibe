@@ -91,7 +91,7 @@ export class ActivityRepository implements IActivityRepository {
     if (filters.courseId) q.courseId = new ObjectId(filters.courseId);
     if (filters.courseVersionId)
       q.courseVersionId = new ObjectId(filters.courseVersionId);
-    if (filters.cohort) q.cohort = filters.cohort;
+    if (filters.cohortId) q.cohortId = new ObjectId(filters.cohortId);
     if (filters.status) q.status = filters.status;
     if (filters.activity) q.activityType = filters.activity;
     if (filters.createdByTeacherId)
@@ -328,23 +328,23 @@ export class ActivityRepository implements IActivityRepository {
     return { modifiedCount: res.modifiedCount ?? 0 };
   }
 
-  async getLatestActivityByCohortName(
-    cohortName: string,
+  async getLatestActivityByCohortId(
+    cohortId: string,
   ): Promise<HpActivity | null> {
     await this.init();
     return await this.hpActivityCollection.findOne(
       {
-        cohort: cohortName,
+        cohortId: new ObjectId(cohortId),
       },
       { sort: { createdAt: -1 } },
     );
   }
 
-  async getDraftCountByCohortName(cohortName: string, courseVersionId?: string): Promise<number> {
+  async getDraftCountByCohortId(cohortId: string, courseVersionId?: string): Promise<number> {
     await this.init();
 
     const query: any = {
-      cohort: cohortName,
+      cohortId: new ObjectId(cohortId),
       status: "DRAFT",
       isDeleted: { $ne: true },
     };
@@ -355,11 +355,11 @@ export class ActivityRepository implements IActivityRepository {
 
     return await this.hpActivityCollection.countDocuments(query);
   }
-  async getPublishedCountByCohortName(cohortName: string, courseVersionId?: string): Promise<number> {
+  async getPublishedCountByCohortId(cohortId: string, courseVersionId?: string): Promise<number> {
     await this.init();
 
     const query: any = {
-      cohort: cohortName,
+      cohortId: new ObjectId(cohortId),
       status: "PUBLISHED",
       isDeleted: { $ne: true },
     };
@@ -371,11 +371,11 @@ export class ActivityRepository implements IActivityRepository {
     return await this.hpActivityCollection.countDocuments(query);
   }
 
-  async getCountByCohortName(cohortName: string, courseVersionId?: string, session?: ClientSession): Promise<number> {
+  async getCountByCohortId(cohortId: string, courseVersionId?: string, session?: ClientSession): Promise<number> {
     await this.init();
 
     const query: any = {
-      cohort: cohortName,
+      cohortId: new ObjectId(cohortId),
       isDeleted: { $ne: true },
     };
 
@@ -390,7 +390,7 @@ export class ActivityRepository implements IActivityRepository {
     studentId: string,
     courseId: string,
     courseVersionId: string,
-    cohortName: string,
+    cohortId: string,
   ): Promise<number> {
     await this.init();
 
@@ -401,7 +401,7 @@ export class ActivityRepository implements IActivityRepository {
             courseId: new ObjectId(courseId),
             courseVersionId: new ObjectId(courseVersionId),
             isDeleted: { $ne: true },
-            cohort: cohortName
+            cohortId: new ObjectId(cohortId)
           },
         },
         {

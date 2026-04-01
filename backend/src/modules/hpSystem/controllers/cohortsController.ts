@@ -134,7 +134,7 @@ export class CohortsController {
 
     @OpenAPI({ summary: "List cohort students with HP and completion percentage" })
     @Authorized()
-    @Get("/version/:versionId/cohort/:cohortName/students")
+    @Get("/version/:versionId/cohort/:cohortId/students")
     @ResponseSchema(CohortStudentsResponseDto)
     @HttpCode(200)
     @ResponseSchema(BadRequestErrorResponse, {
@@ -142,12 +142,12 @@ export class CohortsController {
         statusCode: 400,
     })
     async listCohortStudents(@Param("versionId") versionId: string,
-        @Param("cohortName") cohortName: string,
+        @Param("cohortId") cohortId: string,
         @QueryParams() query: CohortStudentsListQueryDto): Promise<CohortStudentsResponseDto> {
 
 
         if (!versionId?.trim()) throw new BadRequestError("versionId is required");
-        if (!cohortName?.trim()) throw new BadRequestError("cohortName is required");
+        if (!cohortId?.trim()) throw new BadRequestError("cohortId is required");
 
         const page = query.page ?? 1;
         const limit = query.limit ?? 20;
@@ -156,7 +156,7 @@ export class CohortsController {
         const search = query.search?.trim();
         const status = query.status ?? "ALL";
 
-        return await this.cohortsService.listCohortStudents({ versionId, cohortName, query: { page, limit, sortBy, sortOrder, search, status } });
+        return await this.cohortsService.listCohortStudents({ versionId, cohortId, query: { page, limit, sortBy, sortOrder, search, status } });
 
     }
 

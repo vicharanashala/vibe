@@ -144,6 +144,8 @@ export class CohortsService extends BaseService {
 
             const results = await Promise.all(
                 cohorts.map(async (c) => {
+                    const cohortId = await this.cohortRepository.getCohortIdByCohortName(c.cohortName) ?? "";
+
                     const [
                         totalStudents,
                         totalActivities,
@@ -152,9 +154,9 @@ export class CohortsService extends BaseService {
                         totalHpDistributed,
                     ] = await Promise.all([
                         this.cohortRepository.getTotalStudentsCountForCourseVersion(c.cohortVersionId),
-                        this.activityRepository.getCountByCohortName(c.cohortName, versionId),
-                        this.activityRepository.getDraftCountByCohortName(c.cohortName, versionId),
-                        this.activityRepository.getPublishedCountByCohortName(c.cohortName, versionId),
+                        this.activityRepository.getCountByCohortId(cohortId, versionId),
+                        this.activityRepository.getDraftCountByCohortId(cohortId, versionId),
+                        this.activityRepository.getPublishedCountByCohortId(cohortId, versionId),
                         this.cohortRepository.getTotalHpDistributedByCohort(c.cohortVersionId)
                     ]);
 
@@ -164,6 +166,7 @@ export class CohortsService extends BaseService {
                     const overdueActivities = 0;
 
                     return {
+                        cohortId,
                         cohortName: c.cohortName,
                         courseVersionId: versionId,
                         courseId: "000000000000000000000001",
@@ -196,6 +199,8 @@ export class CohortsService extends BaseService {
             const results = await Promise.all(
                 cohorts.map(async (c) => {
 
+                    const cohortId = await this.cohortRepository.getCohortIdByCohortName(c.cohortName) ?? "";
+
                     const [
                         totalStudents,
                         totalActivities,
@@ -204,9 +209,9 @@ export class CohortsService extends BaseService {
                         totalHpDistributed,
                     ] = await Promise.all([
                         this.cohortRepository.getTotalStudentsCountForCourseVersion(c.cohortVersionId),
-                        this.activityRepository.getCountByCohortName(c.cohortName, versionId),
-                        this.activityRepository.getDraftCountByCohortName(c.cohortName, versionId),
-                        this.activityRepository.getPublishedCountByCohortName(c.cohortName, versionId),
+                        this.activityRepository.getCountByCohortId(cohortId, versionId),
+                        this.activityRepository.getDraftCountByCohortId(cohortId, versionId),
+                        this.activityRepository.getPublishedCountByCohortId(cohortId, versionId),
                         this.cohortRepository.getTotalHpDistributedByCohort(c.cohortVersionId)
                     ]);
 
@@ -216,6 +221,7 @@ export class CohortsService extends BaseService {
                     const overdueActivities = 0;
 
                     return {
+                        cohortId,
                         cohortName: c.cohortName,
                         courseVersionId: versionId,
                         courseId: "000000000000000000000001",
@@ -343,13 +349,14 @@ export class CohortsService extends BaseService {
                 ] = await Promise.all([
                     this.cohortRepository.getTotalStudentsCountForCohort(courseVersionId, cohortId),
                     this.cohortRepository.getTotalHpDistributedByCohort(courseVersionId, cohortId),
-                    this.activityRepository.getCountByCohortName(cohort.name, courseVersionId),
-                    this.activityRepository.getDraftCountByCohortName(cohort.name, courseVersionId),
-                    this.activityRepository.getPublishedCountByCohortName(cohort.name, courseVersionId),
+                    this.activityRepository.getCountByCohortId(cohortId, courseVersionId),
+                    this.activityRepository.getDraftCountByCohortId(cohortId, courseVersionId),
+                    this.activityRepository.getPublishedCountByCohortId(cohortId, courseVersionId),
                 ]);
 
 
                 return {
+                    cohortId,
                     cohortName: cohort.name,
                     courseVersionId,
                     courseId: courseId,
@@ -378,7 +385,7 @@ export class CohortsService extends BaseService {
 
     private async _handleExisitingCohortStudents(
         versionId: string,
-        cohortName: string,
+        cohortId: string,
         query: CohortStudentsListQueryDto
     ): Promise<CohortStudentItemDto[] | null> {
         // Map: parentVersionId -> cohortName -> actualCourseVersionId
@@ -396,13 +403,32 @@ export class CohortsService extends BaseService {
             },
         };
 
-        const normalizedCohort = cohortName?.trim().toLowerCase();
-        if (!normalizedCohort) return null;
+        const cohortIdStr = cohortId?.trim().toLowerCase();
+        if (!cohortIdStr) return null;
 
-        const cohortMapForVersion = EXISTING_COHORTS_MAP[versionId];
-        if (!cohortMapForVersion) return null;
+        // In existing mappings, legacy pseudo-cohorts might still come in as name or just fallback to fetching their true version if cohortId matches their version.
+        // Wait, for backward compatibility, if the string isn't an ObjectId, we might need a lookup, but handleExisitingCohortStudents is only for pseudo versions.
+        // Let's rely on actual DB queries if cohortId is a MongoId.
+        
+        let actualVersionId: string | undefined;
 
-        const actualVersionId = cohortMapForVersion[normalizedCohort];
+        // Fallback for names if still passed
+        const cohortMapForVersionName = EXISTING_COHORTS_MAP[versionId]?.[cohortIdStr];
+        if (cohortMapForVersionName) {
+             actualVersionId = cohortMapForVersionName;
+        }
+
+        if (!actualVersionId) {
+             // Find if cohortId is actually a versionId in our mappings
+             const versionsMap = EXISTING_COHORTS_MAP[versionId];
+             if (versionsMap) {
+                 const possibleMatchKey = Object.keys(versionsMap).find(k => versionsMap[k] === cohortId);
+                 if (possibleMatchKey) {
+                      actualVersionId = cohortId;
+                 }
+             }
+        }
+        
         if (!actualVersionId) return null;
 
         return this.cohortRepository.getStudentsForExistingCohortByVersionId(actualVersionId, query);
@@ -411,30 +437,38 @@ export class CohortsService extends BaseService {
 
     async listCohortStudents(input: {
         versionId: string;
-        cohortName: string;
+        cohortId: string;
         query?: CohortStudentsListQueryDto;
     }): Promise<CohortStudentsResponseDto> {
         return await this._withTransaction(async (session: ClientSession) => {
-            const { versionId, cohortName } = input;
+            const { versionId, cohortId } = input;
             const query = input.query ?? {};
 
             if (!versionId?.trim()) throw new BadRequestError("versionId is required");
-            if (!cohortName?.trim()) throw new BadRequestError("cohortName is required");
+            if (!cohortId?.trim()) throw new BadRequestError("cohortId is required");
 
             // 1. Try hardcoded cohorts first
-            let students = await this._handleExisitingCohortStudents(versionId, cohortName, query);
+            let students = await this._handleExisitingCohortStudents(versionId, cohortId, query);
 
             // 2. If not a hardcoded cohort, try dynamic DB cohort
             if (!students) {
-                const dbCohorts = await this.cohortRepository.getCohortsByVersionId(versionId);
-                const matchedCohort = dbCohorts.find(
-                    c => c.name.toLowerCase() === cohortName.trim().toLowerCase()
-                );
-
-                if (matchedCohort && matchedCohort._id) {
+                if (!ObjectId.isValid(cohortId)) {
+                    // Backwards compatibility layer for a frontend that sends a name
+                    const dbCohorts = await this.cohortRepository.getCohortsByVersionId(versionId);
+                    const matchedCohort = dbCohorts.find(
+                        c => c.name.toLowerCase() === cohortId.trim().toLowerCase()
+                    );
+                    if (matchedCohort && matchedCohort._id) {
+                        students = await this.cohortRepository.getStudentsForCohortByCohortId(
+                            versionId,
+                            matchedCohort._id.toString(),
+                            query
+                        );
+                    }
+                } else {
                     students = await this.cohortRepository.getStudentsForCohortByCohortId(
                         versionId,
-                        matchedCohort._id.toString(),
+                        cohortId,
                         query
                     );
                 }

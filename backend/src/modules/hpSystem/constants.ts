@@ -105,7 +105,14 @@ export enum TriggeredBy {
 }
 
 
-export const COHORT_OVERRIDES: Record<string, { courseId: string; versionId: string }> = {
+export interface CohortOverride {
+  courseId: string;
+  versionId: string;
+  /** Populated at runtime by querying the cohorts collection */
+  cohortId?: string;
+}
+
+export const COHORT_OVERRIDES: Record<string, CohortOverride> = {
   Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
   Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150" },
   Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57" },

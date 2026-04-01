@@ -36,6 +36,8 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         input: {
             courseId: ID;
             courseVersionId: ID;
+            cohortId: ID;
+            /** @deprecated kept for backward compat */
             cohort: ID;
             activityId: ID;
 
@@ -117,7 +119,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         query: FilterQueryDto,
         courseId?: string,
         courseVersionId?: string,
-        cohortName?: string
+        cohortId?: string
     ): Promise<any[]> {
         await this.init();
 
@@ -157,8 +159,8 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         if (courseVersionId)
             matchStage.courseVersionId = new ObjectId(courseVersionId)
 
-        if (cohortName)
-            matchStage.cohort = cohortName;
+        if (cohortId)
+            matchStage.cohortId = new ObjectId(cohortId);
 
 
         const pipeline: any[] = [
@@ -552,7 +554,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         const q: any = {};
 
         if (query.courseVersionId) q.courseVersionId = new ObjectId(query.courseVersionId);
-        if (query.cohort) q.cohort = query.cohort;
+        if (query.cohortId) q.cohortId = new ObjectId(query.cohortId);
         if (query.activityId) q.activityId = new ObjectId(query.activityId);
         if (query.status) q.status = query.status;
 
@@ -617,40 +619,40 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         return await this.hpActivitySubmissionCollection.findOne({ studentId: new ObjectId(studentId), activityId: new ObjectId(activityId) }, { sort: { createdAt: -1 } })
     }
 
-    async getCountByStudentId(studentId: string, courseId: string, courseVersionId: string, cohortName: string): Promise<number> {
+    async getCountByStudentId(studentId: string, courseId: string, courseVersionId: string, cohortId: string): Promise<number> {
         await this.init();
         return await this.hpActivitySubmissionCollection.countDocuments({
             studentId: new ObjectId(studentId),
             courseId: new ObjectId(courseId),
             courseVersionId: new ObjectId(courseVersionId),
-            cohort: cohortName
+            cohortId: new ObjectId(cohortId)
         });
     }
 
-    async getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string, cohortName: string): Promise<number> {
+    async getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string, cohortId: string): Promise<number> {
         await this.init();
         return await this.hpActivitySubmissionCollection.countDocuments({
             studentId: new ObjectId(studentId),
             courseId: new ObjectId(courseId),
             courseVersionId: new ObjectId(courseVersionId),
-            cohort: cohortName,
+            cohortId: new ObjectId(cohortId),
             isLate: true
         });
     }
 
-    async getLateSubmissionCount(cohortName: string, courseVersionId: string, session?: ClientSession): Promise<number> {
+    async getLateSubmissionCount(cohortId: string, courseVersionId: string, session?: ClientSession): Promise<number> {
         await this.init();
         return await this.hpActivitySubmissionCollection.countDocuments({
-            cohort: cohortName,
+            cohortId: new ObjectId(cohortId),
             courseVersionId: new ObjectId(courseVersionId),
             isLate: true
         }, { session });
     }
 
-    async getPendingSubmissionsCount(cohortName: string, courseVersionId: string, session?: ClientSession): Promise<number> {
+    async getPendingSubmissionsCount(cohortId: string, courseVersionId: string, session?: ClientSession): Promise<number> {
         await this.init();
         return await this.hpActivitySubmissionCollection.countDocuments({
-            cohort: cohortName,
+            cohortId: new ObjectId(cohortId),
             courseVersionId: new ObjectId(courseVersionId),
             status: 'SUBMITTED'
         }, { session });
@@ -738,7 +740,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
     }
 
     async getCohortActivityStats(
-        cohortName: string,
+        cohortId: string,
         activityId: string,
         session?: ClientSession
     ): Promise<{
@@ -754,7 +756,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
 
             {
                 $match: {
-                    cohort: cohortName,
+                    cohortId: new ObjectId(cohortId),
                     activityId: new ObjectId(activityId)
                 }
             },
@@ -794,7 +796,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         return stats;
     }
     async getCohortStatsMap(
-        cohortName: string,
+        cohortId: string,
         courseVersionId: string,
         session?: ClientSession
     ) {
@@ -804,7 +806,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
 
             {
                 $match: {
-                    cohort: cohortName,
+                    cohortId: new ObjectId(cohortId),
                     courseVersionId: new ObjectId(courseVersionId)
                 }
             },
@@ -847,7 +849,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
     }
 
     async getDailyActivityCount(
-        cohortName: string, 
+        cohortId: string, 
         courseVersionId: string, 
         startDate: Date, 
         endDate: Date, 
@@ -858,7 +860,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         const collection = this.hpActivitySubmissionCollection;
 
         const filter = {
-            cohort: cohortName,
+            cohortId: new ObjectId(cohortId),
             courseVersionId: new ObjectId(courseVersionId),
             createdAt: {
                 $gte: startDate,
@@ -871,7 +873,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
     }
 
     async getDailyActivityCountByStatus(
-        cohortName: string,
+        cohortId: string,
         courseVersionId: string,
         startDate: Date,
         endDate: Date,
@@ -883,7 +885,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         const collection = this.hpActivitySubmissionCollection;
 
         const filter = {
-            cohort: cohortName,
+            cohortId: new ObjectId(cohortId),
             courseVersionId: new ObjectId(courseVersionId),
             status: status as SubmissionStatus,
             createdAt: {
@@ -897,7 +899,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
     }
 
     async getUniqueStudentCountForCohort(
-        cohortName: string,
+        cohortId: string,
         courseVersionId: string,
         session?: ClientSession
     ): Promise<number> {
@@ -906,7 +908,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         const collection = this.hpActivitySubmissionCollection;
 
         const filter = {
-            cohort: cohortName,
+            cohortId: new ObjectId(cohortId),
             courseVersionId: new ObjectId(courseVersionId)
         };
 
@@ -915,7 +917,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
     }
 
     async getStudentProgressForCohort(
-        cohortName: string,
+        cohortId: string,
         courseVersionId: string,
         session?: ClientSession
     ): Promise<{
@@ -928,11 +930,11 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         const collection = this.hpActivitySubmissionCollection;
 
         // Get total activities for this cohort
-        const totalActivities = await this.activityRepository.getCountByCohortName(cohortName, courseVersionId);
+        const totalActivities = await this.activityRepository.getCountByCohortId(cohortId, courseVersionId);
         
         // Get unique students
         const uniqueStudents = await collection.distinct('studentId', {
-            cohort: cohortName,
+            cohortId: new ObjectId(cohortId),
             courseVersionId: new ObjectId(courseVersionId)
         }, { session });
 
@@ -943,7 +945,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         for (const studentId of uniqueStudents) {
             // Get student's submissions
             const submissions = await collection.find({
-                cohort: cohortName,
+                cohortId: new ObjectId(cohortId),
                 courseVersionId: new ObjectId(courseVersionId),
                 studentId
             }, { session }).toArray();
