@@ -398,10 +398,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, [quizQuestions, answers]);
 
   // ===== COURSE ITEM TRACKING FUNCTIONS =====
-  const handleSendStartItem = useCallback(async () => {
-    if (!currentCourse?.itemId) return;
+  const handleSendStartItem = useCallback(async (forceStart = false) => {
+    if (!currentCourse?.itemId) return currentCourse?.watchItemId;
+
+    let resolvedWatchItemId = currentCourse.watchItemId;
     try {
-      if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
+      if ((forceStart || !isAlreadyWatched) && currentCourse.itemId && !completedItemIdsRef.current.has(currentCourse.itemId)) {
         const response = await startItem.mutateAsync({
           params: {
             path: {
@@ -417,15 +419,16 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           }
         });
 
-        if (!response?.watchItemId) {
-          console.error('No watchItemId returned from startItem');
-          return;
+        if (response?.watchItemId) {
+          setWatchItemId(response.watchItemId);
+          resolvedWatchItemId = response.watchItemId;
         }
-        if (response?.watchItemId) setWatchItemId(response.watchItemId);
       }
       itemStartedRef.current = true;
+      return resolvedWatchItemId;
     } catch (error) {
       console.error('Failed to start item:', error);
+      return resolvedWatchItemId;
     }
   }, [currentCourse, startItem, setWatchItemId, isAlreadyWatched, completedItemIdsRef]);
 
@@ -570,24 +573,37 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         body: { cohortId: currentCourse?.cohortId ?? '' }
       }) as CreateAttemptResponse | { message: string };
 
-      // Check if we got a message about no attempts left 
+      // Check if we got a message about no attempts left
       if ('message' in response) {
-        console.log('Quiz attempt failed with message:', response.message);
         toast.error(response.message);
 
-        // Instead of showing UI, properly mark the quiz as completed with skip
         setQuizCompleted(true);
-        setQuizPassed?.(1);
+        setQuizPassed?.(3);
 
-        // Start tracking item first so we can stop it with isSkipped
-        await handleSendStartItem();
+        const watchItemIdForStop = await handleSendStartItem(true);
+        if (currentCourse?.itemId && watchItemIdForStop) {
+          await stopItem.mutateAsync({
+            params: {
+              path: {
+                courseId: currentCourse.courseId,
+                courseVersionId: currentCourse.versionId ?? '',
+              },
+            },
+            body: {
+              watchItemId: watchItemIdForStop,
+              itemId: currentCourse.itemId,
+              moduleId: currentCourse.moduleId ?? '',
+              sectionId: currentCourse.sectionId ?? '',
+              attemptId,
+              isSkipped: true,
+              nextItemId,
+              cohortId: currentCourse.cohortId ?? '',
+            },
+          });
+          completedItemIdsRef.current.add(currentCourse.itemId);
+          itemStartedRef.current = false;
+        }
 
-        // Mark the quiz as skipped in the progress system
-        setTimeout(() => {
-          handleStopItem(true); // isSkipped = true
-        }, 500);
-
-        // Set flag to show completion UI
         setNoAttemptsLeft(true);
         return;
       }
@@ -630,13 +646,40 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       } catch {
         errorMessage = 'Failed to start quiz';
       }
-      console.log('Error message:', errorMessage);
-
       if (errorMessage && (errorMessage.includes('No available attempts left') || errorMessage.includes('no available attempts'))) {
         toast.info('You have used all available attempts for this quiz.');
 
+        try {
+          const watchItemIdForStop = await handleSendStartItem(true);
+
+          if (currentCourse?.itemId && watchItemIdForStop) {
+            await stopItem.mutateAsync({
+              params: {
+                path: {
+                  courseId: currentCourse.courseId,
+                  courseVersionId: currentCourse.versionId ?? '',
+                },
+              },
+              body: {
+                watchItemId: watchItemIdForStop,
+                itemId: currentCourse.itemId,
+                moduleId: currentCourse.moduleId ?? '',
+                sectionId: currentCourse.sectionId ?? '',
+                attemptId,
+                isSkipped: true,
+                nextItemId,
+                cohortId: currentCourse.cohortId ?? '',
+              },
+            });
+            completedItemIdsRef.current.add(currentCourse.itemId);
+            itemStartedRef.current = false;
+          }
+        } catch (progressErr) {
+          console.error('Failed to update progress for exhausted quiz attempts:', progressErr);
+        }
+
         setQuizCompleted(true);
-        setQuizPassed?.(1);
+        setQuizPassed?.(3);
         setNoAttemptsLeft(true);
 
         return;
@@ -645,7 +688,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       quizAttemptedRef.current = false;
       toast.error('Failed to start quiz: ' + errorMessage);
     }
-  }, [attemptQuiz, processedQuizId, setAttemptId, convertBackendQuestions, handleSendStartItem, quizStarted, isPending]);
+  }, [attemptQuiz, processedQuizId, setAttemptId, convertBackendQuestions, handleSendStartItem, stopItem, currentCourse, attemptId, nextItemId, quizStarted, isPending]);
 
   const completeQuiz = useCallback(async (isSkipped?: boolean) => {
     if (!attemptId) {
@@ -944,9 +987,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         passThreshold
       });
 
-      // For no attempts left, always proceed to next (since we marked it as passed)
+      // For no attempts left, proceed to next without showing pass/fail UI.
       if (noAttemptsLeft) {
-        setQuizPassed?.(1);
+        setQuizPassed?.(3);
         setTimeout(() => {
           setQuizCompleted(false);
           onNext?.();

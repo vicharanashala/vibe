@@ -38,7 +38,7 @@ export class UserController {
     description: 'Retrieves user information based on the provided user ID.',
   })
   @Authorized()
-  @Get('/:userId([a-fA-F0-9]{24})')
+  @Get('/:userId')
   @HttpCode(200)
   @ResponseSchema(User, {
     description: 'User information retrieved successfully',

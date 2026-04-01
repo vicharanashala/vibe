@@ -1225,12 +1225,12 @@ class ProgressService extends BaseService {
     );
   }
 
-  getUserMetricsForQuiz(userId: string, quizId: string) {
+  getUserMetricsForQuiz(userId: string, quizId: string, cohortId?: string) {
     return this._withTransaction(async session => {
       const metrics = await this.userQuizMetricsRepository.get(
         userId,
         quizId,
-        undefined,
+        cohortId,
         session,
       );
       if (!metrics) return;
@@ -2069,8 +2069,11 @@ class ProgressService extends BaseService {
      *
      * Therefore, this logic ensures the student is allowed to re-attempt the quiz
      * even though the progress currentItem is positioned at the previous video.
+     * 
+     * Additionally, when a quiz is exhausted and marked as skipped (isSkipped=true),
+     * we also skip position validation to allow progress advancement without strict position checks.
      */
-    if (item.type !== 'QUIZ') {
+    if (item.type !== 'QUIZ' && !isSkipped) {
       // Ensure current progress matches the module, section, and item
       this.validateProgressPosition(progress, moduleId, sectionId, itemId);
     }
@@ -2203,6 +2206,7 @@ class ProgressService extends BaseService {
           itemId,
           userId,
           attemptId,
+          cohortId,
         );
         if (!submittedQuiz) throw new BadRequestError('Quiz not submitted');
         if (submittedQuiz.gradingResult.gradingStatus !== 'PASSED') {
@@ -2210,27 +2214,40 @@ class ProgressService extends BaseService {
         }
 
         if (isQuizFailed) {
-          const previousVideoItem = await this.getPreviousVideoItem(
-            courseVersion,
-            moduleId,
-            sectionId,
+          const quizMetrics = await this.getUserMetricsForQuiz(
+            userId,
             itemId,
+            cohortId,
           );
+          const attemptsExhausted =
+            !!quizMetrics &&
+            quizMetrics.remainingAttempts === 0;
 
-          if (!previousVideoItem) {
-            throw new BadRequestError(
-              'Quiz failed and no previous video found to review',
+          // If attempts are exhausted, keep the computed forward progress.
+          // Otherwise, move back to the previous video for re-attempt flow.
+          if (!attemptsExhausted) {
+            const previousVideoItem = await this.getPreviousVideoItem(
+              courseVersion,
+              moduleId,
+              sectionId,
+              itemId,
             );
-          }
 
-          newProgress = {
-            completed: false,
-            currentModule: previousVideoItem.moduleId,
-            currentSection: previousVideoItem.sectionId,
-            currentItem: previousVideoItem.itemId,
-            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
-            // skippedBlankQuizIds: [],
-          };
+            if (!previousVideoItem) {
+              throw new BadRequestError(
+                'Quiz failed and no previous video found to review',
+              );
+            }
+
+            newProgress = {
+              completed: false,
+              currentModule: previousVideoItem.moduleId,
+              currentSection: previousVideoItem.sectionId,
+              currentItem: previousVideoItem.itemId,
+              ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+              // skippedBlankQuizIds: [],
+            };
+          }
         } else {
           // Quiz passed - set endTime, progress update is handled by the original logic above
           await this.progressRepository.stopItemTracking(
