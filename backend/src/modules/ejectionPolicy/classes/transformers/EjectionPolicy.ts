@@ -11,6 +11,7 @@ export class EjectionPolicy {
 
   name: string;
   description?: string;
+  isDeleted?: boolean;
 
   @Transform(({value}) => value?.toString(), {toPlainOnly: true})
   @Transform(({value}) => (value ? new ObjectId(value) : value), {
