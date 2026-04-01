@@ -2250,8 +2250,8 @@ export function useWatchTimeByItemId(userId: string, courseId: string, courseVer
 }
 
 export function useEditUser(): {
-  mutate: (variables: { body: { firstName?: string; lastName?: string } }) => void,
-  mutateAsync: (variables: { body: { firstName?: string; lastName?: string } }) => Promise<void>,
+  mutate: (variables: { body: { firstName?: string; lastName?: string; avatar?: string; gender?: string; country?: string; state?: string; city?: string } }) => void,
+  mutateAsync: (variables: { body: { firstName?: string; lastName?: string; avatar?: string; gender?: string; country?: string; state?: string; city?: string } }) => Promise<void>,
   data: void | undefined,
   error: string | null,
   isPending: boolean,
