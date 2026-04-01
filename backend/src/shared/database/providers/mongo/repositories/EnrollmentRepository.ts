@@ -5225,7 +5225,7 @@ export class EnrollmentRepository {
         role: 'STUDENT',
         isEjected: {$ne: true},
       },
-      {$set: {policyReacknowledgementRequired: true}},
+      {$set: {policyReacknowledgementRequired: true, status: 'INACTIVE'}},
       {session},
     );
   }
@@ -5245,7 +5245,7 @@ export class EnrollmentRepository {
         isEjected: {$ne: true},
         isDeleted: {$ne: true},
       },
-      {$set: {policyReacknowledgementRequired: true}},
+      {$set: {policyReacknowledgementRequired: true, status: 'INACTIVE'}},
       {session},
     );
   }
@@ -5267,7 +5267,7 @@ export class EnrollmentRepository {
         role: 'STUDENT',
         isDeleted: {$ne: true},
       },
-      {$set: {policyReacknowledgementRequired: true}},
+      {$set: {policyReacknowledgementRequired: true, status: 'INACTIVE'}},
       {session},
     );
   }
