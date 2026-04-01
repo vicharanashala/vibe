@@ -744,6 +744,7 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
         : [];
       const baseOptions = uniqueOptions([...explicitOptions, ...solutionOptions]);
       const normalizedOptions = enforceBinaryOptionLimit(questionText, baseOptions.filter(Boolean));
+
       const segmentId = resolveSegmentId(item, fallbackSegment);
       const stableId = `${segmentId}-${(questionText || "q").slice(0, 32)}-${indexSeed}`;
       return {
@@ -1435,6 +1436,19 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
       : validCorrectIndexes.length > 0
         ? validCorrectIndexes
         : [0];
+
+    // Rule-based check: correct answer must NOT be the longest option by character count
+    if (cleanedOptions.length > 1 && correctIndexes.length > 0) {
+      const correctLengths = correctIndexes.map((idx) => cleanedOptions[idx]?.length || 0);
+      const maxDistractorLength = cleanedOptions
+        .filter((_, idx) => !correctIndexes.includes(idx))
+        .reduce((max, opt) => Math.max(max, opt.length), 0);
+      const maxCorrectLength = Math.max(...correctLengths);
+      if (maxCorrectLength > maxDistractorLength) {
+        toast.error("The correct answer must NOT be longer than any distractor (by character count). Please revise your options.");
+        return;
+      }
+    }
 
     setQuestions((prev) =>
       prev.map((q) =>
