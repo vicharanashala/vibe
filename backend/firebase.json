@@ -4,8 +4,11 @@
       "port": 9099
     },
     "ui": {
-      "enabled": false
+      "enabled": true
     },
-    "singleProjectMode": true
+    "singleProjectMode": true,
+    "functions": {
+      "port": 5001
+    }
   }
 }

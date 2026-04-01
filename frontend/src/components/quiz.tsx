@@ -721,9 +721,14 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
       setQuizCompleted(true);
       setFinshingQuiz(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to submit quiz:', err);
+      // If attempt was already submitted, treat as completed
+      if (err?.message?.includes('already been submitted') || err?.response?.status === 400) {
+        setQuizCompleted(true);
+      } else {
         setQuizCompleted(false);
+      }
       setFinshingQuiz(false);
     }
   }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem, saveQuiz]);
@@ -805,6 +810,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   //Return to video features
   const handleReturnToVideo = useCallback(async () => {
     if (!onPrevVideo) return;
+    if (quizCompleted) return; // Don't save state for already submitted quizzes
 
     // Save progress to backend first
     if (attemptId && quizQuestions.length > 0) {

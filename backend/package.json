@@ -17,17 +17,17 @@
     "sentry:sourcemaps": "sentry-cli sourcemaps inject --org vicharana-shala --project vibe-server ./build && sentry-cli sourcemaps upload --org vicharana-shala --project vibe-server ./build"
   },
   "imports": {
-    "#root/*.js": "./build/*.js",
-    "#shared/*.js": "./build/shared/*.js",
-    "#auth/*.js": "./build/modules/auth/*.js",
-    "#courses/*.js": "./build/modules/courses/*.js",
-    "#users/*.js": "./build/modules/users/*.js",
-    "#quizzes/*.js": "./build/modules/quizzes/*.js",
-    "#temp/*.js": "./build/modules/temp/*.js",
-    "#genAI/*.js": "./build/modules/genAI/*.js",
-    "#settings/*.js": "./build/modules/settings/*.js",
-    "#setting/*.js": "./build/modules/setting/*.js",
-    "#anomalies/*.js": "./build/modules/anomalies/*.js"
+    "#root/*": "./build/*",
+    "#shared/*": "./build/shared/*",
+    "#auth/*": "./build/modules/auth/*",
+    "#courses/*": "./build/modules/courses/*",
+    "#users/*": "./build/modules/users/*",
+    "#quizzes/*": "./build/modules/quizzes/*",
+    "#temp/*": "./build/modules/temp/*",
+    "#genAI/*": "./build/modules/genAI/*",
+    "#settings/*": "./build/modules/settings/*",
+    "#setting/*": "./build/modules/setting/*",
+    "#anomalies/*": "./build/modules/anomalies/*"
   },
   "type": "module",
   "keywords": [],
