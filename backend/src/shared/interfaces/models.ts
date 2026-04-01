@@ -19,6 +19,11 @@ export interface IUser {
   email: string;
   firstName: string;
   lastName?: string;
+  avatar?: string;
+  gender?: string;
+  country?: string;
+  state?: string;
+  city?: string;
   roles: 'admin' | 'user';
 }
 

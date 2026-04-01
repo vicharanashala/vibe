@@ -38,7 +38,7 @@ export class UserController {
     description: 'Retrieves user information based on the provided user ID.',
   })
   @Authorized()
-  @Get('/:userId')
+  @Get('/:userId([a-fA-F0-9]{24})')
   @HttpCode(200)
   @ResponseSchema(User, {
     description: 'User information retrieved successfully',
@@ -52,6 +52,21 @@ export class UserController {
   ): Promise<GetUserResponse> {
     const { userId } = params;
     return await this.userService.getUserById(userId);
+  }
+
+  @OpenAPI({
+    summary: 'Get current user profile',
+    description: 'Retrieves user information for the currently authenticated user.',
+  })
+  @Authorized()
+  @Get('/me')
+  @HttpCode(200)
+  @ResponseSchema(User, {
+    description: 'Current user information retrieved successfully',
+  })
+  async getCurrentUser(@Req() req: any): Promise<User> {
+    const token = req.headers.authorization?.split(' ')[1];
+    return await this.authService.getCurrentUserFromToken(token);
   }
 
   @OpenAPI({
