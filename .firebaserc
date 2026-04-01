@@ -1,18 +1,8 @@
 {
   "projects": {
-    "default": "vibe-5b35a"
+    "vibing": "vibe-4364e",
+    "default": "vibe-4364e"
   },
-  "targets": {
-    "vibe-5b35a": {
-      "hosting": {
-        "staging": [
-          "vibe-staging-63abb"
-        ],
-        "production": [
-          "vibe-5b35a"
-        ]
-      }
-    }
-  },
+  "targets": {},
   "etags": {}
 }
