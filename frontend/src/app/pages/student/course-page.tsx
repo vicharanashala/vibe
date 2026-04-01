@@ -113,6 +113,7 @@ export default function CoursePage() {
   const { mutateAsync: recalculateStudentProgressAsync } = useRecalculateStudentProgress();
   const [closing, setClosing] = useState(false);
   const [allProctorsDisabled, setAllProctorsDisabled] = useState(false);
+  const [previousItems, setPreviousItems] = useState<object | null >(null)
   const streamRef = useRef<MediaStream | null>(null);
 
   // Emotion tracking state
@@ -290,6 +291,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     itemId: string;
   } | null>(null);
 
+
   // ---------------------------------------------
   // SAFE SECTION ACTIVATION (PREVENT RE-FETCH)
   // ---------------------------------------------
@@ -352,6 +354,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     shouldFetchItems,
     activeSectionInfo
   ]);
+
 
 
   // Separate effect for handling item errors - prevents circular dependencies
@@ -775,6 +778,13 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
             itemId: selectedItemId!,
           });
         }
+
+        
+          const allSectionItems = sectionItems[sectionId];
+          const indexOfCurrentItem = allSectionItems.findIndex(obj => obj._id === itemId);
+          const previousItemOfCurrentItem = allSectionItems[indexOfCurrentItem-1];
+          setPreviousItems(previousItemOfCurrentItem)
+        
 
         // Clear errors 
         setIsItemForbidden(false);
@@ -1475,7 +1485,7 @@ const handleGoToNextItem = async () => {
   try {
     const { moduleId, sectionId: nextSectionId, itemId } = nextItemInfo as any;
     if (!moduleId || !nextSectionId || !itemId) return;
-
+    console.log("Handle select called from handleGoToNextitem")
     handleSelectItem(moduleId, nextSectionId, itemId);
   } finally {
     // Re-enable after navigation state has been handed off
@@ -2199,6 +2209,7 @@ useEffect(() => {
                         nextItem={findNextItem()}
                         cohortId={COHORT_ID}
                         cohortName={COHORT_NAME}
+                        previousItem={previousItems}
                       />
                     )}
 
