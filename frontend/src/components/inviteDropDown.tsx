@@ -194,6 +194,27 @@ const mostRecentEjectionIds = useMemo(() => {
   return new Set(map.values());
 }, [systemNotifications]);
 
+const mostRecentPolicyIds = useMemo(() => {
+  const map = new Map<string, string>(); // key -> notification._id
+
+  systemNotifications
+    .filter(n => n.type === 'policy_created' || n.type === 'policy_updated')
+    .forEach(n => {
+      const key = `${n.courseId}-${n.courseVersionId}-${n.cohortId}`;
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, n._id);
+      } else {
+        const existingNotif = systemNotifications.find(x => x._id === existing);
+        if (existingNotif && new Date(n.createdAt) > new Date(existingNotif.createdAt)) {
+          map.set(key, n._id);
+        }
+      }
+    });
+
+  return new Set(map.values());
+}, [systemNotifications]);
+
   return (
     <>
       <div className="absolute right-0 top-full mt-1 w-80 bg-white dark:bg-black rounded-lg shadow-lg border border-border dark:border-zinc-700 z-50">
@@ -272,7 +293,7 @@ const mostRecentEjectionIds = useMemo(() => {
                     <p className="text-xs text-muted-foreground/70">
                       {new Date(notification.createdAt).toLocaleDateString()}
                     </p>
-                    {(notification.type === 'policy_created' || notification.type === 'policy_updated') && (
+                    {(notification.type === 'policy_created' || notification.type === 'policy_updated') && mostRecentPolicyIds.has(notification._id) && (
                       <Button
                         size="sm"
                         variant="outline"
