@@ -1796,8 +1796,8 @@ export class EnrollmentRepository {
           assignedTimeSlots: 1,
           cohortId: {
             $cond: [
-              {$ifNull: ['$cohort._id', false]},
-              {$toString: '$cohort._id'},
+              {$ifNull: ['$cohortId', false]},
+              {$toString: '$cohortId'},
               null,
             ],
           },
@@ -3825,6 +3825,7 @@ export class EnrollmentRepository {
     // ?
     userId: string,
     quizIds: string[],
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<ISubmission[]> {
     await this.init();
@@ -3837,6 +3838,7 @@ export class EnrollmentRepository {
         {
           userId: userObjectId,
           quizId: {$in: quizObjectIds},
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
         },
         {
           session,
@@ -3857,6 +3859,7 @@ export class EnrollmentRepository {
     userId: string,
     role: EnrollmentRole,
     courseVersionId?: string,
+    cohortId?: string,
   ) {
     await this.init();
     const userObjectId = new ObjectId(userId);
@@ -3870,6 +3873,10 @@ export class EnrollmentRepository {
     // ✅ Add courseVersionId filter if provided
     if (courseVersionId) {
       matchStage.courseVersionId = new ObjectId(courseVersionId);
+    }
+
+    if (cohortId) {
+      matchStage.cohortId = new ObjectId(cohortId);
     }
 
     const pipeline: any[] = [
@@ -3886,6 +3893,7 @@ export class EnrollmentRepository {
             userId: '$userId',
             courseId: '$courseId',
             courseVersionId: '$courseVersionId',
+            cohortId: '$cohortId',
           },
           pipeline: [
             {
@@ -3896,6 +3904,7 @@ export class EnrollmentRepository {
                     {$eq: ['$courseId', '$$courseId']},
                     {$eq: ['$courseVersionId', '$$courseVersionId']},
                     {$eq: ['$status', 'active']},
+                    {$eq: ['$cohortId', '$$cohortId']},
                   ],
                 },
               },
@@ -4145,6 +4154,7 @@ export class EnrollmentRepository {
     userId: string,
     role: EnrollmentRole,
     courseVersionId?: string,
+    cohortId?: string,
   ) {
     await this.init();
     const matchStage: any = {
@@ -4158,7 +4168,9 @@ export class EnrollmentRepository {
     if (courseVersionId) {
       matchStage.courseVersionId = new ObjectId(courseVersionId);
     }
-
+    if (cohortId) {
+      matchStage.cohortId = new ObjectId(cohortId);
+    }
     const pipeline: any[] = [
       {
         $match: matchStage,

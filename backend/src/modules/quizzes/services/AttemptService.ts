@@ -548,12 +548,17 @@ class AttemptService extends BaseService {
       })),
     };
 
-    const isAlreadyPassed = await this.submissionRepository.isQuizAlreadyPassed(userId.toString(), quizId, cohortId);
-
+    const isItemCompleted = await this.progressRepository.isItemCompleted(
+        userId.toString(),
+        courseId,
+        courseVersionId,
+        quizId,
+        cohortId,
+      )
     /* -------------------- UPDATE SUBMISSION (SMALL WRITE) -------------------- */
 
     await this.submissionRepository.update(submissionId, { gradingResult });
-    if (!isSkipped && !isAlreadyPassed) {
+    if (!isSkipped && !isItemCompleted) {
       const isPassed = gradingResult.gradingStatus === "PASSED"
       await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed, watchItemId, cohortId);
     }

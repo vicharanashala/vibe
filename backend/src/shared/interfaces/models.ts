@@ -673,6 +673,10 @@ export class EnrollmentFilterQuery {
   @IsOptional()
   @IsIn(['active', 'archived'])
   tab?: courseVersionStatus = 'active';
+
+  @IsOptional()
+  @IsString()
+  cohortId?: string;
 }
 
 export class EnrollmentsQuery {

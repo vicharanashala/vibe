@@ -12,6 +12,7 @@ import {
   IVideoDetails,
   IBlogDetails,
   ICurrentProgressPath,
+  IEnrollment,
 } from '#root/shared/interfaces/models.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { ProgressRepository } from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
@@ -2086,7 +2087,6 @@ class ProgressService extends BaseService {
         if (!isSkipped) {
           stoppedWatchTime = await this.progressRepository.stopItemTracking(
             watchItemId,
-            cohortId,
             session,
           );
 
@@ -2231,11 +2231,12 @@ class ProgressService extends BaseService {
           };
         } else {
           // Quiz passed - set endTime, progress update is handled by the original logic above
-          await this.progressRepository.stopItemTracking(
-            watchItemId,
-            cohortId,
-            session,
-          );
+          // commented out because we already stop the quiz watch time in submit endpoint.
+          // await this.progressRepository.stopItemTracking(
+          //   watchItemId,
+          //   cohortId,
+          //   session,
+          // );
           shouldCountCurrentItemAsCompleted = true;
         }
       }
@@ -2568,7 +2569,6 @@ class ProgressService extends BaseService {
             if (watchTimeRecords?.length) {
               await this.progressRepository.stopItemTracking(
                 watchTimeRecords[0]._id.toString(),
-                cohort,
                 session,
               );
             }
@@ -2766,14 +2766,10 @@ class ProgressService extends BaseService {
       if(!watchItemId) {
         throw new BadRequestError('Watch item ID is required to stop tracking');
       }
-      const watchTime = await this.progressRepository.getWatchTime(
-        userId,
-        quizId,
-        courseId,
-        courseVersionId,
-        cohortId,
+      const watchTime = await this.progressRepository.findWatchTimeById(
+        watchItemId
       );
-      if(watchTime[watchTime.length - 1].itemId.toString() !== quizId) {
+      if(watchTime.itemId.toString() !== quizId) {
         throw new BadRequestError('Watch item does not correspond to the quiz');
       }
       const isItemCompleted = await this.progressRepository.isItemCompleted(
@@ -3398,14 +3394,13 @@ class ProgressService extends BaseService {
           );
         }
 
-        await this.progressRepository.stopItemTracking(watchTimeId, cohortId, session);
+        await this.progressRepository.stopItemTracking(watchTimeId, session);
       } else {
         // An open (no endTime) record exists - close it to mark completion
         const openRecord = existingWatchTime.find(wt => !wt.endTime);
         if (openRecord) {
           await this.progressRepository.stopItemTracking(
             openRecord._id.toString(),
-            cohortId,
             session,
           );
         }
@@ -4185,6 +4180,46 @@ class ProgressService extends BaseService {
       version: courseVersion.version,
       data: rankedLeaderboard,
     };
+  }
+
+  // should be called after watchime record is ended for an item, to get the updated progress percentage
+  async calculateProgressAndPercentage(enrollment: IEnrollment, session?: ClientSession): Promise<{completedItemsCount: number, progressPercentage: number}> {
+
+    if(!enrollment) {
+      throw new BadRequestError('Enrollment details are required to calculate progress');
+    }
+    const courseVersion = await this.courseRepo.readVersion(
+      enrollment.courseVersionId.toString(),
+    );
+    if (!courseVersion) {
+      throw new NotFoundError('Course version not found');
+    }
+
+    const totalItemsCount =
+      courseVersion.totalItems ??
+      (await this.itemRepo.CalculateTotalItemsCount(
+        enrollment.courseId.toString(),
+        enrollment.courseVersionId.toString(),
+      ));
+
+
+    if (totalItemsCount === 0) {
+      return {completedItemsCount: 0, progressPercentage: 0};
+    }
+
+    const completedItemIds = await this.progressRepository.getCompletedItems(
+      enrollment.userId.toString(),
+      enrollment.courseId.toString(),
+      enrollment.courseVersionId.toString(),
+      enrollment.cohort,
+      session,
+    );
+
+    const percentCompleted = parseFloat(
+      ((completedItemIds?.length ?? 0) / totalItemsCount * 100).toFixed(2),
+    );
+
+    return {completedItemsCount: completedItemIds?.length ?? 0, progressPercentage: Math.min(percentCompleted, 100)};
   }
 }
 

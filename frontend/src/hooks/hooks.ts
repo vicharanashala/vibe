@@ -5075,7 +5075,7 @@ export function useCheckTimeSlotAccess(
 }
 
 // GET /users/enrollments
-export function useUserEnrollmentsDetails(enabled: boolean = true, search?: string, role = "STUDENT", courseVersionId?: string,): {
+export function useUserEnrollmentsDetails(enabled: boolean = true, search?: string, role = "STUDENT", courseVersionId?: string, cohortId?: string): {
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -5083,7 +5083,7 @@ export function useUserEnrollmentsDetails(enabled: boolean = true, search?: stri
 } {
   const result = api.useQuery("get", "/users/enrollments/details", {
     params: {
-      query: { search, role, courseVersionId }
+      query: { search, role, courseVersionId, cohortId }
     },
     enabled: enabled
   });

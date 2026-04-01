@@ -22,7 +22,6 @@ export function StudentPolicyModal({
 }) {
 
   const { policies, isLoading } = useActivePoliciesForCourse(courseId,courseVersionId,cohortId)
-  console.log("Policies API response:", policies)
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
