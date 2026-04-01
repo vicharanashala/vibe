@@ -12,7 +12,7 @@ type RegistrationNotificationDropdownProps = {
 
 const RegistrationNotificationDropdown = ({ pendingRegistrations, setPendingRegistrations, onClose }: RegistrationNotificationDropdownProps) => {
   console.log("📬 RegistrationNotificationDropdown props:", { pendingRegistrations, setPendingRegistrations });
-  
+
   const isLoading = false; // Since data is already fetched by parent
   const navigate = useNavigate();
   const { setCurrentCourse } = useCourseStore()
@@ -27,7 +27,7 @@ const RegistrationNotificationDropdown = ({ pendingRegistrations, setPendingRegi
       itemId: null,
       watchItemId: null,
     })
-    
+
     // Navigate to registration requests page
     navigate({
       to: "/teacher/courses/registration-requests" as any,
@@ -35,7 +35,7 @@ const RegistrationNotificationDropdown = ({ pendingRegistrations, setPendingRegi
 
     // Remove this registration from the list
     setPendingRegistrations((prev) => prev.filter((r) => r._id !== registration._id));
-    
+
     // Close dropdown
     onClose?.();
   };
@@ -77,6 +77,19 @@ const RegistrationNotificationDropdown = ({ pendingRegistrations, setPendingRegi
           ))
         )}
       </ul>
+      <div className="p-2 border-t border-border/50">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full text-xs text-primary hover:text-primary hover:bg-primary/5"
+          onClick={() => {
+            navigate({ to: '/teacher/notifications' as any });
+            onClose?.();
+          }}
+        >
+          View All Notifications
+        </Button>
+      </div>
     </div>
   );
 };

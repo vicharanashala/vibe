@@ -1,7 +1,7 @@
-import {User} from '#auth/classes/transformers/User.js';
-import {UserService} from '#users/services/UserService.js';
-import {USERS_TYPES} from '#users/types.js';
-import {injectable, inject} from 'inversify';
+import { User } from '#auth/classes/transformers/User.js';
+import { UserService } from '#users/services/UserService.js';
+import { USERS_TYPES } from '#users/types.js';
+import { injectable, inject } from 'inversify';
 import {
   JsonController,
   Get,
@@ -14,31 +14,31 @@ import {
   Patch,
   Authorized,
 } from 'routing-controllers';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {EditUserBody, GetUserParams, GetUserResponse, UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
+import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
+import { EditUserBody, GetUserParams, GetUserResponse, UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
 import { AUTH_TYPES } from '#root/modules/auth/types.js';
 import { IAuthService } from '#root/modules/auth/interfaces/IAuthService.js';
 
 @OpenAPI({
   tags: ['Users'],
 })
-@JsonController('/users', {transformResponse: true})
+@JsonController('/users', { transformResponse: true })
 @injectable()
 export class UserController {
   constructor(
     @inject(USERS_TYPES.UserService)
     private readonly userService: UserService,
-    
+
     @inject(AUTH_TYPES.AuthService)
     private readonly authService: IAuthService,
-  ) {}
+  ) { }
 
   @OpenAPI({
     summary: 'Get user information by user ID',
     description: 'Retrieves user information based on the provided user ID.',
   })
   @Authorized()
-  @Get('/:userId')
+  @Get('/:userId([a-fA-F0-9]{24})')
   @HttpCode(200)
   @ResponseSchema(User, {
     description: 'User information retrieved successfully',
@@ -52,6 +52,25 @@ export class UserController {
   ): Promise<GetUserResponse> {
     const { userId } = params;
     return await this.userService.getUserById(userId);
+  }
+
+  @OpenAPI({
+    summary: 'Get current user profile',
+    description: 'Retrieves user information for the currently authenticated user.',
+  })
+  @Authorized()
+  @Get('/me')
+  @HttpCode(200)
+  @ResponseSchema(User, {
+    description: 'Current user information retrieved successfully',
+  })
+  async getCurrentUser(@Req() req: any): Promise<User> {
+    const token = req.headers.authorization?.split(' ')[1];
+    const user = await this.authService.getCurrentUserFromToken(token);
+    return {
+      ...user,
+      _id: user._id!.toString(),
+    } as User;
   }
 
   @OpenAPI({

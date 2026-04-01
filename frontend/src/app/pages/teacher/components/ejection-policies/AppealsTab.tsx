@@ -23,7 +23,8 @@ type Appeal = {
   email: string;
 };
   reason: string;
-  evidenceUrl?: string;
+  // evidenceUrl?: string;
+   evidenceImages?: string[];     
   status: "PENDING" | "APPROVED" | "REJECTED";
   createdAt: string;
   adminResponse?: string;
@@ -104,12 +105,12 @@ function AppealCard({
             </div>
             <div className="min-w-0">
               <p className="text-sm font-medium">
-  {appeal.student.firstName} {appeal.student.lastName}
-</p>
+                {appeal.student.firstName} {appeal.student.lastName}
+              </p>
 
-<p className="text-xs text-muted-foreground">
-  {appeal.student.email}
-</p>
+              <p className="text-xs text-muted-foreground">
+                {appeal.student.email}
+              </p>
               <p className="text-xs text-muted-foreground">
                 {new Date(appeal.createdAt).toLocaleDateString(undefined, {
                   year: "numeric", month: "short", day: "numeric",
@@ -130,18 +131,33 @@ function AppealCard({
           <p className="text-sm text-foreground leading-relaxed">{appeal.reason}</p>
         </div>
 
-        {/* Evidence */}
-        {appeal.evidenceUrl && (
-          <a
-            href={appeal.evidenceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="inline-flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            <ExternalLink className="h-3 w-3" />
-            View Evidence
-          </a>
+        
+        {/* Evidence images  */}
+        {appeal.evidenceImages && appeal.evidenceImages.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground">
+              Evidence Images ({appeal.evidenceImages.length})
+            </p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {appeal.evidenceImages.map((url, idx) => (
+                <a
+                  key={idx}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  className="block rounded-md overflow-hidden border border-border/60 aspect-square hover:border-primary/50 transition-colors group"
+                  title="Open full image"
+                >
+                  <img
+                    src={url}
+                    alt={`Evidence ${idx + 1}`}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                  />
+                </a>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* Admin response on rejected */}
