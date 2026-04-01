@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useState, createContext, useContext, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Check, AlertCircle, Github } from "lucide-react";
+import { Check, AlertCircle, Github} from "lucide-react";
 import { cn } from "@/utils/utils";
 import { useSignup } from "@/hooks/hooks.ts";
 import classroom from "../../../public/img/classroom.svg";
@@ -162,7 +162,7 @@ export default function AuthPage() {
     try {
       setLoading(true);
       setFormErrors({});
-      const result = await loginWithGoogle();
+      const result:any = await loginWithGoogle();
       // Check if the user is new
       if (result._tokenResponse.isNewUser) {
         // If new user, set the default role to student
@@ -234,7 +234,7 @@ export default function AuthPage() {
 
   //SignUp
 
-  const { mutateAsync: signupMutation, error: signupError, isError: isSignUpError } = useSignup();
+  const { mutateAsync: signupMutation, error: signupError, isError: isSignUpError } = useSignup() as any;
 
   // New function for handling signup
   const handleEmailSignup = async () => {
@@ -535,7 +535,7 @@ export default function AuthPage() {
                                 </div>
 
                                 <div className="space-y-2">
-                                  <Input
+                                   <Input
                                     id="password"
                                     name="new-password"
                                     type="password"
@@ -547,7 +547,9 @@ export default function AuthPage() {
                                       "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16",
                                       formErrors.password && "border-destructive focus-visible:ring-destructive"
                                     )}
-                                  />
+                                    />
+                                
+                                 
                                   {formErrors.password && (
                                     <p className="text-xs text-destructive">{formErrors.password}</p>
                                   )}
