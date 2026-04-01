@@ -16,8 +16,7 @@ import { bufferToHex } from "@/utils/helpers";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { StudentPolicyModal } from "@/app/pages/student/components/policies/StudentPolicyModal";
-// import { Pagination } from "../ui/Pagination";
-// import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 import { EnrollmentDetailsDialog } from "@/components/course/EnrollmentDetailsDialog";
 
@@ -244,8 +243,18 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   {isCompleted && <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 font-medium">Completed</Badge>}
                 </div>
 
-                <h3 className="font-bold text-xl text-foreground mb-1 line-clamp-2 leading-tight">{enrollment?.course?.name || `Course ${index + 1}`}</h3>
-                <p className="text-sm text-muted-foreground mb-6 line-clamp-1">{enrollment?.course?.description || "Accelerate your learning journey"}</p>
+                <h3
+                  className="font-bold text-xl text-foreground mb-1 line-clamp-2 leading-tight break-words min-h-[3.25rem]"
+                  title={enrollment?.course?.name || `Course ${index + 1}`}
+                >
+                  {enrollment?.course?.name || `Course ${index + 1}`}
+                </h3>
+                <p
+                  className="text-sm text-muted-foreground mb-6 line-clamp-1 break-words min-h-[1.25rem]"
+                  title={enrollment?.course?.description || "Accelerate your learning journey"}
+                >
+                  {enrollment?.course?.description || "Accelerate your learning journey"}
+                </p>
 
                 <div className="space-y-4">
                   {variant !== 'available' && (
