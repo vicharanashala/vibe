@@ -40,7 +40,7 @@ const isCurrentTimeInTimeSlot = (timeSlotData?: any) => {
   return currentTime >= fromTime && currentTime <= toTime;
 };
 
-export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
+export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, variant = 'dashboard', className }: CourseCardProps) => {
   if (!enrollment || !enrollment.courseId || !enrollment.courseVersionId) return null;
 
   const courseId = bufferToHex(enrollment.courseId as string);
@@ -77,21 +77,6 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
   const videoCount = Number((contentCounts as any).videos ?? itemCounts.VIDEO ?? versionItemCounts.VIDEO ?? 0);
   const quizCount = Number((contentCounts as any).quizzes ?? itemCounts.QUIZ ?? versionItemCounts.QUIZ ?? 0);
 
-  useEffect(() => {
-    if (variant === 'available') return;
-    const existingCompletionIndex = completion?.findIndex((c) => c.courseVersionId === versionId);
-    if (existingCompletionIndex === -1 && enrollment) {
-      setCompletion?.([
-        ...(completion || []),
-        {
-          courseVersionId: versionId,
-          percentage: typeof progress === 'number' ? progress : 0,
-          totalItems: typeof contentCounts.totalItems === 'number' ? contentCounts.totalItems : 0,
-          completedItems: typeof enrollment.completedItems === 'number' ? enrollment.completedItems : 0
-        },
-      ]);
-    }
-  }, [completion, versionId, enrollment, progress, contentCounts.totalItems, variant, setCompletion]);
 
   const handleContinue = (e?: React.MouseEvent) => {
     e?.stopPropagation();
