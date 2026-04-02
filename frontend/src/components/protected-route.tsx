@@ -1,38 +1,23 @@
-import { ReactNode, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useAuthStore } from '@/store/auth-store';
 
 import type { ProtectedRouteProps } from '@/types/auth.types';
 
-export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { isAuthenticated, user, hasRole } = useAuthStore();
+export function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const { isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If not authenticated, redirect to login
-    if (!isAuthenticated) {
+    // Only redirect to auth if we are NOT already on the auth page
+    if (!isAuthenticated && window.location.pathname !== '/auth') {
       navigate({ to: '/auth' });
-      return;
     }
+  }, [isAuthenticated, navigate]);
 
-    // If a specific role is required, check it
-    if (requiredRole && !hasRole(requiredRole)) {
-      // Check if user has any role before redirecting
-      if (user?.role) {
-        const userRole = user.role;
-        // Only redirect if user has a role that doesn't match the required role
-        navigate({ to: `/${userRole.toLowerCase()}` });
-      } else {
-        navigate({ to: '/auth' });
-      }
-    }
-  }, [isAuthenticated, user, requiredRole, navigate, hasRole]);
-
-  // Only render children if conditions are met
-  if (isAuthenticated && (!requiredRole || hasRole(requiredRole))) {
+  if (isAuthenticated) {
     return <>{children}</>;
   }
 
-  // Return null while redirecting
   return null;
 }

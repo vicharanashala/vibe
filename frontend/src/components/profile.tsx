@@ -11,7 +11,7 @@ import { useAuthStore } from "@/store/auth-store"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { useEditUser, useUserEnrollments } from "@/hooks/hooks"
-import { logout } from "@/utils/auth"
+import { logoutUser } from "@/lib/firebase"
 import { useNavigate } from "@tanstack/react-router"
 import { LogOut } from "lucide-react"
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
@@ -20,9 +20,15 @@ import { Skeleton } from "@/components/ui/skeleton"
 export default function UserProfile({ role = "student" }: { role?: "student" | "teacher" | "admin" }) {
   const { user, setUser } = useAuthStore()
   const navigate = useNavigate()
-  const handleLogout = () => {
-    logout();
-    navigate({ to: "/auth" });
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      useAuthStore.getState().setUser(null);
+      window.location.href = '/auth';
+    } catch (error) {
+      console.error('Logout failed', error);
+      window.location.href = '/auth';
+    }
   };
 
   // Fetch user data and statistics

@@ -31,7 +31,7 @@ export type AuthStore = {
   isAuthReady: boolean;
 
   // Actions
-  setUser: (user: User) => void;
+  setUser: (user: User | null) => void;
   setToken: (token: string) => void;
   clearUser: () => void;
   hasRole: (role: string | string[]) => boolean;

@@ -75,7 +75,7 @@ import type { BreadcrumbItemment } from "@/types/layout.types";
 import AiWorkflow from "./AiWorkflow";
 import AISectionPage from "./AISectionPage";
 type Mode = "default" | "wizard" | "custom";
-import { logout } from "@/utils/auth";
+import { logoutUser } from "@/lib/firebase";
 import InviteDropdown from "@/components/inviteDropDown";
 import { useQueryClient } from "@tanstack/react-query"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -142,9 +142,15 @@ function TeacherCourseContent() {
 
 
 
-  const handleLogout = () => {
-    logout();
-    navigate({ to: "/auth" });
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      useAuthStore.getState().setUser(null);
+      window.location.href = '/auth';
+    } catch (error) {
+      console.error('Logout failed', error);
+      window.location.href = '/auth';
+    }
   };
   const createQuestion = useCreateQuestion();
   const user = useAuthStore().user;

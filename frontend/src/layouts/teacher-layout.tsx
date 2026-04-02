@@ -5,7 +5,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/auth-store";
-import { logout } from "@/utils/auth";
+import { logoutUser } from "@/lib/firebase";
 import { LogOut, ArrowLeft, UserRoundCheck, UserCheck } from "lucide-react";
 import {
   Breadcrumb,
@@ -52,9 +52,15 @@ export default function TeacherLayout() {
     }
   }, [pendingRegistrations]);
 
-  const handleLogout = () => {
-    logout();
-    navigate({ to: "/auth" });
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      useAuthStore.getState().setUser(null);
+      window.location.href = '/auth';
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Logout failed. Please try again.');
+    }
   };
 
   const handleGoBack = () => {

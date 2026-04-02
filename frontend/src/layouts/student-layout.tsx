@@ -98,8 +98,6 @@ export default function StudentLayout() {
   }
 
   useEffect(() => {
-    if (!isAuthReady || !user) return;
-
     const toastShown = sessionStorage.getItem("inviteToastShown");
     const notificationToastShown = sessionStorage.getItem("notificationToastShown");
 

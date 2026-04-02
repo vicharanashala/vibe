@@ -1,58 +1,83 @@
-// Dummy Firebase (disabled)
+import { initializeApp } from "firebase/app";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+  confirmPasswordReset as firebaseConfirmPasswordReset,
+  signOut,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  Auth,
+} from "firebase/auth";
+import {
+  getFirestore,
+  Firestore,
+} from "firebase/firestore";
 
-export const auth = {
-  onAuthStateChanged: (callback: any) => {
-    console.log("Mock auth listener");
-    
-    // simulate "no user logged in"
-    callback(null);
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+};
 
-    // return unsubscribe function
-    return () => {};
-  }
-};       // ✅ required
-export const provider = {};   // ✅ required
+const app = initializeApp(firebaseConfig);
 
-const dummyUser = {
-  user: {
-    getIdToken: async () => "dummy-token"
-  }
+export const auth: Auth = getAuth(app);
+export const db: Firestore = getFirestore(app);
+
+export const provider = new GoogleAuthProvider();
+
+export const loginWithEmail = async (email: string, password: string) => {
+  const userCredential = await signInWithEmailAndPassword(auth, email, password);
+  return userCredential;
 };
 
 export const loginWithGoogle = async () => {
-  return dummyUser;
+  const userCredential = await signInWithPopup(auth, provider);
+  return userCredential;
 };
 
-export const loginWithEmail = async (email: string, password: string) => {
-  return dummyUser;
-};
-
-export const createUserWithEmail = async (
-  email: string,
-  password: string,
-  displayName?: string
-) => {
-  return dummyUser;
+export const createUserWithEmail = async (email: string, password: string) => {
+  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  return userCredential;
 };
 
 export const sendPasswordResetEmail = async (email: string) => {
-  return {
-    success: true,
-    message: "Mock reset email sent",
-  };
+  try {
+    await firebaseSendPasswordResetEmail(auth, email);
+    return { success: true, message: "Password reset email sent" };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Failed to send password reset email" };
+  }
 };
 
-export const verifyResetCode = async (code: string) => {
-  return { valid: true, email: "test@example.com" };
+// Alias for compatibility with ResetPasswordPage imports
+export const resetPassword = sendPasswordResetEmail;
+
+export const verifyResetCode = async (code: string, newPassword: string) => {
+  try {
+    await firebaseConfirmPasswordReset(auth, code, newPassword);
+    return { success: true, message: "Password has been reset successfully" };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Failed to verify reset code" };
+  }
 };
 
-export const resetPassword = async (code: string, newPassword: string) => {
-  return {
-    success: true,
-    message: "Mock password reset success",
-  };
+export const logout = async () => {
+  await signOut(auth);
 };
 
-export const logout = () => {
-  console.log("Logout (mock)");
+export const logoutUser = async () => {
+  await signOut(auth);
 };
+
+// Persistence exports
+export { setPersistence, browserLocalPersistence, browserSessionPersistence };

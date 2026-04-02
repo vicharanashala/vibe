@@ -1,4 +1,4 @@
-import { loginWithGoogle, loginWithEmail } from "@/lib/firebase";
+import { loginWithGoogle, loginWithEmail, resetPassword, auth, setPersistence, browserLocalPersistence, browserSessionPersistence } from "@/lib/firebase";
 import { useAuthStore } from "@/store/auth-store";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,8 @@ export default function AuthPage({ role }: AuthPageProps) {
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetMessage, setResetMessage] = useState("");
+  const [resetError, setResetError] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
 
   const activeRole = role || "student";
 
@@ -44,21 +46,40 @@ export default function AuthPage({ role }: AuthPageProps) {
     setFormErrors({});
   };
 
-  const handleForgotPassword = () => {
+  const handleForgotPassword = async () => {
+    setResetError("");
+    setResetMessage("");
+
     if (!resetEmail) {
-      setResetMessage("Please enter email");
+      setResetError("Please enter your email address");
       return;
     }
-    setResetMessage("Sending...");
-    setTimeout(() => {
-      setResetMessage("Password reset link sent!");
-    }, 1000);
+
+    try {
+      setResetLoading(true);
+      const result = await resetPassword(resetEmail);
+
+      if (result.success) {
+        setResetMessage("Check your inbox for the reset link!");
+        setResetEmail("");
+      } else {
+        setResetError(result.message || "Failed to send reset email");
+      }
+    } catch (error: any) {
+      setResetError(error.message || "An error occurred. Please try again.");
+    } finally {
+      setResetLoading(false);
+    }
   };
 
   const handleEmailLogin = async () => {
     try {
       setLoading(true);
       setFormErrors({});
+
+      // Set persistence based on rememberMe preference
+      const persistence = rememberMe ? browserLocalPersistence : browserSessionPersistence;
+      await setPersistence(auth, persistence);
 
       const result = await loginWithEmail(email, password);
 
@@ -199,6 +220,7 @@ export default function AuthPage({ role }: AuthPageProps) {
                       setShowForgotModal(true);
                       setResetEmail(email);
                       setResetMessage("");
+                      setResetError("");
                     }}
                   >
                     Forgot Password?
@@ -305,19 +327,35 @@ export default function AuthPage({ role }: AuthPageProps) {
               placeholder="Enter your email"
               value={resetEmail}
               onChange={(e) => setResetEmail(e.target.value)}
+              disabled={resetLoading}
             />
+
+            {resetError && (
+              <p className="text-sm text-red-600">{resetError}</p>
+            )}
 
             {resetMessage && (
               <p className="text-sm text-green-600">{resetMessage}</p>
             )}
 
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setShowForgotModal(false)}>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowForgotModal(false);
+                  setResetError("");
+                  setResetMessage("");
+                }}
+                disabled={resetLoading}
+              >
                 Cancel
               </Button>
 
-              <Button onClick={handleForgotPassword}>
-                Send Link
+              <Button 
+                onClick={handleForgotPassword}
+                disabled={resetLoading}
+              >
+                {resetLoading ? "Sending..." : "Send Link"}
               </Button>
             </div>
 
