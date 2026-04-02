@@ -4893,6 +4893,48 @@ export class EnrollmentRepository {
     };
   }
 
+  async partialReinstateEnrollment(
+    enrollmentId: string,
+    reinstatedBy: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment | null> {
+    await this.init();
+
+    const existing = await this.enrollmentCollection.findOne(
+      {_id: new ObjectId(enrollmentId)},
+      {session},
+    );
+
+    if (!existing) throw new NotFoundError('Enrollment not found');
+    if (!existing.isEjected)
+      throw new BadRequestError('This learner is not currently ejected');
+
+    return this.enrollmentCollection.findOneAndUpdate(
+      {
+        _id: new ObjectId(enrollmentId),
+        isEjected: true,
+        isDeleted: {$ne: true},
+      },
+      {
+        $set: {
+          // isEjected lifted so appeal/ejection checks pass
+          isEjected: false,
+          // status stays INACTIVE — course hidden until acknowledged
+          status: 'INACTIVE' as EnrollmentStatus,
+          policyReacknowledgementRequired: true,
+          updatedAt: new Date(),
+          'ejectionHistory.$[last].reinstatedAt': new Date(),
+          'ejectionHistory.$[last].reinstatedBy': new ObjectId(reinstatedBy),
+        },
+      },
+      {
+        returnDocument: 'after',
+        arrayFilters: [{'last.reinstatedAt': {$exists: false}}],
+        session,
+      },
+    );
+  }
+
   async reinstateEnrollment(
     enrollmentId: string,
     reinstatedBy: string,
@@ -4940,6 +4982,7 @@ export class EnrollmentRepository {
 
     return result;
   }
+
   async findEjectedEnrollment(
     userId: string | ObjectId,
     courseId: string,
@@ -5181,6 +5224,48 @@ export class EnrollmentRepository {
         cohortId: new ObjectId(cohortId),
         role: 'STUDENT',
         isEjected: {$ne: true},
+      },
+      {$set: {policyReacknowledgementRequired: true, status: 'INACTIVE'}},
+      {session},
+    );
+  }
+  async markReacknowledgementRequiredForCohort(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    await this.enrollmentCollection.updateMany(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        cohortId: new ObjectId(cohortId),
+        role: 'STUDENT',
+        isEjected: {$ne: true},
+        isDeleted: {$ne: true},
+      },
+      {$set: {policyReacknowledgementRequired: true, status: 'INACTIVE'}},
+      {session},
+    );
+  }
+
+  async markReacknowledgementRequiredForUser(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    await this.enrollmentCollection.updateOne(
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        cohortId: new ObjectId(cohortId),
+        role: 'STUDENT',
+        isDeleted: {$ne: true},
       },
       {$set: {policyReacknowledgementRequired: true, status: 'INACTIVE'}},
       {session},
