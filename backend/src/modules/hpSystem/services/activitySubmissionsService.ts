@@ -17,6 +17,7 @@ import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepos
 import { SubmissionFeedbackItem } from "../classes/transformers/ActivitySubmission.js";
 import { COHORT_OVERRIDES, ID } from "../constants.js";
 import { ISettingRepository } from "#root/shared/database/interfaces/ISettingRepository.js";
+import { ICourseRepository } from "#root/shared/database/interfaces/ICourseRepository.js";
 
 
 @injectable()
@@ -51,6 +52,7 @@ export class ActivitySubmissionsService extends BaseService {
 
         @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
         @inject(GLOBAL_TYPES.SettingRepo) private readonly settingRepository: ISettingRepository,
+        @inject(GLOBAL_TYPES.CourseRepo) private readonly courseRepo: ICourseRepository,
 
     ) {
         super(mongoDatabase);
@@ -1248,13 +1250,17 @@ export class ActivitySubmissionsService extends BaseService {
                 session
             );
 
-            // 2. Get current HP from ledger
-            const totalHp = await this.ledgerRepository.getStudentCurrentHp(
+            // 2. Get current HP from enrollment
+            const courseVersion = await this.courseRepo.readVersion(effectiveVersionId, session);
+            const courseId = courseVersion?.courseId?.toString() ?? "";
+            const enrollment = await this.cohortRepository.findEnrollment(
                 studentId,
-                cohortName,
+                courseId,
                 effectiveVersionId,
+                cohortName,
                 session
             );
+            const totalHp = enrollment?.hpPoints ?? 0; 
 
             // 3. Get progress timeline from ledger
             const progressTimeline = await this.ledgerRepository.getStudentHpTimeline(

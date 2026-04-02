@@ -361,44 +361,6 @@ export class LedgerRepository implements ILedgerRepository {
         };
     }
 
-    async getStudentCurrentHp(
-        studentId: string,
-        cohortName: string,
-        courseVersionId: string,
-        session?: ClientSession
-    ): Promise<number> {
-        await this.init();
-
-        const result = await this.hpLedgerCollection.aggregate([
-            {
-                $match: {
-                    studentId: new ObjectId(studentId),
-                    cohort: cohortName,
-                    courseVersionId: new ObjectId(courseVersionId)
-                }
-            },
-            {
-                $group: {
-                    _id: null,
-                    totalCredits: {
-                        $sum: {
-                            $cond: [{ $eq: ["$direction", "CREDIT"] }, "$amount", 0]
-                        }
-                    },
-                    totalDebits: {
-                        $sum: {
-                            $cond: [{ $eq: ["$direction", "DEBIT"] }, "$amount", 0]
-                        }
-                    }
-                }
-            }
-        ], { session }).toArray();
-
-        if (result.length === 0) return 0;
-
-        return (result[0].totalCredits || 0) - (result[0].totalDebits || 0);
-    }
-
     async getStudentHpTimeline(
         studentId: string,
         cohortName: string,
