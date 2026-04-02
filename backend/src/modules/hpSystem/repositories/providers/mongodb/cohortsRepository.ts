@@ -51,6 +51,42 @@ export class CohortRepository implements ICohortRepository {
         );
 
     }
+async getCourseDetailsByVersionId(courseVersionId: string) {
+    await this.init();
+
+    const versionObjId = new ObjectId(courseVersionId);
+
+    const pipeline = [
+        {
+            $match: {
+                _id: versionObjId
+            }
+        },
+        {
+            $lookup: {
+                from: "newCourse",
+                localField: "courseId",
+                foreignField: "_id",
+                as: "course"
+            }
+        },
+        { $unwind: "$course" },
+        {
+            $project: {
+                _id: 0,
+                courseName: "$course.name",
+                courseDescription: "$course.description",
+                versionName: "$version",
+                versionDescription: "$description",
+                totalItems: "$totalItems"
+            }
+        }
+    ];
+
+    const result = await this.courseVersionCollection.aggregate(pipeline).toArray();
+
+    return result[0] || null;
+}
 
     async getTotalStudentsCountForCourseVersion(courseVersionId: string): Promise<number> {
         await this.init();
@@ -85,7 +121,6 @@ export class CohortRepository implements ICohortRepository {
             { name: cohortName },
             { projection: { _id: 1 } }
         );
-
         return cohort?._id?.toString() ?? null;
     }
 

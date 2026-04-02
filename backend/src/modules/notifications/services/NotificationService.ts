@@ -162,6 +162,33 @@ export class NotificationService {
 
     await this.notificationRepo.createMany(notifications, session);
   }
+  async notifyPolicyChangeToUser(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+    policyName: string,
+    policyId?: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    const course = await this.courseRepo.read(courseId);
+    const courseName = course?.name ?? 'your course';
+
+    const notification: Omit<INotification, '_id'> = {
+      userId: new ObjectId(userId),
+      type: 'policy_updated',
+      title: `Policy updated — re-acknowledgement required`,
+      message: `The ejection policy "${policyName}" was updated while you were away. Re-acknowledge it to access "${courseName}".`,
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      cohortId: new ObjectId(cohortId),
+      ...(policyId ? {policyId: new ObjectId(policyId)} : {}),
+      read: false,
+      createdAt: new Date(),
+    };
+
+    await this.notificationRepo.create(notification, session);
+  }
   async notifyInactivityWarning(
     userId: string,
     courseId: string,

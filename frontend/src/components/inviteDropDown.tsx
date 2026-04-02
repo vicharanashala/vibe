@@ -1,7 +1,6 @@
 import {useMemo, useState, useEffect} from 'react';
 import {
   Shield,
-  ShieldOff,
   CheckCircle,
   Clock3,
   XCircle,
@@ -13,8 +12,6 @@ import {
 import {Button} from '@/components/ui/button';
 import {useMarkNotificationAsRead} from '@/hooks/hooks';
 import {
-  useMarkSystemNotificationAsRead,
-  useMarkAllSystemNotificationsAsRead,
   useSubmitAppeal,
 } from '@/hooks/system-notification-hooks';
 import InviteItem from './InviteItem';
@@ -28,6 +25,7 @@ import {
 import { AppealModal } from '@/app/pages/student/components/policies/AppealModal';
 import { useInvites } from "@/hooks/hooks";
 import { PolicyReacknowledgementModal } from '@/app/pages/student/components/policies/PolicyReacknowledgementModal';
+import { queryClient } from '@/lib/client';
 
 type InviteDropdownProps = {
   setShowInvites?: React.Dispatch<React.SetStateAction<boolean>>;
@@ -47,6 +45,7 @@ type InviteDropdownProps = {
   systemNotifications?: SystemNotification[];
   onMarkSystemRead?: (id: string) => void;
   onMarkAllSystemRead?: () => void;
+  enrollments?: any[];
 };
 
 const getSystemNotificationIcon = (type: SystemNotification['type']) => {
@@ -114,6 +113,8 @@ const InviteDropdown = ({
   systemNotifications = [],
   onMarkSystemRead,
   onMarkAllSystemRead,
+  enrollments=[],
+  
 }: InviteDropdownProps) => {
   const {mutate: markAsRead, isPending} = useMarkNotificationAsRead();
   const [showPolicyModal, setShowPolicyModal] = useState(false);
@@ -139,14 +140,7 @@ const appealKey = (n: SystemNotification) =>
 const submitAppeal = useSubmitAppeal();
 const [localInvites, setLocalInvites] = useState<any[]>([]);
 const { getInvites } = useInvites();
-// useEffect(() => {
-//   if (!pendingInvites.length) {
-//     getInvites().then((data) => {
-//       console.log("INVITES API RESPONSE:", data); 
-//       setLocalInvites(data?.invites || []);
-//     });
-//   }
-// }, [pendingInvites]);
+
 useEffect(() => {
   if (localInvites.length === 0) {
     getInvites().then((data) => {
@@ -157,7 +151,15 @@ useEffect(() => {
   }
 }, []);
 
-
+const isAcknowledged = (notification: SystemNotification): boolean => {
+  if (!notification.courseId || !notification.cohortId) return false;
+  const enrollment = enrollments.find(
+    e => e.courseId === notification.courseId &&
+         e.cohortId === notification.cohortId,
+  );
+  // enrollment exists and flag is false/absent → already acknowledged
+  return enrollment ? !enrollment.policyReacknowledgementRequired : false;
+};
   const handleMarkAsRead = (notificationId: string) => {
     markAsRead({params: {path: {registrationId: notificationId}}});
     setApprovedNotifications?.(prev =>
@@ -182,6 +184,27 @@ const mostRecentEjectionIds = useMemo(() => {
         map.set(key, n._id);
       } else {
         
+        const existingNotif = systemNotifications.find(x => x._id === existing);
+        if (existingNotif && new Date(n.createdAt) > new Date(existingNotif.createdAt)) {
+          map.set(key, n._id);
+        }
+      }
+    });
+
+  return new Set(map.values());
+}, [systemNotifications]);
+
+const mostRecentPolicyIds = useMemo(() => {
+  const map = new Map<string, string>(); // key -> notification._id
+
+  systemNotifications
+    .filter(n => n.type === 'policy_created' || n.type === 'policy_updated')
+    .forEach(n => {
+      const key = `${n.courseId}-${n.courseVersionId}-${n.cohortId}`;
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, n._id);
+      } else {
         const existingNotif = systemNotifications.find(x => x._id === existing);
         if (existingNotif && new Date(n.createdAt) > new Date(existingNotif.createdAt)) {
           map.set(key, n._id);
@@ -270,19 +293,22 @@ const mostRecentEjectionIds = useMemo(() => {
                     <p className="text-xs text-muted-foreground/70">
                       {new Date(notification.createdAt).toLocaleDateString()}
                     </p>
-                    {(notification.type ==="policy_created"||notification.type === 'policy_updated')   && (
-  <Button
-    size="sm"
-    variant="outline"
-    onClick={(e) => {
-      e.stopPropagation();
-      setSelectedPolicyNotification(notification);
-    }}
-    className="text-xs mt-1 border-blue-300 text-blue-700 hover:bg-blue-50"
-  >
-    Re-acknowledge Policy
-  </Button>
-)}
+                    {(notification.type === 'policy_created' || notification.type === 'policy_updated') && mostRecentPolicyIds.has(notification._id) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isAcknowledged(notification)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!isAcknowledged(notification)) {
+                            setSelectedPolicyNotification(notification);
+                          }
+                        }}
+                        className="text-xs  border-yellow-600 text-yellow-600  hover:text-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isAcknowledged(notification) ? 'Acknowledged ✓' : 'Re-acknowledge Policy'}
+                      </Button>
+                    )}
 
                   
                 {notification.type === 'ejection' &&
@@ -434,6 +460,21 @@ const mostRecentEjectionIds = useMemo(() => {
             </>
           )}
         </ul>
+        <div className="p-2 border-t border-border/50">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-xs text-primary hover:text-primary hover:bg-primary/5"
+            onClick={() => {
+              const isTeacher = window.location.pathname.startsWith('/teacher');
+              const target = isTeacher ? '/teacher/notifications' : '/student/notifications';
+              window.location.href = target;
+              setShowInvites?.(false);
+            }}
+          >
+            View All Notifications
+          </Button>
+        </div>
       </div>
 
       {showPolicyModal && selectedInvite && (
@@ -449,25 +490,29 @@ const mostRecentEjectionIds = useMemo(() => {
       <AppealModal
   isOpen={!!selectedAppeal}
   onClose={() => setSelectedAppeal(null)}
-  enrollmentId={selectedAppeal?.courseId ?? ''}  // prop kept for interface compat
-  // AppealModal onSubmit — mark submitted immediately
-onSubmit={async ({ reason, evidenceUrl }) => {
-  if (!selectedAppeal) return;
-  await submitAppeal.mutateAsync({
-    body: {
-      courseId: selectedAppeal.courseId,
-      courseVersionId: selectedAppeal.courseVersionId,
-      cohortId: selectedAppeal.cohortId,
-      reason,
-      evidenceUrl,
-    },
-  });
-  setSubmittedAppeals(prev => {
-    const next = new Set(prev);
-    next.add(`${selectedAppeal.courseId}-${selectedAppeal.courseVersionId}-${selectedAppeal.cohortId}`);
-    return next;
-  });
-}}
+  enrollmentId={selectedAppeal?.courseId ?? ''}
+  onSubmit={async ({reason, evidenceUrl, images}) => {
+    if (!selectedAppeal) return;
+
+    // Build FormData so multer can parse the images server-side
+    const formData = new FormData();
+    formData.append('courseId', selectedAppeal.courseId);
+    formData.append('courseVersionId', selectedAppeal.courseVersionId);
+    formData.append('cohortId', selectedAppeal.cohortId);
+    formData.append('reason', reason);
+    if (evidenceUrl) formData.append('evidenceUrl', evidenceUrl);
+    images.forEach(img => formData.append('images', img));
+
+    await submitAppeal.mutateAsync({body: formData});
+
+    setSubmittedAppeals(prev => {
+      const next = new Set(prev);
+      next.add(
+        `${selectedAppeal.courseId}-${selectedAppeal.courseVersionId}-${selectedAppeal.cohortId}`,
+      );
+      return next;
+    });
+  }}
 />
 {selectedPolicyNotification && (
   <PolicyReacknowledgementModal
@@ -479,6 +524,7 @@ onSubmit={async ({ reason, evidenceUrl }) => {
     notificationId={selectedPolicyNotification._id}
     onSuccess={() => {
       onMarkSystemRead?.(selectedPolicyNotification._id);
+      queryClient.invalidateQueries({ queryKey: ['get', '/users/enrollments'] });
       setSelectedPolicyNotification(null);
     }}
   />

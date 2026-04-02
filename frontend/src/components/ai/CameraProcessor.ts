@@ -1,5 +1,6 @@
 import { MLProcessor } from "@/types/ai.types";
 import {registerStream, unRegisterStream} from "@/lib/MediaRegistry";
+import { runProctoringChecks } from "@/utils/proctoring/proctoringGuard";
 
 class CameraProcessor {
   private videoElement: HTMLVideoElement | null = null;
@@ -18,6 +19,14 @@ class CameraProcessor {
 
     this.videoElement = videoElement;
     const stream = await navigator.mediaDevices.getUserMedia({ video: { frameRate: { max: 30 } } });
+    // Safety check: prevent ML pipeline from processing virtual camera stream
+    const violations = await runProctoringChecks(stream);
+
+    if (violations.length > 0) {
+      stream.getTracks().forEach(t => t.stop());
+      throw new Error(violations[0].reason);
+    }
+    
     unRegisterStream("CameraProcessor-stream");
     registerStream("CameraProcessor-stream", stream);
     this.videoElement.srcObject = stream;

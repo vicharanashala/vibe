@@ -94,17 +94,29 @@ export function AppealDetailsModal({ open, onClose, notification }) {
             </p>
           </div>
 
-          {/* Evidence */}
-          {appeal?.evidenceUrl && (
+          {/* Evidence images */}
+          {appeal?.evidenceImages && appeal.evidenceImages.length > 0 && (
             <div>
-              <p className="font-medium">Evidence</p>
-              <a
-                href={appeal.evidenceUrl}
-                target="_blank"
-                className="text-blue-500 underline"
-              >
-                Open Evidence Link
-              </a>
+              <p className="font-medium mb-2">
+                Evidence Images ({appeal?.evidenceImages?.length})
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {appeal?.evidenceImages?.map((url: string, idx: number) => (
+                  <a
+                    key={idx}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block rounded-md overflow-hidden border border-border aspect-square hover:opacity-80 transition-opacity"
+                  >
+                    <img
+                      src={url}
+                      alt={`Evidence ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </a>
+                ))}
+              </div>
             </div>
           )}
 
@@ -131,8 +143,8 @@ export function AppealDetailsModal({ open, onClose, notification }) {
             <Button
               onClick={handleReject}
               disabled={
-    rejectMutation.isLoading || !rejectReason.trim()
-  }
+                rejectMutation.isLoading || !rejectReason.trim()
+              }
               variant="destructive"
             >
               {rejectMutation.isLoading ? "Rejecting..." : "Reject Appeal"}

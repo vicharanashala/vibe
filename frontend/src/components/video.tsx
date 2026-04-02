@@ -64,6 +64,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const startItem = useStartItem();
   const stopItem = useStopItem();
   const isStopping = stopItem.isPending;
+  const stopError = stopItem.error;
   const { mutateAsync: storeWatchTimeTrack } = useStoreWatchTimeTrack();
 
   // Parse start and end times
@@ -176,6 +177,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
       await skipItemAsync({ params: { path: { itemId: currentCourse?.itemId } } });
       // toast.success('Item skipped successfully');
       handlePlayPause()
+      console.log("Handle skip called stop API....")
       onNext?.();
     } catch (error) {
       console.error('Error skipping item:', error);
@@ -370,7 +372,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
     const executeStop = async () => {
       stopInFlightRef.current = true;
       try {
-        if(watchItemId && !isAlreadyWatched && !(currentCourse!.itemId && completedItemIdsRef.current.has(currentCourse!.itemId))){
+        if(watchItemId && !isAlreadyWatched && !(currentCourse!.itemId && completedItemIdsRef.current.has(currentCourse!.itemId)) && !isCompleted){
           await stopItem.mutateAsync({
             params: {
               path: {
@@ -578,7 +580,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
   function handleSendStartItem() {
 
     if (!currentCourse?.itemId) return;
-    if(!isAlreadyWatched && !completedItemIdsRef.current.has(currentCourse!.itemId)){
+    if(!isAlreadyWatched && !completedItemIdsRef.current.has(currentCourse!.itemId) && !isCompleted){
       startItem.mutate({
         params: {
           path: {
@@ -681,11 +683,17 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
               if (!progressStoppedRef.current && currentCourse) {
                 const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
                 if(!watchItemId && isAlreadyWatched){
-                  onNext?.();
+                  if(currentCourse.courseId ==="6981df886e100cfe04f9c4ad"){
+                    console.log("Stop API failed for this course")
+                  }else{
+                    console.log("Fahhhhaaaaa.....")
+                    onNext?.();
+                  }
                 }
                 else if (watchItemId) {
                   const success = await handleStopItem(watchItemId, 0); // No debounce on natural end
                   if (success) {
+                    console.log("Damnnnn.......")
                     onNext?.();
                   }
                 }
@@ -714,26 +722,26 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
     stopTimeoutRef.current = null;
   }
     // Stop if started but not yet stopped (immediate on unmount, no debounce)
-  if (!progressStoppedRef.current && !stopInFlightRef.current && watchItemIdRef.current && currentCourse) {
-    stopInFlightRef.current = true;
-    stopItem.mutate({
-      params: {
-        path: {
-          courseId: currentCourse.courseId,
-          courseVersionId: currentCourse.versionId ?? '',
-        },
-      },
-      body: {
-        watchItemId: watchItemIdRef.current,
-        itemId: currentCourse.itemId ?? '',
-        moduleId: currentCourse.moduleId ?? '',
-        sectionId: currentCourse.sectionId ?? '',
-        seekForwardEnabled,
-        nextItemId,
-        cohortId: currentCourse.cohortId ?? '',
-      },
-    });
-  }
+  // if (!progressStoppedRef.current && !stopInFlightRef.current && watchItemIdRef.current && currentCourse) {
+  //   stopInFlightRef.current = true;
+  //   stopItem.mutate({
+  //     params: {
+  //       path: {
+  //         courseId: currentCourse.courseId,
+  //         courseVersionId: currentCourse.versionId ?? '',
+  //       },
+  //     },
+  //     body: {
+  //       watchItemId: watchItemIdRef.current,
+  //       itemId: currentCourse.itemId ?? '',
+  //       moduleId: currentCourse.moduleId ?? '',
+  //       sectionId: currentCourse.sectionId ?? '',
+  //       seekForwardEnabled,
+  //       nextItemId,
+  //       cohortId: currentCourse.cohortId ?? '',
+  //     },
+  //   });
+  // }
       // Reset references
       progressStartedRef.current = false;
       progressStoppedRef.current = false;
@@ -811,6 +819,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
 
           // Enforce endTime constraint
           if (endTimeSeconds > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= endTimeSeconds && currentCourse) {
+            console.log("This if condition is triggred now -> ", "Fahhhhaaaa")
              const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
 
             // if (watchItemId) {
@@ -834,6 +843,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
 
           // Handle videos without endTime constraint that reach near completion
           if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= duration - 2 && currentCourse) {
+            console.log("Fahhhhaaaaaaa")
             const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
             if (watchItemId) {
               player?.pauseVideo();
@@ -992,7 +1002,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
       <ConfirmOverlay
         visible={isStopFailed}
         title="Failed to stop video"
-        message="Click Continue to proceed to the next item."
+        message={stopError}
         position="bottom-right"
         onCancel={() => setIsStopFailed(false)}
         onConfirm={() => {
@@ -1987,15 +1997,15 @@ export function ConfirmOverlay({
     <div
       className={`absolute z-50 animate-in slide-in-from-right-3 duration-300 ${positionClasses[position]}`}
     >
-      <Card className="border-red-400/40 bg-red-600/95 text-red-50 shadow-lg backdrop-blur-md w-80">
+      <Card className={`border-red-400/40 ${message === "Invalid watch time" ? "bg-yellow-600/95": "bg-red-600/95"} text-red-50 shadow-lg backdrop-blur-md w-80`}>
         <CardContent className="flex flex-col gap-3 p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50/10">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-full ${message === "Invalid watch time" ? "bg-yellow-50/10": "bg-red-50/10"}`}>
               <XCircle className="h-6 w-6 text-red-50" />
             </div>
             <div className="flex-1 space-y-1">
               <p className="text-sm font-semibold text-red-50">{title}</p>
-              <p className="text-sm text-red-50/90">{message}</p>
+              <p className="text-sm text-red-50/90">{message === "Invalid watch time" ? "Invalid watch time. Please watch for atleast 30 seconds": message}</p>
             </div>
           </div>
 

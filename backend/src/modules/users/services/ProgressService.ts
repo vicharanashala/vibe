@@ -12,6 +12,7 @@ import {
   IVideoDetails,
   IBlogDetails,
   ICurrentProgressPath,
+  IEnrollment,
 } from '#root/shared/interfaces/models.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { ProgressRepository } from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
@@ -221,7 +222,8 @@ class ProgressService extends BaseService {
     );
 
     if (!itemsGroup?.items?.length) return null;
-
+    // Remove hidden items from the progression path
+    itemsGroup.items = itemsGroup.items.filter(i => i.isHidden !== true);
     // 4. First item
     const firstItem = this.getFirstByOrder(itemsGroup.items);
     if (!firstItem) return null;
@@ -1225,12 +1227,12 @@ class ProgressService extends BaseService {
     );
   }
 
-  getUserMetricsForQuiz(userId: string, quizId: string) {
+  getUserMetricsForQuiz(userId: string, quizId: string, cohortId?: string) {
     return this._withTransaction(async session => {
       const metrics = await this.userQuizMetricsRepository.get(
         userId,
         quizId,
-        undefined,
+        cohortId,
         session,
       );
       if (!metrics) return;
@@ -1691,6 +1693,8 @@ class ProgressService extends BaseService {
           cohortId,
           session,
         );
+
+        console.log("Existing item found ->", existingWatchTime)
         return '';
       }
 
@@ -1732,6 +1736,22 @@ class ProgressService extends BaseService {
           ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
         };
 
+        await this.progressRepository.updateProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          newProgress,
+          cohortId
+        );
+      } else if (!linearProgressionEnabled) {
+        const newProgress: Partial<IProgress> = {
+          completed: isItemCompleted,
+          currentModule: moduleId,
+          currentSection: sectionId,
+          currentItem: itemId,
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        };
+          console.log("New progress is -> ", newProgress)
         await this.progressRepository.updateProgress(
           userId,
           courseId,
@@ -2069,8 +2089,11 @@ class ProgressService extends BaseService {
      *
      * Therefore, this logic ensures the student is allowed to re-attempt the quiz
      * even though the progress currentItem is positioned at the previous video.
+     * 
+     * Additionally, when a quiz is exhausted and marked as skipped (isSkipped=true),
+     * we also skip position validation to allow progress advancement without strict position checks.
      */
-    if (item.type !== 'QUIZ') {
+    if (item.type !== 'QUIZ' && !isSkipped) {
       // Ensure current progress matches the module, section, and item
       this.validateProgressPosition(progress, moduleId, sectionId, itemId);
     }
@@ -2085,7 +2108,6 @@ class ProgressService extends BaseService {
         if (!isSkipped) {
           stoppedWatchTime = await this.progressRepository.stopItemTracking(
             watchItemId,
-            cohortId,
             session,
           );
 
@@ -2125,6 +2147,7 @@ class ProgressService extends BaseService {
           sectionId,
           itemId: nextItemId,
         };
+
       } else {
         nextItem = await this.getNextItemInSequence(
           courseVersion,
@@ -2160,6 +2183,7 @@ class ProgressService extends BaseService {
         isCompleted = effectiveCompleted >= totalCourseItems;
 
         if (!isCompleted) {
+
           nextItem = await this.findFirstIncompleteItemInSequence(
             courseVersion,
             completedItemsSet,
@@ -2178,7 +2202,8 @@ class ProgressService extends BaseService {
 
       // Prepare the progress update payload
       let newProgress: Partial<IProgress> = isCompleted
-        ? {
+        ?
+        {
           currentModule: moduleId,
           currentSection: sectionId,
           currentItem: itemId,
@@ -2200,6 +2225,7 @@ class ProgressService extends BaseService {
           itemId,
           userId,
           attemptId,
+          cohortId,
         );
         if (!submittedQuiz) throw new BadRequestError('Quiz not submitted');
         if (submittedQuiz.gradingResult.gradingStatus !== 'PASSED') {
@@ -2207,34 +2233,48 @@ class ProgressService extends BaseService {
         }
 
         if (isQuizFailed) {
-          const previousVideoItem = await this.getPreviousVideoItem(
-            courseVersion,
-            moduleId,
-            sectionId,
+          const quizMetrics = await this.getUserMetricsForQuiz(
+            userId,
             itemId,
+            cohortId,
           );
+          const attemptsExhausted =
+            !!quizMetrics &&
+            quizMetrics.remainingAttempts === 0;
 
-          if (!previousVideoItem) {
-            throw new BadRequestError(
-              'Quiz failed and no previous video found to review',
+          // If attempts are exhausted, keep the computed forward progress.
+          // Otherwise, move back to the previous video for re-attempt flow.
+          if (!attemptsExhausted) {
+            const previousVideoItem = await this.getPreviousVideoItem(
+              courseVersion,
+              moduleId,
+              sectionId,
+              itemId,
             );
-          }
 
-          newProgress = {
-            completed: false,
-            currentModule: previousVideoItem.moduleId,
-            currentSection: previousVideoItem.sectionId,
-            currentItem: previousVideoItem.itemId,
-            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
-            // skippedBlankQuizIds: [],
-          };
+            if (!previousVideoItem) {
+              throw new BadRequestError(
+                'Quiz failed and no previous video found to review',
+              );
+            }
+
+            newProgress = {
+              completed: false,
+              currentModule: previousVideoItem.moduleId,
+              currentSection: previousVideoItem.sectionId,
+              currentItem: previousVideoItem.itemId,
+              ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+              // skippedBlankQuizIds: [],
+            };
+          }
         } else {
           // Quiz passed - set endTime, progress update is handled by the original logic above
-          await this.progressRepository.stopItemTracking(
-            watchItemId,
-            cohortId,
-            session,
-          );
+          // commented out because we already stop the quiz watch time in submit endpoint.
+          // await this.progressRepository.stopItemTracking(
+          //   watchItemId,
+          //   cohortId,
+          //   session,
+          // );
           shouldCountCurrentItemAsCompleted = true;
         }
       }
@@ -2290,14 +2330,15 @@ class ProgressService extends BaseService {
           guruProgress.completedItemsCount,
           cohortId,
         );
-      } else {
-        await this.enrollmentRepo.updateProgressPercentById(
-          enrollment._id.toString(),
-          percentCompleted,
-          completedCourseItemsCount,
-          cohortId,
-        );
       }
+
+      await this.enrollmentRepo.updateProgressPercentById(
+        enrollment._id.toString(),
+        percentCompleted,
+        completedCourseItemsCount,
+        cohortId,
+      );
+
 
 
       if (percentCompleted > 99) {
@@ -2310,17 +2351,25 @@ class ProgressService extends BaseService {
       }
 
       // Update progress in a transaction
-      if (courseId !== GURU_SETU_COURSE_ID || courseVersionId !== GURU_SETU_VERSION_ID) {
-        await this.progressRepository.updateProgress( // pending
-          userId,
-          courseId,
-          courseVersionId,
-          newProgress,
-          cohortId,
-          session,
-        );
-      }
+      // if (courseId !== GURU_SETU_COURSE_ID || courseVersionId !== GURU_SETU_VERSION_ID) {
+      //   await this.progressRepository.updateProgress( // pending
+      //     userId,
+      //     courseId,
+      //     courseVersionId,
+      //     newProgress,
+      //     cohortId,
+      //     session,
+      //   );
+      // }
 
+      await this.progressRepository.updateProgress( // pending
+        userId,
+        courseId,
+        courseVersionId,
+        newProgress,
+        cohortId,
+        session,
+      );
     });
   }
 
@@ -2567,7 +2616,6 @@ class ProgressService extends BaseService {
             if (watchTimeRecords?.length) {
               await this.progressRepository.stopItemTracking(
                 watchTimeRecords[0]._id.toString(),
-                cohort,
                 session,
               );
             }
@@ -2671,6 +2719,7 @@ class ProgressService extends BaseService {
     courseId: string,
     courseVersionId: string,
     isPassed: boolean,
+    watchItemId?: string,
     cohortId?: string,
   ) {
     // Fetch progress and course version in parallel
@@ -2761,13 +2810,15 @@ class ProgressService extends BaseService {
     //  and as the stop item is not called for that quiz endtime will never be created
     // Only mark quiz as completed (set endTime) if it was actually passed
     if (isPassed) {
-      const watchTime = await this.progressRepository.getWatchTime(
-        userId,
-        quizId,
-        courseId,
-        courseVersionId,
-        cohortId,
+      if(!watchItemId) {
+        throw new BadRequestError('Watch item ID is required to stop tracking');
+      }
+      const watchTime = await this.progressRepository.findWatchTimeById(
+        watchItemId
       );
+      if(watchTime.itemId.toString() !== quizId) {
+        throw new BadRequestError('Watch item does not correspond to the quiz');
+      }
       const isItemCompleted = await this.progressRepository.isItemCompleted(
         userId.toString(),
         courseId,
@@ -2776,9 +2827,9 @@ class ProgressService extends BaseService {
         cohortId,
       )
 
-      if (!isItemCompleted && watchTime && watchTime.length > 0) {
+      if (!isItemCompleted && watchItemId) {
         await this.progressRepository.stopItemTracking(
-          watchTime[0]._id.toString(),
+          watchItemId,
         );
       }
     }
@@ -3390,14 +3441,13 @@ class ProgressService extends BaseService {
           );
         }
 
-        await this.progressRepository.stopItemTracking(watchTimeId, cohortId, session);
+        await this.progressRepository.stopItemTracking(watchTimeId, session);
       } else {
         // An open (no endTime) record exists - close it to mark completion
         const openRecord = existingWatchTime.find(wt => !wt.endTime);
         if (openRecord) {
           await this.progressRepository.stopItemTracking(
             openRecord._id.toString(),
-            cohortId,
             session,
           );
         }
@@ -4177,6 +4227,46 @@ class ProgressService extends BaseService {
       version: courseVersion.version,
       data: rankedLeaderboard,
     };
+  }
+
+  // should be called after watchime record is ended for an item, to get the updated progress percentage
+  async calculateProgressAndPercentage(enrollment: IEnrollment, session?: ClientSession): Promise<{completedItemsCount: number, progressPercentage: number}> {
+
+    if(!enrollment) {
+      throw new BadRequestError('Enrollment details are required to calculate progress');
+    }
+    const courseVersion = await this.courseRepo.readVersion(
+      enrollment.courseVersionId.toString(),
+    );
+    if (!courseVersion) {
+      throw new NotFoundError('Course version not found');
+    }
+
+    const totalItemsCount =
+      courseVersion.totalItems ??
+      (await this.itemRepo.CalculateTotalItemsCount(
+        enrollment.courseId.toString(),
+        enrollment.courseVersionId.toString(),
+      ));
+
+
+    if (totalItemsCount === 0) {
+      return {completedItemsCount: 0, progressPercentage: 0};
+    }
+
+    const completedItemIds = await this.progressRepository.getCompletedItems(
+      enrollment.userId.toString(),
+      enrollment.courseId.toString(),
+      enrollment.courseVersionId.toString(),
+      enrollment.cohort,
+      session,
+    );
+
+    const percentCompleted = parseFloat(
+      ((completedItemIds?.length ?? 0) / totalItemsCount * 100).toFixed(2),
+    );
+
+    return {completedItemsCount: completedItemIds?.length ?? 0, progressPercentage: Math.min(percentCompleted, 100)};
   }
 }
 

@@ -195,6 +195,9 @@ export const EjectionPolicyModal = ({
       if (formData.warningAfterMisses >= formData.consecutiveMisses) {
         newErrors.warningAfterMisses = "Warning threshold must be less than ejection threshold";
       }
+      if (formData.progressRules.length === 0) {
+        newErrors.missedDeadlinesRules = "At least one progress rule is required";
+      }
       formData.progressRules.forEach((rule, idx) => {
         if (rule.timeframeDays <= 0) {
           newErrors[`progressRuleTimeframe_${idx}`] = "Days must be > 0";
@@ -390,7 +393,7 @@ export const EjectionPolicyModal = ({
             </div>
 
             {/* Inactivity Trigger */}
-            <Card className={formData.inactivityEnabled ? "border-primary/50" : ""}>
+            {/* <Card className={formData.inactivityEnabled ? "border-primary/50" : ""}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -439,7 +442,7 @@ export const EjectionPolicyModal = ({
                   </div>
                 )}
               </CardContent>
-            </Card>
+            </Card> */}
 
             {/* Missed Deadlines Trigger */}
             <Card className={formData.missedDeadlinesEnabled ? "border-primary/50" : ""}>
@@ -509,7 +512,9 @@ export const EjectionPolicyModal = ({
                       </div>
                       
                       {formData.progressRules.length === 0 && (
-                        <p className="text-xs text-muted-foreground my-2">No progress rules defined. Students will only be evaluated based on misses.</p>
+                        <p className={`text-xs my-2 ${errors.missedDeadlinesRules ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                          {errors.missedDeadlinesRules || "No progress rules defined. Students will only be evaluated based on misses."}
+                        </p>
                       )}
                       
                       {formData.progressRules.map((rule, idx) => (
