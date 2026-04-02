@@ -15,6 +15,19 @@ type Props = {
   onApproveRegistration?: (reg: PendingRegistrationNotification) => void;
   onInviteAction?: () => void;
 };
+const canSeeInvite = (inviteRole: string, userRole?: string|null) => {
+  if (!userRole) return false;
+
+  if (inviteRole === "INSTRUCTOR") {
+    return userRole === "teacher" || userRole === "admin";
+  }
+
+  if (inviteRole === "STUDENT") {
+    return userRole === "student";
+  }
+
+  return false;
+};
 
 export function UnifiedNotificationDropdown({
   notifications,
@@ -29,6 +42,9 @@ export function UnifiedNotificationDropdown({
   
 
 const user = useAuthStore((state) => state.user);
+const filteredInvites = pendingInvites.filter((invite) =>
+  canSeeInvite(invite.role, user?.role)
+);
 const isTeacher = user?.role === "teacher";
   const unreadSystem = notifications.filter(n => !n.read);
   const totalCount = unreadSystem.length + pendingInvites.length + pendingRegistrations.length;
@@ -66,13 +82,13 @@ const isTeacher = user?.role === "teacher";
         <ul className="divide-y divide-gray-100 dark:divide-zinc-800 p-1">
           
           {/* ── Pending Invites ── */}
-          {pendingInvites.length > 0 && (
+          {filteredInvites.length > 0 && (
             <li className="px-2 py-1.5">
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 px-1">
                 Course Invites
               </p>
               <div className="space-y-1">
-                {pendingInvites.map((invite, idx) => (
+                {filteredInvites.map((invite, idx) => (
                   <div key={`invite-${idx}`} className="p-2 rounded hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors border border-transparent hover:border-primary/20 dark:hover:border-primary/30">
                     <div className="flex items-start gap-2">
                       <div className="mt-0.5 rounded-full bg-primary/10 dark:bg-primary/20 p-1">

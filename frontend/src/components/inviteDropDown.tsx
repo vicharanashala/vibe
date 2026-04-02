@@ -27,7 +27,7 @@ import { useInvites } from "@/hooks/hooks";
 import { PolicyReacknowledgementModal } from '@/app/pages/student/components/policies/PolicyReacknowledgementModal';
 import { queryClient } from '@/lib/client';
 import { hasActivePolicies } from '@/utils/ejectionPolicyUtils';
-
+import { useAuthStore } from '@/store/auth-store';
 type InviteDropdownProps = {
   setShowInvites?: React.Dispatch<React.SetStateAction<boolean>>;
   onRejectClick?: (invite: any) => void;
@@ -98,7 +98,18 @@ const getSystemNotificationColors = (type: SystemNotification['type']) => {
       };
   }
 };
+const ROLE_MAP = {
+  INSTRUCTOR: ["teacher", "admin"],
+  STUDENT: ["student"],
+};
 
+const canSeeInvite = (
+  inviteRole: string,
+  userRole?: string | null
+) => {
+  if (!userRole) return false;
+  return ROLE_MAP[inviteRole]?.includes(userRole) ?? false;
+};
 const InviteDropdown = ({
   selectedInvite,
   setSelectedInvite,
@@ -120,6 +131,7 @@ const InviteDropdown = ({
   const {mutate: markAsRead, isPending} = useMarkNotificationAsRead();
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const [selectedPolicyNotification, setSelectedPolicyNotification] = useState<SystemNotification | null>(null);
+  const user = useAuthStore((state) => state.user);
   
   const [submittedAppeals, setSubmittedAppeals] = useState<Set<string>>(new Set());
   const appealKey = (n: SystemNotification) =>
@@ -142,6 +154,8 @@ const InviteDropdown = ({
 const submitAppeal = useSubmitAppeal();
 const [localInvites, setLocalInvites] = useState<any[]>([]);
 const { getInvites } = useInvites();
+const invitesToShow = (pendingInvites.length ? pendingInvites : localInvites)
+  .filter((invite) => canSeeInvite(invite.role, user?.role));
 
 useEffect(() => {
   if (localInvites.length === 0) {
@@ -271,7 +285,7 @@ useEffect(() => {
           ) : (
             <>
              {/* ── Invites ── */}
-             {(pendingInvites.length ? pendingInvites : localInvites).map((invite, idx) => (
+             {invitesToShow.map((invite, idx) => (
                 <InviteItem
   invite={invite}
   hasPolicies={invitePoliciesMap[invite.inviteId]}
