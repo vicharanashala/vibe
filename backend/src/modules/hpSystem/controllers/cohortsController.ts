@@ -170,33 +170,33 @@ export class CohortsController {
     //  Reset HP feature is disabled uncomment the below code to enable it
 
   
-    @OpenAPI({summary: 'Reset HP for cohort students'})
-    @Post('/version/:versionId/cohort/:cohortName/reset-hp')
-    @Authorized()
-    async resetHp(
-      @Params() params: ResetRequestParams,
-      @Body() body: ResetHpRequest,
-      @CurrentUser() user: IUser,
-    ) {
-      const {versionId, cohortName} = params;
-      if (!versionId?.trim()) {
-        throw new BadRequestError('versionId is required');
-      }
+    // @OpenAPI({summary: 'Reset HP for cohort students'})
+    // @Post('/version/:versionId/cohort/:cohortName/reset-hp')
+    // @Authorized()
+    // async resetHp(
+    //   @Params() params: ResetRequestParams,
+    //   @Body() body: ResetHpRequest,
+    //   @CurrentUser() user: IUser,
+    // ) {
+    //   const {versionId, cohortName} = params;
+    //   if (!versionId?.trim()) {
+    //     throw new BadRequestError('versionId is required');
+    //   }
 
-      if (!cohortName?.trim()) {
-        throw new BadRequestError('cohortId is required');
-      }
-      const {targetHp, mode} = body;
+    //   if (!cohortName?.trim()) {
+    //     throw new BadRequestError('cohortId is required');
+    //   }
+    //   const {targetHp, mode} = body;
 
-      const documentsUpdated = await this.cohortsService.resetHpforCohort(
-        versionId,
-        cohortName,
-        targetHp,
-        mode,
-        user._id.toString(),
-      );
+    //   const documentsUpdated = await this.cohortsService.resetHpforCohort(
+    //     versionId,
+    //     cohortName,
+    //     targetHp,
+    //     mode,
+    //     user._id.toString(),
+    //   );
 
-      return {success: true, documentsUpdated: documentsUpdated};
-    }
+    //   return {success: true, documentsUpdated: documentsUpdated};
+    // }
 
 }

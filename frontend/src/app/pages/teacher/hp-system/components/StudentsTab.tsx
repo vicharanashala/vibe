@@ -145,13 +145,13 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
 
             {/* Reset Hp function is disabled uncomment the below code to enable it */}
             
-            <Button
+            {/* <Button
               variant="default"
               size="sm"
               onClick={() => setOpenReset(true)}
             >
               Reset HP
-            </Button>
+            </Button> */}
           </div>
 
       </div>
