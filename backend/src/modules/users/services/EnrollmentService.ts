@@ -1,10 +1,10 @@
-import {COURSES_TYPES} from '#courses/types.js';
-import {InviteStatus} from '#root/modules/notifications/index.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { COURSES_TYPES } from '#courses/types.js';
+import { InviteStatus } from '#root/modules/notifications/index.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   courseVersionStatus,
   EnrollmentRole,
@@ -12,19 +12,19 @@ import {
   ICourseVersion,
   IEnrollment,
 } from '#root/shared/interfaces/models.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import {Enrollment} from '#users/classes/transformers/Enrollment.js';
-import {EnrollmentStats, USERS_TYPES} from '#users/types.js';
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId, OptionalId} from 'mongodb';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import { Enrollment } from '#users/classes/transformers/Enrollment.js';
+import { EnrollmentStats, USERS_TYPES } from '#users/types.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId, OptionalId } from 'mongodb';
 import {
   BadRequestError,
   NotFoundError,
   InternalServerError,
   ForbiddenError,
 } from 'routing-controllers';
-import {ProgressService} from './ProgressService.js';
+import { ProgressService } from './ProgressService.js';
 import {
   ProgressRepository,
   InviteRepository,
@@ -36,14 +36,14 @@ import {
   QuizScoresExportResponseDto,
   StudentQuizScoreDto,
 } from '../dtos/QuizScoresExportDto.js';
-import {COURSE_REGISTRATION_TYPES} from '#root/modules/courseRegistration/types.js';
-import {ICourseRegistrationRepository} from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
+import { COURSE_REGISTRATION_TYPES } from '#root/modules/courseRegistration/types.js';
+import { ICourseRegistrationRepository } from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
 import {
   IGradingResult,
   ISubmission,
 } from '#root/modules/quizzes/interfaces/index.js';
-import {Cohort} from '#root/modules/courses/classes/index.js';
-import {SETTING_TYPES} from '#root/modules/setting/types.js';
+import { Cohort } from '#root/modules/courses/classes/index.js';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
 
 const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
 const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
@@ -126,7 +126,7 @@ export class EnrollmentService extends BaseService {
       // }
 
       if (existingEnrollment && throughInvite) {
-        return {status: 'ALREADY_ENROLLED' as InviteStatus};
+        return { status: 'ALREADY_ENROLLED' as InviteStatus };
       }
 
       if (existingEnrollment && !throughInvite) {
@@ -166,9 +166,9 @@ export class EnrollmentService extends BaseService {
         enrollmentDate: new Date(),
         percentCompleted: 0,
         completedItemsCount: 0,
-        ...(cohort ? {cohortId: new ObjectId(cohort)} : {}),
-        ...(policyAcknowledged ? {policyAcknowledgedAt: new Date()} : {}),
-        ...(role === 'STUDENT' ? {hpPoints: baseHpValue} : {}),
+        ...(cohort ? { cohortId: new ObjectId(cohort) } : {}),
+        ...(policyAcknowledged ? { policyAcknowledgedAt: new Date() } : {}),
+        ...(role === 'STUDENT' ? { hpPoints: baseHpValue } : {}),
       };
       const createdEnrollment = await this.enrollmentRepo.createEnrollment(
         enrollmentData,
@@ -198,7 +198,7 @@ export class EnrollmentService extends BaseService {
               ),
               currentItem: new ObjectId(progressData.currentItem.toString()),
               completed: false,
-              ...(cohort ? {cohortId: new ObjectId(cohort)} : {}),
+              ...(cohort ? { cohortId: new ObjectId(cohort) } : {}),
             },
             session,
           );
@@ -508,14 +508,14 @@ export class EnrollmentService extends BaseService {
       ...course,
       versions: course?.versions
         ? course.versions
-            .map((versionId: any) => {
-              // Convert ObjectId to string if needed
-              const versionIdStr = versionId.toString
-                ? versionId.toString()
-                : versionId;
-              return enrolledVersionIds.has(versionIdStr) ? versionIdStr : null;
-            })
-            .filter(Boolean) // Remove null values
+          .map((versionId: any) => {
+            // Convert ObjectId to string if needed
+            const versionIdStr = versionId.toString
+              ? versionId.toString()
+              : versionId;
+            return enrolledVersionIds.has(versionIdStr) ? versionIdStr : null;
+          })
+          .filter(Boolean) // Remove null values
         : [],
     };
   }
@@ -799,7 +799,7 @@ export class EnrollmentService extends BaseService {
         Map<string, number>,
         Map<
           string,
-          {videos: number; quizzes: number; articles: number; projects: number}
+          { videos: number; quizzes: number; articles: number; projects: number }
         >,
         ISubmission[],
       ] = await Promise.all([
@@ -818,7 +818,7 @@ export class EnrollmentService extends BaseService {
 
       const itemCountsFallbackCache = new Map<
         string,
-        {totalItems: number; itemCounts: Record<string, number>}
+        { totalItems: number; itemCounts: Record<string, number> }
       >();
 
       const detailedEnrollments = await Promise.all(
@@ -1054,34 +1054,34 @@ export class EnrollmentService extends BaseService {
       let resolvedItemCounts: Record<string, number> = {
         VIDEO: Number(
           existingItemCounts.VIDEO ??
-            existingItemCounts.video ??
-            existingItemCounts.videos ??
-            0,
+          existingItemCounts.video ??
+          existingItemCounts.videos ??
+          0,
         ),
         QUIZ: Number(
           existingItemCounts.QUIZ ??
-            existingItemCounts.quiz ??
-            existingItemCounts.quizzes ??
-            0,
+          existingItemCounts.quiz ??
+          existingItemCounts.quizzes ??
+          0,
         ),
         BLOG: Number(
           existingItemCounts.BLOG ??
-            existingItemCounts.blog ??
-            existingItemCounts.article ??
-            existingItemCounts.articles ??
-            0,
+          existingItemCounts.blog ??
+          existingItemCounts.article ??
+          existingItemCounts.articles ??
+          0,
         ),
         PROJECT: Number(
           existingItemCounts.PROJECT ??
-            existingItemCounts.project ??
-            existingItemCounts.projects ??
-            0,
+          existingItemCounts.project ??
+          existingItemCounts.projects ??
+          0,
         ),
         FEEDBACK: Number(
           existingItemCounts.FEEDBACK ??
-            existingItemCounts.feedback ??
-            existingItemCounts.feedbacks ??
-            0,
+          existingItemCounts.feedback ??
+          existingItemCounts.feedbacks ??
+          0,
         ),
       };
       let resolvedTotalItems = Number(existingContentCounts.totalItems ?? 0);
@@ -1094,7 +1094,7 @@ export class EnrollmentService extends BaseService {
         resolvedTotalItems <= 0 || !hasResolvedItemCounts;
 
       if (shouldRecalculateItemCounts) {
-        const {totalItems, itemCounts} =
+        const { totalItems, itemCounts } =
           await this.itemRepo.calculateItemCountsForVersion(
             courseVersionId,
             session,
@@ -1541,7 +1541,7 @@ export class EnrollmentService extends BaseService {
   async bulkUpdateAllEnrollments(
     courseId?: string,
     userId?: string,
-  ): Promise<{totalCount: number; updatedCount: number}> {
+  ): Promise<{ totalCount: number; updatedCount: number }> {
     const BATCH_SIZE = 5000;
 
     // 1. Get courses (all or specific one)
@@ -1617,7 +1617,7 @@ export class EnrollmentService extends BaseService {
 
             bulkOperations.push({
               updateOne: {
-                filter: {_id: new ObjectId(enrollment._id)},
+                filter: { _id: new ObjectId(enrollment._id) },
                 update: {
                   $set: {
                     percentCompleted: currentPercentCompleted,
@@ -1667,7 +1667,7 @@ export class EnrollmentService extends BaseService {
       });
     }
 
-    return {totalCount, updatedCount};
+    return { totalCount, updatedCount };
   }
 
   async getNonStudentEnrollmentsByCourseVersion(
@@ -1680,7 +1680,7 @@ export class EnrollmentService extends BaseService {
     );
   }
   async bulkEnrollUsers(
-    existingEnrolledUsersWithRoles: {userId: string; role: EnrollmentRole}[],
+    existingEnrolledUsersWithRoles: { userId: string; role: EnrollmentRole }[],
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
@@ -1712,11 +1712,11 @@ export class EnrollmentService extends BaseService {
       const enrollmentsToCreate: OptionalId<IEnrollment>[] = [];
       const results: any[] = [];
 
-      for (const {userId, role} of existingEnrolledUsersWithRoles) {
+      for (const { userId, role } of existingEnrolledUsersWithRoles) {
         const userExists = await this.userRepo.findById(userId, session);
 
         if (!userExists) {
-          results.push({userId, error: 'User not found'});
+          results.push({ userId, error: 'User not found' });
           continue;
         }
         const existingEnrollment =
@@ -1798,7 +1798,7 @@ export class EnrollmentService extends BaseService {
     courseId?: string,
     versionId?: string,
     userId?: string,
-  ): Promise<{totalCount: number; updatedCount: number}> {
+  ): Promise<{ totalCount: number; updatedCount: number }> {
     const MAX_CONCURRENCY = 4;
 
     if (versionId) {
@@ -1807,7 +1807,7 @@ export class EnrollmentService extends BaseService {
       }
       const result =
         await this.enrollmentRepo.bulkUpdateCompletedItemsCountForCourseVersion(
-          {courseVersionId: versionId, courseId, userId},
+          { courseVersionId: versionId, courseId, userId },
         );
       return result;
     }
@@ -1825,7 +1825,7 @@ export class EnrollmentService extends BaseService {
     );
 
     let index = 0;
-    const results: {totalCount: number; updatedCount: number}[] = [];
+    const results: { totalCount: number; updatedCount: number }[] = [];
 
     const worker = async () => {
       while (index < courseVersionIds.length) {
@@ -1844,21 +1844,21 @@ export class EnrollmentService extends BaseService {
 
         const result =
           await this.enrollmentRepo.bulkUpdateCompletedItemsCountForCourseVersion(
-            {courseVersionId, courseId, userId},
+            { courseVersionId, courseId, userId },
           );
 
         results.push(result);
       }
     };
 
-    const workers = Array.from({length: MAX_CONCURRENCY}, () => worker());
+    const workers = Array.from({ length: MAX_CONCURRENCY }, () => worker());
 
     await Promise.all(workers);
 
     const totalCount = results.reduce((sum, r) => sum + r.totalCount, 0);
     const updatedCount = results.reduce((sum, r) => sum + r.updatedCount, 0);
 
-    return {totalCount, updatedCount};
+    return { totalCount, updatedCount };
   }
 
   /**
@@ -1868,11 +1868,11 @@ export class EnrollmentService extends BaseService {
     courseId?: string,
     versionId?: string,
     userId?: string,
-  ): Promise<{totalCount: number; updatedCount: number}> {
+  ): Promise<{ totalCount: number; updatedCount: number }> {
     const filter: any = {
       courseVersionId: new ObjectId(GURU_SETU_VERSION_ID),
       role: 'STUDENT',
-      isDeleted: {$ne: true},
+      isDeleted: { $ne: true },
     };
     if (userId) filter.userId = new ObjectId(userId);
     if (courseId) filter.courseId = new ObjectId(GURU_SETU_COURSE_ID);
@@ -1904,7 +1904,7 @@ export class EnrollmentService extends BaseService {
       }
     }
 
-    return {totalCount: enrollments.length, updatedCount};
+    return { totalCount: enrollments.length, updatedCount };
   }
 
   async getModuleProgressForUser(
@@ -1936,7 +1936,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-    timeSlot: {from: string; to: string},
+    timeSlot: { from: string; to: string },
     session?: ClientSession,
   ): Promise<boolean> {
     const execute = async (session: ClientSession) => {
@@ -2025,8 +2025,8 @@ export class EnrollmentService extends BaseService {
     userIds: string[],
     courseId: string,
     courseVersionId: string,
-    oldTimeSlot: {from: string; to: string},
-    newTimeSlot: {from: string; to: string},
+    oldTimeSlot: { from: string; to: string },
+    newTimeSlot: { from: string; to: string },
     session?: ClientSession,
   ): Promise<boolean> {
     const execute = async (session: ClientSession) => {
@@ -2094,7 +2094,7 @@ export class EnrollmentService extends BaseService {
   async findEnrollmentsByTimeSlot(
     courseId: string,
     courseVersionId: string,
-    timeSlot: {from: string; to: string},
+    timeSlot: { from: string; to: string },
     session?: ClientSession,
   ): Promise<IEnrollment[]> {
     const execute = async (session: ClientSession) => {
@@ -2117,8 +2117,8 @@ export class EnrollmentService extends BaseService {
   async updateTimeSlot(
     courseId: string,
     courseVersionId: string,
-    oldTimeSlot: {from: string; to: string},
-    newTimeSlot: {from: string; to: string},
+    oldTimeSlot: { from: string; to: string },
+    newTimeSlot: { from: string; to: string },
     session?: ClientSession,
   ): Promise<boolean> {
     const execute = async (session: ClientSession) => {
@@ -2168,7 +2168,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-    timeSlots: Array<{from: string; to: string}>,
+    timeSlots: Array<{ from: string; to: string }>,
     session?: ClientSession,
   ): Promise<boolean> {
     const execute = async (session: ClientSession) => {
@@ -2213,7 +2213,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-    timeSlot: {from: string; to: string},
+    timeSlot: { from: string; to: string },
     session?: ClientSession,
   ): Promise<boolean> {
     const execute = async (session: ClientSession) => {
@@ -2258,7 +2258,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-    timeSlotToRemove: {from: string; to: string},
+    timeSlotToRemove: { from: string; to: string },
     session?: ClientSession,
   ): Promise<boolean> {
     const execute = async (session: ClientSession) => {
@@ -2390,7 +2390,7 @@ export class EnrollmentService extends BaseService {
     ejectedBy: string,
     cohortId?: string,
     policyId?: string,
-  ): Promise<{enrollment: IEnrollment}> {
+  ): Promise<{ enrollment: IEnrollment }> {
     return this._withTransaction(async (session: ClientSession) => {
       const versionStatus = await this.courseRepo.getCourseVersionStatus(
         courseVersionId,
@@ -2436,7 +2436,7 @@ export class EnrollmentService extends BaseService {
         throw new NotFoundError('Failed to eject enrollment');
       }
 
-      return {enrollment: ejectedEnrollment};
+      return { enrollment: ejectedEnrollment };
     });
   }
 
@@ -2448,8 +2448,8 @@ export class EnrollmentService extends BaseService {
     limit: number,
     search: string = '',
     statusFilter: 'all' | 'active' | 'ejected' = 'all',
-  ): Promise<{students: any[]; totalDocuments: number; totalPages: number}> {
-    const {students, totalDocuments} =
+  ): Promise<{ students: any[]; totalDocuments: number; totalPages: number }> {
+    const { students, totalDocuments } =
       await this.enrollmentRepo.getStudentsForEjectionPage(
         courseId,
         courseVersionId,
@@ -2474,7 +2474,7 @@ export class EnrollmentService extends BaseService {
     courseVersionId: string,
     reinstatedBy: string,
     cohortId?: string,
-  ): Promise<{enrollment: IEnrollment}> {
+  ): Promise<{ enrollment: IEnrollment }> {
     return this._withTransaction(async (session: ClientSession) => {
       const versionStatus = await this.courseRepo.getCourseVersionStatus(
         courseVersionId,
@@ -2512,7 +2512,7 @@ export class EnrollmentService extends BaseService {
         throw new NotFoundError('Failed to reinstate enrollment');
       }
 
-      return {enrollment: reinstatedEnrollment};
+      return { enrollment: reinstatedEnrollment };
     });
   }
   async getCohortStaff(courseId: string, versionId: string, cohortId: string) {
@@ -2531,8 +2531,8 @@ export class EnrollmentService extends BaseService {
       cohortId?: string;
       timezoneOffset?: number;
     },
-  ): Promise<{history: any[]; totalDocuments: number; totalPages: number}> {
-    const {history, totalDocuments} =
+  ): Promise<{ history: any[]; totalDocuments: number; totalPages: number }> {
+    const { history, totalDocuments } =
       await this.enrollmentRepo.getGlobalEjectionHistory(
         courseId,
         courseVersionId,
@@ -2557,25 +2557,25 @@ export class EnrollmentService extends BaseService {
       cohortId?: string;
     },
   ): Promise<string> {
-    const {history} = await this.enrollmentRepo.getGlobalEjectionHistory(
+    const { history } = await this.enrollmentRepo.getGlobalEjectionHistory(
       courseId,
       courseVersionId,
-      {...params, page: 1, limit: 10000}, // Export all matching records
+      { ...params, page: 1, limit: 10000 }, // Export all matching records
     );
 
-    const {createObjectCsvStringifier} = await import('csv-writer');
+    const { createObjectCsvStringifier } = await import('csv-writer');
 
     const header = [
-      {id: 'firstName', title: 'First Name'},
-      {id: 'lastName', title: 'Last Name'},
-      {id: 'email', title: 'Email'},
-      {id: 'cohortName', title: 'Cohort'},
-      {id: 'type', title: 'Event Type'},
-      {id: 'ejectedAt', title: 'Date'},
-      {id: 'triggerType', title: 'Trigger Source'},
-      {id: 'policyName', title: 'Policy Name'},
-      {id: 'ejectionReason', title: 'Reason/Note'},
-      {id: 'ejectedByName', title: 'Performed By'},
+      { id: 'firstName', title: 'First Name' },
+      { id: 'lastName', title: 'Last Name' },
+      { id: 'email', title: 'Email' },
+      { id: 'cohortName', title: 'Cohort' },
+      { id: 'type', title: 'Event Type' },
+      { id: 'ejectedAt', title: 'Date' },
+      { id: 'triggerType', title: 'Trigger Source' },
+      { id: 'policyName', title: 'Policy Name' },
+      { id: 'ejectionReason', title: 'Reason/Note' },
+      { id: 'ejectedByName', title: 'Performed By' },
     ];
 
     const csvStringifier = createObjectCsvStringifier({
@@ -2628,7 +2628,7 @@ export class EnrollmentService extends BaseService {
     courseVersionId: string,
     reinstatedBy: string,
     cohortId?: string,
-  ): Promise<{enrollment: IEnrollment}> {
+  ): Promise<{ enrollment: IEnrollment }> {
     return this._withTransaction(async (session: ClientSession) => {
       const enrollment = await this.enrollmentRepo.findEjectedEnrollment(
         userId,
@@ -2655,7 +2655,7 @@ export class EnrollmentService extends BaseService {
         throw new NotFoundError('Failed to partially reinstate enrollment');
       }
 
-      return {enrollment: reinstatedEnrollment};
+      return { enrollment: reinstatedEnrollment };
     });
   }
   async findEjectedEnrollment(
@@ -2688,7 +2688,7 @@ export class EnrollmentService extends BaseService {
     );
   }
 
-  public async getUserEnrollmentStatistics(
+  async getUserEnrollmentStatistics(
     userId: string,
   ): Promise<UserEnrollmentStatisticsResponse> {
     const stats = await this.enrollmentRepo.getUserEnrollmentStatistics(userId);

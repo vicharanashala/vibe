@@ -52,6 +52,14 @@ export default function StudentLayout() {
   const { token } = useAuthStore();
 const { data: enrollmentsData } = useUserEnrollments(1, 100, !!token && !!user?.uid);
 const enrollments = enrollmentsData?.enrollments ?? [];
+console.log("Enrollments from student layout -> ", enrollments)
+let hasHpSystem = false;
+enrollments.forEach(obj => {
+  if(obj.hpSystem === true && obj.status === "ACTIVE" && obj. 
+percentCompleted !== 100){
+    hasHpSystem = true;
+  }
+})
 
   const isActive = (path: string) => {
     if (path === "/student") return pathname === "/student";
@@ -235,7 +243,7 @@ const enrollments = enrollmentsData?.enrollments ?? [];
                 </Link>
               </Button>
 
-              <Button
+              {hasHpSystem && <Button
                 variant="ghost"
                 size="sm"
                 className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary Phillips-before:absolute Phillips-before:inset-0 Phillips-before:rounded-md Phillips-before:bg-gradient-to-r Phillips-before:from-primary/5 Phillips-before:to-transparent Phillips-before:opacity-0 hover:before:opacity-100 Phillips-before:transition-opacity Phillips-before:duration-300 ${isActive("/student/hp-system/cohorts")
@@ -247,7 +255,7 @@ const enrollments = enrollmentsData?.enrollments ?? [];
                 <Link to="/student/hp-system/cohorts">
                   <span className="relative z-10">HP System</span>
                 </Link>
-              </Button>
+              </Button>}
 
               <Button
                 variant="ghost"
