@@ -993,15 +993,15 @@ export class ActivitySubmissionsService extends BaseService {
         });
     }
 
-    async restore(submissionId: string, teacherId: string) {
+    async restore(submissionId: string, teacherId: string, note?: string) {
     return this._withTransaction(async (session) => {
         // 1. Fetch submission
         const submission = await this.activitySubmissionsRepository.findById(submissionId, { session });
         if (!submission) throw new NotFoundError(`Submission ${submissionId} not found.`);
 
-        // 2. Validate — only REVERTED submissions can be restored
-        if (submission.status !== "REVERTED") {
-            throw new BadRequestError("Only reverted submissions can be restored.");
+        // 2. Validate — only REVERTED or REJECTED submissions can be restored
+        if (submission.status !== "REVERTED" && submission.status !== "REJECTED") {
+            throw new BadRequestError("Only reverted or rejected submissions can be restored.");
         }
 
         const cohort = submission.cohort;
@@ -1051,20 +1051,22 @@ export class ActivitySubmissionsService extends BaseService {
             submission.activityId.toString()
         );
 
-        const note = `Restored ${restoreAmount} HP. Original debit reversed by instructor.`;
+        const ledgerNote = note
+            ? `Restored ${restoreAmount} HP. Instructor note: ${note}`
+            : `Restored ${restoreAmount} HP. Original debit reversed by instructor.`;
 
         // 8. Create CREDIT ledger entry
         await this.ledgerRepository.create(
             this._buildLedgerData(
                 submission,
                 user,
-                "CREDIT",
+                "RESTORE",
                 "CREDIT",
                 restoreAmount,
                 totalStudentHpPoints,
                 finalHpBalance,
                 "MANUAL",
-                note,
+                ledgerNote,
                 debitLedger._id.toString(),
                 teacherId,
                 activityRuleConfig
@@ -1091,7 +1093,7 @@ export class ActivitySubmissionsService extends BaseService {
                     reviewedByTeacherId: teacherId,
                     reviewedAt: new Date(),
                     decision: "APPROVED",
-                    note: "Restored by instructor"
+                    note: note || "Restored by instructor"
                 }
             },
             { session }

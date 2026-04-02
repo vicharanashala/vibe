@@ -837,9 +837,10 @@ export const hpApi = {
         return { success: true };
     },
 
-    restoreLedgerEntry: async (submissionId: string): Promise<{ success: boolean }> => {
+    restoreLedgerEntry: async (submissionId: string, note?: string): Promise<{ success: boolean }> => {
         return apiFetch(`${BASE_URL}/activity-submissions/${submissionId}/restore`, {
             method: 'POST',
+            body: JSON.stringify({ note }),
         });
     },
 

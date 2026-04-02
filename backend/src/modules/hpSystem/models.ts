@@ -228,7 +228,8 @@ export type HpLedgerEventType =
     | "REVERSAL"
     | "MANUAL_ADJUST"
     | "MILESTONE"
-    | "REJECTION";
+    | "REJECTION"
+    | "RESTORE";
 
 export type HpLedgerDirection = "CREDIT" | "DEBIT";
 
