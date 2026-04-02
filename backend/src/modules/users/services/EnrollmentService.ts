@@ -31,7 +31,7 @@ import {
   SettingRepository,
   ISettingRepository,
 } from '#root/shared/index.js';
-import { EnrollmentDataResponse } from '../classes/index.js';
+import { EnrollmentDataResponse, UserEnrollmentStatisticsResponse } from '../classes/index.js';
 import {
   QuizScoresExportResponseDto,
   StudentQuizScoreDto,
@@ -2568,11 +2568,34 @@ export class EnrollmentService extends BaseService {
     courseVersionId: string,
     cohortId: string,
   ): Promise<void> {
-    await this.enrollmentRepo.clearReacknowledgement(
+    await this.enrollmentRepo.clearPolicyReacknowledgement(
       userId,
       courseId,
       courseVersionId,
       cohortId,
     );
+  }
+
+  async getUserEnrollments(
+    userId: string,
+    skip: number,
+    limit: number,
+    role: EnrollmentRole,
+    search: string,
+  ) {
+    return await this.enrollmentRepo.getEnrollments(
+      userId,
+      skip,
+      limit,
+      search,
+      role,
+    );
+  }
+
+  public async getUserEnrollmentStatistics(
+    userId: string,
+  ): Promise<UserEnrollmentStatisticsResponse> {
+    const stats = await this.enrollmentRepo.getUserEnrollmentStatistics(userId);
+    return stats;
   }
 }
