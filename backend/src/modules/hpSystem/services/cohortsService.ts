@@ -244,7 +244,7 @@ export class CohortsService extends BaseService {
         return await this._withTransaction(async (session: ClientSession) => {
             let cohorts: CohortListItemDto[] = [];
 
-            const instructorEnrollments = await this.cohortRepository.getInstructorActiveEnrollments(userId);
+            const instructorEnrollments = await this.cohortRepository.getInstructorActiveEnrollments(userId);     
             const enrolledVersionIds = new Set(instructorEnrollments.map(e => e.courseVersionId));
             const enrolledCohortIds = new Set(instructorEnrollments.map(e => e.cohortId).filter(Boolean));
 
@@ -581,4 +581,21 @@ export class CohortsService extends BaseService {
             };
         });
     }
+   async getCourseDetails(courseVersionId: string) {
+    if (!courseVersionId?.trim()) {
+        throw new BadRequestError("courseVersionId is required");
+    }
+
+    const data = await this.cohortRepository.getCourseDetailsByVersionId(courseVersionId);
+
+    if (!data) {
+        throw new BadRequestError("Course not found");
+    }
+
+    return {
+        success: true,
+        data
+    };
 }
+}
+

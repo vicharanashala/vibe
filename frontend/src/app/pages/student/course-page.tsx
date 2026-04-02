@@ -59,6 +59,7 @@ import MobileFallbackScreen from "@/components/MobileFallbackScreen";
 import { EmotionSelector, EmotionType } from "@/components/EmotionSelector";
 import { useSubmitEmotion } from "@/hooks/use-emotion";
 
+import { runProctoringChecks } from "@/utils/proctoring/proctoringGuard";
 // Helper function to get icon for item type
 const getItemIcon = (type: string) => {
   switch (type.toLowerCase()) {
@@ -129,6 +130,19 @@ export default function CoursePage() {
       try {
         // Try to get both camera and microphone access
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        // Proctoring check: block virtual camera usage at session start
+        // This ensures user cannot enter course with spoofed camera
+        const violations = await runProctoringChecks(stream);
+
+        if (violations.length > 0) {
+          stream.getTracks().forEach(t => t.stop());
+
+          alert(violations[0].reason);
+
+          router.navigate({ to: "/student" });
+          return;
+        }
+        
         unRegisterStream("course-page-stream");
         registerStream("course-page-stream", stream);
         streamRef.current = stream;
@@ -136,6 +150,17 @@ export default function CoursePage() {
         alert("Please allow camera and microphone access to continue. You will be redirected to the dashboard if access is denied.");
         try {
           const retryStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          const violations = await runProctoringChecks(retryStream);
+          
+          if (violations.length > 0) {
+          retryStream.getTracks().forEach(t => t.stop());
+
+          alert(violations[0].reason);
+
+          router.navigate({ to: "/student" });
+          return;
+        }
+          
           unRegisterStream("course-page-retrystream");
           registerStream("course-page-retrystream", retryStream);
           streamRef.current = retryStream;
@@ -1091,6 +1116,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
         // 1️⃣ Stop current item (clean + API)
         if (itemContainerRef.current) {
           try {
+            console.log("Handle next is called to end the current item.....")
             await itemContainerRef.current.stopCurrentItem();
           } catch (error: any) {
             const errorMessage = error?.response?.data?.message || error?.message || 'Failed to save progress. Please try again.';
@@ -1380,6 +1406,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     try {
       // Stop current item before moving to previous video with proper cleanup
       if (itemContainerRef.current) {
+        console.log("Stoped the item from the handlePrevVideo....")
         itemContainerRef.current.stopCurrentItem();
 
         // Allow a small delay for cleanup
@@ -1456,6 +1483,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   const handleGoBack = () => {
     // Stop current item before navigating away
     if (itemContainerRef.current) {
+      console.log("Handle go back is called....")
       itemContainerRef.current.stopCurrentItem();
     }
     // Navigate back to courses page

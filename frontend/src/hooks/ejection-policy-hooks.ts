@@ -136,6 +136,7 @@ export function useEjectionStudents(
   return {
     ...result,
     students: (result.data as any)?.students ?? [],
+    policies: (result.data as any)?.policies ?? [],
     totalDocuments: (result.data as any)?.totalDocuments ?? 0,
     totalPages: (result.data as any)?.totalPages ?? 0,
     currentPage: (result.data as any)?.currentPage ?? 1,
@@ -188,6 +189,7 @@ export const useEjectionHistory = (
     search?: string;
     page?: number;
     limit?: number;
+    timezoneOffset?: number;
   },
 ) => {
   const result: any = api.useQuery(
@@ -227,6 +229,7 @@ export const useExportEjectionHistory = () => {
       startDate?: string;
       endDate?: string;
       search?: string;
+      timezoneOffset?: number;
     }) => {
       const { data, error, response } = await fetchClient.GET('/ejections/history/export' as any, {
         params: {

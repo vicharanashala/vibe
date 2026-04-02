@@ -1064,7 +1064,7 @@ export class EnrollmentController {
     @Ability(getEnrollmentAbility) {user},
     @Req() req: any,
   ): Promise<EnrollmentResponse> {
-    const {page, limit, search = '', role, courseVersionId} = query;
+    const {page, limit, search = '', role, courseVersionId, cohortId} = query;
     const userId = user._id.toString();
     const skip = (page - 1) * limit;
     // 🚀 Run DB queries in parallel
@@ -1073,11 +1073,13 @@ export class EnrollmentController {
         userId,
         role,
         courseVersionId,
+        cohortId,
       ),
       this.enrollmentService.detailedCountEnrollment(
         userId,
         role,
         courseVersionId,
+        cohortId,
       ),
     ]);
 

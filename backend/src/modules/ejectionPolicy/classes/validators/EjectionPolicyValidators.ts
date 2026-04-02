@@ -16,6 +16,8 @@ import {
   IsDate,
   IsInt,
   Max,
+  ValidateIf,
+  ArrayMinSize,
 } from 'class-validator';
 import {
   InactivityTrigger,
@@ -57,7 +59,8 @@ export class MissedDeadlinesTriggerDto implements MissedDeadlinesTrigger {
   @Min(0)
   warningAfterMisses: number;
 
-  @IsOptional()
+  @ValidateIf(o => o.enabled)
+  @ArrayMinSize(1, { message: 'At least one progress rule is required when missed deadlines trigger is enabled' })
   @IsArray()
   @ValidateNested({each: true})
   @Type(() => ProgressRuleDto)
@@ -672,6 +675,13 @@ export class EjectionStudentsListResponse {
   @Type(() => EjectionStudentResponse)
   @Expose()
   students: EjectionStudentResponse[];
+
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => EjectionPolicyResponse)
+  @Expose()
+  @IsOptional()
+  policies: EjectionPolicyResponse[];
 
   @IsInt()
   @Expose()
