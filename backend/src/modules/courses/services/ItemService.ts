@@ -483,6 +483,7 @@ export class ItemService extends BaseService {
     sectionId?: string,
     cohortId?: string
   ) {
+    
 
     // Fetch enrollment early
     const enrollment = await this.enrollmentRepo.findEnrollment(

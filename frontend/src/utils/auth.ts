@@ -17,12 +17,38 @@ const mapFirebaseUserToAppUser = async (firebaseUser: FirebaseUser | null) => {
     // Get token for backend API calls
     const token = await firebaseUser.getIdToken(true);
     useAuthStore.getState().setToken(token);
+
+    let backendUser: any = null;
+    try {
+      const baseUrl = import.meta.env.VITE_BASE_URL;
+      const response = await fetch(`${baseUrl}/users/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        backendUser = await response.json();
+      }
+    } catch (profileError) {
+      console.error('Failed to fetch backend profile:', profileError);
+    }
+
+    const resolvedFirstName = backendUser?.firstName || '';
+    const resolvedLastName = backendUser?.lastName || '';
+    const resolvedName = `${resolvedFirstName} ${resolvedLastName}`.trim();
+
     return {
       uid: firebaseUser.uid,
       email: firebaseUser.email || '',
-      name: firebaseUser.displayName || '',
+      name: resolvedName || firebaseUser.displayName || '',
+      firstName: resolvedFirstName,
+      lastName: resolvedLastName,
       role: useAuthStore.getState().user?.role || null,
-      avatar: firebaseUser.photoURL || '',
+      avatar: backendUser?.avatar || firebaseUser.photoURL || '',
+      gender: backendUser?.gender || '',
+      country: backendUser?.country || '',
+      state: backendUser?.state || '',
+      city: backendUser?.city || '',
     };
   } catch (error) {
     console.error('Error mapping Firebase user:', error);
