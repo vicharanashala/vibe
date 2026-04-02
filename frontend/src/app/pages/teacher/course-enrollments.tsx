@@ -446,7 +446,7 @@ function CourseEnrollments() {
     return (
       <div className="flex justify-between items-center">
         <span className="text-muted-foreground">{label}</span>
-        <span className="font-semibold text-right min-w-16">{value ?? 0}</span>
+        <span className="font-semibold text-right min-w-16 ml-0.5">{value ?? 0}</span>
       </div>
     )
   }
@@ -648,14 +648,19 @@ function CourseEnrollments() {
 
   // const studentEnrollments = enrollmentsData?.enrollments || [];
   const studentEnrollments = enrollmentsData?.enrollments || []
+  const cohortFilteredEnrollments = cohort
+  ? studentEnrollments.filter((enrollment: any) => {
+      return String(enrollment.cohortId) === String(cohort);
+    })
+  : studentEnrollments;
   // Filter out already assigned students if excludeAssigned is true
   const filteredStudentEnrollments = excludeAssigned
-    ? studentEnrollments.filter((enrollment: any) => {
+    ? cohortFilteredEnrollments.filter((enrollment: any) => {
       const assignedIds = getAssignedStudentIds();
       const studentId = enrollment.user?._id || enrollment.user?.id;
       return !assignedIds.has(studentId);
     })
-    : studentEnrollments;
+    : cohortFilteredEnrollments;
 
 
   const handleSelectAll = (checked: boolean) => {

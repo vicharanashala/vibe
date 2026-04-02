@@ -736,6 +736,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     role: EnrollmentRole,
     courseVersionId?: string,
+    cohortId?: string,
   ): Promise<EnrollmentDataResponse[]> {
     let enrollments = [];
 
@@ -743,6 +744,7 @@ export class EnrollmentService extends BaseService {
       userId,
       role,
       courseVersionId,
+      cohortId,
     );
 
     if (!enrollments.length) return [];
@@ -789,7 +791,7 @@ export class EnrollmentService extends BaseService {
         userId: new ObjectId(userId),
         courseId: new ObjectId(e.courseId),
         courseVersionId: new ObjectId(e.courseVersionId),
-        ...(e.cohortId ? {cohortId: new ObjectId(e.cohortId)} : {}),
+        ...(e.cohortId ? { cohortId: new ObjectId(String(e.cohortId)) } : {}),
       }));
 
       // Batch all async operations together
@@ -804,7 +806,7 @@ export class EnrollmentService extends BaseService {
         this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
         this.enrollmentRepo.getWatchedItemCountsByTypeBatch(watchedKeys),
         allQuizIds.length > 0
-          ? this.enrollmentRepo.getQuizSubmissionGrade(userId, allQuizIds)
+          ? this.enrollmentRepo.getQuizSubmissionGrade(userId, allQuizIds, cohortId)
           : Promise.resolve([]),
       ]);
       const quizGradeMap: Map<string, IGradingResult> = new Map(
@@ -952,12 +954,14 @@ export class EnrollmentService extends BaseService {
     userId: string,
     role: EnrollmentRole,
     courseVersionId?: string,
+    cohortId?: string,
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const result = await this.enrollmentRepo.detailedCountEnrollment(
         userId,
         role,
         courseVersionId,
+        cohortId,
       );
       return result;
     });
