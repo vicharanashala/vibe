@@ -8,7 +8,9 @@ import TeacherCoursesPage from "@/app/pages/teacher/course-page";
 import TeacherProfile from "@/app/pages/teacher/profile";
 import TeacherCoursePage from "@/app/pages/teacher/teacher-course-page";
 import { LiveQuiz } from "@/app/pages/teacher/AudioTranscripter" // Uncomment if you want to use AudioManager
-import CourseEnrollments from "../pages/teacher/course-enrollments";
+// import CourseEnrollments from "../pages/teacher/course-enrollments";
+import CourseEnrollmentsContainer from "../pages/teacher/course-enrollments";
+import CourseEmotionAnalyticsPage from "../pages/teacher/course-emotion-analytics";
 import FlaggedList from "../pages/teacher/FlaggedList";
 import AddCoursePage from "@/app/pages/teacher/AddCoursePage";
 import InvitePage from "../pages/teacher/invite";
@@ -18,6 +20,7 @@ import RegisteredUsers from "../pages/teacher/CourseRegistrationRequests";
 import FeedbackFormEditor from "../pages/teacher/FeedbackFormEditor";
 import TeacherAnnouncements from "../pages/teacher/announcements";
 import AuditPage from "../pages/teacher/AuditPage";
+import EjectionPoliciesPage from "../pages/teacher/ejection-policies";
 import HpSystemVersions from "../pages/teacher/hp-system/HpSystemPage";
 import HpSystemCohorts from "../pages/teacher/hp-system/CohortsList";
 import HpSystemDashboard from "../pages/teacher/hp-system/CohortDetails";
@@ -32,6 +35,7 @@ const teacherRoutes: RouteObject = {
     //   path: "dashboard",
     //   element: <Dashboard />,
     // },
+    {path:"ejection-policies",element: <EjectionPoliciesPage />,},
     {
       path: "profile",
       element: <TeacherProfile />,
@@ -55,7 +59,11 @@ const teacherRoutes: RouteObject = {
     },
     {
       path: "courses/enrollments",
-      element: <CourseEnrollments />,
+      element: <CourseEnrollmentsContainer />,
+    },
+    {
+      path: "courses/emotion-analytics",
+      element: <CourseEmotionAnalyticsPage />,
     },
     {
       path: "courses/flags",

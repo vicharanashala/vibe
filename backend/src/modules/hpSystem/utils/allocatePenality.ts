@@ -16,8 +16,8 @@ import { HpActivityTransformer } from "../classes/transformers/Activity.js";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { HpPenaltyRule, HpRuleConfigTransformer, HpRuleLimits } from "../classes/transformers/RuleConfigs.js";
 import { CohortStudentItemDto } from "../classes/validators/courseAndCohorts.js";
-import { HpActivitySubmission } from "../classes/transformers/ActivitySubmission.js";
 import { getActualCourseIds } from "./getActualCourseId.js";
+import { HpActivitySubmission } from "../classes/transformers/ActivitySubmission.js";
 
 
 

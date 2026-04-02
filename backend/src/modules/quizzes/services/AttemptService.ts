@@ -424,6 +424,7 @@ class AttemptService extends BaseService {
     isSkipped?: boolean,
     courseId?: string,
     courseVersionId?: string,
+    watchItemId?: string,
     cohortId?: string
   ): Promise<Partial<IGradingResult> | null> {
     /* -------------------- READS OUTSIDE TRANSACTION -------------------- */
@@ -547,12 +548,19 @@ class AttemptService extends BaseService {
       })),
     };
 
+    const isItemCompleted = await this.progressRepository.isItemCompleted(
+        userId.toString(),
+        courseId,
+        courseVersionId,
+        quizId,
+        cohortId,
+      )
     /* -------------------- UPDATE SUBMISSION (SMALL WRITE) -------------------- */
 
     await this.submissionRepository.update(submissionId, { gradingResult });
-    if (!isSkipped) {
+    if (!isSkipped && !isItemCompleted) {
       const isPassed = gradingResult.gradingStatus === "PASSED"
-      await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed, cohortId);
+      await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed, watchItemId, cohortId);
     }
 
     /* -------------------- RETURN BASED ON QUIZ SETTINGS -------------------- */

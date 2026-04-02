@@ -22,7 +22,10 @@ import {
     Clock,
     Calendar,
     Flame,
-    Eye
+    Eye,
+    Filter,
+    FileSearch,
+    RefreshCw
 } from "lucide-react";
 import { HpActivity } from "@/lib/api/hp-system";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -116,7 +119,7 @@ export default function StudentActivities() {
 
     const [selectedActivityType, setSelectedActivityType] = useState<string>("ASSIGNMENT");
 
-    const { data: activities, isLoading, error, refetch } = useHpStudentActivities(
+    const { data: activities, isLoading, error, refetch, isRefetching } = useHpStudentActivities(
         courseVersionId as string,
         cohortName as string
     );
@@ -297,7 +300,7 @@ export default function StudentActivities() {
 
     return (
         <TooltipProvider>
-            <div className="container mx-auto p-6 max-w-5xl space-y-6">
+            <div className="container mx-auto p-6 max-w-7xl space-y-6">
                 <div className="flex items-center gap-4 mb-6">
                     <Button variant="ghost" size="icon" onClick={() => navigate({ to: from || '/student/hp-system/cohorts' })}>
                         <ArrowLeft className="h-5 w-5" />
@@ -308,6 +311,15 @@ export default function StudentActivities() {
                             {decodeURIComponent(cohortName as string)}
                         </p>
                     </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refetch()}
+                        disabled={isRefetching}
+                    >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                        {isRefetching ? "Refreshing..." : "Refresh"}
+                    </Button>
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button
@@ -431,11 +443,37 @@ export default function StudentActivities() {
 
                             if (!hasFilteredActivities) {
                                 return (
-                                    <p>
-                                        {submissionFilter === "PENDING"
-                                            ? `No pending ${getActivityTypeName(selectedActivityType)} found...`
-                                            : `No ${getActivityTypeName(selectedActivityType)} activities found for selected filter...`}
-                                    </p>
+                                    <div className="flex flex-col items-center justify-center py-16 px-4">
+                                        <div className="relative mb-6">
+                                            <div className="absolute inset-0 bg-primary/10 rounded-full blur-2xl" />
+                                            <div className="relative w-20 h-20 rounded-full border-2 border-border bg-background flex items-center justify-center">
+                                                {submissionFilter === "PENDING" ? (
+                                                    <Clock className="h-10 w-10 text-muted-foreground" />
+                                                ) : (
+                                                    <FileSearch className="h-10 w-10 text-muted-foreground" />
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <h3 className="text-lg font-semibold text-foreground mb-2">
+                                            {submissionFilter === "PENDING"
+                                                ? "No Pending Activities"
+                                                : "No Activities Found"
+                                            }
+                                        </h3>
+
+                                        <p className="text-sm text-muted-foreground text-center max-w-md mb-4">
+                                            {submissionFilter === "PENDING"
+                                                ? `There are no pending ${getActivityTypeName(selectedActivityType)} at the moment. Check back later or adjust your filters.`
+                                                : `No ${getActivityTypeName(selectedActivityType)} match your current filter selection. Try adjusting your filters or selecting a different activity type.`
+                                            }
+                                        </p>
+
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <Filter className="h-3 w-3" />
+                                            <span>Current filter: {submissionFilter}</span>
+                                        </div>
+                                    </div>
                                 );
                             }
 
@@ -497,7 +535,7 @@ export default function StudentActivities() {
                                                     <div className="space-y-2">
                                                         {activity.rules?.deadlineAt && (
                                                             <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-muted-foreground flex-wrap">
-                                                                <Clock className="h-3.5 w-3.5 text-orange-500 opacity-70 shrink-0" />
+                                                                {/* <Clock className="h-3.5 w-3.5 text-orange-500 opacity-70 shrink-0" /> */}
                                                                 <DeadlineCountdown
                                                                     deadline={activity.rules.deadlineAt.toString()}
                                                                     allowLate={activity.rules.allowLateSubmission ?? true}

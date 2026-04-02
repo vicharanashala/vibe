@@ -20,6 +20,7 @@ import {
   Pencil,
   Trash2,
   Layers,
+  RefreshCw,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -148,6 +149,7 @@ export default function InvitePage() {
     isLoading: invitesLoading,
     error: invitesError,
     refetch: refetchInvites,
+    isRefetching: isRefetchingInvites,
   } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId), debouncedSearchQuery,
     currentPage, itemsPerPage, inviteStatus, sort, startDate, endDate);
 
@@ -1040,16 +1042,10 @@ const hasInvalidEmail = inviteEmails.some(
               variant="outline"
               size="sm"
               onClick={refetchInvites}
-              disabled={invitesLoading}
+              disabled={isRefetchingInvites || invitesLoading}
             >
-              {invitesLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-
-                </>
-              ) : (
-                <RotateCcw className="w-4 h-4" />
-              )}
+              <RefreshCw className={`w-4 h-4 mr-2 ${isRefetchingInvites ? "animate-spin" : ""}`} />
+              {isRefetchingInvites ? "Refreshing..." : "Refresh"}
             </Button>
           </CardTitle>
           <div className="w-full flex flex-col gap-4 mt-5 px-4">

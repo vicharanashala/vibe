@@ -1,9 +1,9 @@
-﻿"use client"
+"use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, type Dispatch, type SetStateAction } from "react"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
-import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check, Layers,Video, HelpCircle } from 'lucide-react'
+import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check, Layers, Video, HelpCircle, RefreshCw } from 'lucide-react'
 import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -48,14 +48,16 @@ import { useCourseStore } from "@/store/course-store"
 import type { EnrolledUser, EnrollmentDetails } from "@/types/course.types"
 import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
-import { generateExcel } from "@/lib/excel-export"
+import { generateExcel, type ExcelExportOptions } from "@/lib/excel-export"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuItem
 } from "@/components/ui/dropdown-menu";
+import CourseInstructors from "./course-instructors"
 
 // Types for quiz functionality
 
@@ -164,7 +166,36 @@ const getItemIcon = (type: string) => {
   }
 }
 
-export default function CourseEnrollments() {
+export default function CourseEnrollmentsContainer() {
+  const [tabValues, setTabValues] = useState<"STUDENTS" | "INSTRUCTORS">("STUDENTS");
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <CourseBackButton />
+
+        <Select
+          value={tabValues}
+          onValueChange={(v) => setTabValues(v as "STUDENTS" | "INSTRUCTORS")}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Select View" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="STUDENTS">Students</SelectItem>
+            <SelectItem value="INSTRUCTORS">Instructors</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Content */}
+      {tabValues === "STUDENTS" && <CourseEnrollments />}
+      {tabValues === "INSTRUCTORS" && <CourseInstructors />}
+    </>
+  );
+}
+
+function CourseEnrollments() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
@@ -193,20 +224,24 @@ export default function CourseEnrollments() {
   const [selectedUser, setSelectedUser] = useState<EnrollmentDetails | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false)
+  const [isDisableDialogOpen, setIsDisableDialogOpen] = useState(false)
+  const [isEnableDialogOpen, setIsEnableDialogOpen] = useState(false)
   const [isRecalculateProgressOpen, setIsRecalculateProgressOpen] = useState(false)
   const [isViewProgressDialogOpen, setIsViewProgressDialogOpen] = useState(false)
   const [userToRemove, setUserToRemove] = useState<EnrolledUser | null>(null)
+  const [userToDisable, setUserToDisable] = useState<EnrolledUser | null>(null)
+  const [userToEnable, setUserToEnable] = useState<EnrolledUser | null>(null)
   const [userToRecalculate, setUsertToRecalculate] = useState<EnrolledUser | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [resetScope, setResetScope] = useState<"course" | "module" | "section" | "item">("course")
   const [selectedModule, setSelectedModule] = useState<string>("")
   const [selectedSection, setSelectedSection] = useState<string>("")
   const [selectedItem, setSelectedItem] = useState<string>("")
-const [isMoveCohortModalOpen, setIsMoveCohortModalOpen] = useState(false);
-const [isMoveSelectionMode, setIsMoveSelectionMode] = useState(false);
-const [moveSelectedUsers, setMoveSelectedUsers] = useState<Set<string>>(new Set());
-const [selectedMoveCohort, setSelectedMoveCohort] = useState<string | null>(null);
-const moveToCohortMutation = useMoveToCohort();
+  const [isMoveCohortModalOpen, setIsMoveCohortModalOpen] = useState(false);
+  const [isMoveSelectionMode, setIsMoveSelectionMode] = useState(false);
+  const [moveSelectedUsers, setMoveSelectedUsers] = useState<Set<string>>(new Set());
+  const [selectedMoveCohort, setSelectedMoveCohort] = useState<string | null>(null);
+  const moveToCohortMutation = useMoveToCohort();
 
   // New states for view progress functionality
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
@@ -311,7 +346,7 @@ const moveToCohortMutation = useMoveToCohort();
     versionId || "",
     selectedUser?.cohortId,
   )
-// console.log("selectedUser cohort", selectedUser);
+  // console.log("selectedUser cohort", selectedUser);
   const toggleSelectionMode = () => {
     setIsSelectionMode((prev) => {
       if (prev) {
@@ -346,7 +381,7 @@ const moveToCohortMutation = useMoveToCohort();
       toast.error('Course or version information missing')
       return
     }
-    if(version?.cohorts?.length > 0 && !cohort) {
+    if (version?.cohorts?.length > 0 && !cohort) {
       toast.error('Please select a cohort for unenrollment')
       return;
     }
@@ -394,6 +429,11 @@ const moveToCohortMutation = useMoveToCohort();
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const [isSearching, setIsSearching] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingStudentContacts, setIsExportingStudentContacts] = useState(false);
+  const [quizExportOptions, setQuizExportOptions] = useState<ExcelExportOptions>({
+    includeAttempts: true,
+    includeQuestionScores: true,
+  });
 
   const [showContentSummary, setShowContentSummary] = useState(false)
   function SummaryRow({
@@ -406,7 +446,7 @@ const moveToCohortMutation = useMoveToCohort();
     return (
       <div className="flex justify-between items-center">
         <span className="text-muted-foreground">{label}</span>
-        <span className="font-semibold text-right min-w-16">{value ?? 0}</span>
+        <span className="font-semibold text-right min-w-16 ml-0.5">{value ?? 0}</span>
       </div>
     )
   }
@@ -425,6 +465,8 @@ const moveToCohortMutation = useMoveToCohort();
     sectionId?: string;
     quizId?: string;
     quizName?: string;
+    questionCount?: number;
+    quizMaxScore?: number;
     maxScore?: number;
     attempts?: number;
     questionScores?: Array<{
@@ -442,6 +484,13 @@ const moveToCohortMutation = useMoveToCohort();
     quizScores?: QuizScore[];
   }
 
+  const sanitizeFilenamePart = (value: string) =>
+    value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+
   // Handle fetch and export quiz scores
   const handleFetchQuizScores = async () => {
     if (!courseId || !versionId) {
@@ -452,17 +501,17 @@ const moveToCohortMutation = useMoveToCohort();
     // Frontend validation: Check if cohort is selected and has students
     if (cohort) {
       const cohortName = (version as any)?.cohortDetails?.find((c: any) => c.id === cohort)?.name;
-      
+
       const cohortStudents = filteredStudentEnrollments.filter((enrollment: any) => {
         // The cohort ID is stored directly on the enrollment object
         return enrollment.cohortId === cohort;
       });
-      
+
       if (!cohortName) {
         toast.error('Selected cohort not found');
         return;
       }
-      
+
       if (cohortStudents.length === 0) {
         toast.warning(`No students found in cohort: ${cohortName}`);
         return;
@@ -471,7 +520,7 @@ const moveToCohortMutation = useMoveToCohort();
 
     if (!quizScores?.data?.length || isLoadingQuizScores) {
       const cohortName = cohort ? (version as any)?.cohortDetails?.find((c: any) => c.id === cohort)?.name : null;
-      const message = cohort 
+      const message = cohort
         ? `No quiz scores available for cohort: ${cohortName || 'selected cohort'}`
         : 'No quiz scores available';
       toast.warning(message);
@@ -491,12 +540,16 @@ const moveToCohortMutation = useMoveToCohort();
           name: student.name ?? 'Unknown Student',
           email: student.email ?? '',
           cohortName: student.cohortName ?? null,
+          totalCourseScore: Number(student.totalCourseScore) || 0,
+          totalCourseMaxScore: Number(student.totalCourseMaxScore) || 0,
           quizScores: Array.isArray(student.quizScores)
             ? student.quizScores.map((quiz: any) => ({
               moduleId: quiz.moduleId ?? 'unknown',
               sectionId: quiz.sectionId ?? 'unknown',
               quizId: quiz.quizId ?? 'unknown',
               quizName: quiz.quizName ?? 'Untitled Quiz',
+              questionCount: Number(quiz.questionCount) || 0,
+              quizMaxScore: Number(quiz.quizMaxScore) || 0,
               moduleName: quiz.moduleName ?? 'Module',
               sectionName: quiz.sectionName ?? 'Section',
               maxScore: Number(quiz.maxScore) || 0,
@@ -526,7 +579,7 @@ const moveToCohortMutation = useMoveToCohort();
 
       // ðŸ§  Let UI breathe before heavy Excel generation
       await new Promise(resolve => setTimeout(resolve, 0));
-// console.log("JSON.stringify(formattedData,---",JSON.stringify(formattedData, null, 2));
+      // console.log("JSON.stringify(formattedData,---",JSON.stringify(formattedData, null, 2));
       generateExcel(formattedData, filename);
       toast.success(`${enrollmentTab.toLowerCase()} quiz scores exported successfully`);
     } catch (error) {
@@ -573,6 +626,7 @@ const moveToCohortMutation = useMoveToCohort();
     isLoading: enrollmentsLoading,
     error: enrollmentsError,
     refetch: refetchEnrollments,
+    isRefetching: isRefetchingEnrollments,
   } = useCourseVersionEnrollments(
     courseId,
     versionId,
@@ -594,14 +648,19 @@ const moveToCohortMutation = useMoveToCohort();
 
   // const studentEnrollments = enrollmentsData?.enrollments || [];
   const studentEnrollments = enrollmentsData?.enrollments || []
+  const cohortFilteredEnrollments = cohort
+  ? studentEnrollments.filter((enrollment: any) => {
+      return String(enrollment.cohortId) === String(cohort);
+    })
+  : studentEnrollments;
   // Filter out already assigned students if excludeAssigned is true
   const filteredStudentEnrollments = excludeAssigned
-    ? studentEnrollments.filter((enrollment: any) => {
+    ? cohortFilteredEnrollments.filter((enrollment: any) => {
       const assignedIds = getAssignedStudentIds();
       const studentId = enrollment.user?._id || enrollment.user?.id;
       return !assignedIds.has(studentId);
     })
-    : studentEnrollments;
+    : cohortFilteredEnrollments;
 
 
   const handleSelectAll = (checked: boolean) => {
@@ -635,45 +694,85 @@ const moveToCohortMutation = useMoveToCohort();
   const recalculateStudentMutation = useRecalculateStudentProgress()
 
   // Disable/Enable handlers
-  const handleDisableStudent = async (enrollment: any) => {
+  const handleDisableStudent = (enrollment: any) => {
     if (!courseId || !versionId) return
-    try {
-      await changeStatusMutation.mutateAsync({
-        params: {
-          path: {
-            userId: enrollment.user?._id,
-            courseId,
-            versionId,
+    setUserToDisable({
+      id: enrollment.user?._id,
+      name: `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
+      email: enrollment.user?.email,
+      enrolledDate: enrollment.enrollmentDate,
+      progress: enrollment.progress || 0,
+      cohortId: enrollment.cohortId,
+      cohortName: enrollment.cohortName
+    })
+    setIsDisableDialogOpen(true)
+  }
+
+  const handleEnableStudent = (enrollment: any) => {
+    if (!courseId || !versionId) return
+    setUserToEnable({
+      id: enrollment.user?._id,
+      name: `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
+      email: enrollment.user?.email,
+      enrolledDate: enrollment.enrollmentDate,
+      progress: enrollment.progress || 0,
+      cohortId: enrollment.cohortId,
+      cohortName: enrollment.cohortName
+    })
+    setIsEnableDialogOpen(true)
+  }
+
+  const confirmDisableStudent = async () => {
+    if (userToDisable && courseId && versionId) {
+      try {
+        await changeStatusMutation.mutateAsync({
+          params: {
+            path: {
+              userId: userToDisable.id,
+              courseId,
+              versionId,
+            },
           },
-        },
-        body: { status: 'INACTIVE' },
-      })
-      toast.success(`${enrollment.user?.firstName || 'Student'} has been disabled`)
-      queryClient.invalidateQueries({ queryKey: ["get", "/users/enrollments/courses/{courseId}/versions/{courseVersionId}"] })
-      refetchEnrollments()
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to disable student')
+          body: {
+            status: 'INACTIVE',
+            cohortId: userToDisable.cohortId
+          },
+        })
+        toast.success(`${userToDisable.name} has been disabled`)
+        setIsDisableDialogOpen(false)
+        setUserToDisable(null)
+        queryClient.invalidateQueries({ queryKey: ["get", "/users/enrollments/courses/{courseId}/versions/{courseVersionId}"] })
+        refetchEnrollments()
+      } catch (error: any) {
+        toast.error(error?.message || 'Failed to disable student')
+      }
     }
   }
 
-  const handleEnableStudent = async (enrollment: any) => {
-    if (!courseId || !versionId) return
-    try {
-      await changeStatusMutation.mutateAsync({
-        params: {
-          path: {
-            userId: enrollment.user?._id,
-            courseId,
-            versionId,
+  const confirmEnableStudent = async () => {
+    if (userToEnable && courseId && versionId) {
+      try {
+        await changeStatusMutation.mutateAsync({
+          params: {
+            path: {
+              userId: userToEnable.id,
+              courseId,
+              versionId,
+            },
           },
-        },
-        body: { status: 'ACTIVE' },
-      })
-      toast.success(`${enrollment.user?.firstName || 'Student'} has been enabled`)
-      queryClient.invalidateQueries({ queryKey: ["get", "/users/enrollments/courses/{courseId}/versions/{courseVersionId}"] })
-      refetchEnrollments()
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to enable student')
+          body: {
+            status: 'ACTIVE',
+            cohortId: userToEnable.cohortId
+          },
+        })
+        toast.success(`${userToEnable.name} has been enabled`)
+        setIsEnableDialogOpen(false)
+        setUserToEnable(null)
+        queryClient.invalidateQueries({ queryKey: ["get", "/users/enrollments/courses/{courseId}/versions/{courseVersionId}"] })
+        refetchEnrollments()
+      } catch (error: any) {
+        toast.error(error?.message || 'Failed to enable student')
+      }
     }
   }
 
@@ -732,6 +831,23 @@ const moveToCohortMutation = useMoveToCohort();
 
   // Pagination state
   const totalDocuments = enrollmentsData?.totalDocuments || 0
+  const {
+    data: exportEnrollmentsData,
+    isLoading: isLoadingStudentContacts,
+  } = useCourseVersionEnrollments(
+    courseId,
+    versionId,
+    1,
+    Math.max(totalDocuments, 1),
+    debouncedSearch,
+    sortBy,
+    sortOrder,
+    isExportingStudentContacts,
+    'STUDENT',
+    statusTab,
+    cohort,
+  );
+
   useEffect(() => {
     if (enrollmentTab === "ACTIVE") {
       setActiveCount(totalDocuments)
@@ -740,7 +856,7 @@ const moveToCohortMutation = useMoveToCohort();
     }
   }, [totalDocuments, enrollmentTab])
   const totalPages = enrollmentsData?.totalPages || 1
-// console.log("enrollmentsData--------------", enrollmentsData);
+  // console.log("enrollmentsData--------------", enrollmentsData);
 
   // Sorting handler
   const handleSort = (column: 'name' | 'enrollmentDate' | 'progress' | "scoreObtained" | "unenrolledAt") => {
@@ -760,6 +876,55 @@ const moveToCohortMutation = useMoveToCohort();
   const handleLimitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setLimit(Number(e.target.value));
     setCurrentPage(1);
+  };
+
+  const handleExportStudentContacts = async () => {
+    if (!courseId || !versionId) {
+      toast.error('Course ID or Version ID is missing');
+      return;
+    }
+
+    if (!totalDocuments) {
+      toast.warning('No students found to export');
+      return;
+    }
+
+    const enrollments = exportEnrollmentsData?.enrollments || [];
+
+    if (!enrollments.length) {
+      toast.warning('No students found to export');
+      return;
+    }
+
+    try {
+      const formattedData = enrollments.map((enrollment: any) => ({
+        name:
+          `${enrollment?.user?.firstName ?? ''} ${enrollment?.user?.lastName ?? ''}`.trim() ||
+          'Unknown User',
+        email: enrollment?.user?.email || '',
+      }));
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
+      const statusLabel = enrollmentTab === 'ACTIVE' ? 'active' : 'inactive';
+      const courseLabel = sanitizeFilenamePart(course?.name || 'course');
+      const cohortName = cohort
+        ? (version as any)?.cohortDetails?.find((item: any) => item.id === cohort)?.name
+        : null;
+      const cohortLabel = cohortName
+        ? `${sanitizeFilenamePart(cohortName)}_`
+        : '';
+      const filename = `${courseLabel}_${cohortLabel}${statusLabel}_student_contacts_${timestamp}.xlsx`;
+
+      generateStudentContactsExcel(formattedData, filename);
+      toast.success('Student contacts exported successfully');
+    } catch (error) {
+      console.error('Error exporting student contacts:', error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to export student contacts',
+      );
+    }
   };
 
   useEffect(() => {
@@ -787,7 +952,13 @@ const moveToCohortMutation = useMoveToCohort();
 
       handleFetchQuizScores().finally(() => setIsExporting(false));
     }
-  }, [isExporting, isLoadingQuizScores]);
+  }, [isExporting, isLoadingQuizScores, quizExportOptions]);
+
+  useEffect(() => {
+    if (isExportingStudentContacts && !isLoadingStudentContacts) {
+      handleExportStudentContacts().finally(() => setIsExportingStudentContacts(false));
+    }
+  }, [isExportingStudentContacts, isLoadingStudentContacts, exportEnrollmentsData]);
 
   const handleResetProgress = (user: EnrolledUser) => {
     setSelectedUser(user)
@@ -877,7 +1048,7 @@ const moveToCohortMutation = useMoveToCohort();
         requestBody.sectionId = selectedSection
         requestBody.itemId = selectedItem
       }
-      if(selectedUser.cohortId) {
+      if (selectedUser.cohortId) {
         requestBody.cohortId = selectedUser.cohortId
       }
 
@@ -929,88 +1100,88 @@ const moveToCohortMutation = useMoveToCohort();
     }
   }
 
-const handleMoveSelectUser = (enrollment: any, checked: boolean) => {
-  const enrollmentId = enrollment.id;
+  const handleMoveSelectUser = (enrollment: any, checked: boolean) => {
+    const enrollmentId = enrollment.id;
 
-  setMoveSelectedUsers(prev => {
-    const newSet = new Set(prev);
+    setMoveSelectedUsers(prev => {
+      const newSet = new Set(prev);
 
-    if (checked) newSet.add(enrollmentId);
-    else newSet.delete(enrollmentId);
+      if (checked) newSet.add(enrollmentId);
+      else newSet.delete(enrollmentId);
 
-    return newSet;
-  });
-};
-
-
-const handleMoveSelectAll = (checked: boolean) => {
-  const validEnrollmentIds = filteredStudentEnrollments
-    .filter((e: any) => !e.cohortId)
-    .map((e: any) => e.id);
-
-  setMoveSelectedUsers(prev => {
-    const newSet = new Set(prev);
-
-    validEnrollmentIds.forEach(id => {
-      if (checked) newSet.add(id);
-      else newSet.delete(id);
+      return newSet;
     });
+  };
 
-    return newSet;
-  });
-};
 
-const handleMoveToCohort = async () => {
-  if (!selectedMoveCohort) {
-    toast.error("Select target cohort");
-    return;
-  }
+  const handleMoveSelectAll = (checked: boolean) => {
+    const validEnrollmentIds = filteredStudentEnrollments
+      .filter((e: any) => !e.cohortId)
+      .map((e: any) => e.id);
 
-  if (moveSelectedUsers.size === 0) {
-    toast.error("No students selected");
-    return;
-  }
+    setMoveSelectedUsers(prev => {
+      const newSet = new Set(prev);
 
-  const enrollmentIds = Array.from(moveSelectedUsers);
+      validEnrollmentIds.forEach(id => {
+        if (checked) newSet.add(id);
+        else newSet.delete(id);
+      });
 
-  if (!enrollmentIds.length) {
-    toast.warning("Nothing to move");
-    return;
-  }
+      return newSet;
+    });
+  };
 
-  if(!courseId || !versionId) {
-    toast.error("Course or version information missing");
-    return;
-  }
+  const handleMoveToCohort = async () => {
+    if (!selectedMoveCohort) {
+      toast.error("Select target cohort");
+      return;
+    }
 
-  try {
-    await moveToCohortMutation.mutateAsync({
-      params: {
-        path: {
-          courseId,
-          versionId,
+    if (moveSelectedUsers.size === 0) {
+      toast.error("No students selected");
+      return;
+    }
+
+    const enrollmentIds = Array.from(moveSelectedUsers);
+
+    if (!enrollmentIds.length) {
+      toast.warning("Nothing to move");
+      return;
+    }
+
+    if (!courseId || !versionId) {
+      toast.error("Course or version information missing");
+      return;
+    }
+
+    try {
+      await moveToCohortMutation.mutateAsync({
+        params: {
+          path: {
+            courseId,
+            versionId,
+          },
         },
-      },
-      body: {
-        enrollmentIds,
-        targetCohortId: selectedMoveCohort,
-      },
-    });
+        body: {
+          enrollmentIds,
+          targetCohortId: selectedMoveCohort,
+        },
+      });
 
-    toast.success("Students moved successfully");
+      toast.success("Students moved successfully");
 
-    // Reset state
-    setMoveSelectedUsers(new Set());
-    setIsMoveSelectionMode(false);
-    setIsMoveCohortModalOpen(false);
+      // Reset state
+      setMoveSelectedUsers(new Set());
+      setIsMoveSelectionMode(false);
+      setIsMoveCohortModalOpen(false);
 
-    // Refresh data
-    refetchEnrollments();
+      // Refresh data
+      refetchEnrollments();
 
-  } catch (error: any) {
-    toast.error(error?.message || "Failed to move students");
-  }
-};
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to move students");
+    }
+  };
 
 
   // Toggle functions for expanding/collapsing modules and sections
@@ -1071,7 +1242,7 @@ const handleMoveToCohort = async () => {
       color: "text-purple-600",
       bgColor: "bg-purple-50",
     },
-     {
+    {
       title: "Avg Watch Hours",
       value: (() => {
         const v = enrollmentStats?.averageWatchHoursPerUser ?? 0;
@@ -1164,12 +1335,11 @@ const handleMoveToCohort = async () => {
     <>
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-4 space-y-8">
-          <CourseBackButton />
           {/* Enhanced Header */}
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="space-y-4">
               <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Course Enrollments
+                Course Students
               </h1>
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
@@ -1182,6 +1352,15 @@ const handleMoveToCohort = async () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchEnrollments()}
+                disabled={isRefetchingEnrollments}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isRefetchingEnrollments ? "animate-spin" : ""}`} />
+                {isRefetchingEnrollments ? "Refreshing..." : "Refresh"}
+              </Button>
               <Button
                 className="gap-2 bg-primary hover:bg-accent text-primary-foreground cursor-pointer"
                 onClick={() => {
@@ -1203,14 +1382,14 @@ const handleMoveToCohort = async () => {
           </div>
 
           {/* Stats */}
-          {statsLoading?<>
-           <div className="ml-6 p-2">
-        <div className="flex items-center gap-2">
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Loading statistics...</span>
-        </div>
-      </div>
-          </>:<div className="flex lg:flex-nowrap flex-wrap gap-6">
+          {statsLoading ? <>
+            <div className="ml-6 p-2">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Loading statistics...</span>
+              </div>
+            </div>
+          </> : <div className="flex lg:flex-nowrap flex-wrap gap-6">
             {stats.map((stat) => (
               <Card key={stat.title} className="border-0 shadow-sm hover:shadow-md transition-shadow w-full">
                 <CardContent className="p-6">
@@ -1227,6 +1406,25 @@ const handleMoveToCohort = async () => {
               </Card>
             ))}
           </div>}
+
+          {/* Emotion Analytics Navigation */}
+          <Card
+            className="border-0 shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/20"
+            onClick={() => navigate({ to: "/teacher/courses/emotion-analytics" })}
+          >
+            <CardHeader className="py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <span>😊 Learner Emotion Analytics</span>
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Open a dedicated analytics page for module-level insights.
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
 
           {/* Search */}
           <div className="flex flex-col sm:flex-row gap-4">
@@ -1281,30 +1479,34 @@ const handleMoveToCohort = async () => {
 
           {/* Students Table */}
           {/* Students Table + Tabs */}
-          <Tabs
-            value={enrollmentTab}
-            onValueChange={(v) => setEnrollmentTab(v as "ACTIVE" | "INACTIVE")}
-            className="w-full"
-          >
-            {/* Tabs Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <TabsList className="grid w-full sm:w-[420px] grid-cols-2 h-11 bg-muted/30 p-1 rounded-xl">
-                <TabsTrigger
-                  value="ACTIVE"
-                  className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
-                >
-                  Active Students({activeCount})
-                </TabsTrigger>
 
-                <TabsTrigger
-                  value="INACTIVE"
-                  className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
-                >
-                  Inactive Students({inactiveCount})
-                </TabsTrigger>
-              </TabsList>
+
+          <div className="w-full">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+              {/* Dropdown */}
+              <Select
+                value={enrollmentTab}
+                onValueChange={(v) => setEnrollmentTab(v as "ACTIVE" | "INACTIVE")}
+              >
+                <SelectTrigger className="w-full sm:w-[260px] h-11">
+                  <SelectValue />
+                </SelectTrigger>
+
+                <SelectContent>
+                  <SelectItem value="ACTIVE">
+                    Active Students ({activeCount})
+                  </SelectItem>
+                  <SelectItem value="INACTIVE">
+                    Inactive Students ({inactiveCount})
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Button (unchanged) */}
               {(version as any)?.cohortDetails?.length > 0 && (
-                <span className="relative flex justify-end right-0">
+                <span className="flex justify-end">
                   <Button
                     variant="outline"
                     size="sm"
@@ -1316,95 +1518,101 @@ const handleMoveToCohort = async () => {
                 </span>
               )}
             </div>
-            {/* Active Tab */}
-            <TabsContent value="ACTIVE" className="mt-4">
-              <EnrollmentsTable
-                studentEnrollments={filteredStudentEnrollments}
-                enrollmentsLoading={enrollmentsLoading}
-                isSearching={isSearching}
-                enrollmentTab={enrollmentTab}
-                searchQuery={searchQuery}
-                limit={limit}
-                handleLimitChange={handleLimitChange}
-                handleSort={handleSort}
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                isLoadingQuizScores={isLoadingQuizScores}
-                setIsExporting={setIsExporting}
-                unenrollMutation={unenrollMutation}
-                changeStatusMutation={changeStatusMutation}
-                bulkChangeStatusMutation={bulkChangeStatusMutation}
-                user={user}
-                handleViewProgress={handleViewProgress}
-                handleRemoveStudent={handleRemoveStudent}
-                handleDisableStudent={handleDisableStudent}
-                handleEnableStudent={handleEnableStudent}
-                isSelectionMode={isSelectionMode}
-                selectedUsers={selectedUsers}
-                onSelectUser={handleSelectUser}
-                onSelectAll={handleSelectAll}
-                toggleSelectionMode={toggleSelectionMode}
-                handleBulkUnenroll={handleBulkUnenroll}
-                handleBulkDisable={handleBulkDisable}
-                setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
-                getStudentTimeSlot={getStudentTimeSlot}
-                version={version}
-                cohort={cohort}
-                setCohort={setCohort}
-              />
-            </TabsContent>
 
-            {/* Inactive Tab */}
-            <TabsContent value="INACTIVE" className="mt-4">
-              <EnrollmentsTable
-                studentEnrollments={studentEnrollments}
-                enrollmentsLoading={enrollmentsLoading}
-                isSearching={isSearching}
-                enrollmentTab={enrollmentTab}
-                searchQuery={searchQuery}
-                limit={limit}
-                handleLimitChange={handleLimitChange}
-                handleSort={handleSort}
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                isLoadingQuizScores={isLoadingQuizScores}
-                setIsExporting={setIsExporting}
-                unenrollMutation={unenrollMutation}
-                changeStatusMutation={changeStatusMutation}
-                bulkChangeStatusMutation={bulkChangeStatusMutation}
-                user={user}
-                handleViewProgress={handleViewProgress}
-                handleRemoveStudent={handleRemoveStudent}
-                handleDisableStudent={handleDisableStudent}
-                handleEnableStudent={handleEnableStudent}
-                isSelectionMode={isInactiveSelectionMode}
-                selectedUsers={selectedInactiveUsers}
-                onSelectUser={(userId, checked) => {
-                  const newSet = new Set(selectedInactiveUsers)
-                  checked ? newSet.add(userId) : newSet.delete(userId)
-                  setSelectedInactiveUsers(newSet)
-                }}
-                onSelectAll={(checked) => {
-                  const visibleIds = studentEnrollments.map((e: any) => e.user?._id || e.user?.id).filter(Boolean)
-                  if (checked) {
-                    setSelectedInactiveUsers(prev => { const s = new Set(prev); visibleIds.forEach((id: string) => s.add(id)); return s })
-                  } else {
-                    setSelectedInactiveUsers(prev => { const s = new Set(prev); visibleIds.forEach((id: string) => s.delete(id)); return s })
-                  }
-                }}
-                toggleSelectionMode={() => {
-                  setIsInactiveSelectionMode(prev => { if (prev) setSelectedInactiveUsers(new Set()); return !prev })
-                }}
-                handleBulkUnenroll={handleBulkUnenroll}
-                handleBulkEnable={handleBulkEnable}
-                setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
-                getStudentTimeSlot={getStudentTimeSlot}
-                version={version}
-                cohort={cohort}
-                setCohort={setCohort}
-              />
-            </TabsContent>
-          </Tabs>
+            {/* Content */}
+            <div className="mt-4">
+              {enrollmentTab === "ACTIVE" && (
+                <EnrollmentsTable
+                  studentEnrollments={filteredStudentEnrollments}
+                  enrollmentsLoading={enrollmentsLoading}
+                  isSearching={isSearching}
+                  enrollmentTab={enrollmentTab}
+                  searchQuery={searchQuery}
+                  limit={limit}
+                  handleLimitChange={handleLimitChange}
+                  handleSort={handleSort}
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  isLoadingQuizScores={isLoadingQuizScores}
+                  setIsExporting={setIsExporting}
+                  isExportingStudentContacts={isLoadingStudentContacts}
+                  setIsExportingStudentContacts={setIsExportingStudentContacts}
+                  unenrollMutation={unenrollMutation}
+                  changeStatusMutation={changeStatusMutation}
+                  bulkChangeStatusMutation={bulkChangeStatusMutation}
+                  user={user}
+                  handleViewProgress={handleViewProgress}
+                  handleRemoveStudent={handleRemoveStudent}
+                  handleDisableStudent={handleDisableStudent}
+                  handleEnableStudent={handleEnableStudent}
+                  isSelectionMode={isSelectionMode}
+                  selectedUsers={selectedUsers}
+                  onSelectUser={handleSelectUser}
+                  onSelectAll={handleSelectAll}
+                  toggleSelectionMode={toggleSelectionMode}
+                  handleBulkUnenroll={handleBulkUnenroll}
+                  handleBulkDisable={handleBulkDisable}
+                  setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
+                  getStudentTimeSlot={getStudentTimeSlot}
+                  version={version}
+                  cohort={cohort}
+                  setCohort={setCohort}
+                />
+              )}
+
+              {enrollmentTab === "INACTIVE" && (
+                <EnrollmentsTable
+                  studentEnrollments={studentEnrollments}
+                  enrollmentsLoading={enrollmentsLoading}
+                  isSearching={isSearching}
+                  enrollmentTab={enrollmentTab}
+                  searchQuery={searchQuery}
+                  limit={limit}
+                  handleLimitChange={handleLimitChange}
+                  handleSort={handleSort}
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  isLoadingQuizScores={isLoadingQuizScores}
+                  setIsExporting={setIsExporting}
+                  isExportingStudentContacts={isLoadingStudentContacts}
+                  setIsExportingStudentContacts={setIsExportingStudentContacts}
+                  unenrollMutation={unenrollMutation}
+                  changeStatusMutation={changeStatusMutation}
+                  bulkChangeStatusMutation={bulkChangeStatusMutation}
+                  user={user}
+                  handleViewProgress={handleViewProgress}
+                  handleRemoveStudent={handleRemoveStudent}
+                  handleDisableStudent={handleDisableStudent}
+                  handleEnableStudent={handleEnableStudent}
+                  isSelectionMode={isInactiveSelectionMode}
+                  selectedUsers={selectedInactiveUsers}
+                  onSelectUser={(userId, checked) => {
+                    const newSet = new Set(selectedInactiveUsers)
+                    checked ? newSet.add(userId) : newSet.delete(userId)
+                    setSelectedInactiveUsers(newSet)
+                  }}
+                  onSelectAll={(checked) => {
+                    const visibleIds = studentEnrollments.map((e: any) => e.user?._id || e.user?.id).filter(Boolean)
+                    if (checked) {
+                      setSelectedInactiveUsers(prev => { const s = new Set(prev); visibleIds.forEach((id: string) => s.add(id)); return s })
+                    } else {
+                      setSelectedInactiveUsers(prev => { const s = new Set(prev); visibleIds.forEach((id: string) => s.delete(id)); return s })
+                    }
+                  }}
+                  toggleSelectionMode={() => {
+                    setIsInactiveSelectionMode(prev => { if (prev) setSelectedInactiveUsers(new Set()); return !prev })
+                  }}
+                  handleBulkUnenroll={handleBulkUnenroll}
+                  handleBulkEnable={handleBulkEnable}
+                  setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
+                  getStudentTimeSlot={getStudentTimeSlot}
+                  version={version}
+                  cohort={cohort}
+                  setCohort={setCohort}
+                />
+              )}
+            </div>
+          </div>
 
 
           {/* Enhanced View Progress Modal */}
@@ -1459,7 +1667,7 @@ const handleMoveToCohort = async () => {
                       <>
                         <div className="flex justify-between items-center mb-3">
                           <p className="text-sm text-muted-foreground">Completion</p>
-                          <EnrollmentProgress progress={Math.min(progressDetail?.percentCompleted ?? 0, 100)} /> 
+                          <EnrollmentProgress progress={Math.min(selectedUser?.progress ?? progressDetail?.percentCompleted ?? 0, 100)} />
                         </div>
                         <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                           <SummaryRow label="Total Items" value={progressDetail.contentCounts?.totalItems ?? 0} />
@@ -1470,13 +1678,13 @@ const handleMoveToCohort = async () => {
                           <SummaryRow label="Feedbacks" value={progressDetail.contentCounts?.itemCounts?.FEEDBACK ?? 0} />
                           <SummaryRow
                             label="Quiz Score"
-                            value={`${progressDetail.totalQuizScore ?? 0} / ${progressDetail.totalQuizMaxScore ?? 0}`}
+                            value={`${(progressDetail.totalQuizScore ?? 0).toFixed(2)} / ${(progressDetail.totalQuizMaxScore ?? 0).toFixed(2)}`}
                           />
                           <SummaryRow
                             label="Items Completed"
-                            value={`${Math.min(progressDetail.completedItemsCount ?? 0, progressDetail.contentCounts?.totalItems ?? 0)} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
+                            value={`${Math.min(selectedUser?.completedItemsCount ?? progressDetail.completedItemsCount ?? 0, progressDetail.contentCounts?.totalItems ?? 0)} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
                           />
-                           <SummaryRow
+                          <SummaryRow
                             label="Watch Hours"
                             value={`${(progressDetail.watchHours ?? 0).toFixed(2)}h`}
                           />
@@ -1732,6 +1940,7 @@ const handleMoveToCohort = async () => {
                               userId={selectedUser.id}
                               quizId={selectedViewItem}
                               itemName={selectedViewItemName}
+                              cohortId={selectedUser.cohortId}
                             />
                           ) : (
                             <WatchTimeDisplay
@@ -1741,6 +1950,7 @@ const handleMoveToCohort = async () => {
                               courseVersionId={versionId}
                               itemName={selectedViewItemName}
                               itemType={selectedViewItemType}
+                              cohortId={selectedUser.cohortId}
                             />
                           )}
                         </div>
@@ -1778,14 +1988,14 @@ const handleMoveToCohort = async () => {
                   </Button>
                 </div>
 
-              <div className="space-y-8">
-                <p className="text-lg text-card-foreground">
-                  Want to remove <strong className="text-primary">{userToRemove?.name}</strong> from{" "}
-                  <strong className="text-primary">
-                    {course.name} ({version.version}) {userToRemove?.cohortName}
-                  </strong>
-                  ?
-                </p>
+                <div className="space-y-8">
+                  <p className="text-lg text-card-foreground">
+                    Want to remove <strong className="text-primary">{userToRemove?.name}</strong> from{" "}
+                    <strong className="text-primary">
+                      {course.name} ({version.version}) {userToRemove?.cohortName}
+                    </strong>
+                    ?
+                  </p>
 
                   <div className="flex gap-4 p-6 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl">
                     <div><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" /></div>
@@ -1817,6 +2027,134 @@ const handleMoveToCohort = async () => {
                       </>
                     ) : (
                       "Yes, Remove"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isDisableDialogOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+              <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+                onClick={() => setIsDisableDialogOpen(false)}
+              />
+              <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Disable Student</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsDisableDialogOpen(false)}
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-8">
+                  <p className="text-lg text-card-foreground">
+                    Want to disable <strong className="text-primary">{userToDisable?.name}</strong> from{" "}
+                    <strong className="text-primary">
+                      {course.name} ({version.version}) {userToDisable?.cohortName}
+                    </strong>
+                    ?
+                  </p>
+
+                  <div className="flex gap-4 p-6 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl">
+                    <div><AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" /></div>
+                    <div className="text-sm text-amber-800 dark:text-amber-200">
+                      <strong>Warning:</strong> This student will be set to inactive. You can re-enable them from the Inactive tab.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsDisableDialogOpen(false)}
+                    className="min-w-[100px] cursor-pointer"
+                  >
+                    No, Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={confirmDisableStudent}
+                    disabled={changeStatusMutation.isPending}
+                    className="min-w-[100px] shadow-lg cursor-pointer bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    {changeStatusMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Disabling...
+                      </>
+                    ) : (
+                      "Yes, Disable"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isEnableDialogOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+              <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+                onClick={() => setIsEnableDialogOpen(false)}
+              />
+              <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Enable Student</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsEnableDialogOpen(false)}
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-8">
+                  <p className="text-lg text-card-foreground">
+                    Want to enable <strong className="text-primary">{userToEnable?.name}</strong> for{" "}
+                    <strong className="text-primary">
+                      {course.name} ({version.version}) {userToEnable?.cohortName}
+                    </strong>
+                    ?
+                  </p>
+
+                  <div className="flex gap-4 p-6 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl">
+                    <div><CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" /></div>
+                    <div className="text-sm text-green-800 dark:text-green-200">
+                      This student will be moved back to the Active tab.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsEnableDialogOpen(false)}
+                    className="min-w-[100px] cursor-pointer"
+                  >
+                    No, Cancel
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={confirmEnableStudent}
+                    disabled={changeStatusMutation.isPending}
+                    className="min-w-[100px] shadow-lg cursor-pointer bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {changeStatusMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Enabling...
+                      </>
+                    ) : (
+                      "Yes, Enable"
                     )}
                   </Button>
                 </div>
@@ -1884,7 +2222,7 @@ const handleMoveToCohort = async () => {
                 </div>
               </div>
             </div>
-        )}
+          )}
 
 
           {/* Enhanced Reset Progress Modal */}
@@ -2515,6 +2853,10 @@ interface EnrollmentsTableProps {
   sortOrder: "asc" | "desc";
   isLoadingQuizScores: boolean;
   setIsExporting: (exporting: boolean) => void;
+  isExportingStudentContacts: boolean;
+  setIsExportingStudentContacts: (exporting: boolean) => void;
+  quizExportOptions: ExcelExportOptions;
+  setQuizExportOptions: Dispatch<SetStateAction<ExcelExportOptions>>;
   unenrollMutation: any;
   changeStatusMutation: any;
   bulkChangeStatusMutation: any;
@@ -2551,6 +2893,10 @@ function EnrollmentsTable({
   sortOrder,
   isLoadingQuizScores,
   setIsExporting,
+  isExportingStudentContacts,
+  setIsExportingStudentContacts,
+  quizExportOptions,
+  setQuizExportOptions,
   unenrollMutation,
   changeStatusMutation,
   bulkChangeStatusMutation,
@@ -2586,6 +2932,21 @@ function EnrollmentsTable({
 
         {/* SAME header functionality for both tabs */}
         <div className="flex items-center space-x-4 lg:flex-nowrap flex-wrap gap-3">
+          {/* <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsExportingStudentContacts(true)}
+            disabled={isExportingStudentContacts || enrollmentsLoading || isSearching}
+            className="flex items-center gap-2"
+          >
+            {isExportingStudentContacts ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            <span>{isExportingStudentContacts ? "Exporting..." : "Export Student Contacts"}</span>
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -2599,9 +2960,9 @@ function EnrollmentsTable({
               <FileDown className="h-4 w-4" />
             )}
             <span>{isLoadingQuizScores ? "Exporting..." : "Export Quiz Scores"}</span>
-          </Button>
+          </Button> */}
 
-          <Button
+          {/* <Button
             variant="outline"
             size="sm"
             onClick={() => {
@@ -2611,10 +2972,10 @@ function EnrollmentsTable({
           >
             <Clock className="h-4 w-4" />
             <span>Configure Time Slots</span>
-          </Button>
+          </Button> */}
 
           {/* Select Students Button - shown in both tabs */}
-          <Button
+          {/* <Button
             variant="outline"
             size="sm"
             onClick={toggleSelectionMode}
@@ -2631,7 +2992,7 @@ function EnrollmentsTable({
                 <span>Select Students</span>
               </>
             )}
-          </Button>
+          </Button> */}
 
           {(version as any)?.cohortDetails?.length > 0 && (
             <DropdownMenu>
@@ -2640,8 +3001,8 @@ function EnrollmentsTable({
                   variant="outline"
                   size="sm"
                 >
-                <Layers className="h-4 w-4 text-muted-foreground" />
-        {cohort ? (version as any).cohortDetails.find((c: any) => c.id === cohort)?.name : "Select Cohort"}
+                  <Layers className="h-4 w-4 text-muted-foreground" />
+                  {cohort ? (version as any).cohortDetails.find((c: any) => c.id === cohort)?.name : "Select Cohort"}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
@@ -2651,11 +3012,11 @@ function EnrollmentsTable({
                     setCohort(id);
                   }}
                 >
-            <DropdownMenuRadioItem
-              value={""}
-              onClick={() => setCohort(null)}>
-              All Cohorts
-            </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem
+                    value={""}
+                    onClick={() => setCohort(null)}>
+                    All Cohorts
+                  </DropdownMenuRadioItem>
                   {(version as any)?.cohortDetails?.map((cohort: any) => (
                     <DropdownMenuRadioItem
                       key={cohort.id}
@@ -2668,6 +3029,55 @@ function EnrollmentsTable({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => {
+                setIsTimeSlotsModalOpen(true);
+              }}
+              >
+                <Clock className="h-4 w-4 mr-2" />
+                Configure Time Slots
+              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={toggleSelectionMode}>
+                {isSelectionMode ? (
+                  <>
+                    <X className="h-4 w-4 mr-2" />
+                    Exit Selection
+                  </>
+                ) : (
+                  <>
+                    <CheckSquare className="h-4 w-4 mr-2" />
+                    Select Student
+                  </>
+                )}
+              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={() => setIsExportingStudentContacts(true)} disabled={isExportingStudentContacts || enrollmentsLoading || isSearching}>
+                {isExportingStudentContacts ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                <span>{isExportingStudentContacts ? "Exporting..." : "Export Student Contacts"}</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={() => setIsExporting(true)} disabled={isLoadingQuizScores}>
+                {isLoadingQuizScores ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileDown className="h-4 w-4" />
+                )}
+                <span>{isLoadingQuizScores ? "Exporting..." : "Export Quiz Scores"}</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Bulk Actions Bar - Active tab: Disable + Unenroll */}
           {isSelectionMode && selectedUsers.size > 0 && !isInactiveTab && (
@@ -2944,9 +3354,9 @@ function EnrollmentsTable({
                               {enrollment?.user?.email || ""}
                             </p>
                             {enrollment?.cohortName && (
-                            <p className="text-xs md:text-sm text-muted-foreground truncate">
-                              (Cohort- {enrollment?.cohortName || ""})
-                            </p>
+                              <p className="text-xs md:text-sm text-muted-foreground truncate">
+                                (Cohort- {enrollment?.cohortName || ""})
+                              </p>
                             )}
                           </div>
                         </div>
@@ -2982,7 +3392,7 @@ function EnrollmentsTable({
 
                       {/* Progress */}
                       <TableCell className="py-6">
-                        <EnrollmentProgress progress={enrollment.progress || 0} />
+                        <EnrollmentProgress progress={Math.min(enrollment.progress ?? 0, 100)} />
                       </TableCell>
 
                       {/* Assigned Time Slot */}
@@ -3089,8 +3499,8 @@ function EnrollmentsTable({
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() =>
-                                  {console.log("Remove student clicked:", enrollment);
+                              onClick={() => {
+                                console.log("Remove student clicked:", enrollment);
                                 handleRemoveStudent({
                                   id: enrollment.user?._id,
                                   name:
@@ -3101,7 +3511,8 @@ function EnrollmentsTable({
                                   progress: 0,
                                   cohortId: enrollment.cohortId,
                                   cohortName: enrollment.cohortName
-                                })}
+                                })
+                              }
                               }
                               className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
                               disabled={

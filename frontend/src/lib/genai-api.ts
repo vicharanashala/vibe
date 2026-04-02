@@ -61,16 +61,16 @@ const makeAuthenticatedRequest = async (
 
 // Job status types
 
-type JobStatusValue = "COMPLETED" | "FAILED" | "PENDING" | "WAITING" | "RUNNING";
+type JobStatusValue = "COMPLETED" | "FAILED" | "PENDING" | "WAITING" | "RUNNING" | "STOPPED";
 
 export interface JobStatus {
   _id: string;
   type: 'VIDEO';
-  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'STOPPED';
   sourceUrl: string;
   currentTask?: {
     type: 'AUDIO_EXTRACTION' | 'TRANSCRIPT_GENERATION' | 'SEGMENTATION' | 'QUESTION_GENERATION';
-    status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+    status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'STOPPED';
   };
   task: string;
   tasksCompleted: number;
@@ -84,6 +84,11 @@ export interface JobStatus {
     questionGeneration?: JobStatusValue;
     uploadContent?: JobStatusValue;
   };
+  audioExtraction?: any[];
+  transcriptGeneration?: any[];
+  segmentation?: any[];
+  questionGeneration?: any[];
+  uploadContent?: any[];
 }
 
 // Types for optional task parameters
@@ -104,8 +109,21 @@ export interface QuestionGenerationParameters {
   SML?: number;
   NAT?: number;
   DES?: number;
+  BIN?: number;
   prompt?: string;
   numberOfQuestions?: number;
+  smartBloom?: {
+    enabled?: boolean;
+    segmentationStrategy?: 'DEFAULT' | 'CONCEPT_END';
+    distribution?: {
+      knowledge: number;
+      understanding: number;
+      application: number;
+      analysis?: number;
+      evaluation?: number;
+      creation?: number;
+    };
+  };
 }
 
 export interface Chunk {
@@ -204,6 +222,19 @@ export const getJobStatus = async (jobId: string): Promise<JobStatus> => {
   return result;
 };
 
+// 2.1 Get Task Status
+export const getTaskStatus = async (jobId: string | null, taskType: string): Promise<any> => {
+  if (!jobId || !taskType) {
+    throw new Error('Job ID and Task Type are required to get task status');
+  }
+  const response = await makeAuthenticatedRequest(`/genai/${jobId}/tasks/${taskType}/status`, {
+    method: 'GET',
+  });
+
+  const result = await response.json();
+  return result;
+};
+
 export const stopJobTask = async (jobId: string): Promise<void> => {
 
   const response = await makeAuthenticatedRequest(`/genai/jobs/${jobId}/tasks/abort`, {
@@ -230,6 +261,9 @@ export const connectToLiveStatusUpdates = (
 
   const eventSource = new EventSourcePolyfill(url, {
     headers: { Authorization: `Bearer ${getAuthToken()}` },
+    // Some tasks can run >45s without emitting status updates.
+    // Keep the connection alive longer before the polyfill treats it as dead.
+    heartbeatTimeout: 180000,
   });
 
   eventSource.onmessage = (event) => {
@@ -248,7 +282,8 @@ export const connectToLiveStatusUpdates = (
   });
 
   eventSource.onerror = (error) => {
-    console.error('SSE error:', error);
+    // EventSource may emit transient reconnect errors; keep this as warning noise only.
+    console.warn('SSE reconnecting...', error);
     // if (onError) onError(error);
   };
 
@@ -406,6 +441,7 @@ export const approveContinueTask = async (jobId: string) => {
 };
 
 export const approveStartTask = async (jobId: string, payload: any) => {
+  console.log(`Starting task (approve) ${payload.type} for job ${jobId}`, payload);
   return makeAuthenticatedRequest(`/genai/${jobId}/tasks/approve/start`, {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -440,72 +476,23 @@ export const runTranscriptionWorkflow = async (
   }
 };
 
+// 5. Start/Approve a specific task in a job
 export const postJobTask = async (
   jobId: string,
   taskType: string,
-  params?: Record<string, any>,
+  parameters?: Record<string, any>,
   usePrevious?: number
 ) => {
-  if (taskType === 'TRANSCRIPTION' || taskType === 'TRANSCRIPT_GENERATION') {
-    // For reruns, params?.isRerun will be true
-    if (params && params.isRerun) {
-      return makeAuthenticatedRequest(`/genai/${jobId}/tasks/approve/start`, {
-        method: 'POST',
-        body: JSON.stringify({
-          type: 'TRANSCRIPT_GENERATION',
-          parameters: {
-            language: 'en',
-            modelSize: 'large',
-          },
-          usePrevious: 1,
-        }),
-      });
-    } else {
-      // First run: do NOT send usePrevious or parameters
-      return makeAuthenticatedRequest(`/genai/${jobId}/tasks/approve/start`, {
-        method: 'POST',
-        body: JSON.stringify({
-          type: 'TRANSCRIPT_GENERATION',
-        }),
-      });
-    }
-  }
-  if (taskType === 'AUDIO_EXTRACTION') {
-    return startAudioExtractionTask(jobId);
-  }
-  // Add support for other tasks
-  if (
-    taskType === 'SEGMENTATION'
-  ) {
-    return makeAuthenticatedRequest(`/genai/${jobId}/tasks/approve/start`, {
-      method: 'POST',
-      body: JSON.stringify({
-        type: taskType,
-        parameters: params || {},
-        usePrevious: typeof usePrevious === 'number' ? usePrevious : 1,
-      }),
-    });
-  }
-  if (taskType === 'UPLOAD_CONTENT') {
-    return makeAuthenticatedRequest(`/genai/${jobId}/tasks/approve/start`, {
-      method: 'POST',
-      body: JSON.stringify({
-        type: taskType,
-        parameters: params || {},
-        usePrevious: typeof usePrevious === 'number' ? usePrevious : 0,
-      }),
-    });
-  }
-  if (taskType === 'QUESTION_GENERATION') {
-    return makeAuthenticatedRequest(`/genai/${jobId}/tasks/approve/start`, {
-      method: 'POST',
-      body: JSON.stringify({
-        type: taskType,
-        parameters: params || {},
-      }),
-    });
-  }
-  throw new Error('Unsupported task type: ' + taskType);
+  const payload = {
+    type: taskType,
+    usePrevious: typeof usePrevious === 'number' ? usePrevious : 0,
+    parameters: parameters || {},
+  };
+  console.log(`Starting task ${taskType} for job ${jobId}`, payload);
+  return makeAuthenticatedRequest(`/genai/${jobId}/tasks/approve/start`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 };
 
 // Poll for a specific task type to complete
@@ -539,29 +526,19 @@ export const pollForTaskCompletion = async (
 export const rerunJobTask = async (
   jobId: string,
   taskType: string,
-  params?: Record<string, any>
+  parameters?: Record<string, any>,
+  usePrevious?: number
 ) => {
-  const token = localStorage.getItem('firebase-auth-token');
-  const url = getApiUrl(`/genai/jobs/${jobId}/tasks/rerun`);
-  const res = await fetch(url, {
+  const payload = {
+    type: taskType,
+    usePrevious: typeof usePrevious === 'number' ? usePrevious : 0, // Default 0 to avoid index issues
+    parameters: parameters || {},
+  };
+  console.log(`Rerunning task ${taskType} for job ${jobId}`, payload);
+  return makeAuthenticatedRequest(`/genai/jobs/${jobId}/tasks/rerun`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      type: taskType,
-      parameters: params || {},
-    }),
+    body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    let errorMessage = `Request failed with status ${res.status}`;
-    const errorData = await res.json();
-    errorMessage = errorData.message || errorMessage;
-    throw new Error(errorMessage);
-  }
-
-  return res;
 };
 
 
@@ -579,6 +556,13 @@ export const editTranscriptData = async (jobId: string, index: number, transcrip
   });
 };
 
+export const editSegmentMap = async (jobId: string, segmentMap: number[], index?: number) => {
+  return makeAuthenticatedRequest(`/genai/jobs/${jobId}/edit/segment-map`, {
+    method: 'PATCH',
+    body: JSON.stringify({ index, segmentMap }),
+  });
+};
+
 // aiSectionAPI for modal usage
 export const aiSectionAPI: {
   createJob: typeof createGenAIJob;
@@ -590,10 +574,11 @@ export const aiSectionAPI: {
   startAudioExtractionTask: typeof startAudioExtractionTask;
   rerunJobTask: typeof rerunJobTask;
   approveStartTask: typeof approveStartTask;
-  editQuestionData?: typeof editQuestionData;
-  editTranscriptData?: typeof editTranscriptData;
-  stopJobTask?: typeof stopJobTask;
-
+  editQuestionData: typeof editQuestionData;
+  editTranscriptData: typeof editTranscriptData;
+  editSegmentMap: typeof editSegmentMap;
+  stopJobTask: typeof stopJobTask;
+  getTaskStatus: typeof getTaskStatus;
 } = {
   createJob: createGenAIJob,
   getJobStatus,
@@ -605,7 +590,10 @@ export const aiSectionAPI: {
   startAudioExtractionTask,
   rerunJobTask,
   approveStartTask,
-
+  editSegmentMap,
+  editQuestionData,
+  editTranscriptData,
+  getTaskStatus,
 };
 
 aiSectionAPI.editQuestionData = editQuestionData;

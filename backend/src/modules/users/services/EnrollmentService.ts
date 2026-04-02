@@ -31,7 +31,7 @@ import {
   SettingRepository,
   ISettingRepository,
 } from '#root/shared/index.js';
-import {EnrollmentDataResponse} from '../classes/index.js';
+import { EnrollmentDataResponse, UserEnrollmentStatisticsResponse } from '../classes/index.js';
 import {
   QuizScoresExportResponseDto,
   StudentQuizScoreDto,
@@ -42,7 +42,11 @@ import {
   IGradingResult,
   ISubmission,
 } from '#root/modules/quizzes/interfaces/index.js';
+import {Cohort} from '#root/modules/courses/classes/index.js';
 import {SETTING_TYPES} from '#root/modules/setting/types.js';
+
+const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
+const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
 
 @injectable()
 export class EnrollmentService extends BaseService {
@@ -76,6 +80,7 @@ export class EnrollmentService extends BaseService {
     role: EnrollmentRole,
     throughInvite: boolean = false,
     cohort?: string,
+    policyAcknowledged?: boolean,
     session?: ClientSession,
   ) {
     // const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId,session);
@@ -129,8 +134,29 @@ export class EnrollmentService extends BaseService {
           'User is already enrolled in this course version',
         );
       }
-      const versionSetting = await this.settingsRepository.getSettingsByVersionIds([new ObjectId(courseVersionId)]);
-      const baseHpValue = versionSetting?.[0]?.settings?.hpSystem === true ? versionSetting?.[0]?.settings?.baseHp ?? 0: 0;
+      const versionSetting =
+        await this.settingsRepository.getSettingsByVersionIds([
+          new ObjectId(courseVersionId),
+        ]);
+
+      let baseHpValue = 0;
+
+      if (versionSetting?.[0]?.settings?.hpSystem === true) {
+        let cohortBaseHp;
+        if (cohort) {
+          const cohortTobeEnrolled = await this.courseRepo.getCohortsByIds([
+            cohort,
+          ]);
+          if (cohortTobeEnrolled?.[0]?.baseHp) {
+            cohortBaseHp = cohortTobeEnrolled[0].baseHp;
+          }
+        }
+        if (cohortBaseHp != null) {
+          baseHpValue = cohortBaseHp;
+        } else {
+          baseHpValue = versionSetting?.[0]?.settings?.baseHp ?? 0;
+        }
+      }
       const enrollmentData = {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
@@ -141,7 +167,8 @@ export class EnrollmentService extends BaseService {
         percentCompleted: 0,
         completedItemsCount: 0,
         ...(cohort ? {cohortId: new ObjectId(cohort)} : {}),
-        ...(role === 'STUDENT'? {hpPoints: baseHpValue}:{})
+        ...(policyAcknowledged ? {policyAcknowledgedAt: new Date()} : {}),
+        ...(role === 'STUDENT' ? {hpPoints: baseHpValue} : {}),
       };
       const createdEnrollment = await this.enrollmentRepo.createEnrollment(
         enrollmentData,
@@ -231,7 +258,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-    cohort?: string
+    cohort?: string,
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const user = await this.userRepo.findById(userId);
@@ -254,7 +281,7 @@ export class EnrollmentService extends BaseService {
         courseId,
         courseVersionId,
         cohort,
-        session
+        session,
       );
 
       return existingEnrollment;
@@ -283,12 +310,34 @@ export class EnrollmentService extends BaseService {
           'Course version not found or does not belong to this course',
         );
       }
-      const existingEnrollment = await this.enrollmentRepo.findActiveEnrollment(
+      let existingEnrollment = await this.enrollmentRepo.findActiveEnrollment(
         userId,
         courseId,
         courseVersionId,
         cohort,
+        session,
       );
+
+      if (!existingEnrollment && !cohort) {
+        const activeEnrollments =
+          await this.enrollmentRepo.findActiveEnrollmentsByContext(
+            userId,
+            courseId,
+            courseVersionId,
+            session,
+          );
+
+        if (activeEnrollments.length === 1) {
+          const resolvedCohortId = activeEnrollments[0]?.cohortId?.toString();
+          existingEnrollment = await this.enrollmentRepo.findActiveEnrollment(
+            userId,
+            courseId,
+            courseVersionId,
+            resolvedCohortId,
+            session,
+          );
+        }
+      }
 
       return existingEnrollment;
     });
@@ -336,7 +385,7 @@ export class EnrollmentService extends BaseService {
     userIds: string[],
     courseId: string,
     courseVersionId: string,
-    cohortId?: string
+    cohortId?: string,
   ): Promise<{
     successCount: number;
     failureCount: number;
@@ -364,7 +413,7 @@ export class EnrollmentService extends BaseService {
             userId,
             courseId,
             courseVersionId,
-            cohortId
+            cohortId,
           );
 
           if (!enrollment) {
@@ -536,8 +585,8 @@ export class EnrollmentService extends BaseService {
 
       const allItemGroupIds = Array.from(versionToItemGroups.values()).flat();
 
-      const courseVersionIds: ObjectId[] = activeEnrollments.map(enr =>
-        enr.courseVersionId,
+      const courseVersionIds: ObjectId[] = activeEnrollments.map(
+        enr => enr.courseVersionId,
       );
       const courseSettings =
         await this.settingsRepository.getSettingsByVersionIds(courseVersionIds);
@@ -563,41 +612,41 @@ export class EnrollmentService extends BaseService {
         cohortId: e.cohortId,
       }));
 
-      const [watchedItemsMap, watchedItemsByTypeMap, quizSubmissionGrades]: [
+      const [watchedItemsMap /*watchedItemsByTypeMap, quizSubmissionGrades*/]: [
         Map<string, number>,
-        Map<
-          string,
-          {videos: number; quizzes: number; articles: number; projects: number}
-        >,
-        ISubmission[],
+        // Map<
+        //   string,
+        //   {videos: number; quizzes: number; articles: number; projects: number}
+        // >,
+        // ISubmission[],
       ] = await Promise.all([
         this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
-        this.enrollmentRepo.getWatchedItemCountsByTypeBatch(watchedKeys),
-        allQuizIds.length > 0
-          ? this.enrollmentRepo.getQuizSubmissionGrade(userId, allQuizIds)
-          : Promise.resolve([]),
+        // this.enrollmentRepo.getWatchedItemCountsByTypeBatch(watchedKeys),
+        // allQuizIds.length > 0
+        //   ? this.enrollmentRepo.getQuizSubmissionGrade(userId, allQuizIds)
+        //   : Promise.resolve([]),
       ]);
 
-      const quizGradeMap: Map<string, IGradingResult> = new Map(
-        quizSubmissionGrades.map(grade => [
-          grade.quizId.toString(),
-          grade.gradingResult,
-        ]),
-      );
+      // const quizGradeMap: Map<string, IGradingResult> = new Map(
+      //   quizSubmissionGrades.map(grade => [
+      //     grade.quizId.toString(),
+      //     grade.gradingResult,
+      //   ]),
+      // );
 
       return activeEnrollments.map(enr => {
         const versionIdStr = enr.courseVersionId.toString();
         const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}-${enr.cohortId?.toString() || ''}`;
 
-        const versionItemGroups = versionToItemGroups.get(versionIdStr) || [];
-        const versionQuizIds = quizInfo.filter(quiz =>
-          versionItemGroups.includes(quiz._id.toString()),
-        );
-        const enrollmentQuizGrades = versionQuizIds
-          .map(q =>
-            q.items?._id ? quizGradeMap.get(q.items._id.toString()) : null,
-          )
-          .filter(Boolean) as IGradingResult[];
+        // const versionItemGroups = versionToItemGroups.get(versionIdStr) || [];
+        // const versionQuizIds = quizInfo.filter(quiz =>
+        //   versionItemGroups.includes(quiz._id.toString()),
+        // );
+        // const enrollmentQuizGrades = versionQuizIds
+        //   .map(q =>
+        //     q.items?._id ? quizGradeMap.get(q.items._id.toString()) : null,
+        //   )
+        //   .filter(Boolean) as IGradingResult[];
 
         const completedCount = watchedItemsMap.get(watchedKey) || 0;
         // const completedByType = watchedItemsByTypeMap.get(watchedKey) || {
@@ -606,21 +655,21 @@ export class EnrollmentService extends BaseService {
         //   articles: 0,
         //   projects: 0,
         // };
-        const itemCounts = enr.courseVersion?.itemCounts || {};
+        // const itemCounts = enr.courseVersion?.itemCounts || {};
         const ratio = completedCount / (enr.totalItems || 1);
-        const calculatedPercent = Number((ratio * 100).toFixed(2));
+        // const calculatedPercent = Number((ratio * 100).toFixed(2));
         const hpSystem = hpSystemMap.get(versionIdStr) ?? false;
 
-        if (enr.percentCompleted !== calculatedPercent) {
-          void this.enrollmentRepo.updateProgressPercentById(
-            enr._id.toString(),
-            calculatedPercent,
-            completedCount,
-            enr.cohortId?.toString(),
-          );
-          enr.percentCompleted = calculatedPercent;
-          enr.completedItemsCount = completedCount;
-        }
+        // if (enr.percentCompleted !== calculatedPercent) {
+        //   void this.enrollmentRepo.updateProgressPercentById(
+        //     enr._id.toString(),
+        //     calculatedPercent,
+        //     completedCount,
+        //     enr.cohortId?.toString(),
+        //   );
+        //   enr.percentCompleted = calculatedPercent;
+        //   enr.completedItemsCount = completedCount;
+        // }
 
         if (enr.percentCompleted >= 0) {
           return {
@@ -643,6 +692,8 @@ export class EnrollmentService extends BaseService {
             cohortName: enr.cohortName,
             completedItems: watchedItemsMap.get(watchedKey) || 0,
             hasNewItemsAfterCompletion: enr.hasNewItemsAfterCompletion || false,
+            policyReacknowledgementRequired:
+              enr.policyReacknowledgementRequired ?? false,
             hpSystem,
           };
         }
@@ -685,6 +736,7 @@ export class EnrollmentService extends BaseService {
     userId: string,
     role: EnrollmentRole,
     courseVersionId?: string,
+    cohortId?: string,
   ): Promise<EnrollmentDataResponse[]> {
     let enrollments = [];
 
@@ -692,6 +744,7 @@ export class EnrollmentService extends BaseService {
       userId,
       role,
       courseVersionId,
+      cohortId,
     );
 
     if (!enrollments.length) return [];
@@ -738,6 +791,7 @@ export class EnrollmentService extends BaseService {
         userId: new ObjectId(userId),
         courseId: new ObjectId(e.courseId),
         courseVersionId: new ObjectId(e.courseVersionId),
+        ...(e.cohortId ? { cohortId: new ObjectId(String(e.cohortId)) } : {}),
       }));
 
       // Batch all async operations together
@@ -752,7 +806,7 @@ export class EnrollmentService extends BaseService {
         this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
         this.enrollmentRepo.getWatchedItemCountsByTypeBatch(watchedKeys),
         allQuizIds.length > 0
-          ? this.enrollmentRepo.getQuizSubmissionGrade(userId, allQuizIds)
+          ? this.enrollmentRepo.getQuizSubmissionGrade(userId, allQuizIds, cohortId)
           : Promise.resolve([]),
       ]);
       const quizGradeMap: Map<string, IGradingResult> = new Map(
@@ -762,97 +816,152 @@ export class EnrollmentService extends BaseService {
         ]),
       );
 
-      return enrollments.map(enr => {
-        const versionIdStr = enr.courseVersionId.toString();
-        const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
-        const versionItemGroups = versionToItemGroups.get(versionIdStr) || [];
-        const versionQuizIds = quizInfo.filter(quiz =>
-          versionItemGroups.includes(quiz._id.toString()),
-        );
+      const itemCountsFallbackCache = new Map<
+        string,
+        {totalItems: number; itemCounts: Record<string, number>}
+      >();
 
-        const enrollmentQuizGrades = versionQuizIds
-          .map(q =>
-            q.items?._id ? quizGradeMap.get(q.items._id.toString()) : null,
-          )
-          .filter(Boolean) as IGradingResult[];
-
-        const completedCount = watchedItemsMap.get(watchedKey) || 0;
-
-        const ratio = completedCount / (enr.totalItems || 1);
-        const calculatedPercent = Number((ratio * 100).toFixed(2));
-
-        if (enr.percentCompleted !== calculatedPercent) {
-          void this.enrollmentRepo.updateProgressPercentById(
-            enr._id.toString(),
-            calculatedPercent,
-            completedCount,
-            enr.cohort,
+      const detailedEnrollments = await Promise.all(
+        enrollments.map(async enr => {
+          const versionIdStr = enr.courseVersionId.toString();
+          const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}-${enr.cohortId?.toString() || ''}`;
+          const versionItemGroups = versionToItemGroups.get(versionIdStr) || [];
+          const versionQuizIds = quizInfo.filter(quiz =>
+            versionItemGroups.includes(quiz._id.toString()),
           );
 
-          enr.percentCompleted = calculatedPercent;
-          enr.completedItemsCount = completedCount;
-        }
+          const enrollmentQuizGrades = versionQuizIds
+            .map(q =>
+              q.items?._id ? quizGradeMap.get(q.items._id.toString()) : null,
+            )
+            .filter(Boolean) as IGradingResult[];
 
-        if (enr.percentCompleted >= 0) {
-          const itemCounts = enr.itemCounts || {};
-          const completedByType = watchedItemsByTypeMap.get(watchedKey) || {
-            videos: 0,
-            quizzes: 0,
-            articles: 0,
-            projects: 0,
-          };
+          const completedCount = watchedItemsMap.get(watchedKey) || 0;
 
-          return {
-            _id: enr._id.toString(),
-            courseId: enr.courseId.toString(),
-            courseVersionId: versionIdStr,
-            role: enr.role,
-            status: enr.status,
-            enrollmentDate: new Date(enr.enrollmentDate),
-            course: this.filterCourseVersions(enr.course, enrolledVersionIds),
-            // courseVersion: enr.courseVersion,
-            percentCompleted: enr.percentCompleted || 0,
-            assignedTimeSlot: enr.assignedTimeSlots,
-            moduleNumber: enr.moduleNumber,
-            sectionNumber: enr.sectionNumber,
-            itemType: enr.itemType,
-            contentCounts: {
-              totalItems: enr.totalItems ?? 0,
-              videos: itemCounts.VIDEO ?? itemCounts.videos ?? 0,
-              quizzes: itemCounts.QUIZ ?? itemCounts.quizzes ?? 0,
-              articles: itemCounts.BLOG ?? itemCounts.articles ?? 0,
-              project: itemCounts.PROJECT ?? itemCounts.project ?? 0,
-              totalQuizScore: enrollmentQuizGrades.reduce(
-                (sum, grade) => sum + (grade.totalScore || 0),
-                0,
-              ),
-              totalQuizMaxScore: enrollmentQuizGrades.reduce(
-                (sum, grade) => sum + (grade.totalMaxScore || 0),
-                0,
-              ),
-              // Completed counts by type
-              completedVideos: completedByType.videos,
-              completedQuizzes: completedByType.quizzes,
-              completedArticles: completedByType.articles,
-              completedProjects: completedByType.projects,
-            },
+          const ratio = completedCount / (enr.totalItems || 1);
+          let calculatedPercent = Number((ratio * 100).toFixed(2));
+          let totalCompletedItemsCount = completedCount;
 
-            completedItems: watchedItemsMap.get(watchedKey) || 0,
-          };
-        }
-      });
+          // Guru Setu Override
+          // console.log(`Checking Guru Setu for course ${enr.courseId?.toString()} and version ${versionIdStr}`);
+          if (
+            enr.courseId?.toString() === GURU_SETU_COURSE_ID &&
+            versionIdStr === GURU_SETU_VERSION_ID
+          ) {
+            // console.log(`Guru Setu Match Found for user ${userId}`);
+            const guruProgress =
+              await this.progressService.calculateGuruSetuProgress(
+                userId,
+                versionIdStr,
+              );
+            calculatedPercent = guruProgress.percentCompleted;
+            totalCompletedItemsCount = guruProgress.completedItemsCount;
+          }
+
+          // if (enr.percentCompleted !== calculatedPercent) {
+          //   void this.enrollmentRepo.updateProgressPercentById(
+          //     enr._id.toString(),
+          //     calculatedPercent,
+          //     totalCompletedItemsCount,
+          //     enr.cohortId?.toString(),
+          //   );
+
+          //   enr.percentCompleted = calculatedPercent;
+          //   enr.completedItemsCount = totalCompletedItemsCount;
+          // }
+
+          if (enr.percentCompleted >= 0) {
+            let itemCounts = enr.itemCounts || {};
+            let totalItems = Number(enr.totalItems ?? 0);
+
+            const hasItemCounts = Object.values(itemCounts).some(
+              (count: any) => Number(count) > 0,
+            );
+
+            if (totalItems <= 0 || !hasItemCounts) {
+              if (!itemCountsFallbackCache.has(versionIdStr)) {
+                const fallback =
+                  await this.itemRepo.calculateItemCountsForVersion(
+                    versionIdStr,
+                  );
+                itemCountsFallbackCache.set(versionIdStr, {
+                  totalItems: Number(fallback.totalItems ?? 0),
+                  itemCounts: fallback.itemCounts ?? {},
+                });
+              }
+
+              const fallback = itemCountsFallbackCache.get(versionIdStr)!;
+              if (totalItems <= 0) {
+                totalItems = fallback.totalItems;
+              }
+              if (!hasItemCounts) {
+                itemCounts = fallback.itemCounts;
+              }
+            }
+
+            const completedByType = watchedItemsByTypeMap.get(watchedKey) || {
+              videos: 0,
+              quizzes: 0,
+              articles: 0,
+              projects: 0,
+            };
+
+            return {
+              _id: enr._id.toString(),
+              courseId: enr.courseId.toString(),
+              courseVersionId: versionIdStr,
+              role: enr.role,
+              status: enr.status,
+              enrollmentDate: new Date(enr.enrollmentDate),
+              course: this.filterCourseVersions(enr.course, enrolledVersionIds),
+              // courseVersion: enr.courseVersion,
+              percentCompleted: enr.percentCompleted || 0,
+              assignedTimeSlot: enr.assignedTimeSlots,
+              moduleNumber: enr.moduleNumber,
+              sectionNumber: enr.sectionNumber,
+              itemType: enr.itemType,
+              contentCounts: {
+                totalItems,
+                videos: itemCounts.VIDEO ?? itemCounts.videos ?? 0,
+                quizzes: itemCounts.QUIZ ?? itemCounts.quizzes ?? 0,
+                articles: itemCounts.BLOG ?? itemCounts.articles ?? 0,
+                project: itemCounts.PROJECT ?? itemCounts.project ?? 0,
+                totalQuizScore: enrollmentQuizGrades.reduce(
+                  (sum, grade) => sum + (grade.totalScore || 0),
+                  0,
+                ),
+                totalQuizMaxScore: enrollmentQuizGrades.reduce(
+                  (sum, grade) => sum + (grade.totalMaxScore || 0),
+                  0,
+                ),
+                // Completed counts by type
+                completedVideos: completedByType.videos,
+                completedQuizzes: completedByType.quizzes,
+                completedArticles: completedByType.articles,
+                completedProjects: completedByType.projects,
+              },
+
+              completedItems: watchedItemsMap.get(watchedKey) || 0,
+            };
+          }
+        }),
+      );
+
+      return detailedEnrollments.filter(Boolean);
     }
   }
   async detailedCountEnrollment(
     userId: string,
     role: EnrollmentRole,
     courseVersionId?: string,
+    cohortId?: string,
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const result = await this.enrollmentRepo.detailedCountEnrollment(
         userId,
         role,
         courseVersionId,
+        cohortId,
       );
       return result;
     });
@@ -938,30 +1047,82 @@ export class EnrollmentService extends BaseService {
       );
       if (!detail) return null;
 
-      const completedItemIds = await this.progressRepo.getCompletedItems(
-        userId,
-        courseId,
-        courseVersionId,
-        cohortId,
-        session,
+      const completedItemsCount = Number(detail?.completedItemsCount ?? 0);
+
+      const existingContentCounts = detail?.contentCounts ?? {};
+      const existingItemCounts = existingContentCounts.itemCounts ?? {};
+      let resolvedItemCounts: Record<string, number> = {
+        VIDEO: Number(
+          existingItemCounts.VIDEO ??
+            existingItemCounts.video ??
+            existingItemCounts.videos ??
+            0,
+        ),
+        QUIZ: Number(
+          existingItemCounts.QUIZ ??
+            existingItemCounts.quiz ??
+            existingItemCounts.quizzes ??
+            0,
+        ),
+        BLOG: Number(
+          existingItemCounts.BLOG ??
+            existingItemCounts.blog ??
+            existingItemCounts.article ??
+            existingItemCounts.articles ??
+            0,
+        ),
+        PROJECT: Number(
+          existingItemCounts.PROJECT ??
+            existingItemCounts.project ??
+            existingItemCounts.projects ??
+            0,
+        ),
+        FEEDBACK: Number(
+          existingItemCounts.FEEDBACK ??
+            existingItemCounts.feedback ??
+            existingItemCounts.feedbacks ??
+            0,
+        ),
+      };
+      let resolvedTotalItems = Number(existingContentCounts.totalItems ?? 0);
+
+      const hasResolvedItemCounts = Object.values(resolvedItemCounts).some(
+        count => count > 0,
       );
-      const completedItemsCount = completedItemIds.length;
+
+      const shouldRecalculateItemCounts =
+        resolvedTotalItems <= 0 || !hasResolvedItemCounts;
+
+      if (shouldRecalculateItemCounts) {
+        const {totalItems, itemCounts} =
+          await this.itemRepo.calculateItemCountsForVersion(
+            courseVersionId,
+            session,
+          );
+
+        const normalizedCalculatedCounts = {
+          VIDEO: Number(itemCounts?.VIDEO ?? 0),
+          QUIZ: Number(itemCounts?.QUIZ ?? 0),
+          BLOG: Number(itemCounts?.BLOG ?? 0),
+          PROJECT: Number(itemCounts?.PROJECT ?? 0),
+          FEEDBACK: Number(itemCounts?.FEEDBACK ?? 0),
+        };
+
+        if (resolvedTotalItems <= 0) {
+          resolvedTotalItems = Number(totalItems ?? 0);
+        }
+
+        resolvedItemCounts = normalizedCalculatedCounts;
+      }
 
       // Enrich with quiz scores for this student only
       const courseVersion = await this.courseRepo.readVersion(courseVersionId);
       let totalQuizScore = 0;
       let totalQuizMaxScore = 0;
       const totalItems =
-        detail?.contentCounts?.totalItems ??
-        courseVersion?.totalItems ??
-        0;
-      const percentCompleted =
-        totalItems > 0
-          ? Math.min(
-            100,
-            Number(((completedItemsCount / totalItems) * 100).toFixed(2)),
-          )
-          : 0;
+        resolvedTotalItems > 0
+          ? resolvedTotalItems
+          : Number(courseVersion?.totalItems ?? 0);
 
       if (courseVersion) {
         const itemGroupIds: string[] = [];
@@ -984,7 +1145,7 @@ export class EnrollmentService extends BaseService {
               await this.enrollmentRepo.getBatchQuizSubmissionGrades(
                 [userId],
                 allQuizIds,
-                [cohortId],
+                cohortId ? [cohortId] : undefined,
               );
 
             quizSubmissions.forEach((submission: any) => {
@@ -996,10 +1157,30 @@ export class EnrollmentService extends BaseService {
         }
       }
 
+      let currentPercentCompleted = Number(detail?.percentCompleted ?? 0);
+      let currentCompletedItemsCount = completedItemsCount;
+
+      if (
+        courseId?.toString() === GURU_SETU_COURSE_ID &&
+        courseVersionId?.toString() === GURU_SETU_VERSION_ID
+      ) {
+        const guruProgress =
+          await this.progressService.calculateGuruSetuProgress(
+            userId,
+            courseVersionId,
+          );
+        currentPercentCompleted = guruProgress.percentCompleted;
+        currentCompletedItemsCount = guruProgress.completedItemsCount;
+      }
+
       return {
         ...detail,
-        completedItemsCount,
-        percentCompleted,
+        contentCounts: {
+          totalItems,
+          itemCounts: resolvedItemCounts,
+        },
+        completedItemsCount: currentCompletedItemsCount,
+        percentCompleted: currentPercentCompleted,
         totalQuizScore,
         totalQuizMaxScore,
       };
@@ -1409,24 +1590,38 @@ export class EnrollmentService extends BaseService {
 
         for (const enrollment of enrollments) {
           try {
-            const completedItems =
+            let currentCompletedItems =
               await this.progressService.getUserProgressPercentageWithoutTotal(
                 enrollment.userId.toString(),
                 courseVersion.courseId.toString(),
                 courseVersion._id.toString(),
               );
 
-            const percentCompleted = Math.round(
-              (totalItems > 0 ? completedItems / totalItems : 0) * 100,
+            let currentPercentCompleted = Math.round(
+              (totalItems > 0 ? currentCompletedItems / totalItems : 0) * 100,
             );
+
+            // Guru Setu Override
+            if (
+              courseVersion.courseId.toString() === GURU_SETU_COURSE_ID &&
+              courseVersion._id.toString() === GURU_SETU_VERSION_ID
+            ) {
+              const guruProgress =
+                await this.progressService.calculateGuruSetuProgress(
+                  enrollment.userId.toString(),
+                  courseVersion._id.toString(),
+                );
+              currentPercentCompleted = guruProgress.percentCompleted;
+              currentCompletedItems = guruProgress.completedItemsCount;
+            }
 
             bulkOperations.push({
               updateOne: {
                 filter: {_id: new ObjectId(enrollment._id)},
                 update: {
                   $set: {
-                    percentCompleted,
-                    completedItemsCount: completedItems,
+                    percentCompleted: currentPercentCompleted,
+                    completedItemsCount: currentCompletedItems,
                   },
                 },
               },
@@ -1586,13 +1781,14 @@ export class EnrollmentService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
-  ): Promise<IEnrollment> {
+    cohortId?: string,
+  ): Promise<IEnrollment | null> {
     return this._withTransaction(async (session: ClientSession) => {
       return this.enrollmentRepo.getUserEnrollmentsByCourseVersion(
         userId,
         courseId,
         courseVersionId,
-        undefined,
+        cohortId,
         session,
       );
     });
@@ -1606,6 +1802,9 @@ export class EnrollmentService extends BaseService {
     const MAX_CONCURRENCY = 4;
 
     if (versionId) {
+      if (versionId === GURU_SETU_VERSION_ID) {
+        return this.bulkUpdateGuruSetuProgress(courseId, versionId, userId);
+      }
       const result =
         await this.enrollmentRepo.bulkUpdateCompletedItemsCountForCourseVersion(
           {courseVersionId: versionId, courseId, userId},
@@ -1633,6 +1832,16 @@ export class EnrollmentService extends BaseService {
         const currentIndex = index++;
         const courseVersionId = courseVersionIds[currentIndex];
 
+        if (courseVersionId === GURU_SETU_VERSION_ID) {
+          const result = await this.bulkUpdateGuruSetuProgress(
+            courseId,
+            courseVersionId,
+            userId,
+          );
+          results.push(result);
+          continue;
+        }
+
         const result =
           await this.enrollmentRepo.bulkUpdateCompletedItemsCountForCourseVersion(
             {courseVersionId, courseId, userId},
@@ -1650,6 +1859,52 @@ export class EnrollmentService extends BaseService {
     const updatedCount = results.reduce((sum, r) => sum + r.updatedCount, 0);
 
     return {totalCount, updatedCount};
+  }
+
+  /**
+   * Bulk updates progress for Guru Setu students using feedback-based logic.
+   */
+  private async bulkUpdateGuruSetuProgress(
+    courseId?: string,
+    versionId?: string,
+    userId?: string,
+  ): Promise<{totalCount: number; updatedCount: number}> {
+    const filter: any = {
+      courseVersionId: new ObjectId(GURU_SETU_VERSION_ID),
+      role: 'STUDENT',
+      isDeleted: {$ne: true},
+    };
+    if (userId) filter.userId = new ObjectId(userId);
+    if (courseId) filter.courseId = new ObjectId(GURU_SETU_COURSE_ID);
+
+    const enrollments = await this.enrollmentRepo.findEnrollments(filter);
+
+    let updatedCount = 0;
+    for (const enr of enrollments) {
+      try {
+        const userIdStr = enr.userId.toString();
+        const guruProgress =
+          await this.progressService.calculateGuruSetuProgress(
+            userIdStr,
+            GURU_SETU_VERSION_ID,
+          );
+
+        await this.enrollmentRepo.updateProgressPercentById(
+          enr._id.toString(),
+          guruProgress.percentCompleted,
+          guruProgress.completedItemsCount,
+          enr.cohortId?.toString(),
+        );
+        updatedCount++;
+      } catch (err) {
+        console.error(
+          `Failed to update Guru Setu progress for user ${enr.userId}:`,
+          err,
+        );
+      }
+    }
+
+    return {totalCount: enrollments.length, updatedCount};
   }
 
   async getModuleProgressForUser(
@@ -2087,22 +2342,20 @@ export class EnrollmentService extends BaseService {
     enrollmentIds: string[],
     courseId: string,
     versionId: string,
-    cohortId: string
+    cohortId: string,
   ): Promise<boolean> {
-
     return this._withTransaction(async (session: ClientSession) => {
-
       const result = await this.enrollmentRepo.moveEnrollmentsToCohort(
         enrollmentIds,
         courseId,
         versionId,
         cohortId,
-        session
+        session,
       );
 
       if (result.modifiedCount !== enrollmentIds.length) {
         throw new BadRequestError(
-          "Some enrollments are invalid or already assigned to a cohort"
+          'Some enrollments are invalid or already assigned to a cohort',
         );
       }
 
@@ -2110,25 +2363,335 @@ export class EnrollmentService extends BaseService {
     });
   }
 
-    // Move other documents realted to that student to the target cohort.
-    async moveRelatedDocumentsToCohort(
-      enrollmentIds: string[],
-      courseId: string,
-      versionId: string,
-      targetCohortId: string
-    ): Promise<boolean> {
+  // Move other documents realted to that student to the target cohort.
+  async moveRelatedDocumentsToCohort(
+    enrollmentIds: string[],
+    courseId: string,
+    versionId: string,
+    targetCohortId: string,
+  ): Promise<boolean> {
+    return this._withTransaction(async (session: ClientSession) => {
+      await this.enrollmentRepo.moveRelatedDocumentsToCohort(
+        enrollmentIds,
+        courseId,
+        versionId,
+        targetCohortId,
+        session,
+      );
 
-      return this._withTransaction(async (session: ClientSession) => {
+      return true;
+    });
+  }
+  async ejectUser(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    reason: string,
+    ejectedBy: string,
+    cohortId?: string,
+    policyId?: string,
+  ): Promise<{enrollment: IEnrollment}> {
+    return this._withTransaction(async (session: ClientSession) => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        courseVersionId,
+        session,
+      );
 
-        await this.enrollmentRepo.moveRelatedDocumentsToCohort(
-          enrollmentIds,
-          courseId,
-          versionId,
-          targetCohortId,
-          session
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'This course version is archived, cannot eject users',
+        );
+      }
+
+      const enrollment = await this.enrollmentRepo.findActiveStudentEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId,
+        session,
+      );
+
+      if (!enrollment) {
+        throw new NotFoundError(
+          'No active enrollment found for this user in the specified course version',
+        );
+      }
+
+      if ((enrollment as any).isEjected) {
+        throw new BadRequestError(
+          'This learner is already ejected from this course',
+        );
+      }
+
+      // Only update the enrollment document — do NOT touch progress or watchtime
+      const ejectedEnrollment = await this.enrollmentRepo.ejectEnrollment(
+        enrollment._id.toString(),
+        reason,
+        ejectedBy,
+        policyId,
+        session,
+      );
+
+      if (!ejectedEnrollment) {
+        throw new NotFoundError('Failed to eject enrollment');
+      }
+
+      return {enrollment: ejectedEnrollment};
+    });
+  }
+
+  async getStudentsForEjectionPage(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+    page: number,
+    limit: number,
+    search: string = '',
+    statusFilter: 'all' | 'active' | 'ejected' = 'all',
+  ): Promise<{students: any[]; totalDocuments: number; totalPages: number}> {
+    const {students, totalDocuments} =
+      await this.enrollmentRepo.getStudentsForEjectionPage(
+        courseId,
+        courseVersionId,
+        cohortId,
+        page,
+        limit,
+        search,
+        statusFilter,
+        // no session — read-only, no transaction needed
+      );
+
+    return {
+      students,
+      totalDocuments,
+      totalPages: Math.ceil(totalDocuments / limit),
+    };
+  }
+
+  async reinstateUser(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    reinstatedBy: string,
+    cohortId?: string,
+  ): Promise<{enrollment: IEnrollment}> {
+    return this._withTransaction(async (session: ClientSession) => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        courseVersionId,
+        session,
+      );
+
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'This course version is archived, cannot reinstate users',
+        );
+      }
+
+      const enrollment = await this.enrollmentRepo.findEjectedEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId,
+        session,
+      );
+
+      if (!enrollment) {
+        throw new NotFoundError(
+          'No ejected enrollment found for this user in the specified course version',
+        );
+      }
+
+      const reinstatedEnrollment =
+        await this.enrollmentRepo.reinstateEnrollment(
+          enrollment._id.toString(),
+          reinstatedBy,
+          session,
         );
 
-        return true;
-      });
-    }
+      if (!reinstatedEnrollment) {
+        throw new NotFoundError('Failed to reinstate enrollment');
+      }
+
+      return {enrollment: reinstatedEnrollment};
+    });
+  }
+  async getCohortStaff(courseId: string, versionId: string, cohortId: string) {
+    return this.enrollmentRepo.getCohortStaff(courseId, versionId, cohortId);
+  }
+  async getGlobalEjectionHistory(
+    courseId: string,
+    courseVersionId: string,
+    params: {
+      triggerType?: string;
+      startDate?: Date;
+      endDate?: Date;
+      search?: string;
+      page?: number;
+      limit?: number;
+      cohortId?: string;
+      timezoneOffset?: number;
+    },
+  ): Promise<{history: any[]; totalDocuments: number; totalPages: number}> {
+    const {history, totalDocuments} =
+      await this.enrollmentRepo.getGlobalEjectionHistory(
+        courseId,
+        courseVersionId,
+        params,
+      );
+
+    return {
+      history,
+      totalDocuments,
+      totalPages: Math.ceil(totalDocuments / (params.limit || 10)),
+    };
+  }
+
+  async exportEjectionHistoryCSV(
+    courseId: string,
+    courseVersionId: string,
+    params: {
+      triggerType?: string;
+      startDate?: Date;
+      endDate?: Date;
+      search?: string;
+      cohortId?: string;
+    },
+  ): Promise<string> {
+    const {history} = await this.enrollmentRepo.getGlobalEjectionHistory(
+      courseId,
+      courseVersionId,
+      {...params, page: 1, limit: 10000}, // Export all matching records
+    );
+
+    const {createObjectCsvStringifier} = await import('csv-writer');
+
+    const header = [
+      {id: 'firstName', title: 'First Name'},
+      {id: 'lastName', title: 'Last Name'},
+      {id: 'email', title: 'Email'},
+      {id: 'cohortName', title: 'Cohort'},
+      {id: 'type', title: 'Event Type'},
+      {id: 'ejectedAt', title: 'Date'},
+      {id: 'triggerType', title: 'Trigger Source'},
+      {id: 'policyName', title: 'Policy Name'},
+      {id: 'ejectionReason', title: 'Reason/Note'},
+      {id: 'ejectedByName', title: 'Performed By'},
+    ];
+
+    const csvStringifier = createObjectCsvStringifier({
+      header: header,
+    });
+
+    const formattedHistory = history.map(item => ({
+      ...item,
+      ejectedAt: item.ejectedAt
+        ? new Date(item.ejectedAt).toLocaleString()
+        : '',
+      policyName: item.policyName || 'N/A',
+      cohortName: item.cohortName || 'N/A',
+      triggerType: item.triggerType || 'N/A',
+    }));
+
+    return (
+      csvStringifier.getHeaderString() +
+      csvStringifier.stringifyRecords(formattedHistory)
+    );
+  }
+  async markPolicyReacknowledgementRequired(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+  ): Promise<void> {
+    await this.enrollmentRepo.markReacknowledgementRequired(
+      courseId,
+      courseVersionId,
+      cohortId,
+    );
+  }
+
+  async clearPolicyReacknowledgement(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+  ): Promise<void> {
+    await this.enrollmentRepo.clearPolicyReacknowledgement(
+      userId,
+      courseId,
+      courseVersionId,
+      cohortId,
+    );
+  }
+  async partialReinstateUser(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    reinstatedBy: string,
+    cohortId?: string,
+  ): Promise<{enrollment: IEnrollment}> {
+    return this._withTransaction(async (session: ClientSession) => {
+      const enrollment = await this.enrollmentRepo.findEjectedEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId,
+        session,
+      );
+
+      if (!enrollment) {
+        throw new NotFoundError(
+          'No ejected enrollment found for this user in the specified course version',
+        );
+      }
+
+      const reinstatedEnrollment =
+        await this.enrollmentRepo.partialReinstateEnrollment(
+          enrollment._id.toString(),
+          reinstatedBy,
+          session,
+        );
+
+      if (!reinstatedEnrollment) {
+        throw new NotFoundError('Failed to partially reinstate enrollment');
+      }
+
+      return {enrollment: reinstatedEnrollment};
+    });
+  }
+  async findEjectedEnrollment(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+  ): Promise<IEnrollment | null> {
+    return this.enrollmentRepo.findEjectedEnrollment(
+      userId,
+      courseId,
+      courseVersionId,
+      cohortId,
+    );
+  }
+
+  async getUserEnrollments(
+    userId: string,
+    skip: number,
+    limit: number,
+    role: EnrollmentRole,
+    search: string,
+  ) {
+    return await this.enrollmentRepo.getEnrollments(
+      userId,
+      skip,
+      limit,
+      search,
+      role,
+    );
+  }
+
+  public async getUserEnrollmentStatistics(
+    userId: string,
+  ): Promise<UserEnrollmentStatisticsResponse> {
+    const stats = await this.enrollmentRepo.getUserEnrollmentStatistics(userId);
+    return stats;
+  }
 }

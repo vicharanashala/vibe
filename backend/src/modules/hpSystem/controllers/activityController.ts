@@ -3,7 +3,8 @@ import { Authorized, Body, CurrentUser, Get, HttpCode, JsonController, Param, Pa
 import { OpenAPI, ResponseSchema } from "routing-controllers-openapi";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivityService } from "../services/activityService.js";
-import { CreateActivityBody, ListActivitiesQuery, UpdateActivityBody } from "../classes/validators/activityValidators.js";
+import { RuleConfigService } from "../services/ruleConfigsService.js";
+import { CreateActivityBody, CreateActivityWithRuleBody, ListActivitiesQuery, UpdateActivityBody } from "../classes/validators/activityValidators.js";
 import { Ability } from "#root/shared/functions/AbilityDecorator.js";
 import { BadRequestErrorResponse, IUser } from "#root/shared/index.js";
 import { instanceToPlain } from "class-transformer";
@@ -18,24 +19,46 @@ export class ActivityController {
   constructor(
     @inject(HP_SYSTEM_TYPES.activityService)
     private readonly activityService: ActivityService,
+
+    @inject(HP_SYSTEM_TYPES.ruleConfigsService)
+    private readonly ruleConfigService: RuleConfigService,
   ) { }
 
+  // @OpenAPI({ summary: "Create a draft HP activity" })
+  // @Post("/")
+  // @Authorized()
+  // @HttpCode(201)
+  // @ResponseSchema(BadRequestErrorResponse, {
+  //   description: 'Bad Request Error',
+  //   statusCode: 400,
+  // })
+  // async create(
+  //   @Body({ required: true }) body: CreateActivityBody,
+  //   @CurrentUser() user: IUser,
+
+  // ) {
+  //   const teacherId = user._id.toString();
+  //   const doc = await this.activityService.create(teacherId, body);
+  //   return { success: true, data: instanceToPlain(doc) };
+  // }
+
+  
   @OpenAPI({ summary: "Create a draft HP activity" })
-  @Post("/")
+  @Post("/with-rule")
   @Authorized()
   @HttpCode(201)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-  async create(
-    @Body({ required: true }) body: CreateActivityBody,
+  async createActivityWithRule(
+    @Body({ required: true }) body: CreateActivityWithRuleBody,
     @CurrentUser() user: IUser,
 
   ) {
     const teacherId = user._id.toString();
-    const doc = await this.activityService.create(teacherId, body);
-    return { success: true, data: instanceToPlain(doc) };
+    const doc = await this.ruleConfigService.createActivityWithRule(teacherId, body);
+    return {success: true, data: instanceToPlain(doc)};
   }
 
   @OpenAPI({ summary: "Update an activity (DRAFT/PUBLISHED only)" })
@@ -54,7 +77,7 @@ export class ActivityController {
     return { success: true, data: doc };
   }
 
-  @OpenAPI({ summary: "Publish an activity" })
+  @OpenAPI({ summary: "Publish an activity" }) 
   @Post("/:id/publish")
   @Authorized()
   @HttpCode(201)

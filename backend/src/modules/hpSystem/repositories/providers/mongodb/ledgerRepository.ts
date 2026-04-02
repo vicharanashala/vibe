@@ -3,7 +3,7 @@ import { FilterQueryDto } from "#root/modules/hpSystem/classes/validators/activi
 import { LedgerListResponseDto } from "#root/modules/hpSystem/classes/validators/ledgerValidators.js";
 import { ILedgerRepository } from "#root/modules/hpSystem/interfaces/ILedgerRepository.js";
 import { HpActivity, HpLedger } from "#root/modules/hpSystem/models.js";
-import { MongoDatabase } from "#root/shared/index.js";
+import { EnrollmentRole, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { instanceToPlain, plainToInstance } from "class-transformer";
 import { inject, injectable } from "inversify";
@@ -36,6 +36,7 @@ export class LedgerRepository implements ILedgerRepository {
         studentId: string,
         filter: FilterQueryDto,
         cohortName: string,
+        role: EnrollmentRole,
     ): Promise<{
         data: HpLedgerTransformer[];
         total: number;
@@ -70,11 +71,17 @@ export class LedgerRepository implements ILedgerRepository {
             [sortBy]: sortOrder === "asc" ? 1 : -1,
         };
 
+        const matchQuery: any = { ...query };
+
+        if (role !== "STUDENT") {
+            matchQuery.cohort = cohortName;
+        }
+
         const [docs, total] = await Promise.all([
 
             this.hpLedgerCollection.aggregate([
 
-                { $match: { ...query, cohort: cohortName } },
+                { $match: matchQuery },
 
                 {
                     $lookup: {
@@ -159,10 +166,7 @@ export class LedgerRepository implements ILedgerRepository {
 
             ]).toArray(),
 
-            this.hpLedgerCollection.countDocuments({
-                ...query,
-                cohort: cohortName
-            })
+            this.hpLedgerCollection.countDocuments(matchQuery)
         ]);
 
         const data = docs.map((doc) => ({
@@ -273,17 +277,88 @@ export class LedgerRepository implements ILedgerRepository {
 
         return await this.hpLedgerCollection.find({
             activityId: new ObjectId(activityId),
-            "calc.reasonCode": "MILESTONE_REWARD"
+            // "calc.reasonCode": "MILESTONE_REWARD"
         }).toArray();
     }
 
     async findBySubmissionIds(submissionIds: string[]): Promise<HpLedger[]> {
         await this.init();
-
+        
         const objectIds = submissionIds.map(id => new ObjectId(id));
-
+        
         return await this.hpLedgerCollection.find({
-            submissionId: { $in: objectIds }
-        }).sort({ createdAt: -1 }).toArray();
+            activityId: { $in: objectIds }
+        }).toArray();
     }
+
+    async getHpDistributionForCohort(
+        cohortName: string,
+        courseVersionId: string,
+        session?: ClientSession
+    ): Promise<{
+        low: number;
+        medium: number;
+        high: number;
+        veryHigh: number;
+    }> {
+        await this.init();
+        
+        const pipeline = [
+            {
+                $match: {
+                    cohort: cohortName,
+                    courseVersionId: new ObjectId(courseVersionId)
+                }
+            },
+            {
+                $group: {
+                    _id: "$studentId",
+                    totalHp: { $sum: "$points" }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    low: {
+                        $sum: {
+                            $cond: [{ $lte: ["$totalHp", 50] }, 1, 0]
+                        }
+                    },
+                    medium: {
+                        $sum: {
+                            $cond: [
+                                { $and: [{ $gt: ["$totalHp", 50] }, { $lte: ["$totalHp", 100] }] },
+                                1,
+                                0
+                            ]
+                        }
+                    },
+                    high: {
+                        $sum: {
+                            $cond: [
+                                { $and: [{ $gt: ["$totalHp", 100] }, { $lte: ["$totalHp", 200] }] },
+                                1,
+                                0
+                            ]
+                        }
+                    },
+                    veryHigh: {
+                        $sum: {
+                            $cond: [{ $gt: ["$totalHp", 200] }, 1, 0]
+                        }
+                    }
+                }
+            }
+        ];
+        
+        const result = await this.hpLedgerCollection.aggregate(pipeline, { session }).toArray();
+        
+        return {
+            low: result[0]?.low || 0,
+            medium: result[0]?.medium || 0,
+            high: result[0]?.high || 0,
+            veryHigh: result[0]?.veryHigh || 0
+        };
+    }
+
 }

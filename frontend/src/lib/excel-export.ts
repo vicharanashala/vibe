@@ -1,5 +1,10 @@
 import * as XLSX from 'xlsx';
 
+export interface StudentContactData {
+  name: string;
+  email: string;
+}
+
 interface QuestionScore {
   questionId: string;
   score: number;
@@ -10,6 +15,8 @@ interface QuizScore {
   sectionId: string;
   quizId: string;
   quizName: string;
+  questionCount?: number;
+  quizMaxScore?: number;
   maxScore: number;
   attempts: number;
   moduleName?: string;
@@ -22,6 +29,8 @@ export interface StudentData {
   name: string;
   email: string;
   cohortName:string;
+  totalCourseScore: number;
+  totalCourseMaxScore: number;
   quizScores: QuizScore[];
 }
 
@@ -29,6 +38,7 @@ interface TransformedData {
   'S.No.': number | string;
   'Name': string;
   'Email': string;
+  'Total Course Score': number | string;
   [key: string]: string | number;
 }
 
@@ -40,9 +50,21 @@ interface QuizColumn {
   sectionId: string;
   quizId: string;
   maxQuestions: number;
+  quizMaxScore?: number;
 }
 
-export function transformDataForExcel(data: StudentData[]): TransformedData[] {
+export interface ExcelExportOptions {
+  includeAttempts: boolean;
+  includeQuestionScores: boolean;
+}
+
+export function transformDataForExcel(
+  data: StudentData[],
+  options: ExcelExportOptions = {
+    includeAttempts: true,
+    includeQuestionScores: true,
+  },
+): TransformedData[] {
   if (!data?.length) return [];
   
   // First pass: collect all unique module-section-quiz combinations and find max questions per quiz
@@ -54,7 +76,10 @@ export function transformDataForExcel(data: StudentData[]): TransformedData[] {
     
     student.quizScores.forEach(quiz => {
       const key = `${quiz.moduleId}_${quiz.sectionId}_${quiz.quizId}`;
-      const questionCount = quiz.questionScores?.length || 0;
+      const questionCount = Math.max(
+        Number(quiz.questionCount) || 0,
+        quiz.questionScores?.length || 0,
+      );
       
       if (!quizColumns.has(key)) {
         quizColumns.set(key, {
@@ -64,12 +89,17 @@ export function transformDataForExcel(data: StudentData[]): TransformedData[] {
           moduleId: quiz.moduleId || '',
           sectionId: quiz.sectionId || '',
           quizId: quiz.quizId || '',
-          maxQuestions: questionCount
+          maxQuestions: questionCount,
+          quizMaxScore: Number(quiz.quizMaxScore) || 0,
         });
       } else {
         // Update max questions if this quiz has more questions
         const existing = quizColumns.get(key)!;
         existing.maxQuestions = Math.max(existing.maxQuestions, questionCount);
+        existing.quizMaxScore = Math.max(
+          Number(existing.quizMaxScore) || 0,
+          Number(quiz.quizMaxScore) || 0,
+        );
       }
     });
   });
@@ -93,21 +123,44 @@ export function transformDataForExcel(data: StudentData[]): TransformedData[] {
     }
   }
 
+  // Get total course max score from backend data (first student has the same value as all students)
+  const totalCourseMaxScore = data.length > 0 ? data[0].totalCourseMaxScore : 0;
+
   // Create the header rows
   const results: TransformedData[] = [];
-  const headerRow1: TransformedData = { 'S.No.': 'S.No.', 'Name': 'Name', 'Email': 'Email' };  // Module headers
-  const headerRow2: TransformedData = { 'S.No.': '', 'Name': '', 'Email': '' };  // Section headers
-  const headerRow3: TransformedData = { 'S.No.': '', 'Name': '', 'Email': '' };  // Quiz headers
-  const headerRow4: TransformedData = { 'S.No.': '', 'Name': '', 'Email': '' };  // Question/Score/Attempts headers
+  const headerRow1: TransformedData = { 
+    'S.No.': 'S.No.', 
+    'Name': 'Name', 
+    'Email': 'Email',
+    'Total Course Score': `Total Course Score (x/${totalCourseMaxScore})`
+  };  // Module headers
+  const headerRow2: TransformedData = { 
+    'S.No.': '', 
+    'Name': '', 
+    'Email': '',
+    'Total Course Score': ''
+  };  // Section headers
+  const headerRow3: TransformedData = { 
+    'S.No.': '', 
+    'Name': '', 
+    'Email': '',
+    'Total Course Score': ''
+  };  // Quiz headers
+  const headerRow4: TransformedData = { 
+    'S.No.': '', 
+    'Name': '', 
+    'Email': '',
+    'Total Course Score': 'Score'
+  };  // Question/Score/Attempts headers
   
   // Track merges for Excel
   const merges: { s: { r: number; c: number }; e: { r: number; c: number } }[] = [];
   
-  let currentCol = 3; // Start after S.No., Name, Email
+  let currentCol = 4; // Start after S.No., Name, Email, TotalScore
   let currentModuleId = '';
   let currentSectionId = '';
-  let moduleStartCol = 3;
-  let sectionStartCol = 3;
+  let moduleStartCol = 4;
+  let sectionStartCol = 4;
   let moduleNumber = 0;
   let sectionNumber = 0;
   let quizNumber = 0;
@@ -116,7 +169,10 @@ export function transformDataForExcel(data: StudentData[]): TransformedData[] {
   orderedQuizzes.forEach((quiz, quizIndex) => {
     const quizStartCol = currentCol;
     const questionsCount = Math.max(quiz.maxQuestions, 0);
-    const totalColumnsForQuiz = questionsCount + 2; // questions + score + attempts
+    const questionColumns = options.includeQuestionScores ? questionsCount : 0;
+    const scoreColumns = 1;
+    const attemptsColumns = options.includeAttempts ? 1 : 0;
+    const totalColumnsForQuiz = questionColumns + scoreColumns + attemptsColumns;
     
     // Track module changes
     if (currentModuleId !== quiz.moduleId) {
@@ -153,7 +209,11 @@ export function transformDataForExcel(data: StudentData[]): TransformedData[] {
     // Set headers for each level
     const moduleName = `Module ${moduleNumber}`;
     const sectionName = `Section ${sectionNumber}`;
-    const quizName = `Quiz ${quizNumber}: ${quiz.quizName}`.trim();
+    const quizName =
+      `Quiz ${quizNumber}: ${quiz.quizName} (Num of questions:-${questionsCount})`.trim();
+    const scoreLabel = quiz.quizMaxScore && quiz.quizMaxScore > 0
+      ? `Score [x/${quiz.quizMaxScore}]`
+      : 'Score';
     
     // Fill module header (spans all columns for this quiz)
     for (let i = 0; i < totalColumnsForQuiz; i++) {
@@ -183,13 +243,16 @@ export function transformDataForExcel(data: StudentData[]): TransformedData[] {
     }
     
     // Fill question headers (q1, q2, q3, etc.) and then Score/Attempts
-    for (let i = 0; i < questionsCount; i++) {
+    for (let i = 0; i < questionColumns; i++) {
       headerRow4[`col_${currentCol + i}`] = `q${i + 1}`;
     }
     
-    // Add Score (in %) and Total attempts columns
-    headerRow4[`col_${currentCol + questionsCount}`] = 'Score (in %)';
-    headerRow4[`col_${currentCol + questionsCount + 1}`] = 'Total attempts';
+    const scoreColIndex = currentCol + questionColumns;
+    headerRow4[`col_${scoreColIndex}`] = scoreLabel;
+
+    if (options.includeAttempts) {
+      headerRow4[`col_${scoreColIndex + 1}`] = 'Total attempts';
+    }
     
     currentCol += totalColumnsForQuiz;
   });
@@ -216,30 +279,35 @@ export function transformDataForExcel(data: StudentData[]): TransformedData[] {
     const rowData: TransformedData = {
       'S.No.': rowIndex + 1,
       'Name': student.name + (student.cohortName ? ` (${student.cohortName})` : ''),
-      'Email': student.email || ''
+      'Email': student.email || '',
+      'Total Course Score': student.totalCourseScore || 0
     };
     
     // Initialize all columns with default values
-    let colIndex = 3;
+    let colIndex = 4; // Start after S.No., Name, Email, TotalScore
     orderedQuizzes.forEach(quiz => {
       const questionsCount = Math.max(quiz.maxQuestions, 0);
-      const totalColumnsForQuiz = questionsCount + 2;
+      const questionColumns = options.includeQuestionScores ? questionsCount : 0;
+      const totalColumnsForQuiz = questionColumns + 1 + (options.includeAttempts ? 1 : 0);
       
       // Initialize question columns with 0
-      for (let i = 0; i < questionsCount; i++) {
+      for (let i = 0; i < questionColumns; i++) {
         rowData[`col_${colIndex + i}`] = 0;
       }
       
-      // Initialize score and attempts columns
-      rowData[`col_${colIndex + questionsCount}`] = 0; // Score
-      rowData[`col_${colIndex + questionsCount + 1}`] = 0; // Attempts
+      const scoreColIndex = colIndex + questionColumns;
+      rowData[`col_${scoreColIndex}`] = 0;
+
+      if (options.includeAttempts) {
+        rowData[`col_${scoreColIndex + 1}`] = 0;
+      }
       
       colIndex += totalColumnsForQuiz;
     });
     
     // Fill in actual data
     if (student.quizScores?.length) {
-      let currentColIndex = 3;
+      let currentColIndex = 4; // Start after S.No., Name, Email, TotalScore
       
       orderedQuizzes.forEach(quizColumn => {
         const studentQuiz = student.quizScores.find(sq => 
@@ -249,23 +317,27 @@ export function transformDataForExcel(data: StudentData[]): TransformedData[] {
         );
         
         const questionsCount = Math.max(quizColumn.maxQuestions, 0);
+        const questionColumns = options.includeQuestionScores ? questionsCount : 0;
+        const scoreColIndex = currentColIndex + questionColumns;
         
         if (studentQuiz) {
           // Fill question scores
-          if (studentQuiz.questionScores?.length) {
+          if (options.includeQuestionScores && studentQuiz.questionScores?.length) {
             studentQuiz.questionScores.forEach((questionScore, questionIndex) => {
-              if (questionIndex < questionsCount) {
+              if (questionIndex < questionColumns) {
                 rowData[`col_${currentColIndex + questionIndex}`] = questionScore.score || 0;
               }
             });
           }
           
           // Fill overall score and attempts
-          rowData[`col_${currentColIndex + questionsCount}`] = studentQuiz.maxScore || 0;
-          rowData[`col_${currentColIndex + questionsCount + 1}`] = studentQuiz.attempts || 0;
+          rowData[`col_${scoreColIndex}`] = studentQuiz.maxScore || 0;
+          if (options.includeAttempts) {
+            rowData[`col_${scoreColIndex + 1}`] = studentQuiz.attempts || 0;
+          }
         }
         
-        currentColIndex += questionsCount + 2; // Move to next quiz columns
+        currentColIndex += questionColumns + 1 + (options.includeAttempts ? 1 : 0);
       });
     }
     
@@ -275,9 +347,16 @@ export function transformDataForExcel(data: StudentData[]): TransformedData[] {
   return results;
 }
 
-export function generateExcel(data: StudentData[], filename: string = 'quiz_scores.xlsx'): void {
+export function generateExcel(
+  data: StudentData[],
+  filename: string = 'quiz_scores.xlsx',
+  options: ExcelExportOptions = {
+    includeAttempts: true,
+    includeQuestionScores: true,
+  },
+): void {
   try {
-    const transformedData = transformDataForExcel(data);
+    const transformedData = transformDataForExcel(data, options);
     if (!transformedData.length) {
       console.warn('No data to export');
       return;
@@ -287,7 +366,7 @@ export function generateExcel(data: StudentData[], filename: string = 'quiz_scor
     const aoa: any[][] = [];
     
     transformedData.forEach(row => {
-      const rowArray = [row['S.No.'], row['Name'], row['Email']];
+      const rowArray = [row['S.No.'], row['Name'], row['Email'], row['Total Course Score']];
       
       // Add all the columns in order
       const keys = Object.keys(row).filter(key => key.startsWith('col_'));
@@ -310,11 +389,11 @@ export function generateExcel(data: StudentData[], filename: string = 'quiz_scor
     
     // Calculate merges based on the quiz structure
     const merges = [];
-    let currentCol = 3;
+    let currentCol = 4; // Start after S.No., Name, Email, TotalScore
     let currentModuleId = '';
     let currentSectionId = '';
-    let moduleStartCol = 3;
-    let sectionStartCol = 3;
+    let moduleStartCol = 4;
+    let sectionStartCol = 4;
     
     // Get quiz columns info for merging
     if (data.length > 0) {
@@ -326,7 +405,10 @@ export function generateExcel(data: StudentData[], filename: string = 'quiz_scor
         
         student.quizScores.forEach(quiz => {
           const key = `${quiz.moduleId}_${quiz.sectionId}_${quiz.quizId}`;
-          const questionCount = quiz.questionScores?.length || 0;
+          const questionCount = Math.max(
+            Number(quiz.questionCount) || 0,
+            quiz.questionScores?.length || 0,
+          );
           
           if (!quizColumns.has(key)) {
             quizColumns.set(key, {
@@ -336,11 +418,16 @@ export function generateExcel(data: StudentData[], filename: string = 'quiz_scor
               moduleId: quiz.moduleId || '',
               sectionId: quiz.sectionId || '',
               quizId: quiz.quizId || '',
-              maxQuestions: questionCount
+              maxQuestions: questionCount,
+              quizMaxScore: Number(quiz.quizMaxScore) || 0,
             });
           } else {
             const existing = quizColumns.get(key)!;
             existing.maxQuestions = Math.max(existing.maxQuestions, questionCount);
+            existing.quizMaxScore = Math.max(
+              Number(existing.quizMaxScore) || 0,
+              Number(quiz.quizMaxScore) || 0,
+            );
           }
         });
       });
@@ -367,7 +454,8 @@ export function generateExcel(data: StudentData[], filename: string = 'quiz_scor
       // Create merges
       orderedQuizzes.forEach(quiz => {
         const questionsCount = Math.max(quiz.maxQuestions, 0);
-        const totalColumnsForQuiz = questionsCount + 2; // questions + score + attempts
+        const questionColumns = options.includeQuestionScores ? questionsCount : 0;
+        const totalColumnsForQuiz = questionColumns + 1 + (options.includeAttempts ? 1 : 0);
         
         // Module merge
         if (quiz.moduleId !== currentModuleId) {
@@ -423,12 +511,13 @@ export function generateExcel(data: StudentData[], filename: string = 'quiz_scor
     ws['!merges'] = merges;
     
     // Set column widths
-    const totalCols = aoa[0]?.length || 3;
+    const totalCols = aoa[0]?.length || 4;
     ws['!cols'] = [
       { wch: 5 },  // S.No.
       { wch: 18 }, // Name
       { wch: 30 }, // Email
-      ...Array(totalCols - 3).fill({ wch: 10 }) // Question/Score/Attempts columns
+      { wch: 25 }, // Total Course Score 
+      ...Array(totalCols - 4).fill({ wch: 10 }) // Question/Score/Attempts columns
     ];
 
     // Add worksheet to workbook and save
@@ -439,4 +528,33 @@ export function generateExcel(data: StudentData[], filename: string = 'quiz_scor
     console.error('Error generating Excel file:', error);
     throw error;
   }
+}
+
+export function generateStudentContactsExcel(
+  data: StudentContactData[],
+  filename: string = 'student_contacts.xlsx'
+): void {
+  const rows = data
+    .map((student, index) => [index + 1, student.name || 'Unknown User', student.email || ''])
+    .filter(([, name, email]) => Boolean(name) || Boolean(email));
+
+  if (!rows.length) {
+    console.warn('No student contact data to export');
+    return;
+  }
+
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.aoa_to_sheet([
+    ['S.No.', 'Name', 'Email'],
+    ...rows,
+  ]);
+
+  worksheet['!cols'] = [
+    { wch: 8 },
+    { wch: 32 },
+    { wch: 36 },
+  ];
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Students');
+  XLSX.writeFile(workbook, filename);
 }

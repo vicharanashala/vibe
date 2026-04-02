@@ -74,9 +74,11 @@ import {
 import type { BreadcrumbItemment } from "@/types/layout.types";
 import AiWorkflow from "./AiWorkflow";
 import AISectionPage from "./AISectionPage";
-type Mode = "default" | "wizard" | "custom";
+import SmartBloomWorkflow from "./SmartBloomWorkflow";
+type Mode = "default" | "wizard" | "smartBloom" | "custom" | "ai-module";
 import { logout } from "@/utils/auth";
 import InviteDropdown from "@/components/inviteDropDown";
+import AiModule from "./AiModule";
 import { useQueryClient } from "@tanstack/react-query"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1024,7 +1026,7 @@ function TeacherCourseContent() {
     setHidingItemId(itemId);
     try {
       await updateItemVisibilityAsync({
-        params: { path: { versionId, itemId } },
+        params: { path: {courseId, versionId, itemId } },
         body: { hide: hide }
       });
 
@@ -2131,6 +2133,40 @@ function TeacherCourseContent() {
                                                         >
                                                           Wizard mode
                                                         </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                          className="text-xs cursor-pointer"
+                                                          onClick={() => {
+                                                            setCurrentCourse({
+                                                              courseId,
+                                                              versionId,
+                                                              moduleId: module.moduleId,
+                                                              sectionId: section.sectionId,
+                                                              itemId: null,
+                                                              watchItemId: null,
+                                                            });
+                                                            setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
+                                                            setMode('smartBloom')
+                                                          }}
+                                                        >
+                                                          Smart Bloom&apos;s mode
+                                                        </DropdownMenuItem>
+                                                         <DropdownMenuItem
+                                                            className="text-xs cursor-pointer"
+                                                            onClick={() => {
+                                                              setCurrentCourse({
+                                                                courseId,
+                                                                versionId,
+                                                                moduleId: module.moduleId,
+                                                                sectionId: section.sectionId,
+                                                                itemId: null,
+                                                                watchItemId: null,
+                                                              });
+                                                              setMode('ai-module')
+                                                              // navigate({ to: '/teacher/ai-module' });
+                                                            }}
+                                                          >
+                                                            AI Module Mode
+                                                          </DropdownMenuItem>
                                                       </DropdownMenuContent>
                                                     </DropdownMenu>
                                                   </TooltipTrigger>
@@ -2350,16 +2386,10 @@ function TeacherCourseContent() {
 
           <CourseBackButton />  
 
-            {mode === "default" && <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            {/* {mode === "default" && <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-2 min-w-0 flex-1">
-                {/* <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-                  className="md:hidden shrink-0"
-                > */}
+                
                 <span className="sr-only">Toggle Menu</span>
-                {/* </Button> */}
 
                 <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-lg border min-w-0 flex-1 sm:flex-none sm:min-w-[200px]">
                   <GraduationCap className="h-4 w-4 text-primary flex-shrink-0" />
@@ -2386,10 +2416,20 @@ function TeacherCourseContent() {
                   </Badge>
                 </div>
               )}
-            </div>}
+            </div>} */}
 
-            {mode === "wizard" ? (
+            {mode==="ai-module" ? <AiModule /> : mode === "wizard" ? (
               <AiWorkflow />
+            ) : mode === "smartBloom" ? (
+              <SmartBloomWorkflow
+                onUploadComplete={async (uploadedModuleId, uploadedSectionId) => {
+                  await invalidateAllQueries();
+                  setMode('default');
+                  setExpandedModules(prev => ({ ...prev, [uploadedModuleId]: true }));
+                  setExpandedSections(prev => ({ ...prev, [uploadedSectionId]: true }));
+                  setActiveSectionInfo({ moduleId: uploadedModuleId, sectionId: uploadedSectionId });
+                }}
+              />
             ) : mode === "custom" ? (
               <AISectionPage />
             ) : (
@@ -3196,74 +3236,106 @@ function TeacherCourseContent() {
                   </div>
                 </div>
               ) : (
+                    <div className="flex flex-col items-center justify-center h-[80vh] text-center relative -mt-16">
+                      {/* Animated Glow */}
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0">
+                        <div className="w-60 h-60 rounded-full bg-gradient-to-br from-primary/20 via-accent/10 to-primary/20 blur-3xl opacity-70 animate-pulse"></div>
+                      </div>
 
-                // Render the content according to the wizard mode or custome mode
-                <div className="flex flex-col items-center justify-center h-[80vh]  text-center relative">
-                  {/* Animated Glow */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0">
-                    <div className="w-60 h-60 rounded-full bg-gradient-to-br from-primary/20 via-accent/10 to-primary/20 blur-3xl opacity-70 animate-pulse"></div>
-                  </div>
+                      {/* Animated Icon */}
+                      <div className="relative z-10 mb-6">
+                        <div className="w-28 h-28 rounded-full bg-gradient-to-br from-primary/10 to-accent/10 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center shadow-lg animate-float">
+                          <BookOpen className="h-16 w-16 text-primary dark:text-primary drop-shadow-lg" />
+                        </div>
+                      </div>
 
-                  {/* Animated Icon */}
-                  <div className="relative z-10 mb-8">
-                    <div className="w-28 h-28 rounded-full bg-gradient-to-br from-primary/10 to-accent/10 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center shadow-lg animate-float">
-                      <BookOpen className="h-16 w-16 text-primary dark:text-primary drop-shadow-lg" />
+                      {/* Course & Version Info */}
+                    <div className="relative z-10 mb-6 w-full max-w-2xl px-4">
+                      <div className="bg-muted/40 border rounded-xl px-6 py-5 flex gap-6 items-stretch">
+                        {/* Course */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">Course</p>
+                          <h2 className="text-lg font-bold text-foreground leading-snug line-clamp-2" title={courseData?.name || 'Untitled Course'}>
+                            {isLoading ? <span className="inline-block h-5 w-48 bg-muted rounded animate-pulse" /> : courseData?.name || 'Untitled Course'}
+                          </h2>
+                          {courseData?.description && (
+                            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{courseData.description}</p>
+                          )}
+                        </div>
+
+                        {/* Divider */}
+                        <div className="w-px self-stretch bg-border" />
+
+                        {/* Version */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">Version</p>
+                          <h3 className="text-base font-semibold text-foreground leading-snug line-clamp-2" title={(versionData as any)?.version || (versionData as any)?.name || 'Unknown Version'}>
+                            {isLoading ? <span className="inline-block h-4 w-36 bg-muted rounded animate-pulse" /> : (versionData as any)?.version || (versionData as any)?.name || 'Unknown Version'}
+                          </h3>
+                          {(versionData as any)?.description && (
+                            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{(versionData as any).description}</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* ViBe Branded Heading */}
-                  <h3 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-slate-100 mb-3 tracking-tight animate-fade-in">
-                    Welcome to <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">ViBe</span>
-                  </h3>
-
-                  {/* Subtitle */}
-                  <p className="text-base md:text-lg lg:text-xl text-slate-600 dark:text-slate-300 mb-2 animate-fade-in">
-                    Ready to Edit Your Course
-                  </p>
-
-                  {/* Animated AI tagline */}
-                  <p className="mb-2 max-w-xl mx-auto text-sm md:text-base lg:text-lg font-medium bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-gradient-x">
-                    Let AI help you build your course faster and smarter!
-                  </p>
-
-                  {/* Animated message */}
-                  <div className="h-12 mb-3 flex items-center justify-center">
-                    <p
-                      className={`max-w-md text-sm md:text-base lg:text-lg text-center font-medium leading-relaxed transition-all duration-500 ease-in-out text-primary animate-fade-in ${isVisible ? 'opacity-100' : 'opacity-0'}`}
-                      style={{
-                        textShadow: '0 2px 8px hsl(var(--primary) / 0.3)',
-                      }}
-                    >
-                      {displayedMessage}
-                    </p>
-                  </div>
-
-                  {/* CTA Button */}
-                  <Button
-                    onClick={handleAddModule}
-                    className="bg-gradient-to-r from-primary to-accent hover:from-accent hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-sm md:text-base lg:text-lg flex items-center gap-3 animate-bounce-slow group"
-                  >
-                    <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
-                    Add new module
-                  </Button>
-
-                  {/* ViBe Features */}
-                  <div className="mt-8 md:flex items-center gap-6 text-sm text-slate-500 dark:text-slate-400">
-                    <div className="flex items-center gap-2 mb-2 md:mb-0">
-                      <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                      <span>AI-Powered Content</span>
+                    <div className="relative z-10 mb-6 w-full max-w-2xl px-4">
+                      <div className="rounded-xl border bg-background/80 px-5 py-4 text-left">
+                        {isLoading ? (
+                          <p className="text-sm text-muted-foreground">Loading course editor data...</p>
+                        ) : modules.length > 0 ? (
+                          <>
+                            <p className="text-sm font-medium text-foreground">
+                              Editor is ready.
+                            </p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Select a module, section, or item from the left panel to view the full edit card.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm font-medium text-foreground">
+                              No modules yet.
+                            </p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Add your first module to unlock all course editing components.
+                            </p>
+                          </>
+                        )}
+                        <p className={`text-xs mt-3 transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'} text-muted-foreground`}>
+                          {displayedMessage}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 mb-2 md:mb-0">
-                      <div className="w-2 h-2 bg-accent rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
-                      <span>Smart Course Builder</span>
+
+                      {/* CTA Button */}
+                      {!isLoading && modules.length === 0 && (
+                        <Button
+                          onClick={handleAddModule}
+                          className="relative z-10 bg-gradient-to-r from-primary to-accent hover:from-accent hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-sm md:text-base flex items-center gap-3 animate-bounce-slow group"
+                        >
+                          <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
+                          Add new module
+                        </Button>
+                      )}
+
+                      {/* ViBe Features */}
+                      <div className="relative z-10 mt-8 md:flex items-center gap-6 text-sm text-slate-500 dark:text-slate-400">
+                        <div className="flex items-center gap-2 mb-2 md:mb-0">
+                          <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                          <span>AI-Powered Content</span>
+                        </div>
+                        <div className="flex items-center gap-2 mb-2 md:mb-0">
+                          <div className="w-2 h-2 bg-accent rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+                          <span>Smart Course Builder</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
+                          <span>Interactive Learning</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
-                      <span>Interactive Learning</span>
-                    </div>
-                  </div>
-                </div>
-                
+
               ))}
 
 

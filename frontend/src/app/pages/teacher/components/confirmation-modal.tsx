@@ -26,12 +26,12 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   cancelText = 'Cancel',
   isDestructive = false,
   isLoading = false,
-  loadingText = 'Processing...'
+  loadingText
 }) => {
   const handleConfirm = () => {
     onConfirm();
   };
-  const actualLoadingText = isDestructive ? 'Deleting…' : loadingText;
+  const actualLoadingText = loadingText ?? (isDestructive ? 'Deleting...' : 'Processing...');
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

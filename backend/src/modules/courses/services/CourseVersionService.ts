@@ -159,6 +159,7 @@ export class CourseVersionService extends BaseService {
   public async readCourseVersion(
     courseVersionId: string,
     userId: string,
+    cohortId?: string,
   ): Promise<CourseVersion & { hpSystem: boolean }> {
     return this._withTransaction(async session => {
       const readVersion = await this.courseRepo.getActiveVersion(
@@ -201,6 +202,7 @@ export class CourseVersionService extends BaseService {
           userId,
           courseId,
           courseVersionId,
+          cohortId,
         );
 
       if (!enrollment) {
@@ -242,9 +244,10 @@ export class CourseVersionService extends BaseService {
     skip?: number,
     limit?: number,
     search?: string,
-    sortBy?: 'name' | 'createdAt' | 'updatedAt',
+    sortBy?: 'name' | 'createdAt' | 'updatedAt' | 'baseHp' | 'safeHp',
     sortOrder?: 'asc' | 'desc',
   ): Promise<CohortsResponse> {
+
     const courseVersion = await this.courseRepo.readVersion(courseVersionId);
     if (!courseVersion.cohorts || courseVersion.cohorts.length == 0) {
       const cohortDetails: CohortsResponse = {
@@ -256,6 +259,9 @@ export class CourseVersionService extends BaseService {
       courseVersion.cohorts,
       { search, sortBy, sortOrder, skip, limit },
     );
+    
+    const versionSettings = await this.settingsRepo.getSettingsByVersionIds([new ObjectId(courseVersionId)]);
+    const baseHp = versionSettings?.[0]?.settings?.baseHp ?? 0;
 
     const cohortDetails: CohortsResponse = {
       cohorts: cohorts.map(cohort => ({
@@ -264,6 +270,9 @@ export class CourseVersionService extends BaseService {
         createdAt: cohort.createdAt,
         updatedAt: cohort.updatedAt,
         isPublic: cohort.isPublic,
+        isActive: cohort.isActive ?? true,
+        baseHp: cohort.baseHp ?? baseHp,
+        safeHp: cohort.safeHp ?? 0
       })),
       version: courseVersion.version,
     };
@@ -271,14 +280,20 @@ export class CourseVersionService extends BaseService {
     return cohortDetails;
   }
 
+
   public async updateCohortInCourseVersion(
     cohortId: string,
-    cohortName: string,
-    isPublic: boolean,
-  ): Promise<boolean> {
+    cohortName?: string,
+    isPublic?: boolean,
+    isActive?: boolean,
+    baseHp?: number,
+    safeHp?: number,
+  ): Promise<boolean>{
     return this._withTransaction(async session => {
-      if (!cohortName && (isPublic === null || isPublic === undefined)) {
-        throw new BadRequestError('No information provided in request body');
+      if (!cohortName && (isPublic === null || isPublic === undefined) && 
+        (isActive === null || isActive === undefined) && 
+        (baseHp === null || baseHp === undefined) && (safeHp === null || safeHp ==undefined)) {
+        throw new BadRequestError("No information provided in request body");
       }
       const existingCohorts = await this.courseRepo.getCohortsByIds(
         [cohortId],
@@ -310,6 +325,9 @@ export class CourseVersionService extends BaseService {
         new ObjectId(cohortId),
         cohortName,
         isPublic,
+        isActive,
+        baseHp,
+        safeHp,
         session,
       );
     });
@@ -375,9 +393,17 @@ export class CourseVersionService extends BaseService {
         existingVersion.supportLink = body.supportLink;
       existingVersion.updatedAt = new Date();
       if (body.cohorts) {
-        const cohortIds = await this.courseRepo.createCohorts(
+          const BLOCKED_COHORT_NAMES = ["euclideans", "dijkstrians", "kruskalians", "rsaians", "aksians"];
+          const blockedFound = body.cohorts.find(c => BLOCKED_COHORT_NAMES.includes(c.toLowerCase()));
+          if (blockedFound) {
+            throw new BadRequestError(`"${blockedFound}" is a reserved cohort name and cannot be used.`);
+          }
+          const versionSetting = await this.settingsRepo.getSettingsByVersionIds([new ObjectId(courseVersionId)]);
+          const baseHpValue = versionSetting?.[0]?.settings?.hpSystem === true ? versionSetting?.[0]?.settings?.baseHp ?? 0 : 0;
+          const cohortIds = await this.courseRepo.createCohorts(
           courseVersionId,
           body.cohorts,
+          baseHpValue,
           session,
         );
         if (!existingVersion.cohorts) {
@@ -627,7 +653,7 @@ export class CourseVersionService extends BaseService {
               settings: { enabled: false, options: {} },
             })),
           },
-          linearProgressionEnabled: false,
+          linearProgressionEnabled: true,
           seekForwardEnabled: false,
         },
       };
@@ -645,10 +671,17 @@ export class CourseVersionService extends BaseService {
     courseId: string,
     versionId: string,
   ): Promise<CourseVersionWatchTimeResponse> {
+    const averageVideoDurationSeconds =
+      await this.getAverageCourseVideoDurationSeconds(versionId);
+    const maxSecondsPerView = this.getVideoWatchCapSeconds(
+      averageVideoDurationSeconds,
+    );
+
     const totalWatchTime =
       await this.progressRepository.getCourseVersionTotalWatchTime(
         courseId,
         versionId,
+        maxSecondsPerView,
       );
     if (totalWatchTime === null) {
       throw new NotFoundError('Course version not found');
@@ -665,6 +698,105 @@ export class CourseVersionService extends BaseService {
     response.totalSeconds = totalWatchTime;
     response.message = `Watch time fetched successfully for course "${course.name}" version "${courseVersion.version}".`;
     return response;
+  }
+
+  private parseDurationToSeconds(time?: string): number {
+    if (!time) return 0;
+    const parts = time.split(':').map(part => Number(part));
+    if (parts.some(part => Number.isNaN(part) || part < 0)) return 0;
+
+    if (parts.length === 3) {
+      return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    }
+
+    if (parts.length === 2) {
+      return parts[0] * 60 + parts[1];
+    }
+
+    if (parts.length === 1) {
+      return parts[0];
+    }
+
+    return 0;
+  }
+
+  private getVideoDurationSeconds(videoItem: any): number {
+    const startSeconds = this.parseDurationToSeconds(videoItem?.details?.startTime);
+    const endSeconds = this.parseDurationToSeconds(videoItem?.details?.endTime);
+    const durationSeconds = endSeconds - startSeconds;
+    return durationSeconds > 0 ? durationSeconds : 0;
+  }
+
+  private getVideoWatchCapSeconds(averageVideoDurationSeconds: number): number {
+    const DEFAULT_CAP_SECONDS = 10 * 60;
+    const MAX_CAP_SECONDS = 4 * 60 * 60;
+
+    if (!Number.isFinite(averageVideoDurationSeconds) || averageVideoDurationSeconds <= 0) {
+      return DEFAULT_CAP_SECONDS;
+    }
+
+    const dynamicCapSeconds = Math.round(averageVideoDurationSeconds * 2);
+    return Math.max(DEFAULT_CAP_SECONDS, Math.min(dynamicCapSeconds, MAX_CAP_SECONDS));
+  }
+
+  private async getAverageCourseVideoDurationSeconds(
+    versionId: string,
+  ): Promise<number> {
+    const courseVersion = await this.courseRepo.readVersion(versionId);
+    if (!courseVersion?.modules?.length) return 0;
+
+    const itemsGroupIds = Array.from(
+      new Set(
+        courseVersion.modules.flatMap(module =>
+          module.sections
+            .map(section => section.itemsGroupId?.toString())
+            .filter(Boolean),
+        ),
+      ),
+    );
+
+    if (!itemsGroupIds.length) return 0;
+
+    const itemGroups = await Promise.all(
+      itemsGroupIds.map(async groupId => {
+        try {
+          return await this.itemRepo.readItemsGroup(groupId);
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    const videoItemIds = Array.from(
+      new Set(
+        itemGroups
+          .flatMap(group => group?.items || [])
+          .filter(item => item?.type === 'VIDEO')
+          .map(item => item._id?.toString())
+          .filter(Boolean),
+      ),
+    );
+
+    if (!videoItemIds.length) return 0;
+
+    const videoItems = await Promise.all(
+      videoItemIds.map(async id => {
+        try {
+          return await this.itemRepo.readItem(versionId, id);
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    const durations = videoItems
+      .map(videoItem => this.getVideoDurationSeconds(videoItem))
+      .filter(duration => duration > 0);
+
+    if (!durations.length) return 0;
+
+    const totalDuration = durations.reduce((sum, duration) => sum + duration, 0);
+    return totalDuration / durations.length;
   }
 
   async updateCourseVersionStatus(
