@@ -45,7 +45,7 @@ const isCurrentTimeInTimeSlot = (timeSlotData?: any) => {
   return currentTime >= fromTime && currentTime <= toTime;
 };
 
-export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
+export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className }: CourseCardProps) => {
   // Add null checks to prevent errors when enrollment data is incomplete
   if (!enrollment || !enrollment.courseId || !enrollment.courseVersionId) {
     console.error('Invalid enrollment data:', enrollment);
@@ -75,6 +75,12 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isTimeslotModalOpen, setIsTimeslotModalOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
+  // const [showPolicies, setShowPolicies] = useState(false);
+  const supportEmail =
+    enrollment.courseId === "692f030a945e82ec875e9116"
+      ? "vibe-support@vicharanashala.zohodesk"
+      : "internship-support@vicharanashala.zohodesk";
 
 
   const progress = Number(Math.min(enrollment.percentCompleted ?? 0, 100).toFixed(2));
@@ -138,27 +144,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   // const supportLink = enrollment?.course?.supportLink || "";
 
-  // Use useEffect to update completion to avoid infinite re-renders
-  useEffect(() => {
-    const existingCompletionIndex = completion?.findIndex(
-      (c) => c.courseVersionId === versionId
-    );
-
-
-
-
-    if (existingCompletionIndex === -1 && enrollment) {
-      setCompletion?.([
-        ...(completion || []),
-        {
-          courseVersionId: versionId,
-          percentage: typeof progress === 'number' ? progress : 0,
-          totalItems: typeof contentCounts.totalItems === 'number' ? contentCounts.totalItems : 0,
-          completedItems: typeof completedLessons === 'number' ? completedLessons : 0
-        },
-      ]);
-    }
-  }, [completion, versionId, enrollment, progress, contentCounts.totalItems, completedLessons, setCompletion]);
 
 
   useEffect(() => {

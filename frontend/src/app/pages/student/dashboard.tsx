@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuthStore } from "@/store/auth-store";
-import { useUserEnrollments, useWatchtimeTotal, usePublicCourses } from "@/hooks/hooks";
+import { useUserEnrollments, useWatchtimeTotal, usePublicCourses, useUserEnrollmentStats } from "@/hooks/hooks";
 import { useNavigate } from "@tanstack/react-router";
 
 // Import components
@@ -9,7 +9,7 @@ import { CourseSection } from "@/components/course/CourseSection";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getGreeting } from "@/utils/helpers";
-import type { CoursePctCompletion, CourseCardProps } from '@/types/course.types';
+import type { CourseCardProps } from '@/types/course.types';
 import { stopAllStreams } from "@/lib/MediaRegistry";
 import { cn } from "@/utils/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -98,26 +98,19 @@ function DashboardContent() {
   } = usePublicCourses(1, 5, !!token);
 
   useWatchtimeTotal();
+  const { data: statsData, isLoading: statsLoading } = useUserEnrollmentStats(!!token);
 
 
-
-  // const filteredEnrollement = enrollments.filter(enrollment=>enrollment.role == "STUDENT");
-  const [completion, setCompletion] = useState<CoursePctCompletion[]>([]);
-
-  // Calculate distinct lists for tabs
+   // Calculate distinct lists for tabs
   const activeEnrollments = useMemo(() => {
-    return enrollments.filter(enrollment => enrollment.percentCompleted !== 100);
+    return enrollments.filter(enrollment => (enrollment.percentCompleted ?? 0) !== 100);
   }, [enrollments]);
 
   const completedEnrollments = useMemo(() => {
-    return enrollments.filter(enrollment => enrollment.percentCompleted === 100);
+    return enrollments.filter(enrollment => (enrollment.percentCompleted ?? 0) === 100);
   }, [enrollments]);
 
-  const totalProgress = useMemo(() => {
-    const completed = completion.reduce((a, c) => a + (c.completedItems || 0), 0);
-    const total = completion.reduce((a, c) => a + (c.totalItems || 0), 0);
-    return total ? Math.round((completed / total) * 100) : 0;
-  }, [completion]);
+  const totalProgress = statsData?.overallProgress ?? 0;
 
   // Tab State
   const [activeTab, setActiveTab] = useState("available");
@@ -166,14 +159,14 @@ function DashboardContent() {
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-stretch w-full max-w-2xl">
-              <StatCard
+               <StatCard
                 icon={<BookOpen className="h-5 w-5" />}
-                value={enrollmentsLoading ? "—" : `${totalEnrollments}`}
+                value={statsLoading ? "—" : `${statsData?.totalCourses ?? totalEnrollments}`}
                 label="Enrolled Courses"
               />
               <StatCard
                 icon={<TrendingUp className="h-5 w-5 text-green-500" />}
-                value={`${totalProgress}%`}
+                value={statsLoading ? "—" : `${totalProgress}%`}
                 label="Completion Percentage"
               />
             </div>
@@ -355,8 +348,6 @@ function DashboardContent() {
                           index={index}
                           isLoading={false}
                           variant="dashboard"
-                          completion={completion}
-                          setCompletion={setCompletion}
                         />
                       ) : (
                         <CourseListCard
@@ -365,8 +356,6 @@ function DashboardContent() {
                           index={index}
                           isLoading={false}
                           variant="dashboard"
-                          completion={completion}
-                          setCompletion={setCompletion}
                         />
                       )
                     ))}
@@ -451,8 +440,6 @@ function DashboardContent() {
                           index={index}
                           isLoading={false}
                           variant="dashboard"
-                          completion={completion}
-                          setCompletion={setCompletion}
                         />
                       ) : (
                         <CourseListCard
@@ -461,8 +448,6 @@ function DashboardContent() {
                           index={index}
                           isLoading={false}
                           variant="dashboard"
-                          completion={completion}
-                          setCompletion={setCompletion}
                         />
                       )
                     ))}

@@ -594,7 +594,24 @@ export class EnrollmentStatisticsResponse {
   averageProgressPercent: number;
 
   @IsNumber()
-  averageWatchHoursPerUser: number; // newly added to support watch hours stats
+  averageWatchHoursPerUser: number;
+}
+
+export class UserEnrollmentStatisticsResponse {
+  @IsNumber()
+  totalCourses: number;
+
+  @IsNumber()
+  completedCourses: number;
+
+  @IsNumber()
+  totalItems?: number;
+
+  @IsNumber()
+  completedItems?: number;
+
+  @IsNumber()
+  overallProgress: number;
 }
 
 export const ENROLLMENT_VALIDATORS = [
@@ -610,4 +627,6 @@ export const ENROLLMENT_VALIDATORS = [
   BulkUnenrollResponse,
   ChangeEnrollmentStatusBody,
   BulkChangeEnrollmentStatusBody,
+  EnrollmentStatisticsResponse,
+  UserEnrollmentStatisticsResponse,
 ];

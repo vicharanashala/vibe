@@ -67,6 +67,13 @@ export class CohortsController {
 
         // return response;
     }
+    @Get("/course/:versionId/details")
+    @Authorized()
+    async getCourseDetails(
+        @Param("versionId") versionId: string
+    ) {
+        return this.cohortsService.getCourseDetails(versionId);
+    }
 
     @OpenAPI({ summary: "List all enrolled cohorts" })
     @Get("/cohorts")
@@ -116,7 +123,7 @@ export class CohortsController {
         };
 
         return response;
-    }
+    }    
 
     @OpenAPI({ summary: "List cohorts the student is enrolled in (hpSystem enabled)" })
     @Get("/student-cohorts")

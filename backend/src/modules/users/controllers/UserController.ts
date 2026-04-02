@@ -13,11 +13,20 @@ import {
   Post,
   Patch,
   Authorized,
+  CurrentUser,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
-import { EditUserBody, GetUserParams, GetUserResponse, UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
+import {
+  EditUserBody,
+  GetUserParams,
+  GetUserResponse,
+  UserNotFoundErrorResponse,
+} from '../classes/validators/UserValidators.js';
+import { UserEnrollmentStatisticsResponse } from '../classes/validators/EnrollmentValidators.js';
+import { EnrollmentService } from '#users/services/EnrollmentService.js';
 import { AUTH_TYPES } from '#root/modules/auth/types.js';
 import { IAuthService } from '#root/modules/auth/interfaces/IAuthService.js';
+import { IUser } from '#root/shared/interfaces/models.js';
 
 @OpenAPI({
   tags: ['Users'],
@@ -31,14 +40,35 @@ export class UserController {
 
     @inject(AUTH_TYPES.AuthService)
     private readonly authService: IAuthService,
+
+    @inject(USERS_TYPES.EnrollmentService)
+    private readonly enrollmentService: EnrollmentService,
   ) { }
+
+  @OpenAPI({
+    summary: 'Get user-level enrollment statistics',
+    description: 'Provides aggregated statistics across all courses for the current user.',
+  })
+  @Authorized()
+  @Get('/enrollment-stats')
+  @HttpCode(200)
+  @ResponseSchema(UserEnrollmentStatisticsResponse, {
+    description: 'User-level enrollment statistics',
+  })
+  async getUserEnrollmentStatistics(
+    @CurrentUser({ required: true }) user: IUser,
+  ): Promise<UserEnrollmentStatisticsResponse> {
+    return await this.enrollmentService.getUserEnrollmentStatistics(
+      user._id!.toString(),
+    );
+  }
 
   @OpenAPI({
     summary: 'Get user information by user ID',
     description: 'Retrieves user information based on the provided user ID.',
   })
   @Authorized()
-  @Get('/:userId([a-fA-F0-9]{24})')
+  @Get('/:userId')
   @HttpCode(200)
   @ResponseSchema(User, {
     description: 'User information retrieved successfully',
@@ -91,7 +121,7 @@ export class UserController {
   ): Promise<void> {
     const token = req.headers.authorization?.split(' ')[1];
     const user = await this.authService.getCurrentUserFromToken(token);
-    const userId = user._id.toString();
+    const userId = user._id!.toString();
     const firebaseUID = user.firebaseUID;
     await this.userService.editUser(userId, body);
     await this.authService.updateFirebaseUser(firebaseUID, body);
