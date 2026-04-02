@@ -9,6 +9,7 @@ import {
   courseVersionStatus,
   EnrollmentRole,
   EnrollmentStatus,
+  ICohort,
   ICourseVersion,
   IEnrollment,
 } from '#root/shared/interfaces/models.js';
@@ -44,6 +45,8 @@ import {
 } from '#root/modules/quizzes/interfaces/index.js';
 import { Cohort } from '#root/modules/courses/classes/index.js';
 import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import { HP_SYSTEM_TYPES } from '#root/modules/hpSystem/types.js';
+import { LedgerRepository } from '#root/modules/hpSystem/repositories/index.js';
 
 const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
 const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
@@ -67,6 +70,8 @@ export class EnrollmentService extends BaseService {
     private readonly inviteRepo: InviteRepository,
     @inject(USERS_TYPES.ProgressRepo)
     private readonly progressRepo: ProgressRepository,
+    @inject(HP_SYSTEM_TYPES.ledgerRepository)
+    private readonly ledgerRepo: LedgerRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -140,6 +145,7 @@ export class EnrollmentService extends BaseService {
         ]);
 
       let baseHpValue = 0;
+       let sourceText='';
 
       if (versionSetting?.[0]?.settings?.hpSystem === true) {
         let cohortBaseHp;
@@ -149,13 +155,19 @@ export class EnrollmentService extends BaseService {
           ]);
           if (cohortTobeEnrolled?.[0]?.baseHp) {
             cohortBaseHp = cohortTobeEnrolled[0].baseHp;
-          }
+            sourceText='COHORT'
+          } 
         }
         if (cohortBaseHp != null) {
           baseHpValue = cohortBaseHp;
         } else {
           baseHpValue = versionSetting?.[0]?.settings?.baseHp ?? 0;
+          sourceText="VERSION"
         }
+      }
+      const sourceTextMap = {
+        COHORT: 'cohort-level base HP',
+        VERSION: 'course version base HP'
       }
       const enrollmentData = {
         userId: new ObjectId(userId),
@@ -183,6 +195,53 @@ export class EnrollmentService extends BaseService {
           courseVersion,
           cohort,
         );
+
+        if (versionSetting?.[0]?.settings?.hpSystem === true && baseHpValue>0) {
+          const now = new Date();
+          
+          let cohortDetails:ICohort[]|null=null;
+          if(cohort)
+              cohortDetails=await this.courseRepo.getCohortsByIds([cohort]);
+          await this.ledgerRepo.create(
+            {
+              courseId: new ObjectId(courseId),
+              courseVersionId: new ObjectId(courseVersionId),
+              cohort: cohortDetails?.[0].name,
+
+              studentId: new ObjectId(userId),
+              studentEmail: user.email,
+
+              activityId: null,
+              submissionId: null,
+
+              eventType: 'BASE_INIT',
+              direction: 'CREDIT',
+              amount: baseHpValue,
+
+              calc: {
+                ruleType: 'ABSOLUTE',
+                absolutePoints: baseHpValue,
+                baseHpAtTime: 0, 
+                computedAmount: baseHpValue,
+
+                percentage: undefined,
+                deadlineAt: undefined,
+                withinDeadline: undefined,
+
+                reasonCode: 'BASE_INIT',
+              },
+
+              links: null,
+
+              meta: {
+                triggeredBy: 'SYSTEM',
+                triggeredByUserId: new ObjectId(userId),
+                note:`An initial HP of ${baseHpValue} was assigned at enrollment (source: ${sourceText}).`,
+              },
+            },
+            session
+          );
+        }
 
         if (progressData) {
           initialProgress = await this.progressRepo.createProgress(

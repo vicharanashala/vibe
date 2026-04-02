@@ -291,3 +291,5 @@ export interface HpLedger {
 }
 
 export type statusFilter = "ALL" | "SAFE" | "UNSAFE";
+
+export type HpResetMode = 'ALL' | 'ONLY_ZERO_HP' | 'ONLY_WITH_HP';

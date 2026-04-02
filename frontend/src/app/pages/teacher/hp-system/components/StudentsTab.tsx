@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ResetHpDialog } from "./ResetHpDialog";
 
 export interface StudentsTabProps {
   courseVersionId: string;
@@ -27,6 +28,7 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<"ALL" | "SAFE" | "UNSAFE">("ALL");
+  const [openReset, setOpenReset] = useState(false);
 
   const itemsPerPage = 10;
   const navigate = useNavigate();
@@ -98,7 +100,7 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
     <div className="space-y-6">
 
       {/* Search */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
         <div className="relative max-w-md flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -111,33 +113,47 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
             className="pl-10"
           />
         </div>
-        <div className="flex items-center gap-3">
-          <Select
-            value={statusFilter}
-            onValueChange={(value: "ALL" | "SAFE" | "UNSAFE") => {
-              setStatusFilter(value);
-              setCurrentPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Filter" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Students</SelectItem>
-              <SelectItem value="SAFE">Safe</SelectItem>
-              <SelectItem value="UNSAFE">Unsafe</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isRefetching || isLoading}
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
-          {isRefetching ? "Refreshing..." : "Refresh"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <Select
+              value={statusFilter}
+              onValueChange={(value: "ALL" | "SAFE" | "UNSAFE") => {
+                setStatusFilter(value);
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Students</SelectItem>
+                <SelectItem value="SAFE">Safe</SelectItem>
+                <SelectItem value="UNSAFE">Unsafe</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isRefetching || isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+              {isRefetching ? "Refreshing..." : "Refresh"}
+            </Button>
+
+
+            {/* Reset Hp function is disabled uncomment the below code to enable it */}
+            
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setOpenReset(true)}
+            >
+              Reset HP
+            </Button>
+          </div>
+
       </div>
 
       {/* Student Count */}
@@ -302,6 +318,13 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
           />
         </CardContent>
       </Card>
+       <ResetHpDialog
+        open={openReset}
+        onOpenChange={setOpenReset}
+        courseVersionId={courseVersionId}
+        cohortName={cohortName}
+        onSuccess={refetch}
+      />
     </div>
   );
 }
