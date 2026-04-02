@@ -1,13 +1,17 @@
-import { useHpStudentCohorts } from "@/hooks/hooks";
+import { useCourseDetails, useHpStudentCohorts } from "@/hooks/hooks";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
+import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { BookOpen, ArrowRight, Trophy, CheckCircle2, LayoutDashboard, History, RefreshCw } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
+import { useState } from "react";
 export default function StudentCohorts() {
-    const { data: cohorts, totalHp, isLoading, error, refetch, isRefetching } = useHpStudentCohorts();
+    const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
+    const { data: courseDetails, isLoading: courseLoading } =
+  useCourseDetails(selectedVersionId || undefined);
+    const { data: cohorts, totalHp, isLoading, error } = useHpStudentCohorts();    
     const navigate = useNavigate();
 
     const getProgressColor = (progress: number) => {
@@ -87,6 +91,8 @@ export default function StudentCohorts() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <Card className="bg-primary/5 border-primary/10">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <div className="flex justify-between items-start">
+                        </div>
                         <CardTitle className="text-sm font-medium">Total Cohorts</CardTitle>
                         <LayoutDashboard className="h-4 w-4 text-primary" />
                     </CardHeader>
@@ -141,6 +147,10 @@ export default function StudentCohorts() {
                                         <CardTitle className="leading-tight">{cohort.courseName}</CardTitle>
                                         <CardDescription className="flex items-center gap-1.5 mt-1 font-medium text-foreground/70">
                                             {cohort.cohortName}
+                                        <Info
+                                        className="h-5 w-5 cursor-pointer text-muted-foreground hover:text-primary"
+                                        onClick={() => setSelectedVersionId(cohort.courseVersionId)}
+                                        />
                                         </CardDescription>
                                     </div>
                                 </div>
@@ -157,6 +167,43 @@ export default function StudentCohorts() {
                                     </div>
                                 </div>
                             </CardContent>
+                            {selectedVersionId && (
+                            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                                <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg w-[400px]">
+                                
+                                {courseLoading ? (
+                                    <p>Loading...</p>
+                                ) : (
+                                    <>
+                                    <h2 className="text-xl font-bold mb-2">
+                                        {courseDetails?.courseName}
+                                    </h2>
+                                    <p className="text-sm text-muted-foreground">
+                                         Descptions: {courseDetails?.courseDescription}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Version: {courseDetails?.versionName}
+                                    </p>
+                                    </>
+                                )}
+
+                               <div className="flex justify-between">
+                                 <Button
+                                    className="mt-4"
+                                    onClick={() => setSelectedVersionId(null)}
+                                >
+                                    Close
+                                </Button>
+                                <Button
+                                    className="mt-4"
+                                    onClick={() => navigate({ to: '/student/courses' })}
+                                >
+                                    Course Details
+                                </Button>
+                               </div>
+                                </div>
+                            </div>
+                            )}
 
                             <CardFooter>
                                 <Tooltip>

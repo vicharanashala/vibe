@@ -24,6 +24,8 @@ import {
 import { toast } from 'sonner';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { calculateNextMilestones } from '@/lib/policy-utils';
+import { cn } from "@/utils/utils";
 
 interface EjectionStudentListProps {
   courseId: string;
@@ -66,7 +68,7 @@ export function EjectionStudentList({
   const [bulkReinstateOpen, setBulkReinstateOpen] = useState(false);
 
   // ── Data ──────────────────────────────────────────────────────────
-  const { students, totalPages, totalDocuments, isLoading, refetch } =
+  const { students, policies, totalPages, totalDocuments, isLoading, refetch } =
     useEjectionStudents(courseId, courseVersionId, cohortId, page, 20, debouncedSearch, statusFilter);
 
   const ejectMutation = useManualEject();
@@ -209,13 +211,13 @@ export function EjectionStudentList({
   };
 
   // ── UI helpers ────────────────────────────────────────────────────
-  const getStatusBadge = (student: any) => {
+  const getStatusBadge = (student: any, isAtRisk: boolean) => {
     if (student.ejectionStatus === 'ejected') return (
       <Badge className="bg-red-100 text-red-800 dark:bg-red-950/30 dark:text-red-300 flex items-center gap-1">
         <ShieldOff className="h-3 w-3" /> Ejected
       </Badge>
     );
-    if (student.ejectionStatus === 'warning') return (
+    if (isAtRisk) return (
       <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300 flex items-center gap-1">
         <ShieldAlert className="h-3 w-3" /> At Risk
       </Badge>
@@ -227,10 +229,10 @@ export function EjectionStudentList({
     );
   };
 
-  const getRowHighlight = (student: any) => {
+  const getRowHighlight = (student: any, isAtRisk: boolean) => {
     if (selectedIds.has(student.userId)) return 'bg-primary/5';
     if (student.ejectionStatus === 'ejected') return 'bg-red-50/30 dark:bg-red-950/10';
-    if (student.ejectionStatus === 'warning') return 'bg-amber-50/30 dark:bg-amber-950/10';
+    if (isAtRisk) return 'bg-amber-50/30 dark:bg-amber-950/10';
     return '';
   };
 
@@ -323,17 +325,38 @@ export function EjectionStudentList({
                     <TableHead className="w-[260px]">Student</TableHead>
                     <TableHead className="w-[120px]">Enrolled</TableHead>
                     <TableHead className="w-[150px]">Progress</TableHead>
+                    <TableHead className="w-[200px]">Next Milestone</TableHead>
                     <TableHead className="w-[150px]">Last Active</TableHead>
                     <TableHead className="w-[130px]">Status</TableHead>
                     <TableHead className="w-[150px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {students.map((student: any) => (
+                  {students.map((student: any) => {
+                    const milestones: any[] = [];
+                    policies.forEach((policy: any) => {
+                      if (policy.triggers.missedDeadlines?.enabled) {
+                        const m = calculateNextMilestones(
+                          policy.triggers.missedDeadlines.progressRules,
+                          student.enrollmentDate,
+                          student.percentCompleted
+                        );
+                        milestones.push(...m);
+                      }
+                    });
+
+                    const nextMilestone = milestones.sort((a, b) => a.date.getTime() - b.date.getTime())[0];
+                    const isMilestoneNear = nextMilestone && (nextMilestone.date.getTime() - new Date().getTime()) < (1000 * 60 * 60 * 24 * 3);
+                    const isAtRisk = student.ejectionStatus === 'warning' || !!isMilestoneNear;
+
+                  return (
                     <>
                       <TableRow
                         key={student.enrollmentId}
-                        className={`transition-colors ${getRowHighlight(student)}`}
+                        className={cn(
+                            "group transition-colors border-border/40",
+                            getRowHighlight(student, isAtRisk)
+                        )}
                       >
                         {/* Checkbox */}
                         <TableCell className="pl-4 py-4">
@@ -383,6 +406,25 @@ export function EjectionStudentList({
                           </div>
                         </TableCell>
 
+                          {/* Next Milestone */}
+                          <TableCell className="py-4">
+                            {!nextMilestone || student.isEjected || student.percentCompleted >= 100 ? (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            ) : (
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {isMilestoneNear && <AlertTriangle className="h-3 w-3 text-orange-500" />}
+                                <div className="text-[13px] leading-tight max-w-[160px]">
+                                  <span className="font-medium text-foreground">
+                                    {nextMilestone.targetPercentage}%
+                                  </span>
+                                  <span className="text-muted-foreground ml-1">
+                                    by {nextMilestone.date.toLocaleDateString('en-GB')}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </TableCell>
+
                         {/* Last Active */}
                         <TableCell className="py-4">
                           <div className="flex items-center gap-1.5 text-sm">
@@ -394,7 +436,7 @@ export function EjectionStudentList({
                         </TableCell>
 
                         {/* Status */}
-                        <TableCell className="py-4">{getStatusBadge(student)}</TableCell>
+                        <TableCell className="py-4">{getStatusBadge(student, isAtRisk)}</TableCell>
 
                         {/* Actions */}
                         <TableCell className="py-4">
@@ -435,7 +477,7 @@ export function EjectionStudentList({
                       {/* Ejection History Row */}
                       {expandedStudent === student.enrollmentId && student.ejectionHistory?.length > 0 && (
                         <TableRow key={`${student.enrollmentId}-history`} className="bg-muted/10">
-                          <TableCell colSpan={7} className="py-3 pl-16 pr-6">
+                          <TableCell colSpan={8} className="py-3 pl-16 pr-6">
                             <div className="space-y-2">
                               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ejection History</p>
                               {student.ejectionHistory.map((entry: any, idx: number) => (
@@ -466,7 +508,8 @@ export function EjectionStudentList({
                         </TableRow>
                       )}
                     </>
-                  ))}
+                  );
+                })}
                 </TableBody>
               </Table>
             </div>
