@@ -3398,16 +3398,6 @@ class ProgressService extends BaseService {
 
     if (!alreadyCompleted) {
       // ── ###. Item not yet completed → create + immediately close a watchTime ──
-      const existingWatchTime = await this.progressRepository.getWatchTime(
-        userId,
-        itemId,
-        courseId,
-        courseVersionId,
-        cohortId,
-        session,
-      );
-
-      if (!existingWatchTime || existingWatchTime.length === 0) {
         // No open record at all → start one and stop it right away
         const watchTimeId = await this.progressRepository.startItemTracking(
           userId,
@@ -3425,16 +3415,6 @@ class ProgressService extends BaseService {
         }
 
         await this.progressRepository.stopItemTracking(watchTimeId, session);
-      } else {
-        // An open (no endTime) record exists - close it to mark completion
-        const openRecord = existingWatchTime.find(wt => !wt.endTime);
-        if (openRecord) {
-          await this.progressRepository.stopItemTracking(
-            openRecord._id.toString(),
-            session,
-          );
-        }
-      }
     }
     // ── ### Already completed  fall through without touching watchTime
 

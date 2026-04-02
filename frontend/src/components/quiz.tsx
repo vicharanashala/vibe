@@ -634,9 +634,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
       if (errorMessage && (errorMessage.includes('No available attempts left') || errorMessage.includes('no available attempts'))) {
         toast.info('You have used all available attempts for this quiz.');
-
-        setQuizCompleted(true);
-        setQuizPassed?.(1);
+        console.log('No attempts left - marking quiz as completed with skip');
+        // setQuizCompleted(true);
+        // setQuizPassed?.(1);
+        setQuizStarted(true);
         setNoAttemptsLeft(true);
 
         return;
@@ -1268,7 +1269,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
                   <Button
                     onClick={async ()=>{
-                        await handleSkipItem();
+                        if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
+                          await handleSkipItem();
+                        }
                         if(onNext){
                         onNext();
                         }
@@ -1535,6 +1538,83 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   </Card>
                 );
               })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if(quizStarted && noAttemptsLeft){
+    return (
+      <Card className="mx-auto">
+        <CardContent className="p-8 text-center space-y-6">
+          <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center mx-auto">
+            <FileQuestion className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+          </div>
+          <h3 className="text-2xl font-semibold text-foreground">
+            No attempts remaining for this quiz.
+          </h3>
+          {/* Action Buttons - side by side */}
+          <div className="pt-4 flex flex-col items-center gap-3">
+            <div className="flex flex-wrap justify-center gap-3">
+              {/* Rewatch Video Button - always available */}
+              {onPrevVideo && (
+                <Button
+                  onClick={() => {
+                    setNoAttemptsLeft(false);
+                    setQuizStarted(false);
+                    onPrevVideo();
+                  }}
+                  disabled={isProgressUpdating}
+                  variant="outline"
+                  className="min-w-[180px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
+                  size="lg"
+                >
+                  {isNavigatingToPrev ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2" />
+                      Processing
+                    </>
+                  ) : (
+                    <>
+                      <ChevronLeft className="h-4 w-4 mr-2" />
+                      Rewatch Video
+                    </>
+                  )}
+                </Button>
+              )}
+              {/* Next Lesson Button-If user doesn't want to wait*/}
+              {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
+                <Button
+                  onClick={async ()=>{
+                      if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
+                        await handleSkipItem();
+                      }
+                      setQuizStarted(false);
+                      setNoAttemptsLeft(false);
+                      if(onNext){
+                        onNext();
+                      }
+                    }
+                  }
+                  disabled={isProgressUpdating}
+                  className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
+                  size="lg"
+                >
+                  {isProgressUpdating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
+                      Processing
+                    </>
+                  ) : (
+                    <>
+                      Next Lesson
+                      <ChevronRight className="h-4 w-4 ml-2" />
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
