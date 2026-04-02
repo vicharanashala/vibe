@@ -4,7 +4,7 @@ import {
 } from '#shared/constants/transformerConstants.js';
 import {IUser} from '#shared/interfaces/models.js';
 import {Expose, Transform} from 'class-transformer';
-import { IsNotEmpty, IsString } from 'class-validator';
+import {IsOptional, IsString} from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
 
@@ -50,7 +50,52 @@ class User implements IUser {
     title: 'Last Name',
     description: 'Last Name',
   })
-  lastName: string;
+  lastName?: string;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    title: 'Avatar',
+    description: 'Profile image URL or data URI',
+  })
+  avatar?: string;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    title: 'Gender',
+    description: 'Gender',
+  })
+  gender?: string;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    title: 'Country',
+    description: 'Country',
+  })
+  country?: string;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    title: 'State',
+    description: 'State',
+  })
+  state?: string;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    title: 'City',
+    description: 'City',
+  })
+  city?: string;
 
   @Expose()
   @IsString()
@@ -66,6 +111,11 @@ class User implements IUser {
     this.email = data?.email;
     this.firstName = data?.firstName;
     this.lastName = data?.lastName;
+    this.avatar = data?.avatar;
+    this.gender = data?.gender;
+    this.country = data?.country;
+    this.state = data?.state;
+    this.city = data?.city;
     this.roles = data?.roles || 'user';
   }
 }

@@ -158,6 +158,25 @@ export default function AuthPage() {
     return Object.keys(errors).length === 0;
   };
 
+  const fetchBackendProfile = async (token: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/users/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Failed to fetch backend profile", error);
+      return null;
+    }
+  };
+
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
@@ -182,13 +201,22 @@ export default function AuthPage() {
         });
       }
 
+      const token = await result.user.getIdToken();
+      const backendProfile = await fetchBackendProfile(token);
+
       // Set user in store
       setUser({
         uid: result.user.uid,
         email: result.user.email || "",
-        name: result.user.displayName || "",
+        name: `${backendProfile?.firstName || ""} ${backendProfile?.lastName || ""}`.trim() || result.user.displayName || "",
+        firstName: backendProfile?.firstName || "",
+        lastName: backendProfile?.lastName || "",
         role: activeRole, // Use the selected role from tabs
-        avatar: result.user.photoURL || "",
+        avatar: backendProfile?.avatar || result.user.photoURL || "",
+        gender: backendProfile?.gender || "",
+        country: backendProfile?.country || "",
+        state: backendProfile?.state || "",
+        city: backendProfile?.city || "",
       });
 
       navigate({ to: `/${activeRole}` });
@@ -210,14 +238,22 @@ export default function AuthPage() {
 
       // This function now handles login only
       const result = await loginWithEmail(email, password);
+      const token = await result.user.getIdToken();
+      const backendProfile = await fetchBackendProfile(token);
 
       // Set user in store
       setUser({
         uid: result.user.uid,
         email: result.user.email || "",
-        name: result.user.displayName || "",
+        name: `${backendProfile?.firstName || ""} ${backendProfile?.lastName || ""}`.trim() || result.user.displayName || "",
+        firstName: backendProfile?.firstName || "",
+        lastName: backendProfile?.lastName || "",
         role: activeRole,
-        avatar: result.user.photoURL || "",
+        avatar: backendProfile?.avatar || result.user.photoURL || "",
+        gender: backendProfile?.gender || "",
+        country: backendProfile?.country || "",
+        state: backendProfile?.state || "",
+        city: backendProfile?.city || "",
       });
 
       navigate({ to: `/${activeRole}` });
@@ -277,13 +313,22 @@ export default function AuthPage() {
       });
       // const result = await loginWithEmail(email, password);
 
+      const token = await result.user.getIdToken();
+      const backendProfile = await fetchBackendProfile(token);
+
       // Set user in store
       setUser({
         uid: result.user.uid,
         email: result.user.email || "",
-        name: result.user.displayName || "",
+        name: `${backendProfile?.firstName || ""} ${backendProfile?.lastName || ""}`.trim() || result.user.displayName || "",
+        firstName: backendProfile?.firstName || firstName,
+        lastName: backendProfile?.lastName || lastName,
         role: activeRole,
-        avatar: result.user.photoURL || "",
+        avatar: backendProfile?.avatar || result.user.photoURL || "",
+        gender: backendProfile?.gender || "",
+        country: backendProfile?.country || "",
+        state: backendProfile?.state || "",
+        city: backendProfile?.city || "",
       });
 
       navigate({ to: "/student" });

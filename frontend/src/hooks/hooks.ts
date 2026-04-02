@@ -2250,8 +2250,8 @@ export function useWatchTimeByItemId(userId: string, courseId: string, courseVer
 }
 
 export function useEditUser(): {
-  mutate: (variables: { body: { firstName?: string; lastName?: string } }) => void,
-  mutateAsync: (variables: { body: { firstName?: string; lastName?: string } }) => Promise<void>,
+  mutate: (variables: { body: { firstName?: string; lastName?: string; avatar?: string; gender?: string; country?: string; state?: string; city?: string } }) => void,
+  mutateAsync: (variables: { body: { firstName?: string; lastName?: string; avatar?: string; gender?: string; country?: string; state?: string; city?: string } }) => Promise<void>,
   data: void | undefined,
   error: string | null,
   isPending: boolean,
@@ -5868,4 +5868,35 @@ export function useStudentMySubmissions(courseVersionId: string, cohort: string)
   });
 
 
+}
+
+export interface UserEnrollmentStats {
+  totalCourses: number;
+  completedCourses: number;
+  totalItems: number;
+  completedItems: number;
+  overallProgress: number;
+}
+
+export function useUserEnrollmentStats(enabled: boolean = true): {
+  data: UserEnrollmentStats | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery(
+    "get",
+    "/users/enrollment-stats" as any,
+    {},
+    { enabled }
+  );
+
+  return {
+    data: result.data as UserEnrollmentStats | undefined,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || "Failed to fetch enrollment stats"
+      : null,
+    refetch: result.refetch,
+  };
 }
