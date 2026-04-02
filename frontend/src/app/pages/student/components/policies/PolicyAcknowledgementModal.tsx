@@ -93,18 +93,18 @@ export function PolicyAcknowledgementModal({
       }}
     >
       <DialogContent
-        className="max-w-4xl max-h-[90vh]"
+        className=""
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
+            <Shield className="h-5 w-5 text-primary " />
             {isInviteMode
               ? "Accept Course Invite"
               : "Course Policy — Acknowledgement Required"}
           </DialogTitle>
 
-          <DialogDescription>
+          <DialogDescription className="mb-2 ml-1">
             {isInviteMode
               ? "Please review and accept the policies before continuing."
               : "A policy has been added or updated for your cohort. You must review and acknowledge it before you can continue accessing this course. Your progress has not been affected."}
