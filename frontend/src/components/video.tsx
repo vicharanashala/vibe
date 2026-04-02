@@ -685,7 +685,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 if (!watchItemId && isAlreadyWatched) {
                   if (currentCourse.courseId === "6981df886e100cfe04f9c4ad") {
                     console.log("Stop API failed for this course")
-                  } else {
+                  }else{
                     console.log("Fahhhhaaaaa.....")
                     onNext?.();
                   }
@@ -716,32 +716,32 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
     // Cleanup when component unmounts or URL changes
     return () => {
-      // Clear any pending stop timeout
-      if (stopTimeoutRef.current) {
-        clearTimeout(stopTimeoutRef.current);
-        stopTimeoutRef.current = null;
-      }
-      // Stop if started but not yet stopped (immediate on unmount, no debounce)
-      // if (!progressStoppedRef.current && !stopInFlightRef.current && watchItemIdRef.current && currentCourse) {
-      //   stopInFlightRef.current = true;
-      //   stopItem.mutate({
-      //     params: {
-      //       path: {
-      //         courseId: currentCourse.courseId,
-      //         courseVersionId: currentCourse.versionId ?? '',
-      //       },
-      //     },
-      //     body: {
-      //       watchItemId: watchItemIdRef.current,
-      //       itemId: currentCourse.itemId ?? '',
-      //       moduleId: currentCourse.moduleId ?? '',
-      //       sectionId: currentCourse.sectionId ?? '',
-      //       seekForwardEnabled,
-      //       nextItemId,
-      //       cohortId: currentCourse.cohortId ?? '',
-      //     },
-      //   });
-      // }
+// Clear any pending stop timeout
+  if (stopTimeoutRef.current) {
+    clearTimeout(stopTimeoutRef.current);
+    stopTimeoutRef.current = null;
+  }
+    // Stop if started but not yet stopped (immediate on unmount, no debounce)
+  // if (!progressStoppedRef.current && !stopInFlightRef.current && watchItemIdRef.current && currentCourse) {
+  //   stopInFlightRef.current = true;
+  //   stopItem.mutate({
+  //     params: {
+  //       path: {
+  //         courseId: currentCourse.courseId,
+  //         courseVersionId: currentCourse.versionId ?? '',
+  //       },
+  //     },
+  //     body: {
+  //       watchItemId: watchItemIdRef.current,
+  //       itemId: currentCourse.itemId ?? '',
+  //       moduleId: currentCourse.moduleId ?? '',
+  //       sectionId: currentCourse.sectionId ?? '',
+  //       seekForwardEnabled,
+  //       nextItemId,
+  //       cohortId: currentCourse.cohortId ?? '',
+  //     },
+  //   });
+  // }
       // Reset references
       progressStartedRef.current = false;
       progressStoppedRef.current = false;
@@ -820,7 +820,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           // Enforce endTime constraint
           if (endTimeSeconds > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= endTimeSeconds && currentCourse) {
             console.log("This if condition is triggred now -> ", "Fahhhhaaaa")
-            const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
+             const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
 
             // if (watchItemId) {
             player?.pauseVideo();
@@ -1997,15 +1997,15 @@ export function ConfirmOverlay({
     <div
       className={`absolute z-50 animate-in slide-in-from-right-3 duration-300 ${positionClasses[position]}`}
     >
-      <Card className={`border-red-400/40 ${message === "Invalid watch time" ? "bg-yellow-600/95" : "bg-red-600/95"} text-red-50 shadow-lg backdrop-blur-md w-80`}>
+      <Card className={`border-red-400/40 ${message === "Invalid watch time" ? "bg-yellow-600/95": "bg-red-600/95"} text-red-50 shadow-lg backdrop-blur-md w-80`}>
         <CardContent className="flex flex-col gap-3 p-4">
           <div className="flex items-center gap-3">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-full ${message === "Invalid watch time" ? "bg-yellow-50/10" : "bg-red-50/10"}`}>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-full ${message === "Invalid watch time" ? "bg-yellow-50/10": "bg-red-50/10"}`}>
               <XCircle className="h-6 w-6 text-red-50" />
             </div>
             <div className="flex-1 space-y-1">
               <p className="text-sm font-semibold text-red-50">{title}</p>
-              <p className="text-sm text-red-50/90">{message === "Invalid watch time" ? "This video cannot be marked as completed because the minimum required watch time was not met. Please rewatch the video." : message}</p>
+              <p className="text-sm text-red-50/90">{message === "Invalid watch time" ? "Invalid watch time. Please watch for atleast 30 seconds": message}</p>
             </div>
           </div>
 

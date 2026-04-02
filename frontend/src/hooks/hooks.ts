@@ -2639,8 +2639,8 @@ export function useSaveQuiz(): {
 }
 
 export function useSubmitQuiz(): {
-  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, cohortId?: string } }) => void,
-  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, cohortId?: string } }) => Promise<SubmitAttemptResponse>,
+  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, watchItemId?: string, cohortId?: string } }) => void,
+  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, watchItemId?: string, cohortId?: string } }) => Promise<SubmitAttemptResponse>,
   data: SubmitAttemptResponse | undefined,
   error: string | null,
   isPending: boolean,
@@ -5079,7 +5079,7 @@ export function useCheckTimeSlotAccess(
 }
 
 // GET /users/enrollments
-export function useUserEnrollmentsDetails(enabled: boolean = true, search?: string, role = "STUDENT", courseVersionId?: string,): {
+export function useUserEnrollmentsDetails(enabled: boolean = true, search?: string, role = "STUDENT", courseVersionId?: string, cohortId?: string): {
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -5087,7 +5087,7 @@ export function useUserEnrollmentsDetails(enabled: boolean = true, search?: stri
 } {
   const result = api.useQuery("get", "/users/enrollments/details", {
     params: {
-      query: { search, role, courseVersionId }
+      query: { search, role, courseVersionId, cohortId }
     },
     enabled: enabled
   });
@@ -5176,6 +5176,31 @@ export function useHpCohorts(courseVersionId: string) {
   };
 }
 
+export function useCourseDetails(versionId?: string) {
+  const query = useQuery({
+    queryKey: ['course-details', versionId],
+    queryFn: async () => {
+      if (!versionId) return null;
+
+      const res = await hpApi.getCourseDetails(versionId);
+
+      if (!res.success) {
+        throw new Error(res.message || "Failed to fetch course details");
+      }
+
+      return res.data;
+    },
+    enabled: !!versionId, 
+    staleTime: 5 * 60 * 1000, 
+  });
+
+  return {
+    data: query.data,
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+  };
+}
+
 export function useHpStudentCohorts() {
   const query = useQuery({
     queryKey: ['hp-student-cohorts'],
@@ -5187,6 +5212,7 @@ export function useHpStudentCohorts() {
     refetchOnWindowFocus: false,
   });
 
+  
   return {
     data: query.data?.data || [],
     totalHp: query.data?.totalHp ?? 0,

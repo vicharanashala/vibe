@@ -129,6 +129,7 @@ export async function setupItemAbilities(
           const quizMetrics = await progressService.getUserMetricsForQuiz(
             user.userId,
             currentItemId,
+            progress?.cohortId?.toString?.(),
           );
 
           if (quizMetrics && quizMetrics.remainingAttempts == 0) {

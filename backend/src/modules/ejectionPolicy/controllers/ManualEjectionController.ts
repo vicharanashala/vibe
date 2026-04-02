@@ -53,7 +53,9 @@ import {
   EjectionStudentsListResponse,
   EjectionStudentsParams,
   EjectionStudentsQuery,
+  EjectionPolicyResponse,
 } from '../classes/index.js';
+import {EjectionPolicyService} from '../services/EjectionPolicyService.js';
 
 @OpenAPI({tags: ['Manual Ejection']})
 @JsonController('/ejections', {transformResponse: true})
@@ -64,6 +66,8 @@ export class ManualEjectionController {
     private readonly manualEjectionService: ManualEjectionService,
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+    @inject(EJECTION_POLICY_TYPES.EjectionPolicyService)
+    private readonly policyService: EjectionPolicyService,
   ) {}
 
   @Authorized()
@@ -196,6 +200,12 @@ export class ManualEjectionController {
         query.statusFilter,
       );
 
+    const activePolicies = await this.policyService.getActivePoliciesForCourse(
+      courseId,
+      courseVersionId,
+      cohortId,
+    );
+
     const now = new Date();
 
     const mapped: EjectionStudentResponse[] = students.map(s => {
@@ -238,6 +248,11 @@ export class ManualEjectionController {
 
     return {
       students: mapped,
+      policies: activePolicies.map(p =>
+        plainToClass(EjectionPolicyResponse, p, {
+          enableImplicitConversion: true,
+        }),
+      ),
       totalDocuments,
       totalPages,
       currentPage: query.page,

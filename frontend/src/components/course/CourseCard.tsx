@@ -75,6 +75,8 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isTimeslotModalOpen, setIsTimeslotModalOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+ 
+ 
 
 
   const progress = Number(Math.min(enrollment.percentCompleted ?? 0, 100).toFixed(2));
