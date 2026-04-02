@@ -17,6 +17,7 @@ import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepos
 import { SubmissionFeedbackItem } from "../classes/transformers/ActivitySubmission.js";
 import { COHORT_OVERRIDES, ID } from "../constants.js";
 import { ISettingRepository } from "#root/shared/database/interfaces/ISettingRepository.js";
+import { ICourseRepository } from "#root/shared/database/interfaces/ICourseRepository.js";
 
 
 @injectable()
@@ -51,6 +52,7 @@ export class ActivitySubmissionsService extends BaseService {
 
         @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
         @inject(GLOBAL_TYPES.SettingRepo) private readonly settingRepository: ISettingRepository,
+        @inject(GLOBAL_TYPES.CourseRepo) private readonly courseRepo: ICourseRepository,
 
     ) {
         super(mongoDatabase);
@@ -995,6 +997,113 @@ export class ActivitySubmissionsService extends BaseService {
         });
     }
 
+    async restore(submissionId: string, teacherId: string) {
+    return this._withTransaction(async (session) => {
+        // 1. Fetch submission
+        const submission = await this.activitySubmissionsRepository.findById(submissionId, { session });
+        if (!submission) throw new NotFoundError(`Submission ${submissionId} not found.`);
+
+        // 2. Validate — only REVERTED submissions can be restored
+        if (submission.status !== "REVERTED") {
+            throw new BadRequestError("Only reverted submissions can be restored.");
+        }
+
+        const cohort = submission.cohort;
+        let courseId = submission.courseId.toString();
+        let courseVersionId = submission.courseVersionId.toString();
+
+        // 3. Handle both existing and new cohorts
+        const override = COHORT_OVERRIDES[cohort];
+        if (override) {
+            courseId = override.courseId;
+            courseVersionId = override.versionId;
+        }
+
+        // 4. Find the DEBIT ledger entry
+        const debitLedger = await this.ledgerRepository.findDebitBySubmissionId(submissionId);
+        if (!debitLedger) {
+            throw new BadRequestError("No debit ledger entry found for this submission. Cannot restore.");
+        }
+
+        // 5. Validate — only allow if ledger is DEBIT
+        if (debitLedger.direction !== "DEBIT") {
+            throw new BadRequestError("Restore is only allowed for debit ledger entries.");
+        }
+
+        // 6. Fetch user and enrollment
+        const [user, enrollment] = await Promise.all([
+            this.userRepo.findById(submission.studentId.toString()),
+            this.cohortRepository.findEnrollment(
+                submission.studentId.toString(),
+                courseId,
+                courseVersionId,
+                cohort,
+                session
+            )
+        ]);
+
+        if (!user || !enrollment) {
+            throw new BadRequestError(!user ? "Student account missing." : "Enrollment data missing.");
+        }
+
+        // 7. Calculate new HP balance
+        const totalStudentHpPoints = enrollment.hpPoints ?? 0;
+        const restoreAmount = debitLedger.amount ?? 0;
+        const finalHpBalance = totalStudentHpPoints + restoreAmount;
+
+        const activityRuleConfig = await this.ruleConfigService.getByActivityId(
+            submission.activityId.toString()
+        );
+
+        const note = `Restored ${restoreAmount} HP. Original debit reversed by instructor.`;
+
+        // 8. Create CREDIT ledger entry
+        await this.ledgerRepository.create(
+            this._buildLedgerData(
+                submission,
+                user,
+                "CREDIT",
+                "CREDIT",
+                restoreAmount,
+                totalStudentHpPoints,
+                finalHpBalance,
+                "MANUAL",
+                note,
+                debitLedger._id.toString(),
+                teacherId,
+                activityRuleConfig
+            ),
+            session
+        );
+
+        // 9. Update HP in enrollment
+        await this.cohortRepository.setHPForEnrollment(
+            submission.studentId.toString(),
+            courseId,
+            courseVersionId,
+            cohort,
+            finalHpBalance,
+            session
+        );
+
+        // 10. Update submission status back to APPROVED
+        await this.activitySubmissionsRepository.updateStatusAndReview(
+            submissionId,
+            {
+                status: "APPROVED",
+                review: {
+                    reviewedByTeacherId: teacherId,
+                    reviewedAt: new Date(),
+                    decision: "APPROVED",
+                    note: "Restored by instructor"
+                }
+            },
+            { session }
+        );
+
+        return { success: true };
+    });
+}
 
     private _buildLedgerData(sub: HpActivitySubmission, user: IUser, event: HpLedgerEventType, dir: HpLedgerDirection, amt: number, base: number, computed: number, reasonCode: HpReasonCode, note: string, refId: string | null, teacherId: string, config: any, isLate?: boolean) {
         return {
@@ -1196,6 +1305,112 @@ export class ActivitySubmissionsService extends BaseService {
             // Fallback to empty array if there's an error
             return [];
         }
+    }
+
+    async getStudentDashboardStats(
+        studentId: string,
+        cohortName: string,
+        courseVersionId: string,
+        timelineDays: number = 7,
+        session?: ClientSession
+    ): Promise<{
+        myStats: {
+            totalHp: number;
+            completedActivities: number;
+            pendingSubmissions: number;
+            completionPercentage: number;
+        };
+        progressTimeline: Array<{
+            date: string;
+            hpChange: number;
+            activitiesCompleted: number;
+        }>;
+        activityBreakdown: {
+            notStarted: number;
+            submitted: number;
+            approved: number;
+            rejected: number;
+        };
+        upcomingDeadlines: Array<{
+            activityTitle: string;
+            deadlineDate: string;
+            daysLeft: number;
+        }>;
+        recentSubmissions: Array<{
+            activityTitle: string;
+            submittedAt: string;
+            status: string;
+            hpEarned: number;
+        }>;
+    }> {
+        return this._withTransaction(async (session) => {
+            // Only apply cohort overrides for legacy courses
+            const legacyCourseIds = ["000000000000000000000001", "000000000000000000000002"];
+            const isLegacyCourse = legacyCourseIds.includes(courseVersionId);
+            
+            // Resolve effective versionId from legacy cohort overrides only for legacy courses
+            const cohortOverride = isLegacyCourse ? COHORT_OVERRIDES[cohortName] : null;
+            const effectiveVersionId = cohortOverride?.versionId || courseVersionId;
+
+            // 1. Get student dashboard stats from submissions repository
+            const dashboardStats = await this.activitySubmissionsRepository.getStudentDashboardStats(
+                studentId,
+                cohortName,
+                effectiveVersionId,
+                session
+            );
+
+            // 2. Get current HP from enrollment
+            const courseVersion = await this.courseRepo.readVersion(effectiveVersionId, session);
+            const courseId = courseVersion?.courseId?.toString() ?? "";
+            const enrollment = await this.cohortRepository.findEnrollment(
+                studentId,
+                courseId,
+                effectiveVersionId,
+                cohortName,
+                session
+            );
+            const totalHp = enrollment?.hpPoints ?? 0; 
+
+            // 3. Get progress timeline from ledger
+            const progressTimeline = await this.ledgerRepository.getStudentHpTimeline(
+                studentId,
+                cohortName,
+                effectiveVersionId,
+                timelineDays,
+                session
+            );
+
+            // 4. Get upcoming deadlines (within 7 days)
+            const upcomingDeadlines = await this.activityRepository.getUpcomingDeadlinesForStudent(
+                studentId,
+                cohortName,
+                effectiveVersionId,
+                7, // days
+                5, // limit
+                session
+            );
+
+            // 5. Get recent submissions (last 5)
+            const recentSubmissions = await this.activitySubmissionsRepository.getStudentRecentSubmissions(
+                studentId,
+                cohortName,
+                effectiveVersionId,
+                5,
+                session
+            );
+
+            return {
+                myStats: {
+                    ...dashboardStats.myStats,
+                    totalHp
+                },
+                progressTimeline,
+                activityBreakdown: dashboardStats.activityBreakdown,
+                upcomingDeadlines,
+                recentSubmissions
+            };
+        });
     }
 }
 

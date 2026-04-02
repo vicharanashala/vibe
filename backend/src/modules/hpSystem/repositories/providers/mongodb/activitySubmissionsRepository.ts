@@ -964,4 +964,155 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
 
         return { completed, inProgress, notStarted };
     }
+
+    async getStudentDashboardStats(
+        studentId: string,
+        cohortId: string,
+        courseVersionId: string,
+        session?: ClientSession
+    ): Promise<{
+        myStats: {
+            totalHp: number;
+            completedActivities: number;
+            pendingSubmissions: number;
+            completionPercentage: number;
+        };
+        activityBreakdown: {
+            notStarted: number;
+            submitted: number;
+            approved: number;
+            rejected: number;
+        };
+    }> {
+        await this.init();
+        
+        const collection = this.hpActivitySubmissionCollection;
+
+        // Get total published activities for this cohort
+        const totalActivities = await this.activityRepository.getCountByCohortId(cohortId, courseVersionId);
+
+        // Get student's submissions with their status
+        const studentSubmissions = await collection.find({
+            studentId: new ObjectId(studentId),
+            cohortId: new ObjectId(cohortId),
+            courseVersionId: new ObjectId(courseVersionId)
+        }, { session }).toArray();
+
+        // Calculate stats
+        const approvedCount = studentSubmissions.filter(s => s.status === 'APPROVED').length;
+        const submittedCount = studentSubmissions.filter(s => s.status === 'SUBMITTED').length;
+        const rejectedCount = studentSubmissions.filter(s => s.status === 'REJECTED').length;
+
+        // Calculate not started = total activities - any submission exists
+        const activityIdsWithSubmissions = new Set(studentSubmissions.map(s => s.activityId.toString()));
+        const notStartedCount = totalActivities - activityIdsWithSubmissions.size;
+
+        const completionPercentage = totalActivities > 0 
+            ? Math.round((approvedCount / totalActivities) * 100) 
+            : 0;
+
+        return {
+            myStats: {
+                totalHp: 0, // Will be populated from ledger
+                completedActivities: approvedCount,
+                pendingSubmissions: submittedCount,
+                completionPercentage
+            },
+            activityBreakdown: {
+                notStarted: notStartedCount,
+                submitted: submittedCount,
+                approved: approvedCount,
+                rejected: rejectedCount
+            }
+        };
+    }
+
+    async getStudentRecentSubmissions(
+        studentId: string,
+        cohortName: string,
+        courseVersionId: string,
+        limit: number = 5,
+        session?: ClientSession
+    ): Promise<Array<{
+        activityTitle: string;
+        submittedAt: string;
+        status: string;
+        hpEarned: number;
+    }>> {
+        await this.init();
+
+        const docs = await this.hpActivitySubmissionCollection.aggregate([
+            {
+                $match: {
+                    studentId: new ObjectId(studentId),
+                    cohort: cohortName,
+                    courseVersionId: new ObjectId(courseVersionId)
+                }
+            },
+            {
+                $lookup: {
+                    from: "hp_activities",
+                    let: { activityId: "$activityId" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: ["$_id", "$$activityId"] }
+                            }
+                        },
+                        { $project: { _id: 0, title: 1 } }
+                    ],
+                    as: "activity"
+                }
+            },
+            { $unwind: "$activity" },
+            {
+                $lookup: {
+                    from: "hp_ledger",
+                    let: { submissionId: "$_id" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: ["$submissionId", "$$submissionId"] },
+                                studentId: new ObjectId(studentId),
+                                direction: "CREDIT"
+                            }
+                        },
+                        { $project: { amount: 1 } }
+                    ],
+                    as: "ledgerEntries"
+                }
+            },
+            {
+                $addFields: {
+                    hpEarned: {
+                        $sum: {
+                            $map: {
+                                input: "$ledgerEntries",
+                                as: "entry",
+                                in: "$$entry.amount"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    activityTitle: "$activity.title",
+                    submittedAt: { $toString: "$submittedAt" },
+                    status: { $toLower: "$status" },
+                    hpEarned: 1
+                }
+            },
+            { $sort: { submittedAt: -1 } },
+            { $limit: limit }
+        ], { session }).toArray();
+
+        return docs.map(doc => ({
+            activityTitle: doc.activityTitle,
+            submittedAt: doc.submittedAt,
+            status: doc.status,
+            hpEarned: doc.hpEarned || 0
+        }));
+    }
 }

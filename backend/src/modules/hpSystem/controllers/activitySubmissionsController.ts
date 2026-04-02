@@ -21,7 +21,7 @@ import multer from "multer";
 
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivitySubmissionsService } from "../services/activitySubmissionsService.js";
-import { CreateOrUpdateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, StudentCohortWiseActivitySubmissionsStatsDto, SubmissionFeedbackBody } from "../classes/validators/activitySubmissionValidators.js";
+import { CreateOrUpdateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, StudentCohortWiseActivitySubmissionsStatsDto, StudentDashboardStatsQueryDto, StudentDashboardStatsResponseDto, SubmissionFeedbackBody } from "../classes/validators/activitySubmissionValidators.js";
 
 @OpenAPI({
   tags: ["HP Activity Submissions"],
@@ -109,6 +109,28 @@ export class ActivitySubmissionsController {
     return { success: true, data: doc.data };
   }
 
+  @OpenAPI({ summary: "Get student dashboard stats with timeline filter" })
+  @Get("/student/dashboard-stats")
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(StudentDashboardStatsResponseDto)
+  async getStudentDashboardStats(
+    @CurrentUser() user: IUser,
+    @QueryParams() query: StudentDashboardStatsQueryDto,
+  ): Promise<StudentDashboardStatsResponseDto> {
+    const studentId = user._id.toString();
+    const { cohortName, courseVersionId, timelineDays = 7 } = query;
+    
+    const data = await this.submissionService.getStudentDashboardStats(
+      studentId,
+      cohortName,
+      courseVersionId,
+      timelineDays
+    );
+    
+    return { success: true, data };
+  }
+
   @OpenAPI({ summary: "List submissions (teacher/admin)" })
   @Get("/")
   @Authorized()
@@ -174,6 +196,19 @@ export class ActivitySubmissionsController {
     const { feedback } = body;
     const result = await this.submissionService.addfeedback(id, teacherId, feedback);
     return { success: true, data: result };
+  }
+
+  @OpenAPI({ summary: "Restore a reverted submission" })
+  @Post("/:id/restore")
+  @Authorized()
+  @HttpCode(200)
+  async restore(
+      @Param("id") id: string,
+      @CurrentUser() user: IUser,
+  ) {
+      const teacherId = user._id.toString();
+      const doc = await this.submissionService.restore(id, teacherId);
+      return { success: true, data: doc };
   }
 
   @OpenAPI({ summary: "get submission stats of a activity for a cohort" })

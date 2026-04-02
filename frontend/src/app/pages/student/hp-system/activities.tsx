@@ -25,10 +25,12 @@ import {
     Eye,
     Filter,
     FileSearch,
-    RefreshCw
+    RefreshCw,
+    ChartPie
 } from "lucide-react";
 import { HpActivity } from "@/lib/api/hp-system";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { OverviewTab } from "./OverviewTab";
 
 // Helper for character-count truncation
 const truncateText = (text: string | null | undefined, maxLength: number = 70) => {
@@ -118,6 +120,7 @@ export default function StudentActivities() {
     const ACTIVITY_TYPE_OPTIONS = ["ASSIGNMENT", "VIBE_MILESTONE"] as const;
 
     const [selectedActivityType, setSelectedActivityType] = useState<string>("ASSIGNMENT");
+    const [showOverview, setShowOverview] = useState(false);
 
     const { data: activities, isLoading, error, refetch, isRefetching } = useHpStudentActivities(
         courseVersionId as string,
@@ -323,6 +326,21 @@ export default function StudentActivities() {
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button
+                                variant={showOverview ? "default" : "outline"}
+                                className="flex items-center gap-2"
+                                onClick={() => setShowOverview(!showOverview)}
+                            >
+                                <ChartPie className="h-4 w-4" />
+                                {showOverview ? "Back to Activities" : "Overview Stats"}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            {showOverview ? "Return to activities list" : "View your progress overview and statistics"}
+                        </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
                                 variant="outline"
                                 className="flex items-center gap-2"
                                 onClick={() =>
@@ -342,7 +360,12 @@ export default function StudentActivities() {
                     </Tooltip>
                 </div>
 
-                {(!activities || activities.length === 0) ? (
+                {showOverview ? (
+                    <OverviewTab
+                        courseVersionId={courseVersionId as string}
+                        cohortName={cohortName as string}
+                    />
+                ) : (!activities || activities.length === 0) ? (
                     <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
                         <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
                         <h3 className="text-lg font-medium">No Activities Yet</h3>

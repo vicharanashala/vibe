@@ -24,13 +24,15 @@ export class LedgerController {
     @Get("/student/:studentId/cohort/:cohortId/course/:courseId/courseVersion/:courseVersionId")
     @ResponseSchema(LedgerListResponseDto)
     async listByStudentId(
+        @CurrentUser() user: IUser,
         @Param("studentId") studentId: string,
         @Param("courseId") courseId: string,
         @Param("courseVersionId") courseVersionId: string,
         @Param("cohortId") cohortId: string,
         @QueryParams() query: FilterQueryDto
     ): Promise<LedgerListResponseDto> {
-        return this.ledgerService.listByStudentId(studentId, query, courseId, courseVersionId, cohortId);
+        const { _id: requested_user_id } = user;
+        return this.ledgerService.listByStudentId(studentId, query, courseId, courseVersionId, cohortId, requested_user_id.toString());
     }
 
     @OpenAPI({ summary: "List my ledger transactions" })
@@ -44,7 +46,9 @@ export class LedgerController {
         @Param("cohortId") cohortId: string,
         @QueryParams() query: FilterQueryDto
     ): Promise<LedgerListResponseDto> {
-        return this.ledgerService.listByStudentId(user._id.toString(), query, courseId, courseVersionId, cohortId);
+        const { _id: requested_user_id } = user;
+
+        return this.ledgerService.listByStudentId(user._id.toString(), query, courseId, courseVersionId, cohortId, requested_user_id.toString());
     }
 
 }

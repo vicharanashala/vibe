@@ -435,29 +435,29 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
                 ? [
                     {
                         $match: {
-                        $expr: {
-                            $gte: [
-                            { $ifNull: ["$hpPoints", 0] },
-                            "$safeHp",
-                            ],
-                        },
+                            $expr: {
+                                $gte: [
+                                    { $ifNull: ["$hpPoints", 0] },
+                                    "$safeHp",
+                                ],
+                            },
                         },
                     },
-                    ]
+                ]
                 : status === "UNSAFE"
-                ? [
-                    {
-                        $match: {
-                        $expr: {
-                            $lt: [
-                            { $ifNull: ["$hpPoints", 0] },
-                            "$safeHp",
-                            ],
+                    ? [
+                        {
+                            $match: {
+                                $expr: {
+                                    $lt: [
+                                        { $ifNull: ["$hpPoints", 0] },
+                                        "$safeHp",
+                                    ],
+                                },
+                            },
                         },
-                        },
-                    },
                     ]
-                : []),
+                    : []),
 
             {
                 $project: {

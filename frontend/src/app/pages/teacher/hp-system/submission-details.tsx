@@ -477,7 +477,7 @@ export default function SubmissionDetailsPage() {
             </div>
         );
     }
-    const { data: submissions, isLoading: submissionsLoading, error } = useHpStudentSubmissions(
+    const { data: submissions, isLoading: submissionsLoading, error, refetch } = useHpStudentSubmissions(
         studentId || "", courseVersionId || "", cohortName || ""
     );
     const { data: students, isLoading: studentsLoading } = useHpStudents(courseVersionId || "", cohortName || "");
@@ -521,16 +521,15 @@ export default function SubmissionDetailsPage() {
     };
 
     const handleConfirmAction = async () => {
-        const { subId, action, note, pointsToDeduct } = reasonDialog;
-        setReasonDialog({ ...reasonDialog, open: false });
-        setActionType(action); // ✅ IMPORTANT
-        setActionSubId(subId);
-        try {
-            if (action === 'restore') {
-                toast.error("Restore functionality is not available yet. It will be added soon.");
-                // return
-                // await restoreEntry(subId);
-            } else if (action === 'approve' || action === 'reject' || action === 'revert') {
+    const { subId, action, note, pointsToDeduct } = reasonDialog;
+    setReasonDialog({ ...reasonDialog, open: false });
+    setActionType(action);
+    setActionSubId(subId);
+    try {
+        if (action === 'restore') {
+            await restoreEntry(subId);
+            refetch(); // ← add this
+        } else if (action === 'approve' || action === 'reject' || action === 'revert') {
                 await reviewSubmission({
                     submissionId: subId,
                     decision: action === 'approve' ? 'APPROVED' : action === 'reject' ? 'REJECTED' : 'REVERTED',
@@ -781,7 +780,10 @@ export default function SubmissionDetailsPage() {
                                             variant="outline"
                                             size="sm"
                                             className="border-2 border-orange-500 text-orange-600 hover:bg-orange-50 dark:border-orange-400 dark:text-orange-400 dark:hover:bg-orange-950/50 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
-                                            disabled={isReviewing && actionSubId === submission?.submission?._id}
+                                            disabled={
+                                                (isReviewing && actionSubId === submission?.submission?._id) ||
+                                                (submission?.instructorFeedback as any)?.note === "Restored by instructor"
+                                            }
                                             onClick={() => openReasonDialog(submission?.submission?._id || '', 'revert', submission?.activity?.title || '', submission?.hp?.baseHp || 0)}
                                         >
                                             <Undo2 className="h-3.5 w-3.5 mr-1.5" />

@@ -198,9 +198,9 @@ export interface StudentDashboardStats {
     }[];
     activityBreakdown: {
         notStarted: number;
-        inProgress: number;
         submitted: number;
         approved: number;
+        rejected: number;
     };
     upcomingDeadlines: {
         activityTitle: string;
@@ -740,45 +740,16 @@ export const hpApi = {
     },
 
     getStudentDashboardStats: async (
-        _courseVersionId: string,
-        _cohortName: string,
+        courseVersionId: string,
+        cohortName: string,
+        timelineDays: number = 7,
     ): Promise<{ success: boolean; data: StudentDashboardStats }> => {
-        // Mock data for student dashboard
-        const mockStats: StudentDashboardStats = {
-            myStats: {
-                totalHp: 275,
-                completedActivities: 8,
-                pendingSubmissions: 3,
-                completionPercentage: 89,
-            },
-            progressTimeline: [
-                { date: '2024-01-01', hpChange: 25, activitiesCompleted: 2 },
-                { date: '2024-01-02', hpChange: -5, activitiesCompleted: 1 },
-                { date: '2024-01-03', hpChange: 30, activitiesCompleted: 1 },
-                { date: '2024-01-04', hpChange: 15, activitiesCompleted: 0 },
-                { date: '2024-01-05', hpChange: 40, activitiesCompleted: 2 },
-                { date: '2024-01-06', hpChange: -10, activitiesCompleted: 1 },
-                { date: '2024-01-07', hpChange: 35, activitiesCompleted: 1 },
-            ],
-            activityBreakdown: {
-                notStarted: 2,
-                inProgress: 3,
-                submitted: 3,
-                approved: 8,
-            },
-            upcomingDeadlines: [
-                { activityTitle: 'Database Schema Design', deadlineDate: '2024-01-15', daysLeft: 3 },
-                { activityTitle: 'Deploy to Cloud', deadlineDate: '2024-01-18', daysLeft: 6 },
-                { activityTitle: 'Midterm Project', deadlineDate: '2024-01-22', daysLeft: 10 },
-            ],
-            recentSubmissions: [
-                { activityTitle: 'Build REST API', submittedAt: '2024-01-07', status: 'approved', hpEarned: 25 },
-                { activityTitle: 'Week 1 Quiz', submittedAt: '2024-01-06', status: 'approved', hpEarned: 15 },
-                { activityTitle: 'Database Design', submittedAt: '2024-01-05', status: 'pending', hpEarned: 0 },
-                { activityTitle: 'API Documentation', submittedAt: '2024-01-04', status: 'rejected', hpEarned: -5 },
-            ]
-        };
-        return { success: true, data: mockStats };
+        const params = new URLSearchParams({ 
+            courseVersionId, 
+            cohortName, 
+            timelineDays: String(timelineDays) 
+        });
+        return apiFetch(`${BASE_URL}/activity-submissions/student/dashboard-stats?${params.toString()}`);
     },
 
     getStudentSubmissionStats: async (
@@ -852,9 +823,10 @@ export const hpApi = {
         return { success: true };
     },
 
-    restoreLedgerEntry: async (entryId: string): Promise<{ success: boolean }> => {
-        console.log('Mock restore for entry:', entryId);
-        return { success: true };
+    restoreLedgerEntry: async (submissionId: string): Promise<{ success: boolean }> => {
+        return apiFetch(`${BASE_URL}/activity-submissions/${submissionId}/restore`, {
+            method: 'POST',
+        });
     },
 
     reviewSubmission: async (submissionId: string, decision: "APPROVED" | "REJECTED" | "REVERTED", note?: string, pointsToDeduct?: number): Promise<{ success: boolean; data: any }> => {
