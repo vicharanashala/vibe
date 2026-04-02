@@ -79,6 +79,8 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(false);
   const [subtitlesAvailable, setSubtitlesAvailable] = useState(false);
 
+  // const [videoEnded, setVideoEnded] = useState(false);
+
   // Track if video was playing before gesture pause
   const wasPlayingBeforeGesture = useRef(false);
 
@@ -294,8 +296,9 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
       // Prevent playing if current time is at or beyond endTime
       if (endTimeSeconds > 0 && currentTime >= endTimeSeconds) {
         return;
+      }else{
+        player.playVideo();
       }
-      player.playVideo();
       setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
     }
   }, [playing, endTimeSeconds, currentTime, isSkipping, isStopFailed, isStopping, playbackRate]);
@@ -502,7 +505,8 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
       !pauseVid &&
       !rewindVid &&
       !doGesture &&
-      !hasAutoPlayedRef.current) {
+      !hasAutoPlayedRef.current &&
+      !videoEnded) {
 
 
       const timer = setTimeout(() => {
@@ -520,7 +524,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
       return () => clearTimeout(timer);
     }
-  }, [playerReady, readyToDetect, gracePeriodCompleted, playing, pauseVid, rewindVid, doGesture]);
+  }, [playerReady, readyToDetect, gracePeriodCompleted, playing, pauseVid, rewindVid, doGesture, videoEnded]);
 
   // Autoplay: Only trigger once when everything becomes ready
   // useEffect(() => {
@@ -646,7 +650,6 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           widget_referrer: window.location.origin,
           start: startTimeSeconds,
           end: 0,
-          loop: 0,
           autoplay: 0,
         },
         events: {
@@ -680,6 +683,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
               }, 500);
             } else if (window.YT && event.data === window.YT.PlayerState.ENDED) {
               setPlaying(false);
+              setVideoEnded(true);
               if (!progressStoppedRef.current && currentCourse) {
                 const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
                 if (!watchItemId && isAlreadyWatched) {
@@ -978,6 +982,36 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+ const playVideoAgain = () => {
+  const player = playerRef.current;
+  if (!player) return;
+
+  // reset player actual position
+  player.seekTo(startTimeSeconds, true);
+
+  // force actual pause state first
+  player.pauseVideo();
+
+  // reset UI state
+  setCurrentTime(startTimeSeconds);
+  handleSendStartItem()
+  setPlaying(false);
+  setVideoEnded(false);
+
+  // VERY IMPORTANT
+  progressStartedRef.current = false;
+  progressStoppedRef.current = false;
+  stopInFlightRef.current = false;
+  watchItemIdRef.current = null;
+
+  // allow autoplay again
+  hasAutoPlayedRef.current = false;
+
+  // reset max seek tracking
+  maxTimeRef.current = startTimeSeconds;
+  setMaxTime(startTimeSeconds);
+};
+
   return (
     <div
       style={{
@@ -1009,6 +1043,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           handleSkipItem();
           setIsStopFailed(false);
         }}
+        handlePlayPause={()=>{playVideoAgain(); setIsStopFailed(false)}}
       />
 
       <NavigatingOverlay visible={isStopping || isSkipping} />
@@ -1974,6 +2009,7 @@ interface ConfirmOverlayProps {
   position?: "top-right" | "top-left" | "bottom-right" | "bottom-left";
   onCancel: () => void;
   onConfirm: () => void;
+  handlePlayPause: ()=> void
 }
 
 export function ConfirmOverlay({
@@ -1983,6 +2019,7 @@ export function ConfirmOverlay({
   position = "bottom-right",
   onCancel,
   onConfirm,
+  handlePlayPause
 }: ConfirmOverlayProps) {
   if (!visible) return null;
 
@@ -2005,7 +2042,7 @@ export function ConfirmOverlay({
             </div>
             <div className="flex-1 space-y-1">
               <p className="text-sm font-semibold text-red-50">{title}</p>
-              <p className="text-sm text-red-50/90">{message === "Invalid watch time" ? "Invalid watch time. Please watch for atleast 30 seconds": message}</p>
+              <p className="text-sm text-red-50/90">{message === "Invalid watch time" ? "Invalid watch time. Video need to be watched for 30 seconds. Please restart....": message}</p>
             </div>
           </div>
 
@@ -2021,9 +2058,9 @@ export function ConfirmOverlay({
             <Button
               size="sm"
               className="bg-red-50 text-red-600 hover:bg-white hover:text-red-700 font-semibold"
-              onClick={onConfirm}
+              onClick={message === "Invalid watch time" ? handlePlayPause : onConfirm}
             >
-              {message === "Invalid watch time" ? "Rewatch" : "Continue"}
+              {message === "Invalid watch time" ? "Ok" : "Continue"}
             </Button>
           </div>
         </CardContent>
