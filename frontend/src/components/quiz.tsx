@@ -649,37 +649,38 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       if (errorMessage && (errorMessage.includes('No available attempts left') || errorMessage.includes('no available attempts'))) {
         toast.info('You have used all available attempts for this quiz.');
 
-        try {
-          const watchItemIdForStop = await handleSendStartItem(true);
+        // try {
+        //   const watchItemIdForStop = await handleSendStartItem(true);
 
-          if (currentCourse?.itemId && watchItemIdForStop) {
-            await stopItem.mutateAsync({
-              params: {
-                path: {
-                  courseId: currentCourse.courseId,
-                  courseVersionId: currentCourse.versionId ?? '',
-                },
-              },
-              body: {
-                watchItemId: watchItemIdForStop,
-                itemId: currentCourse.itemId,
-                moduleId: currentCourse.moduleId ?? '',
-                sectionId: currentCourse.sectionId ?? '',
-                attemptId,
-                isSkipped: true,
-                nextItemId,
-                cohortId: currentCourse.cohortId ?? '',
-              },
-            });
-            completedItemIdsRef.current.add(currentCourse.itemId);
-            itemStartedRef.current = false;
-          }
-        } catch (progressErr) {
-          console.error('Failed to update progress for exhausted quiz attempts:', progressErr);
-        }
+        //   if (currentCourse?.itemId && watchItemIdForStop) {
+        //     await stopItem.mutateAsync({
+        //       params: {
+        //         path: {
+        //           courseId: currentCourse.courseId,
+        //           courseVersionId: currentCourse.versionId ?? '',
+        //         },
+        //       },
+        //       body: {
+        //         watchItemId: watchItemIdForStop,
+        //         itemId: currentCourse.itemId,
+        //         moduleId: currentCourse.moduleId ?? '',
+        //         sectionId: currentCourse.sectionId ?? '',
+        //         attemptId,
+        //         isSkipped: true,
+        //         nextItemId,
+        //         cohortId: currentCourse.cohortId ?? '',
+        //       },
+        //     });
+        //     completedItemIdsRef.current.add(currentCourse.itemId);
+        //     itemStartedRef.current = false;
+        //   }
+        // } catch (progressErr) {
+        //   console.error('Failed to update progress for exhausted quiz attempts:', progressErr);
+        // }
 
-        setQuizCompleted(true);
-        setQuizPassed?.(3);
+        // setQuizCompleted(true);
+        // setQuizPassed?.(3);
+        setQuizStarted(true);
         setNoAttemptsLeft(true);
 
         return;
