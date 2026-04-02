@@ -400,29 +400,29 @@ export class CohortRepository implements ICohortRepository {
                 ? [
                     {
                         $match: {
-                        $expr: {
-                            $gte: [
-                            { $ifNull: ["$hpPoints", 0] },
-                            "$safeHp",
-                            ],
-                        },
+                            $expr: {
+                                $gte: [
+                                    { $ifNull: ["$hpPoints", 0] },
+                                    "$safeHp",
+                                ],
+                            },
                         },
                     },
-                    ]
+                ]
                 : status === "UNSAFE"
-                ? [
-                    {
-                        $match: {
-                        $expr: {
-                            $lt: [
-                            { $ifNull: ["$hpPoints", 0] },
-                            "$safeHp",
-                            ],
+                    ? [
+                        {
+                            $match: {
+                                $expr: {
+                                    $lt: [
+                                        { $ifNull: ["$hpPoints", 0] },
+                                        "$safeHp",
+                                    ],
+                                },
+                            },
                         },
-                        },
-                    },
                     ]
-                : []),
+                    : []),
 
             {
                 $project: {
@@ -507,17 +507,25 @@ export class CohortRepository implements ICohortRepository {
         };
 
         if (!override) {
-            const cohortConditions = await this._getCohortMatchConditions(
-                cohort,
-                effectiveCourseVersionId
-            );
-
+            // const cohortConditions = await this._getCohortMatchConditions(
+            //     cohort,
+            //     effectiveCourseVersionId
+            // );
+            // if cohort is not an override cohort then we have to find the cohort id and fetch the enrollment based on the cohort id aswell, to make sure that we are updating the correct enrollment when there are multiple enrollments for the same course version with different cohorts (e.g. one enrollment with no cohort and another enrollment with a cohort)
+            const cohortId = await this.getCohortIdByCohortName(cohort);
+            if (!cohortId) {
+                throw new Error(`Cohort with name ${cohort} not found for course version ${courseVersionId}`);
+            }
+            // query.$or = [
+            //     { cohortId: { $exists: false } },
+            //     {
+            //         cohortId: { $exists: true },
+            //         $or: cohortConditions,
+            //     },
+            // ];
             query.$or = [
                 { cohortId: { $exists: false } },
-                {
-                    cohortId: { $exists: true },
-                    $or: cohortConditions,
-                },
+                { cohortId: new ObjectId(cohortId) },
             ];
         }
 
