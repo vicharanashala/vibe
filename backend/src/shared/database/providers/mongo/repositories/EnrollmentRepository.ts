@@ -5527,4 +5527,9 @@ export class EnrollmentRepository {
       {sort: {startTime: -1}, projection: {startTime: 1}},
     );
   }
+
+  async getUserEnrollmentStatistics(userId: string){
+    await this.init()
+    return null
+  }
 }
