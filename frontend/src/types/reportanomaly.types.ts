@@ -8,6 +8,8 @@ export enum AnomalyType {
   FOCUS = 'focus',
   HAND_GESTURE_DETECTION = 'handGestureDetection',
   FACE_RECOGNITION = 'faceRecognition',
+
+  VIRTUAL_CAMERA = 'VIRTUAL_CAMERA',
 }
 
 export enum FileType {

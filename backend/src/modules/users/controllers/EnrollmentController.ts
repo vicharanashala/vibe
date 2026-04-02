@@ -5,6 +5,7 @@ import {
   EnrollmentsQuery,
   IEnrollment,
   IProgress,
+  IUser,
 } from '#root/shared/interfaces/models.js';
 import {
   EnrolledUserResponse,
@@ -17,6 +18,7 @@ import {
   EnrollmentNotFoundErrorResponse,
   CourseVersionEnrollmentResponse,
   EnrollmentStatisticsResponse,
+  UserEnrollmentStatisticsResponse,
   UpdateEnrollmentProgressResponse,
   BulkUnenrollBody,
   BulkUnenrollResponse,

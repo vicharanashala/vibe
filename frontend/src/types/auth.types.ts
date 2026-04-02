@@ -20,6 +20,12 @@ export type User = {
   uid: string;
   email: string;
   name?: string;
+  firstName?: string;
+  lastName?: string;
+  gender?: string;
+  country?: string;
+  state?: string;
+  city?: string;
   role: 'teacher' | 'student' | 'admin' | null;
   avatar?: string;
 };
