@@ -908,7 +908,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   // Reset state when quiz ID changes
   useEffect(() => {
-    console.log('Quiz ID changed, resetting quiz state');
     resetQuiz();
   }, [processedQuizId, resetQuiz]);
 
