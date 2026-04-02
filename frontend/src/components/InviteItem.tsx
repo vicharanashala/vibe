@@ -17,7 +17,7 @@ const InviteItem = ({ invite, onAcceptClick, onRejectClick , hasPolicies}) => {
 
   return (
     <li
-      className={`p-2 rounded transition-colors cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-950/30`}
+      className={`p-2 rounded hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors border border-transparent hover:border-primary/20 dark:hover:border-primary/30`}
       onClick={handleToggle}
     >
       <div className="flex items-start gap-2">
@@ -62,7 +62,7 @@ const InviteItem = ({ invite, onAcceptClick, onRejectClick , hasPolicies}) => {
 
          
 {isExpanded && status === "PENDING" && (
-  <div className="mt-2 flex gap-1">
+  <div className="-ml-2 flex gap-1 mt-2 max-w-min">
     
     {/* ✅ NO POLICIES → direct actions */}
     {hasPolicies === false ? (
@@ -70,22 +70,24 @@ const InviteItem = ({ invite, onAcceptClick, onRejectClick , hasPolicies}) => {
         <Button
           size="sm"
           variant="outline"
+          className="w-full text-[10px]"
           onClick={(e) => {
             e.stopPropagation();
             onRejectClick(invite);
           }}
-          className="h-6 px-2 text-xs"
+          
         >
           Reject
         </Button>
 
         <Button
-          size="sm"
+         size="sm"
+         className="w-full text-[10px]"
           onClick={(e) => {
             e.stopPropagation();
             onAcceptClick(invite);
           }}
-          className="h-6 px-2 text-xs"
+          
         >
           Accept
         </Button>

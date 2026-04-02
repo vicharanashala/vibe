@@ -283,24 +283,43 @@ useEffect(() => {
     );
 
     if (!hasPolicies) {
-      await processInviteApi(invite.inviteId, "ACCEPT", false);
+  await processInviteApi(invite.inviteId, "ACCEPT", false);
 
-      setPendingInvites((prev) =>
-        prev.filter((i) => i.inviteId !== invite.inviteId)
-      );
-      return;
-    }
+  setPendingInvites((prev) =>
+    prev.filter((i) => i.inviteId !== invite.inviteId)
+  );
+
+  setLocalInvites((prev) =>
+    prev.filter((i) => i.inviteId !== invite.inviteId)
+  );
+
+  queryClient.invalidateQueries({
+    queryKey: ["get", "/notifications/user"],
+  });
+
+  return;
+}
 
     setSelectedInvite(invite);
     setShowPolicyModal(true);
   }}
   onRejectClick={async (invite) => {
-    await processInviteApi(invite.inviteId, "REJECTED");
+  await processInviteApi(invite.inviteId, "REJECTED");
 
-    setPendingInvites((prev) =>
-      prev.filter((i) => i.inviteId !== invite.inviteId)
-    );
-  }}
+  
+  setPendingInvites((prev) =>
+    prev.filter((i) => i.inviteId !== invite.inviteId)
+  );
+
+  setLocalInvites((prev) =>
+    prev.filter((i) => i.inviteId !== invite.inviteId)
+  );
+
+  
+  queryClient.invalidateQueries({
+    queryKey: ["get", "/notifications/user"],
+  });
+}}
 />
               ))}
 
