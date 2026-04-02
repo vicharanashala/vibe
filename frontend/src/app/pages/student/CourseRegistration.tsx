@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import Form from "@rjsf/shadcn";
-import { useGetCourseRegistration, useGetDynamicFields, useSubmitCourseRegistration, useGetCourseRegistrationRequests } from '@/hooks/hooks';
+import { useGetCourseRegistration, useGetDynamicFields, useSubmitCourseRegistration } from '@/hooks/hooks';
 import React, { useEffect, useRef, useState } from 'react';
 import ReCAPTCHA from "react-google-recaptcha";
 import { toast } from 'sonner';
@@ -145,13 +145,11 @@ const CourseRegistration: React.FC = () => {
   const recaptchaRef = useRef<ReCAPTCHA>(null);
   const [submitErrors, setSubmitErrors] = useState<string[]>([]);
   const [registrationStatus, setRegistrationStatus] = useState<'IDLE' | 'APPROVED' | 'PENDING'>('IDLE');
-  const pollTimeoutRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
 
   const isRecaptchaEnabled: boolean = import.meta.env.VITE_IS_RECAPTCHA_ENABLED === "true";
   // const [showModules, setShowModules] = useState(false);
   const { data: versionData, isLoading: isLoadingVersionData } = useGetCourseRegistration(versionId);
-  const { refetch: refetchRegistrationRequests } = useGetCourseRegistrationRequests(versionId);
   const { mutateAsync: submitRegistration, isPending: isSubmitting } = useSubmitCourseRegistration();
   const { data: formFieldData, isLoading: isFormFieldsLoading } = useGetDynamicFields(versionId);
   const jsonSchema = formFieldData?.jsonSchema as RJSFSchema | undefined;
@@ -188,58 +186,6 @@ const CourseRegistration: React.FC = () => {
     return [];
   };
 
-  const normalizeEmail = (email?: string) =>
-    (email || '').trim().toLowerCase();
-
-  const getRegistrationEmail = (registration: any) => {
-    const detail = registration?.detail || {};
-    return (
-      detail?.email ||
-      detail?.Email ||
-      registration?.email ||
-      registration?.studentEmail ||
-      registration?.student?.email ||
-      ''
-    );
-  };
-
-  const pollForAutoApproval = async (submittedEmail?: string) => {
-    const targetEmail = normalizeEmail(submittedEmail || user?.email || '');
-    const maxAttempts = 5;
-    const pollIntervalMs = 1500;
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      if (!isMountedRef.current) return;
-
-      if (attempt > 1) {
-        await new Promise<void>(resolve => {
-          pollTimeoutRef.current = window.setTimeout(() => resolve(), pollIntervalMs);
-        });
-
-        if (!isMountedRef.current) return;
-      }
-
-      const result = await refetchRegistrationRequests();
-      const registrations = getRegistrationsFromResult(result);
-
-      const matchingRegistration = registrations.find((registration: any) => {
-        const registrationEmail = normalizeEmail(getRegistrationEmail(registration));
-        return registrationEmail !== '' && registrationEmail === targetEmail;
-      });
-
-      const status = getStatusValue(matchingRegistration);
-      if (status === 'APPROVED') {
-        if (isMountedRef.current) {
-          setRegistrationStatus('APPROVED');
-        }
-        return;
-      }
-    }
-
-    if (isMountedRef.current) {
-      setRegistrationStatus('PENDING');
-    }
-  };
 
   const onSubmit = async (data: IChangeEvent<any>) => {
     try {
@@ -288,14 +234,7 @@ const CourseRegistration: React.FC = () => {
       if (submissionStatus === 'APPROVED') {
         setRegistrationStatus('APPROVED');
       } else {
-        setRegistrationStatus('IDLE');
-        try {
-          await pollForAutoApproval(submittedEmail);
-        } catch {
-          if (isMountedRef.current) {
-            setRegistrationStatus('PENDING');
-          }
-        }
+        setRegistrationStatus('PENDING');
       }
 
     } catch (err: any) {
@@ -376,21 +315,6 @@ const computedUiSchema = React.useMemo(() => {
   setIsRegistered(false);
   setRegistrationStatus('IDLE');
 }, []);
-
-    useEffect(() => {
-      isMountedRef.current = true;
-
-      return () => {
-        isMountedRef.current = false;
-        if (pollTimeoutRef.current) {
-          window.clearTimeout(pollTimeoutRef.current);
-        }
-      };
-    }, []);
-
-
-
-
 
 
   if (isLoadingVersionData) {
