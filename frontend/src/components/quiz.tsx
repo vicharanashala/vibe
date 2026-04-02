@@ -830,6 +830,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     setNoAttemptsLeft(false);
     // Reset the attempt flag so quiz can be started again
     quizAttemptedRef.current = false;
+    setDontStart(false);
   }, [setAttemptId]);
 
   // ===== DRAG AND DROP HANDLERS =====
@@ -864,6 +865,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   // Reset state when quiz ID changes
   useEffect(() => {
+    console.log('Quiz ID changed, resetting quiz state');
     resetQuiz();
   }, [processedQuizId, resetQuiz]);
 
