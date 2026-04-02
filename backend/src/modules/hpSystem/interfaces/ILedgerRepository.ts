@@ -28,4 +28,17 @@ export interface ILedgerRepository {
     findPenaltiesByActivityId(activityId: string): Promise<HpLedger[]>
     findRewardsByActivityId(activityId: string): Promise<HpLedger[]>
     findBySubmissionIds(submissionIds: string[]): Promise<HpLedger[]>
+
+    getHpDistributionForCohort(
+        cohortName: string,
+        courseVersionId: string,
+        session?: ClientSession
+    ): Promise<{
+        low: number;
+        medium: number;
+        high: number;
+        veryHigh: number;
+    }>;
+
+
 }

@@ -35,8 +35,9 @@ export function useAnnouncements(
     const [totalDocuments, setTotalDocuments] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     const [isAdmin, setIsAdmin] = useState(false);
-
-    const fetchAnnouncements = useCallback(async () => {
+    const [isRefetching, setIsRefetching] = useState(false);
+    const fetchAnnouncements = useCallback(async (isManualRefetch = false) => {
+        if (isManualRefetch) setIsRefetching(true);
         setIsLoading(true);
         try {
             let url: string;
@@ -82,6 +83,7 @@ export function useAnnouncements(
             console.error('useAnnouncements error:', err);
         } finally {
             setIsLoading(false);
+            setIsRefetching(false);
         }
     }, [type, courseId, versionId, studentMode, cohortId]);
 
@@ -89,7 +91,7 @@ export function useAnnouncements(
         fetchAnnouncements();
     }, [fetchAnnouncements]);
 
-    return { data, isLoading, error, totalDocuments, totalPages, isAdmin, refetch: fetchAnnouncements };
+    return { data, isLoading, error, totalDocuments, totalPages, isAdmin, refetch: () => fetchAnnouncements(true), isRefetching };
 }
 
 export function useCreateAnnouncement() {

@@ -15,6 +15,7 @@ import { useCourseStore } from '@/store/course-store';
 import type { FloatingVideoProps } from '@/types/video.types';
 import { useReportAnomalyAudio, useReportAnomalyImage } from '@/hooks/hooks';
 import {registerStream, unRegisterStream} from "@/lib/MediaRegistry";
+import { runProctoringChecks } from "@/utils/proctoring/proctoringGuard";
 
 // let flag = 0;
 function FloatingVideo({
@@ -38,6 +39,7 @@ function FloatingVideo({
   }, []);
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cameraCheckIntervalRef = useRef<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [position, setPosition] = useState({ x: 20, y: 20 });
@@ -52,7 +54,7 @@ function FloatingVideo({
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [isVideoActive, setIsVideoActive] = useState(false);
-
+  
   // Grace period state for anomaly detection
   const [anomalyDetectionStartTime, setAnomalyDetectionStartTime] = useState<number | null>(null);
   const gracePeriod = 10000; // 10 seconds grace period
@@ -322,7 +324,12 @@ const lastCalledRef = useRef<number>(0);
             body.cohortId = courseStore.currentCourse.cohortId;
           }
           const response = await reportImage.mutateAsync({
-            body,
+            body: {
+                type: AnomalyType.VIRTUAL_CAMERA,
+                courseId: courseStore.currentCourse?.courseId,
+                versionId: courseStore.currentCourse?.versionId,
+                itemId: courseStore.currentCourse?.itemId,
+              },
             file: imageFile,
           });
           // console.log("Post response", response);
@@ -431,6 +438,16 @@ const lastCalledRef = useRef<number>(0);
           height: { ideal: 480 }
         }
       });
+      // Runtime proctoring check: prevents switching to virtual camera mid-session
+      const violations = await runProctoringChecks(stream);
+
+      if (violations.length > 0) {
+        stream.getTracks().forEach(t => t.stop());
+
+        console.error("Proctoring violation:", violations[0]);
+        return;
+      }
+
       unRegisterStream("floating-video-restart-stream")
       registerStream("floating-video-restart-stream", stream);
 
@@ -458,6 +475,50 @@ const lastCalledRef = useRef<number>(0);
       console.error('[FloatingVideo] Error restarting video:', error);
     }
   }, [videoRef, currentStream]);
+
+  useEffect(() => {
+  if (!currentStream || !readyToDetect || !isVideoActive) return;
+
+  /**
+   * Periodic Proctoring Validation
+   *
+   * Why:
+   * - Detect camera switching after session start
+   * - Detect delayed spoofing attempts
+   * - Ensure continuous integrity of camera stream
+   */
+  cameraCheckIntervalRef.current = window.setInterval(async () => {
+
+    const violations = await runProctoringChecks(currentStream);
+
+    if (violations.length > 0) {
+      console.error("Camera integrity violation detected:", violations[0]);
+
+      // Stop stream immediately
+      currentStream.getTracks().forEach(track => track.stop());
+
+      // Reset stream
+      setCurrentStream(null);
+
+      // Trigger existing proctoring flow
+      setPauseVid(true);
+      setRewindVid(true);
+
+      // Log anomaly (optional but recommended)
+      setAnomalies([...anomalies, "cameraIntegrity"]);
+    }
+
+  }, 5000); // every 5 seconds
+
+  return () => {
+    if (cameraCheckIntervalRef.current) {
+      clearInterval(cameraCheckIntervalRef.current);
+      cameraCheckIntervalRef.current = null;
+    }
+  };
+
+}, [currentStream, readyToDetect, isVideoActive]);
+
 
   // Update face count when faces change
   useEffect(() => {

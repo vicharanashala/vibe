@@ -97,7 +97,6 @@ export class EjectionPolicyController {
         'Only administrators can create ejection policies',
       );
     }
-    console.log('body=================================', body);
 
     if (!body.courseId) throw new ForbiddenError('courseId is required');
     if (!body.courseVersionId)
@@ -115,6 +114,11 @@ export class EjectionPolicyController {
       body.name,
       true,
       policy._id?.toString(),
+    );
+    await this.enrollmentService.markPolicyReacknowledgementRequired(
+      policy.courseId.toString(),
+      policy.courseVersionId.toString(),
+      policy.cohortId.toString(),
     );
     // audit trail stays the same
     return plainToClass(EjectionPolicyResponse, policy, {
@@ -307,6 +311,7 @@ export class EjectionPolicyController {
       false,
       policyId,
     );
+
     await this.enrollmentService.markPolicyReacknowledgementRequired(
       updatedPolicy.courseId.toString(),
       updatedPolicy.courseVersionId.toString(),

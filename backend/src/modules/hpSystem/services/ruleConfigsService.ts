@@ -118,6 +118,11 @@ export class RuleConfigService extends BaseService {
                     throw new BadRequestError("The deadline cannot be set in the past.");
                 }
             }
+
+            if (!body.submissionValidation || body.submissionValidation.length === 0) {
+                throw new BadRequestError("At least one submission field must be required");
+            }
+
             const now = new Date();
 
             const doc: HpRuleConfigCreateDoc = {
@@ -128,6 +133,8 @@ export class RuleConfigService extends BaseService {
                 isMandatory: body.isMandatory,
                 deadlineAt: body.deadlineAt ? new Date(body.deadlineAt) : undefined,
                 allowLateSubmission: body.allowLateSubmission,
+
+                submissionValidation: body.submissionValidation,
 
                 reward: body.reward.enabled
                     ? {
@@ -289,6 +296,23 @@ export class RuleConfigService extends BaseService {
             if (patch.reward !== undefined) updatePatch.reward = patch.reward as any;
             if (patch.penalty !== undefined) updatePatch.penalty = patch.penalty as any;
             if (patch.limits !== undefined) updatePatch.limits = patch.limits as any;
+
+            if (patch.submissionValidation !== undefined) {
+                if (!Array.isArray(patch.submissionValidation) || patch.submissionValidation.length === 0) {
+                    throw new BadRequestError("At least one submission field must be required");
+                }
+            }
+
+            const finalSubmissionValidation =
+                patch.submissionValidation !== undefined
+                    ? patch.submissionValidation
+                    : existing.submissionValidation;
+
+            if (!finalSubmissionValidation || finalSubmissionValidation.length === 0) {
+                throw new BadRequestError("At least one submission field must be required");
+            }
+            
+            updatePatch.submissionValidation = patch.submissionValidation;
 
             const updated = await this.ruleConfigRepository.updateRuleConfig(ruleConfigId, updatePatch, session);
             if (!updated) {

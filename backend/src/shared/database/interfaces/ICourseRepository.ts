@@ -40,7 +40,7 @@ export interface ICourseRepository {
     cohortIds: ID[],
     options?: {
       search?: string
-      sortBy?: "name" | "createdAt" | "updatedAt"
+      sortBy?: "name" | "createdAt" | "updatedAt" | "baseHp" | "safeHp"
       sortOrder?: "asc" | "desc"
       skip?: number
       limit?: number
@@ -51,6 +51,7 @@ export interface ICourseRepository {
   createCohorts(
     versionId: string,
     cohorts: string[],
+    baseHp: number,
     session?: ClientSession
   ): Promise<ObjectId[]>;
 
@@ -71,6 +72,8 @@ export interface ICourseRepository {
     cohortName?: string,
     isPublic?: boolean,
     isActive?: boolean,
+    baseHp?: number,
+    safeHp?: number,
     session?: ClientSession
   ): Promise<boolean>;
 

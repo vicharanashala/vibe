@@ -486,7 +486,7 @@ class ProgressRepository {
 
   async findById(
     id: string,
-    session: ClientSession,
+    session?: ClientSession,
   ): Promise<IProgress | null> {
     await this.init();
     return await this.progressCollection.findOne(
@@ -585,7 +585,6 @@ class ProgressRepository {
   }
   async stopItemTracking(
     watchTimeId: string,
-    cohortId?: string,
     session?: ClientSession,
   ): Promise<IWatchTime | null> {
     await this.init();
@@ -593,7 +592,6 @@ class ProgressRepository {
       {
         _id: new ObjectId(watchTimeId),
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
       },
       { $set: { endTime: new Date() } },
       { returnDocument: 'after', session },
@@ -729,6 +727,7 @@ class ProgressRepository {
   async getAllProgressForCourseVersion(
     courseId: string,
     courseVersionId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<IProgress[]> {
     await this.init();
@@ -737,6 +736,7 @@ class ProgressRepository {
         {
           courseId: { $in: [new ObjectId(courseId), courseId] },
           courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
         },
         { session },
       )
@@ -1350,6 +1350,19 @@ class ProgressRepository {
     return results as {
       itemId: string;
     }[];
+  }
+
+  async findWatchTimeById(
+    id: string,
+    session?: ClientSession,
+  ): Promise<IWatchTime | null> {
+    await this.init();
+    return await this.watchTimeCollection.findOne(
+      { _id: new ObjectId(id), isDeleted: { $ne: true } },
+      {
+        session,
+      },
+    );
   }
 
 }

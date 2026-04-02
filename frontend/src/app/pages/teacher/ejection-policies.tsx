@@ -15,7 +15,7 @@ import { EjectionPolicyList } from "@/app/pages/teacher/components/ejection-poli
 import { EjectionStudentList } from "@/app/pages/teacher/components/ejection-policies/EjectionStudentList";
 import EjectionHistoryTab from "@/app/pages/teacher/components/ejection-policies/EjectionHistoryTab";
 import { useEjectionPolicies } from "@/hooks/ejection-policy-hooks";
-import { useCourseVersionCohorts } from "@/hooks/hooks";
+import { useCourseVersionCohorts, useCourseById } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import { EjectionPolicy } from "@/types/ejection-policy.types";
 import { AppealsTab } from "./components/ejection-policies/AppealsTab";
@@ -29,6 +29,7 @@ export default function EjectionPoliciesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<EjectionPolicy | null>(null);
   const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
+  const { data: courseData } = useCourseById(courseId ?? "");
 
   // Fetch cohorts for this course version
   const {
@@ -307,6 +308,8 @@ export default function EjectionPoliciesPage() {
               courseId={courseId}
               courseVersionId={versionId}
               cohortId={selectedCohortId}
+              courseName={courseData?.name ?? ""}
+              cohortName={selectedCohort?.name ?? ""}
             />
           </TabsContent>
             
