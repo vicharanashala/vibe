@@ -1691,6 +1691,8 @@ class ProgressService extends BaseService {
           cohortId,
           session,
         );
+
+        console.log("Existing item found ->", existingWatchTime)
         return '';
       }
 
@@ -1732,6 +1734,22 @@ class ProgressService extends BaseService {
           ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
         };
 
+        await this.progressRepository.updateProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          newProgress,
+          cohortId
+        );
+      } else if (!linearProgressionEnabled) {
+        const newProgress: Partial<IProgress> = {
+          completed: isItemCompleted,
+          currentModule: moduleId,
+          currentSection: sectionId,
+          currentItem: itemId,
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        };
+          console.log("New progress is -> ", newProgress)
         await this.progressRepository.updateProgress(
           userId,
           courseId,
@@ -2180,7 +2198,7 @@ class ProgressService extends BaseService {
 
       // Prepare the progress update payload
       let newProgress: Partial<IProgress> = isCompleted
-        ? 
+        ?
         {
           currentModule: moduleId,
           currentSection: sectionId,
@@ -2293,15 +2311,15 @@ class ProgressService extends BaseService {
           guruProgress.completedItemsCount,
           cohortId,
         );
-      } 
-      
-        await this.enrollmentRepo.updateProgressPercentById(
-          enrollment._id.toString(),
-          percentCompleted,
-          completedCourseItemsCount,
-          cohortId,
-        );
-      
+      }
+
+      await this.enrollmentRepo.updateProgressPercentById(
+        enrollment._id.toString(),
+        percentCompleted,
+        completedCourseItemsCount,
+        cohortId,
+      );
+
 
 
       if (percentCompleted > 99) {
@@ -2326,13 +2344,13 @@ class ProgressService extends BaseService {
       // }
 
       await this.progressRepository.updateProgress( // pending
-          userId,
-          courseId,
-          courseVersionId,
-          newProgress,
-          cohortId,
-          session,
-        );
+        userId,
+        courseId,
+        courseVersionId,
+        newProgress,
+        cohortId,
+        session,
+      );
     });
   }
 
