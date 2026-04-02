@@ -8,6 +8,7 @@ import { useAuthStore } from "@/store/auth-store";
 // Import new components
 import { CourseCard, CourseCardSkeleton } from "@/components/course/CourseCard";
 import { CourseListCard } from "@/components/course/CourseListCard";
+import { CourseProgressDialog } from "@/components/course/CourseProgressDialog";
 import { Pagination } from "@/components/ui/Pagination";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,25 @@ import { cn } from "@/utils/utils";
 import { TooltipProvider as UTS_TooltipProvider, Tooltip as UTS_Tooltip, TooltipContent as UTS_TooltipContent, TooltipTrigger as UTS_TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function StudentCourses() {
+  const [progressDialogTarget, setProgressDialogTarget] = useState<{
+    courseId: string;
+    versionId: string;
+    cohortId?: string;
+    tab?: string;
+  } | null>(() => {
+    if (typeof window === "undefined") return null;
+    const raw = sessionStorage.getItem("student-course-progress-dialog-target");
+    if (!raw) return null;
+
+    try {
+      return JSON.parse(raw);
+    } catch {
+      sessionStorage.removeItem("student-course-progress-dialog-target");
+      return null;
+    }
+  });
+  const [progressDialogOpen, setProgressDialogOpen] = useState(false);
+
   useEffect(() => {
     setTimeout(stopAllStreams, 1000);
   }, []);
@@ -89,6 +109,53 @@ export default function StudentCourses() {
       !enrollment.hasNewItemsAfterCompletion);
   }, [enrollments]);
 
+  useEffect(() => {
+    if (!progressDialogTarget?.tab) return;
+    if (activeTab !== progressDialogTarget.tab) {
+      setActiveTab(progressDialogTarget.tab);
+      setCurrentPage(1);
+    }
+  }, [activeTab, progressDialogTarget]);
+
+  useEffect(() => {
+    if (!progressDialogTarget || isLoading || isSearching) return;
+    setProgressDialogOpen(true);
+    sessionStorage.removeItem("student-course-progress-dialog-target");
+  }, [progressDialogTarget, isLoading, isSearching]);
+
+  useEffect(() => {
+    const handleOpenProgress = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        courseId: string;
+        versionId: string;
+        cohortId?: string;
+        tab?: string;
+      }>;
+
+      const target = customEvent.detail;
+      if (!target?.courseId || !target?.versionId) return;
+
+      if (target.tab) {
+        setActiveTab(target.tab);
+      }
+
+      setProgressDialogTarget((previous) => {
+        const sameTarget =
+          previous?.courseId === target.courseId &&
+          previous?.versionId === target.versionId &&
+          (previous?.cohortId || "") === (target.cohortId || "");
+
+        setProgressDialogOpen((previousOpen) => (sameTarget && previousOpen ? false : true));
+        return target;
+      });
+    };
+
+    window.addEventListener("student-course-progress-open", handleOpenProgress as EventListener);
+    return () => {
+      window.removeEventListener("student-course-progress-open", handleOpenProgress as EventListener);
+    };
+  }, []);
+
   // Update current page when API response changes
   // useEffect(() => {
   //   if (currentPageFromAPI !== currentPage) {
@@ -146,6 +213,14 @@ export default function StudentCourses() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:px-4 px-0 p-4 pt-0">
+      <CourseProgressDialog
+        open={progressDialogOpen}
+        onOpenChange={setProgressDialogOpen}
+        courseId={progressDialogTarget?.courseId}
+        versionId={progressDialogTarget?.versionId}
+        cohortId={progressDialogTarget?.cohortId}
+      />
+
       <div className="flex flex-col space-y-6">
         <section className="flex items-start justify-between gap-4">
           <div className="flex flex-col space-y-2">

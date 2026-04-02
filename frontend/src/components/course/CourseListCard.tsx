@@ -1,4 +1,4 @@
-import { Clock, Info, Play, Trophy, Headphones, MessageCircle, ExternalLink, Users, Sparkles, Check, Copy, Crown, Medal, Award, LifeBuoy, Mail } from "lucide-react";
+import { Clock, Info, Play, Trophy, Headphones, MessageCircle, ExternalLink, Users, Sparkles, Check, Copy, Crown, Medal, Award, LifeBuoy, Mail, Activity } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -106,8 +106,33 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
     navigate({ to: "/student/learn" });
   };
 
+  const SendToCourse = () => {
+    if (variant === 'available') return;
+
+    const target = {
+      courseId,
+      versionId,
+      cohortId,
+      tab: isCompleted ? "completed" : "enrolled",
+    };
+
+    if (typeof window !== "undefined" && window.location.pathname === "/student/courses") {
+      window.dispatchEvent(new CustomEvent("student-course-progress-open", { detail: target }));
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("student-course-progress-dialog-target", JSON.stringify(target));
+    }
+
+    navigate({ to: "/student/courses" });
+  };
+
+
   return (
-    <Card className={cn("dark:bg-[#4b341e4b] border border-border overflow-hidden flex flex-col sm:flex-row student-card-hover p-0", className)}>
+    <Card
+      className={cn("dark:bg-[#4b341e4b] border border-border overflow-hidden flex flex-col sm:flex-row student-card-hover p-0", className)}
+    >
       <div className="w-full h-40 sm:h-auto sm:w-32 flex-shrink-0 flex items-center justify-center">
         <ImageWithFallback
           src="https://us.123rf.com/450wm/warat42/warat422108/warat42210800253/173451733-charts-graph-with-analysis-business-financial-data-white-clipboard-checklist-smartphone-wallet.jpg?ver=6"
@@ -186,6 +211,9 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
 
           {variant !== 'available' && isNotGuruSetu && (
             <>
+              <Button variant="outline" size="sm" className="h-9 rounded-xl text-[11px] font-bold" onClick={SendToCourse}>
+                <Activity className="h-3.5 w-3.5 mr-1.5 text-emerald-500" /> Progress
+              </Button>
               <Button variant="outline" size="sm" className="h-9 rounded-xl text-[11px] font-bold" onClick={() => setIsDetailsOpen(true)}>
                 <Info className="h-3.5 w-3.5 mr-1.5 text-blue-500" /> Details
               </Button>
@@ -200,6 +228,7 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
                 </DialogTrigger>
                 <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} cohortId={cohortId} />
               </Dialog>
+              
               {supportLink && (
                 <Button variant="outline" size="sm" className="h-9 rounded-xl text-[11px] font-bold" asChild>
                   <a href={supportLink.startsWith('mailto:') || supportLink.includes('@') ? (supportLink.startsWith('mailto:') ? supportLink : `mailto:${supportLink}`) : supportLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5">

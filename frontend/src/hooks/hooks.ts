@@ -634,7 +634,7 @@ export function useStudentProgressDetail(
     {
       params: {
         path: { userId: userId!, courseId: courseId!, versionId: versionId! },
-        query: { cohortId },
+        ...(cohortId ? { query: { cohortId } } : {}),
       },
     },
     {
@@ -687,7 +687,7 @@ export function useStudentCourseStructure(
     {
       params: {
         path: { userId: userId!, courseId: courseId!, versionId: versionId! },
-        query: { cohortId },
+        ...(cohortId ? { query: { cohortId } } : {}),
       },
     },
     {
@@ -4420,7 +4420,7 @@ export function useModuleProgress(
     {
       params: {
         path: { courseId, versionId },
-        query: { cohortId }
+        ...(cohortId ? { query: { cohortId } } : {})
       }
     },
     {

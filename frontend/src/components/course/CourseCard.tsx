@@ -195,6 +195,29 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
     navigate({ to: "/student/learn" });
   };
 
+  const handleOpenProgress = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (variant === 'available') return;
+
+    const target = {
+      courseId,
+      versionId,
+      cohortId,
+      tab: isCompleted ? "completed" : "enrolled",
+    };
+
+    if (typeof window !== "undefined" && window.location.pathname === "/student/courses") {
+      window.dispatchEvent(new CustomEvent("student-course-progress-open", { detail: target }));
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("student-course-progress-dialog-target", JSON.stringify(target));
+    }
+
+    navigate({ to: "/student/courses" });
+  };
+
   if (isLoading) {
     return <CourseCardSkeleton variant={variant} />;
   }
@@ -296,6 +319,18 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                       )}
                     </Button>
 
+                    {variant !== 'available' && (
+                      <Button
+                        onClick={handleOpenProgress}
+                        className={cn(
+                          "w-full h-12 rounded-xl text-lg font-bold transition-all duration-300 shadow-md active:scale-95 flex items-center justify-center gap-2",
+                          isStart ? "bg-[#22C55E] text-white" : "bg-[#FACC15] text-black"
+                        )}
+                      >
+                        Progress
+                      </Button>
+                    )}
+
                     <div className="flex gap-2">
                       {isRankVisible && (
                         <div onClick={(e) => e.stopPropagation()} className="flex-1">
@@ -337,7 +372,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                         </div>
                       )}
                     </div>
-
+                      
                     {variant !== 'available' && isNotGuruSetu && (
                       <div className="flex gap-2">
                         <Button
@@ -548,6 +583,18 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   </>
                 )}
               </div>
+
+              {variant !== 'available' && (
+                <Button
+                  onClick={handleOpenProgress}
+                  className={cn(
+                    "w-full h-10 rounded-xl text-xs font-bold transition-all duration-300 shadow-md active:scale-95 flex items-center justify-center gap-2",
+                    isStart ? "bg-[#22C55E] text-white" : "bg-[#FACC15] text-black"
+                  )}
+                >
+                  Progress
+                </Button>
+              )}
 
               <Button
                 onClick={(e) => { e.stopPropagation(); handleContinue(); }}
