@@ -1,27 +1,11 @@
 {
-	"name": "vibe",
-	"version": "0.1.0",
-	"private": true,
-	"license": "MIT",
-	"author": "adityabmv",
-	"devDependencies": {
-		"husky": "^9.1.7",
-		"lint-staged": "^15.5.0",
-		"ts-node": "^10.9.2",
-		"typescript": "^5.9.3"
-	},
-	"scripts": {
-		"prepare": "husky",
-		"binaries": "pnpx ts-node scripts/preload-mongo-binary.ts",
-		"vibe": "pnpx ts-node cli/src/cli.ts"
-	},
-	"lint-staged": {
-		"backend/**/*.{js,jsx,ts,tsx}": [
-			"pnpm --filter backend lint"
-		]
-	},
-	"dependencies": {
-		"vibe": "link:cli"
-	},
-	"packageManager": "pnpm@10.12.1+sha512.f0dda8580f0ee9481c5c79a1d927b9164f2c478e90992ad268bbb2465a736984391d6333d2c327913578b2804af33474ca554ba29c04a8b13060a717675ae3ac"
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "axios": "^1.13.6"
+  }
 }
