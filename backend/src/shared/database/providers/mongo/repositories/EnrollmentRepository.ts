@@ -4979,6 +4979,7 @@ export class EnrollmentRepository {
         $set: {
           status: 'ACTIVE' as EnrollmentStatus,
           isEjected: false,
+          enrollmentDate: new Date(),
           updatedAt: new Date(),
           // Update the last history entry that hasn't been reinstated yet
           'ejectionHistory.$[last].reinstatedAt': new Date(),
