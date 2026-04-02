@@ -2060,7 +2060,7 @@ export function ConfirmOverlay({
               className="bg-red-50 text-red-600 hover:bg-white hover:text-red-700 font-semibold"
               onClick={message === "Invalid watch time" ? handlePlayPause : onConfirm}
             >
-              {message === "Invalid watch time" ? "Ok" : "Continue"}
+              {message === "Invalid watch time" ? "OK" : "Continue"}
             </Button>
           </div>
         </CardContent>
