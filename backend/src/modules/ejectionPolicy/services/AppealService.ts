@@ -18,6 +18,7 @@ import {Storage, Bucket} from '@google-cloud/storage';
 import path from 'path';
 import {randomBytes} from 'crypto';
 import {appConfig} from '#root/config/app.js';
+import {ReinstatementService} from './ReinstatementService.js';
 @injectable()
 export class AppealService {
   constructor(
@@ -35,6 +36,9 @@ export class AppealService {
 
     @inject(EJECTION_POLICY_TYPES.NotificationService)
     private readonly notificationService: NotificationService,
+
+    @inject(EJECTION_POLICY_TYPES.ReinstatementService)
+    private readonly reinstatementService: ReinstatementService,
   ) {}
 
   private getAppealBucket() {
@@ -252,8 +256,9 @@ export class AppealService {
     if (appeal.status !== 'PENDING') {
       throw new BadRequestError('Appeal already processed');
     }
-
-    await this.enrollmentService.reinstateUser(
+    // Use ReinstatementService instead of enrollmentService directly
+    // so the policy-change check runs and the correct notifications are sent
+    await this.reinstatementService.reinstateLearner(
       appeal.userId.toString(),
       appeal.courseId.toString(),
       appeal.courseVersionId.toString(),
