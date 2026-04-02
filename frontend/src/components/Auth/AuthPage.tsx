@@ -615,17 +615,27 @@ export default function AuthPage({ role }: AuthPageProps) {
                         <Label htmlFor="signup-password" className="font-medium">
                           Password
                         </Label>
-                        <Input
-                          id="signup-password"
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Create a strong password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className={cn(
-                            "transition-all duration-200",
-                            formErrors.password && "border-destructive focus-visible:ring-destructive"
-                          )}
-                        />
+                        <div className="relative">
+                          <Input
+                            id="signup-password"
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Create a strong password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className={cn(
+                              "transition-all duration-200",
+                              formErrors.password && "border-destructive focus-visible:ring-destructive"
+                            )}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute inset-y-0 right-1"
+                            onClick={() => setShowPassword(p => !p)}
+                          >
+                            {showPassword ? <EyeOff /> : <Eye />}
+                          </Button>
+                        </div>
                         {password && (
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
