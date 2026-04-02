@@ -48,7 +48,7 @@ import { useCourseStore } from "@/store/course-store"
 import type { EnrolledUser, EnrollmentDetails } from "@/types/course.types"
 import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
-import { generateExcel, type ExcelExportOptions } from "@/lib/excel-export"
+import { generateExcel, generateStudentContactsExcel, type ExcelExportOptions } from "@/lib/excel-export"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
