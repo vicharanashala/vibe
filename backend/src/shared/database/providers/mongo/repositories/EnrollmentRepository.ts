@@ -39,6 +39,7 @@ import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import { IQuestionBank } from '#root/shared/interfaces/quiz.js';
 import { IProjectSubmission } from '#root/modules/projects/repositories/model.js';
 import { IReport } from '#root/shared/interfaces/reports.js';
+import { UserEnrollmentStatisticsResponse } from '#root/modules/users/classes/index.js';
 
 @injectable()
 export class EnrollmentRepository {
@@ -5527,8 +5528,51 @@ export class EnrollmentRepository {
     );
   }
 
-  async getUserEnrollmentStatistics(userId: string) {
+  async getUserEnrollmentStatistics(
+    userId: string,
+  ): Promise<UserEnrollmentStatisticsResponse> {
     await this.init();
-    return null
+
+    const stats = await this.enrollmentCollection
+      .aggregate<UserEnrollmentStatisticsResponse>([
+        {
+          $match: {
+            userId: new ObjectId(userId),
+            status: 'ACTIVE',
+            role: 'STUDENT',
+            isDeleted: { $ne: true },
+            isEjected: { $ne: true },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalCourses: { $sum: 1 },
+            completedCourses: {
+              $sum: {
+                $cond: [{ $eq: ['$percentCompleted', 100] }, 1, 0],
+              },
+            },
+            overallProgress: { $avg: '$percentCompleted' },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            totalCourses: 1,
+            completedCourses: 1,
+            overallProgress: { $round: ['$overallProgress', 2] },
+          },
+        },
+      ])
+      .toArray();
+
+    return (
+      stats[0] ?? {
+        totalCourses: 0,
+        completedCourses: 0,
+        overallProgress: 0,
+      }
+    );
   }
 }
