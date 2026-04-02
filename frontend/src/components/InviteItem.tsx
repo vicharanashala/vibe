@@ -1,9 +1,10 @@
 
 import { useState } from "react";
 import { Button } from "./ui/button";
-import { Mail, CheckCircle, XCircle } from "lucide-react";
+import { Mail } from "lucide-react";
 
-const InviteItem = ({ invite, onAcceptClick, onRejectClick }) => {
+
+const InviteItem = ({ invite, onAcceptClick, onRejectClick , hasPolicies}) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [status, setStatus] = useState(invite.inviteStatus);
 
@@ -59,20 +60,50 @@ const InviteItem = ({ invite, onAcceptClick, onRejectClick }) => {
             </span>
           </p>
 
-          {/* ACTIONS */}
-          {isExpanded && status === "PENDING" && (
-  <div className="mt-2">
-    <Button
-      size="sm"
-      variant="outline"
-      onClick={(e) => {
-        e.stopPropagation();
-        onAcceptClick(invite);
-      }}
-      className="h-6 px-2 text-xs hover:bg-yellow-50 hover:border-yellow-600 hover:text-yellow-600 dark:hover:border-yellow-400 dark:hover:text-yellow-400 "
-    >
-      Check Course
-    </Button>
+         
+{isExpanded && status === "PENDING" && (
+  <div className="mt-2 flex gap-1">
+    
+    {/* ✅ NO POLICIES → direct actions */}
+    {hasPolicies === false ? (
+      <>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRejectClick(invite);
+          }}
+          className="h-6 px-2 text-xs"
+        >
+          Reject
+        </Button>
+
+        <Button
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAcceptClick(invite);
+          }}
+          className="h-6 px-2 text-xs"
+        >
+          Accept
+        </Button>
+      </>
+    ) : (
+      /* ✅ HAS POLICIES → modal */
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={(e) => {
+          e.stopPropagation();
+          onAcceptClick(invite);
+        }}
+        className="h-6 px-2 text-xs"
+      >
+        Check Course
+      </Button>
+    )}
   </div>
 )}
         </div>

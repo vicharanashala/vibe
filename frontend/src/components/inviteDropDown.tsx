@@ -10,7 +10,7 @@ import {
   Check,
 } from 'lucide-react';
 import {Button} from '@/components/ui/button';
-import {useMarkNotificationAsRead} from '@/hooks/hooks';
+import {processInviteApi, useMarkNotificationAsRead} from '@/hooks/hooks';
 import {
   useSubmitAppeal,
 } from '@/hooks/system-notification-hooks';
@@ -26,6 +26,7 @@ import { AppealModal } from '@/app/pages/student/components/policies/AppealModal
 import { useInvites } from "@/hooks/hooks";
 import { PolicyReacknowledgementModal } from '@/app/pages/student/components/policies/PolicyReacknowledgementModal';
 import { queryClient } from '@/lib/client';
+import { hasActivePolicies } from '@/utils/ejectionPolicyUtils';
 
 type InviteDropdownProps = {
   setShowInvites?: React.Dispatch<React.SetStateAction<boolean>>;
@@ -119,18 +120,19 @@ const InviteDropdown = ({
   const {mutate: markAsRead, isPending} = useMarkNotificationAsRead();
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const [selectedPolicyNotification, setSelectedPolicyNotification] = useState<SystemNotification | null>(null);
-
+  
   const [submittedAppeals, setSubmittedAppeals] = useState<Set<string>>(new Set());
-const appealKey = (n: SystemNotification) =>
-  `${n.courseId}-${n.courseVersionId}-${n.cohortId}`;
-
+  const appealKey = (n: SystemNotification) =>
+    `${n.courseId}-${n.courseVersionId}-${n.cohortId}`;
+  
   const unreadSystemNotifications = systemNotifications.filter(n => !n.read);
+  const [invitePoliciesMap, setInvitePoliciesMap] = useState<Record<string, boolean>>({});
   const hasAnyContent =
-    pendingInvites.length > 0 ||
-    approvedNotifications.length > 0 ||
-    pendingStudentRegistrations.length > 0 ||
-    rejectedStudentRegistrations.length > 0 ||
-    systemNotifications.length > 0;
+  pendingInvites.length > 0 ||
+  approvedNotifications.length > 0 ||
+  pendingStudentRegistrations.length > 0 ||
+  rejectedStudentRegistrations.length > 0 ||
+  systemNotifications.length > 0;
   
     const [selectedAppeal, setSelectedAppeal] = useState<{
   courseId: string;
@@ -214,6 +216,31 @@ const mostRecentPolicyIds = useMemo(() => {
 
   return new Set(map.values());
 }, [systemNotifications]);
+useEffect(() => {
+  const fetchPolicies = async () => {
+    const results: Record<string, boolean> = {};
+
+    const invites = pendingInvites.length ? pendingInvites : localInvites;
+
+    await Promise.all(
+      invites.map(async (invite) => {
+        const hasPolicies = await hasActivePolicies(
+          invite.courseId,
+          invite.courseVersionId,
+          invite.cohortId
+        );
+
+        results[invite.inviteId] = hasPolicies;
+      })
+    );
+
+    setInvitePoliciesMap(results);
+  };
+
+  if (pendingInvites.length || localInvites.length) {
+    fetchPolicies();
+  }
+}, [pendingInvites, localInvites]);
 
   return (
     <>
@@ -246,14 +273,35 @@ const mostRecentPolicyIds = useMemo(() => {
              {/* ── Invites ── */}
              {(pendingInvites.length ? pendingInvites : localInvites).map((invite, idx) => (
                 <InviteItem
-                  key={`invite-${idx}`}
-                  invite={invite}
-                  onRejectClick={onRejectClick ?? (() => {})}
-                  onAcceptClick={invite => {
-                    setSelectedInvite(invite);
-                    setShowPolicyModal(true);
-                  }}
-                />
+  invite={invite}
+  hasPolicies={invitePoliciesMap[invite.inviteId]}
+  onAcceptClick={async (invite) => {
+    const hasPolicies = await hasActivePolicies(
+      invite.courseId,
+      invite.courseVersionId,
+      invite.cohortId
+    );
+
+    if (!hasPolicies) {
+      await processInviteApi(invite.inviteId, "ACCEPT", false);
+
+      setPendingInvites((prev) =>
+        prev.filter((i) => i.inviteId !== invite.inviteId)
+      );
+      return;
+    }
+
+    setSelectedInvite(invite);
+    setShowPolicyModal(true);
+  }}
+  onRejectClick={async (invite) => {
+    await processInviteApi(invite.inviteId, "REJECTED");
+
+    setPendingInvites((prev) =>
+      prev.filter((i) => i.inviteId !== invite.inviteId)
+    );
+  }}
+/>
               ))}
 
               {/* ── System Notifications (ejection, reinstatement, policy) ── */}
