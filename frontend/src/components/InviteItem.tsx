@@ -1,15 +1,4 @@
 
-
-    // const onAccept = async (invite) => {
-    //     const { data, isLoading, error } = await useProcessInvites(invite.inviteId, 'ACCEPT');
-    //     if (!isLoading && !error) {
-    //         setStatus("ACCEPTED");
-    //         setIsExpanded(false);
-    //         window.location.reload();
-    //     }
-    // };
-    
-
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { Mail, CheckCircle, XCircle } from "lucide-react";
