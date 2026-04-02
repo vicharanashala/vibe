@@ -88,15 +88,11 @@ export default function StudentLayout() {
 
   // Sync local state with hook data
   useEffect(() => {
-    if (approvedNotifications && approvedNotifications.length !== approvedNotificationsList.length) {
-      setApprovedNotificationsList(approvedNotifications);
-    }
-  }, [approvedNotifications, setApprovedNotificationsList,approvedNotificationsList]);
+    setApprovedNotificationsList(approvedNotifications ?? []);
+  }, [approvedNotifications]);
 
   useEffect(() => {
-    if (rejectedStudentRegistrations) {
-      setLocalRejectedRegistrations(rejectedStudentRegistrations);
-    }
+    setLocalRejectedRegistrations(rejectedStudentRegistrations ?? []);
   }, [rejectedStudentRegistrations]);
 
   const handleLogout = () => {

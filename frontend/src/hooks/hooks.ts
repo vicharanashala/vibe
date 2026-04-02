@@ -429,6 +429,10 @@ export function useLogin(): {
 }
 
 // POST /auth/google
+const EMPTY_APPROVED_REGISTRATION_NOTIFICATIONS: ApprovedRegistrationNotification[] = [];
+const EMPTY_PENDING_STUDENT_REGISTRATIONS: PendingStudentRegistrationNotification[] = [];
+const EMPTY_REJECTED_STUDENT_REGISTRATIONS: RejectedStudentRegistrationNotification[] = [];
+
 export function useLoginWithGoogle(): {
   mutate: (variables: { body: { lastName: string, firstName: string, email: string } }) => void,
   mutateAsync: (variables: { body: { lastName: string, firstName: string, email: string } }) => Promise<components['schemas']['SignUpResponse']>,
@@ -4796,7 +4800,7 @@ export function useGetUnreadApprovedRegistrations(studentId: string): {
   });
 
   return {
-    data: Array.isArray(result?.data) ? result?.data : [],
+    data: Array.isArray(result?.data) ? result.data as ApprovedRegistrationNotification[] : EMPTY_APPROVED_REGISTRATION_NOTIFICATIONS,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch unread notifications') : null,
     refetch: result.refetch
@@ -4821,7 +4825,7 @@ export function useGetPendingStudentRegistrations(studentId: string): {
   });
 
   return {
-    data: Array.isArray(result?.data) ? result?.data as PendingStudentRegistrationNotification[] : [],
+    data: Array.isArray(result?.data) ? result.data as PendingStudentRegistrationNotification[] : EMPTY_PENDING_STUDENT_REGISTRATIONS,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch pending student registrations') : null,
     refetch: result.refetch
@@ -4846,7 +4850,7 @@ export function useGetRejectedStudentRegistrations(studentId: string): {
   });
 
   return {
-    data: Array.isArray(result?.data) ? result?.data as RejectedStudentRegistrationNotification[] : [],
+    data: Array.isArray(result?.data) ? result.data as RejectedStudentRegistrationNotification[] : EMPTY_REJECTED_STUDENT_REGISTRATIONS,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch rejected student registrations') : null,
     refetch: result.refetch
