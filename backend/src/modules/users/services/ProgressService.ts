@@ -1403,7 +1403,7 @@ class ProgressService extends BaseService {
         // - Must have watched at least 15% of the video
         // OR
         // - If the video is long, must have watched at least 30 seconds
-        const minimumRequired = Math.min(totalVideoDuration * 0.15, 30);
+        const minimumRequired = 30
 
         return adjustedDuration >= minimumRequired;
 
