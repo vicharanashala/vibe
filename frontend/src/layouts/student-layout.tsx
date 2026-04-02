@@ -63,7 +63,7 @@ const enrollments = enrollmentsData?.enrollments ?? [];
     if (approvedNotifications && approvedNotifications.length !== approvedNotificationsList.length) {
       setApprovedNotificationsList(approvedNotifications);
     }
-  }, [approvedNotifications, setApprovedNotificationsList, approvedNotificationsList]);
+  }, [approvedNotifications, setApprovedNotificationsList,approvedNotificationsList]);
 
   useEffect(() => {
     if (rejectedStudentRegistrations) {
