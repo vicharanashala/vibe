@@ -1,4 +1,4 @@
-import { Trophy, Medal, Award, Crown } from "lucide-react";
+import { Trophy, Medal, Award, Crown, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useLeaderboard, useUserEnrollments } from "@/hooks/hooks";
@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/utils/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 
 export default function Leaderboard() {
   const currentCourse = useCourseStore.getState().currentCourse;
@@ -27,9 +28,11 @@ export default function Leaderboard() {
     }
   }, [enrollmentsData, selectedCourseId]);
 
-  const { data: leaderboardData, isLoading, error } = useLeaderboard(
+  const { leaderboard: leaderboardData, isLoading, error } = useLeaderboard(
     selectedCourseId, 
     selectedVersionId, 
+    1,
+    100,
     !!selectedCourseId && !!selectedVersionId
   );
 
@@ -164,6 +167,16 @@ export default function Leaderboard() {
                 Students ranked by completion percentage and completion time
               </p>
             </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                disabled={isFetching}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
+                {isFetching ? "Refreshing..." : "Refresh"}
+              </Button>
             {/* Course Selector Dropdown */}
             {enrollmentsData?.enrollments && enrollmentsData.enrollments.length > 0 && (
               <Select value={`${selectedCourseId}-${selectedVersionId}`} onValueChange={handleCourseChange}>
@@ -183,6 +196,7 @@ export default function Leaderboard() {
               </Select>
             )}
           </div>
+        </div>
         </CardHeader>
         <CardContent>
           {/* Show loading state while fetching leaderboard data */}

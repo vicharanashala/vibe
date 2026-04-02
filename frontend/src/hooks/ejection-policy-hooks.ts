@@ -189,6 +189,7 @@ export const useEjectionHistory = (
     search?: string;
     page?: number;
     limit?: number;
+    timezoneOffset?: number;
   },
 ) => {
   const result: any = api.useQuery(
@@ -228,6 +229,7 @@ export const useExportEjectionHistory = () => {
       startDate?: string;
       endDate?: string;
       search?: string;
+      timezoneOffset?: number;
     }) => {
       const { data, error, response } = await fetchClient.GET('/ejections/history/export' as any, {
         params: {

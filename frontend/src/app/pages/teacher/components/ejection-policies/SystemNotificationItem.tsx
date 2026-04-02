@@ -4,6 +4,7 @@ import { SystemNotification } from "@/types/notification.types";
 import { AppealDetailsModal } from "./AppealDetailsModal";
 import { useGetAppealById } from "@/hooks/system-notification-hooks";
 import { Bell, CheckCircle, Shield, UserCheck, UserX, XCircle } from "lucide-react";
+import { AppealStatusBadge } from "./AppealStatusBadge";
 type Props = {
   notification: SystemNotification;
   onMarkRead: (id: string) => void;
@@ -34,12 +35,12 @@ export default function SystemNotificationItem({
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const appealId = notification.extra?.appealId;
+//   const appealId = notification.extra?.appealId;
 
-const { data: appeal } = useGetAppealById(
-  appealId,
-  !!appealId
-);
+// const { data: appeal } = useGetAppealById(
+//   appealId,
+//   !!appealId
+// );
 
   const handleToggle = () => {
     setIsExpanded(prev => !prev);
@@ -100,7 +101,7 @@ const { data: appeal } = useGetAppealById(
         </span>
 
         {/* ACTIONS */}
-        <div className="flex items-center gap-2">
+        {/* <div className="flex items-center gap-2">
 
           {notification.type === "appeal_submitted" ? (
   appeal?.status === "PENDING" ? (
@@ -136,20 +137,14 @@ const { data: appeal } = useGetAppealById(
   )
 ) : null}
 
-          {!notification.read && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-xs h-6 px-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMarkRead(notification._id);
-              }}
-            >
-              Mark read
-            </Button>
-          )}
-        </div>
+          
+        </div> */}
+        {notification.type === "appeal_submitted" && notification.extra?.appealId ? (
+          <AppealStatusBadge
+            appealId={notification.extra.appealId}
+            onReview={() => setShowModal(true)}
+          />
+        ) : null}
       </div>
     </div>
   </div>

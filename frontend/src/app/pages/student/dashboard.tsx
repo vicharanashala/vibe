@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuthStore } from "@/store/auth-store";
-import { useUserEnrollments, useWatchtimeTotal, usePublicCourses } from "@/hooks/hooks";
+import { useUserEnrollments, useWatchtimeTotal, usePublicCourses, useUserEnrollmentStats } from "@/hooks/hooks";
 import { useNavigate } from "@tanstack/react-router";
 
 // Import components
@@ -9,11 +9,15 @@ import { CourseSection } from "@/components/course/CourseSection";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getGreeting } from "@/utils/helpers";
-import type { CoursePctCompletion, CourseCardProps } from '@/types/course.types';
+import type { CourseCardProps } from '@/types/course.types';
 import { stopAllStreams } from "@/lib/MediaRegistry";
+import { cn } from "@/utils/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CourseCard } from "@/components/course/CourseCard";
-import { BookOpen, TrendingUp } from "lucide-react";
+import { CourseListCard } from "@/components/course/CourseListCard";
+import { BookOpen, TrendingUp, LayoutGrid, List } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function Page() {
   useEffect(() => {
@@ -94,30 +98,36 @@ function DashboardContent() {
   } = usePublicCourses(1, 5, !!token);
 
   useWatchtimeTotal();
+  const { data: statsData, isLoading: statsLoading } = useUserEnrollmentStats(!!token);
 
 
-
-  // const filteredEnrollement = enrollments.filter(enrollment=>enrollment.role == "STUDENT");
-  const [completion, setCompletion] = useState<CoursePctCompletion[]>([]);
-
-  // Calculate distinct lists for tabs
+   // Calculate distinct lists for tabs
   const activeEnrollments = useMemo(() => {
-    return enrollments.filter(enrollment => enrollment.percentCompleted !== 100);
+    return enrollments.filter(enrollment => (enrollment.percentCompleted ?? 0) !== 100);
   }, [enrollments]);
 
   const completedEnrollments = useMemo(() => {
-    return enrollments.filter(enrollment => enrollment.percentCompleted === 100);
+    return enrollments.filter(enrollment => (enrollment.percentCompleted ?? 0) === 100);
   }, [enrollments]);
 
-  const totalProgress = useMemo(() => {
-    const completed = completion.reduce((a, c) => a + (c.completedItems || 0), 0);
-    const total = completion.reduce((a, c) => a + (c.totalItems || 0), 0);
-    return total ? Math.round((completed / total) * 100) : 0;
-  }, [completion]);
+  const totalProgress = statsData?.overallProgress ?? 0;
 
   // Tab State
   const [activeTab, setActiveTab] = useState("available");
   const [hasSetInitialTab, setHasSetInitialTab] = useState(false);
+
+  // View Mode State (Persisted)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('student_dashboard_view_mode');
+      return (saved === 'list' ? 'list' : 'grid') as 'grid' | 'list';
+    }
+    return 'grid';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('student_dashboard_view_mode', viewMode);
+  }, [viewMode]);
 
   // Set default tab based on enrollments once loaded
   useEffect(() => {
@@ -149,14 +159,14 @@ function DashboardContent() {
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-stretch w-full max-w-2xl">
-              <StatCard
+               <StatCard
                 icon={<BookOpen className="h-5 w-5" />}
-                value={enrollmentsLoading ? "—" : `${totalEnrollments}`}
+                value={statsLoading ? "—" : `${statsData?.totalCourses ?? totalEnrollments}`}
                 label="Enrolled Courses"
               />
               <StatCard
                 icon={<TrendingUp className="h-5 w-5 text-green-500" />}
-                value={`${totalProgress}%`}
+                value={statsLoading ? "—" : `${totalProgress}%`}
                 label="Completion Percentage"
               />
             </div>
@@ -200,8 +210,50 @@ function DashboardContent() {
             </TabsList>
 
             <TabsContent value="available" className="mt-6 space-y-4 animate-in fade-in-50 duration-300 slide-in-from-left-2">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-2xl font-bold tracking-tight">Recommended for you</h2>
+                
+                {/* View Switcher Toggle */}
+                <div className="flex items-center bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/50 scale-90 sm:scale-100 origin-right">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => setViewMode('grid')}
+                          className={cn(
+                            "h-8 w-8 rounded-lg transition-all duration-300",
+                            viewMode === 'grid' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <LayoutGrid className="h-4.5 w-4.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Grid View</p></TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => setViewMode('list')}
+                          className={cn(
+                            "h-8 w-8 rounded-lg transition-all duration-300",
+                            viewMode === 'list' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <List className="h-4.5 w-4.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>List View</p></TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </div>
               <CourseSection
-                title="Recommended for you"
+                title=""
+                viewMode={viewMode}
                 enrollments={publicCoursesData?.courses?.map((course: any) => ({
                   courseId: course.courseId,
                   courseVersionId: course.courseVersionId,
@@ -231,26 +283,81 @@ function DashboardContent() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold tracking-tight">Your Active Courses</h2>
+                  
+                  {/* View Switcher Toggle */}
+                  <div className="flex items-center bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/50 scale-90 sm:scale-100 origin-right">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => setViewMode('grid')}
+                            className={cn(
+                              "h-8 w-8 rounded-lg transition-all duration-300",
+                              viewMode === 'grid' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            <LayoutGrid className="h-4.5 w-4.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Grid View</p></TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => setViewMode('list')}
+                            className={cn(
+                              "h-8 w-8 rounded-lg transition-all duration-300",
+                              viewMode === 'list' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            <List className="h-4.5 w-4.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>List View</p></TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                 </div>
 
                 {enrollmentsLoading ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className={cn(
+                    "grid gap-6",
+                    viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                  )}>
                     {Array.from({ length: 3 }).map((_, i) => (
-                      <div key={i} className="h-[400px] w-full bg-muted rounded-[24px] animate-pulse" />
+                      <div key={i} className={cn(
+                        "w-full bg-muted animate-pulse",
+                        viewMode === 'grid' ? "h-[400px] rounded-[24px]" : "h-32 rounded-2xl"
+                      )} />
                     ))}
                   </div>
                 ) : activeEnrollments.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className={cn(
+                    "grid gap-6",
+                    viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                  )}>
                     {activeEnrollments.map((enrollment, index) => (
-                      <CourseCard
-                        key={enrollment._id || index}
-                        enrollment={enrollment}
-                        index={index}
-                        isLoading={false}
-                        variant="dashboard"
-                        completion={completion}
-                        setCompletion={setCompletion}
-                      />
+                      viewMode === 'grid' ? (
+                        <CourseCard
+                          key={enrollment._id || index}
+                          enrollment={enrollment}
+                          index={index}
+                          isLoading={false}
+                          variant="dashboard"
+                        />
+                      ) : (
+                        <CourseListCard
+                          key={enrollment._id || index}
+                          enrollment={enrollment}
+                          index={index}
+                          isLoading={false}
+                          variant="dashboard"
+                        />
+                      )
                     ))}
                   </div>
                 ) : (
@@ -268,26 +375,81 @@ function DashboardContent() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold tracking-tight">Completed Courses</h2>
+                  
+                  {/* View Switcher Toggle */}
+                  <div className="flex items-center bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/50 scale-90 sm:scale-100 origin-right">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => setViewMode('grid')}
+                            className={cn(
+                              "h-8 w-8 rounded-lg transition-all duration-300",
+                              viewMode === 'grid' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            <LayoutGrid className="h-4.5 w-4.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Grid View</p></TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => setViewMode('list')}
+                            className={cn(
+                              "h-8 w-8 rounded-lg transition-all duration-300",
+                              viewMode === 'list' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            <List className="h-4.5 w-4.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>List View</p></TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                 </div>
 
                 {enrollmentsLoading ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className={cn(
+                    "grid gap-6",
+                    viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                  )}>
                     {Array.from({ length: 2 }).map((_, i) => (
-                      <div key={i} className="h-[400px] w-full bg-muted rounded-[24px] animate-pulse" />
+                      <div key={i} className={cn(
+                        "w-full bg-muted animate-pulse",
+                        viewMode === 'grid' ? "h-[400px] rounded-[24px]" : "h-32 rounded-2xl"
+                      )} />
                     ))}
                   </div>
                 ) : completedEnrollments.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className={cn(
+                    "grid gap-6",
+                    viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                  )}>
                     {completedEnrollments.map((enrollment, index) => (
-                      <CourseCard
-                        key={enrollment._id || index}
-                        enrollment={enrollment}
-                        index={index}
-                        isLoading={false}
-                        variant="dashboard"
-                        completion={completion}
-                        setCompletion={setCompletion}
-                      />
+                      viewMode === 'grid' ? (
+                        <CourseCard
+                          key={enrollment._id || index}
+                          enrollment={enrollment}
+                          index={index}
+                          isLoading={false}
+                          variant="dashboard"
+                        />
+                      ) : (
+                        <CourseListCard
+                          key={enrollment._id || index}
+                          enrollment={enrollment}
+                          index={index}
+                          isLoading={false}
+                          variant="dashboard"
+                        />
+                      )
                     ))}
                   </div>
                 ) : (

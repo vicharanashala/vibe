@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsBoolean,
   IsDateString,
   IsEnum,
@@ -9,6 +10,7 @@ import {
   ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
+import { SubmissionField } from "../../models.js";
 
 /* ===== Enums (same values as your types) ===== */
 
@@ -130,6 +132,10 @@ export class CreateHpRuleConfigBody {
   @ValidateNested()
   @Type(() => HpRuleLimitsDto)
   limits!: HpRuleLimitsDto;
+
+  @IsArray()
+  @IsEnum(SubmissionField, { each: true })
+  submissionValidation!: SubmissionField[];
 }
 
 /* ===== Update Body (partial) ===== */
@@ -163,4 +169,8 @@ export class UpdateHpRuleConfigBody {
   @ValidateNested()
   @Type(() => HpRuleLimitsDto)
   limits?: HpRuleLimitsDto;
+  
+  @IsArray()
+  @IsEnum(SubmissionField, { each: true })
+  submissionValidation!: SubmissionField[];
 }

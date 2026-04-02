@@ -102,6 +102,22 @@ export default function StudentTimeslotModal({
     }
   }, [isOpen]);
 
+  if (isLoading) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="w-full max-w-md mx-auto">
+          <DialogHeader>
+            <DialogTitle>Time Slots</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <span className="ml-2 text-muted-foreground">Loading time slots...</span>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   if (!timeSlotsData?.isActive) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>

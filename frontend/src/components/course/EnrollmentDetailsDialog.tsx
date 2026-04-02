@@ -1,10 +1,9 @@
 // Create a new component: EnrollmentDetailsDialog.tsx
 import { useUserEnrollmentsDetails, useCourseVersionById } from "@/hooks/hooks";
 import { bufferToHex } from '@/utils/helpers';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "../ui/button";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle2, Clock } from "lucide-react";
 
@@ -54,8 +53,7 @@ export function EnrollmentDetailsDialog({
   const {
     data: enrollmentDetails,
     isLoading
-  } = useUserEnrollmentsDetails(true, "", "STUDENT", courseVersionId);
-
+  } = useUserEnrollmentsDetails(true, "", "STUDENT", courseVersionId, cohortId);
   const { data: versionDetails } = useCourseVersionById(
     courseVersionId,
     true,
@@ -122,17 +120,27 @@ const versionDescription = versionDetails?.description || 'No version descriptio
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        {isLoading ?<Skeleton/>:<>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
-      </DialogTrigger>
-      
       <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 max-h-full flex flex-col">
         <DialogHeader className="mb-3 text-left">
           <DialogTitle>Course Details</DialogTitle>
         </DialogHeader>
-        
-        <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[700px] overflow-y-auto">
+
+        {isLoading ? (
+          <div className="flex-1 flex flex-col p-6 space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Skeleton className="h-4 w-20" /><Skeleton className="h-6 w-full" /></div>
+              <div className="space-y-2"><Skeleton className="h-4 w-20" /><Skeleton className="h-6 w-full" /></div>
+            </div>
+            <Skeleton className="h-24 w-full" />
+            <div className="grid grid-cols-4 gap-4">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          </div>
+        ) : (
+          <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[700px] overflow-y-auto">
           <div className="space-y-6 py-2">
             {/* Course Information */}
             <div>
@@ -148,10 +156,15 @@ const versionDescription = versionDetails?.description || 'No version descriptio
                 <div className="space-y-1 col-span-2">
                   <p className="text-sm font-medium text-muted-foreground">Assigned Timeslot</p>
                   <p className="text-sm">
-                    {enroll1?.assignedTimeSlot 
-                      ? `${enroll1.assignedTimeSlot.from} - ${enroll1.assignedTimeSlot.to} (IST)`
-                      : 'You can access course anytime'
-                    }
+                    {(() => {
+                      const timeSlot = Array.isArray(enroll1?.assignedTimeSlot) 
+                        ? enroll1.assignedTimeSlot[0] 
+                        : enroll1?.assignedTimeSlot;
+                      
+                      return timeSlot 
+                        ? `${timeSlot.from} - ${timeSlot.to} (IST)`
+                        : 'You can access course anytime';
+                    })()}
                   </p>
                 </div>
                 <div className="space-y-1 col-span-2">
@@ -271,8 +284,8 @@ const versionDescription = versionDetails?.description || 'No version descriptio
             </div>
           </div>
           </ScrollArea>
-        </DialogContent>
-      </>}
+        )}
+      </DialogContent>
     </Dialog>
   );
 }

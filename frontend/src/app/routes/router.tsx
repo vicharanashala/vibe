@@ -29,7 +29,9 @@ import TeacherCoursesPage from '@/app/pages/teacher/course-page'
 import Editor from '@/app/pages/teacher/create-article'
 import { NotFoundComponent } from '@/components/not-found'
 import { useCourseStore } from '@/store/course-store'
-import CourseEnrollments from '../pages/teacher/course-enrollments'
+// import CourseEnrollments from '../pages/teacher/course-enrollments'
+import CourseEnrollmentsContainer from '../pages/teacher/course-enrollments'
+import CourseEmotionAnalyticsPage from '../pages/teacher/course-emotion-analytics'
 import InvitePage from '../pages/teacher/invite'
 import GenerateSectionPage from '@/app/pages/teacher/create-job'
 import AISectionPage from '@/app/pages/teacher/AISectionPage';
@@ -37,7 +39,7 @@ import FlaggedList from '../pages/teacher/FlaggedList'
 import StudentRouteGuard from '@/components/StudentRouteGuard'
 import AiWorkflow from '../pages/teacher/AiWorkflow'
 import AnomaliesList from '../pages/teacher/AnomaliesList'
-import CourseInstructors from '../pages/teacher/course-instructors'
+// import CourseInstructors from '../pages/teacher/course-instructors'
 import RegisteredUsers from '../pages/teacher/CourseRegistrationRequests'
 import CourseRegistration from '../pages/student/CourseRegistration'
 import CourseIssueReports from '../pages/student/FlagResponse'
@@ -65,6 +67,7 @@ import StudentActivities from '@/app/pages/student/hp-system/activities'
 import StudentSubmissions from '@/app/pages/student/hp-system/submissions'
 import StudentMyLedgerPage from '@/app/pages/student/hp-system/student-ledger'
 import StudentActivityDetail from '@/app/pages/student/hp-system/activity-detail'
+import NotificationsPage from '@/app/pages/shared/NotificationsPage'
 
 // Root route with error and notFound handling
 const rootRoute = new RootRoute({
@@ -299,6 +302,14 @@ const teacherViewCourseRoute = new Route({
     }
   },
 });
+
+// Teacher notifications route
+const teacherNotificationsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/notifications',
+  component: NotificationsPage,
+});
+
 // Teacher courses page route
 const teacherCoursesPageRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -317,15 +328,21 @@ const teacherCreateArticleRoute = new Route({
 const teacherCourseEnrollmentsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/courses/enrollments',
-  component: CourseEnrollments,
+  component: CourseEnrollmentsContainer,
+});
+
+const teacherCourseEmotionAnalyticsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/emotion-analytics',
+  component: CourseEmotionAnalyticsPage,
 });
 
 // Teacher Course Instructors route
-const teacherCourseInstructorsRoute = new Route({
-  getParentRoute: () => teacherLayoutRoute,
-  path: '/courses/instructors',
-  component: CourseInstructors,
-});
+// const teacherCourseInstructorsRoute = new Route({
+//   getParentRoute: () => teacherLayoutRoute,
+//   path: '/courses/instructors',
+//   component: CourseInstructors,
+// });
 
 // Teacher Course Instructors route
 const teacherConfigureCohortsRoute = new Route({
@@ -466,6 +483,13 @@ const studentCoursesRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/courses',
   component: StudentCourses,
+});
+
+// Student notifications route
+const studentNotificationsRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/notifications',
+  component: NotificationsPage,
 });
 
 // student issues routes 
@@ -644,6 +668,7 @@ const routeTree = rootRoute.addChildren([
     teacherViewCourseRoute, teacherCourseFlagsRoute,
     teacherProfileRoute,
     teacherCourseEnrollmentsRoute,
+    teacherCourseEmotionAnalyticsRoute,
     teacherAudioManagerRoute,
     teacherAddCourseRoute,
     teacherCourseInviteRoute,
@@ -652,7 +677,7 @@ const routeTree = rootRoute.addChildren([
     teacherAIWorkflowSectionRoute,
     testAISectionModalRoute,
     teacherCourseAnomaliesRoute,
-    teacherCourseInstructorsRoute,
+    // teacherCourseInstructorsRoute,
     teacherCourseRegistrationRequests,
     teacherFeedBackEditorRoute,
     teacherAnnouncementsRoute,
@@ -666,7 +691,7 @@ const routeTree = rootRoute.addChildren([
     teacherStudentLedgerRoute,
     teacherStudentSubmissionsRoute,
     teacherSubmissionDetailsRoute,
-    
+    teacherNotificationsRoute,
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
@@ -680,7 +705,8 @@ const routeTree = rootRoute.addChildren([
     studentHpSystemActivitiesRoute,
     studentHpSystemActivitiesDetailRoute,
     studentHpSystemSubmissionsRoute,
-    studentHpSystemLedgerRoute
+    studentHpSystemLedgerRoute,
+    studentNotificationsRoute,
   ]),
   coursePageRoute,
 ]);

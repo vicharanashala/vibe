@@ -19,6 +19,11 @@ export interface IUser {
   email: string;
   firstName: string;
   lastName?: string;
+  avatar?: string;
+  gender?: string;
+  country?: string;
+  state?: string;
+  city?: string;
   roles: 'admin' | 'user';
 }
 
@@ -462,6 +467,8 @@ export interface ICohort {
   updatedAt: Date;
   isPublic: boolean;
   isActive?: boolean;
+  baseHp?: number;
+  safeHp?: number;
 }
 
 export interface ICohortSettings {
@@ -671,6 +678,10 @@ export class EnrollmentFilterQuery {
   @IsOptional()
   @IsIn(['active', 'archived'])
   tab?: courseVersionStatus = 'active';
+
+  @IsOptional()
+  @IsString()
+  cohortId?: string;
 }
 
 export class EnrollmentsQuery {

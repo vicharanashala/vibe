@@ -14,7 +14,6 @@ export interface FilterState {
     dateRange: string;
     activityType: string;
     status: string;
-    studentProgress: string;
 }
 
 const FILTER_OPTIONS = {
@@ -37,12 +36,6 @@ const FILTER_OPTIONS = {
         { value: 'draft', label: 'Draft' },
         { value: 'archived', label: 'Archived' },
     ],
-    studentProgress: [
-        { value: 'all', label: 'All Students' },
-        { value: 'completed', label: 'Completed' },
-        { value: 'in-progress', label: 'In Progress' },
-        { value: 'not-started', label: 'Not Started' },
-    ],
 };
 
 export function FilterPanel({ onFiltersChange, className }: FilterPanelProps) {
@@ -50,7 +43,6 @@ export function FilterPanel({ onFiltersChange, className }: FilterPanelProps) {
         dateRange: '30days',
         activityType: 'all',
         status: 'all',
-        studentProgress: 'all',
     });
 
     const updateFilter = (key: keyof FilterState, value: string) => {
@@ -64,7 +56,6 @@ export function FilterPanel({ onFiltersChange, className }: FilterPanelProps) {
             dateRange: '30days',
             activityType: 'all',
             status: 'all',
-            studentProgress: 'all',
         };
         setFilters(defaultFilters);
         onFiltersChange(defaultFilters);
@@ -99,7 +90,7 @@ export function FilterPanel({ onFiltersChange, className }: FilterPanelProps) {
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {/* Date Range Filter */}
                     <div className="space-y-2">
                         <label className="text-sm font-medium flex items-center gap-2">
@@ -163,25 +154,6 @@ export function FilterPanel({ onFiltersChange, className }: FilterPanelProps) {
                         </Select>
                     </div>
 
-                    {/* Student Progress Filter */}
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">Student Progress</label>
-                        <Select
-                            value={filters.studentProgress}
-                            onValueChange={(value) => updateFilter('studentProgress', value)}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select progress" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {FILTER_OPTIONS.studentProgress.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                        {option.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
                 </div>
 
                 {/* Active Filters Summary */}

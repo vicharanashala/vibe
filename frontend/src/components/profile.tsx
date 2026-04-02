@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useState } from "react"
-import { Mail, User, Shield, Pencil, BookOpen, Clock, Award } from "lucide-react"
+import React, { useCallback, useRef, useState } from "react"
+import { Mail, User, Shield, Pencil, BookOpen, Award, Camera } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -16,6 +16,62 @@ import { useNavigate } from "@tanstack/react-router"
 import { LogOut } from "lucide-react"
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Country, State, City } from "country-state-city"
+import Cropper, { Area } from "react-easy-crop"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Slider } from "@/components/ui/slider"
+
+const GENDER_OPTIONS = ["Male", "Female", "Non-binary", "Other", "Prefer not to say"]
+
+const createImage = (url: string): Promise<HTMLImageElement> =>
+  new Promise((resolve, reject) => {
+    const image = new Image()
+    image.addEventListener("load", () => resolve(image))
+    image.addEventListener("error", (error) => reject(error))
+    image.setAttribute("crossOrigin", "anonymous")
+    image.src = url
+  })
+
+const getCroppedImageDataUrl = async (imageSrc: string, croppedAreaPixels: Area): Promise<string> => {
+  const image = await createImage(imageSrc)
+  const canvas = document.createElement("canvas")
+  const ctx = canvas.getContext("2d")
+
+  if (!ctx) {
+    throw new Error("Failed to initialize canvas context")
+  }
+
+  canvas.width = croppedAreaPixels.width
+  canvas.height = croppedAreaPixels.height
+
+  ctx.drawImage(
+    image,
+    croppedAreaPixels.x,
+    croppedAreaPixels.y,
+    croppedAreaPixels.width,
+    croppedAreaPixels.height,
+    0,
+    0,
+    croppedAreaPixels.width,
+    croppedAreaPixels.height,
+  )
+
+  return canvas.toDataURL("image/jpeg", 0.92)
+}
 
 export default function UserProfile({ role = "student" }: { role?: "student" | "teacher" | "admin" }) {
   const { user, setUser } = useAuthStore()
@@ -53,27 +109,119 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
   }, [enrollments]);
 
   // Fallback data if user is not available
-  const firstName = user?.name?.split(" ")[0] || ""
-  const lastName = user?.name?.split(" ")[1] || ""
+  const firstName = user?.firstName || user?.name?.split(" ")[0] || ""
+  const lastName = user?.lastName || user?.name?.split(" ")[1] || ""
   const displayName = user?.name || `${firstName || ""} ${lastName || ""}`.trim() || (role === "teacher" ? "Teacher" : "Student")
   const displayEmail = user?.email || "No email provided"
   const displayRole = role
   const avatarFallback = (firstName?.[0] || "") + (lastName?.[0] || "") || (displayEmail[0] || "U")
 
-  const [editField, setEditField] = useState<"firstName" | "lastName" | (null)>(null)
+  const [editField, setEditField] = useState<"firstName" | "lastName" | "gender" | "country" | "state" | "city" | (null)>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [newFirstName, setNewFirstName] = useState(firstName || "")
   const [newLastName, setNewLastName] = useState(lastName || "")
+  const [newGender, setNewGender] = useState(user?.gender || "")
+  const [newCountry, setNewCountry] = useState(user?.country || "")
+  const [newState, setNewState] = useState(user?.state || "")
+  const [newCity, setNewCity] = useState(user?.city || "")
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null)
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
+  const [isCropDialogOpen, setIsCropDialogOpen] = useState(false)
+  const [isImageSaving, setIsImageSaving] = useState(false)
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const countries = Country.getAllCountries()
+  const selectedCountry = countries.find((country) => country.name === newCountry)
+  const states = selectedCountry ? State.getStatesOfCountry(selectedCountry.isoCode) : []
+  const selectedState = states.find((stateItem) => stateItem.name === newState)
+  const cities = selectedCountry && selectedState
+    ? City.getCitiesOfState(selectedCountry.isoCode, selectedState.isoCode)
+    : []
 
   const { mutateAsync: editUser } = useEditUser();
+
+  const onCropComplete = useCallback((_croppedArea: Area, croppedPixels: Area) => {
+    setCroppedAreaPixels(croppedPixels)
+  }, [])
+
+  const handleProfileImageSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) {
+      return
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload a valid image file")
+      return
+    }
+
+    const maxFileSize = 5 * 1024 * 1024
+    if (file.size > maxFileSize) {
+      toast.error("Image size should be less than 5MB")
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      setImageToCrop(reader.result as string)
+      setCrop({ x: 0, y: 0 })
+      setZoom(1)
+      setIsCropDialogOpen(true)
+    }
+    reader.readAsDataURL(file)
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
+  const handleProfileImageSave = async () => {
+    if (!imageToCrop || !croppedAreaPixels || !user?.uid) {
+      return
+    }
+
+    try {
+      setIsImageSaving(true)
+      const croppedDataUrl = await getCroppedImageDataUrl(imageToCrop, croppedAreaPixels)
+
+      await editUser({ body: { avatar: croppedDataUrl } })
+
+      setUser({
+        ...user,
+        avatar: croppedDataUrl,
+        uid: user.uid,
+      })
+
+      toast.success("Profile picture updated successfully")
+      setIsCropDialogOpen(false)
+      setImageToCrop(null)
+    } catch (error) {
+      toast.error("Failed to update profile picture")
+    } finally {
+      setIsImageSaving(false)
+    }
+  }
 
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      const payload: { firstName: string; lastName: string } = {
+      const payload: {
+        firstName: string;
+        lastName: string;
+        gender: string;
+        country: string;
+        state: string;
+        city: string;
+      } = {
         firstName: newFirstName,
         lastName: newLastName,
+        gender: newGender,
+        country: newCountry,
+        state: newState,
+        city: newCity,
       }
 
       await editUser({ body: payload })
@@ -111,6 +259,55 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
           title={"Confirm Logout"}
           description="Are you sure you want to log out? You will need to sign in again to access your dashboard."
         />
+        <Dialog open={isCropDialogOpen} onOpenChange={setIsCropDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Profile Picture</DialogTitle>
+              <DialogDescription>
+                Move and zoom the image to select the best visible area.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="relative h-80 w-full overflow-hidden rounded-md bg-black/70">
+              {imageToCrop && (
+                <Cropper
+                  image={imageToCrop}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={1}
+                  cropShape="round"
+                  showGrid={false}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                />
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Zoom</label>
+              <Slider
+                min={1}
+                max={3}
+                step={0.1}
+                value={[zoom]}
+                onValueChange={(value) => setZoom(value[0] ?? 1)}
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsCropDialogOpen(false)
+                  setImageToCrop(null)
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleProfileImageSave} disabled={isImageSaving}>
+                {isImageSaving ? "Saving..." : "Save Photo"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <div className="grid lg:gap-6 lg:gap-y-0 gap-y-6 lg:grid-cols-3 md:grid-cols-1">
           {/* Profile Picture & Basic Info */}
           <Card className="relative overflow-hidden">
@@ -124,6 +321,20 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                       {avatarFallback.toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
+                  <Button
+                    size="icon"
+                    className="absolute -bottom-2 -left-2 h-8 w-8 rounded-full"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Camera className="h-4 w-4" />
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleProfileImageSelect}
+                  />
                   <div className="absolute -bottom-2 right-4">
                     <Badge variant="secondary" className="text-xs px-3 py-1 bg-white dark:bg-gray-800 shadow-lg border">
                       {displayRole}
@@ -240,6 +451,35 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                   ) : (
                     <p className="text-base font-medium mt-1">{newLastName || "Not provided"}</p>
                   )}
+
+                  {/* Gender */}
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-muted-foreground">Gender</label>
+                    <Button variant={"ghost"} size={"icon"} onClick={() => setEditField("gender")}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {editField === "gender" ? (
+                    <div className="flex gap-2 items-center">
+                      <Select value={newGender} onValueChange={setNewGender}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {GENDER_OPTIONS.map((genderOption) => (
+                            <SelectItem key={genderOption} value={genderOption}>
+                              {genderOption}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
+                        {isSaving ? "Saving..." : "Save"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-base font-medium mt-1">{newGender || "Not provided"}</p>
+                  )}
                 </div>
 
                 <div className="space-y-4">
@@ -250,6 +490,111 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                     </label>
                     <p className="md:text-base text-sm font-medium mt-1 break-all">{displayEmail}</p>
                   </div>
+
+                  {/* Country */}
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-muted-foreground">Country</label>
+                    <Button variant={"ghost"} size={"icon"} onClick={() => setEditField("country")}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {editField === "country" ? (
+                    <div className="flex gap-2 items-center">
+                      <Select
+                        value={newCountry}
+                        onValueChange={(value) => {
+                          setNewCountry(value)
+                          setNewState("")
+                          setNewCity("")
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select country" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {countries.map((country) => (
+                            <SelectItem key={country.isoCode} value={country.name}>
+                              {country.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
+                        {isSaving ? "Saving..." : "Save"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-base font-medium mt-1">{newCountry || "Not provided"}</p>
+                  )}
+
+                  {/* State */}
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-muted-foreground">State</label>
+                    <Button variant={"ghost"} size={"icon"} onClick={() => setEditField("state")}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {editField === "state" ? (
+                    <div className="flex gap-2 items-center">
+                      <Select
+                        value={newState}
+                        onValueChange={(value) => {
+                          setNewState(value)
+                          setNewCity("")
+                        }}
+                        disabled={!newCountry || states.length === 0}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder={newCountry ? "Select state" : "Select country first"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {states.map((stateItem) => (
+                            <SelectItem key={stateItem.isoCode} value={stateItem.name}>
+                              {stateItem.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
+                        {isSaving ? "Saving..." : "Save"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-base font-medium mt-1">{newState || "Not provided"}</p>
+                  )}
+
+                  {/* City */}
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-muted-foreground">City</label>
+                    <Button variant={"ghost"} size={"icon"} onClick={() => setEditField("city")}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {editField === "city" ? (
+                    <div className="flex gap-2 items-center">
+                      <Select
+                        value={newCity}
+                        onValueChange={setNewCity}
+                        disabled={!newState || cities.length === 0}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder={newState ? "Select city" : "Select state first"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {cities.map((cityItem, index) => (
+                            <SelectItem key={`${cityItem.name}-${index}`} value={cityItem.name}>
+                              {cityItem.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
+                        {isSaving ? "Saving..." : "Save"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-base font-medium mt-1">{newCity || "Not provided"}</p>
+                  )}
                 </div>
               </div>
             </CardContent>

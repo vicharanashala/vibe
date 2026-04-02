@@ -7,91 +7,63 @@ import { Button } from "@/components/ui/button"
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { logout } from "@/utils/auth"
-import { useNavigate } from "@tanstack/react-router"
+import { useNavigate, useLocation } from "@tanstack/react-router"
 import { LogOut, Menu, X, Bell } from "lucide-react"
 import { AuroraText } from "@/components/magicui/aurora-text"
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import InviteDropdown from "@/components/inviteDropDown"
-import { useNewAnnouncementIndicator } from "@/hooks/use-new-announcement-indicator"
-import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
-import { useInvites, useGetUnreadApprovedRegistrations, useGetPendingStudentRegistrations, useGetRejectedStudentRegistrations } from "@/hooks/hooks"
-import { ApprovedRegistrationNotification } from "@/types/notification.types"
-import { useRef, useEffect } from "react"
+import { useInvites, useGetUnreadApprovedRegistrations, useGetPendingStudentRegistrations, useGetRejectedStudentRegistrations, useUserEnrollments } from "@/hooks/hooks"
 import logo from "../../public/img/vibe_logo_img.ico"
 import { PolicyAcknowledgementModal } from "@/app/pages/student/components/policies/PolicyAcknowledgementModal"
 import { useGetSystemNotifications, useMarkSystemNotificationAsRead, useMarkAllSystemNotificationsAsRead } from "@/hooks/system-notification-hooks"
 import { SystemNotification } from "@/types/notification.types";
+import { type BreadcrumbItemment } from "@/types/layout.types"
+import { useNewAnnouncementIndicator } from "@/hooks/use-new-announcement-indicator"
+import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
+
 type Invite = {
   inviteId: string;
   courseId: string;
   courseVersionId: string;
-  cohortId:string;
+  cohortId: string;
 };
 
 export default function StudentLayout() {
   const { user, isAuthReady } = useAuthStore()
   const navigate = useNavigate()
+  const location = useLocation()
   const { getInvites } = useInvites(); // run after login
-  const { data: approvedNotifications } = useGetUnreadApprovedRegistrations(user?.uid || '');
-  const { data: pendingStudentRegistrations } = useGetPendingStudentRegistrations(user?.uid || '');
-  const { data: rejectedStudentRegistrations, refetch: refetchRejected } = useGetRejectedStudentRegistrations(user?.uid || '');
-  const [localRejectedRegistrations, setLocalRejectedRegistrations] = useState<any[]>([]);
-  const hasShownToast = useRef(false);
+  const { data: approvedNotifications = [] } = useGetUnreadApprovedRegistrations(user?.uid || '');
+  const { data: pendingStudentRegistrations = [] } = useGetPendingStudentRegistrations(user?.uid || '');
+  const { data: rejectedStudentRegistrations = [] } = useGetRejectedStudentRegistrations(user?.uid || '');
+
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
-  const [approvedNotificationsList, setApprovedNotificationsList] = useState<any[]>([]);
   const [showInvites, setShowInvites] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const invitesRef = useRef<HTMLDivElement | null>(null);
-  const [selectedInvite, setSelectedInvite] = useState<Invite|null>(null);
-  const [systemNotifications, setSystemNotifications] = useState<SystemNotification[]>([])
-  
+  const [selectedInvite, setSelectedInvite] = useState<Invite | null>(null);
+
   const { hasNew: hasNewAnnouncements, markSeen: markAnnouncementsSeen } = useNewAnnouncementIndicator();
-  // const location = useLocation();
-  const [pathname, setPathname] = useState(
-    typeof window !== "undefined" ? window.location.pathname : ""
-  );
+  const pathname = location.pathname;
+
+  const [approvedNotificationsList, setApprovedNotificationsList] = useState<any[]>([]);
+  const [localRejectedRegistrations, setLocalRejectedRegistrations] = useState<any[]>([]);
+  const { token } = useAuthStore();
+const { data: enrollmentsData } = useUserEnrollments(1, 100, !!token && !!user?.uid);
+const enrollments = enrollmentsData?.enrollments ?? [];
+
   const isActive = (path: string) => {
     if (path === "/student") return pathname === "/student";
     return pathname === path || pathname.startsWith(path + "/");
   };
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const update = () => setPathname(window.location.pathname);
-
-    // Back/forward
-    window.addEventListener("popstate", update);
-
-    // If your app navigates via pushState (SPA), popstate won't fire.
-    // So we patch pushState/replaceState to notify.
-    const originalPushState = window.history.pushState;
-    const originalReplaceState = window.history.replaceState;
-
-    window.history.pushState = function (...args) {
-      originalPushState.apply(window.history, args as any);
-      update();
-    };
-
-    window.history.replaceState = function (...args) {
-      originalReplaceState.apply(window.history, args as any);
-      update();
-    };
-
-    return () => {
-      window.removeEventListener("popstate", update);
-      window.history.pushState = originalPushState;
-      window.history.replaceState = originalReplaceState;
-    };
-  }, []);
 
   // Sync local state with hook data
   useEffect(() => {
     if (approvedNotifications && approvedNotifications.length !== approvedNotificationsList.length) {
       setApprovedNotificationsList(approvedNotifications);
     }
-  }, [approvedNotifications]);
+  }, [approvedNotifications, setApprovedNotificationsList,approvedNotificationsList]);
 
   useEffect(() => {
     if (rejectedStudentRegistrations) {
@@ -107,15 +79,18 @@ export default function StudentLayout() {
   const handleGoBack = () => {
     window.history.back()
   }
-  const { notifications: fetchedSystemNotifications, unreadCount: systemUnreadCount } =
-  useGetSystemNotifications(user?.uid || '', false, !!user?.uid);
-const { mutate: markSystemRead } = useMarkSystemNotificationAsRead();
-const { mutate: markAllSystemRead } = useMarkAllSystemNotificationsAsRead();
-useEffect(() => {
-  if (fetchedSystemNotifications) {
-    setSystemNotifications(fetchedSystemNotifications);
-  }
-}, [fetchedSystemNotifications]);
+
+  const { notifications: fetchedSystemNotifications = [], unreadCount: systemUnreadCount = 0 } =
+    useGetSystemNotifications(user?.uid || '', false, !!user?.uid);
+  const { mutate: markSystemRead } = useMarkSystemNotificationAsRead();
+  const { mutate: markAllSystemRead } = useMarkAllSystemNotificationsAsRead();
+
+  const invitationCount =
+    pendingInvites.length +
+    (approvedNotifications?.length || 0) +
+    (pendingStudentRegistrations?.length || 0) +
+    (rejectedStudentRegistrations?.length || 0);
+
   useEffect(() => {
     if (!isAuthReady || !user) return;
 
@@ -137,14 +112,15 @@ useEffect(() => {
     };
 
     const checkNotifications = async () => {
-      if (approvedNotifications && approvedNotifications.length > approvedNotificationsList.length && !notificationToastShown) {
+      // Comparison logic: if there are ANY unread approved notifications, show toast once per session
+      if (approvedNotifications && approvedNotifications.length > 0 && !notificationToastShown) {
         toast.info("You have new course approvals! Check notifications.", {
           richColors: true,
         });
         sessionStorage.setItem("notificationToastShown", "true");
       }
 
-      // Clear flag if no notifications exist (allows toast to show next time)
+      // Clear flag ONLY if no notifications exist (allows toast to show next time if new ones arrive)
       if (approvedNotifications && approvedNotifications.length === 0) {
         sessionStorage.removeItem("notificationToastShown");
       }
@@ -153,20 +129,20 @@ useEffect(() => {
     getUserInvites();
     checkNotifications();
 
-  }, [user, isAuthReady]);
+  }, [user, isAuthReady, approvedNotifications.length]);
 
   useEffect(() => {
     if (!showInvites) return;
 
     const handlePointerDown = (event: MouseEvent | TouchEvent) => {
-  const target = event.target as Node | null;
-  if (selectedInvite) return;
-  // Don't close if the click is inside any open dialog portal
-  if ((target as Element)?.closest?.('[role="dialog"]')) return;
-  if (invitesRef.current && target && !invitesRef.current.contains(target)) {
-    setShowInvites(false);
-  }
-};
+      const target = event.target as Node | null;
+      if (selectedInvite) return;
+      // Don't close if the click is inside any open dialog portal
+      if ((target as Element)?.closest?.('[role="dialog"]')) return;
+      if (invitesRef.current && target && !invitesRef.current.contains(target)) {
+        setShowInvites(false);
+      }
+    };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -183,9 +159,7 @@ useEffect(() => {
       document.removeEventListener('touchstart', handlePointerDown as any);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showInvites]);
-
-  // console.log('Current user role:', user?.role);
+  }, [showInvites, selectedInvite]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-background/95 bg-gray-50/50 dark:bg-orange-950/70">
@@ -217,14 +191,12 @@ useEffect(() => {
                 </span>
               </div>
             </Link>
-          </div>
 
-          <div className="flex gap-4">
-            <div className="">
+            <div className="hidden md:flex items-center gap-1">
               <Button
                 variant="ghost"
                 size="sm"
-                className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300  ${isActive("/student")
+                className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r Phillips-before:from-primary/5 Phillips-before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300  ${isActive("/student")
                   ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-md before:opacity-100"
                   : ""
                   }`}
@@ -238,8 +210,8 @@ useEffect(() => {
               <Button
                 variant="ghost"
                 size="sm"
-                className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300 ${isActive("/student/issues")
-                  ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-md before:opacity-100"
+                className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary Phillips-before:absolute Phillips-before:inset-0 Phillips-before:rounded-md Phillips-before:bg-gradient-to-r Phillips-before:from-primary/5 Phillips-before:to-transparent Phillips-before:opacity-0 hover:before:opacity-100 Phillips-before:transition-opacity Phillips-before:duration-300 ${isActive("/student/issues")
+                  ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-md Phillips-before:opacity-100"
                   : ""
                   }`}
                 asChild
@@ -252,8 +224,8 @@ useEffect(() => {
               <Button
                 variant="ghost"
                 size="sm"
-                className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300 ${isActive("/student/courses")
-                  ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-md before:opacity-100"
+                className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary Phillips-before:absolute Phillips-before:inset-0 Phillips-before:rounded-md Phillips-before:bg-gradient-to-r Phillips-before:from-primary/5 Phillips-before:to-transparent Phillips-before:opacity-0 hover:before:opacity-100 Phillips-before:transition-opacity Phillips-before:duration-300 ${isActive("/student/courses")
+                  ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-md Phillips-before:opacity-100"
                   : ""
                   }`}
                 asChild
@@ -266,8 +238,8 @@ useEffect(() => {
               <Button
                 variant="ghost"
                 size="sm"
-                className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300 ${isActive("/student/hp-system/cohorts")
-                  ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-md before:opacity-100"
+                className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary Phillips-before:absolute Phillips-before:inset-0 Phillips-before:rounded-md Phillips-before:bg-gradient-to-r Phillips-before:from-primary/5 Phillips-before:to-transparent Phillips-before:opacity-0 hover:before:opacity-100 Phillips-before:transition-opacity Phillips-before:duration-300 ${isActive("/student/hp-system/cohorts")
+                  ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-md Phillips-before:opacity-100"
                   : ""
                   }`}
                 asChild
@@ -280,8 +252,8 @@ useEffect(() => {
               <Button
                 variant="ghost"
                 size="sm"
-                className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300 ${isActive("/student/announcements")
-                  ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-md before:opacity-100"
+                className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary Phillips-before:absolute Phillips-before:inset-0 Phillips-before:rounded-md Phillips-before:bg-gradient-to-r Phillips-before:from-primary/5 Phillips-before:to-transparent Phillips-before:opacity-0 hover:before:opacity-100 Phillips-before:transition-opacity Phillips-before:duration-300 ${isActive("/student/announcements")
+                  ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-md Phillips-before:opacity-100"
                   : ""
                   }`}
                 asChild
@@ -293,39 +265,38 @@ useEffect(() => {
                   {hasNewAnnouncements && <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
                 </Link>
               </Button>
+
             </div>
-          
+          </div>
 
-            <div className="flex items-center gap-2 lg:gap-4 sm:gap-2">
-              <div className="relative" ref={invitesRef}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowInvites((prev) => !prev)}
-                  className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
-                >
-                  <Bell className="h-4 w-4" />
-                  <span className="hidden sm:block ml-2">Notifications</span>
-                  {(pendingInvites.length > 0 || approvedNotificationsList.length > 0 || (pendingStudentRegistrations?.length ?? 0) > 0 || localRejectedRegistrations.length > 0|| systemUnreadCount > 0) && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />}
-                </Button>
+          <div className="flex items-center gap-2 lg:gap-4">
+            <div className="relative" ref={invitesRef}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowInvites((prev) => !prev)}
+                className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:shadow-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10"
+              >
+                <Bell className="h-4 w-4" />
+                <span className="hidden sm:block ml-2">Notifications</span>
+                {(invitationCount > 0 || systemUnreadCount > 0) && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />}
+              </Button>
 
-                {showInvites && <InviteDropdown
-                 setShowInvites={setShowInvites}
+              {showInvites && (
+                <InviteDropdown
+                  setShowInvites={setShowInvites}
+                  enrollments={enrollments}
                   onRejectClick={(invite) => {
                     setSelectedInvite(null);
                     setShowInvites(false);
                   }}
-                  systemNotifications={systemNotifications}
+                  systemNotifications={fetchedSystemNotifications}
                   onMarkSystemRead={(id) => {
-                    markSystemRead({ params: { path: { notificationId: id,
- } } });
-                    setSystemNotifications(prev =>
-                      prev.map(n => n._id === id ? { ...n, read: true } : n)
-                    );
+                    // @ts-ignore - notificationId type mismatch in generated client
+                    markSystemRead({ params: { path: { notificationId: id } } });
                   }}
                   onMarkAllSystemRead={() => {
                     markAllSystemRead({});
-                    setSystemNotifications(prev => prev.map(n => ({ ...n, read: true })));
                   }}
                   selectedInvite={selectedInvite}
                   setSelectedInvite={setSelectedInvite}
@@ -338,30 +309,8 @@ useEffect(() => {
                   onDismissRejected={(id) => {
                     setLocalRejectedRegistrations(prev => prev.filter(r => r._id !== id));
                   }}
-                />}
-              </div>
-
-              {/* <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowInvites((prev) => !prev)}
-                className="relative h-10 w-10 transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10"
-              >
-                <Bell className="h-5 w-5" />
-                {(pendingInvites.length > 0 || approvedNotificationsList.length > 0 || (pendingStudentRegistrations?.length ?? 0) > 0 || localRejectedRegistrations.length > 0) && <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500" />}
-              </Button> */}
-
-              {/* {showInvites && <InviteDropdown
-                setPendingInvites={setPendingInvites}
-                pendingInvites={pendingInvites}
-                approvedNotifications={approvedNotificationsList}
-                setApprovedNotifications={setApprovedNotificationsList}
-                pendingStudentRegistrations={pendingStudentRegistrations ?? []}
-                rejectedStudentRegistrations={localRejectedRegistrations}
-                onDismissRejected={(id) => {
-                  setLocalRejectedRegistrations(prev => prev.filter(r => r._id !== id));
-                }}
-              />} */}
+                />
+              )}
             </div>
 
             <div className="relative">
@@ -466,11 +415,24 @@ useEffect(() => {
                   {hasNewAnnouncements && <span className="ml-2 inline-block h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
                 </Link>
               </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground"
+                asChild
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <Link to="/student/notifications">
+                  <span>Notifications</span>
+                  {(invitationCount > 0 || systemUnreadCount > 0) && <span className="ml-2 inline-block h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
+                </Link>
+              </Button>
             </div>
           </div>
         )}
-     
-          </header>
+
+      </header>
       {selectedInvite && (
         <PolicyAcknowledgementModal
           open={!!selectedInvite}
@@ -481,7 +443,7 @@ useEffect(() => {
           cohortId={selectedInvite?.cohortId}
         />
       )}
-    
+
 
       <main className="relative flex flex-1 flex-col p-6">
         {/* Content background gradient */}
