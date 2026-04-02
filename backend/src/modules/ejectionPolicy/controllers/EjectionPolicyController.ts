@@ -97,7 +97,6 @@ export class EjectionPolicyController {
         'Only administrators can create ejection policies',
       );
     }
-    console.log('body=================================', body);
 
     if (!body.courseId) throw new ForbiddenError('courseId is required');
     if (!body.courseVersionId)

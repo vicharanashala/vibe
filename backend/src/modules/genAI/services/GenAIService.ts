@@ -1277,6 +1277,7 @@ export class GenAIService extends BaseService {
                     `bloom_${bloomLevel}`,
                     'ai_generated',
                   ],
+                  points: 5,
                 });
 
                 const questionBankId = await this.questionBankService.create(
@@ -1299,6 +1300,7 @@ export class GenAIService extends BaseService {
                           ...questionData.question,
                           hint: safeHint,
                           bloomLevel,
+                          points: questionData.question.points || 5,
                         },
                         solution: questionData.solution,
                       },
@@ -1418,6 +1420,7 @@ export class GenAIService extends BaseService {
                 ),
                 questions: [],
                 tags: [`segment_${currentSegmentId}`, 'ai_generated'],
+                points: 5,
               });
 
               const legacyBankId = await this.questionBankService.create(
@@ -1441,6 +1444,7 @@ export class GenAIService extends BaseService {
                       question: {
                         ...questionData.question,
                         hint: safeHint,
+                        points: questionData.question.points || 5,
                       },
                       solution: questionData.solution,
                     },

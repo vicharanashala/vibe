@@ -6,7 +6,7 @@ import { LedgerRepository } from "../repositories/index.js";
 import { FilterQueryDto } from "../classes/validators/activitySubmissionValidators.js";
 import { LedgerListResponseDto, StudentLedgerDetailsDto } from "../classes/validators/ledgerValidators.js";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
-import { BadRequestError } from "routing-controllers";
+import { BadRequestError, UnauthorizedError } from "routing-controllers";
 
 
 
@@ -36,25 +36,30 @@ export class LedgerService extends BaseService {
         filter: FilterQueryDto,
         courseId: string,
         courseVersionId: string,
-        cohortName: string
+        cohortName: string,
+        requested_user_id?: string
     ): Promise<LedgerListResponseDto> {
 
         const student = await this.userRepo.findById(studentId);
         if (!student)
             throw new BadRequestError("Student not found");
-
         // Try to find enrollment for HP points, but don't fail if not found
+        const requestedUserEnrollment = await this.cohortRepository.findEnrollment(requested_user_id, courseId, courseVersionId, cohortName)
+        if (!requestedUserEnrollment)
+            throw new UnauthorizedError(`Requested user is not found for this user id: ${student._id}, email: ${student.email}`)
+
         const enrollment = await this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId, cohortName)
         if (!enrollment)
             throw new BadRequestError(`Enrollment not found for this user id: ${student._id}, email: ${student.email}`)
 
-        const role = enrollment.role
+        const requested_user_role = requestedUserEnrollment.role
+
         const studentDetails: StudentLedgerDetailsDto = {
             hpPoints: enrollment?.hpPoints ?? 0,
             studentEmail: student.email,
             studentName: `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim(),
         };
-        const data = await this.ledgerRepository.listByStudentId(studentId, filter, cohortName, role);
+        const data = await this.ledgerRepository.listByStudentId(studentId, filter, cohortName, requested_user_role);
 
         return { studentDetails, ...data }
     }
