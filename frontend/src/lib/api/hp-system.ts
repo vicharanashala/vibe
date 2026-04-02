@@ -821,9 +821,10 @@ export const hpApi = {
         return { success: true };
     },
 
-    restoreLedgerEntry: async (entryId: string): Promise<{ success: boolean }> => {
-        console.log('Mock restore for entry:', entryId);
-        return { success: true };
+    restoreLedgerEntry: async (submissionId: string): Promise<{ success: boolean }> => {
+        return apiFetch(`${BASE_URL}/activity-submissions/${submissionId}/restore`, {
+            method: 'POST',
+        });
     },
 
     reviewSubmission: async (submissionId: string, decision: "APPROVED" | "REJECTED" | "REVERTED", note?: string, pointsToDeduct?: number): Promise<{ success: boolean; data: any }> => {

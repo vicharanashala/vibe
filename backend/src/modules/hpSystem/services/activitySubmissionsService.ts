@@ -995,6 +995,113 @@ export class ActivitySubmissionsService extends BaseService {
         });
     }
 
+    async restore(submissionId: string, teacherId: string) {
+    return this._withTransaction(async (session) => {
+        // 1. Fetch submission
+        const submission = await this.activitySubmissionsRepository.findById(submissionId, { session });
+        if (!submission) throw new NotFoundError(`Submission ${submissionId} not found.`);
+
+        // 2. Validate — only REVERTED submissions can be restored
+        if (submission.status !== "REVERTED") {
+            throw new BadRequestError("Only reverted submissions can be restored.");
+        }
+
+        const cohort = submission.cohort;
+        let courseId = submission.courseId.toString();
+        let courseVersionId = submission.courseVersionId.toString();
+
+        // 3. Handle both existing and new cohorts
+        const override = COHORT_OVERRIDES[cohort];
+        if (override) {
+            courseId = override.courseId;
+            courseVersionId = override.versionId;
+        }
+
+        // 4. Find the DEBIT ledger entry
+        const debitLedger = await this.ledgerRepository.findDebitBySubmissionId(submissionId);
+        if (!debitLedger) {
+            throw new BadRequestError("No debit ledger entry found for this submission. Cannot restore.");
+        }
+
+        // 5. Validate — only allow if ledger is DEBIT
+        if (debitLedger.direction !== "DEBIT") {
+            throw new BadRequestError("Restore is only allowed for debit ledger entries.");
+        }
+
+        // 6. Fetch user and enrollment
+        const [user, enrollment] = await Promise.all([
+            this.userRepo.findById(submission.studentId.toString()),
+            this.cohortRepository.findEnrollment(
+                submission.studentId.toString(),
+                courseId,
+                courseVersionId,
+                cohort,
+                session
+            )
+        ]);
+
+        if (!user || !enrollment) {
+            throw new BadRequestError(!user ? "Student account missing." : "Enrollment data missing.");
+        }
+
+        // 7. Calculate new HP balance
+        const totalStudentHpPoints = enrollment.hpPoints ?? 0;
+        const restoreAmount = debitLedger.amount ?? 0;
+        const finalHpBalance = totalStudentHpPoints + restoreAmount;
+
+        const activityRuleConfig = await this.ruleConfigService.getByActivityId(
+            submission.activityId.toString()
+        );
+
+        const note = `Restored ${restoreAmount} HP. Original debit reversed by instructor.`;
+
+        // 8. Create CREDIT ledger entry
+        await this.ledgerRepository.create(
+            this._buildLedgerData(
+                submission,
+                user,
+                "CREDIT",
+                "CREDIT",
+                restoreAmount,
+                totalStudentHpPoints,
+                finalHpBalance,
+                "MANUAL",
+                note,
+                debitLedger._id.toString(),
+                teacherId,
+                activityRuleConfig
+            ),
+            session
+        );
+
+        // 9. Update HP in enrollment
+        await this.cohortRepository.setHPForEnrollment(
+            submission.studentId.toString(),
+            courseId,
+            courseVersionId,
+            cohort,
+            finalHpBalance,
+            session
+        );
+
+        // 10. Update submission status back to APPROVED
+        await this.activitySubmissionsRepository.updateStatusAndReview(
+            submissionId,
+            {
+                status: "APPROVED",
+                review: {
+                    reviewedByTeacherId: teacherId,
+                    reviewedAt: new Date(),
+                    decision: "APPROVED",
+                    note: "Restored by instructor"
+                }
+            },
+            { session }
+        );
+
+        return { success: true };
+    });
+}
 
     private _buildLedgerData(sub: HpActivitySubmission, user: IUser, event: HpLedgerEventType, dir: HpLedgerDirection, amt: number, base: number, computed: number, reasonCode: HpReasonCode, note: string, refId: string | null, teacherId: string, config: any, isLate?: boolean) {
         return {

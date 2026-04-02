@@ -198,6 +198,19 @@ export class ActivitySubmissionsController {
     return { success: true, data: result };
   }
 
+  @OpenAPI({ summary: "Restore a reverted submission" })
+  @Post("/:id/restore")
+  @Authorized()
+  @HttpCode(200)
+  async restore(
+      @Param("id") id: string,
+      @CurrentUser() user: IUser,
+  ) {
+      const teacherId = user._id.toString();
+      const doc = await this.submissionService.restore(id, teacherId);
+      return { success: true, data: doc };
+  }
+
   @OpenAPI({ summary: "get submission stats of a activity for a cohort" })
   @Get("/stats/cohort/:cohortName/activity/:activityId")
   @Authorized()
