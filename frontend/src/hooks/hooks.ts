@@ -2250,8 +2250,8 @@ export function useWatchTimeByItemId(userId: string, courseId: string, courseVer
 }
 
 export function useEditUser(): {
-  mutate: (variables: { body: { firstName?: string; lastName?: string } }) => void,
-  mutateAsync: (variables: { body: { firstName?: string; lastName?: string } }) => Promise<void>,
+  mutate: (variables: { body: { firstName?: string; lastName?: string; avatar?: string; gender?: string; country?: string; state?: string; city?: string } }) => void,
+  mutateAsync: (variables: { body: { firstName?: string; lastName?: string; avatar?: string; gender?: string; country?: string; state?: string; city?: string } }) => Promise<void>,
   data: void | undefined,
   error: string | null,
   isPending: boolean,
@@ -2639,8 +2639,8 @@ export function useSaveQuiz(): {
 }
 
 export function useSubmitQuiz(): {
-  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, cohortId?: string } }) => void,
-  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, cohortId?: string } }) => Promise<SubmitAttemptResponse>,
+  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, watchItemId?: string, cohortId?: string } }) => void,
+  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, watchItemId?: string, cohortId?: string } }) => Promise<SubmitAttemptResponse>,
   data: SubmitAttemptResponse | undefined,
   error: string | null,
   isPending: boolean,
@@ -4502,6 +4502,8 @@ export interface LeaderboardEntry {
   completionPercentage: number;
   completedAt: Date | null;
   rank: number;
+  completedCount?: number;
+  score?: number;
 }
 
 export const useLeaderboard = (
@@ -4753,6 +4755,8 @@ export const useExportFeedbackSubmissions = ({ courseId, feedbackId }: ExportFee
   return { exportCSV, isExporting };
 };
 
+const EMPTY_ARRAY: any[] = [];
+
 // GET /course/registration/pending
 export function useGetPendingRegistrations(instructorId: string): {
   data: PendingRegistrationNotification[];
@@ -4770,7 +4774,7 @@ export function useGetPendingRegistrations(instructorId: string): {
   });
 
   return {
-    data: Array.isArray(result?.data) ? result?.data : [],
+    data: Array.isArray(result?.data) ? result?.data : (Array.isArray((result?.data as any)?.data) ? (result?.data as any)?.data : (Array.isArray((result?.data as any)?.registrations) ? (result?.data as any)?.registrations : EMPTY_ARRAY)),
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch pending registrations') : null,
     refetch: result.refetch
@@ -4794,7 +4798,7 @@ export function useGetUnreadApprovedRegistrations(studentId: string): {
   });
 
   return {
-    data: Array.isArray(result?.data) ? result?.data : [],
+    data: Array.isArray(result?.data) ? result?.data : (Array.isArray((result?.data as any)?.data) ? (result?.data as any)?.data : (Array.isArray((result?.data as any)?.registrations) ? (result?.data as any)?.registrations : EMPTY_ARRAY)),
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch unread notifications') : null,
     refetch: result.refetch
@@ -4819,7 +4823,7 @@ export function useGetPendingStudentRegistrations(studentId: string): {
   });
 
   return {
-    data: Array.isArray(result?.data) ? result?.data as PendingStudentRegistrationNotification[] : [],
+    data: Array.isArray(result?.data) ? result?.data as PendingStudentRegistrationNotification[] : (Array.isArray((result?.data as any)?.data) ? (result?.data as any)?.data : (Array.isArray((result?.data as any)?.registrations) ? (result?.data as any)?.registrations : EMPTY_ARRAY)),
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch pending student registrations') : null,
     refetch: result.refetch
@@ -4844,7 +4848,7 @@ export function useGetRejectedStudentRegistrations(studentId: string): {
   });
 
   return {
-    data: Array.isArray(result?.data) ? result?.data as RejectedStudentRegistrationNotification[] : [],
+    data: Array.isArray(result?.data) ? result?.data as RejectedStudentRegistrationNotification[] : (Array.isArray((result?.data as any)?.data) ? (result?.data as any)?.data : (Array.isArray((result?.data as any)?.registrations) ? (result?.data as any)?.registrations : EMPTY_ARRAY)),
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch rejected student registrations') : null,
     refetch: result.refetch
@@ -5075,7 +5079,7 @@ export function useCheckTimeSlotAccess(
 }
 
 // GET /users/enrollments
-export function useUserEnrollmentsDetails(enabled: boolean = true, search?: string, role = "STUDENT", courseVersionId?: string,): {
+export function useUserEnrollmentsDetails(enabled: boolean = true, search?: string, role = "STUDENT", courseVersionId?: string, cohortId?: string): {
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -5083,7 +5087,7 @@ export function useUserEnrollmentsDetails(enabled: boolean = true, search?: stri
 } {
   const result = api.useQuery("get", "/users/enrollments/details", {
     params: {
-      query: { search, role, courseVersionId }
+      query: { search, role, courseVersionId, cohortId }
     },
     enabled: enabled
   });
@@ -5864,4 +5868,35 @@ export function useStudentMySubmissions(courseVersionId: string, cohort: string)
   });
 
 
+}
+
+export interface UserEnrollmentStats {
+  totalCourses: number;
+  completedCourses: number;
+  totalItems: number;
+  completedItems: number;
+  overallProgress: number;
+}
+
+export function useUserEnrollmentStats(enabled: boolean = true): {
+  data: UserEnrollmentStats | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery(
+    "get",
+    "/users/enrollment-stats" as any,
+    {},
+    { enabled }
+  );
+
+  return {
+    data: result.data as UserEnrollmentStats | undefined,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || "Failed to fetch enrollment stats"
+      : null,
+    refetch: result.refetch,
+  };
 }

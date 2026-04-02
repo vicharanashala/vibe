@@ -53,8 +53,7 @@ export function EnrollmentDetailsDialog({
   const {
     data: enrollmentDetails,
     isLoading
-  } = useUserEnrollmentsDetails(true, "", "STUDENT", courseVersionId);
-
+  } = useUserEnrollmentsDetails(true, "", "STUDENT", courseVersionId, cohortId);
   const { data: versionDetails } = useCourseVersionById(
     courseVersionId,
     true,
