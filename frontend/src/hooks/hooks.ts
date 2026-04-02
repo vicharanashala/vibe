@@ -1359,7 +1359,10 @@ export function useItemsBySectionId(versionId: string, moduleId: string, section
       : null;
 
   const result = api.useQuery("get", "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items", {
-    params: { path: { versionId, moduleId, sectionId }, query: { cohortId } }
+    params: {
+      path: { versionId, moduleId, sectionId },
+      ...(cohortId ? { query: { cohortId } } : {}),
+    }
   }, { enabled: isEnabled ?? false });
 
   return {
@@ -1436,7 +1439,10 @@ export function useItemById(
     "get",
     "/courses/{courseId}/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/item/{itemId}",
     {
-      params: { path: { courseId, versionId, itemId, moduleId, sectionId }, query: { cohortId } },
+      params: {
+        path: { courseId, versionId, itemId, moduleId, sectionId },
+        ...(cohortId ? { query: { cohortId } } : {}),
+      },
     },
     {
       enabled: !!courseId && !!versionId && !!itemId,
