@@ -2,6 +2,7 @@ import { ClientSession, ObjectId } from "mongodb";
 import { CohortStudentItemDto, CohortStudentsListQueryDto, CourseWithVersionsDto } from "../classes/validators/courseAndCohorts.js";
 import { ICohort, IEnrollment } from "#root/shared/index.js";
 import { ID } from "../constants.js";
+import { HpResetMode } from "../models.js";
 
 export interface ICohortRepository {
     /**
@@ -100,4 +101,14 @@ export interface ICohortRepository {
     ): Promise<number>
 
     getCourseVersionNameById(versionId: string): Promise<string>
+
+    resetHpforCohort(
+        courseVersionId: string,
+        cohortId: string,
+        cohortName:string,
+        targetHp: number,
+        mode: HpResetMode,
+        triggeredByUserId: string,
+        session?: ClientSession,
+    ): Promise<number>
 }
