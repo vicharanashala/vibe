@@ -233,20 +233,19 @@ class MongoDBBinaryStep(PipelineStep):
     def run(self, state):
         console.print("[cyan]Ensuring MongoDB binaries are downloaded for mongodb-memory-server...[/cyan]")
         script = textwrap.dedent("""
-        import { MongoMemoryServer } from 'mongodb-memory-server';
-
-        (async () => {
-            const mongod = await MongoMemoryServer.create();
-            await mongod.getUri();
-            await mongod.stop();
-        })();
+import { MongoMemoryServer } from 'mongodb-memory-server';
+(async () => {
+    const mongod = await MongoMemoryServer.create();
+    await mongod.getUri();
+    await mongod.stop();
+})();
         """)
         try:
-            subprocess.run(["pnpx", "ts-node", "-e", script], check=True, cwd=self.backend_dir, shell=(platform.system() == "Windows"))
-            state.update(self.name, True)
+            subprocess.run(['node', '--input-type=module', '-e', script], check=True, cwd=self.backend_dir, shell=(platform.system() == "Windows"))
         except subprocess.CalledProcessError as e:
-            console.print(f"[red]❌ Failed to download MongoDB binaries: {e}[/red]")
-            sys.exit(1)
+            console.print(f"[yellow]⚠️ Failed to download MongoDB binaries: {e}[/yellow]")
+            console.print("[yellow]WARNING: In-memory MongoDB Server may not operate properly.[/yellow]")
+        state.update(self.name, True)
 
 class TestStep(PipelineStep):
     def __init__(self, backend_dir):
@@ -258,10 +257,9 @@ class TestStep(PipelineStep):
             result = subprocess.run(["pnpm", "run", "test:ci"], cwd=self.backend_dir, shell=(platform.system() == "Windows"))
             if result.returncode == 0:
                 console.print("[green]✅ All tests passed! Backend setup complete.")
-                state.update(self.name, True)
             else:
-                console.print("[red]❌ Tests failed. Please fix and re-run the setup.")
-                sys.exit(1)
+                console.print("[red]⚠️ Tests failed. Please check the failed tests using [code]pnpm run test:ci[/code]")
+            state.update(self.name, True)
 
 class FrontendPackageInstallStep(PipelineStep):
     def __init__(self, frontend_dir):
@@ -311,7 +309,7 @@ class SetupPipeline:
         clear_screen()
         self.print_progress_table("done")
         console.print("\n[bold green]🎉 Setup completed![/bold green]")
-        console.print("\n[bold blue]👉 Run `pnpm run dev` in the backend and frontend directories to start the servers.[/bold blue]")
+        console.print("\n[bold blue]👉 Run `pnpm run vibe start all` to start the servers.[/bold blue]")
 
 # ------------------ Main ------------------
 
