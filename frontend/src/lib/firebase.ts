@@ -78,14 +78,17 @@ export const createUserWithEmail = async (email: string, password: string, displ
  * Sends a password reset email to the user
  * Firebase automatically handles email delivery
  */
-export const sendPasswordResetEmail = async (email: string) => {
+export const sendPasswordResetEmail = async (email: string, from?: string) => {
   const auth = getAuth(app);
   
   try {
+    const baseUrl = `${window.location.origin}/reset-password`;
+    const url = from ? `${baseUrl}?from=${encodeURIComponent(from)}` : baseUrl;
+
     // This triggers Firebase to send password reset email
     await firebaseSendPasswordResetEmail(auth, email, {
       // URL where user will be redirected after clicking link
-      url: `${window.location.origin}/reset-password`,
+      url,
       handleCodeInApp: true,
     });
     

@@ -5,13 +5,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Check, Mail } from "lucide-react";
 import { cn } from "@/utils/utils";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { sendPasswordResetEmail } from "@/lib/firebase";
 import { AnimatedGridPattern } from "@/components/magicui/animated-grid-pattern";
 import { ShineBorder } from "@/components/magicui/shine-border";
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
+  const search = useSearch({ strict: false });
+  const from = search.from as string | undefined;
+  const backTo =
+    from === "teacher"
+      ? "/teacher/login"
+      : from === "student"
+        ? "/student/login"
+        : "/auth";
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -29,7 +37,7 @@ export default function ForgotPasswordPage() {
       setLoading(true);
       setError(null);
       
-      await sendPasswordResetEmail(email);
+      await sendPasswordResetEmail(email, from);
       setSuccess(true);
     } catch (err: any) {
       setError(err.message || "Failed to send reset email");
@@ -96,7 +104,7 @@ export default function ForgotPasswordPage() {
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => navigate({ to: "/login" })}
+                onClick={() => navigate({ to: backTo })}
               >
                 Back to Login
               </Button>
@@ -143,7 +151,7 @@ export default function ForgotPasswordPage() {
               variant="ghost" 
               size="sm" 
               className="absolute top-4 left-4 text-muted-foreground"
-              onClick={() => navigate({ to: "/login" })}
+              onClick={() => navigate({ to: backTo })}
             >
               ← Back
             </Button>
@@ -196,7 +204,7 @@ export default function ForgotPasswordPage() {
               <Button
                 variant="link"
                 className="p-0 h-auto font-medium"
-                onClick={() => navigate({ to: "/login" })}
+                onClick={() => navigate({ to: backTo })}
               >
                 Sign in
               </Button>

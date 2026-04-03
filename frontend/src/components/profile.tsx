@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useCallback, useRef, useState } from "react"
-import { Mail, User, Shield, Pencil, BookOpen, Award, Camera } from "lucide-react"
+import { Mail, User, Shield, Pencil, BookOpen, Award, Camera, Eye, EyeOff, Lock } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -10,10 +10,13 @@ import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/store/auth-store"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
-import { useEditUser, useUserEnrollments } from "@/hooks/hooks"
+import { Label } from "@/components/ui/label"
+import { useChangePassword, useEditUser, useUserEnrollments } from "@/hooks/hooks"
 import { logout } from "@/utils/auth"
 import { useNavigate } from "@tanstack/react-router"
 import { LogOut } from "lucide-react"
+import { auth, sendPasswordResetEmail } from "@/lib/firebase"
+import { onAuthStateChanged } from "firebase/auth"
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -36,6 +39,8 @@ import {
 import { Slider } from "@/components/ui/slider"
 
 const GENDER_OPTIONS = ["Male", "Female", "Non-binary", "Other", "Prefer not to say"]
+const STRONG_PASSWORD_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_\-+=[\]{};':"\\|,.<>/?]).{8,}$/;
 
 const createImage = (url: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
@@ -132,6 +137,15 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
   const [isImageSaving, setIsImageSaving] = useState(false)
   const [confirmLogout, setConfirmLogout] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmNewPassword, setConfirmNewPassword] = useState("")
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [hasPasswordProvider, setHasPasswordProvider] = useState(true)
+  const [isSendingSetPassword, setIsSendingSetPassword] = useState(false)
 
   const countries = Country.getAllCountries()
   const selectedCountry = countries.find((country) => country.name === newCountry)
@@ -142,6 +156,20 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
     : []
 
   const { mutateAsync: editUser } = useEditUser();
+  const { mutateAsync: changePassword } = useChangePassword();
+
+  React.useEffect(() => {
+    const updateProviders = (firebaseUser: typeof auth.currentUser) => {
+      const providerIds = firebaseUser?.providerData?.map((p) => p.providerId) || [];
+      setHasPasswordProvider(providerIds.includes("password"));
+    };
+
+    updateProviders(auth.currentUser);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      updateProviders(firebaseUser);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const onCropComplete = useCallback((_croppedArea: Area, croppedPixels: Area) => {
     setCroppedAreaPixels(croppedPixels)
@@ -242,6 +270,62 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
     } finally {
       setIsSaving(false)
       setConfirmLogout(false)
+    }
+  }
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      toast.error("Please fill in all password fields")
+      return
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      toast.error("New passwords do not match")
+      return
+    }
+
+    if (!STRONG_PASSWORD_REGEX.test(newPassword)) {
+      toast.error("Password must include uppercase, lowercase, number, and special character")
+      return
+    }
+
+    try {
+      setIsChangingPassword(true)
+      await changePassword({
+        body: {
+          currentPassword,
+          newPassword,
+          newPasswordConfirm: confirmNewPassword,
+        },
+      })
+      toast.success("Password updated successfully")
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmNewPassword("")
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to update password")
+    } finally {
+      setIsChangingPassword(false)
+    }
+  }
+
+  const handleSendSetPassword = async () => {
+    if (!user?.email) {
+      toast.error("Email not found for this account")
+      return
+    }
+
+    const from =
+      role === "teacher" ? "teacher" : role === "student" ? "student" : undefined;
+
+    try {
+      setIsSendingSetPassword(true)
+      await sendPasswordResetEmail(user.email, from)
+      toast.success("Password setup link sent. Check your email.")
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to send password setup link")
+    } finally {
+      setIsSendingSetPassword(false)
     }
   }
 
@@ -600,6 +684,123 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
             </CardContent>
           </Card>
         </div>
+
+        {hasPasswordProvider ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg md:text-xl lg:text-2xl font-bold">
+                <Lock className="h-6 w-6" />
+                Change Password
+              </CardTitle>
+              <CardDescription>Update your account password</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="current-password">Current Password</Label>
+                <div className="relative">
+                  <Input
+                    id="current-password"
+                    type={showCurrentPassword ? "text" : "password"}
+                    placeholder="Enter current password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Toggle current password visibility"
+                    className="absolute inset-y-0 right-1"
+                    onClick={() => setShowCurrentPassword((prev) => !prev)}
+                  >
+                    {showCurrentPassword ? <EyeOff /> : <Eye />}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="new-password">New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="new-password"
+                    type={showNewPassword ? "text" : "password"}
+                    placeholder="Create a new password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Toggle new password visibility"
+                    className="absolute inset-y-0 right-1"
+                    onClick={() => setShowNewPassword((prev) => !prev)}
+                  >
+                    {showNewPassword ? <EyeOff /> : <Eye />}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Must be at least 8 characters and include uppercase, lowercase, number, and special character.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirm-new-password">Confirm New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="confirm-new-password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm new password"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Toggle confirm password visibility"
+                    className="absolute inset-y-0 right-1"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  >
+                    {showConfirmPassword ? <EyeOff /> : <Eye />}
+                  </Button>
+                </div>
+              </div>
+
+              <Button
+                className="w-full md:w-auto"
+                onClick={handleChangePassword}
+                disabled={isChangingPassword}
+              >
+                {isChangingPassword ? "Updating..." : "Update Password"}
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg md:text-xl lg:text-2xl font-bold">
+                <Lock className="h-6 w-6" />
+                Set Password
+              </CardTitle>
+              <CardDescription>
+                Create a password so you can sign in without Google next time.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                We will send a secure link to your email to set a password.
+              </p>
+              <Button
+                className="w-full md:w-auto"
+                onClick={handleSendSetPassword}
+                disabled={isSendingSetPassword}
+              >
+                {isSendingSetPassword ? "Sending..." : "Send Set Password Link"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Learning Stats */}
 

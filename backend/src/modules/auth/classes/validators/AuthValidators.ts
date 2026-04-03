@@ -10,6 +10,9 @@ import {
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 
+const STRONG_PASSWORD_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_\-+=[\]{};':"\\|,.<>/?]).{8,}$/;
+
 class SignUpBody {
   @JSONSchema({
     title: 'Email Address',
@@ -149,8 +152,21 @@ class ChangePasswordBody {
   @IsString()
   @IsNotEmpty()
   @MinLength(8)
-  @Matches(/^[A-Za-z ]+$/, {
-    message: 'Password Invalid',
+  @JSONSchema({
+    title: 'Current Password',
+    description: 'Your existing password',
+    example: 'OldP@ssw0rd',
+    type: 'string',
+    minLength: 8,
+    writeOnly: true,
+  })
+  currentPassword: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(8)
+  @Matches(STRONG_PASSWORD_REGEX, {
+    message: 'Password must include uppercase, lowercase, number, and special character',
   })
   @JSONSchema({
     title: 'New Password',
@@ -170,8 +186,8 @@ class ChangePasswordBody {
   @IsString()
   @IsNotEmpty()
   @MinLength(8)
-  @Matches(/^[A-Za-z ]+$/, {
-    message: 'Password Invalid',
+  @Matches(STRONG_PASSWORD_REGEX, {
+    message: 'Password must include uppercase, lowercase, number, and special character',
   })
   @JSONSchema({
     title: 'Confirm New Password',
