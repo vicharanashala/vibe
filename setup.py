@@ -45,6 +45,9 @@ class SetupState:
     def __init__(self):
         self.state = {}
         self.load()
+        if "warnings" not in self.state:
+            self.state["warnings"] = []
+            self.save()
 
     def load(self):
         if os.path.exists(STATE_FILE):
@@ -61,6 +64,49 @@ class SetupState:
 
     def get(self, key: str, default=None):
         return self.state.get(key, default)
+
+    def add_warning(self, step: str, msg: str, fix: Optional[str] = None):
+        warnings = self.state.setdefault("warnings", [])
+        fix = fix or ""
+
+        for w in warnings:
+            if w.get("step") == step and w.get("message") == msg:
+                if fix and w.get("fix") != fix:
+                    w["fix"] = fix
+                    self.save()
+                return
+                
+        warnings.append({
+            "step": step,
+            "message": msg,
+            "fix": fix
+        })
+        self.save()
+
+    def get_warnings(self):
+        return self.state.get("warnings", [])
+
+    def clear_warnings_for_step(self, step: str):
+        warnings = self.state.get("warnings", [])
+        self.state["warnings"] = [w for w in warnings if w.get("step") != step]
+        self.save()
+
+    def print_warnings_summary(self):
+        warnings = self.get_warnings()
+        if not warnings:
+            return
+        
+        table = Table(title="⚠️ Warnings", box=box.ROUNDED)
+        table.add_column("#", justify="center")
+        table.add_column("Step", justify="left")
+        table.add_column("Warning", justify="left")
+        table.add_column("Suggested fix", justify="left")
+
+        for i, w in enumerate(warnings, 1):
+            table.add_row(str(i), w["step"], w["message"], w.get("fix", ""))
+        
+        console.print("\n")
+        console.print(table)
 
     def show_summary(self):
         console.print("\n[bold cyan]Setup Summary[/bold cyan]")
@@ -241,25 +287,34 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 })();
         """)
         try:
-            subprocess.run(['node', '--input-type=module', '-e', script], check=True, cwd=self.backend_dir, shell=(platform.system() == "Windows"))
+            result = subprocess.run(['node', '--input-type=module', '-e', script], check=True, cwd=self.backend_dir, shell=(platform.system() == "Windows"))
+            if result.returncode == 0:
+                state.clear_warnings_for_step(self.name)
+                state.update(self.name, True)
         except subprocess.CalledProcessError as e:
-            console.print(f"[yellow]⚠️ Failed to download MongoDB binaries: {e}[/yellow]")
-            console.print("[yellow]WARNING: In-memory MongoDB Server may not operate properly.[/yellow]")
-        state.update(self.name, True)
+            state.add_warning(self.name, f"[yellow]⚠️ Failed to download MongoDB binaries: {e}[/yellow]", "Re-run setup later with a stable connection")
+            # console.print("[yellow]WARNING: In-memory MongoDB Server may not operate properly.[/yellow]")
+            state.update(self.name, False)
 
 class TestStep(PipelineStep):
     def __init__(self, backend_dir):
         super().__init__("Backend Tests", "Run backend tests")
         self.backend_dir = backend_dir
 
+    # Should always run frontend tests and give warning
+    def should_run(self, state: SetupState) -> bool:
+        return True
+
     def run(self, state):
         with console.status("Running backend tests..."):
             result = subprocess.run(["pnpm", "run", "test:ci"], cwd=self.backend_dir, shell=(platform.system() == "Windows"))
             if result.returncode == 0:
+                state.clear_warnings_for_step(self.name)
                 console.print("[green]✅ All tests passed! Backend setup complete.")
+                state.update(self.name, True)
             else:
-                console.print("[red]⚠️ Tests failed. Please check the failed tests using [code]pnpm run test:ci[/code]")
-            state.update(self.name, True)
+                state.add_warning(self.name, "[red]⚠️ Tests failed. Please check the failed tests using [code]pnpm -C backend run test:ci[/code]", "Run: pnpm -C backend run test:ci")
+                state.update(self.name, False)
 
 class FrontendPackageInstallStep(PipelineStep):
     def __init__(self, frontend_dir):
@@ -310,6 +365,7 @@ class SetupPipeline:
         self.print_progress_table("done")
         console.print("\n[bold green]🎉 Setup completed![/bold green]")
         console.print("\n[bold blue]👉 Run `pnpm run vibe start all` to start the servers.[/bold blue]")
+        self.state.print_warnings_summary()
 
 # ------------------ Main ------------------
 
