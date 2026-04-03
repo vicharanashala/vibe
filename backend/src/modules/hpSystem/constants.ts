@@ -81,6 +81,8 @@ export enum HpLedgerEventType {
   REVERSAL = 'REVERSAL',
   MANUAL_ADJUST = 'MANUAL_ADJUST',
   MILESTONE = 'MILESTONE',
+  AUTO_REWARD = 'AUTO_REWARD',
+  AUTO_PENALTY = 'AUTO_PENALTY',
 }
 
 export enum HpLedgerDirection {
