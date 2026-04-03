@@ -148,19 +148,38 @@ export function EmotionSelector({
 
       {pendingEmotion && (
         <div className="mt-3 rounded-md border bg-background/80 p-3">
-          <div className="mb-2 flex items-center justify-between gap-3">
+          <div className="mb-2 flex items-center gap-3">
+            <span className="text-2xl leading-none">{emotionConfig[pendingEmotion].emoji}</span>
             <div>
-              <p className="text-sm font-medium">Tell us more if you want</p>
-              <p className="text-xs text-muted-foreground">
-                Optional note for {emotionConfig[pendingEmotion].label.toLowerCase()}. You can skip this and just submit the emotion.
+              <p className="text-sm font-medium">
+                {(() => {
+                  switch (pendingEmotion) {
+                    case "very_sad":
+                      return "Tell us why this content is too difficult or frustrating.";
+                    case "sad":
+                      return "Tell us why you're struggling with this content.";
+                    case "neutral":
+                      return "Tell us why this content feels just okay.";
+                    case "happy":
+                      return "Tell us what you enjoyed about this content.";
+                    case "very_happy":
+                      return "Tell us why this content is amazing!";
+                    default:
+                      return "Tell us more if you want.";
+                  }
+                })()}
+                <span className="text-xs text-muted-foreground ml-2">(optional)</span>
               </p>
             </div>
-            <span className="text-2xl leading-none">{emotionConfig[pendingEmotion].emoji}</span>
           </div>
           <Textarea
             value={feedbackText}
             onChange={(event) => setFeedbackText(event.target.value.slice(0, 300))}
-            placeholder="Add a short note about what made you feel this way..."
+            placeholder={
+              pendingEmotion
+                ? `${emotionConfig[pendingEmotion].description} because...`
+                : "Add a short note about what made you feel this way..."
+            }
             className="min-h-20 resize-none text-sm"
             disabled={isSubmitting}
           />

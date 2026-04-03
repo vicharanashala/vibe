@@ -148,7 +148,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   useEffect(() => {
     if (!enrollment) return
-    console.log("Enrollment of the course -> ", enrollment)
+   
   })
 
   const handleContinue = () => {
@@ -160,10 +160,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       return;
     }
 
-    console.log("Setting course store:", {
-      courseId: courseId,
-      versionId: versionId
-    });
+   
 
     // Pass both courseId and versionId to the store
     setCurrentCourse({

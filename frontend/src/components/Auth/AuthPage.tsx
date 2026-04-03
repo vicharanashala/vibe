@@ -2,12 +2,13 @@ import { loginWithGoogle, loginWithEmail } from "@/lib/firebase";
 import { useAuthStore } from "@/store/auth-store";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ChangeEvent } from "react";
+import * as faceapi from "@vladmandic/face-api";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Check, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { Check, AlertCircle, Eye, EyeOff, Camera, Upload, RefreshCcw, X } from "lucide-react";
 import { ShineBorder } from "@/components/magicui/shine-border";
 import { AnimatedGridPattern } from "@/components/magicui/animated-grid-pattern";
 import { cn } from "@/utils/utils";
@@ -44,6 +45,14 @@ export default function AuthPage({ role }: AuthPageProps) {
   // reCAPTCHA state
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
+  const [studentPhotoPreview, setStudentPhotoPreview] = useState<string>("");
+  const [studentPhotoFile, setStudentPhotoFile] = useState<File | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState("");
+  const videoCaptureRef = useRef<HTMLVideoElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const faceModelsLoadedRef = useRef(false);
 
   // Removed the unused clearUser variable
   const setUser = useAuthStore((state) => state.setUser);
@@ -70,6 +79,171 @@ export default function AuthPage({ role }: AuthPageProps) {
   const toggleSignUpMode = () => {
     setIsSignUp(!isSignUp);
     setFormErrors({});
+  };
+
+  const stopCameraStream = () => {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+  };
+
+  const resetStudentPhoto = () => {
+    setStudentPhotoPreview("");
+    setStudentPhotoFile(null);
+    setCameraError("");
+    setIsCameraOpen(false);
+    stopCameraStream();
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const openCamera = async () => {
+    try {
+      setCameraError("");
+      stopCameraStream();
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "user",
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
+      });
+
+      mediaStreamRef.current = stream;
+      setIsCameraOpen(true);
+    } catch (error) {
+      console.error("Unable to access camera", error);
+      setCameraError("Camera access was blocked or unavailable. You can upload a photo instead.");
+      setIsCameraOpen(false);
+      stopCameraStream();
+    }
+  };
+
+  const capturePhoto = () => {
+    const videoElement = videoCaptureRef.current;
+    if (!videoElement || videoElement.videoWidth === 0 || videoElement.videoHeight === 0) {
+      setCameraError("Camera is not ready yet. Please try again.");
+      return;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = videoElement.videoWidth;
+    canvas.height = videoElement.videoHeight;
+
+    const context = canvas.getContext("2d");
+    if (!context) {
+      setCameraError("Could not capture the image. Please try again.");
+      return;
+    }
+
+    context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+    const previewDataUrl = canvas.toDataURL("image/jpeg", 0.92);
+    setStudentPhotoPreview(previewDataUrl);
+
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        setCameraError("Could not save the captured image. Please try again.");
+        return;
+      }
+
+      const capturedFile = new File([blob], `student-photo-${Date.now()}.jpg`, {
+        type: "image/jpeg",
+      });
+
+      setStudentPhotoFile(capturedFile);
+      setIsCameraOpen(false);
+      stopCameraStream();
+    }, "image/jpeg", 0.92);
+  };
+
+  const handleStudentPhotoUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setCameraError("Please choose a valid image file.");
+      return;
+    }
+
+    setCameraError("");
+    setStudentPhotoFile(file);
+    setStudentPhotoPreview(URL.createObjectURL(file));
+    setIsCameraOpen(false);
+    stopCameraStream();
+  };
+
+  const convertFileToDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("Failed to read the selected image."));
+      reader.readAsDataURL(file);
+    });
+
+  // Load the face-api models on demand so signup can derive a stable embedding
+  // from the registration photo without forcing the app to preload them globally.
+  const ensureFaceModelsLoaded = async () => {
+    if (faceModelsLoadedRef.current) {
+      return;
+    }
+
+    const modelPaths = [
+      "/models",
+      "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model",
+    ];
+
+    let lastError: unknown = null;
+    for (const modelPath of modelPaths) {
+      try {
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
+          faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
+          faceapi.nets.faceRecognitionNet.loadFromUri(modelPath),
+        ]);
+        faceModelsLoadedRef.current = true;
+        return;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw new Error(`Unable to load face models: ${String(lastError)}`);
+  };
+
+  const createImageElementFromFile = (file: File) =>
+    new Promise<HTMLImageElement>((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const image = new Image();
+
+      image.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(image);
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Could not read the selected face image."));
+      };
+      image.src = objectUrl;
+    });
+
+  // We store the 128-d face descriptor at signup so verification can compare
+  // live webcam frames directly against the registered embedding later.
+  const generateFaceEmbedding = async (file: File) => {
+    await ensureFaceModelsLoaded();
+    const image = await createImageElementFromFile(file);
+    const detection = await faceapi
+      .detectSingleFace(image, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+
+    if (!detection?.descriptor) {
+      throw new Error("Could not detect a clear face in the selected photo. Please try another image.");
+    }
+
+    return Array.from(detection.descriptor);
   };
 
   const validateForm = () => {
@@ -261,9 +435,26 @@ export default function AuthPage({ role }: AuthPageProps) {
       return;
     }
 
+    if (activeRole === "student" && !studentPhotoFile) {
+      setFormErrors({
+        ...formErrors,
+        auth: "Student registration requires a clear face photo for verification.",
+      });
+      return;
+    }
+
     try {
       setLoading(true);
       setFormErrors({});
+
+      const profileImage =
+        activeRole === "student" && studentPhotoFile
+          ? await convertFileToDataUrl(studentPhotoFile)
+          : undefined;
+      const faceEmbedding =
+        activeRole === "student" && studentPhotoFile
+          ? await generateFaceEmbedding(studentPhotoFile)
+          : undefined;
 
       // const result = await createUserWithEmail(email, password, fullName);
 
@@ -278,8 +469,10 @@ export default function AuthPage({ role }: AuthPageProps) {
           password: password,
           firstName: firstName,
           lastName: lastName,
-          recaptchaToken: isRecaptchaEnabled ? recaptchaToken : "NO_CAPTCHA"
-        } as any
+          recaptchaToken: isRecaptchaEnabled ? recaptchaToken : "NO_CAPTCHA",
+          profileImage,
+          faceEmbedding,
+        }
       });
       const result = await loginWithEmail(email, password);
 
@@ -347,6 +540,41 @@ export default function AuthPage({ role }: AuthPageProps) {
       }
     }
   }, [isAuthenticated, user, navigate]);
+
+  useEffect(() => {
+    if (!isCameraOpen || !mediaStreamRef.current || !videoCaptureRef.current) {
+      return;
+    }
+
+    const videoElement = videoCaptureRef.current;
+    videoElement.srcObject = mediaStreamRef.current;
+
+    const handleLoadedMetadata = () => {
+      void videoElement.play().catch((error) => {
+        console.error("Unable to start camera preview", error);
+        setCameraError("Camera opened, but preview could not start. Please try again.");
+      });
+    };
+
+    videoElement.addEventListener("loadedmetadata", handleLoadedMetadata);
+
+    if (videoElement.readyState >= 1) {
+      handleLoadedMetadata();
+    }
+
+    return () => {
+      videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata);
+    };
+  }, [isCameraOpen]);
+
+  useEffect(() => {
+    return () => {
+      stopCameraStream();
+      if (studentPhotoPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(studentPhotoPreview);
+      }
+    };
+  }, [studentPhotoPreview]);
 
 
 
@@ -712,6 +940,128 @@ export default function AuthPage({ role }: AuthPageProps) {
                           <p className="text-xs text-destructive">Passwords do not match</p>
                         )}
                       </div>
+
+                      {activeRole === "student" && (
+                        <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
+                          <div className="space-y-1">
+                            <Label className="font-medium">Student Photo</Label>
+                            <p className="text-xs text-muted-foreground">
+                              Add a clear face photo using your webcam or by uploading an image.
+                            </p>
+                          </div>
+
+                          {!studentPhotoPreview ? (
+                            <div className="space-y-3">
+                              <div className="flex flex-col gap-2 sm:flex-row">
+                                <Button
+                                  type="button"
+                                  className="flex-1"
+                                  onClick={openCamera}
+                                >
+                                  <Camera className="mr-2 h-4 w-4" />
+                                  Use webcam
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="flex-1"
+                                  onClick={() => fileInputRef.current?.click()}
+                                >
+                                  <Upload className="mr-2 h-4 w-4" />
+                                  Upload photo
+                                </Button>
+                              </div>
+
+                              <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={handleStudentPhotoUpload}
+                              />
+
+                              {isCameraOpen && (
+                                <div className="space-y-3 rounded-lg border border-border p-3">
+                                  <video
+                                    ref={videoCaptureRef}
+                                    autoPlay
+                                    muted
+                                    playsInline
+                                    className="h-56 w-full rounded-lg bg-slate-950 object-cover"
+                                  />
+                                  <div className="flex flex-col gap-2 sm:flex-row">
+                                    <Button
+                                      type="button"
+                                      className="flex-1"
+                                      onClick={capturePhoto}
+                                    >
+                                      <Camera className="mr-2 h-4 w-4" />
+                                      Capture photo
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      className="flex-1"
+                                      onClick={() => {
+                                        setIsCameraOpen(false);
+                                        stopCameraStream();
+                                      }}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <img
+                                src={studentPhotoPreview}
+                                alt="Student preview"
+                                className="h-56 w-full rounded-lg object-cover"
+                              />
+                              <div className="flex flex-col gap-2 sm:flex-row">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="flex-1"
+                                  onClick={openCamera}
+                                >
+                                  <RefreshCcw className="mr-2 h-4 w-4" />
+                                  Retake
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="flex-1"
+                                  onClick={() => fileInputRef.current?.click()}
+                                >
+                                  <Upload className="mr-2 h-4 w-4" />
+                                  Replace
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  className="flex-1 text-red-600 hover:text-red-700"
+                                  onClick={resetStudentPhoto}
+                                >
+                                  <X className="mr-2 h-4 w-4" />
+                                  Remove
+                                </Button>
+                              </div>
+                              {studentPhotoFile && (
+                                <p className="text-xs text-muted-foreground">
+                                  Selected: {studentPhotoFile.name}
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          {cameraError && (
+                            <p className="text-xs text-destructive">{cameraError}</p>
+                          )}
+                        </div>
+                      )}
 
                       {/* reCAPTCHA */}
                       {isRecaptchaEnabled ?

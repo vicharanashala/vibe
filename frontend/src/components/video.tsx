@@ -43,7 +43,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef}: VideoProps) {
+export default function Video({ URL, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -55,7 +55,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const [duration, setDuration] = useState(0);
   // const [volume, setVolume] = useState(100);
   // Use the stored playback rate from the player store
-  const { playbackRate, setPlaybackRate,volume, setVolume } = usePlayerStore();
+  const { playbackRate, setPlaybackRate, volume, setVolume } = usePlayerStore();
   const [maxTime, setMaxTime] = useState(0);
   const [, setIsHovering] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
@@ -78,6 +78,8 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(false);
   const [subtitlesAvailable, setSubtitlesAvailable] = useState(false);
+
+  // const [videoEnded, setVideoEnded] = useState(false);
 
   // Track if video was playing before gesture pause
   const wasPlayingBeforeGesture = useRef(false);
@@ -127,7 +129,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     try {
 
       // Use captured data if provided, otherwise use current state
-    const dataToSend = capturedTrackData || watchTimeTrackRef.current;
+      const dataToSend = capturedTrackData || watchTimeTrackRef.current;
 
       // Get user ID from current course or localStorage
       const userId = currentCourse?.userId || localStorage.getItem('userId') || '';
@@ -294,11 +296,12 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
       // Prevent playing if current time is at or beyond endTime
       if (endTimeSeconds > 0 && currentTime >= endTimeSeconds) {
         return;
+      }else{
+        player.playVideo();
       }
-      player.playVideo();
       setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
     }
-  }, [playing, endTimeSeconds, currentTime, isSkipping,isStopFailed, isStopping, playbackRate]);
+  }, [playing, endTimeSeconds, currentTime, isSkipping, isStopFailed, isStopping, playbackRate]);
 
   const handleBackward = () => {
     const player = playerRef.current;
@@ -355,69 +358,69 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   };
 
   //  function to handle stop with debouncing
-const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs: number = 0): Promise<boolean> => {
-  // Clear any pending stop request
-  if (stopTimeoutRef.current) {
-    clearTimeout(stopTimeoutRef.current);
-    stopTimeoutRef.current = null;
-  }
-
-  // Prevent duplicate concurrent requests
-  if (stopInFlightRef.current) {
-    console.log('Stop request already in flight, skipping');
-    return false;
-  }
-
-  return new Promise((resolve) => {
-    const executeStop = async () => {
-      stopInFlightRef.current = true;
-      try {
-        if(watchItemId && !isAlreadyWatched && !(currentCourse!.itemId && completedItemIdsRef.current.has(currentCourse!.itemId)) && !isCompleted){
-          await stopItem.mutateAsync({
-            params: {
-              path: {
-                courseId: currentCourse!.courseId,
-                courseVersionId: currentCourse!.versionId ?? '',
-              },
-            },
-            body: {
-              watchItemId,
-              itemId: currentCourse!.itemId ?? '',
-              moduleId: currentCourse!.moduleId ?? '',
-              sectionId: currentCourse!.sectionId ?? '',
-              seekForwardEnabled, 
-              nextItemId,
-              cohortId: currentCourse!.cohortId ?? '',
-            },
-          });
-        }
-        
-        if (!currentCourse?.itemId) return;
-        completedItemIdsRef.current.add(currentCourse!.itemId);
-
-        progressStoppedRef.current = true;
-        resolve(true);
-
-      } catch (err: any) {
-        console.error('Stop item failed:', err);
-        progressStoppedRef.current = true; // Prevent infinite retries
-        toast.warning('Unable to save progress.');
-        setIsStopFailed(true);
-        resolve(false);
-        
-      } finally {
-        stopInFlightRef.current = false;
-        stopTimeoutRef.current = null;
-      }
-    };
-
-    if (debounceMs > 0) {
-      stopTimeoutRef.current = setTimeout(executeStop, debounceMs);
-    } else {
-      executeStop();
+  const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs: number = 0): Promise<boolean> => {
+    // Clear any pending stop request
+    if (stopTimeoutRef.current) {
+      clearTimeout(stopTimeoutRef.current);
+      stopTimeoutRef.current = null;
     }
-  });
-}, [currentCourse, stopItem, isAlreadyWatched, completedItemIdsRef]);
+
+    // Prevent duplicate concurrent requests
+    if (stopInFlightRef.current) {
+      console.log('Stop request already in flight, skipping');
+      return false;
+    }
+
+    return new Promise((resolve) => {
+      const executeStop = async () => {
+        stopInFlightRef.current = true;
+        try {
+          if (watchItemId && !isAlreadyWatched && !(currentCourse!.itemId && completedItemIdsRef.current.has(currentCourse!.itemId)) && !isCompleted) {
+            await stopItem.mutateAsync({
+              params: {
+                path: {
+                  courseId: currentCourse!.courseId,
+                  courseVersionId: currentCourse!.versionId ?? '',
+                },
+              },
+              body: {
+                watchItemId,
+                itemId: currentCourse!.itemId ?? '',
+                moduleId: currentCourse!.moduleId ?? '',
+                sectionId: currentCourse!.sectionId ?? '',
+                seekForwardEnabled,
+                nextItemId,
+                cohortId: currentCourse!.cohortId ?? '',
+              },
+            });
+          }
+
+          if (!currentCourse?.itemId) return;
+          completedItemIdsRef.current.add(currentCourse!.itemId);
+
+          progressStoppedRef.current = true;
+          resolve(true);
+
+        } catch (err: any) {
+          console.error('Stop item failed:', err);
+          progressStoppedRef.current = true; // Prevent infinite retries
+          toast.warning('Unable to save progress.');
+          setIsStopFailed(true);
+          resolve(false);
+
+        } finally {
+          stopInFlightRef.current = false;
+          stopTimeoutRef.current = null;
+        }
+      };
+
+      if (debounceMs > 0) {
+        stopTimeoutRef.current = setTimeout(executeStop, debounceMs);
+      } else {
+        executeStop();
+      }
+    });
+  }, [currentCourse, stopItem, isAlreadyWatched, completedItemIdsRef]);
 
   // Pause/resume video based on doGesture
   useEffect(() => {
@@ -502,7 +505,8 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
       !pauseVid &&
       !rewindVid &&
       !doGesture &&
-      !hasAutoPlayedRef.current) {
+      !hasAutoPlayedRef.current &&
+      !videoEnded) {
 
 
       const timer = setTimeout(() => {
@@ -520,7 +524,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
 
       return () => clearTimeout(timer);
     }
-  }, [playerReady, readyToDetect, gracePeriodCompleted, playing, pauseVid, rewindVid, doGesture]);
+  }, [playerReady, readyToDetect, gracePeriodCompleted, playing, pauseVid, rewindVid, doGesture, videoEnded]);
 
   // Autoplay: Only trigger once when everything becomes ready
   // useEffect(() => {
@@ -580,7 +584,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
   function handleSendStartItem() {
 
     if (!currentCourse?.itemId) return;
-    if(!isAlreadyWatched && !completedItemIdsRef.current.has(currentCourse!.itemId) && !isCompleted){
+    if (!isAlreadyWatched && !completedItemIdsRef.current.has(currentCourse!.itemId) && !isCompleted) {
       startItem.mutate({
         params: {
           path: {
@@ -646,7 +650,6 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
           widget_referrer: window.location.origin,
           start: startTimeSeconds,
           end: 0,
-          loop: 0,
           autoplay: 0,
         },
         events: {
@@ -655,7 +658,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
             setPlayerReady(true);
             setDuration(dur);
             // setVolume(event.target.getVolume());
-            event.target.setVolume(volume); 
+            event.target.setVolume(volume);
             setMaxTime(startTimeSeconds);
             event.target.seekTo(startTimeSeconds, true);
             onDurationChange?.(dur);
@@ -680,10 +683,11 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
               }, 500);
             } else if (window.YT && event.data === window.YT.PlayerState.ENDED) {
               setPlaying(false);
+              setVideoEnded(true);
               if (!progressStoppedRef.current && currentCourse) {
                 const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-                if(!watchItemId && isAlreadyWatched){
-                  if(currentCourse.courseId ==="6981df886e100cfe04f9c4ad"){
+                if (!watchItemId && isAlreadyWatched) {
+                  if (currentCourse.courseId === "6981df886e100cfe04f9c4ad") {
                     console.log("Stop API failed for this course")
                   }else{
                     console.log("Fahhhhaaaaa.....")
@@ -823,21 +827,21 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
              const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
 
             // if (watchItemId) {
-              player?.pauseVideo();
+            player?.pauseVideo();
 
-              // Check if user recently seeked (within last 3 seconds)
-              const timeSinceLastSeek = Date.now() - lastSeekTimeRef.current;
-              const debounceTime = timeSinceLastSeek < 3000 ? 2000 : 0;
+            // Check if user recently seeked (within last 3 seconds)
+            const timeSinceLastSeek = Date.now() - lastSeekTimeRef.current;
+            const debounceTime = timeSinceLastSeek < 3000 ? 2000 : 0;
 
-              // CAPTURE tracking data BEFORE calling handleStopItem
-              captureInProgressRef.current = true;
-              const capturedTrackData = { ...watchTimeTrackRef.current };
+            // CAPTURE tracking data BEFORE calling handleStopItem
+            captureInProgressRef.current = true;
+            const capturedTrackData = { ...watchTimeTrackRef.current };
 
-              const success = await handleStopItem(watchItemId, debounceTime);
-              if (success) {
-                await sendWatchTimeTrackData(capturedTrackData);
-                onNext?.();
-              }
+            const success = await handleStopItem(watchItemId, debounceTime);
+            if (success) {
+              await sendWatchTimeTrackData(capturedTrackData);
+              onNext?.();
+            }
             // }
           }
 
@@ -978,6 +982,36 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+ const playVideoAgain = () => {
+  const player = playerRef.current;
+  if (!player) return;
+
+  // reset player actual position
+  player.seekTo(startTimeSeconds, true);
+
+  // force actual pause state first
+  player.pauseVideo();
+
+  // reset UI state
+  setCurrentTime(startTimeSeconds);
+  handleSendStartItem()
+  setPlaying(false);
+  setVideoEnded(false);
+
+  // VERY IMPORTANT
+  progressStartedRef.current = false;
+  progressStoppedRef.current = false;
+  stopInFlightRef.current = false;
+  watchItemIdRef.current = null;
+
+  // allow autoplay again
+  hasAutoPlayedRef.current = false;
+
+  // reset max seek tracking
+  maxTimeRef.current = startTimeSeconds;
+  setMaxTime(startTimeSeconds);
+};
+
   return (
     <div
       style={{
@@ -1009,6 +1043,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
           handleSkipItem();
           setIsStopFailed(false);
         }}
+        handlePlayPause={()=>{playVideoAgain(); setIsStopFailed(false)}}
       />
 
       <NavigatingOverlay visible={isStopping || isSkipping} />
@@ -1727,7 +1762,7 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
                   <span className="hidden md:block text-md font-bold text-foreground min-w-[24px]">
                     Speed
                   </span>
-                  <FastForward className="flex md:hidden h-3 w-3 text-accent flex-shrink-0 scale-160"/>
+                  <FastForward className="flex md:hidden h-3 w-3 text-accent flex-shrink-0 scale-160" />
                   <Slider
                     value={[playbackRate]}
                     min={0.25}
@@ -1974,6 +2009,7 @@ interface ConfirmOverlayProps {
   position?: "top-right" | "top-left" | "bottom-right" | "bottom-left";
   onCancel: () => void;
   onConfirm: () => void;
+  handlePlayPause: ()=> void
 }
 
 export function ConfirmOverlay({
@@ -1983,6 +2019,7 @@ export function ConfirmOverlay({
   position = "bottom-right",
   onCancel,
   onConfirm,
+  handlePlayPause
 }: ConfirmOverlayProps) {
   if (!visible) return null;
 
@@ -2005,7 +2042,7 @@ export function ConfirmOverlay({
             </div>
             <div className="flex-1 space-y-1">
               <p className="text-sm font-semibold text-red-50">{title}</p>
-              <p className="text-sm text-red-50/90">{message === "Invalid watch time" ? "Invalid watch time. Please watch for atleast 30 seconds": message}</p>
+              <p className="text-sm text-red-50/90">{message === "Invalid watch time" ? "Invalid watch time. Video need to be watched for 30 seconds. Please restart....": message}</p>
             </div>
           </div>
 
@@ -2021,9 +2058,9 @@ export function ConfirmOverlay({
             <Button
               size="sm"
               className="bg-red-50 text-red-600 hover:bg-white hover:text-red-700 font-semibold"
-              onClick={onConfirm}
+              onClick={message === "Invalid watch time" ? handlePlayPause : onConfirm}
             >
-              Continue
+              {message === "Invalid watch time" ? "OK" : "Continue"}
             </Button>
           </div>
         </CardContent>
