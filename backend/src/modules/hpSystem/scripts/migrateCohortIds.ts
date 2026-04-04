@@ -40,6 +40,7 @@ async function migrate() {
         const activitiesCollection = db.collection("hp_activities");
         const submissionsCollection = db.collection("hp_activity_submissions");
         const ledgerCollection = db.collection("hp_ledger");
+        const enrollmentCollection = db.collection("enrollment");
 
         // ── Step 1: Insert legacy cohorts ──────────────────────────────
         console.log("\n📦 Step 1: Inserting legacy cohorts into cohorts collection...");
@@ -150,6 +151,29 @@ async function migrate() {
             }
         }
 
+        // ── Step 3.5: Backfill cohortId on enrollments for legacy courses ──
+        console.log("\n🎓 Step 3.5: Backfilling cohortId on enrollments for legacy courses...");
+        let totalEnrollmentsUpdated = 0;
+
+        for (const cohort of LEGACY_COHORTS) {
+            const cohortId = nameToId.get(cohort.name);
+            if (!cohortId) continue;
+
+            const enrollmentResult = await enrollmentCollection.updateMany(
+                { 
+                    courseId: new ObjectId(cohort.courseId),
+                    courseVersionId: new ObjectId(cohort.versionId),
+                    cohortId: { $exists: false } 
+                },
+                { $set: { cohortId: cohortId } }
+            );
+
+            totalEnrollmentsUpdated += enrollmentResult.modifiedCount;
+            if (enrollmentResult.modifiedCount > 0) {
+                console.log(`  ✅ "${cohort.name}" → enrollments: ${enrollmentResult.modifiedCount}`);
+            }
+        }
+
         // ── Step 4: Verification ───────────────────────────────────────
         console.log("\n📊 Step 4: Verification Report");
         console.log("─".repeat(50));
@@ -158,11 +182,21 @@ async function migrate() {
         const submissionsWithout = await submissionsCollection.countDocuments({ cohortId: { $exists: false } });
         const ledgerWithout = await ledgerCollection.countDocuments({ cohortId: { $exists: false } });
 
+        let enrollmentsWithoutLegacy = 0;
+        for (const cohort of LEGACY_COHORTS) {
+            enrollmentsWithoutLegacy += await enrollmentCollection.countDocuments({
+                courseId: new ObjectId(cohort.courseId),
+                courseVersionId: new ObjectId(cohort.versionId),
+                cohortId: { $exists: false }
+            });
+        }
+
         console.log(`  hp_activities       : ${totalActivitiesUpdated} updated, ${activitiesWithout} remaining without cohortId`);
         console.log(`  hp_activity_submissions: ${totalSubmissionsUpdated} updated, ${submissionsWithout} remaining without cohortId`);
         console.log(`  hp_ledger           : ${totalLedgerUpdated} updated, ${ledgerWithout} remaining without cohortId`);
+        console.log(`  enrollments (legacy): ${totalEnrollmentsUpdated} updated, ${enrollmentsWithoutLegacy} remaining without cohortId`);
 
-        if (activitiesWithout + submissionsWithout + ledgerWithout === 0) {
+        if (activitiesWithout + submissionsWithout + ledgerWithout + enrollmentsWithoutLegacy === 0) {
             console.log("\n🎉 Migration complete! All documents have cohortId populated.");
         } else {
             console.log("\n⚠️  Some documents still missing cohortId. Check the warnings above.");
