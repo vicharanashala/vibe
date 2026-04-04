@@ -48,7 +48,7 @@ import { useCourseStore } from "@/store/course-store"
 import type { EnrolledUser, EnrollmentDetails } from "@/types/course.types"
 import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
-import { generateExcel, type ExcelExportOptions } from "@/lib/excel-export"
+import { generateExcel, generateStudentContactsExcel, type ExcelExportOptions } from "@/lib/excel-export"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -446,7 +446,7 @@ function CourseEnrollments() {
     return (
       <div className="flex justify-between items-center">
         <span className="text-muted-foreground">{label}</span>
-        <span className="font-semibold text-right min-w-16">{value ?? 0}</span>
+        <span className="font-semibold text-right min-w-16 ml-0.5">{value ?? 0}</span>
       </div>
     )
   }
@@ -648,14 +648,19 @@ function CourseEnrollments() {
 
   // const studentEnrollments = enrollmentsData?.enrollments || [];
   const studentEnrollments = enrollmentsData?.enrollments || []
+  const cohortFilteredEnrollments = cohort
+  ? studentEnrollments.filter((enrollment: any) => {
+      return String(enrollment.cohortId) === String(cohort);
+    })
+  : studentEnrollments;
   // Filter out already assigned students if excludeAssigned is true
   const filteredStudentEnrollments = excludeAssigned
-    ? studentEnrollments.filter((enrollment: any) => {
+    ? cohortFilteredEnrollments.filter((enrollment: any) => {
       const assignedIds = getAssignedStudentIds();
       const studentId = enrollment.user?._id || enrollment.user?.id;
       return !assignedIds.has(studentId);
     })
-    : studentEnrollments;
+    : cohortFilteredEnrollments;
 
 
   const handleSelectAll = (checked: boolean) => {
@@ -1552,6 +1557,7 @@ function CourseEnrollments() {
                   version={version}
                   cohort={cohort}
                   setCohort={setCohort}
+                  courseId= {courseId}
                 />
               )}
 
@@ -1581,6 +1587,7 @@ function CourseEnrollments() {
                   handleEnableStudent={handleEnableStudent}
                   isSelectionMode={isInactiveSelectionMode}
                   selectedUsers={selectedInactiveUsers}
+                  courseId={courseId}
                   onSelectUser={(userId, checked) => {
                     const newSet = new Set(selectedInactiveUsers)
                     checked ? newSet.add(userId) : newSet.delete(userId)
@@ -2873,6 +2880,7 @@ interface EnrollmentsTableProps {
   version: any;
   cohort: string | null;
   setCohort: (cohort: string | null) => void;
+  courseId: string | undefined
 }
 
 function EnrollmentsTable({
@@ -2913,8 +2921,11 @@ function EnrollmentsTable({
   version,
   cohort,
   setCohort,
+  courseId
 }: EnrollmentsTableProps) {
   const isInactiveTab = enrollmentTab === "INACTIVE"
+
+  console.log(studentEnrollments)
 
   return (
     <Card className="border-0 shadow-lg overflow-hidden">
@@ -3154,13 +3165,13 @@ function EnrollmentsTable({
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
-                        { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ]
                       : [
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
-                        { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ];
                     return columns.map(({ key, label, className }) => (
@@ -3241,13 +3252,13 @@ function EnrollmentsTable({
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
-                        { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ]
                       : [
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
-                        { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ];
                     return columns.map(({ key, label, className }) => (
@@ -3387,7 +3398,7 @@ function EnrollmentsTable({
 
                       {/* Progress */}
                       <TableCell className="py-6">
-                        <EnrollmentProgress progress={Math.min(enrollment.progress ?? 0, 100)} />
+                        {courseId === "6981df886e100cfe04f9c4ad" ? (`${enrollment.completedItemsCount}/30`) : <EnrollmentProgress progress={Math.min(enrollment.progress ?? 0, 100)} />}
                       </TableCell>
 
                       {/* Assigned Time Slot */}

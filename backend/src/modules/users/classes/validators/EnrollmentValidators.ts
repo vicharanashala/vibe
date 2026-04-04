@@ -605,10 +605,10 @@ export class UserEnrollmentStatisticsResponse {
   completedCourses: number;
 
   @IsNumber()
-  totalItems: number;
+  totalItems?: number;
 
   @IsNumber()
-  completedItems: number;
+  completedItems?: number;
 
   @IsNumber()
   overallProgress: number;

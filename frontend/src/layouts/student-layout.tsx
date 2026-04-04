@@ -12,7 +12,7 @@ import { LogOut, Menu, X, Bell } from "lucide-react"
 import { AuroraText } from "@/components/magicui/aurora-text"
 import { useState, useRef, useEffect } from "react"
 import InviteDropdown from "@/components/inviteDropDown"
-import { useInvites, useGetUnreadApprovedRegistrations, useGetPendingStudentRegistrations, useGetRejectedStudentRegistrations } from "@/hooks/hooks"
+import { useInvites, useGetUnreadApprovedRegistrations, useGetPendingStudentRegistrations, useGetRejectedStudentRegistrations, useUserEnrollments } from "@/hooks/hooks"
 import logo from "../../public/img/vibe_logo_img.ico"
 import { PolicyAcknowledgementModal } from "@/app/pages/student/components/policies/PolicyAcknowledgementModal"
 import { useGetSystemNotifications, useMarkSystemNotificationAsRead, useMarkAllSystemNotificationsAsRead } from "@/hooks/system-notification-hooks"
@@ -49,6 +49,17 @@ export default function StudentLayout() {
 
   const [approvedNotificationsList, setApprovedNotificationsList] = useState<any[]>([]);
   const [localRejectedRegistrations, setLocalRejectedRegistrations] = useState<any[]>([]);
+  const { token } = useAuthStore();
+const { data: enrollmentsData } = useUserEnrollments(1, 100, !!token && !!user?.uid);
+const enrollments = enrollmentsData?.enrollments ?? [];
+console.log("Enrollments from student layout -> ", enrollments)
+let hasHpSystem = false;
+enrollments.forEach(obj => {
+  if(obj.hpSystem === true && obj.status === "ACTIVE" && obj. 
+percentCompleted !== 100){
+    hasHpSystem = true;
+  }
+})
 
   const isActive = (path: string) => {
     if (path === "/student") return pathname === "/student";
@@ -60,7 +71,7 @@ export default function StudentLayout() {
     if (approvedNotifications && approvedNotifications.length !== approvedNotificationsList.length) {
       setApprovedNotificationsList(approvedNotifications);
     }
-  }, [approvedNotifications, setApprovedNotificationsList, approvedNotificationsList]);
+  }, [approvedNotifications, setApprovedNotificationsList,approvedNotificationsList]);
 
   useEffect(() => {
     if (rejectedStudentRegistrations) {
@@ -232,7 +243,7 @@ export default function StudentLayout() {
                 </Link>
               </Button>
 
-              <Button
+              {hasHpSystem && <Button
                 variant="ghost"
                 size="sm"
                 className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary Phillips-before:absolute Phillips-before:inset-0 Phillips-before:rounded-md Phillips-before:bg-gradient-to-r Phillips-before:from-primary/5 Phillips-before:to-transparent Phillips-before:opacity-0 hover:before:opacity-100 Phillips-before:transition-opacity Phillips-before:duration-300 ${isActive("/student/hp-system/cohorts")
@@ -244,7 +255,7 @@ export default function StudentLayout() {
                 <Link to="/student/hp-system/cohorts">
                   <span className="relative z-10">HP System</span>
                 </Link>
-              </Button>
+              </Button>}
 
               <Button
                 variant="ghost"
@@ -282,6 +293,7 @@ export default function StudentLayout() {
               {showInvites && (
                 <InviteDropdown
                   setShowInvites={setShowInvites}
+                  enrollments={enrollments}
                   onRejectClick={(invite) => {
                     setSelectedInvite(null);
                     setShowInvites(false);
