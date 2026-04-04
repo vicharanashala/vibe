@@ -1557,6 +1557,7 @@ function CourseEnrollments() {
                   version={version}
                   cohort={cohort}
                   setCohort={setCohort}
+                  courseId= {courseId}
                 />
               )}
 
@@ -1586,6 +1587,7 @@ function CourseEnrollments() {
                   handleEnableStudent={handleEnableStudent}
                   isSelectionMode={isInactiveSelectionMode}
                   selectedUsers={selectedInactiveUsers}
+                  courseId={courseId}
                   onSelectUser={(userId, checked) => {
                     const newSet = new Set(selectedInactiveUsers)
                     checked ? newSet.add(userId) : newSet.delete(userId)
@@ -2878,6 +2880,7 @@ interface EnrollmentsTableProps {
   version: any;
   cohort: string | null;
   setCohort: (cohort: string | null) => void;
+  courseId: string | undefined
 }
 
 function EnrollmentsTable({
@@ -2918,8 +2921,11 @@ function EnrollmentsTable({
   version,
   cohort,
   setCohort,
+  courseId
 }: EnrollmentsTableProps) {
   const isInactiveTab = enrollmentTab === "INACTIVE"
+
+  console.log(studentEnrollments)
 
   return (
     <Card className="border-0 shadow-lg overflow-hidden">
@@ -3159,13 +3165,13 @@ function EnrollmentsTable({
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
-                        { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ]
                       : [
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
-                        { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ];
                     return columns.map(({ key, label, className }) => (
@@ -3246,13 +3252,13 @@ function EnrollmentsTable({
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
-                        { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ]
                       : [
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
-                        { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ];
                     return columns.map(({ key, label, className }) => (
@@ -3392,7 +3398,7 @@ function EnrollmentsTable({
 
                       {/* Progress */}
                       <TableCell className="py-6">
-                        <EnrollmentProgress progress={Math.min(enrollment.progress ?? 0, 100)} />
+                        {courseId === "6981df886e100cfe04f9c4ad" ? (`${enrollment.completedItemsCount}/30`) : <EnrollmentProgress progress={Math.min(enrollment.progress ?? 0, 100)} />}
                       </TableCell>
 
                       {/* Assigned Time Slot */}

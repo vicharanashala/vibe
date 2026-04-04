@@ -675,6 +675,9 @@ importers:
       papaparse:
         specifier: ^5.5.3
         version: 5.5.3
+      pnpm:
+        specifier: ^10.33.0
+        version: 10.33.0
       radio-group:
         specifier: ^0.0.2
         version: 0.0.2
@@ -12844,6 +12847,11 @@ packages:
   pluralize@8.0.0:
     resolution: {integrity: sha512-Nc3IT5yHzflTfbjgqWcCPpo7DaKy4FnpB0l/zCAW0Tc7jxAiuqSxHasntB3D7887LSrA93kDJ9IXovxJYxyLCA==}
     engines: {node: '>=4'}
+
+  pnpm@10.33.0:
+    resolution: {integrity: sha512-EFaLtKavtYyes2MNqQzJUWQXq+vT+rvmc58K55VyjaFJHp21pUTHatjrdXD1xLs9bGN7LLQb/c20f6gjyGSTGQ==}
+    engines: {node: '>=18.12'}
+    hasBin: true
 
   points-on-curve@0.2.0:
     resolution: {integrity: sha512-0mYKnYYe9ZcqMCWhUjItv/oHjvgEsfKvnUTg8sAtnHr3GVy7rGkXCb6d5cSyqrWqL4k81b9CPg3urd+T7aop3A==}
@@ -32474,6 +32482,8 @@ snapshots:
       - '@types/node'
 
   pluralize@8.0.0: {}
+
+  pnpm@10.33.0: {}
 
   points-on-curve@0.2.0: {}
 

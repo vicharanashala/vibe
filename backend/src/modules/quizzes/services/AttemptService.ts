@@ -208,7 +208,7 @@ class AttemptService extends BaseService {
 
       //Find parameter map for the question
       const questionDetail = attempt.questionDetails.find(
-        qd => qd.questionId === answer.questionId,
+        qd => qd.questionId.toString() === answer.questionId.toString(),
       );
       const parameterMap = questionDetail?.parameterMap;
       // answer.lotItemId.toString()
