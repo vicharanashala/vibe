@@ -3552,6 +3552,23 @@ export class EnrollmentRepository {
       const cohortName =
         cohortMap?.get(enrollment.cohortId?.toString()) ?? null;
 
+      // Calculate total course score (raw sum of all quiz scores)
+      let totalCourseScore = 0;
+      for (const quiz of quizScores) {
+        totalCourseScore += quiz.maxScore;
+      }
+
+      // Calculate total course max score (sum of all quiz max scores)
+      let totalCourseMaxScore = 0;
+      for (const [quizId, maxScore] of quizMaxScoreMap.entries()) {
+        totalCourseMaxScore += maxScore;
+      }
+
+      // Format total score: round to 2 decimal places if needed, remove .00 if whole number
+      const formattedTotalScore = this.formatExportScore(totalCourseScore);
+      const formattedTotalMaxScore =
+        this.formatExportScore(totalCourseMaxScore);
+
       return {
         studentId: userId,
         cohortName: cohortName,
@@ -3560,6 +3577,8 @@ export class EnrollmentRepository {
             enrollment.user.lastName ?? ''
           }`.trim() || 'Unknown',
         email: enrollment.user.email ?? '',
+        totalCourseScore: formattedTotalScore,
+        totalCourseMaxScore: formattedTotalMaxScore,
         quizScores,
       };
     });
@@ -3620,7 +3639,9 @@ export class EnrollmentRepository {
             role: 'STUDENT',
             status: {$regex: /^active$/i},
             isDeleted: {$ne: true},
-            ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {cohortId: null}),
+            ...(cohortId
+              ? {cohortId: new ObjectId(cohortId)}
+              : {cohortId: null}),
           },
           {session},
         )
@@ -5167,7 +5188,7 @@ export class EnrollmentRepository {
   }
 
   // Clear re-ack flag for a specific student
-  async clearReacknowledgement(
+  async clearPolicyReacknowledgement(
     userId: string,
     courseId: string,
     courseVersionId: string,
@@ -5189,5 +5210,124 @@ export class EnrollmentRepository {
       {_id: new ObjectId(enrollmentId)},
       {$set: update},
     );
+  }
+  async findActiveStudentsForPolicy(
+    courseId?: ObjectId,
+    courseVersionId?: ObjectId,
+    cohortId?: ObjectId,
+  ): Promise<IEnrollment[]> {
+    const query: any = {
+      role: 'STUDENT',
+      status: 'ACTIVE',
+      isDeleted: {$ne: true},
+      isEjected: {$ne: true},
+    };
+    if (courseId) query.courseId = courseId;
+    if (courseVersionId) query.courseVersionId = courseVersionId;
+    if (cohortId) query.cohortId = cohortId;
+
+    return this.enrollmentCollection.find(query).toArray();
+  }
+  async findLastActivityForStudent(
+    userId: ObjectId,
+    courseId: ObjectId,
+    courseVersionId: ObjectId,
+    cohortId?: ObjectId,
+  ): Promise<{startTime: Date} | null> {
+    await this.init();
+
+    return this.watchTimeCollection.findOne(
+      {
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId: cohortId ?? {$exists: false},
+        isDeleted: {$ne: true},
+      },
+      {sort: {startTime: -1}, projection: {startTime: 1}},
+    );
+  }
+
+  async getUserEnrollmentStatistics(userId: string): Promise<{
+    totalCourses: number;
+    completedCourses: number;
+    totalItems: number;
+    completedItems: number;
+    overallProgress: number;
+  }> {
+    await this.init();
+    const userObjectId = new ObjectId(userId);
+
+    const pipeline: any[] = [
+      {
+        $match: {
+          userId: {$in: [userObjectId, userId]},
+          status: {$regex: /^active$/i},
+          role: {$regex: /^student$/i},
+          isDeleted: {$ne: true},
+        },
+      },
+      {
+        $lookup: {
+          from: 'newCourseVersion',
+          localField: 'courseVersionId',
+          foreignField: '_id',
+          as: 'version',
+          pipeline: [{$project: {totalItems: 1}}],
+        },
+      },
+      {$unwind: {path: '$version', preserveNullAndEmptyArrays: true}},
+      {
+        $group: {
+          _id: null,
+          totalCourses: {$sum: 1},
+          completedCourses: {
+            $sum: {$cond: [{$gte: ['$percentCompleted', 100]}, 1, 0]},
+          },
+          totalItems: {$sum: {$ifNull: ['$version.totalItems', 0]}},
+          completedItems: {$sum: {$ifNull: ['$completedItemsCount', 0]}},
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          totalCourses: 1,
+          completedCourses: 1,
+          totalItems: 1,
+          completedItems: 1,
+          overallProgress: {
+            $cond: [
+              {$gt: ['$totalItems', 0]},
+              {
+                $round: [
+                  {
+                    $multiply: [
+                      {$divide: ['$completedItems', '$totalItems']},
+                      100,
+                    ],
+                  },
+                  0,
+                ],
+              },
+              0,
+            ],
+          },
+        },
+      },
+    ];
+
+    const result = await this.enrollmentCollection.aggregate(pipeline).toArray();
+
+    if (!result || result.length === 0) {
+      return {
+        totalCourses: 0,
+        completedCourses: 0,
+        totalItems: 0,
+        completedItems: 0,
+        overallProgress: 0,
+      };
+    }
+
+    return result[0] as any;
   }
 }

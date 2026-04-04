@@ -51,8 +51,6 @@ export interface CourseCardProps {
   index: number;
   variant?: 'dashboard' | 'courses' | 'available';
   className?: string;
-  completion?: CoursePctCompletion[];
-  setCompletion?: (completion: CoursePctCompletion[]) => void;
 }
 
 export interface CourseSectionProps {
@@ -73,9 +71,7 @@ export interface CourseSectionProps {
     actionText?: string;
     onAction?: () => void;
   };
-  completion?: CoursePctCompletion[];
-  setCompletion?: (completion: CoursePctCompletion[]) => void;
-  className?: string;
+  viewMode?: 'grid' | 'list';
 }
 
 export interface CourseInfo {

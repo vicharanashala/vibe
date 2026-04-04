@@ -56,7 +56,10 @@ import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
 import { useModuleProgress } from "@/hooks/hooks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MobileFallbackScreen from "@/components/MobileFallbackScreen";
+import { EmotionSelector, EmotionType } from "@/components/EmotionSelector";
+import { useSubmitEmotion } from "@/hooks/use-emotion";
 
+import { runProctoringChecks } from "@/utils/proctoring/proctoringGuard";
 // Helper function to get icon for item type
 const getItemIcon = (type: string) => {
   switch (type.toLowerCase()) {
@@ -96,10 +99,11 @@ export default function CoursePage() {
   const [showProctorDialog, setShowProctorDialog] = useState(true);
   const { user } = useAuthStore();
   const router = useRouter();
-  const COURSE_ID = useCourseStore.getState().currentCourse?.courseId || "";
-  const VERSION_ID = useCourseStore.getState().currentCourse?.versionId || "";
-  const COHORT_ID = useCourseStore.getState().currentCourse?.cohortId || "";
-  const COHORT_NAME = useCourseStore.getState().currentCourse?.cohortName || "";
+  const currentCourse = useCourseStore((state) => state.currentCourse);
+  const COURSE_ID = currentCourse?.courseId || "";
+  const VERSION_ID = currentCourse?.versionId || "";
+  const COHORT_ID = currentCourse?.cohortId || "";
+  const COHORT_NAME = currentCourse?.cohortName || "";
   const { getSettings, settingLoading: proctoringLoading } = useGetProcotoringSettings();
 
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
@@ -110,7 +114,12 @@ export default function CoursePage() {
   const { mutateAsync: recalculateStudentProgressAsync } = useRecalculateStudentProgress();
   const [closing, setClosing] = useState(false);
   const [allProctorsDisabled, setAllProctorsDisabled] = useState(false);
+  const [previousItems, setPreviousItems] = useState<object | null >(null)
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Emotion tracking state
+  const [selectedEmotion, setSelectedEmotion] = useState<{ [key: string]: EmotionType }>({});
+  const { mutateAsync: submitEmotionAsync } = useSubmitEmotion();
 
   const isMobile = useIsMobile();
 
@@ -121,6 +130,19 @@ export default function CoursePage() {
       try {
         // Try to get both camera and microphone access
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        // Proctoring check: block virtual camera usage at session start
+        // This ensures user cannot enter course with spoofed camera
+        const violations = await runProctoringChecks(stream);
+
+        if (violations.length > 0) {
+          stream.getTracks().forEach(t => t.stop());
+
+          alert(violations[0].reason);
+
+          router.navigate({ to: "/student" });
+          return;
+        }
+        
         unRegisterStream("course-page-stream");
         registerStream("course-page-stream", stream);
         streamRef.current = stream;
@@ -128,6 +150,17 @@ export default function CoursePage() {
         alert("Please allow camera and microphone access to continue. You will be redirected to the dashboard if access is denied.");
         try {
           const retryStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          const violations = await runProctoringChecks(retryStream);
+          
+          if (violations.length > 0) {
+          retryStream.getTracks().forEach(t => t.stop());
+
+          alert(violations[0].reason);
+
+          router.navigate({ to: "/student" });
+          return;
+        }
+          
           unRegisterStream("course-page-retrystream");
           registerStream("course-page-retrystream", retryStream);
           streamRef.current = retryStream;
@@ -283,6 +316,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     itemId: string;
   } | null>(null);
 
+
   // ---------------------------------------------
   // SAFE SECTION ACTIVATION (PREVENT RE-FETCH)
   // ---------------------------------------------
@@ -345,6 +379,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     shouldFetchItems,
     activeSectionInfo
   ]);
+
 
 
   // Separate effect for handling item errors - prevents circular dependencies
@@ -621,6 +656,34 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
       setIsFlagModalOpen(false);
     }
   };
+
+  // Emotion tracking handler
+  const handleEmotionSubmit = async (emotion: EmotionType, feedbackText?: string) => {
+    try {
+      if (!currentItem?._id) return;
+      if (!COURSE_ID || !VERSION_ID) {
+        throw new Error("Course context is not ready yet. Please wait a moment and try again.");
+      }
+
+      const payload = {
+        courseId: COURSE_ID,
+        courseVersionId: VERSION_ID,
+        itemId: currentItem._id,
+        emotion,
+        feedbackText,
+        cohortId: COHORT_ID,
+      };
+
+      await submitEmotionAsync(payload);
+      setSelectedEmotion(prev => ({ ...prev, [currentItem._id]: emotion }));
+      toast.success(
+        feedbackText?.trim() ? "Your emotion and note have been recorded!" : "Your feedback has been recorded!",
+        { position: 'top-right', duration: 2000 }
+      );
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to record emotion", { position: 'top-right' });
+    }
+  };
   const moduleProgressMap = useMemo(() => {
     const map = new Map();
 
@@ -740,6 +803,13 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
             itemId: selectedItemId!,
           });
         }
+
+        
+          const allSectionItems = sectionItems[sectionId];
+          const indexOfCurrentItem = allSectionItems.findIndex(obj => obj._id === itemId);
+          const previousItemOfCurrentItem = allSectionItems[indexOfCurrentItem-1];
+          setPreviousItems(previousItemOfCurrentItem)
+        
 
         // Clear errors 
         setIsItemForbidden(false);
@@ -1440,7 +1510,7 @@ const handleGoToNextItem = async () => {
   try {
     const { moduleId, sectionId: nextSectionId, itemId } = nextItemInfo as any;
     if (!moduleId || !nextSectionId || !itemId) return;
-
+    console.log("Handle select called from handleGoToNextitem")
     handleSelectItem(moduleId, nextSectionId, itemId);
   } finally {
     // Re-enable after navigation state has been handed off
@@ -1929,6 +1999,18 @@ useEffect(() => {
                 </div>
               </header>
 
+              {/* Emotion Selector Bar */}
+              {currentItem && (
+                <div className="border-b border-border/20 bg-background/50 backdrop-blur-sm px-4 py-2">
+                  <EmotionSelector
+                    itemId={currentItem._id}
+                    onEmotionSelect={handleEmotionSubmit}
+                    disabled={false}
+                    selectedEmotion={selectedEmotion[currentItem._id] || null}
+                  />
+                </div>
+              )}
+
               <div className="flex-1 overflow-hidden relative">
                 {/* Ambient background effect */}
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.01] via-transparent to-secondary/[0.01] pointer-events-none" />
@@ -2152,6 +2234,7 @@ useEffect(() => {
                         nextItem={findNextItem()}
                         cohortId={COHORT_ID}
                         cohortName={COHORT_NAME}
+                        previousItem={previousItems}
                       />
                     )}
 

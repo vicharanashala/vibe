@@ -1303,6 +1303,108 @@ export class ActivitySubmissionsService extends BaseService {
             return [];
         }
     }
+
+    async getStudentDashboardStats(
+        studentId: string,
+        cohortName: string,
+        courseVersionId: string,
+        timelineDays: number = 7,
+        session?: ClientSession
+    ): Promise<{
+        myStats: {
+            totalHp: number;
+            completedActivities: number;
+            pendingSubmissions: number;
+            completionPercentage: number;
+        };
+        progressTimeline: Array<{
+            date: string;
+            hpChange: number;
+            activitiesCompleted: number;
+        }>;
+        activityBreakdown: {
+            notStarted: number;
+            submitted: number;
+            approved: number;
+            rejected: number;
+        };
+        upcomingDeadlines: Array<{
+            activityTitle: string;
+            deadlineDate: string;
+            daysLeft: number;
+        }>;
+        recentSubmissions: Array<{
+            activityTitle: string;
+            submittedAt: string;
+            status: string;
+            hpEarned: number;
+        }>;
+    }> {
+        return this._withTransaction(async (session) => {
+            // Only apply cohort overrides for legacy courses
+            const legacyCourseIds = ["000000000000000000000001", "000000000000000000000002"];
+            const isLegacyCourse = legacyCourseIds.includes(courseVersionId);
+            
+            // Resolve effective versionId from legacy cohort overrides only for legacy courses
+            const cohortOverride = isLegacyCourse ? COHORT_OVERRIDES[cohortName] : null;
+            const effectiveVersionId = cohortOverride?.versionId || courseVersionId;
+
+            // 1. Get student dashboard stats from submissions repository
+            const dashboardStats = await this.activitySubmissionsRepository.getStudentDashboardStats(
+                studentId,
+                cohortName,
+                effectiveVersionId,
+                session
+            );
+
+            // 2. Get current HP from ledger
+            const totalHp = await this.ledgerRepository.getStudentCurrentHp(
+                studentId,
+                cohortName,
+                effectiveVersionId,
+                session
+            );
+
+            // 3. Get progress timeline from ledger
+            const progressTimeline = await this.ledgerRepository.getStudentHpTimeline(
+                studentId,
+                cohortName,
+                effectiveVersionId,
+                timelineDays,
+                session
+            );
+
+            // 4. Get upcoming deadlines (within 7 days)
+            const upcomingDeadlines = await this.activityRepository.getUpcomingDeadlinesForStudent(
+                studentId,
+                cohortName,
+                effectiveVersionId,
+                7, // days
+                5, // limit
+                session
+            );
+
+            // 5. Get recent submissions (last 5)
+            const recentSubmissions = await this.activitySubmissionsRepository.getStudentRecentSubmissions(
+                studentId,
+                cohortName,
+                effectiveVersionId,
+                5,
+                session
+            );
+
+            return {
+                myStats: {
+                    ...dashboardStats.myStats,
+                    totalHp
+                },
+                progressTimeline,
+                activityBreakdown: dashboardStats.activityBreakdown,
+                upcomingDeadlines,
+                recentSubmissions
+            };
+        });
+    }
 }
 
 

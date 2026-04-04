@@ -483,6 +483,7 @@ export class ItemService extends BaseService {
     sectionId?: string,
     cohortId?: string
   ) {
+    
 
     // Fetch enrollment early
     const enrollment = await this.enrollmentRepo.findEnrollment(
@@ -1388,6 +1389,7 @@ export class ItemService extends BaseService {
             description: `Questions for segment ${segmentNumber} from CSV upload`,
             questions: [],
             tags: [],
+            points: 5,
             createdAt: new Date(),
             updatedAt: new Date(),
           });
@@ -1439,7 +1441,7 @@ export class ItemService extends BaseService {
                   isParameterized: false,
                   parameters: [],
                   timeLimitSeconds: 60,
-                  points: 1,
+                  points: 5,
                   priority: 'MEDIUM' as Priority,
                   hint: question.Hint || '',
                 },

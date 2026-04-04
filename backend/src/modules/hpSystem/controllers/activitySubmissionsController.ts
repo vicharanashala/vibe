@@ -21,7 +21,7 @@ import multer from "multer";
 
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivitySubmissionsService } from "../services/activitySubmissionsService.js";
-import { CreateOrUpdateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, StudentCohortWiseActivitySubmissionsStatsDto, SubmissionFeedbackBody } from "../classes/validators/activitySubmissionValidators.js";
+import { CreateOrUpdateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, StudentCohortWiseActivitySubmissionsStatsDto, StudentDashboardStatsQueryDto, StudentDashboardStatsResponseDto, SubmissionFeedbackBody } from "../classes/validators/activitySubmissionValidators.js";
 
 @OpenAPI({
   tags: ["HP Activity Submissions"],
@@ -107,6 +107,28 @@ export class ActivitySubmissionsController {
     const studentId = user._id.toString();
     const doc = await this.submissionService.listMySubmissions(studentId, query, cohort);
     return { success: true, data: doc.data };
+  }
+
+  @OpenAPI({ summary: "Get student dashboard stats with timeline filter" })
+  @Get("/student/dashboard-stats")
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(StudentDashboardStatsResponseDto)
+  async getStudentDashboardStats(
+    @CurrentUser() user: IUser,
+    @QueryParams() query: StudentDashboardStatsQueryDto,
+  ): Promise<StudentDashboardStatsResponseDto> {
+    const studentId = user._id.toString();
+    const { cohortName, courseVersionId, timelineDays = 7 } = query;
+    
+    const data = await this.submissionService.getStudentDashboardStats(
+      studentId,
+      cohortName,
+      courseVersionId,
+      timelineDays
+    );
+    
+    return { success: true, data };
   }
 
   @OpenAPI({ summary: "List submissions (teacher/admin)" })

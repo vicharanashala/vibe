@@ -290,3 +290,5 @@ export interface HpLedger {
 
     createdAt: Date;
 }
+
+export type statusFilter = "ALL" | "SAFE" | "UNSAFE";

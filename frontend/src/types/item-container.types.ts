@@ -70,6 +70,7 @@ export interface ItemContainerProps {
   nextItem: {itemId:string};
   cohortId?: string;
   cohortname?: string;
+  previousItem?: object
 }
 
 export interface ItemContainerRef {

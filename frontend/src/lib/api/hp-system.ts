@@ -123,6 +123,7 @@ export interface HpStudent {
     email: string;
     totalHp: number;
     completionPercentage: number;
+    isSafe: boolean;
     avatar?: string;
 }
 
@@ -195,9 +196,9 @@ export interface StudentDashboardStats {
     }[];
     activityBreakdown: {
         notStarted: number;
-        inProgress: number;
         submitted: number;
         approved: number;
+        rejected: number;
     };
     upcomingDeadlines: {
         activityTitle: string;
@@ -711,9 +712,16 @@ export const hpApi = {
     getStudents: async (
         courseVersionId: string,
         cohort: string,
+        params?: {
+        page?: number;
+        limit?: number;
+        search?: string;
+        status?: "ALL" | "SAFE" | "UNSAFE";
+    }
     ): Promise<{ success: boolean; data: HpStudent[] }> => {
-        // Pass a large limit so we get all students for client-side pagination
-        return apiFetch(`${BASE_URL}/courses-cohorts/version/${courseVersionId}/cohort/${cohort}/students?limit=1000&page=1`);
+        // Pass a large limit so we get all students for client-side pagination 
+        const { page = 1, limit = 10000, search = "", status = "ALL" } = params || {};
+        return apiFetch(`${BASE_URL}/courses-cohorts/version/${courseVersionId}/cohort/${cohort}/students?limit=${limit}&page=${page}&search=${search}&status=${status}`);
     },
 
     getCohortOverviewStats: async (
@@ -725,45 +733,16 @@ export const hpApi = {
     },
 
     getStudentDashboardStats: async (
-        _courseVersionId: string,
-        _cohortName: string,
+        courseVersionId: string,
+        cohortName: string,
+        timelineDays: number = 7,
     ): Promise<{ success: boolean; data: StudentDashboardStats }> => {
-        // Mock data for student dashboard
-        const mockStats: StudentDashboardStats = {
-            myStats: {
-                totalHp: 275,
-                completedActivities: 8,
-                pendingSubmissions: 3,
-                completionPercentage: 89,
-            },
-            progressTimeline: [
-                { date: '2024-01-01', hpChange: 25, activitiesCompleted: 2 },
-                { date: '2024-01-02', hpChange: -5, activitiesCompleted: 1 },
-                { date: '2024-01-03', hpChange: 30, activitiesCompleted: 1 },
-                { date: '2024-01-04', hpChange: 15, activitiesCompleted: 0 },
-                { date: '2024-01-05', hpChange: 40, activitiesCompleted: 2 },
-                { date: '2024-01-06', hpChange: -10, activitiesCompleted: 1 },
-                { date: '2024-01-07', hpChange: 35, activitiesCompleted: 1 },
-            ],
-            activityBreakdown: {
-                notStarted: 2,
-                inProgress: 3,
-                submitted: 3,
-                approved: 8,
-            },
-            upcomingDeadlines: [
-                { activityTitle: 'Database Schema Design', deadlineDate: '2024-01-15', daysLeft: 3 },
-                { activityTitle: 'Deploy to Cloud', deadlineDate: '2024-01-18', daysLeft: 6 },
-                { activityTitle: 'Midterm Project', deadlineDate: '2024-01-22', daysLeft: 10 },
-            ],
-            recentSubmissions: [
-                { activityTitle: 'Build REST API', submittedAt: '2024-01-07', status: 'approved', hpEarned: 25 },
-                { activityTitle: 'Week 1 Quiz', submittedAt: '2024-01-06', status: 'approved', hpEarned: 15 },
-                { activityTitle: 'Database Design', submittedAt: '2024-01-05', status: 'pending', hpEarned: 0 },
-                { activityTitle: 'API Documentation', submittedAt: '2024-01-04', status: 'rejected', hpEarned: -5 },
-            ]
-        };
-        return { success: true, data: mockStats };
+        const params = new URLSearchParams({ 
+            courseVersionId, 
+            cohortName, 
+            timelineDays: String(timelineDays) 
+        });
+        return apiFetch(`${BASE_URL}/activity-submissions/student/dashboard-stats?${params.toString()}`);
     },
 
     getStudentSubmissionStats: async (

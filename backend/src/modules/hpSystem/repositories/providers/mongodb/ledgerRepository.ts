@@ -372,4 +372,131 @@ export class LedgerRepository implements ILedgerRepository {
         };
     }
 
+    async getStudentCurrentHp(
+        studentId: string,
+        cohortName: string,
+        courseVersionId: string,
+        session?: ClientSession
+    ): Promise<number> {
+        await this.init();
+
+        const result = await this.hpLedgerCollection.aggregate([
+            {
+                $match: {
+                    studentId: new ObjectId(studentId),
+                    cohort: cohortName,
+                    courseVersionId: new ObjectId(courseVersionId)
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalCredits: {
+                        $sum: {
+                            $cond: [{ $eq: ["$direction", "CREDIT"] }, "$amount", 0]
+                        }
+                    },
+                    totalDebits: {
+                        $sum: {
+                            $cond: [{ $eq: ["$direction", "DEBIT"] }, "$amount", 0]
+                        }
+                    }
+                }
+            }
+        ], { session }).toArray();
+
+        if (result.length === 0) return 0;
+
+        return (result[0].totalCredits || 0) - (result[0].totalDebits || 0);
+    }
+
+    async getStudentHpTimeline(
+        studentId: string,
+        cohortName: string,
+        courseVersionId: string,
+        days: number = 7,
+        session?: ClientSession
+    ): Promise<Array<{
+        date: string;
+        hpChange: number;
+        activitiesCompleted: number;
+    }>> {
+        await this.init();
+
+        const today = new Date();
+        const startDate = new Date(today);
+        startDate.setDate(today.getDate() - days + 1);
+        startDate.setHours(0, 0, 0, 0);
+
+        // Get daily HP changes and completed activities for the student
+        const pipeline = [
+            {
+                $match: {
+                    studentId: new ObjectId(studentId),
+                    cohort: cohortName,
+                    courseVersionId: new ObjectId(courseVersionId),
+                    createdAt: { $gte: startDate }
+                }
+            },
+            {
+                $addFields: {
+                    dateStr: {
+                        $dateToString: {
+                            format: "%Y-%m-%d",
+                            date: "$createdAt"
+                        }
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: "$dateStr",
+                    hpChange: {
+                        $sum: {
+                            $cond: [
+                                { $eq: ["$direction", "CREDIT"] },
+                                "$amount",
+                                { $multiply: ["$amount", -1] }
+                            ]
+                        }
+                    },
+                    activitiesCompleted: {
+                        $sum: {
+                            $cond: [
+                                { 
+                                    $and: [
+                                        { $eq: ["$direction", "CREDIT"] },
+                                        { $eq: ["$calc.reasonCode", "SUBMISSION_REWARD"] }
+                                    ]
+                                },
+                                1,
+                                0
+                            ]
+                        }
+                    }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ];
+
+        const result = await this.hpLedgerCollection.aggregate(pipeline, { session }).toArray();
+
+        // Fill in missing dates with 0 values
+        const timeline: Array<{ date: string; hpChange: number; activitiesCompleted: number }> = [];
+        
+        for (let i = days - 1; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            
+            const entry = result.find(r => r._id === dateStr);
+            timeline.push({
+                date: dateStr,
+                hpChange: entry?.hpChange || 0,
+                activitiesCompleted: entry?.activitiesCompleted || 0
+            });
+        }
+
+        return timeline;
+    }
 }
