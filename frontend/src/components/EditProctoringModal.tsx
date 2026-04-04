@@ -72,7 +72,8 @@ export function ProctoringModal({
       try {
         const result = await getSettings(courseId, courseVersionId);
         if (result) {
-          setDetectors(result.settings?.proctors?.detectors?.map((d: any) => ({ name: d.detectorName, enabled: d.settings.enabled })))
+          //setDetectors(result.settings?.proctors?.detectors?.map((d: any) => ({ name: d.detectorName, enabled: d.settings.enabled })))
+          setDetectors(result.settings?.proctors?.detectors?.map((d: any) => ({name: d.detectorName,enabled:d.detectorName === ProctoringComponent.BLURDETECTION? true: d.settings.enabled})))//Backend independent
           setLinearProgressionEnabled(result.settings?.linearProgressionEnabled)
           setSeekForwardEnabled(result.settings?.seekForwardEnabled ?? false)
           setIsPublic(result.settings?.isPublic ?? false)

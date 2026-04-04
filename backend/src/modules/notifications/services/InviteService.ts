@@ -85,7 +85,7 @@ export class InviteService extends BaseService {
           `Before you begin, please carefully read and follow the instructions below to ensure a smooth and compliant experience:\n` +
           `- Speaking is strictly prohibited. If the system detects speaking, there is zero tolerance, and the video will immediately roll back to the start, pausing with an alert dialog.\n` +
           `- Ensure your camera remains uninterrupted. Any camera interruptions will be detected and may result in penalty score increases and video rollback.\n` +
-          `- Do not use a blurred background. The AI proctoring system tracks background clarity. A blurred background may trigger penalties and video rollback.\n` +
+          `- Do not use virtual backgrounds, background blur, or any software-based background effects. The AI proctoring system detects artificial background manipulation and may trigger penalties.\n` +
           `- No other person should appear near you during the session. The system monitors for additional individuals in the camera’s view. Detection of more than one person leads to immediate video rollback and a pause until the area is clear.\n` +
           `- Allow microphone access. The system needs mic access to detect speaking, which is strictly prohibited and may result in penalties and video rollback.\n\n` +
           `By following these rules, you help maintain the integrity and fairness of the course environment.\n\n` +
@@ -268,7 +268,7 @@ export class InviteService extends BaseService {
   //             courseVersionId,
   //           ))
   //           : false;
-
+//--
   //         const invite = new Invite(
   //           email,
   //           new ObjectId(courseId),
