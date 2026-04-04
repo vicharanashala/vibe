@@ -14,8 +14,8 @@ import { MongoClient, ObjectId } from "mongodb";
 
 // ── Configuration ──────────────────────────────────────────────────────
 // Update this connection string to match your environment
-const MONGO_URI = process.env.DB_URL;
-const DB_NAME = process.env.DB_NAME;
+const MONGO_URI = "mongodb+srv://gcp-staging:vibe@staging-cluster.wj9moho.mongodb.net/?retryWrites=true&w=majority&appName=staging-cluster";
+const DB_NAME = "vibe";
 
 // Hardcoded cohorts that need to be inserted into the cohorts collection
 const LEGACY_COHORTS = [
@@ -163,6 +163,7 @@ async function migrate() {
                 { 
                     courseId: new ObjectId(cohort.courseId),
                     courseVersionId: new ObjectId(cohort.versionId),
+                    role: "student",
                     cohortId: { $exists: false } 
                 },
                 { $set: { cohortId: cohortId } }
