@@ -1,4 +1,4 @@
-import { Clock, Info, Play, Trophy, Headphones, MessageCircle, ExternalLink, Users, Sparkles, Check, Copy, Crown, Medal, Award, LifeBuoy, Mail } from "lucide-react";
+import { Clock, Info, Play, Trophy, Headphones, MessageCircle, ExternalLink, Users, Sparkles, Check, Copy, Crown, Medal, Award, LifeBuoy, Mail, Activity } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -172,8 +172,13 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
           {variant !== 'available' && isNotGuruSetu && (
             <>
               <Button variant="outline" size="sm" className="h-9 rounded-xl text-[11px] font-bold" onClick={() => setIsDetailsOpen(true)}>
-                <Info className="h-3.5 w-3.5 mr-1.5 text-blue-500" /> Details
-              </Button>
+                    <Info className="h-3.5 w-3.5 mr-1.5 text-blue-500" /> Details
+                </Button>
+                {(courseVersionData as any)?.hpSystem && (
+                    <Button variant="outline" size="sm" className="h-9 rounded-xl text-[11px] font-bold" onClick={() => navigate({ to: `/student/hp-system/${versionId}/${enrollment.cohortName || 'default'}/activities` })}>
+                        <Activity className="h-3.5 w-3.5 mr-1.5 text-blue-500" /> HP
+                    </Button>
+                )}
               <Button variant="outline" size="sm" className="h-9 rounded-xl text-[11px] font-bold" onClick={() => setIsTimeslotModalOpen(true)}>
                 <Clock className="h-3.5 w-3.5 mr-1.5 text-green-500" /> {hasAssignedTimeslot ? 'Slot' : 'Pick Slot'}
               </Button>

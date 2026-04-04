@@ -1,6 +1,6 @@
-import {ObjectId} from 'mongodb';
-import {ProctoringComponent} from '../database/index.js';
-import {Type} from 'class-transformer';
+import { ObjectId } from 'mongodb';
+import { ProctoringComponent } from '../database/index.js';
+import { Type } from 'class-transformer';
 import {
   IsOptional,
   IsInt,
@@ -10,8 +10,8 @@ import {
   isString,
   IsEnum,
 } from 'class-validator';
-import {Priority} from './quiz.js';
-import {Cohort} from '#root/modules/courses/classes/index.js';
+import { Priority } from './quiz.js';
+import { Cohort } from '#root/modules/courses/classes/index.js';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -24,6 +24,8 @@ export interface IUser {
   country?: string;
   state?: string;
   city?: string;
+  profileImage?: string;
+  faceEmbedding?: number[];
   roles: 'admin' | 'user';
 }
 
@@ -411,7 +413,7 @@ export interface IEnrollment {
   isDeleted?: boolean;
   deletedAt?: Date;
   unenrolledAt?: Date;
-  hpPoints?:number;
+  hpPoints?: number;
   hasNewItemsAfterCompletion?: boolean;
   cohortId?: ID;
   policyAcknowledgedAt?: Date;
@@ -441,9 +443,9 @@ export interface IProgress {
 }
 
 export interface ICurrentProgressPath {
-  module: {id: string; name: string} | null;
-  section: {id: string; name: string} | null;
-  item: {id: string; name: string; type: string} | null;
+  module: { id: string; name: string } | null;
+  section: { id: string; name: string } | null;
+  item: { id: string; name: string; type: string } | null;
   message?: string;
 }
 
@@ -556,14 +558,14 @@ export interface IRegistrationSettings {
   _id?: ID;
   label: string;
   type:
-    | 'TEXT'
-    | 'TEXTAREA'
-    | 'EMAIL'
-    | 'TEL'
-    | 'DATE'
-    | 'NUMBER'
-    | 'URL'
-    | 'SELECT';
+  | 'TEXT'
+  | 'TEXTAREA'
+  | 'EMAIL'
+  | 'TEL'
+  | 'DATE'
+  | 'NUMBER'
+  | 'URL'
+  | 'SELECT';
   isDefault: boolean;
   required: boolean;
   options?: string[];

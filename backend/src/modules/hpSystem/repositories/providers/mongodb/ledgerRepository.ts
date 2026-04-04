@@ -295,14 +295,12 @@ export class LedgerRepository implements ILedgerRepository {
     }
 
     async findBySubmissionIds(submissionIds: string[]): Promise<HpLedger[]> {
-        await this.init();
-        
-        const objectIds = submissionIds.map(id => new ObjectId(id));
-        
-        return await this.hpLedgerCollection.find({
-            activityId: { $in: objectIds }
-        }).toArray();
-    }
+    await this.init();
+    const objectIds = submissionIds.map(id => new ObjectId(id));
+    return await this.hpLedgerCollection.find({
+        submissionId: { $in: objectIds }
+    }).toArray();
+}
 
     async getHpDistributionForCohort(
         cohortName: string,

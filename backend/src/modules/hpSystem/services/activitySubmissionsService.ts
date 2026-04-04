@@ -16,6 +16,7 @@ import { ClientSession, ObjectId } from "mongodb";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { SubmissionFeedbackItem } from "../classes/transformers/ActivitySubmission.js";
 import { COHORT_OVERRIDES, ID } from "../constants.js";
+import { getHpLedgerOperationId } from "../utils/getHpLedgerOperationId .js";
 import { ISettingRepository } from "#root/shared/database/interfaces/ISettingRepository.js";
 import { ICourseRepository } from "#root/shared/database/interfaces/ICourseRepository.js";
 
@@ -995,15 +996,15 @@ export class ActivitySubmissionsService extends BaseService {
         });
     }
 
-    async restore(submissionId: string, teacherId: string) {
+    async restore(submissionId: string, teacherId: string, note?: string) {
     return this._withTransaction(async (session) => {
         // 1. Fetch submission
         const submission = await this.activitySubmissionsRepository.findById(submissionId, { session });
         if (!submission) throw new NotFoundError(`Submission ${submissionId} not found.`);
 
-        // 2. Validate — only REVERTED submissions can be restored
-        if (submission.status !== "REVERTED") {
-            throw new BadRequestError("Only reverted submissions can be restored.");
+        // 2. Validate — only REVERTED or REJECTED submissions can be restored
+        if (submission.status !== "REVERTED" && submission.status !== "REJECTED") {
+            throw new BadRequestError("Only reverted or rejected submissions can be restored.");
         }
 
         const cohort = submission.cohort;
@@ -1053,23 +1054,28 @@ export class ActivitySubmissionsService extends BaseService {
             submission.activityId.toString()
         );
 
-        const note = `Restored ${restoreAmount} HP. Original debit reversed by instructor.`;
+        const ledgerNote = note
+            ? `Restored ${restoreAmount} HP. Instructor note: ${note}`
+            : `Restored ${restoreAmount} HP. Original debit reversed by instructor.`;
+        const operationId = getHpLedgerOperationId("restore");
 
         // 8. Create CREDIT ledger entry
         await this.ledgerRepository.create(
             this._buildLedgerData(
                 submission,
                 user,
-                "CREDIT",
+                "RESTORE",
                 "CREDIT",
                 restoreAmount,
                 totalStudentHpPoints,
                 finalHpBalance,
                 "MANUAL",
-                note,
+                ledgerNote,
                 debitLedger._id.toString(),
                 teacherId,
-                activityRuleConfig
+                activityRuleConfig,
+                undefined,
+                operationId
             ),
             session
         );
@@ -1093,7 +1099,7 @@ export class ActivitySubmissionsService extends BaseService {
                     reviewedByTeacherId: teacherId,
                     reviewedAt: new Date(),
                     decision: "APPROVED",
-                    note: "Restored by instructor"
+                    note: note || "Restored by instructor"
                 }
             },
             { session }
@@ -1103,7 +1109,7 @@ export class ActivitySubmissionsService extends BaseService {
     });
 }
 
-    private _buildLedgerData(sub: HpActivitySubmission, user: IUser, event: HpLedgerEventType, dir: HpLedgerDirection, amt: number, base: number, computed: number, reasonCode: HpReasonCode, note: string, refId: string | null, teacherId: string, config: any, isLate?: boolean) {
+    private _buildLedgerData(sub: HpActivitySubmission, user: IUser, event: HpLedgerEventType, dir: HpLedgerDirection, amt: number, base: number, computed: number, reasonCode: HpReasonCode, note: string, refId: string | null, teacherId: string, config: any, isLate?: boolean, operationId?: string) {
         return {
             courseId: new ObjectId(sub.courseId),
             courseVersionId: new ObjectId(sub.courseVersionId),
@@ -1124,7 +1130,7 @@ export class ActivitySubmissionsService extends BaseService {
                 deadlineAt: config?.deadlineAt ? new Date(config.deadlineAt) : null,
             },
             links: refId ? { reversedLedgerId: new ObjectId(refId), relatedLedgerIds: [] } : null,
-            meta: { triggeredBy: "TEACHER" as TriggeredBy, triggeredByUserId: new ObjectId(teacherId), note }
+            meta: { triggeredBy: "TEACHER" as TriggeredBy, triggeredByUserId: new ObjectId(teacherId), note, operationId }
         };
     }
 
