@@ -467,7 +467,7 @@ function TransactionSection({ ledgerEntries }: {
 
 export default function SubmissionDetailsPage() {
     const [isTextExpanded, setIsTextExpanded] = useState(false);
-    const { courseVersionId, cohortName, studentId, submissionId } = useParams({ strict: false });
+    const { courseVersionId, cohortId, studentId, submissionId } = useParams({ strict: false });
     const navigate = useNavigate();
 
     // Check if submissionId is provided
@@ -480,9 +480,9 @@ export default function SubmissionDetailsPage() {
         );
     }
     const { data: submissions, isLoading: submissionsLoading, error, refetch } = useHpStudentSubmissions(
-        studentId || "", courseVersionId || "", cohortName || ""
+        studentId || "", courseVersionId || "", cohortId || ""
     );
-    const { data: students, isLoading: studentsLoading } = useHpStudents(courseVersionId || "", cohortName || "");
+    const { data: students, isLoading: studentsLoading } = useHpStudents(courseVersionId || "", cohortId || "");
     const student = students.find(s => s._id === studentId);
 
     const { mutateAsync: revertEntry, isPending: isReverting } = useRevertHpEntry();
@@ -588,7 +588,7 @@ export default function SubmissionDetailsPage() {
                         variant="outline"
                         size="icon"
                         onClick={() => navigate({
-                            to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || "")}/student/${studentId}/submissions`
+                            to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortId || "")}/student/${studentId}/submissions`
                         })}
                     >
                         <ArrowLeft className="h-4 w-4" />
@@ -598,7 +598,7 @@ export default function SubmissionDetailsPage() {
                             {submission.activity?.title || "Unknown Activity"}
                         </h2>
                         <p className="text-muted-foreground">
-                            {student?.name || "Student"} · {student?.email || ""} · {decodeURIComponent(cohortName || "")}
+                            {student?.name || "Student"} · {student?.email || ""} · {decodeURIComponent(cohortId || "")}
                         </p>
                     </div>
                 </div>

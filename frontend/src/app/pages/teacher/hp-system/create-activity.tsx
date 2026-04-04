@@ -24,7 +24,7 @@ import { useCreateActivityWithRule, useCreateHpActivity, useCreateHpRuleConfig, 
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal";
 
 export default function CreateHpActivityPage() {
-    const { courseVersionId, cohortName } = useParams({ strict: false });
+    const { courseVersionId, cohortId } = useParams({ strict: false });
     const navigate = useNavigate();
     // const { mutateAsync: createActivity, isPending: isSubmittingActivity } = useCreateHpActivity();
     // const { mutateAsync: createRuleConfig, isPending: isSubmittingRules } = useCreateHpRuleConfig();
@@ -284,7 +284,7 @@ export default function CreateHpActivityPage() {
             ...data,
             courseId: courseId,
             courseVersionId: courseVersionId,
-            cohort: cohortName || "",
+            cohort: cohortId || "",
             attachments: data.attachments?.map(att => ({ ...att, kind: att.kind || "LINK" })),
             status,
             deadlineAt: ruleConfig.deadlineAt,
@@ -330,7 +330,7 @@ export default function CreateHpActivityPage() {
             toast.success("Activity created successfully");
 
             navigate({
-                to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/activities`,
+                to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortId || '')}/activities`,
                 state: { from }
             });
 
@@ -380,7 +380,7 @@ export default function CreateHpActivityPage() {
         };
     }
 
-    const backUrl = `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/activities`;
+    const backUrl = `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortId || '')}/activities`;
 
     if (isLoadingCourses) {
         return <div className="p-8 text-center text-muted-foreground">Loading course info...</div>;
@@ -391,7 +391,7 @@ export default function CreateHpActivityPage() {
             <div className="p-8 text-center bg-red-50 border border-red-200 rounded-lg text-red-600">
                 <h3 className="text-lg font-bold">Configuration Error</h3>
                 <p>Could not find the parent course for version ID: {courseVersionId}</p>
-                <Button variant="outline" className="mt-4" onClick={() => navigate({ to: '/teacher/hp-system/$courseVersionId/cohort/$cohortName/activities', state: { from } })}>Go Back</Button>
+                <Button variant="outline" className="mt-4" onClick={() => navigate({ to: '/teacher/hp-system/$courseVersionId/cohort/$cohortId/activities', state: { from } })}>Go Back</Button>
             </div>
         );
     }
@@ -406,7 +406,7 @@ export default function CreateHpActivityPage() {
                     </Button>
                     <div>
                         <h2 className="text-2xl font-bold tracking-tight">Create New Activity</h2>
-                        <p className="text-muted-foreground">Define a new HP rewarding activity for {decodeURIComponent(cohortName || '')}.</p>
+                        <p className="text-muted-foreground">Define a new HP rewarding activity for Dashboard.</p>
                     </div>
                 </div>
 

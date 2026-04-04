@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { CourseWithVersions, CourseVersionStats, getEffectiveIds, SubmissionField } from "@/lib/api/hp-system";
 
 export default function StudentSubmissions() {
-    const { courseVersionId, cohortName } = useParams({ strict: false });
+    const { courseVersionId, cohortId } = useParams({ strict: false });
     const navigate = useNavigate();
     const router = useRouterState();
     const from = router.location.state?.from;
@@ -28,7 +28,7 @@ export default function StudentSubmissions() {
 
     const { data: submissions, isLoading, error, refetch, isRefetching } = useStudentMySubmissions(
         courseVersionId as string,
-        cohortName as string
+        cohortId as string
     );
     const { mutateAsync: updateSubmission, isPending: isUpdating } = useUpdateActivitySubmission();
     const { data: courses = [] } = useHpCourseVersions();
@@ -146,7 +146,7 @@ export default function StudentSubmissions() {
         (!isUrlRequired || editLinks.some(l => l.url.trim()));
 
     const handleUpdateSubmission = async () => {
-        if (!editingSubmission || !courseVersionId || !cohortName) return;
+        if (!editingSubmission || !courseVersionId || !cohortId) return;
         setEditError(null);
 
         const validLinks = editLinks.filter(l => l.url.trim() !== "");
@@ -183,7 +183,7 @@ export default function StudentSubmissions() {
         const activityId = editingSubmission.activity?.id || editingSubmission.activity?._id || editingSubmission.activityId;
         
         // Resolve courseId using the getEffectiveIds utility
-        const effectiveIds = getEffectiveIds(cohortName as string, resolvedCourseId as string, courseVersionId as string);
+        const effectiveIds = getEffectiveIds(cohortId as string, resolvedCourseId as string, courseVersionId as string);
         const courseId = effectiveIds.courseId || editingSubmission.activity?.courseId || editingSubmission.courseId || editingSubmission.submission?.courseId;
 
         if (!submissionId || !activityId || !courseId) {
@@ -197,7 +197,7 @@ export default function StudentSubmissions() {
                 submissionId,
                 courseId,
                 courseVersionId: courseVersionId as string,
-                cohort: cohortName as string,
+                cohort: cohortId as string,
                 activityId,
                 payload: {
                     textResponse: editTextResponse.trim() || undefined,
@@ -250,15 +250,14 @@ export default function StudentSubmissions() {
                     <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/activities`,state:{from} })}
+                        onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortId}/activities`,state:{from} })}
                     >
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div className="flex-1">
                         <h1 className="text-3xl font-bold tracking-tight">My Submissions</h1>
                         <p className="text-muted-foreground">
-                            {decodeURIComponent(cohortName as string)}
-                        </p>
+                            Dashboard</p>
                     </div>
                     <Button
                         variant="outline"
@@ -283,7 +282,7 @@ export default function StudentSubmissions() {
                                 <Button
                                     variant="outline"
                                     className="mt-6"
-                                    onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/activities`,state:{from} })}
+                                    onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortId}/activities`,state:{from} })}
                                 >
                                     View Activities
                                 </Button>

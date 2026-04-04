@@ -18,10 +18,10 @@ import {
 
 export interface StudentsTabProps {
   courseVersionId: string;
-  cohortName: string;
+  cohortId: string;
 }
 
-export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
+export function StudentsTab({ courseVersionId, cohortId }: StudentsTabProps) {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<"name" | "hp" | "completion">("name")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
@@ -33,7 +33,7 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
 
   const { data: students = [], isLoading, refetch, isRefetching } = useHpStudents(
     courseVersionId,
-    cohortName
+    cohortId
   );
 
   const filteredStudents = students.filter((s) => {
@@ -259,7 +259,7 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
                       onClick={() =>
                         navigate({
                           to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(
-                            cohortName
+                            cohortId
                           )}/student/${student._id}/submissions`,
                         })
                       }
@@ -274,7 +274,7 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
                       onClick={() =>
                         navigate({
                           to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(
-                            cohortName
+                            cohortId
                           )}/student/${student._id}/ledger`,
                         })
                       }

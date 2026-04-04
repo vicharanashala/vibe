@@ -157,7 +157,7 @@ export default function StudentCohorts() {
                                         <div className="space-y-1">
                                             <CardTitle className="leading-tight">{cohort.courseName}</CardTitle>
                                             <CardDescription className="flex items-center gap-1.5 mt-1 font-medium text-foreground/70">
-                                                {cohort.cohortName}
+                                                {cohort.cohortId}
                                                 <Info
                                                     className="h-5 w-5 cursor-pointer text-muted-foreground hover:text-primary"
                                                     onClick={() => setSelectedVersionId(cohort.courseVersionId)}
@@ -221,7 +221,7 @@ export default function StudentCohorts() {
                                         <TooltipTrigger asChild>
                                             <Button
                                                 className="w-full group"
-                                                onClick={() => navigate({ to: `/student/hp-system/${cohort.courseVersionId}/${cohort.cohortName}/activities` })}
+                                                onClick={() => navigate({ to: `/student/hp-system/${cohort.courseVersionId}/${cohort.cohortId}/activities` })}
                                             >
                                                 View activities
                                                 <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />

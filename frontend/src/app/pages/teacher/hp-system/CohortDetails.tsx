@@ -9,7 +9,7 @@ import { StudentsTab } from "./components/StudentsTab";
 import { Dashboard } from '@/app/pages/teacher/dashboard';
 
 export default function HpSystemDashboard() {
-    const { courseVersionId, cohortName } = useParams({ strict: false });
+    const { courseVersionId, cohortId } = useParams({ strict: false });
     
     const router = useRouterState();
     const from = router.location.state?.from;
@@ -22,7 +22,7 @@ export default function HpSystemDashboard() {
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight">{decodeURIComponent(cohortName || '')} Dashboard</h2>
+                    <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
                     <p className="text-muted-foreground">Manage activities and HP for this cohort.</p>
                 </div>
             </div>
@@ -34,13 +34,13 @@ export default function HpSystemDashboard() {
                     <TabsTrigger value="students">Students</TabsTrigger>
                 </TabsList>
                 <TabsContent value="overview" className="mt-6">
-                    <CohortOverviewTab courseVersionId={courseVersionId || ""} cohortName={cohortName || ""} />
+                    <CohortOverviewTab courseVersionId={courseVersionId || ""} cohortId={cohortId || ""} />
                 </TabsContent>
                 <TabsContent value="activities" className="mt-6">
-                    <ActivitiesTab courseVersionId={courseVersionId || ""} cohortName={cohortName || ""} />
+                    <ActivitiesTab courseVersionId={courseVersionId || ""} cohortId={cohortId || ""} />
                 </TabsContent>
                 <TabsContent value="students" className="mt-6">
-                    <StudentsTab courseVersionId={courseVersionId || ""} cohortName={cohortName || ""} />
+                    <StudentsTab courseVersionId={courseVersionId || ""} cohortId={cohortId || ""} />
                 </TabsContent>
             </Tabs>
         </div>
