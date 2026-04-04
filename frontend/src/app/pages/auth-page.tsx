@@ -388,7 +388,6 @@ export default function AuthPage() {
   }, []);
 
 
-
   // Return the new beautiful auth page with Magic UI
   return (
     <div className="relative min-h-screen overflow-x-hidden">
@@ -501,7 +500,6 @@ export default function AuthPage() {
                         Continue To Login
                       </button>
                     </div>
-
 
 
                     {!showAuthForm ? (
@@ -900,3 +898,6 @@ export default function AuthPage() {
     </div>
   );
 }
+
+
+

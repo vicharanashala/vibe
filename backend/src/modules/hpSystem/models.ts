@@ -232,7 +232,10 @@ export type HpLedgerEventType =
     | "REVERSAL"
     | "MANUAL_ADJUST"
     | "MILESTONE"
-    | "REJECTION";
+    | "REJECTION"
+    | "AUTO_REWARD"
+    | "AUTO_PENALTY"
+    | "RESTORE";
 
 export type HpLedgerDirection = "CREDIT" | "DEBIT";
 
@@ -290,6 +293,7 @@ export interface HpLedger {
     meta: {
         triggeredBy: TriggeredBy;
         triggeredByUserId: ID;
+        operationId?: string; // reset hp for a student => operationId = "reset-<timestamp>"
         note: string;
     };
 

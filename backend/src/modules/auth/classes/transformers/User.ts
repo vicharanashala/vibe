@@ -2,15 +2,15 @@ import {
   ObjectIdToString,
   StringToObjectId,
 } from '#shared/constants/transformerConstants.js';
-import {IUser} from '#shared/interfaces/models.js';
-import {Expose, Transform} from 'class-transformer';
-import {IsOptional, IsString} from 'class-validator';
+import { IUser } from '#shared/interfaces/models.js';
+import { Expose, Transform } from 'class-transformer';
+import { IsOptional, IsString } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
-import {ObjectId} from 'mongodb';
+import { ObjectId } from 'mongodb';
 
 class User implements IUser {
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true}) // Convert ObjectId -> string when serializing
-  @Transform(StringToObjectId.transformer, {toClassOnly: true}) // Convert string -> ObjectId when deserializing
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true }) // Convert ObjectId -> string when serializing
+  @Transform(StringToObjectId.transformer, { toClassOnly: true }) // Convert string -> ObjectId when deserializing
 
   @Expose()
   @JSONSchema({
@@ -98,6 +98,21 @@ class User implements IUser {
   city?: string;
 
   @Expose()
+  @JSONSchema({
+    title: 'Profile Image',
+    description: 'Profile image URL or data URL',
+  })
+  profileImage?: string;
+
+  @Expose()
+  @JSONSchema({
+    title: 'Face Embedding',
+    description: 'Stored face embedding used for verification',
+    type: 'array',
+  })
+  faceEmbedding?: number[];
+
+  @Expose()
   @IsString()
   @JSONSchema({
     title: 'Roles',
@@ -116,8 +131,10 @@ class User implements IUser {
     this.country = data?.country;
     this.state = data?.state;
     this.city = data?.city;
+    this.profileImage = data?.profileImage;
+    this.faceEmbedding = data?.faceEmbedding;
     this.roles = data?.roles || 'user';
   }
 }
 
-export {User};
+export { User };

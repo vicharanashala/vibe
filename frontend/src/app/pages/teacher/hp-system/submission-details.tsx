@@ -335,7 +335,9 @@ function TransactionSection({ ledgerEntries }: {
 }) {
 
     // Convert ObjectId buffers to strings and normalize the data
-    const normalizedTransactions = ledgerEntries.map((entry: any) => ({
+    const normalizedTransactions = [...ledgerEntries].sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    ).map((entry: any) => ({
         ...entry,
         _id: entry._id?.toString?.() || entry._id,
         submissionId: entry.submissionId?.toString?.() || entry.submissionId,
@@ -527,8 +529,8 @@ export default function SubmissionDetailsPage() {
     setActionSubId(subId);
     try {
         if (action === 'restore') {
-            await restoreEntry(subId);
-            refetch(); // ← add this
+            await restoreEntry({ entryId: subId, note: note.trim() || undefined });
+            await refetch();
         } else if (action === 'approve' || action === 'reject' || action === 'revert') {
                 await reviewSubmission({
                     submissionId: subId,
@@ -775,14 +777,14 @@ export default function SubmissionDetailsPage() {
                                             </Button>
                                         </div>
                                     )}
-                                    {(status === 'APPROVED' || status === 'REJECTED') && (
+                                    {status === 'APPROVED' && (
                                         <Button
                                             variant="outline"
                                             size="sm"
                                             className="border-2 border-orange-500 text-orange-600 hover:bg-orange-50 dark:border-orange-400 dark:text-orange-400 dark:hover:bg-orange-950/50 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
                                             disabled={
                                                 (isReviewing && actionSubId === submission?.submission?._id) ||
-                                                (submission?.instructorFeedback as any)?.note === "Restored by instructor"
+                                                submission?.ledgerEntries?.some((e: any) => e.eventType === "RESTORE")
                                             }
                                             onClick={() => openReasonDialog(submission?.submission?._id || '', 'revert', submission?.activity?.title || '', submission?.hp?.baseHp || 0)}
                                         >
@@ -790,14 +792,17 @@ export default function SubmissionDetailsPage() {
                                             {isReviewing && actionSubId === submission?.submission?._id ? 'Reverting...' : 'Revert Decision'}
                                         </Button>
                                     )}
-                                    {status === 'REVERTED' && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-950/50 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
-                                            disabled={isRestoring && actionSubId === submission?.submission?._id}
-                                            onClick={() => openReasonDialog(submission?.submission?._id || '', 'restore', submission?.activity?.title)}
-                                        >
+                                    {(status === 'REVERTED' || status === 'REJECTED') && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-950/50 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
+                                                disabled={
+                                                    (isRestoring && actionSubId === submission?.submission?._id) ||
+                                                    submission?.ledgerEntries?.some((e: any) => e.eventType === "RESTORE")
+                                                }
+                                                onClick={() => openReasonDialog(submission?.submission?._id || '', 'restore', submission?.activity?.title)}
+                                            >
                                             <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
                                             {isRestoring && actionSubId === submission?.submission?._id ? 'Restoring...' : 'Restore Submission'}
                                         </Button>
@@ -849,7 +854,7 @@ export default function SubmissionDetailsPage() {
                             </DialogDescription>
                         </DialogHeader>
 
-                        {(reasonDialog.action === 'reject' || reasonDialog.action === 'revert') && (
+                        {(reasonDialog.action === 'reject' || reasonDialog.action === 'revert' || reasonDialog.action === 'restore') && (
                             <div className="py-4 space-y-4">
                                 <div>
                                     <label className="text-sm font-medium mb-2 block">

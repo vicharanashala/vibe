@@ -35,7 +35,7 @@ export const allocateReward = async () => {
 
         // Get reward configs for these milestone activities
         const milestoneActivityConfigs = await activityConfigsRepo.getAllMilestoneActivities();
-
+       
         console.log(`🎯 Found ${milestoneActivityConfigs.length} milestone activities with enabled rewards`);
 
         if (milestoneActivityConfigs.length === 0) {
@@ -227,7 +227,7 @@ const processStudentReward = async (
 
     const requiredPercentage = activity.required_percentage ?? 0;
 
-    const note = `Milestone completed for "${activity.title}". Progress: ${student.completionPercentage}% (required: ${requiredPercentage}%). Rewarded ${rewardAmount} HP.`;    // Apply reward and create ledger entry
+    const note = `Milestone completed for "${activity.title}". Progress: ${student.completionPercentage}% (required: ${requiredPercentage}%). Rewarded ${rewardAmount} HP.`;
 
     await applyStudentReward(
         student,
@@ -378,7 +378,7 @@ const applyStudentReward = async (
                 studentEmail: student.email,
                 activityId: new ObjectId(activity._id),
                 submissionId: null,
-                eventType: HpLedgerEventType.CREDIT,
+                eventType: HpLedgerEventType.AUTO_REWARD,
                 direction: HpLedgerDirection.CREDIT,
                 amount: rewardAmount,
                 calc: {
