@@ -335,7 +335,9 @@ function TransactionSection({ ledgerEntries }: {
 }) {
 
     // Convert ObjectId buffers to strings and normalize the data
-    const normalizedTransactions = ledgerEntries.map((entry: any) => ({
+    const normalizedTransactions = [...ledgerEntries].sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    ).map((entry: any) => ({
         ...entry,
         _id: entry._id?.toString?.() || entry._id,
         submissionId: entry.submissionId?.toString?.() || entry.submissionId,
