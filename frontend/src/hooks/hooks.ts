@@ -5688,9 +5688,9 @@ export function useRevertHpEntry() {
 export function useRestoreHpEntry() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: async (entryId: string) => {
-      const res = await hpApi.restoreLedgerEntry(entryId);
-      if (!res.success) throw new Error(res.message || 'Failed to restore entry');
+    mutationFn: async ({ entryId, note }: { entryId: string; note?: string }) => {
+        const res = await hpApi.restoreLedgerEntry(entryId, note);
+        if (!res.success) throw new Error(res.message || 'Failed to restore entry');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hp-student-ledger'] });

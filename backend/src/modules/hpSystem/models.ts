@@ -230,7 +230,8 @@ export type HpLedgerEventType =
     | "MILESTONE"
     | "REJECTION"
     | "AUTO_REWARD"
-    | "AUTO_PENALTY";
+    | "AUTO_PENALTY"
+    | "RESTORE";
 
 export type HpLedgerDirection = "CREDIT" | "DEBIT";
 

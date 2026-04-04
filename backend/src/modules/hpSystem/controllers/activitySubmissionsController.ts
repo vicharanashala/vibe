@@ -205,9 +205,10 @@ export class ActivitySubmissionsController {
   async restore(
       @Param("id") id: string,
       @CurrentUser() user: IUser,
+      @Body() body: { note?: string }
   ) {
       const teacherId = user._id.toString();
-      const doc = await this.submissionService.restore(id, teacherId);
+      const doc = await this.submissionService.restore(id, teacherId, body.note);
       return { success: true, data: doc };
   }
 

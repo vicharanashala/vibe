@@ -83,6 +83,7 @@ export enum HpLedgerEventType {
   MILESTONE = 'MILESTONE',
   AUTO_REWARD = 'AUTO_REWARD',
   AUTO_PENALTY = 'AUTO_PENALTY',
+  RESTORE= 'RESTORE'
 }
 
 export enum HpLedgerDirection {
