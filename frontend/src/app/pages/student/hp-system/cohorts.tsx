@@ -157,7 +157,7 @@ export default function StudentCohorts() {
                                         <div className="space-y-1">
                                             <CardTitle className="leading-tight">{cohort.courseName}</CardTitle>
                                             <CardDescription className="flex items-center gap-1.5 mt-1 font-medium text-foreground/70">
-                                                {cohort.cohortId}
+                                                {cohort.cohortName}
                                                 <Info
                                                     className="h-5 w-5 cursor-pointer text-muted-foreground hover:text-primary"
                                                     onClick={() => setSelectedVersionId(cohort.courseVersionId)}
