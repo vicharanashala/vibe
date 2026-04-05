@@ -100,4 +100,6 @@ export interface ICohortRepository {
     ): Promise<number>
 
     getCourseVersionNameById(versionId: string): Promise<string>
+
+    getCohortById(cohortId: string): Promise<ICohort | null>
 }

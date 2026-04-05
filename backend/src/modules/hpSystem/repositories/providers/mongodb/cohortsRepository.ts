@@ -124,6 +124,17 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
         return cohort?._id?.toString() ?? null;
     }
 
+    async getCohortById(cohortId: string): Promise<ICohort | null> {
+        await this.init();
+
+        if (!ObjectId.isValid(cohortId)) return null;
+
+        return await this.cohortsCollection.findOne({
+            _id: new ObjectId(cohortId),
+            isDeleted: { $ne: true },
+        });
+    }
+
     async getTotalStudentsCountForCohort(courseVersionId: string, cohortId: string): Promise<number> {
         await this.init();
 
