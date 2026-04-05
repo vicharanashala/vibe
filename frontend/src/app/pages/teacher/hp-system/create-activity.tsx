@@ -284,6 +284,7 @@ export default function CreateHpActivityPage() {
             ...data,
             courseId: courseId,
             courseVersionId: courseVersionId,
+            cohortId: cohortId || "",
             cohort: cohortId || "",
             attachments: data.attachments?.map(att => ({ ...att, kind: att.kind || "LINK" })),
             status,

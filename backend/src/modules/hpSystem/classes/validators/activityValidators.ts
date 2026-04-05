@@ -69,10 +69,13 @@ export class CreateActivityBody {
 }
 
 export class CreateActivityWithRuleBody{
-    
-    activity: CreateActivityBody;
+    @ValidateNested()
+    @Type(() => CreateActivityBody)
+    activity!: CreateActivityBody;
 
-    ruleConfig: CreateHpRuleConfigBody
+    @ValidateNested()
+    @Type(() => CreateHpRuleConfigBody)
+    ruleConfig!: CreateHpRuleConfigBody;
 }
 
 export class UpdateActivityBody {
