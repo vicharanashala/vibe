@@ -29,6 +29,7 @@ const canSeeInvite = (inviteRole: string, userRole?: string|null) => {
   return false;
 };
 
+
 export function UnifiedNotificationDropdown({
   notifications,
   pendingInvites = [],

@@ -6,7 +6,8 @@ import {
   useGetPendingStudentRegistrations, 
   useGetRejectedStudentRegistrations,
   useGetPendingRegistrations,
-  useMarkNotificationAsRead
+  useMarkNotificationAsRead,
+  processInviteApi
 } from "@/hooks/hooks";
 import { 
   useGetSystemNotifications, 
@@ -124,44 +125,20 @@ export default function NotificationsPage() {
     const result = await getInvites();
     setPendingInvites(result.invites || []);
   };
+  const handleRejectInvite = async (invite: any) => {
+  await processInviteApi(invite.inviteId, "REJECTED");
+  fetchInvites(); // refresh list
+};
 
   useEffect(() => {
     if (isAuthReady && userId) {
       fetchInvites();
     }
   }, [isAuthReady, userId]);
-
-  // Tab auto-selection logic
-  // useEffect(() => {
-  //   const isTeacher = role === "instructor" || role === "teacher";
-
-  //   const hasInvites = isTeacher
-  //     ? pendingInvites.length > 0 || (teacherPendingRegistrations?.length || 0) > 0
-  //     : pendingInvites.length > 0 
-  //     ||
-  //       (approvedNotifications?.length || 0) > 0 ||
-  //       (pendingStudentRegistrations?.length || 0) > 0 ||
-  //       (rejectedStudentRegistrations?.length || 0) > 0;
-
-  //   const hasSystemNotifs = (systemNotifications?.length || 0) > 0;
-
-  //   if (isTeacher) {
-  //     // Instructor: invitations if invites/registrations, else general
-  //     setActiveTab(hasInvites ? "invitations" : "notifications");
-  //   } else {
-  //     // Student: invitations if any, else general if any, else invitations as default
-  //     if (hasInvites) {
-  //       setActiveTab("invitations");
-  //     } else if (hasSystemNotifs) {
-  //       setActiveTab("notifications");
-  //     } else {
-  //       setActiveTab("invitations");
-  //     }
-  //   }
-  // }, [role, pendingInvites.length, approvedNotifications?.length, pendingStudentRegistrations?.length, rejectedStudentRegistrations?.length, teacherPendingRegistrations?.length, systemNotifications?.length]);
-
+  
   useEffect(() => {
-  const isTeacher = role === "admin" || role === "teacher";
+    
+    const isTeacher = user?.role === "teacher" || user?.role === "admin";
 
   const hasInvites = isTeacher
     ? pendingInvites.length > 0 || (teacherPendingRegistrations?.length || 0) > 0
@@ -179,24 +156,6 @@ export default function NotificationsPage() {
 ]);
   const invitationCount =  pendingInvites.length 
 
-
- 
-
-  // Build flat invitation items for pagination
-  // const allInvitationItems = useMemo(() => {
-  //   const items: { type: string; data: any }[] = [];
-  //   pendingInvites.forEach(d => items.push({ type: 'invite', data: d }));
-  //   if (role === 'student') {
-  //     approvedNotifications?.forEach((d: any) => items.push({ type: 'approval', data: d }));
-  //     pendingStudentRegistrations?.forEach((d: any) => items.push({ type: 'pending_reg', data: d }));
-  //     rejectedStudentRegistrations?.forEach((d: any) => items.push({ type: 'rejected_reg', data: d }));
-  //   }
-  //   if (role === 'teacher') {
-  //     teacherPendingRegistrations?.forEach((d: any) => items.push({ type: 'teacher_reg_request', data: d }));
-  //   }
-  //   return items;
-  // }, [pendingInvites, approvedNotifications, pendingStudentRegistrations, rejectedStudentRegistrations, teacherPendingRegistrations, role]);
-  // INVITE
 const allInvitationItems = useMemo(() => {
   return pendingInvites.map(d => ({
     type: 'invite',
@@ -252,10 +211,20 @@ const sysPagination = usePagination(combinedGeneralNotifications);
   }, [activeTab]);
 
   // Handlers
-  const handleAcceptInvite = (invite: any) => {
-    setSelectedInvite(invite);
-    setShowPolicyModal(true);
-  };
+ const handleAcceptInvite = async (invite: any) => {
+  const isTeacher = role === "teacher" || role === "admin";
+
+  if (isTeacher) {
+    //  Direct accept (NO modal)
+    await processInviteApi(invite.inviteId, "ACCEPT", false);
+    fetchInvites();
+    return;
+  }
+
+  //  Students → show policy modal
+  setSelectedInvite(invite);
+  setShowPolicyModal(true);
+};
 
   const handleReviewRequest = (reg: any) => {
     setCurrentCourse({
@@ -366,7 +335,9 @@ const sysPagination = usePagination(combinedGeneralNotifications);
                       : type === 'rejected_reg' ? () => handleMarkAsReadAndNavigate(data._id)
                       : type === 'teacher_reg_request' ? () => handleReviewRequest(data)
                       : undefined;
-                    return <InvitationCard key={key} type={type} data={data} onAction={onAction} />;
+                    return <InvitationCard key={key} type={type} data={data} onAction={onAction} onReject={
+      type === "invite" ? () => handleRejectInvite(data) : undefined
+    } />;
                   })
                 )}
               </div>
@@ -434,6 +405,11 @@ const sysPagination = usePagination(combinedGeneralNotifications);
                             ? () => handleMarkAsReadAndNavigate(data._id)
                             : type === 'teacher_reg_request'
                             ? () => handleReviewRequest(data)
+                            : undefined
+                        }
+                         onReject={
+                          type === "invite"
+                            ? () => handleRejectInvite(data)
                             : undefined
                         }
                       />
@@ -512,13 +488,15 @@ const sysPagination = usePagination(combinedGeneralNotifications);
   );
 }
 
-function InvitationCard({ type, data, onAction }: { type: string, data: any, onAction?: () => void }) {
+function InvitationCard({ type, data, onAction, onReject  }: { type: string, data: any, onAction?: () => void, onReject?: () => void }) {
+  const user = useAuthStore((state) => state.user);
+const isTeacher = user?.role === "teacher" || user?.role === "admin";
   const getDetails = () => {
     switch (type) {
       case 'invite':
         return {
-          title: "Course Invitation",
-          description: `You've been invited to join ${data.courseName || 'a new course'}.`,
+          title: data?.course?.name ||"Course Invitation",
+          description: ` ${data?.course?.description || "You've been invited to join this course."}`,
           icon: <Mail className="h-5 w-5 text-blue-500" />,
           action: "Accept Invite",
           time: data.createdAt
@@ -579,14 +557,35 @@ function InvitationCard({ type, data, onAction }: { type: string, data: any, onA
               )}
             </div>
             <p className="text-muted-foreground">{details.description}</p>
-            {details.action && onAction && (
-              <div className="pt-3 flex justify-end">
-                <Button size="sm" onClick={onAction}>
-                  {type === 'teacher_reg_request' && <ExternalLink className="h-3 w-3 mr-1" />}
-                  {details.action}
+            <div className="pt-3 flex gap-2 justify-end">
+            {type === "invite" && isTeacher && (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onReject}
+                >
+                  Reject
                 </Button>
-              </div>
+
+                <Button size="sm" onClick={onAction}>
+                  Accept
+                </Button>
+              </>
             )}
+
+            {type === "invite" && !isTeacher && (
+              <Button size="sm" onClick={onAction}>
+                Check Course
+              </Button>
+            )}
+
+            {type !== "invite" && details.action && onAction && (
+              <Button size="sm" onClick={onAction}>
+                {details.action}
+              </Button>
+            )}
+          </div>
           </div>
         </div>
       </CardContent>
