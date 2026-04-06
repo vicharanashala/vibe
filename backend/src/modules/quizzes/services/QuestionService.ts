@@ -21,6 +21,57 @@ import JSON5 from 'json5';
 
 @injectable()
 class QuestionService extends BaseService {
+
+    /**
+     * Admin action: Process crowdsourced questions and update their status based on attempts and correctness.
+     * @param {number} n - Number of attempts required before evaluation
+     * @param {number} minPercent - Minimum percent correct to qualify (e.g., 30)
+     * @param {number} maxPercent - Maximum percent correct to qualify (e.g., 70)
+     */
+    public async processCrowdsourcedQuestionsForAdmin(n = 10, minPercent = 30, maxPercent = 70): Promise<void> {
+      return this._withTransaction(async session => {
+        // 1. Find all questions with status 'UNGRADED_ATTEMPT'
+        const ungradedQuestions = await this.questionRepository.questionCollection.find({ status: 'UNGRADED_ATTEMPT' }, { session }).toArray();
+        for (const question of ungradedQuestions) {
+          // 2. Count attempts for this question
+          const attemptCount = await this.attemptRepository.countByQuestionId(question._id, session);
+          if (attemptCount < n) continue; // Not enough attempts yet
+
+          // 3. Count correct attempts
+          // We'll need to fetch all attempts and check answers for correctness
+          const attempts = await this.attemptRepository.attemptCollection.find({ 'questionDetails.questionId': question._id }, { session }).toArray();
+          let correctCount = 0;
+          for (const attempt of attempts) {
+            if (!attempt.answers) continue;
+            for (const ans of attempt.answers) {
+              if (ans.questionId?.toString() === question._id.toString()) {
+                // For MCQ, check if answer matches correctLotItem or correctLotItems
+                // This logic may need to be extended for other types
+                if (Array.isArray(question.correctLotItems)) {
+                  if (Array.isArray(ans.answer?.lotItemIds) &&
+                    ans.answer.lotItemIds.length === question.correctLotItems.length &&
+                    ans.answer.lotItemIds.every((id: any, idx: number) => id.toString() === question.correctLotItems[idx]._id.toString())) {
+                    correctCount++;
+                  }
+                } else if (question.correctLotItem) {
+                  if (ans.answer?.lotItemId?.toString() === question.correctLotItem._id.toString()) {
+                    correctCount++;
+                  }
+                }
+              }
+            }
+          }
+          const percentCorrect = (correctCount / attemptCount) * 100;
+          let newStatus: string = 'DISCARDED';
+          if (percentCorrect >= minPercent && percentCorrect <= maxPercent) {
+            newStatus = 'QUALIFIED';
+          }
+          // Optionally, you can set 'RECOMMENDED' if you want instructor review for qualified questions
+          // newStatus = (newStatus === 'QUALIFIED') ? 'RECOMMENDED' : newStatus;
+          await this.questionRepository.update(question._id, { status: newStatus }, session);
+        }
+      });
+    }
   constructor(
     @inject(QUIZZES_TYPES.QuestionRepo)
     private questionRepository: QuestionRepository,

@@ -298,7 +298,7 @@ class FlaggedQuestion {
   flaggedBy: string;
   reason: string;
   createdAt: Date;
-  status: 'PENDING' | 'RESOLVED' | 'REJECTED';
+  status: 'PENDING' | 'RESOLVED' | 'REJECTED' | 'UNGRADED_ATTEMPT' | 'QUALIFIED' | 'DISCARDED' | 'RECOMMENDED';
   resolvedBy?: string;
   resolvedAt?: Date;
 

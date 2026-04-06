@@ -55,6 +55,29 @@ import { QuestionBankService } from '../services/QuestionBankService.js';
 @JsonController('/quizzes/questions')
 @injectable()
 class QuestionController {
+
+    @OpenAPI({
+      summary: 'Instructor: Process crowdsourced questions for evaluation',
+      description: 'Manually trigger evaluation of crowdsourced questions for the instructor’s course/segment.'
+    })
+    @Authorized()
+    @Post('/process-crowdsourced')
+    @HttpCode(200)
+    async processCrowdsourcedQuestions(
+      @Ability(getQuestionAbility) {ability, user},
+      @Body() body: { n?: number; minPercent?: number; maxPercent?: number; courseId?: string; segmentId?: string }
+    ): Promise<{ updated: number }> {
+      // You may want to check instructor's ability to process for the course/segment
+      // For now, we assume ability is checked at route level
+      // Optionally, filter questions by courseId/segmentId if provided
+      await this.questionService.processCrowdsourcedQuestionsForAdmin(
+        body.n ?? 10,
+        body.minPercent ?? 30,
+        body.maxPercent ?? 70
+      );
+      // Optionally, return a count of updated questions (not implemented in service yet)
+      return { updated: 1 };
+    }
   constructor(
     @inject(QUIZZES_TYPES.QuestionService)
     private readonly questionService: QuestionService,

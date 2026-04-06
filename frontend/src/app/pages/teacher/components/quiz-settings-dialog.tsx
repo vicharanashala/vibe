@@ -24,7 +24,8 @@ interface QuizSettingsForm {
   releaseTime: string;
   deadline: string;
   allowSkip:boolean;
-  questionBankRefs?: QuestionBankRef []
+  questionBankRefs?: QuestionBankRef[];
+  enableCrowdQuestionGeneration?: boolean;
 }
 
 interface ValidationErrors {
@@ -375,6 +376,47 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                   onCheckedChange={(checked) => handleFieldChange('showScoreAfterSubmission', checked)}
                 />
               </div>
+
+              {/* Crowd Question Generation Toggle */}
+              <div className="flex items-center justify-between mt-4">
+                <div>
+                  <Label htmlFor="enableCrowdQuestionGeneration" className='mb-2'>Enable Crowd Question Generation</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Allow students to submit questions and use the crowd workflow for this course.
+                  </p>
+                </div>
+                <Switch
+                  id="enableCrowdQuestionGeneration"
+                  checked={quizSettingsForm.enableCrowdQuestionGeneration || false}
+                  onCheckedChange={(checked) => handleFieldChange('enableCrowdQuestionGeneration', checked)}
+                />
+              </div>
+
+              {/* Process Button (visible only if enabled) */}
+              {quizSettingsForm.enableCrowdQuestionGeneration && (
+                <div className="flex items-center justify-between mt-2 w-full">
+                  <Button
+                    variant="secondary"
+                    className="w-full"
+                    onClick={async () => {
+                      // Call backend endpoint to process crowdsourced questions
+                      try {
+                        // Replace with actual API call logic
+                        await fetch('/api/quizzes/questions/process-crowdsourced', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ courseId: quizSettingsForm.courseId }),
+                        });
+                        toast.success('Crowd questions processed successfully!');
+                      } catch (err) {
+                        toast.error('Failed to process crowd questions.');
+                      }
+                    }}
+                  >
+                    Process Crowd Questions Now
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
