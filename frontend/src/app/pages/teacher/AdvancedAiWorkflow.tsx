@@ -109,6 +109,8 @@ const AdvancedAiWorkflow = () => {
         noiseId: -1,
     });
 
+    const [transitioningToTask, setTransitioningToTask] = useState<string | null>(null);
+
     const STEP_ORDER = {
         AUDIO_EXTRACTION: 0,
         TRANSCRIPT_GENERATION: 1,
@@ -159,11 +161,21 @@ const AdvancedAiWorkflow = () => {
           "questionGeneration",
           "uploadContent",
         ];
-        const runningTask = TASK_ORDER.find((key) => jobStatus[key] === "RUNNING");
-        if (runningTask) return { task: runningTask, status: "RUNNING" }
-        const failedTask = TASK_ORDER.find((key) => jobStatus[key] === "FAILED");
+        const runningTask = [...TASK_ORDER].reverse().find((key) => jobStatus[key] === "RUNNING");
+        if (runningTask) return { task: runningTask, status: "RUNNING" };
+
+        const failedTask = [...TASK_ORDER].reverse().find((key) => jobStatus[key] === "FAILED");
         if (failedTask) return { task: failedTask, status: "FAILED" };
-        const pendingTask = TASK_ORDER.find((key) => jobStatus[key] === "WAITING" || jobStatus[key] === "PENDING");
+
+        const pendingTask = TASK_ORDER.find((key, idx) => {
+            const status = jobStatus[key];
+            if (status === "WAITING" || status === "PENDING") {
+                if (idx === 0) return true;
+                const prevStatus = jobStatus[TASK_ORDER[idx - 1]];
+                return prevStatus === "COMPLETED";
+            }
+            return false;
+        });
         if (pendingTask) return { task: pendingTask, status: "PENDING" };
         const completedTasks = TASK_ORDER.filter((key) => jobStatus[key] === "COMPLETED");
         if (completedTasks.length > 0) {
@@ -189,8 +201,16 @@ const AdvancedAiWorkflow = () => {
         try {
           if (!isPolling) setProgress(0);
           const status = await aiSectionAPI.getJobStatus(aiJobId);
-          const currentTaskData = getCurrentTask(status.jobStatus);
-          if (currentTaskData) {
+            const currentTaskData = getCurrentTask(status.jobStatus);
+            if (currentTaskData) {
+                if (transitioningToTask && currentTaskData.task !== transitioningToTask && currentTaskData.task === "segmentation") {
+                    console.log("Ignoring stale status poll during transition...");
+                    return;
+                }
+                if (transitioningToTask && (currentTaskData.task === transitioningToTask || currentTaskData.task === "uploadContent")) {
+                    setTransitioningToTask(null);
+                }
+
             setAiJobStatus({ ...status, task: currentTaskData.task, status: currentTaskData.status });
             updateCurrentJob(currentTaskData.task, currentTaskData.status);
             if (currentTaskData.status === "COMPLETED") {
@@ -395,11 +415,37 @@ const AdvancedAiWorkflow = () => {
 
     const handleManualSegmentationComplete = async () => {
         if (!aiJobId) return;
-        const boundaries = chunkTranscription.map(c => c.endTime);
-        await aiSectionAPI.editSegmentMap(aiJobId, boundaries);
-        setSegmentationMap(boundaries);
-        updateCurrentJob("questionGeneration", "WAITING");
-        setCurrentJob(prev => ({...prev, task: "QUESTION_GENERATION"}));
+        setIsLoading(true);
+        setShouldPoll(false); 
+        
+        try {
+            const boundaries = chunkTranscription.map((c: any) => c.endTime);
+            
+            
+            await aiSectionAPI.editSegmentMap(aiJobId, boundaries);
+            
+            
+            await aiSectionAPI.approveContinueTask(aiJobId);
+            
+           
+            const params = { parameters: customQuestionParams, type: "QUESTION_GENERATION" };
+            await aiSectionAPI.approveStartTask(aiJobId, params);
+            
+            
+            setSegmentationMap(boundaries);
+            setTransitioningToTask("questionGeneration"); 
+            updateCurrentJob("questionGeneration", "RUNNING");
+            setCurrentJob({ task: "QUESTION_GENERATION", status: "RUNNING" });
+            
+            setShouldPoll(true); 
+            toast.success("Segments saved! AI is now generating questions.");
+        } catch (err: any) {
+            console.error("Manual segmentation failed", err);
+            toast.error(`Error: ${err.message || "An error occurred during transition"}`);
+            setShouldPoll(true); 
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -511,15 +557,27 @@ const AdvancedAiWorkflow = () => {
                                         <div ref={iframeRef} className="w-full h-full" />
                                     </div>
                                     <div className="flex flex-col items-center gap-4 py-6">
-                                        <div className="flex gap-4">
-                                            <Button size="lg" className="rounded-full px-8 shadow-lg transition-transform active:scale-95" 
-                                                onClick={() => playerRef.current?.pauseVideo()}>
-                                                Tag Segment Boundary
-                                            </Button>
-                                            <Button variant="secondary" size="lg" className="rounded-full px-8" 
+                                        <div className="flex flex-col items-center gap-6">
+                                            <div className="bg-primary/10 border border-primary/20 rounded-xl px-6 py-3 flex items-center gap-3 animate-pulse">
+                                                <Info className="w-5 h-5 text-primary" />
+                                                <span className="font-medium text-primary">Pause the video at any point to create a segment boundary.</span>
+                                            </div>
+                                            
+                                            <Button 
+                                                variant="secondary" 
+                                                size="lg" 
+                                                className="rounded-full px-12 shadow-md hover:shadow-lg transition-all" 
                                                 onClick={handleManualSegmentationComplete} 
-                                                disabled={chunkTranscription.length === 0}>
-                                                Finish Tagging & Generate
+                                                disabled={chunkTranscription.length === 0 || isLoading}
+                                            >
+                                                {isLoading ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                        Processing...
+                                                    </div>
+                                                ) : (
+                                                    "Generate AI Questions"
+                                                )}
                                             </Button>
                                         </div>
                                         <div className="w-full max-w-2xl mx-auto space-y-2">
