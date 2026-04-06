@@ -162,7 +162,7 @@ const invitesToShow = (pendingInvites.length ? pendingInvites : localInvites)
 useEffect(() => {
   if (localInvites.length === 0) {
     getInvites().then((data) => {
-      console.log("INVITES API RESPONSE:", data); 
+      
 
       setLocalInvites(data?.invites || []);
     });
@@ -345,7 +345,7 @@ useEffect(() => {
                 const isExpired =
                   notification.metadata?.appealDeadline &&
                   new Date(notification.metadata.appealDeadline) < new Date();
-                  console.log("SYSTEM NOTIFICATION:", notification);
+                  
                 return (
                   <li
                     key={`system-${idx}`}

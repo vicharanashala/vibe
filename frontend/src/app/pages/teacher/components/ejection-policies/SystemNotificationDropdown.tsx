@@ -49,7 +49,7 @@ const filteredInvites = pendingInvites.filter((invite) =>
 const isTeacher = user?.role === "teacher";
   const unreadSystem = notifications.filter(n => !n.read);
   const totalCount = unreadSystem.length + pendingInvites.length + pendingRegistrations.length;
-  console.log('pending invites:', pendingInvites);
+  
   
 
   return (
