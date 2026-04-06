@@ -114,8 +114,11 @@ const processActivityPenalties = async (
     const { courseVersionId } = getActualCourseIds(activity);
 
 
-    // <<<<<<<<<<<<<<<<<<<< CHANGE THIS WHIEN UPDATING COHORT NAME TO COHORT ID IN THE DB >>>>>>>>>>>>>>>
-    const cohortId = await cohortRepo.getCohortIdByCohortName(activity.cohort);
+    // Prioritize activity.cohortId if available, otherwise fallback to DB lookup (legacy behavior)
+    let cohortId = activity.cohortId?.toString();
+    if (!cohortId || cohortId === "undefined") {
+        cohortId = await cohortRepo.getCohortIdByCohortName(activity.cohort);
+    }
 
     // Get enrolled students for this course/cohort
     const enrolledStudents = await cohortRepo.getStudentsForCohortByVersionAndCohortName(
@@ -200,7 +203,10 @@ async function processStudentPenalty(
     const client = await db.getClient();
     const session = client.startSession();
 
-    const cohortId = await cohortRepo.getCohortIdByCohortName(activity.cohort);
+    let cohortId = activity.cohortId?.toString();
+    if (!cohortId || cohortId === "undefined") {
+        cohortId = await cohortRepo.getCohortIdByCohortName(activity.cohort);
+    }
 
     try {
         await session.withTransaction(async () => {

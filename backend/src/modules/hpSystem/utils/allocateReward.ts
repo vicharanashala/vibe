@@ -99,8 +99,11 @@ const processMilestoneRewards = async (
     console.log(`🎯 Processing activity: ${activity._id} (Course: ${courseId}, Version: ${courseVersionId})`);
 
 
-    // <<<<<<<<<<<<<<<<<<<< CHANGE THIS WHIEN UPDATING COHORT NAME TO COHORT ID IN THE DB >>>>>>>>>>>>>>>
-    const cohortId = await cohortRepo.getCohortIdByCohortName(activity.cohort);
+    // Prioritize activity.cohortId if available, otherwise fallback to DB lookup (legacy behavior)
+    let cohortId = activity.cohortId?.toString();
+    if (!cohortId || cohortId === "undefined") {
+        cohortId = await cohortRepo.getCohortIdByCohortName(activity.cohort);
+    }
 
 
     // Get enrolled students for this course/version
