@@ -25,7 +25,7 @@ export async function hasActivePolicies(
             },
           }
         );
-        return res.data;
+        return res.data??{policies:[]};
       },
     });
 

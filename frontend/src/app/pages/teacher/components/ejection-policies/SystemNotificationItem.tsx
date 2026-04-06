@@ -1,15 +1,13 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { SystemNotification } from "@/types/notification.types";
 import { AppealDetailsModal } from "./AppealDetailsModal";
-import { useGetAppealById } from "@/hooks/system-notification-hooks";
 import { Bell, CheckCircle, Shield, UserCheck, UserX, XCircle } from "lucide-react";
 import { AppealStatusBadge } from "./AppealStatusBadge";
 type Props = {
   notification: SystemNotification;
   onMarkRead: (id: string) => void;
 };
-const getSystemNotificationIcon = (type) => {
+const getSystemNotificationIcon = (type:any) => {
   switch (type) {
     case "ejection":
       return <UserX className="h-3 w-3 text-red-600" />;
@@ -33,14 +31,9 @@ export default function SystemNotificationItem({
   notification,
   onMarkRead,
 }: Props) {
-  const [isExpanded, setIsed] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [showModal, setShowModal] = useState(false);
-//   const appealId = notification.extra?.appealId;
 
-// const { data: appeal } = useGetAppealById(
-//   appealId,
-//   !!appealId
-// );
 
   const handleToggle = () => {
     setIsExpanded(prev => !prev);
@@ -50,11 +43,10 @@ export default function SystemNotificationItem({
     }
   };
 
-  const preview = "Click to view appeal";
 
   return (
     <>
-      <li
+      <li key={notification._id}
   onClick={handleToggle}
   className={`p-2 rounded transition-all cursor-pointer  duration-200 hover:scale-[1.01]
     ${!notification.read ? "bg-primary/5" : ""}
@@ -100,45 +92,7 @@ export default function SystemNotificationItem({
           {new Date(notification.createdAt).toLocaleDateString()}
         </span>
 
-        {/* ACTIONS */}
-        {/* <div className="flex items-center gap-2">
-
-          {notification.type === "appeal_submitted" ? (
-  appeal?.status === "PENDING" ? (
-    <Button
-      size="sm"
-      variant="outline"
-      className="text-xs h-6 px-2"
-      onClick={(e) => {
-        e.stopPropagation();
-        setShowModal(true);
-      }}
-    >
-      Review
-    </Button>
-  ) : appeal?.status ? (
-    <span
-      className={`text-xs font-medium px-2 py-0.5 rounded-full
-        ${
-          appeal.status === "APPROVED"
-            ? "bg-green-100 text-green-700"
-            : appeal.status === "REJECTED"
-            ? "bg-red-100 text-red-700"
-            : "bg-gray-100 text-gray-600"
-        }`}
-    >
-      {appeal.status}
-    </span>
-  ) : (
-    //  THIS IS WHERE YOUR "Processed" GOES
-    <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-      Processed
-    </span>
-  )
-) : null}
-
-          
-        </div> */}
+        
         {notification.type === "appeal_submitted" && notification.extra?.appealId ? (
           <AppealStatusBadge
             appealId={notification.extra.appealId}

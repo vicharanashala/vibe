@@ -173,7 +173,7 @@ const { mutate: markAllSystemRead } = useMarkAllSystemNotificationsAsRead();
     getUserInvites();
     checkRegistrations();
 
-  }, [user, isAuthReady, pendingRegistrations?.length])
+  }, [user?.uid, isAuthReady])
 
   const totalUnreadCount = (systemUnreadCount || 0) + pendingInvites.length + pendingRegistrationsList.length;
   const handleInviteAction = async () => {

@@ -181,7 +181,7 @@ const isTeacher = user?.role === "teacher";
 
           {/* ── System Alerts ── */}
           {(notifications.length > 0 || (pendingInvites.length === 0 && pendingRegistrations.length === 0)) && (
-            <li className="px-2 py-1.5">
+           <>
               {notifications.length > 0 && (
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 px-1">
                   System Alerts
@@ -205,7 +205,7 @@ const isTeacher = user?.role === "teacher";
                   ))}
                 </div>
               )}
-            </li>
+          </>
           )}
         </ul>
       </div>
