@@ -242,7 +242,8 @@ export type HpReasonCode =
     | "REWARD_REVERSAL"
     | "REJECTION_PENALTY"
     | "BASE_INIT"
-    | "MANUAL";
+    | "MANUAL"
+    | "RESTORE_REVERSAL";
 
 export type TriggeredBy = "SYSTEM" | "TEACHER" | "STUDENT" | "SYSTEM_AUTOMATION";
 
