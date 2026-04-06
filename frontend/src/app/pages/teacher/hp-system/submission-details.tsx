@@ -782,10 +782,7 @@ export default function SubmissionDetailsPage() {
                                             variant="outline"
                                             size="sm"
                                             className="border-2 border-orange-500 text-orange-600 hover:bg-orange-50 dark:border-orange-400 dark:text-orange-400 dark:hover:bg-orange-950/50 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
-                                            disabled={
-                                                (isReviewing && actionSubId === submission?.submission?._id) ||
-                                                submission?.ledgerEntries?.some((e: any) => e.eventType === "RESTORE")
-                                            }
+                                            disabled={isReviewing && actionSubId === submission?.submission?._id}
                                             onClick={() => openReasonDialog(submission?.submission?._id || '', 'revert', submission?.activity?.title || '', submission?.hp?.baseHp || 0)}
                                         >
                                             <Undo2 className="h-3.5 w-3.5 mr-1.5" />
@@ -797,10 +794,7 @@ export default function SubmissionDetailsPage() {
                                                 variant="outline"
                                                 size="sm"
                                                 className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-950/50 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
-                                                disabled={
-                                                    (isRestoring && actionSubId === submission?.submission?._id) ||
-                                                    submission?.ledgerEntries?.some((e: any) => e.eventType === "RESTORE")
-                                                }
+                                                disabled={isReviewing && actionSubId === submission?.submission?._id}
                                                 onClick={() => openReasonDialog(submission?.submission?._id || '', 'restore', submission?.activity?.title)}
                                             >
                                             <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
