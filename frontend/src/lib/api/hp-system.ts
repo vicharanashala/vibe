@@ -746,7 +746,7 @@ export const hpApi = {
     ): Promise<{ success: boolean; data: StudentDashboardStats }> => {
         const params = new URLSearchParams({ 
             courseVersionId, 
-            cohortId, 
+            cohortName: cohortId, 
             timelineDays: String(timelineDays) 
         });
         return apiFetch(`${BASE_URL}/activity-submissions/student/dashboard-stats?${params.toString()}`);

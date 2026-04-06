@@ -992,9 +992,13 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         const totalActivities = await this.activityRepository.getCountByCohortId(cohortId, courseVersionId);
 
         // Get student's submissions with their status
+        const cohortMatch: any = ObjectId.isValid(cohortId)
+            ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+            : { cohort: cohortId };
+
         const studentSubmissions = await collection.find({
             studentId: new ObjectId(studentId),
-            cohortId: new ObjectId(cohortId),
+            ...cohortMatch,
             courseVersionId: new ObjectId(courseVersionId)
         }, { session }).toArray();
 

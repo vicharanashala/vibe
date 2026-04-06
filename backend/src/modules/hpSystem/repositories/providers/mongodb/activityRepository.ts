@@ -375,8 +375,12 @@ export class ActivityRepository implements IActivityRepository {
   async getCountByCohortId(cohortId: string, courseVersionId?: string, session?: ClientSession): Promise<number> {
     await this.init();
 
+    const cohortMatch: any = ObjectId.isValid(cohortId)
+      ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+      : { cohort: cohortId };
+
     const query: any = {
-      cohortId: new ObjectId(cohortId),
+      ...cohortMatch,
       isDeleted: { $ne: true },
     };
 

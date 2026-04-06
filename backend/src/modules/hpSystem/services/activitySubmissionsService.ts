@@ -1356,30 +1356,45 @@ export class ActivitySubmissionsService extends BaseService {
         }>;
     }> {
         return this._withTransaction(async (session) => {
+            // Resolve cohortName: if it's an ObjectId, look up the actual cohort name from the DB
+            let resolvedCohortName = cohortName;
+            if (ObjectId.isValid(cohortName)) {
+                const dbCohort = await this.cohortRepository.getCohortById(cohortName);
+                if (dbCohort?.name) {
+                    resolvedCohortName = dbCohort.name;
+                }
+            }
+
             // Only apply cohort overrides for legacy courses
             const legacyCourseIds = ["000000000000000000000001", "000000000000000000000002"];
             const isLegacyCourse = legacyCourseIds.includes(courseVersionId);
             
             // Resolve effective versionId from legacy cohort overrides only for legacy courses
-            const cohortOverride = isLegacyCourse ? COHORT_OVERRIDES[cohortName] : null;
+            const cohortOverride = isLegacyCourse ? COHORT_OVERRIDES[resolvedCohortName] : null;
             const effectiveVersionId = cohortOverride?.versionId || courseVersionId;
 
             // 1. Get student dashboard stats from submissions repository
             const dashboardStats = await this.activitySubmissionsRepository.getStudentDashboardStats(
                 studentId,
-                cohortName,
+                resolvedCohortName,
                 effectiveVersionId,
                 session
             );
 
             // 2. Get current HP from enrollment
-            const courseVersion = await this.courseRepo.readVersion(effectiveVersionId, session);
-            const courseId = courseVersion?.courseId?.toString() ?? "";
+            let courseId: string;
+            if (cohortOverride) {
+                // For legacy cohorts, use courseId directly from overrides
+                courseId = cohortOverride.courseId;
+            } else {
+                const courseVersion = await this.courseRepo.readVersion(effectiveVersionId, session);
+                courseId = courseVersion?.courseId?.toString() ?? "";
+            }
             const enrollment = await this.cohortRepository.findEnrollment(
                 studentId,
                 courseId,
                 effectiveVersionId,
-                cohortName,
+                resolvedCohortName,
                 session
             );
             const totalHp = enrollment?.hpPoints ?? 0; 
@@ -1387,7 +1402,7 @@ export class ActivitySubmissionsService extends BaseService {
             // 3. Get progress timeline from ledger
             const progressTimeline = await this.ledgerRepository.getStudentHpTimeline(
                 studentId,
-                cohortName,
+                resolvedCohortName,
                 effectiveVersionId,
                 timelineDays,
                 session
@@ -1396,7 +1411,7 @@ export class ActivitySubmissionsService extends BaseService {
             // 4. Get upcoming deadlines (within 7 days)
             const upcomingDeadlines = await this.activityRepository.getUpcomingDeadlinesForStudent(
                 studentId,
-                cohortName,
+                resolvedCohortName,
                 effectiveVersionId,
                 7, // days
                 5, // limit
@@ -1406,7 +1421,7 @@ export class ActivitySubmissionsService extends BaseService {
             // 5. Get recent submissions (last 5)
             const recentSubmissions = await this.activitySubmissionsRepository.getStudentRecentSubmissions(
                 studentId,
-                cohortName,
+                resolvedCohortName,
                 effectiveVersionId,
                 5,
                 session
