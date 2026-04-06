@@ -838,10 +838,12 @@ export class ActivitySubmissionsService extends BaseService {
                 courseVersionId = override.versionId;
             }
 
+            const cohortIdForEnrollment = submission.cohortId?.toString() || submission.cohort;
+
             const [activityRuleConfig, user, enrollment, courseSettings] = await Promise.all([
                 this.ruleConfigService.getByActivityId(submission.activityId.toString()),
                 this.userRepo.findById(submission.studentId.toString()),
-                this.cohortRepository.findEnrollment(submission.studentId.toString(), courseId, courseVersionId, submission.cohort, session),
+                this.cohortRepository.findEnrollment(submission.studentId.toString(), courseId, courseVersionId, cohortIdForEnrollment, session),
                 this.settingRepository.readCourseSettings(courseId, courseVersionId, session)
             ]);
 
@@ -1026,6 +1028,8 @@ export class ActivitySubmissionsService extends BaseService {
             courseVersionId = override.versionId;
         }
 
+        const cohortIdForEnrollment = submission.cohortId?.toString() || submission.cohort;
+
         // 4. Find the DEBIT ledger entry
         const debitLedger = await this.ledgerRepository.findDebitBySubmissionId(submissionId);
         if (!debitLedger) {
@@ -1044,7 +1048,7 @@ export class ActivitySubmissionsService extends BaseService {
                 submission.studentId.toString(),
                 courseId,
                 courseVersionId,
-                cohort,
+                cohortIdForEnrollment,
                 session
             )
         ]);
@@ -1093,7 +1097,7 @@ export class ActivitySubmissionsService extends BaseService {
             submission.studentId.toString(),
             courseId,
             courseVersionId,
-            cohort,
+            cohortIdForEnrollment,
             finalHpBalance,
             session
         );
