@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react"; ExternalLink
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import CrowdQuestionAttempt from "./components/CrowdQuestionAttempt";
+import { getCourseSettings, getCrowdQuestions, submitCrowdQuestionAttempt } from "@/lib/api/crowd-questions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -85,6 +87,14 @@ const sortItemsByOrder = (items: any[]) => {
   });
 };
 export default function CoursePage() {
+    // Fetch course settings (real API)
+    const [courseSettings, setCourseSettings] = useState<any>(null);
+    useEffect(() => {
+      if (!COURSE_ID) return;
+      getCourseSettings(COURSE_ID)
+        .then(setCourseSettings)
+        .catch(() => setCourseSettings(null));
+    }, [COURSE_ID]);
   useEffect(() => {
     return () => {
       unRegisterStream("course-page-stream");
@@ -226,6 +236,26 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     useCourseVersionById(VERSION_ID, undefined, COHORT_ID);
 
   // Fetch user progress
+    // Fetch user progress
+    const [crowdQuestions, setCrowdQuestions] = useState<any[]>([]);
+    useEffect(() => {
+      if (!COURSE_ID || !courseSettings?.enableCrowdQuestionGeneration) return;
+      getCrowdQuestions(COURSE_ID)
+        .then(setCrowdQuestions)
+        .catch(() => setCrowdQuestions([]));
+    }, [COURSE_ID, courseSettings]);
+    // ...existing code...
+
+    // Handler for submitting a crowd question attempt
+    const handleCrowdAttempt = async (segment: string, answer: any, questionId?: string) => {
+      if (!COURSE_ID || !questionId) return;
+      try {
+        await submitCrowdQuestionAttempt({ courseId: COURSE_ID, segmentId: segment, questionId, answer });
+        toast.success(`Submitted answer for ${segment}`);
+      } catch (err: any) {
+        toast.error(err?.message || 'Failed to submit answer');
+      }
+    };
   const { data: progressData, isLoading: progressLoading, error: progressError } =
     useUserProgress(COURSE_ID, VERSION_ID, COHORT_ID);
   const { data: moduleProgressData, isLoading: moduleProgressLoading } =
@@ -1550,6 +1580,19 @@ useEffect(() => {
 
   return (
     <>
+      {/* Show crowd question attempts if enabled */}
+      {courseSettings?.enableCrowdQuestionGeneration && (
+        <div className="my-6">
+          <h2 className="text-xl font-bold mb-2">Crowdsourced Questions (Ungraded Attempts)</h2>
+          {crowdQuestions.map((q, idx) => (
+            <CrowdQuestionAttempt
+              key={q._id || idx}
+              question={q}
+              onSubmit={answer => handleCrowdAttempt(q.segment, answer, q._id)}
+            />
+          ))}
+        </div>
+      )}
       <Dialog open={showProctorDialog} onOpenChange={(open) => {
         if (!open) {
           router.navigate({ to: '/student' });
