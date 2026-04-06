@@ -123,6 +123,8 @@ export const COHORT_OVERRIDES: Record<string, CohortOverride> = {
   AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
   A: { courseId: "69d2b1bc0744872b91ab54d9", versionId: "69d2b1bc0744872b91ab54da" },
   B: { courseId: "69d2b2e50744872b91ab641e", versionId: "69d2b2e50744872b91ab641f" },
+  Scorchers: { courseId: "69c77763b4ae917c56cf1342", versionId: "69c77763b4ae917c56cf1343" },
+  Testians: { courseId: "69c77812b4ae917c56cf227e", versionId: "69c77812b4ae917c56cf227f" },
 };
 
 export const LEGACY_COURSE_KEYS = new Set([

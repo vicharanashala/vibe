@@ -71,9 +71,11 @@ export class CohortsService extends BaseService {
                 { pseudoVersionId: "000000000000000000000001", cohortVersionId: "6968e12cbf2860d6e39051af" },
                 { pseudoVersionId: "000000000000000000000001", cohortVersionId: "6970f87e30644cbc74b67150" },
                 { pseudoVersionId: "000000000000000000000001", cohortVersionId: "697b4e262942654879011c57" },
+                { pseudoVersionId: "000000000000000000000001", cohortVersionId: "69c77763b4ae917c56cf1343" },
                 { pseudoVersionId: "000000000000000000000001", cohortVersionId: "69d2b1bc0744872b91ab54da" },
                 { pseudoVersionId: "000000000000000000000002", cohortVersionId: "69903415e1930c015760a719" },
                 { pseudoVersionId: "000000000000000000000002", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
+                { pseudoVersionId: "000000000000000000000002", cohortVersionId: "69c77812b4ae917c56cf227f" },
                 { pseudoVersionId: "000000000000000000000002", cohortVersionId: "69d2b2e50744872b91ab641f" },
             ];
 
@@ -139,6 +141,7 @@ export class CohortsService extends BaseService {
                 { cohortName: "Euclideans", cohortVersionId: "6968e12cbf2860d6e39051af" },
                 { cohortName: "Dijkstrians", cohortVersionId: "6970f87e30644cbc74b67150" },
                 { cohortName: "Kruskalians", cohortVersionId: "697b4e262942654879011c57" },
+                { cohortName: "Scorchers", cohortVersionId: "69c77763b4ae917c56cf1343" },
                 { cohortName: "A", cohortVersionId: "69d2b1bc0744872b91ab54da" },
             ] as const;
 
@@ -193,6 +196,7 @@ export class CohortsService extends BaseService {
             const cohorts = [
                 { cohortName: "RSAians", cohortVersionId: "69903415e1930c015760a719" },
                 { cohortName: "AKSians", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
+                { cohortName: "Testians", cohortVersionId: "69c77812b4ae917c56cf227f" },
                 { cohortName: "B", cohortVersionId: "69d2b2e50744872b91ab641f" },
             ] as const;
 
@@ -281,9 +285,11 @@ export class CohortsService extends BaseService {
                         { pseudoVersionId: "000000000000000000000001", cohortName: "Dijkstrians", cohortVersionId: "6970f87e30644cbc74b67150" },
                         { pseudoVersionId: "000000000000000000000001", cohortName: "Kruskalians", cohortVersionId: "697b4e262942654879011c57" },
                         { pseudoVersionId: "000000000000000000000001", cohortName: "Scorchers", cohortVersionId: "69c77763b4ae917c56cf1343" },
+                        { pseudoVersionId: "000000000000000000000001", cohortName: "A", cohortVersionId: "69d2b1bc0744872b91ab54da" },
                         { pseudoVersionId: "000000000000000000000002", cohortName: "RSAians", cohortVersionId: "69903415e1930c015760a719" },
                         { pseudoVersionId: "000000000000000000000002", cohortName: "AKSians", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
                         { pseudoVersionId: "000000000000000000000002", cohortName: "Testians", cohortVersionId: "69c77812b4ae917c56cf227f" },
+                        { pseudoVersionId: "000000000000000000000002", cohortName: "B", cohortVersionId: "69d2b2e50744872b91ab641f" },
                     ];
 
 
@@ -395,11 +401,13 @@ export class CohortsService extends BaseService {
                 dijkstrians: "6970f87e30644cbc74b67150",
                 kruskalians: "697b4e262942654879011c57",
                 scorchers: "69c77763b4ae917c56cf1343",
+                a: "69d2b1bc0744872b91ab54da",
             },
             "000000000000000000000002": {
                 rsaians: "69903415e1930c015760a719",
                 aksians: "69942dc6d6d99b252e3a54ff",
                 testians: "69c77812b4ae917c56cf227f",
+                b: "69d2b2e50744872b91ab641f",
             },
         };
 
@@ -503,9 +511,11 @@ export class CohortsService extends BaseService {
                 { pseudoVersionId: "000000000000000000000001", cohortName: "Dijkstrians", cohortVersionId: "6970f87e30644cbc74b67150" },
                 { pseudoVersionId: "000000000000000000000001", cohortName: "Kruskalians", cohortVersionId: "697b4e262942654879011c57" },
                 { pseudoVersionId: "000000000000000000000001", cohortName: "Scorchers", cohortVersionId: "69c77763b4ae917c56cf1343" },
+                { pseudoVersionId: "000000000000000000000001", cohortName: "A", cohortVersionId: "69d2b1bc0744872b91ab54da" },
                 { pseudoVersionId: "000000000000000000000002", cohortName: "RSAians", cohortVersionId: "69903415e1930c015760a719" },
                 { pseudoVersionId: "000000000000000000000002", cohortName: "AKSians", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
                 { pseudoVersionId: "000000000000000000000002", cohortName: "Testians", cohortVersionId: "69c77812b4ae917c56cf227f" },
+                { pseudoVersionId: "000000000000000000000002", cohortName: "B", cohortVersionId: "69d2b2e50744872b91ab641f" },
             ];
 
             for (const mapping of hardcodedMappings) {
