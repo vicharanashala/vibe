@@ -33,11 +33,22 @@ const InviteItem = ({ invite, onAcceptClick, onRejectClick , hasPolicies}) => {
             <p className="text-sm font-semibold text-foreground leading-tight truncate">
               {invite?.course?.name || "Course Invite"}
             </p>
+            
 
             {status === "PENDING" && (
               <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0 mt-1" />
             )}
           </div>
+          {invite?.course?.description && (
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+              {invite.course.description}
+            </p>
+          )}
+          {invite?.cohortName && (
+            <p className="text-xs text-muted-foreground/70 mt-0.5">
+              Cohort: <span className="text-foreground font-medium">{invite.cohortName}</span>
+            </p>
+          )}
 
           {/* MESSAGE */}
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -92,19 +103,32 @@ const InviteItem = ({ invite, onAcceptClick, onRejectClick , hasPolicies}) => {
           Accept
         </Button>
       </>
-    ) : (
-      /* ✅ HAS POLICIES → modal */
+    ) : (<div className="flex gap-0.5 min-w-max">
+      <Button
+      size="sm"
+      variant="destructive"
+      className="text-[10px]"
+      onClick={(e) => {
+        e.stopPropagation();
+        onRejectClick(invite);
+      }}
+    >
+      Reject
+    </Button>
+     
       <Button
         size="sm"
-        variant="outline"
+      variant="default"
+      className=" text-[10px]"
         onClick={(e) => {
           e.stopPropagation();
           onAcceptClick(invite);
         }}
-        className="h-6 px-2 text-xs"
-      >
+        
+        >
         Check Course
       </Button>
+        </div>
     )}
   </div>
 )}

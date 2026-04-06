@@ -33,7 +33,7 @@ export default function SystemNotificationItem({
   notification,
   onMarkRead,
 }: Props) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsed] = useState(false);
   const [showModal, setShowModal] = useState(false);
 //   const appealId = notification.extra?.appealId;
 
