@@ -4,7 +4,7 @@ import { OpenAPI, ResponseSchema } from "routing-controllers-openapi";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { CohortsService } from "../services/cohortsService.js";
 import { BadRequestErrorResponse, IUser } from "#root/shared/index.js";
-import { CohortListQueryDto, CohortStudentsListQueryDto, CohortStudentsResponseDto, CourseVersionListQueryDto, ResetHpRequest, ResetRequestParams } from "../classes/validators/courseAndCohorts.js";
+import { CohortListQueryDto, CohortStudentsListQueryDto, CohortStudentsResponseDto, CourseVersionListQueryDto, ResetHpRequest, ResetRequestParams, ResetStudentHpRequest, ResetStudentRequestParams } from "../classes/validators/courseAndCohorts.js";
 import { plainToInstance } from "class-transformer";
 
 @OpenAPI({
@@ -167,36 +167,68 @@ export class CohortsController {
 
     }
 
-    //  Reset HP feature is disabled uncomment the below code to enable it
-
   
-    // @OpenAPI({summary: 'Reset HP for cohort students'})
-    // @Post('/version/:versionId/cohort/:cohortName/reset-hp')
-    // @Authorized()
-    // async resetHp(
-    //   @Params() params: ResetRequestParams,
-    //   @Body() body: ResetHpRequest,
-    //   @CurrentUser() user: IUser,
-    // ) {
-    //   const {versionId, cohortName} = params;
-    //   if (!versionId?.trim()) {
-    //     throw new BadRequestError('versionId is required');
-    //   }
+    @OpenAPI({summary: 'Reset HP for cohort students'})
+    @Post('/version/:versionId/cohort/:cohortName/reset-hp')
+    @Authorized()
+    async resetHp(
+      @Params() params: ResetRequestParams,
+      @Body() body: ResetHpRequest,
+      @CurrentUser() user: IUser,
+    ) {
+      const {versionId, cohortName} = params;
+      if (!versionId?.trim()) {
+        throw new BadRequestError('versionId is required');
+      }
 
-    //   if (!cohortName?.trim()) {
-    //     throw new BadRequestError('cohortId is required');
-    //   }
-    //   const {targetHp, mode} = body;
+      if (!cohortName?.trim()) {
+        throw new BadRequestError('cohortId is required');
+      }
+      const {targetHp, mode} = body;
 
-    //   const documentsUpdated = await this.cohortsService.resetHpforCohort(
-    //     versionId,
-    //     cohortName,
-    //     targetHp,
-    //     mode,
-    //     user._id.toString(),
-    //   );
+      const documentsUpdated = await this.cohortsService.resetHpforCohort(
+        versionId,
+        cohortName,
+        targetHp,
+        mode,
+        user._id.toString(),
+      );
 
-    //   return {success: true, documentsUpdated: documentsUpdated};
-    // }
+      return {success: true, documentsUpdated: documentsUpdated};
+    }
+
+    @OpenAPI({ summary: 'Reset HP for a single student' })
+    @Post('/version/:versionId/cohort/:cohortName/student/:studentId/reset-hp')
+    @Authorized()
+    async resetHpForStudent(
+        @Params() params: ResetStudentRequestParams,
+        @Body() body: ResetStudentHpRequest,
+        @CurrentUser() user: IUser,
+    ) {
+        const { versionId, cohortName, studentId } = params;
+
+        if (!versionId?.trim()) {
+            throw new BadRequestError('versionId is required');
+        }
+
+        if (!cohortName?.trim()) {
+            throw new BadRequestError('cohortName is required');
+        }
+
+        if (!studentId?.trim()) {
+            throw new BadRequestError('studentId is required');
+        }
+
+        const { targetHp } = body;
+
+        const updated = await this.cohortsService.resetHpForStudent(
+            versionId,
+            cohortName,
+            studentId,
+            targetHp,
+            user._id.toString(),
+        );
+        return { success: true, updated };
+    }
 
 }

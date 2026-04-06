@@ -65,6 +65,8 @@ export function ResetHpDialog({
       });
 
       toast.success(`Updated HP of ${documentsUpdated} students`);
+      setMode("ALL")
+      setTargetHp(0)
       onOpenChange(false)
       onSuccess?.();
     } catch (err: any) {

@@ -432,6 +432,13 @@ export type ResetHpPayload = {
   mode: "ALL" | "ONLY_ZERO_HP" | "ONLY_WITH_HP";
   targetHp: number;
 };
+
+export type ResetStudentHpPayload = {
+  courseVersionId: string;
+  studentId: string;
+  cohortName: string;
+  targetHp: number;
+}
 // ─── API Functions ───────────────────────────────────────────
 
 export const hpApi = {
@@ -852,6 +859,13 @@ export const hpApi = {
         return apiFetch(`${BASE_URL}/courses-cohorts/version/${courseVersionId}/cohort/${cohortName}/reset-hp`, {
             method: 'POST',
             body:JSON.stringify({targetHp:targetHp,mode:mode})
+        });
+    },
+
+    resetStudentHp: async ({courseVersionId,studentId,cohortName,targetHp}:ResetStudentHpPayload ): Promise<{success: boolean}> => {
+        return apiFetch(`${BASE_URL}/courses-cohorts/version/${courseVersionId}/cohort/${cohortName}/student/${studentId}/reset-hp`, {
+            method: 'POST',
+            body:JSON.stringify({targetHp:targetHp})
         });
     }
 };

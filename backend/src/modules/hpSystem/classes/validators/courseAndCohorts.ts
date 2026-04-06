@@ -369,3 +369,38 @@ export class ResetRequestParams {
     @IsNotEmpty()
     cohortName: string;
 }
+
+export class ResetStudentRequestParams {
+    @JSONSchema({
+        description: 'Course version id',
+        example: '69bed49fc461e665a086938c',
+        type: 'string',
+    })
+    @IsString()
+    @IsNotEmpty()
+    versionId: string;
+
+    @JSONSchema({
+        description: 'Name of the cohort',
+        example: 'Krushkalians',
+        type: 'string',
+    })
+    @IsString()
+    @IsNotEmpty()
+    cohortName: string;
+
+    @JSONSchema({
+        description: 'Id of student',
+        example: '69d389b65670ad9fcd11df17',
+        type: 'string',
+    })
+    @IsString()
+    @IsNotEmpty()
+    studentId: string;
+}
+
+export class ResetStudentHpRequest {
+    @IsNumber()
+    @Min(0)
+    targetHp: number;
+}

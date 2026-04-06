@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ResetHpDialog } from "./ResetHpDialog";
+import { ResetStudentHpDialog } from "./ResetStudentHpDialog";
 
 export interface StudentsTabProps {
   courseVersionId: string;
@@ -29,6 +30,8 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<"ALL" | "SAFE" | "UNSAFE">("ALL");
   const [openReset, setOpenReset] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [openStudentReset, setOpenStudentReset] = useState(false);
 
   const itemsPerPage = 10;
   const navigate = useNavigate();
@@ -141,17 +144,14 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
               <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
               {isRefetching ? "Refreshing..." : "Refresh"}
             </Button>
-
-
-            {/* Reset Hp function is disabled uncomment the below code to enable it */}
             
-            {/* <Button
+            <Button
               variant="default"
               size="sm"
               onClick={() => setOpenReset(true)}
             >
               Reset HP
-            </Button> */}
+            </Button>
           </div>
 
       </div>
@@ -298,6 +298,17 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
                       <History className="h-4 w-4 mr-1" />
                       HP History
                     </Button>
+
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedStudent(student);
+                        setOpenStudentReset(true);
+                      }}
+                    >
+                      Reset HP
+                    </Button>
                   </td>
 
                 </tr>
@@ -324,6 +335,13 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
         courseVersionId={courseVersionId}
         cohortName={cohortName}
         onSuccess={refetch}
+      />
+      <ResetStudentHpDialog
+        open={openStudentReset}
+        onOpenChange={setOpenStudentReset}
+        student={selectedStudent}
+        courseVersionId={courseVersionId}
+        cohortName={cohortName}
       />
     </div>
   );

@@ -5203,6 +5203,7 @@ import {
   HpStudentSubmissionStats,
   HpCohortsResponse,
   ResetHpPayload,
+  ResetStudentHpPayload,
 } from '../lib/api/hp-system';
 
 export function useHpCourseVersions() {
@@ -5621,6 +5622,31 @@ export function useResetHp() {
         throw res;
       }
       return res.documentsUpdated;
+    },
+
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [
+          "hp-students",
+          variables.courseVersionId,
+          variables.cohortName,
+        ],
+      });
+    },
+  });
+}
+
+export function useResetStudentHp() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: ResetStudentHpPayload) => {
+      const res = await hpApi.resetStudentHp(payload);
+
+      if (!res.success) {
+        throw res;
+      }
+      return res;
     },
 
     onSuccess: (_, variables) => {

@@ -633,5 +633,40 @@ export class CohortsService extends BaseService {
       );
     });
   }
+
+  async resetHpForStudent(
+    courseVersionId: string,
+    cohortName: string,
+    studentId: string,
+    targetHp: number,
+    triggeredByUserId: string,
+  ): Promise<boolean> {
+    return await this._withTransaction(async (session: ClientSession) => {
+        if (targetHp < 0) {
+        throw new BadRequestError('Target Hp can not be negative');
+        }
+
+        const cohorts =
+        await this.cohortRepository.getCohortsByVersionId(courseVersionId);
+
+        const matchedCohort = cohorts.find(
+        c => c.name.toLowerCase() === cohortName.trim().toLowerCase(),
+        );
+
+        if (!matchedCohort) {
+        throw new NotFoundError('Cohort Not found');
+        }
+
+        return this.cohortRepository.resetHpForStudent(
+        courseVersionId,
+        matchedCohort._id.toString(),
+        cohortName,
+        studentId,
+        targetHp,
+        triggeredByUserId,
+        session,
+        );
+    });
+  }
 }
 

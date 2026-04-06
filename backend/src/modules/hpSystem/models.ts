@@ -231,7 +231,8 @@ export type HpLedgerEventType =
     | "REJECTION"
     | "AUTO_REWARD"
     | "AUTO_PENALTY"
-    | "RESTORE";
+    | "RESTORE"
+    | "RESET";
 
 export type HpLedgerDirection = "CREDIT" | "DEBIT";
 
@@ -242,7 +243,8 @@ export type HpReasonCode =
     | "REWARD_REVERSAL"
     | "REJECTION_PENALTY"
     | "BASE_INIT"
-    | "MANUAL";
+    | "MANUAL"
+    | "HP_RESET";
 
 export type TriggeredBy = "SYSTEM" | "TEACHER" | "STUDENT" | "SYSTEM_AUTOMATION";
 
@@ -273,8 +275,8 @@ export interface HpLedger {
         absolutePoints?: number;
         baseHpAtTime: number;
         computedAmount: number;
-        deadlineAt: Date;
-        withinDeadline: boolean;
+        deadlineAt?: Date;
+        withinDeadline?: boolean;
         reasonCode: HpReasonCode;
     };
 
