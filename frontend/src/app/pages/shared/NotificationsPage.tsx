@@ -7,7 +7,8 @@ import {
   useGetRejectedStudentRegistrations,
   useGetPendingRegistrations,
   useMarkNotificationAsRead,
-  processInviteApi
+  processInviteApi,
+  useUserEnrollments
 } from "@/hooks/hooks";
 import { 
   useGetSystemNotifications, 
@@ -83,7 +84,7 @@ function Pagination({ page, totalPages, setPage }: { page: number; totalPages: n
 }
 
 export default function NotificationsPage() {
-  const { user, isAuthReady } = useAuthStore();
+  const { user, isAuthReady, token } = useAuthStore();
   const userId = user?.uid || "";
   const role = user?.role;
   const navigate = useNavigate();
@@ -98,6 +99,7 @@ export default function NotificationsPage() {
   const { data: approvedNotifications } = useGetUnreadApprovedRegistrations(userId);
   const { data: pendingStudentRegistrations } = useGetPendingStudentRegistrations(userId);
   const { data: rejectedStudentRegistrations } = useGetRejectedStudentRegistrations(userId);
+  const { data: enrollments } = useUserEnrollments(1, 100, !!token && !!user?.uid);
   
   // Teacher specific
   const { data: teacherPendingRegistrations } = useGetPendingRegistrations(userId);
@@ -131,6 +133,18 @@ export default function NotificationsPage() {
   await processInviteApi(invite.inviteId, "REJECTED");
   fetchInvites(); // refresh list
 };
+const isAcknowledged = (notification: SystemNotification): boolean => {
+  if (!notification.courseId || !notification.cohortId) return false;
+
+  const enrollment = enrollments?.enrollments?.find(
+    (e: any) =>
+      e.courseId === notification.courseId &&
+      e.cohortId === notification.cohortId
+  );
+
+  return enrollment ? !enrollment.policyReacknowledgementRequired : false;
+};
+
 useEffect(() => {
   const fetchPolicies = async () => {
     const results: Record<string, boolean> = {};
@@ -416,7 +430,12 @@ const sysPagination = usePagination(combinedGeneralNotifications);
                               });
                             }
                           }}
-                          onReacknowledge={() => setSelectedPolicyNotification(notif)}
+                          isAcknowledged={isAcknowledged(notif)}
+                          onReacknowledge={() => {
+                            if (!isAcknowledged(notif)) {
+                              setSelectedPolicyNotification(notif);
+                            }
+                          }}
                         />
                       );
                     }
@@ -641,7 +660,9 @@ function SystemNotificationCard({
   onReacknowledge,
   isExpired,
   alreadySubmitted,
-  isMostRecentEjection
+  isMostRecentEjection,
+  isAcknowledged,
+  
 }: { 
   notification: any, 
   onMarkRead: (id: string) => void,
@@ -650,6 +671,7 @@ function SystemNotificationCard({
   isExpired?: boolean,
   alreadySubmitted?: boolean,
   isMostRecentEjection?: boolean
+  isAcknowledged?:boolean
 }) {
   const isUnread = !notification.read;
 
@@ -699,8 +721,14 @@ function SystemNotificationCard({
             
             <div className="flex gap-2 pt-3 justify-end items-center">
               {(notification.type === "policy_created" || notification.type === 'policy_updated') && (
-                <Button size="sm" variant="outline" onClick={onReacknowledge}>
-                   Re-acknowledge Policy
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isAcknowledged}
+                  onClick={onReacknowledge}
+                  className="disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isAcknowledged ? "Acknowledged ✓" : "Re-acknowledge Policy"}
                 </Button>
               )}
 
