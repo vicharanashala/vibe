@@ -29,6 +29,7 @@ import { PolicyAcknowledgementModal } from "@/app/pages/student/components/polic
 import { AppealModal } from "@/app/pages/student/components/policies/AppealModal";
 import { PolicyReacknowledgementModal } from "@/app/pages/student/components/policies/PolicyReacknowledgementModal";
 import { SystemNotification } from "@/types/notification.types";
+import { hasActivePolicies } from "@/utils/ejectionPolicyUtils";
 
 const formatDate = (date: string | Date) => {
   const d = new Date(date);
@@ -87,6 +88,7 @@ export default function NotificationsPage() {
   const role = user?.role;
   const navigate = useNavigate();
   const { setCurrentCourse } = useCourseStore();
+  const [invitePoliciesMap, setInvitePoliciesMap] = useState<Record<string, boolean>>({});
 
   // Data fetching
   const { getInvites } = useInvites();
@@ -129,6 +131,29 @@ export default function NotificationsPage() {
   await processInviteApi(invite.inviteId, "REJECTED");
   fetchInvites(); // refresh list
 };
+useEffect(() => {
+  const fetchPolicies = async () => {
+    const results: Record<string, boolean> = {};
+
+    await Promise.all(
+      pendingInvites.map(async (invite) => {
+        const hasPolicies = await hasActivePolicies(
+          invite.courseId,
+          invite.courseVersionId,
+          invite.cohortId
+        );
+
+        results[invite.inviteId] = hasPolicies;
+      })
+    );
+
+    setInvitePoliciesMap(results);
+  };
+
+  if (pendingInvites.length) {
+    fetchPolicies();
+  }
+}, [pendingInvites]);
 
   useEffect(() => {
     if (isAuthReady && userId) {
@@ -149,11 +174,8 @@ export default function NotificationsPage() {
   } else {
     setActiveTab("notifications"); // ← default to general notifications
   }
-}, [
-  role,
-  pendingInvites.length,
-  teacherPendingRegistrations?.length,
-]);
+}, [ pendingInvites.length,
+  teacherPendingRegistrations?.length,user?.role]);
   const invitationCount =  pendingInvites.length 
 
 const allInvitationItems = useMemo(() => {
@@ -213,6 +235,12 @@ const sysPagination = usePagination(combinedGeneralNotifications);
   // Handlers
  const handleAcceptInvite = async (invite: any) => {
   const isTeacher = role === "teacher" || role === "admin";
+  const hasPolicies = invitePoliciesMap[invite.inviteId];
+  if (!hasPolicies) {
+    await processInviteApi(invite.inviteId, "ACCEPT", false);
+    fetchInvites();
+    return;
+  }
 
   if (isTeacher) {
     //  Direct accept (NO modal)
@@ -336,8 +364,8 @@ const sysPagination = usePagination(combinedGeneralNotifications);
                       : type === 'teacher_reg_request' ? () => handleReviewRequest(data)
                       : undefined;
                     return <InvitationCard key={key} type={type} data={data} onAction={onAction} onReject={
-      type === "invite" ? () => handleRejectInvite(data) : undefined
-    } />;
+      type === "invite" ? () => handleRejectInvite(data) : undefined 
+    } hasPolicies={invitePoliciesMap[data.inviteId]} />;
                   })
                 )}
               </div>
@@ -398,6 +426,7 @@ const sysPagination = usePagination(combinedGeneralNotifications);
                         key={data._id}
                         type={type}
                         data={data}
+                        hasPolicies={invitePoliciesMap[data.inviteId]}
                         onAction={
                           type === 'approval'
                             ? () => handleMarkAsReadAndNavigate(data._id, data.courseId)
@@ -488,7 +517,7 @@ const sysPagination = usePagination(combinedGeneralNotifications);
   );
 }
 
-function InvitationCard({ type, data, onAction, onReject  }: { type: string, data: any, onAction?: () => void, onReject?: () => void }) {
+function InvitationCard({ type, data, onAction, onReject,hasPolicies  }: { type: string, data: any, onAction?: () => void, onReject?: () => void ,hasPolicies?:boolean}) {
   const user = useAuthStore((state) => state.user);
 const isTeacher = user?.role === "teacher" || user?.role === "admin";
   const getDetails = () => {
@@ -558,33 +587,45 @@ const isTeacher = user?.role === "teacher" || user?.role === "admin";
             </div>
             <p className="text-muted-foreground">{details.description}</p>
             <div className="pt-3 flex gap-2 justify-end">
-            {type === "invite" && isTeacher && (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={onReject}
-                >
-                  Reject
-                </Button>
+            
+    
+    {type === "invite" && (
+  <div className="pt-3 flex gap-2 justify-end">
 
-                <Button size="sm" onClick={onAction}>
-                  Accept
-                </Button>
-              </>
-            )}
+    {/* TEACHER → ALWAYS Accept + Reject */}
+    {isTeacher ? (
+      <>
+        <Button size="sm" variant="outline" onClick={onReject}>
+          Reject
+        </Button>
 
-            {type === "invite" && !isTeacher && (
-              <Button size="sm" onClick={onAction}>
-                Check Course
-              </Button>
-            )}
+        <Button size="sm" onClick={onAction}>
+          Accept
+        </Button>
+      </>
+    ) : (
+      <>
+        {/*  STUDENT LOGIC */}
 
-            {type !== "invite" && details.action && onAction && (
-              <Button size="sm" onClick={onAction}>
-                {details.action}
-              </Button>
-            )}
+        <Button size="sm" variant="outline" onClick={onReject}>
+          Reject
+        </Button>
+
+        {hasPolicies !== true && (
+  <Button size="sm" onClick={onAction}>
+    Accept
+  </Button>
+)}
+
+{hasPolicies === true && (
+  <Button size="sm" onClick={onAction}>
+    Check Course
+  </Button>
+)}
+      </>
+    )}
+  </div>
+)}
           </div>
           </div>
         </div>
