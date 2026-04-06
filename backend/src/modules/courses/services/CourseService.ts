@@ -124,6 +124,7 @@ class CourseService extends BaseService {
           isPublic: false,
           hpSystem: hpSystem,
           baseHp: baseHp,
+          randomizeItems: false,
         },
       };
       const courseSettings = new CourseSetting(defaultSettingsPayload);

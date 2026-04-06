@@ -186,6 +186,11 @@ Accessible to:
     @Ability(getCourseVersionAbility) { ability, user },
     @QueryParam('cohortId') cohortId?: string,
   ): Promise<CourseVersion & {hpSystem: boolean}> {
+    console.log("************")
+    console.log("************")
+    console.log("Read course version")
+    console.log("************")
+    console.log("************")
     const { versionId } = params;
 
     // Build the subject context first
