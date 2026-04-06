@@ -244,7 +244,8 @@ export type HpReasonCode =
     | "REJECTION_PENALTY"
     | "BASE_INIT"
     | "MANUAL"
-    | "HP_RESET";
+    | "HP_RESET"
+    | "RESTORE_REVERSAL";
 
 export type TriggeredBy = "SYSTEM" | "TEACHER" | "STUDENT" | "SYSTEM_AUTOMATION";
 
