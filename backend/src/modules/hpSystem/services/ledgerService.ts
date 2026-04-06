@@ -7,6 +7,8 @@ import { FilterQueryDto } from "../classes/validators/activitySubmissionValidato
 import { LedgerListResponseDto, StudentLedgerDetailsDto } from "../classes/validators/ledgerValidators.js";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { BadRequestError, UnauthorizedError } from "routing-controllers";
+import { COHORT_OVERRIDES } from "../constants.js";
+import { ObjectId } from "mongodb";
 
 
 
@@ -43,12 +45,29 @@ export class LedgerService extends BaseService {
         const student = await this.userRepo.findById(studentId);
         if (!student)
             throw new BadRequestError("Student not found");
+
+        // Resolve cohortName: if it's an ObjectId, look up the actual cohort name from the DB
+        let resolvedCohortName = cohortName;
+        if (ObjectId.isValid(cohortName)) {
+            const dbCohort = await this.cohortRepository.getCohortById(cohortName);
+            if (dbCohort?.name) {
+                resolvedCohortName = dbCohort.name;
+            }
+        }
+
+        // For legacy cohorts, resolve the real courseId and courseVersionId
+        // The frontend sends pseudo IDs (e.g. 000000000000000000000001) but enrollments
+        // are stored under the actual IDs from COHORT_OVERRIDES
+        const override = COHORT_OVERRIDES[resolvedCohortName];
+        const finalCourseId = override?.courseId ?? courseId;
+        const finalVersionId = override?.versionId ?? courseVersionId;
+
         // Try to find enrollment for HP points, but don't fail if not found
-        const requestedUserEnrollment = await this.cohortRepository.findEnrollment(requested_user_id, courseId, courseVersionId, cohortName)
+        const requestedUserEnrollment = await this.cohortRepository.findEnrollment(requested_user_id, finalCourseId, finalVersionId, cohortName)
         if (!requestedUserEnrollment)
             throw new UnauthorizedError(`Requested user is not found for this user id: ${student._id}, email: ${student.email}`)
 
-        const enrollment = await this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId, cohortName)
+        const enrollment = await this.cohortRepository.findEnrollment(studentId, finalCourseId, finalVersionId, cohortName)
         if (!enrollment)
             throw new BadRequestError(`Enrollment not found for this user id: ${student._id}, email: ${student.email}`)
 
