@@ -651,7 +651,7 @@ export default function StudentActivityDetail() {
                                         </div>
                                         <div>
                                             <div className="text-xs text-green-600 dark:text-green-500 mb-1 uppercase tracking-wide">Apply When</div>
-                                            <div className="font-medium text-green-800 dark:text-green-200">{ruleConfig.reward.applyWhen.replace('_', ' ')}</div>
+                                            <div className="font-medium text-green-800 dark:text-green-200">{ruleConfig.reward.applyWhen?.replace('_', ' ') || 'N/A'}</div>
                                         </div>
                                     </div>
 
