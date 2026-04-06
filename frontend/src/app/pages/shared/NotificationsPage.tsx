@@ -132,59 +132,118 @@ export default function NotificationsPage() {
   }, [isAuthReady, userId]);
 
   // Tab auto-selection logic
+  // useEffect(() => {
+  //   const isTeacher = role === "instructor" || role === "teacher";
+
+  //   const hasInvites = isTeacher
+  //     ? pendingInvites.length > 0 || (teacherPendingRegistrations?.length || 0) > 0
+  //     : pendingInvites.length > 0 
+  //     ||
+  //       (approvedNotifications?.length || 0) > 0 ||
+  //       (pendingStudentRegistrations?.length || 0) > 0 ||
+  //       (rejectedStudentRegistrations?.length || 0) > 0;
+
+  //   const hasSystemNotifs = (systemNotifications?.length || 0) > 0;
+
+  //   if (isTeacher) {
+  //     // Instructor: invitations if invites/registrations, else general
+  //     setActiveTab(hasInvites ? "invitations" : "notifications");
+  //   } else {
+  //     // Student: invitations if any, else general if any, else invitations as default
+  //     if (hasInvites) {
+  //       setActiveTab("invitations");
+  //     } else if (hasSystemNotifs) {
+  //       setActiveTab("notifications");
+  //     } else {
+  //       setActiveTab("invitations");
+  //     }
+  //   }
+  // }, [role, pendingInvites.length, approvedNotifications?.length, pendingStudentRegistrations?.length, rejectedStudentRegistrations?.length, teacherPendingRegistrations?.length, systemNotifications?.length]);
+
   useEffect(() => {
-    const isTeacher = role === "instructor" || role === "teacher";
+  const isTeacher = role === "admin" || role === "teacher";
 
-    const hasInvites = isTeacher
-      ? pendingInvites.length > 0 || (teacherPendingRegistrations?.length || 0) > 0
-      : pendingInvites.length > 0 ||
-        (approvedNotifications?.length || 0) > 0 ||
-        (pendingStudentRegistrations?.length || 0) > 0 ||
-        (rejectedStudentRegistrations?.length || 0) > 0;
+  const hasInvites = isTeacher
+    ? pendingInvites.length > 0 || (teacherPendingRegistrations?.length || 0) > 0
+    : pendingInvites.length > 0;  // ← only count actual invites, not registrations
 
-    const hasSystemNotifs = (systemNotifications?.length || 0) > 0;
+  if (hasInvites) {
+    setActiveTab("invitations");
+  } else {
+    setActiveTab("notifications"); // ← default to general notifications
+  }
+}, [
+  role,
+  pendingInvites.length,
+  teacherPendingRegistrations?.length,
+]);
+  const invitationCount =  pendingInvites.length 
 
-    if (isTeacher) {
-      // Instructor: invitations if invites/registrations, else general
-      setActiveTab(hasInvites ? "invitations" : "notifications");
-    } else {
-      // Student: invitations if any, else general if any, else invitations as default
-      if (hasInvites) {
-        setActiveTab("invitations");
-      } else if (hasSystemNotifs) {
-        setActiveTab("notifications");
-      } else {
-        setActiveTab("invitations");
-      }
-    }
-  }, [role, pendingInvites.length, approvedNotifications?.length, pendingStudentRegistrations?.length, rejectedStudentRegistrations?.length, teacherPendingRegistrations?.length, systemNotifications?.length]);
 
-  const invitationCount = 
-    pendingInvites.length + 
-    (approvedNotifications?.length || 0) + 
-    (pendingStudentRegistrations?.length || 0) + 
-    (rejectedStudentRegistrations?.length || 0) +
-    (teacherPendingRegistrations?.length || 0);
-
-  const systemCount = systemNotifications?.filter((n: any) => !n.read).length || 0;
+ 
 
   // Build flat invitation items for pagination
-  const allInvitationItems = useMemo(() => {
-    const items: { type: string; data: any }[] = [];
-    pendingInvites.forEach(d => items.push({ type: 'invite', data: d }));
-    if (role === 'student') {
-      approvedNotifications?.forEach((d: any) => items.push({ type: 'approval', data: d }));
-      pendingStudentRegistrations?.forEach((d: any) => items.push({ type: 'pending_reg', data: d }));
-      rejectedStudentRegistrations?.forEach((d: any) => items.push({ type: 'rejected_reg', data: d }));
-    }
-    if (role === 'teacher') {
-      teacherPendingRegistrations?.forEach((d: any) => items.push({ type: 'teacher_reg_request', data: d }));
-    }
-    return items;
-  }, [pendingInvites, approvedNotifications, pendingStudentRegistrations, rejectedStudentRegistrations, teacherPendingRegistrations, role]);
+  // const allInvitationItems = useMemo(() => {
+  //   const items: { type: string; data: any }[] = [];
+  //   pendingInvites.forEach(d => items.push({ type: 'invite', data: d }));
+  //   if (role === 'student') {
+  //     approvedNotifications?.forEach((d: any) => items.push({ type: 'approval', data: d }));
+  //     pendingStudentRegistrations?.forEach((d: any) => items.push({ type: 'pending_reg', data: d }));
+  //     rejectedStudentRegistrations?.forEach((d: any) => items.push({ type: 'rejected_reg', data: d }));
+  //   }
+  //   if (role === 'teacher') {
+  //     teacherPendingRegistrations?.forEach((d: any) => items.push({ type: 'teacher_reg_request', data: d }));
+  //   }
+  //   return items;
+  // }, [pendingInvites, approvedNotifications, pendingStudentRegistrations, rejectedStudentRegistrations, teacherPendingRegistrations, role]);
+  // INVITE
+const allInvitationItems = useMemo(() => {
+  return pendingInvites.map(d => ({
+    type: 'invite',
+    data: d
+  }));
+}, [pendingInvites]);
+const invPagination = usePagination(allInvitationItems);
 
-  const invPagination = usePagination(allInvitationItems);
-  const sysPagination = usePagination(systemNotifications);
+// GENERAL
+const generalNotificationItems = useMemo(() => {
+  const items: { type: string; data: any }[] = [];
+
+  if (role === 'student') {
+    approvedNotifications?.forEach((d: any) => items.push({ type: 'approval', data: d }));
+    pendingStudentRegistrations?.forEach((d: any) => items.push({ type: 'pending_reg', data: d }));
+    rejectedStudentRegistrations?.forEach((d: any) => items.push({ type: 'rejected_reg', data: d }));
+  }
+
+  if (role === 'teacher') {
+    teacherPendingRegistrations?.forEach((d: any) =>
+      items.push({ type: 'teacher_reg_request', data: d })
+    );
+  }
+
+  return items;
+}, [
+  role,
+  approvedNotifications,
+  pendingStudentRegistrations,
+  rejectedStudentRegistrations,
+  teacherPendingRegistrations,
+]);
+const combinedGeneralNotifications = useMemo(() => {
+  return [
+    ...generalNotificationItems,
+    ...systemNotifications.map((n: any) => ({
+      type: 'system',
+      data: n
+    }))
+  ];
+}, [generalNotificationItems, systemNotifications]);
+
+const sysPagination = usePagination(combinedGeneralNotifications);
+ const systemCount =
+  (systemNotifications?.filter((n: any) => !n.read).length || 0) +
+  generalNotificationItems.length;
+  // const sysPagination = usePagination(combinedGeneralNotifications);
 
   // Reset pages when tab changes
   useEffect(() => {
@@ -274,7 +333,7 @@ export default function NotificationsPage() {
               <Bell className="h-4 w-4" />
               <span>General Notifications</span>
               {systemCount > 0 && (
-                <Badge variant="destructive" className="ml-1">
+                <Badge variant="secondary" className="ml-1">
                   {systemCount}
                 </Badge>
               )}
@@ -327,31 +386,56 @@ export default function NotificationsPage() {
                     description="You have no new system notifications."
                   />
                 ) : (
-                  sysPagination.paged.map((notif: any) => {
-                    const isExpired = notif.metadata?.appealDeadline && new Date(notif.metadata.appealDeadline) < new Date();
-                    const alreadySubmitted = notif.metadata?.appealPending || submittedAppeals.has(appealKey(notif));
+                  sysPagination.paged.map(({ type, data }: any) => {
+                    if (type === 'system') {
+                      const notif = data;
+
+                      const isExpired =
+                        notif.metadata?.appealDeadline &&
+                        new Date(notif.metadata.appealDeadline) < new Date();
+
+                      const alreadySubmitted =
+                        notif.metadata?.appealPending ||
+                        submittedAppeals.has(appealKey(notif));
+
+                      return (
+                        <SystemNotificationCard
+                          key={notif._id}
+                          notification={notif}
+                          isExpired={isExpired}
+                          alreadySubmitted={alreadySubmitted}
+                          isMostRecentEjection={mostRecentEjectionIds.has(notif._id)}
+                          onMarkRead={(id) =>
+                            markSystemRead({ params: { path: { notificationId: id } } })
+                          }
+                          onAppeal={() => {
+                            if (notif.courseId && notif.courseVersionId && notif.cohortId) {
+                              setSelectedAppeal({
+                                courseId: notif.courseId,
+                                courseVersionId: notif.courseVersionId,
+                                cohortId: notif.cohortId,
+                              });
+                            }
+                          }}
+                          onReacknowledge={() => setSelectedPolicyNotification(notif)}
+                        />
+                      );
+                    }
 
                     return (
-                      <SystemNotificationCard 
-                        key={notif._id} 
-                        notification={notif} 
-                        isExpired={isExpired}
-                        alreadySubmitted={alreadySubmitted}
-                        isMostRecentEjection={mostRecentEjectionIds.has(notif._id)}
-                        onMarkRead={(id) => {
-                          // @ts-ignore - notificationId type mismatch in generated client
-                          markSystemRead({ params: { path: { notificationId: id } } });
-                        }}
-                        onAppeal={() => {
-                          if (notif.courseId && notif.courseVersionId && notif.cohortId) {
-                            setSelectedAppeal({
-                              courseId: notif.courseId,
-                              courseVersionId: notif.courseVersionId,
-                              cohortId: notif.cohortId,
-                            });
-                          }
-                        }}
-                        onReacknowledge={() => setSelectedPolicyNotification(notif)}
+                      <InvitationCard
+                        key={data._id}
+                        type={type}
+                        data={data}
+                        onAction={
+                          type === 'approval'
+                            ? () => handleMarkAsReadAndNavigate(data._id, data.courseId)
+                            : type === 'rejected_reg'
+                            ? () => handleMarkAsReadAndNavigate(data._id)
+                            : type === 'teacher_reg_request'
+                            ? () => handleReviewRequest(data)
+                            : undefined
+                        }
                       />
                     );
                   })
