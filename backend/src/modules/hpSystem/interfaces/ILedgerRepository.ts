@@ -39,6 +39,7 @@ export interface ILedgerRepository {
         high: number;
         veryHigh: number;
     }>;
+    findRestoreBySubmissionId(submissionId: string): Promise<HpLedger | null>;
     findDebitBySubmissionId(submissionId: string): Promise<HpLedger | null>;
 
 }
