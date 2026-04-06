@@ -421,7 +421,17 @@ export class CohortsService extends BaseService {
         let actualVersionId: string | undefined;
 
         // Fallback for names if still passed
-        const cohortMapForVersionName = EXISTING_COHORTS_MAP[versionId]?.[cohortIdStr];
+        let cohortMapForVersionName = EXISTING_COHORTS_MAP[versionId]?.[cohortIdStr];
+        
+        // If not found by direct name mapping, it might be an ObjectId (i.e. resolving from DB)
+        if (!cohortMapForVersionName && ObjectId.isValid(cohortId)) {
+             const dbCohort = await this.cohortRepository.getCohortById(cohortId);
+             if (dbCohort?.name) {
+                  const dbCohortNameStr = dbCohort.name.trim().toLowerCase();
+                  cohortMapForVersionName = EXISTING_COHORTS_MAP[versionId]?.[dbCohortNameStr];
+             }
+        }
+
         if (cohortMapForVersionName) {
              actualVersionId = cohortMapForVersionName;
         }
