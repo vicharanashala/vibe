@@ -266,12 +266,18 @@ export class ActivitySubmissionsService extends BaseService {
 
             const cohort = body.cohortId;
 
-            // 2. Apply Overrides (Fall back to body values if cohort isn't in the map)
-            const finalCourseId = COHORT_OVERRIDES[cohort]?.courseId ?? body.courseId;
-            const finalVersionId = COHORT_OVERRIDES[cohort]?.versionId ?? body.courseVersionId;
+            // 2. Apply Overrides: `cohort` here is an ObjectId string, but COHORT_OVERRIDES
+            //    is keyed by cohort NAME. Use the activity's `cohort` field (the name) to look up overrides.
+            const cohortName = activity.cohort; // e.g. "Euclideans", "Dijkstrians", etc.
+            const override = COHORT_OVERRIDES[cohortName];
+            const finalCourseId = override?.courseId ?? body.courseId;
+            const finalVersionId = override?.versionId ?? body.courseVersionId;
 
-
-            // 3. Fetch Enrollment using the CORRECT (overridden) IDs
+            // 3. Fetch Enrollment using the CORRECT (overridden) IDs.
+            //    Even though enrollments are being migrated to include cohortId, 
+            //    we MUST use the overridden course/version IDs here because legacy 
+            //    enrollments are stored under their real DB IDs, not the pseudo IDs 
+            //    used for display in the frontend.
             const enrollment = await this.cohortRepository.findEnrollment(
                 student.id,
                 finalCourseId,
@@ -392,7 +398,7 @@ export class ActivitySubmissionsService extends BaseService {
                     courseId: new ObjectId(body.courseId),
                     courseVersionId: new ObjectId(body.courseVersionId),
                     cohortId: new ObjectId(body.cohortId),
-                    cohort: body.cohortId,
+                    cohort: cohortName || body.cohortId,
                     activityId: new ObjectId(body.activityId),
 
                     studentId: new ObjectId(student.id),
@@ -468,7 +474,7 @@ export class ActivitySubmissionsService extends BaseService {
                     courseId: new ObjectId(body.courseId),
                     courseVersionId: new ObjectId(body.courseVersionId),
                     cohortId: new ObjectId(body.cohortId),
-                    cohort: body.cohortId,
+                    cohort: cohortName || body.cohortId,
                     studentId: new ObjectId(student.id),
                     studentEmail: student.email,
                     activityId: new ObjectId(body.activityId),
