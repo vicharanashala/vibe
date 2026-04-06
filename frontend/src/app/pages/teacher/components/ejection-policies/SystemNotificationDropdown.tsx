@@ -98,7 +98,7 @@ const isTeacher = user?.role === "teacher";
                         <p className="text-xs font-bold truncate">
                           {invite?.course?.name || "New Invite"}
                         </p>
-                        <p className="text-[10px] text-muted-foreground">Course Invitation</p>
+                        <p className="text-[10px] text-muted-foreground">{ invite?.course?.description || "Course Invitation"}</p>
                         {isTeacher ? (
                           <div className="-ml-2 flex gap-1 mt-2 max-w-min">
                             <Button
