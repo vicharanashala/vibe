@@ -10,10 +10,10 @@ const cohortPerformance = [
     { name: 'Euclideans', value: 850 },
     { name: 'Dijkstrians', value: 920 },
     { name: 'Kruskalians', value: 780 },
-    { name: 'Scorchers', value: 780 },
+    { name: 'A', value: 820 },
     { name: 'AKSians', value: 880 },
     { name: 'RSAians', value: 950 },
-    { name: 'Testians', value: 900 },
+    { name: 'B', value: 890 },
 ];
 
 const coursePerformance = [
@@ -28,7 +28,7 @@ const hpDistribution = [
     { name: 'Dijkstrians', value: 5200 },
     { name: 'Kruskalians', value: 3800 },
     { name: 'RSAians', value: 6100 },
-    { name: 'Testians', value: 4200 },
+    { name: 'A', value: 4200 },
 ];
 
 const courseVersions = [

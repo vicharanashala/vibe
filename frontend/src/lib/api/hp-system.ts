@@ -33,10 +33,10 @@ export const COHORT_ID_MAP: Record<string, { courseId: string; versionId: string
     Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
     Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150" },
     Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57" },
-    Scorchers: { courseId: "69c77763b4ae917c56cf1342", versionId: "69c77763b4ae917c56cf1343" },
     RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719" },
     AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
-    Testians: { courseId: "69c77812b4ae917c56cf227e", versionId: "69c77812b4ae917c56cf227f" },
+    A: { courseId: "69d2b1bc0744872b91ab54d9", versionId: "69d2b1bc0744872b91ab54da" },
+    B: { courseId: "69d2b2e50744872b91ab641e", versionId: "69d2b2e50744872b91ab641f" },
 };
 
 export function getEffectiveIds(cohortId: string, fallbackCourseId: string, fallbackVersionId: string) {
