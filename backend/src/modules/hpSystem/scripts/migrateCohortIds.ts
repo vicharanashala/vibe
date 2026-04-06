@@ -14,8 +14,8 @@ import { MongoClient, ObjectId } from "mongodb";
 
 // ── Configuration ──────────────────────────────────────────────────────
 // Update this connection string to match your environment
-const MONGO_URI = "mongodb+srv://gcp-staging:vibe@staging-cluster.wj9moho.mongodb.net/?retryWrites=true&w=majority&appName=staging-cluster";
-const DB_NAME = "vibe";
+const MONGO_URI = "";
+const DB_NAME = "";
 
 // Hardcoded cohorts that need to be inserted into the cohorts collection
 const LEGACY_COHORTS = [
@@ -26,6 +26,8 @@ const LEGACY_COHORTS = [
     { name: "AKSians", courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
     { name: "Testians", courseId: "69c77812b4ae917c56cf227e", versionId: "69c77812b4ae917c56cf227f" },
     { name: "Scorchers", courseId: "69c77763b4ae917c56cf1342", versionId: "69c77763b4ae917c56cf1343" },
+    { name:"A", courseId: "69d2b1bc0744872b91ab54d9", versionId: "69d2b1bc0744872b91ab54da" },
+    { name:"B", courseId: "69d2b2e50744872b91ab641e", versionId: "69d2b2e50744872b91ab641f" },
 ];
 
 async function migrate() {
@@ -163,7 +165,7 @@ async function migrate() {
                 { 
                     courseId: new ObjectId(cohort.courseId),
                     courseVersionId: new ObjectId(cohort.versionId),
-                    role: "student",
+                    role: "STUDENT",
                     cohortId: { $exists: false } 
                 },
                 { $set: { cohortId: cohortId } }
