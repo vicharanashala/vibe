@@ -4,7 +4,7 @@ import SystemNotificationItem from "./SystemNotificationItem";
 import { SystemNotification, PendingRegistrationNotification } from "@/types/notification.types";
 import { useAuthStore } from "@/store/auth-store";
 import { processInviteApi } from "@/hooks/hooks";
-
+import { useNavigate } from "@tanstack/react-router";
 type Props = {
   notifications: SystemNotification[];
   pendingInvites?: any[];
@@ -40,7 +40,7 @@ export function UnifiedNotificationDropdown({
   onApproveRegistration,
   onInviteAction,
 }: Props) {
-  
+const navigate = useNavigate();  
 
 const user = useAuthStore((state) => state.user);
 const filteredInvites = pendingInvites.filter((invite) =>
@@ -217,7 +217,7 @@ const isTeacher = user?.role === "teacher";
           size="sm"
           className="w-full text-xs text-primary hover:text-primary hover:bg-primary/5 font-semibold"
           onClick={() => {
-            window.location.href = '/teacher/notifications';
+           navigate({ to: '/teacher/notifications' as any });
           }}
         >
           View All Notifications

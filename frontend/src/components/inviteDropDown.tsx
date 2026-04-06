@@ -9,6 +9,7 @@ import {
   Bell,
   Check,
 } from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
 import {Button} from '@/components/ui/button';
 import {processInviteApi, useMarkNotificationAsRead} from '@/hooks/hooks';
 import {
@@ -128,6 +129,7 @@ const InviteDropdown = ({
   enrollments=[],
   
 }: InviteDropdownProps) => {
+  const navigate = useNavigate();
   const {mutate: markAsRead, isPending} = useMarkNotificationAsRead();
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const [selectedPolicyNotification, setSelectedPolicyNotification] = useState<SystemNotification | null>(null);
@@ -547,9 +549,12 @@ useEffect(() => {
             size="sm"
             className="w-full text-xs text-primary hover:text-primary hover:bg-primary/5"
             onClick={() => {
-              const isTeacher = window.location.pathname.startsWith('/teacher');
-              const target = isTeacher ? '/teacher/notifications' : '/student/notifications';
-              window.location.href = target;
+              const isTeacher = user?.role === "teacher" || user?.role === "admin";
+              navigate({
+                to: isTeacher
+                  ? "/teacher/notifications"
+                  : "/student/notifications",
+              } as any);
               setShowInvites?.(false);
             }}
           >
