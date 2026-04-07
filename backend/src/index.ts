@@ -1,3 +1,5 @@
+import dns from 'dns';
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
 import 'reflect-metadata';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 console.log(`Loading Sentry for ${NODE_ENV} environment`);
