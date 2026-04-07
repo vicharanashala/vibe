@@ -5583,11 +5583,16 @@ export function useUpdateHpRuleConfig() {
   };
 }
 
-export function useHpStudents(courseVersionId: string, cohort: string) {
+export function useHpStudents(courseVersionId: string, cohort: string, params?: {
+    page: number;
+    limit: number;
+    search: string;
+    status: "ALL" | "SAFE" | "UNSAFE";
+  }) {
   const query = useQuery({
-    queryKey: ['hp-students', courseVersionId, cohort],
+    queryKey: ['hp-students', courseVersionId, cohort, params],
     queryFn: async () => {
-      const res = await hpApi.getStudents(courseVersionId, cohort);
+      const res = await hpApi.getStudents(courseVersionId, cohort, params);
       if (!res.success) throw new Error(res.message || 'Failed to load students');
       return res.data;
     },
