@@ -82,7 +82,7 @@ export class HpPenaltyRuleDto {
   @Min(0)
   graceMinutes?: number;
 
-  @ValidateIf(o => o.enabled)
+  @IsOptional()
   @IsBoolean()
   runOnce?: boolean;
 }
