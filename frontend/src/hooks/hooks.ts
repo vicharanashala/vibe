@@ -5355,10 +5355,12 @@ export function useUpdateActivitySubmission() {
       courseVersionId: string;
       cohortId: string;
       activityId: string;
-      payload: {
-        textResponse?: string;
-        links?: { url: string; label: string }[];
-      };
+        payload: {
+          textResponse?: string;
+          links?: { url: string; label: string }[];
+          files?: any[];
+          images?: any[];
+        };
       submissionSource?: string;
       files?: File[];
       images?: File[];

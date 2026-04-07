@@ -197,7 +197,7 @@ export default function StudentSubmissions() {
                 submissionId,
                 courseId,
                 courseVersionId: courseVersionId as string,
-                cohort: cohortId as string,
+                cohortId: cohortId as string,
                 activityId,
                 payload: {
                     textResponse: editTextResponse.trim() || undefined,
