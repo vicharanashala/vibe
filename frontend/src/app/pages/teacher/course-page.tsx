@@ -890,7 +890,7 @@ function CourseCard({
             cancelText="Cancel"
             isDestructive={true}
             isLoading={deleteCourseMutation.isPending}
-            loadingText="Cloning..."
+            loadingText="Deleting..."
           />
           <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <AnnouncementModal
