@@ -185,16 +185,12 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             {
                 $lookup: {
                     from: "hp_activity_rules",
-                    let: { aid: "$activityId", cvid: "$courseVersionId", cid: "$courseId" },
+                    let: { aid: "$activityId" },
                     pipeline: [
                         {
                             $match: {
                                 $expr: {
-                                    $and: [
-                                        { $eq: ["$activityId", "$$aid"] },
-                                        { $eq: ["$courseVersionId", "$$cvid"] },
-                                        { $eq: ["$courseId", "$$cid"] },
-                                    ],
+                                    $eq: ["$activityId", "$$aid"],
                                 },
                             },
                         },

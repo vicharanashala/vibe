@@ -663,8 +663,11 @@ export class ActivitySubmissionsService extends BaseService {
 
         const effectiveQuery: ListSubmissionsQueryDto = { ...query };
 
-        if (query.cohortId && COHORT_OVERRIDES[query.cohortId])
-            effectiveQuery.courseVersionId = COHORT_OVERRIDES[query.cohortId].versionId;
+        const cohortId = query.cohortId;
+        const override = cohortId ? (COHORT_OVERRIDES[cohortId] || Object.values(COHORT_OVERRIDES).find(o => o.cohortId === cohortId)) : null;
+
+        if (override)
+            effectiveQuery.courseVersionId = override.versionId;
 
 
         const docs = await this.activitySubmissionsRepository.list(effectiveQuery);
@@ -678,10 +681,10 @@ export class ActivitySubmissionsService extends BaseService {
         }));
     }
 
-    async listStudentCohortWiseSubmssions(teacherId: string, studentId: string, query: FilterQueryDto, cohortName: string): Promise<StudentActivitySubmissionsResponseDto> {
+    async listStudentCohortWiseSubmssions(teacherId: string, studentId: string, query: FilterQueryDto, cohortIdOrName: string): Promise<StudentActivitySubmissionsResponseDto> {
 
         const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined,
-            undefined, cohortName);
+            undefined, cohortIdOrName);
 
         // Get ledger data for all submissions
         const submissionIds = submissions.map(sub => sub.submission?._id).filter(Boolean);
@@ -725,11 +728,17 @@ export class ActivitySubmissionsService extends BaseService {
 
     async listStudentWiseSubmissionsStats(
         studentId: string,
-        cohortName: string
+        cohortIdOrName: string
     ): Promise<StudentActivitySubmissionStatsResponseDto> {
         if (!studentId) {
             throw new BadRequestError("Student id not found");
         }
+
+        const cohortId = cohortIdOrName;
+        const override = COHORT_OVERRIDES[cohortId] || Object.values(COHORT_OVERRIDES).find(o => o.cohortId === cohortId);
+        const resolvedCohortName = override ? Object.keys(COHORT_OVERRIDES).find(key => COHORT_OVERRIDES[key] === override) : cohortIdOrName;
+
+        const cohortName = resolvedCohortName || cohortIdOrName;
 
         const student = await this.userRepo.findById(studentId);
         if (!student) {
@@ -796,8 +805,8 @@ export class ActivitySubmissionsService extends BaseService {
     }
 
 
-    async listMySubmissions(studentId: string, query: FilterQueryDto, cohortName?: string): Promise<any> {
-        const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined, undefined, cohortName);
+    async listMySubmissions(studentId: string, query: FilterQueryDto, cohortIdOrName?: string): Promise<any> {
+        const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined, undefined, cohortIdOrName);
         return {
             success: true,
             data: submissions,
@@ -1182,26 +1191,32 @@ export class ActivitySubmissionsService extends BaseService {
         })
     }
 
-    async getCohortActivityStats(cohortName: string, activityId: string, session?: ClientSession): Promise<StudentCohortWiseActivitySubmissionsStatsDto> {
+    async getCohortActivityStats(cohortIdOrName: string, activityId: string, session?: ClientSession): Promise<StudentCohortWiseActivitySubmissionsStatsDto> {
         return this._withTransaction(async (session) => {
-            const data = await this.activitySubmissionsRepository.getCohortActivityStats(cohortName, activityId, session);
+            const cohortId = cohortIdOrName;
+            const override = COHORT_OVERRIDES[cohortId] || Object.values(COHORT_OVERRIDES).find(o => o.cohortId === cohortId);
+            const resolvedCohortName = override ? Object.keys(COHORT_OVERRIDES).find(key => COHORT_OVERRIDES[key] === override) : cohortIdOrName;
+
+            const data = await this.activitySubmissionsRepository.getCohortActivityStats(resolvedCohortName || cohortIdOrName, activityId, session);
             return {
                 data
             };
         });
     }
 
-    async getBulkCohortActivityStats(cohortName: string, courseVersionId: string, session?: ClientSession): Promise<StudentActivitySubmissionStatsViewDto> {
+    async getBulkCohortActivityStats(cohortIdOrName: string, courseVersionId: string, session?: ClientSession): Promise<StudentActivitySubmissionStatsViewDto> {
         return this._withTransaction(async (session) => {
-            
-            // Get cohort override info once to avoid repeated lookups
-            const cohortOverride = COHORT_OVERRIDES[cohortName];
+            // Resolve cohortIdOrName: if it's an ObjectId, find in overrides, else use as name
+            const inputCohortId = cohortIdOrName;
+            const cohortOverride = COHORT_OVERRIDES[inputCohortId] || Object.values(COHORT_OVERRIDES).find(o => o.cohortId === inputCohortId);
+            const resolvedCohortName = cohortOverride ? Object.keys(COHORT_OVERRIDES)[Object.values(COHORT_OVERRIDES).indexOf(cohortOverride)] : cohortIdOrName;
+
             const effectiveVersionId = cohortOverride?.versionId || courseVersionId;
             
             // Get cohort ID once if needed for HP calculations
             let cohortId: string | null = null;
             if (!cohortOverride) {
-                cohortId = await this.cohortRepository.getCohortIdByCohortName(cohortName);
+                cohortId = await this.cohortRepository.getCohortIdByCohortName(resolvedCohortName);
             }
             
             // Execute all queries in parallel for optimal performance
@@ -1215,25 +1230,25 @@ export class ActivitySubmissionsService extends BaseService {
                 pendingSubmissionsCount
             ] = await Promise.all([
                 // Get submission statistics
-                this.activitySubmissionsRepository.getCohortStatsMap(cohortName, courseVersionId, session),
+                this.activitySubmissionsRepository.getCohortStatsMap(resolvedCohortName, courseVersionId, session),
                 
                 // Get total activities count only
-                this.activityRepository.getCountByCohortId(cohortName, courseVersionId, session),
+                this.activityRepository.getCountByCohortId(resolvedCohortName, courseVersionId, session),
                 
                 // Get weekly activity data
-                this.getWeeklyActivityData(cohortName, courseVersionId, session),
+                this.getWeeklyActivityData(resolvedCohortName, courseVersionId, session),
                 
                 // Get HP distribution data
-                this.ledgerRepository.getHpDistributionForCohort(cohortName, courseVersionId, session),
+                this.ledgerRepository.getHpDistributionForCohort(resolvedCohortName, courseVersionId, session),
                 
                 // Get student progress data
-                this.activitySubmissionsRepository.getStudentProgressForCohort(cohortName, courseVersionId, session),
+                this.activitySubmissionsRepository.getStudentProgressForCohort(resolvedCohortName, courseVersionId, session),
                 
                 // Get late submission count
-                this.activitySubmissionsRepository.getLateSubmissionCount(cohortName, courseVersionId, session),
+                this.activitySubmissionsRepository.getLateSubmissionCount(resolvedCohortName, courseVersionId, session),
                 
                 // Get pending submissions count
-                this.activitySubmissionsRepository.getPendingSubmissionsCount(cohortName, courseVersionId, session)
+                this.activitySubmissionsRepository.getPendingSubmissionsCount(resolvedCohortName, courseVersionId, session)
             ]);
 
             // Build result object
@@ -1244,7 +1259,7 @@ export class ActivitySubmissionsService extends BaseService {
                 totalLateSubmissions: lateSubmissionCount || 0,
                 currentHp: 0,
                 reward: null,
-                bestPerformingCohort: cohortName,
+                bestPerformingCohort: resolvedCohortName,
                 coursePerformance: [],
                 weeklyActivity: weeklyActivity || [],
                 completionRates: this.formatCompletionRates(statsMap),
