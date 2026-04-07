@@ -590,7 +590,7 @@ const AdvancedAiWorkflow = () => {
                                             <Upload className="w-6 h-6 text-secondary" />
                                         </div>
                                         <h3 className="font-bold text-lg">Manual Audio Upload</h3>
-                                        <p className="text-sm text-muted-foreground">Upload your own high-quality audio file for transcription (Wizard mode).</p>
+                                        <p className="text-sm text-muted-foreground">Upload your own high-quality audio file for transcription.</p>
                                         <Button className="w-full" onClick={() => setAudioChoice("upload")}>Choose Upload</Button>
                                     </div>
                                 </div>
