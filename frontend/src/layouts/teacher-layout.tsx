@@ -176,6 +176,11 @@ const { mutate: markAllSystemRead } = useMarkAllSystemNotificationsAsRead();
   }, [user, isAuthReady, pendingRegistrations?.length])
 
   const totalUnreadCount = (systemUnreadCount || 0) + pendingInvites.length + pendingRegistrationsList.length;
+  const handleInviteAction = async () => {
+  const result = await getInvites();
+  setPendingInvites(result.invites || []);
+  
+};
 
   return (
     <SidebarProvider>
@@ -259,6 +264,7 @@ const { mutate: markAllSystemRead } = useMarkAllSystemNotificationsAsRead();
                       navigate({ to: "/teacher/courses/registration-requests" as any });
                       setShowSystemNotifications(false);
                     }}
+                    onInviteAction={handleInviteAction}
                   />
                 )}
               </div>
