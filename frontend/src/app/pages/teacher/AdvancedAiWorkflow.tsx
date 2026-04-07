@@ -521,12 +521,7 @@ const AdvancedAiWorkflow = () => {
 
     return (
         <div className="py-2">
-            <div className="mb-2">
-                <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/teacher/courses/view" })} className="hover:bg-accent/10">
-                    <ArrowLeft className="h-4 w-4 mr-2" /> Back to Courses
-                </Button>
-            </div>
-            
+           
             <Card className="overflow-hidden border-none shadow-2xl bg-card">
                 <CardHeader className="border-b bg-muted/30">
                     <div className="flex items-center justify-between">
@@ -689,7 +684,7 @@ const AdvancedAiWorkflow = () => {
                                     segmentationMap={segmentationMap}
                                     segmentationChunks={segmentationChunks}
                                     segments={segments}
-                                    handleApproveTask={handleApproveTask}
+                                    handleApproveTask={(...args: any[]) => handleApproveTask('segmentation', ...args)}
                                     currentJobStatus={currentJob.status}
                                     setCustomSegmentationParams={setCustomSegmentationParams}
                                     customSegmentationParams={customSegmentationParams}
@@ -699,7 +694,7 @@ const AdvancedAiWorkflow = () => {
                                     isApprovingTask={isApprovingTask}
                                     setSegmentationMap={setSegmentationMap}
                                     setSegmentationChunks={setSegmentationChunks}
-                                    showSegments={true}
+                                    showSegments={false}
                                 />
                             )}
 
@@ -711,7 +706,7 @@ const AdvancedAiWorkflow = () => {
                                     questions={questions}
                                     setQuestions={setQuestions}
                                     aiJobId={aiJobId}
-                                    handleApproveTask={handleApproveTask}
+                                    handleApproveTask={(qnParams, filtered) => handleApproveTask('questionGeneration', qnParams, filtered)}
                                     setEditingIdx={setEditingIdx}
                                     setEditQuestion={setEditQuestion}
                                     setEditModalOpen={setEditModalOpen}
@@ -734,7 +729,7 @@ const AdvancedAiWorkflow = () => {
                                     currentJobStatus={currentJob.status}
                                     setUploadParams={setUploadParams}
                                     uploadParams={uploadParams}
-                                    handleApproveTask={handleApproveTask}
+                                    handleApproveTask={(qnParams, filtered) => handleApproveTask('uploadContent', qnParams, filtered)}
                                     isLoading={isLoading}
                                     isApprovingTask={isApprovingTask}
                                     aiJobId={aiJobId}
