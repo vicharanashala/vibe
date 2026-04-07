@@ -94,7 +94,6 @@ export default function CoursePage() {
     };
   }, []);
   const [attemptId, setAttemptId] = useState<string | null>(null);
-  const [showPolicies, setShowPolicies] = useState(false)
   // Dialog state for proctoring declaration
   const [showProctorDialog, setShowProctorDialog] = useState(true);
   const { user } = useAuthStore();
@@ -114,7 +113,6 @@ export default function CoursePage() {
   const { mutateAsync: recalculateStudentProgressAsync } = useRecalculateStudentProgress();
   const [closing, setClosing] = useState(false);
   const [allProctorsDisabled, setAllProctorsDisabled] = useState(false);
-  const [previousItems, setPreviousItems] = useState<object | null >(null)
   const streamRef = useRef<MediaStream | null>(null);
 
   // Emotion tracking state
@@ -316,7 +314,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     itemId: string;
   } | null>(null);
 
-
   // ---------------------------------------------
   // SAFE SECTION ACTIVATION (PREVENT RE-FETCH)
   // ---------------------------------------------
@@ -379,7 +376,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     shouldFetchItems,
     activeSectionInfo
   ]);
-
 
 
   // Separate effect for handling item errors - prevents circular dependencies
@@ -803,13 +799,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
             itemId: selectedItemId!,
           });
         }
-
-        
-          const allSectionItems = sectionItems[sectionId];
-          const indexOfCurrentItem = allSectionItems.findIndex(obj => obj._id === itemId);
-          const previousItemOfCurrentItem = allSectionItems[indexOfCurrentItem-1];
-          setPreviousItems(previousItemOfCurrentItem)
-        
 
         // Clear errors 
         setIsItemForbidden(false);
@@ -1513,7 +1502,7 @@ const handleGoToNextItem = async () => {
   try {
     const { moduleId, sectionId: nextSectionId, itemId } = nextItemInfo as any;
     if (!moduleId || !nextSectionId || !itemId) return;
-    console.log("Handle select called from handleGoToNextitem")
+
     handleSelectItem(moduleId, nextSectionId, itemId);
   } finally {
     // Re-enable after navigation state has been handed off
@@ -1529,10 +1518,10 @@ useEffect(() => {
   const next = findNextItem();
   if (next) return; // not the last item
   // Small delay so the learner briefly sees the item before redirect
-  // const timer = setTimeout(() => {
-  //   router.navigate({ to: '/student' });
-  // }, 2000);
-  // return () => clearTimeout(timer);
+  const timer = setTimeout(() => {
+    router.navigate({ to: '/student' });
+  }, 2000);
+  return () => clearTimeout(timer);
 }, [currentItem, findNextItem, router]);
 
 
@@ -2073,7 +2062,7 @@ useEffect(() => {
 
                   {/* Quiz Passed/Failed */}
 
-                  {quizPassed !== 2 && !isQuizSkipped && (
+                  {quizPassed !== 2 && quizPassed !== 3 && !isQuizSkipped && (
                     <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-5 fade-in duration-200">
                       <div
                         className={`relative w-[380px] rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 
@@ -2237,7 +2226,6 @@ useEffect(() => {
                         nextItem={findNextItem()}
                         cohortId={COHORT_ID}
                         cohortName={COHORT_NAME}
-                        previousItem={previousItems}
                       />
                     )}
 

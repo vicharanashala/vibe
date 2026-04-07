@@ -75,8 +75,12 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isTimeslotModalOpen, setIsTimeslotModalOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
- 
- 
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
+  // const [showPolicies, setShowPolicies] = useState(false);
+  const supportEmail =
+    enrollment.courseId === "692f030a945e82ec875e9116"
+      ? "vibe-support@vicharanashala.zohodesk"
+      : "internship-support@vicharanashala.zohodesk";
 
 
   const progress = Number(Math.min(enrollment.percentCompleted ?? 0, 100).toFixed(2));
@@ -144,7 +148,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   useEffect(() => {
     if (!enrollment) return
-    console.log("Enrollment of the course -> ", enrollment)
+   
   })
 
   const handleContinue = () => {
@@ -156,10 +160,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       return;
     }
 
-    console.log("Setting course store:", {
-      courseId: courseId,
-      versionId: versionId
-    });
+   
 
     // Pass both courseId and versionId to the store
     setCurrentCourse({

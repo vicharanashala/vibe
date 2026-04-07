@@ -858,6 +858,22 @@ function CourseCard({
                     View Audit
                   </DropdownMenuItem>
 
+                  <DropdownMenuItem onClick={showVersionForm} disabled={createVersionMutation.isPending}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Version
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (!expandedCourse) toggleCourse()
+                      setShowDeleteCourseModal(true)
+                    }}
+                    disabled={deleteCourseMutation.isPending}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Course
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -1018,65 +1034,6 @@ function CourseCard({
                     <div className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full"></div>
                     All Versions ({course.versions?.length || 0})
                   </h3>
-                  {/* <div className="flex items-center gap-2">
-                    <Button
-                      onClick={showVersionForm}
-                      size="sm"
-                      variant="outline"
-                      disabled={createVersionMutation.isPending}
-                      className="bg-linear-to-r from-primary/10 to-accent/10 border-primary/30 duration-300"
-                    >
-                      {createVersionMutation.isPending ? (
-                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      ) : (
-                        <Plus className="h-3 w-3 mr-1" />
-                      )}
-                      Add Version
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (!expandedCourse) toggleCourse()
-                        setShowDeleteCourseModal(true)
-                      }}
-                      className="h-9 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive dark:hover:text-destructive-foreground transition-all duration-300"
-                      disabled={deleteCourseMutation.isPending}
-                    >
-                      {deleteCourseMutation.isPending ? (
-                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-3 w-3 mr-1" />
-                      )}
-                      Delete Course
-                    </Button>
-                  </div> */}
-                  {/* <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant={"outline"} size={"icon"}>
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem onClick={showVersionForm} disabled={createVersionMutation.isPending}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Version
-                      </DropdownMenuItem>
-
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (!expandedCourse) toggleCourse()
-                          setShowDeleteCourseModal(true)
-                        }}
-                        disabled={deleteCourseMutation.isPending}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Course
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu> */}
                 </div>
 
                 {/* New Version Form */}
@@ -1432,10 +1389,6 @@ function VersionCard({
   }
 
   const deleteVersion = async () => {
-
-
-
-
     try {
       await deleteVersionMutation.mutateAsync({
         params: { path: { courseId: courseId, versionId: selectedVersionId } },
@@ -1715,18 +1668,9 @@ function VersionCard({
                         );
                       })()}
 
-                      <DropdownMenuItem onClick={showVersionForm} disabled={createVersionMutation.isPending}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Version
-                      </DropdownMenuItem>
-
                       <DropdownMenuItem onClick={() => setShowAnnouncementModal(true)}>
                         <Megaphone className="mr-2 h-4 w-4" />
                         Announce
-                      </DropdownMenuItem>
-
-                      <DropdownMenuItem>
-                        
                       </DropdownMenuItem>
 
                       <DropdownMenuItem onClick={() => setIsCopyModalOpen(true)}>
@@ -1774,18 +1718,6 @@ function VersionCard({
                             Archive
                           </>
                         )}
-                      </DropdownMenuItem>
-
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (!expandedCourse) toggleCourse()
-                          setShowDeleteCourseModal(true)
-                        }}
-                        disabled={deleteCourseMutation.isPending}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Course
                       </DropdownMenuItem>
 
                       <DropdownMenuItem

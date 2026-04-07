@@ -161,9 +161,10 @@ export class CohortsController {
         const sortBy = query.sortBy ?? "name";
         const sortOrder = query.sortOrder ?? "asc";
         const search = query.search?.trim();
+        const status = query.status ?? "ALL";
 
-        return await this.cohortsService.listCohortStudents({ versionId, cohortName, query: { page, limit, sortBy, sortOrder, search } });
-        
+        return await this.cohortsService.listCohortStudents({ versionId, cohortName, query: { page, limit, sortBy, sortOrder, search, status } });
+
     }
 
 }

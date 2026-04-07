@@ -104,6 +104,28 @@ export class UserController {
   }
 
   @OpenAPI({
+    summary: 'Get the current user face reference',
+    description: 'Returns the authenticated user label and stored profile image for face comparison.',
+  })
+  @Authorized()
+  @Get('/me/face-reference')
+  @HttpCode(200)
+  async getCurrentUserFaceReference(@Req() req: any): Promise<{
+    label: string;
+    profileImage: string | null;
+    faceEmbedding: number[] | null;
+  }> {
+    const token = req.headers.authorization?.split(' ')[1];
+    const user = await this.authService.getCurrentUserFromToken(token);
+
+    return {
+      label: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+      profileImage: user.profileImage || null,
+      faceEmbedding: user.faceEmbedding || null,
+    };
+  }
+
+  @OpenAPI({
     summary: 'Edit user information',
     description: `Edit user information like first and last name.<br/>
     It returns an empty body with a 200 status code.`,
