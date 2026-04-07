@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { toast } from "sonner";
-import { CreateHpActivityPayload, HpRuleConfig, CourseWithVersions, CourseVersionStats, SubmissionField } from "@/lib/api/hp-system";
+import { CreateHpActivityPayload, HpRuleConfig, CourseWithVersions, CourseVersionStats, SubmissionField, getEffectiveIds } from "@/lib/api/hp-system";
 import { useCreateActivityWithRule, useCreateHpActivity, useCreateHpRuleConfig, useHpCourseVersions } from "@/hooks/hooks";
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal";
 
@@ -279,13 +279,19 @@ export default function CreateHpActivityPage() {
             return;
         }
 
+        const { 
+            courseId: finalCourseId, 
+            courseVersionId: finalVersionId, 
+            cohortId: finalCohortId 
+        } = getEffectiveIds(cohortId || "", courseId || "", courseVersionId || "");
+
         // 1. Prepare activity payload (including some fields from ruleConfig that Activity needs)
         const activityPayload = {
             ...data,
-            courseId: courseId,
-            courseVersionId: courseVersionId,
-            cohortId: cohortId || "",
-            cohort: cohortId || "",
+            courseId: finalCourseId,
+            courseVersionId: finalVersionId,
+            cohortId: finalCohortId,
+            cohort: cohortId || "", // Keep the name for human-readability as requested before
             attachments: data.attachments?.map(att => ({ ...att, kind: att.kind || "LINK" })),
             status,
             deadlineAt: ruleConfig.deadlineAt,
@@ -295,8 +301,8 @@ export default function CreateHpActivityPage() {
 
         // 2. Create the full Rule Config
         const rulePayload = {
-            courseId: courseId,
-            courseVersionId: courseVersionId,
+            courseId: finalCourseId,
+            courseVersionId: finalVersionId,
             submissionValidation: isVibeMilestone ? [] : ruleConfig.submissionValidation,
             isMandatory: ruleConfig.isMandatory as boolean,
             deadlineAt: ruleConfig.deadlineAt as string | undefined,

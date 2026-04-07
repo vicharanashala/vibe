@@ -20,10 +20,16 @@ export class CreateActivityBody {
     courseVersionId!: string;
 
     @IsString()
+    @IsOptional()
     courseId!: string;
 
-    @IsMongoId()
-    cohortId!: string;
+    @IsString()
+    @IsOptional()
+    cohortId?: string;
+
+    @IsString()
+    @IsOptional()
+    cohort?: string;
 
     // Content
     @IsString()
@@ -124,8 +130,12 @@ export class UpdateActivityBody {
     isMandatory?: boolean;
 
     @IsOptional()
-    @IsMongoId()
+    @IsString()
     cohortId?: string;
+
+    @IsOptional()
+    @IsString()
+    cohort?: string;
 
     @IsOptional()
     @IsNumber()
@@ -137,15 +147,15 @@ export class UpdateActivityBody {
 
 export class ListActivitiesQuery {
     @IsOptional()
-    @IsMongoId({ message: "courseId must be a valid MongoDB ObjectId" })
+    @IsString({ message: "courseId must be a string" })
     courseId?: string;
 
     @IsOptional()
-    @IsMongoId({ message: "courseVersionId must be a valid MongoDB ObjectId" })
+    @IsString({ message: "courseVersionId must be a string" })
     courseVersionId?: string;
 
     @IsOptional()
-    @IsMongoId({ message: "cohortId must be a valid MongoDB ObjectId" })
+    @IsString({ message: "cohortId must be a string" })
     cohortId?: string;
 
     @IsOptional()

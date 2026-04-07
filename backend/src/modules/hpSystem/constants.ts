@@ -116,15 +116,15 @@ export interface CohortOverride {
 }
 
 export const COHORT_OVERRIDES: Record<string, CohortOverride> = {
-  Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
-  Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150" },
-  Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57" },
-  RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719" },
-  AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
-  A: { courseId: "69d2b1bc0744872b91ab54d9", versionId: "69d2b1bc0744872b91ab54da" },
-  B: { courseId: "69d2b2e50744872b91ab641e", versionId: "69d2b2e50744872b91ab641f" },
-  Scorchers: { courseId: "69c77763b4ae917c56cf1342", versionId: "69c77763b4ae917c56cf1343" },
-  Testians: { courseId: "69c77812b4ae917c56cf227e", versionId: "69c77812b4ae917c56cf227f" },
+  Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af", cohortId: "69d31909b50379d839ff3492" },
+  Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150", cohortId: "69d3190ab50379d839ff3493" },
+  Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57", cohortId: "69d3190ab50379d839ff3494" },
+  RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719", cohortId: "69d3190ab50379d839ff3495" },
+  AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff", cohortId: "69d3190ab50379d839ff3496" },
+  A: { courseId: "69d2b1bc0744872b91ab54d9", versionId: "69d2b1bc0744872b91ab54da", cohortId: "69d31a4697aaee1324e583d5" },
+  B: { courseId: "69d2b2e50744872b91ab641e", versionId: "69d2b2e50744872b91ab641f", cohortId: "69d31a4697aaee1324e583d6" },
+  Scorchers: { courseId: "69c77763b4ae917c56cf1342", versionId: "69c77763b4ae917c56cf1343", cohortId: "69d3190ab50379d839ff3498" },
+  Testians: { courseId: "69c77812b4ae917c56cf227e", versionId: "69c77812b4ae917c56cf227f", cohortId: "69d3190ab50379d839ff3497" },
 };
 
 export const LEGACY_COURSE_KEYS = new Set([

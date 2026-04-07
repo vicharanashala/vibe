@@ -183,7 +183,12 @@ export class RuleConfigService extends BaseService {
     async createActivityWithRule(teacherId: string, body: CreateActivityWithRuleBody): Promise<HpRuleConfigTransformer> {
         return this._withTransaction(async (session) => {
             const activity = await this.activiService.create(teacherId, body.activity);
-            const ruleConfig = { ...body.ruleConfig, activityId: activity._id.toString()};
+            const ruleConfig = { 
+                ...body.ruleConfig, 
+                activityId: activity._id.toString(),
+                courseId: activity.courseId.toString(),
+                courseVersionId: activity.courseVersionId.toString()
+            };
             return this.create(ruleConfig);
         });
     }

@@ -56,15 +56,16 @@ export class ActivityService extends BaseService {
                 );
 
             const now = new Date();
+
             const doc = await this.activityRepository.createActivity(
                 {
                     courseId: new ObjectId(body.courseId),
                     courseVersionId: new ObjectId(body.courseVersionId),
                     cohortId: new ObjectId(body.cohortId),
                     cohort: await (async () => {
-                        const c = await this.cohortRepository.getCohortById(body.cohortId);
-                        return c?.name || body.cohortId;
-                    })(), // Legacy fallback with name if available
+                        const c = await this.cohortRepository.getCohortById(body.cohortId!);
+                        return c?.name || body.cohort || body.cohortId;
+                    })(),
 
                     createdByTeacherId: new ObjectId(teacherId),
                     publishedByTeacherId: body.status === "PUBLISHED" ? new ObjectId(teacherId) : undefined,
@@ -147,8 +148,8 @@ export class ActivityService extends BaseService {
                     ...(body.cohortId !== undefined ? { 
                         cohortId: new ObjectId(body.cohortId), 
                         cohort: await (async () => {
-                            const c = await this.cohortRepository.getCohortById(body.cohortId);
-                            return c?.name || body.cohortId;
+                            const c = await this.cohortRepository.getCohortById(body.cohortId!);
+                            return c?.name || body.cohort || body.cohortId;
                         })()
                     } : {}),
                     ...(body.required_percentage !== undefined ? { required_percentage: body.required_percentage } : {}),
