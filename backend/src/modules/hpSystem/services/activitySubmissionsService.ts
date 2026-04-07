@@ -969,7 +969,7 @@ export class ActivitySubmissionsService extends BaseService {
 
                     // First Ledger: The Reversal
                     const restoreLedger = await this.ledgerRepository.findRestoreBySubmissionId(submissionId);
-                    const revertReasonCode = isRevert ? (restoreLedger ? "MANUAL" : "REWARD_REVERSAL") : "REJECTION_PENALTY";
+                    const revertReasonCode = isRevert ? (restoreLedger ? "RESTORE_REVERSAL" : "REWARD_REVERSAL") : "REJECTION_PENALTY";
                     const revertOperationId = getHpLedgerOperationId("revert");
 
                     ledgerPromises.push(this.ledgerRepository.create(

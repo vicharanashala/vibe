@@ -6,8 +6,9 @@ import { ClientSession, ObjectId } from "mongodb";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { ActivityRepository } from "../repositories/index.js";
-import { BadRequestError } from "routing-controllers";
+import { BadRequestError, NotFoundError } from "routing-controllers";
 import { IActivitySubmissionRepository } from "../interfaces/IActivitySubmissionRepository.js";
+import { HpResetMode } from "../models.js";
 
 
 @injectable()
@@ -660,6 +661,76 @@ export class CohortsService extends BaseService {
         success: true,
         data
     };
-}
+  }
+
+  async resetHpforCohort(
+    courseVersionId: string,
+    cohortName: string,
+    targetHp: number,
+    mode: HpResetMode,
+    triggeredByUserId: string,
+  ): Promise<number> {
+    return await this._withTransaction(async (session: ClientSession) => {
+      if (targetHp < 0) {
+        throw new BadRequestError('Target Hp can not be negative');
+      }
+
+      const cohorts =
+        await this.cohortRepository.getCohortsByVersionId(courseVersionId);
+
+      const matchedCohort = cohorts.find(
+        c => c.name.toLowerCase() === cohortName.trim().toLowerCase(),
+      );
+
+      if (!matchedCohort) {
+        throw new NotFoundError('Cohort Not found');
+      }
+
+      return this.cohortRepository.resetHpforCohort(
+        courseVersionId,
+        matchedCohort._id.toString(),
+        cohortName,
+        targetHp,
+        mode,
+        triggeredByUserId,
+        session,
+      );
+    });
+  }
+
+  async resetHpForStudent(
+    courseVersionId: string,
+    cohortName: string,
+    studentId: string,
+    targetHp: number,
+    triggeredByUserId: string,
+  ): Promise<boolean> {
+    return await this._withTransaction(async (session: ClientSession) => {
+        if (targetHp < 0) {
+        throw new BadRequestError('Target Hp can not be negative');
+        }
+
+        const cohorts =
+        await this.cohortRepository.getCohortsByVersionId(courseVersionId);
+
+        const matchedCohort = cohorts.find(
+        c => c.name.toLowerCase() === cohortName.trim().toLowerCase(),
+        );
+
+        if (!matchedCohort) {
+        throw new NotFoundError('Cohort Not found');
+        }
+
+        return this.cohortRepository.resetHpForStudent(
+        courseVersionId,
+        matchedCohort._id.toString(),
+        cohortName,
+        studentId,
+        targetHp,
+        triggeredByUserId,
+        session,
+        );
+    });
+  }
 }
 

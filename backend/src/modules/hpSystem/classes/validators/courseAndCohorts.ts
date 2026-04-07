@@ -1,7 +1,9 @@
-import { IsArray, IsNumber, IsOptional, IsString, ValidateNested, IsBoolean, Min, IsIn, IsEmail, IsInt } from "class-validator";
+import { IsArray, IsNumber, IsOptional, IsString, ValidateNested, IsBoolean, Min, IsIn, IsEmail, IsInt, IsNotEmpty } from "class-validator";
 import { Expose, Type } from "class-transformer";
 import { ToNumber } from "../../utils/toNumber.js";
 import { statusFilter } from "../../models.js";
+import { JSONSchema } from "class-validator-jsonschema";
+import { HpResetMode } from '../../models.js';
 
 export class CourseVersionDto {
 
@@ -336,4 +338,69 @@ export class CohortStudentsListQueryDto {
     @IsOptional()
     @IsIn(["ALL", "SAFE", "UNSAFE"])
     status?: statusFilter;
+}
+
+
+export class ResetHpRequest {
+    @IsNumber()
+    @Min(0)
+    targetHp: number;
+    
+    @IsIn(['ALL', 'ONLY_ZERO_HP', 'ONLY_WITH_HP'])
+    mode: HpResetMode;
+}
+
+export class ResetRequestParams {
+    @JSONSchema({
+        description: 'Course version id',
+        example: '69bed49fc461e665a086938c',
+        type: 'string',
+    })
+    @IsString()
+    @IsNotEmpty()
+    versionId: string;
+
+    @JSONSchema({
+        description: 'Name of the cohort',
+        example: 'Krushkalians',
+        type: 'string',
+    })
+    @IsString()
+    @IsNotEmpty()
+    cohortName: string;
+}
+
+export class ResetStudentRequestParams {
+    @JSONSchema({
+        description: 'Course version id',
+        example: '69bed49fc461e665a086938c',
+        type: 'string',
+    })
+    @IsString()
+    @IsNotEmpty()
+    versionId: string;
+
+    @JSONSchema({
+        description: 'Name of the cohort',
+        example: 'Krushkalians',
+        type: 'string',
+    })
+    @IsString()
+    @IsNotEmpty()
+    cohortName: string;
+
+    @JSONSchema({
+        description: 'Id of student',
+        example: '69d389b65670ad9fcd11df17',
+        type: 'string',
+    })
+    @IsString()
+    @IsNotEmpty()
+    studentId: string;
+}
+
+export class ResetStudentHpRequest {
+    @IsNumber()
+    @Min(0)
+    targetHp: number;
 }

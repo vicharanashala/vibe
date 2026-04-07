@@ -2,14 +2,17 @@ import { Course, CourseVersion } from "#root/modules/courses/classes/index.js";
 import { CohortStudentItemDto, CohortStudentsListQueryDto } from "#root/modules/hpSystem/classes/validators/courseAndCohorts.js";
 import { COHORT_OVERRIDES, ID } from "#root/modules/hpSystem/constants.js";
 import { ICohortRepository } from "#root/modules/hpSystem/interfaces/ICohortsRepository.js";
-import { ICohort, IEnrollment, MongoDatabase } from "#root/shared/index.js";
+import { ICohort, IEnrollment, IUserRepository, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { plainToInstance } from "class-transformer";
 import { CourseWithVersionsDto } from "#root/modules/hpSystem/classes/validators/courseAndCohorts.js";
 import { inject, injectable } from "inversify";
 import { ClientSession, Collection, ObjectId } from "mongodb";
-import { HpActivity, HpLedger } from "#root/modules/hpSystem/models.js";
+import { HpActivity, HpLedger, HpResetMode } from "#root/modules/hpSystem/models.js";
 import { HpActivitySubmission } from "#root/modules/hpSystem/classes/transformers/ActivitySubmission.js";
+import { toObjectId } from "#root/modules/hpSystem/utils/toObjectId.js";
+import { getHpLedgerOperationId } from "#root/modules/hpSystem/utils/getHpLedgerOperationId .js";
+import { NotFoundError } from "routing-controllers";
 
 @injectable()
 export class CohortRepository implements ICohortRepository {
@@ -25,6 +28,8 @@ export class CohortRepository implements ICohortRepository {
     constructor(
         @inject(GLOBAL_TYPES.Database)
         private db: MongoDatabase,
+        @inject(GLOBAL_TYPES.UserRepo) 
+        private readonly userRepo: IUserRepository,
     ) { }
 
     private async init() {
@@ -932,5 +937,211 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
         }
 
         return doc.version;
+    }
+
+    async resetHpforCohort(
+    courseVersionId: string,
+    cohortId: string,
+    cohortName:string,
+    targetHp: number,
+    mode: HpResetMode,
+    triggeredByUserId: string,
+    session?: ClientSession,
+    ): Promise<number> {
+
+    const filter: any = {
+        isDeleted: {$ne: true},
+        courseVersionId: toObjectId(courseVersionId,"courseVersionId"),
+        cohortId: toObjectId(cohortId,"cohortId"),
+    };
+
+    if (mode === 'ONLY_ZERO_HP') {
+        filter.$or = [
+        {hpPoints: 0},
+        {hpPoints: {$exists: false}},
+        {hpPoints: null},
+        ];
+    } else if (mode === 'ONLY_WITH_HP') {
+        filter.hpPoints = {$gt: 0};
+    }
+
+    // ✅ STEP 1: Fetch students
+    const students = await this.enrollmentCollection
+        .find(filter, { session })
+        .toArray();
+
+    if (!students.length) return 0;
+
+    const userIds = students.map(s => s.userId.toString());
+
+    const users = await this.userRepo.getUsersByIds(userIds)
+
+    const userMap = new Map(users.map(u => [u._id.toString(), u.email]));
+
+    const bulkEnrollmentOps = [];
+    const ledgerDocs = [];
+    const modeTextMap = {
+        ALL: "all students in the cohort",
+        ONLY_ZERO_HP: "students with no HP",
+        ONLY_WITH_HP: "students with existing HP",
+    };
+
+    for (const student of students) {
+        if(student.isDeleted)
+            continue;
+        const currentHp = student.hpPoints ?? 0;
+        const diff = targetHp - currentHp;
+
+        // skip if no change
+        if (diff === 0) continue;
+
+        const direction = diff > 0 ? 'CREDIT' : 'DEBIT';
+
+        // ✅ Ledger entry
+        ledgerDocs.push({
+            courseId: student.courseId,
+            courseVersionId: student.courseVersionId,
+            cohort: cohortName,
+
+            studentId: student.userId,
+            studentEmail: userMap.get(student.userId.toString()),
+
+            activityId: null,
+            submissionId: null,
+
+            eventType: 'RESET',
+            direction,
+            amount: Math.abs(diff),
+
+            calc: {
+                ruleType: 'ABSOLUTE',
+                absolutePoints: targetHp,
+                baseHpAtTime: currentHp,
+                computedAmount: currentHp+diff,
+                reasonCode: 'HP_RESET',
+            },
+
+            links: null,
+
+            meta: {
+                triggeredBy: 'TEACHER',
+                triggeredByUserId: toObjectId(triggeredByUserId,"triggeredByUserId"),
+                operationId: getHpLedgerOperationId(mode),
+                note: `Instructor reset student's HP from ${currentHp} to ${targetHp} for ${modeTextMap[mode]}.`
+            },
+
+            createdAt: new Date(),
+        });
+
+        bulkEnrollmentOps.push({
+        updateOne: {
+            filter: { _id: student._id },
+            update: {
+            $set: {
+                hpPoints: targetHp,
+                updatedAt: new Date(),
+            },
+            },
+        },
+        });
+    }
+
+    if (ledgerDocs.length) {
+        await this.hpLedgerCollection.insertMany(ledgerDocs, { session });
+    }
+
+    if (bulkEnrollmentOps.length) {
+        await this.enrollmentCollection.bulkWrite(bulkEnrollmentOps, { session });
+    }
+
+    return bulkEnrollmentOps.length;
+    }
+
+    async resetHpForStudent(
+    courseVersionId: string,
+    cohortId: string,
+    cohortName: string,
+    studentId: string,
+    targetHp: number,
+    triggeredByUserId: string,
+    session?: ClientSession,
+    ): Promise<boolean> {
+
+    const filter: any = {
+        isDeleted: { $ne: true },
+        courseVersionId: toObjectId(courseVersionId, "courseVersionId"),
+        cohortId: toObjectId(cohortId, "cohortId"),
+        userId: toObjectId(studentId, "studentId"),
+    };
+
+    const student = await this.enrollmentCollection.findOne(filter, { session });
+
+    if (!student) {
+        throw new NotFoundError('Student not found in this cohort');
+    }
+
+    const currentHp = student.hpPoints ?? 0;
+    const diff = targetHp - currentHp;
+
+    // No change case
+    if (diff === 0) return false;
+
+    const direction = diff > 0 ? 'CREDIT' : 'DEBIT';
+
+    const user = await this.userRepo.getUsersByIds([studentId]);
+    const studentEmail = user?.[0]?.email;
+
+    // ✅ Ledger entry
+    const ledgerDoc: HpLedger = {
+        courseId: student.courseId,
+        courseVersionId: student.courseVersionId,
+        cohortId: student.cohortId,
+        cohort: cohortName,
+
+        studentId: student.userId,
+        studentEmail:studentEmail,
+
+        activityId: null,
+        submissionId: null,
+
+        eventType: 'RESET',
+        direction: direction,
+        amount: Math.abs(diff),
+
+        calc: {
+            ruleType: 'ABSOLUTE',
+            absolutePoints: targetHp,
+            baseHpAtTime: currentHp,
+            computedAmount: currentHp+diff,
+            reasonCode: 'HP_RESET',
+        },
+
+        links: null,
+
+        meta: {
+            triggeredBy: "TEACHER",
+            triggeredByUserId: toObjectId(triggeredByUserId, "triggeredByUserId"),
+            operationId: getHpLedgerOperationId('RESET_HP_SINGLE_STUDENT'),
+            note: `Your HP was updated from ${currentHp} to ${targetHp}.`,
+        },
+
+        createdAt: new Date(),
+    };
+
+    await this.hpLedgerCollection.insertOne(ledgerDoc, { session });
+
+    // Update enrollment
+    await this.enrollmentCollection.updateOne(
+        { _id: student._id },
+        {
+            $set: {
+                hpPoints: targetHp,
+                updatedAt: new Date(),
+            },
+        },
+        { session },
+    );
+
+    return true;
     }
 }

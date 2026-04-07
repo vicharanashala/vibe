@@ -460,12 +460,14 @@ export default function StudentLedgerPage() {
                             </div>
                         </div>
                     )}
-                    <Button className="w-full" onClick={() => navigate({ 
-                            to: selectedEntry?.submissionId 
-                                ? `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortId || '')}/student/${studentId}/submission/${selectedEntry.submissionId}`
-                                : `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortId || '')}/student/${studentId}/submissions`
-                        })}>View Submission
-                    </Button>
+                    {selectedEntry?.eventType!== "BASE_INIT" && selectedEntry?.eventType!=="RESET" &&
+                        <Button className="w-full" onClick={() => navigate({ 
+                                to: selectedEntry?.submissionId 
+                                    ? `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/student/${studentId}/submission/${selectedEntry.submissionId}`
+                                    : `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/student/${studentId}/submissions`
+                            })}>View Submission
+                        </Button>
+                    }
                 </DialogContent>
             </Dialog>
         </div>
