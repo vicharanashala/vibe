@@ -21,9 +21,10 @@ import { ResetStudentHpDialog } from "./ResetStudentHpDialog";
 export interface StudentsTabProps {
   courseVersionId: string;
   cohortId: string;
+  cohortName: string;
 }
 
-export function StudentsTab({ courseVersionId, cohortId }: StudentsTabProps) {
+export function StudentsTab({ courseVersionId, cohortId, cohortName }: StudentsTabProps) {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<"name" | "hp" | "completion">("name")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
