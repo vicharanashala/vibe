@@ -8,11 +8,12 @@ import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { logout } from "@/utils/auth"
 import { useNavigate, useLocation } from "@tanstack/react-router"
-import { LogOut, Menu, X, Bell } from "lucide-react"
+import { LogOut, Menu, X, Bell, Flame } from "lucide-react"
 import { AuroraText } from "@/components/magicui/aurora-text"
 import { useState, useRef, useEffect } from "react"
 import InviteDropdown from "@/components/inviteDropDown"
 import { useInvites, useGetUnreadApprovedRegistrations, useGetPendingStudentRegistrations, useGetRejectedStudentRegistrations, useUserEnrollments } from "@/hooks/hooks"
+import { useStudentStreak } from "@/hooks/streak-hooks"
 import logo from "../../public/img/vibe_logo_img.ico"
 import { PolicyAcknowledgementModal } from "@/app/pages/student/components/policies/PolicyAcknowledgementModal"
 import { useGetSystemNotifications, useMarkSystemNotificationAsRead, useMarkAllSystemNotificationsAsRead } from "@/hooks/system-notification-hooks"
@@ -45,6 +46,7 @@ export default function StudentLayout() {
   const [selectedInvite, setSelectedInvite] = useState<Invite | null>(null);
 
   const { hasNew: hasNewAnnouncements, markSeen: markAnnouncementsSeen } = useNewAnnouncementIndicator();
+  const { data: streakData } = useStudentStreak(!!user?.uid);
   const pathname = location.pathname;
 
   const [approvedNotificationsList, setApprovedNotificationsList] = useState<any[]>([]);
@@ -278,6 +280,33 @@ percentCompleted !== 100){
           </div>
 
           <div className="flex items-center gap-2 lg:gap-4">
+            {/* 🔥 Learning Streak */}
+            <div 
+              className="group relative flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-default
+                bg-gradient-to-r from-orange-500/10 to-red-500/10 
+                border border-orange-500/20 
+                transition-all duration-300 
+                hover:from-orange-500/20 hover:to-red-500/20 
+                hover:border-orange-400/40 hover:shadow-lg hover:shadow-orange-500/10"
+              title={`Current streak: ${streakData?.currentStreak || 0} day${(streakData?.currentStreak || 0) !== 1 ? 's' : ''} | Best: ${streakData?.longestStreak || 0} day${(streakData?.longestStreak || 0) !== 1 ? 's' : ''}`}
+            >
+              <Flame className={`h-4 w-4 transition-all duration-300 ${
+                (streakData?.currentStreak || 0) > 0 
+                  ? 'text-orange-400 group-hover:text-orange-300 drop-shadow-[0_0_4px_rgba(251,146,60,0.5)]' 
+                  : 'text-gray-400 group-hover:text-gray-300'
+              }`} />
+              <span className={`text-sm font-bold transition-all duration-300 ${
+                (streakData?.currentStreak || 0) > 0 
+                  ? 'text-orange-400 group-hover:text-orange-300' 
+                  : 'text-gray-400 group-hover:text-gray-300'
+              }`}>
+                {streakData?.currentStreak || 0}
+              </span>
+              {streakData?.isActiveToday && (
+                <span className="absolute -top-0.5 -right-0.5 block h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+              )}
+            </div>
+
             <div className="relative" ref={invitesRef}>
               <Button
                 variant="ghost"
@@ -423,6 +452,25 @@ percentCompleted !== 100){
                   {hasNewAnnouncements && <span className="ml-2 inline-block h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
                 </Link>
               </Button>
+
+              {/* 🔥 Mobile Streak Display */}
+              <div className="flex items-center gap-2 px-4 py-2">
+                <Flame className={`h-4 w-4 ${
+                  (streakData?.currentStreak || 0) > 0 
+                    ? 'text-orange-400' 
+                    : 'text-gray-400'
+                }`} />
+                <span className={`text-sm font-bold ${
+                  (streakData?.currentStreak || 0) > 0 
+                    ? 'text-orange-400' 
+                    : 'text-gray-400'
+                }`}>
+                  {streakData?.currentStreak || 0} day streak
+                </span>
+                {streakData?.isActiveToday && (
+                  <span className="ml-1 inline-block h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+                )}
+              </div>
 
               <Button
                 variant="ghost"

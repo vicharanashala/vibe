@@ -1295,6 +1295,58 @@ class ProgressRepository {
     return Math.floor(totalMs / 1000);
   }
 
+  /**
+   * Per-user total watch seconds for a course version, using the same capped
+   * session-length rules as {@link getCourseVersionTotalWatchTime}.
+   */
+  async getWatchTimeSecondsByUserForCourseVersion(
+    courseId: string,
+    versionId: string,
+    maxSecondsPerView: number = 10 * 60,
+  ): Promise<Array<{ userId: string; totalSeconds: number }>> {
+    await this.init();
+
+    const capMs = Math.max(1, Math.floor(maxSecondsPerView * 1000));
+
+    const rows = await this.watchTimeCollection
+      .aggregate([
+        {
+          $match: {
+            courseId: new ObjectId(courseId),
+            courseVersionId: new ObjectId(versionId),
+            isDeleted: { $ne: true },
+            startTime: { $ne: null },
+            endTime: { $ne: null },
+          },
+        },
+        {
+          $addFields: {
+            diffMs: { $subtract: ['$endTime', '$startTime'] },
+          },
+        },
+        {
+          $group: {
+            _id: '$userId',
+            totalMs: {
+              $sum: {
+                $cond: [
+                  { $gt: ['$diffMs', 0] },
+                  { $min: ['$diffMs', capMs] },
+                  0,
+                ],
+              },
+            },
+          },
+        },
+      ])
+      .toArray();
+
+    return rows.map(r => ({
+      userId: r._id?.toString() ?? '',
+      totalSeconds: Math.floor((r.totalMs as number) / 1000),
+    }));
+  }
+
   async getHiddenOrDeletedItems(
     courseVersionId: string,
     session?: ClientSession,
@@ -1363,6 +1415,49 @@ class ProgressRepository {
         session,
       },
     );
+  }
+
+  /**
+   * Get unique dates (IST calendar days) when a student had completed activity.
+   * Only considers watchTime records where endTime exists (i.e., item was completed).
+   * Returns dates sorted newest-first, limited to last 365 days.
+   */
+  async getStudentActivityDates(
+    userId: string,
+    session?: ClientSession,
+  ): Promise<string[]> {
+    await this.init();
+
+    const results = await this.watchTimeCollection
+      .aggregate(
+        [
+          {
+            $match: {
+              userId: new ObjectId(userId),
+              endTime: { $exists: true, $ne: null },
+              isDeleted: { $ne: true },
+            },
+          },
+          {
+            $project: {
+              date: {
+                $dateToString: {
+                  format: '%Y-%m-%d',
+                  date: '$endTime',
+                  timezone: 'Asia/Kolkata',
+                },
+              },
+            },
+          },
+          { $group: { _id: '$date' } },
+          { $sort: { _id: -1 } },
+          { $limit: 365 },
+        ],
+        { session },
+      )
+      .toArray();
+
+    return results.map((r: any) => r._id as string);
   }
 
 }

@@ -4248,6 +4248,98 @@ class ProgressService extends BaseService {
 
     return {completedItemsCount: completedItemIds?.length ?? 0, progressPercentage: Math.min(percentCompleted, 100)};
   }
+
+  /**
+   * Calculate a student's learning streak (consecutive days of activity).
+   * Uses IST timezone and strict calendar-day boundaries (midnight to midnight).
+   * Counts all completed item types (videos, quizzes, blogs).
+   */
+  async getStudentStreak(userId: string): Promise<{
+    currentStreak: number;
+    longestStreak: number;
+    lastActiveDate: string | null;
+    isActiveToday: boolean;
+  }> {
+    // Get unique activity dates sorted newest-first
+    const activeDates = await this.progressRepository.getStudentActivityDates(userId);
+
+    if (!activeDates || activeDates.length === 0) {
+      return {
+        currentStreak: 0,
+        longestStreak: 0,
+        lastActiveDate: null,
+        isActiveToday: false,
+      };
+    }
+
+    // Get today's date in IST
+    const now = new Date();
+    const istFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const todayIST = istFormatter.format(now); // "YYYY-MM-DD"
+
+    // Convert activeDates to a Set for O(1) lookup
+    const activeDatesSet = new Set(activeDates);
+
+    const isActiveToday = activeDatesSet.has(todayIST);
+    const lastActiveDate = activeDates[0]; // newest first
+
+    // Helper: subtract one day from a date string "YYYY-MM-DD"
+    const subtractDay = (dateStr: string): string => {
+      const d = new Date(dateStr + 'T00:00:00+05:30'); // IST
+      d.setDate(d.getDate() - 1);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
+    // Calculate current streak: count consecutive days backward from today (or yesterday)
+    let currentStreak = 0;
+    let checkDate = isActiveToday ? todayIST : subtractDay(todayIST);
+
+    // If not active today and not active yesterday, streak is 0
+    if (!isActiveToday && !activeDatesSet.has(checkDate)) {
+      currentStreak = 0;
+    } else {
+      while (activeDatesSet.has(checkDate)) {
+        currentStreak++;
+        checkDate = subtractDay(checkDate);
+      }
+    }
+
+    // Calculate longest streak from sorted dates
+    let longestStreak = 0;
+    let tempStreak = 1;
+
+    // Sort dates ascending for longest streak calculation
+    const sortedDates = [...activeDates].sort();
+
+    for (let i = 1; i < sortedDates.length; i++) {
+      const prevDate = new Date(sortedDates[i - 1] + 'T00:00:00+05:30');
+      const currDate = new Date(sortedDates[i] + 'T00:00:00+05:30');
+      const diffDays = (currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24);
+
+      if (diffDays === 1) {
+        tempStreak++;
+      } else {
+        longestStreak = Math.max(longestStreak, tempStreak);
+        tempStreak = 1;
+      }
+    }
+    longestStreak = Math.max(longestStreak, tempStreak);
+
+    return {
+      currentStreak,
+      longestStreak,
+      lastActiveDate,
+      isActiveToday,
+    };
+  }
 }
 
 export { ProgressService };

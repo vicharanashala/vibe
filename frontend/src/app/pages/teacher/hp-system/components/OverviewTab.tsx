@@ -36,6 +36,33 @@ const courseVersions = [
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
+// Premium Custom Tooltip matched to current theme for maximum visibility
+const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+        const item = payload[0];
+        
+        // Robust color detection for Pie, Bar, Area, and Legend-linked charts
+        const color = item.payload?.fill || 
+                     item.fill || 
+                     item.color || 
+                     (item.payload?.payload?.fill) || 
+                     '#f59e0b'; 
+
+        const value = item.value;
+        const name = label || item.name || item.payload?.name || 'Data';
+
+        return (
+            <div className="bg-card/95 backdrop-blur-md border border-border/50 px-4 py-2.5 rounded-lg shadow-2xl ring-1 ring-border/20">
+                <p className="text-card-foreground font-bold text-[15px] mb-0.5">{name}</p>
+                <p className="text-[14px] font-semibold" style={{ color: color }}>
+                    value : {typeof value === 'number' ? value.toLocaleString() : value}
+                </p>
+            </div>
+        );
+    }
+    return null;
+};
+
 export default function OverviewTab() {
     return (
         <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
@@ -101,10 +128,7 @@ export default function OverviewTab() {
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                                 <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                                 <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
-                                <Tooltip
-                                    cursor={{ fill: 'hsl(var(--muted)/0.5)' }}
-                                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }}
-                                />
+                                <Tooltip content={<CustomTooltip />} />
                                 <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
@@ -129,9 +153,7 @@ export default function OverviewTab() {
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                                 <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                                 <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value / 1000}k`} />
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }}
-                                />
+                                <Tooltip content={<CustomTooltip />} />
                                 <Area type="monotone" dataKey="hp" stroke="#10b981" fillOpacity={1} fill="url(#colorHp)" />
                             </AreaChart>
                         </ResponsiveContainer>
@@ -160,9 +182,7 @@ export default function OverviewTab() {
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }}
-                                />
+                                <Tooltip content={<CustomTooltip />} />
                                 <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px' }} />
                             </PieChart>
                         </ResponsiveContainer>
@@ -181,10 +201,7 @@ export default function OverviewTab() {
                                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
                                 <XAxis type="number" fontSize={12} tickLine={false} axisLine={false} />
                                 <YAxis dataKey="name" type="category" fontSize={12} tickLine={false} axisLine={false} width={80} />
-                                <Tooltip
-                                    cursor={{ fill: 'hsl(var(--muted)/0.5)' }}
-                                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }}
-                                />
+                                <Tooltip content={<CustomTooltip />} />
                                 <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]}>
                                     {courseVersions.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[(index + 3) % COLORS.length]} />
@@ -197,4 +214,4 @@ export default function OverviewTab() {
             </div>
         </div>
     );
-}
+}

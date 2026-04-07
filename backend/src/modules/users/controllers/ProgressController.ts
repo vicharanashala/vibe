@@ -972,5 +972,29 @@ It returns an empty body with a 200 status code.
       // limit,
     );
   }
+
+  @OpenAPI({
+    summary: 'Get student learning streak',
+    description:
+      'Returns the current and longest learning streak for the authenticated student. Streak is based on consecutive calendar days (IST) with completed activity.',
+  })
+  @Authorized()
+  @Get('/progress/streak')
+  @HttpCode(200)
+  async getStudentStreak(
+    @CurrentUser() user: IUser,
+  ): Promise<{
+    currentStreak: number;
+    longestStreak: number;
+    lastActiveDate: string | null;
+    isActiveToday: boolean;
+  }> {
+    const userId = user._id?.toString();
+    if (!userId) {
+      throw new BadRequestError('User ID is required');
+    }
+    return await this.progressService.getStudentStreak(userId);
+  }
 }
 export { ProgressController };
+
