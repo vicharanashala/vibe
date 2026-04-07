@@ -24,7 +24,6 @@ import {
   ICourse,
   ICourseVersion,
   IItemRepository,
-  IModule,
   ProctoringComponent,
   ProgressRepository,
   SettingRepository,
@@ -157,28 +156,6 @@ export class CourseVersionService extends BaseService {
     });
   }
 
-  private shuffleArray<T>(array: T[]): T[] {
-    const arr = [...array];
-
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-
-    return arr;
-  }
-
-  private shuffleCourseStructure(modules: IModule[]) {
-    return this.shuffleArray(
-      modules.map(module => ({
-        ...module,
-        sections: this.shuffleArray(module.sections || []).map(section => ({
-          ...section,
-          items: []
-        }))
-      }))
-    );
-  }
   public async readCourseVersion(
     courseVersionId: string,
     userId: string,
@@ -251,17 +228,13 @@ export class CourseVersionService extends BaseService {
           });
       }
 
-      if (shouldRandomize) {
-        readVersion.modules = this.shuffleCourseStructure(readVersion.modules);
-      } else {
-        readVersion.modules = this.sortItemsByOrder(readVersion.modules).map(module => ({
-          ...module,
-          sections: this.sortItemsByOrder(module.sections || []).map(section => ({
-            ...section,
-            items: this.sortItemsByOrder(section.items || [])
-          }))
-        }));
-      }
+      readVersion.modules = this.sortItemsByOrder(readVersion.modules).map(module => ({
+        ...module,
+        sections: this.sortItemsByOrder(module.sections || []).map(section => ({
+          ...section,
+          items: this.sortItemsByOrder(section.items || [])
+        }))
+      }));
 
       const version = instanceToPlain(
         Object.assign(new CourseVersion(), readVersion),
