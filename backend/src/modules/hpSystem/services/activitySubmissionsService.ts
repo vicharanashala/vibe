@@ -1211,12 +1211,16 @@ export class ActivitySubmissionsService extends BaseService {
             const cohortOverride = COHORT_OVERRIDES[inputCohortId] || Object.values(COHORT_OVERRIDES).find(o => o.cohortId === inputCohortId);
             const resolvedCohortName = cohortOverride ? Object.keys(COHORT_OVERRIDES)[Object.values(COHORT_OVERRIDES).indexOf(cohortOverride)] : cohortIdOrName;
 
-            const effectiveVersionId = cohortOverride?.versionId || courseVersionId;
+            const effectiveVersionId = courseVersionId;
             
-            // Get cohort ID once if needed for HP calculations
-            let cohortId: string | null = null;
-            if (!cohortOverride) {
-                cohortId = await this.cohortRepository.getCohortIdByCohortName(resolvedCohortName);
+            // Resolve the actual cohort ObjectId for repository queries that need it
+            let effectiveCohortId: string = cohortIdOrName;
+            if (cohortOverride?.cohortId) {
+                effectiveCohortId = cohortOverride.cohortId;
+            } else if (!ObjectId.isValid(cohortIdOrName)) {
+                // cohortIdOrName is a name string, look up the ObjectId
+                const lookedUpId = await this.cohortRepository.getCohortIdByCohortName(cohortIdOrName);
+                if (lookedUpId) effectiveCohortId = lookedUpId;
             }
             
             // Execute all queries in parallel for optimal performance
@@ -1230,25 +1234,25 @@ export class ActivitySubmissionsService extends BaseService {
                 pendingSubmissionsCount
             ] = await Promise.all([
                 // Get submission statistics
-                this.activitySubmissionsRepository.getCohortStatsMap(resolvedCohortName, courseVersionId, session),
+                this.activitySubmissionsRepository.getCohortStatsMap(effectiveCohortId, effectiveVersionId, session),
                 
-                // Get total activities count only
-                this.activityRepository.getCountByCohortId(resolvedCohortName, courseVersionId, session),
+                // Get total activities count only (this method handles both ObjectId and name)
+                this.activityRepository.getCountByCohortId(effectiveCohortId, effectiveVersionId, session),
                 
                 // Get weekly activity data
-                this.getWeeklyActivityData(resolvedCohortName, courseVersionId, session),
+                this.getWeeklyActivityData(effectiveCohortId, effectiveVersionId, session),
                 
                 // Get HP distribution data
-                this.ledgerRepository.getHpDistributionForCohort(resolvedCohortName, courseVersionId, session),
+                this.ledgerRepository.getHpDistributionForCohort(effectiveCohortId, effectiveVersionId, session),
                 
                 // Get student progress data
-                this.activitySubmissionsRepository.getStudentProgressForCohort(resolvedCohortName, courseVersionId, session),
+                this.activitySubmissionsRepository.getStudentProgressForCohort(effectiveCohortId, effectiveVersionId, session),
                 
                 // Get late submission count
-                this.activitySubmissionsRepository.getLateSubmissionCount(resolvedCohortName, courseVersionId, session),
+                this.activitySubmissionsRepository.getLateSubmissionCount(effectiveCohortId, effectiveVersionId, session),
                 
                 // Get pending submissions count
-                this.activitySubmissionsRepository.getPendingSubmissionsCount(resolvedCohortName, courseVersionId, session)
+                this.activitySubmissionsRepository.getPendingSubmissionsCount(effectiveCohortId, effectiveVersionId, session)
             ]);
 
             // Build result object
@@ -1394,7 +1398,7 @@ export class ActivitySubmissionsService extends BaseService {
             
             // Resolve effective versionId from legacy cohort overrides only for legacy courses
             const cohortOverride = isLegacyCourse ? COHORT_OVERRIDES[resolvedCohortName] : null;
-            const effectiveVersionId = cohortOverride?.versionId || courseVersionId;
+            const effectiveVersionId = courseVersionId;
 
             // 1. Get student dashboard stats from submissions repository
             const dashboardStats = await this.activitySubmissionsRepository.getStudentDashboardStats(

@@ -638,8 +638,13 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
 
     async getLateSubmissionCount(cohortId: string, courseVersionId: string, session?: ClientSession): Promise<number> {
         await this.init();
+
+        const cohortMatch: any = ObjectId.isValid(cohortId)
+            ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+            : { cohort: cohortId };
+
         return await this.hpActivitySubmissionCollection.countDocuments({
-            cohortId: new ObjectId(cohortId),
+            ...cohortMatch,
             courseVersionId: new ObjectId(courseVersionId),
             isLate: true
         }, { session });
@@ -647,8 +652,13 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
 
     async getPendingSubmissionsCount(cohortId: string, courseVersionId: string, session?: ClientSession): Promise<number> {
         await this.init();
+
+        const cohortMatch: any = ObjectId.isValid(cohortId)
+            ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+            : { cohort: cohortId };
+
         return await this.hpActivitySubmissionCollection.countDocuments({
-            cohortId: new ObjectId(cohortId),
+            ...cohortMatch,
             courseVersionId: new ObjectId(courseVersionId),
             status: 'SUBMITTED'
         }, { session });
@@ -798,11 +808,15 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
     ) {
         await this.init();
 
+        const cohortMatch: any = ObjectId.isValid(cohortId)
+            ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+            : { cohort: cohortId };
+
         const result = await this.hpActivitySubmissionCollection.aggregate([
 
             {
                 $match: {
-                    cohortId: new ObjectId(cohortId),
+                    ...cohortMatch,
                     courseVersionId: new ObjectId(courseVersionId)
                 }
             },
@@ -853,10 +867,12 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
     ): Promise<number> {
         await this.init();
         
-        const collection = this.hpActivitySubmissionCollection;
+        const cohortMatch: any = ObjectId.isValid(cohortId)
+            ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+            : { cohort: cohortId };
 
         const filter = {
-            cohortId: new ObjectId(cohortId),
+            ...cohortMatch,
             courseVersionId: new ObjectId(courseVersionId),
             createdAt: {
                 $gte: startDate,
@@ -864,7 +880,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             }
         };
 
-        const count = await collection.countDocuments(filter, { session });
+        const count = await this.hpActivitySubmissionCollection.countDocuments(filter, { session });
         return count;
     }
 
@@ -878,10 +894,12 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
     ): Promise<number> {
         await this.init();
         
-        const collection = this.hpActivitySubmissionCollection;
+        const cohortMatch: any = ObjectId.isValid(cohortId)
+            ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+            : { cohort: cohortId };
 
         const filter = {
-            cohortId: new ObjectId(cohortId),
+            ...cohortMatch,
             courseVersionId: new ObjectId(courseVersionId),
             status: status as SubmissionStatus,
             createdAt: {
@@ -890,7 +908,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             }
         };
 
-        const count = await collection.countDocuments(filter, { session });
+        const count = await this.hpActivitySubmissionCollection.countDocuments(filter, { session });
         return count;
     }
 
@@ -901,14 +919,16 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
     ): Promise<number> {
         await this.init();
         
-        const collection = this.hpActivitySubmissionCollection;
+        const cohortMatch: any = ObjectId.isValid(cohortId)
+            ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+            : { cohort: cohortId };
 
         const filter = {
-            cohortId: new ObjectId(cohortId),
+            ...cohortMatch,
             courseVersionId: new ObjectId(courseVersionId)
         };
 
-        const uniqueStudents = await collection.distinct('studentId', filter, { session });
+        const uniqueStudents = await this.hpActivitySubmissionCollection.distinct('studentId', filter, { session });
         return uniqueStudents.length;
     }
 
@@ -925,12 +945,16 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         
         const collection = this.hpActivitySubmissionCollection;
 
+        const cohortMatch: any = ObjectId.isValid(cohortId)
+            ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+            : { cohort: cohortId };
+
         // Get total activities for this cohort
         const totalActivities = await this.activityRepository.getCountByCohortId(cohortId, courseVersionId);
         
         // Get unique students
-        const uniqueStudents = await collection.distinct('studentId', {
-            cohortId: new ObjectId(cohortId),
+        const uniqueStudents = await this.hpActivitySubmissionCollection.distinct('studentId', {
+            ...cohortMatch,
             courseVersionId: new ObjectId(courseVersionId)
         }, { session });
 
@@ -941,7 +965,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         for (const studentId of uniqueStudents) {
             // Get student's submissions
             const submissions = await collection.find({
-                cohortId: new ObjectId(cohortId),
+                ...cohortMatch,
                 courseVersionId: new ObjectId(courseVersionId),
                 studentId
             }, { session }).toArray();

@@ -327,10 +327,14 @@ async findDebitBySubmissionId(submissionId: string): Promise<HpLedger | null> {
     }> {
         await this.init();
         
+        const cohortMatch: any = ObjectId.isValid(cohortId)
+            ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+            : { cohort: cohortId };
+
         const pipeline = [
             {
                 $match: {
-                    cohortId: new ObjectId(cohortId),
+                    ...cohortMatch,
                     courseVersionId: new ObjectId(courseVersionId)
                 }
             },

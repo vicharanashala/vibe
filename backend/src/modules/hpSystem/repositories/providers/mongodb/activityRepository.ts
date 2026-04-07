@@ -333,9 +333,14 @@ export class ActivityRepository implements IActivityRepository {
     cohortId: string,
   ): Promise<HpActivity | null> {
     await this.init();
+
+    const cohortMatch: any = ObjectId.isValid(cohortId)
+      ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+      : { cohort: cohortId };
+
     return await this.hpActivityCollection.findOne(
       {
-        cohortId: new ObjectId(cohortId),
+        ...cohortMatch,
       },
       { sort: { createdAt: -1 } },
     );
@@ -344,8 +349,12 @@ export class ActivityRepository implements IActivityRepository {
   async getDraftCountByCohortId(cohortId: string, courseVersionId?: string): Promise<number> {
     await this.init();
 
+    const cohortMatch: any = ObjectId.isValid(cohortId)
+      ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+      : { cohort: cohortId };
+
     const query: any = {
-      cohortId: new ObjectId(cohortId),
+      ...cohortMatch,
       status: "DRAFT",
       isDeleted: { $ne: true },
     };
@@ -359,8 +368,12 @@ export class ActivityRepository implements IActivityRepository {
   async getPublishedCountByCohortId(cohortId: string, courseVersionId?: string): Promise<number> {
     await this.init();
 
+    const cohortMatch: any = ObjectId.isValid(cohortId)
+      ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+      : { cohort: cohortId };
+
     const query: any = {
-      cohortId: new ObjectId(cohortId),
+      ...cohortMatch,
       status: "PUBLISHED",
       isDeleted: { $ne: true },
     };
@@ -399,6 +412,10 @@ export class ActivityRepository implements IActivityRepository {
   ): Promise<number> {
     await this.init();
 
+    const cohortMatch: any = ObjectId.isValid(cohortId)
+      ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+      : { cohort: cohortId };
+
     const result = await this.hpActivityCollection
       .aggregate([
         {
@@ -406,7 +423,7 @@ export class ActivityRepository implements IActivityRepository {
             courseId: new ObjectId(courseId),
             courseVersionId: new ObjectId(courseVersionId),
             isDeleted: { $ne: true },
-            cohortId: new ObjectId(cohortId)
+            ...cohortMatch
           },
         },
         {
