@@ -11,6 +11,23 @@ import { IActivitySubmissionRepository } from "../interfaces/IActivitySubmission
 import { HpResetMode } from "../models.js";
 
 
+const EXISTING_COHORTS_MAP: Record<string, Record<string, string>> = {
+    "000000000000000000000001": {
+        euclideans: "6968e12cbf2860d6e39051af",
+        dijkstrians: "6970f87e30644cbc74b67150",
+        kruskalians: "697b4e262942654879011c57",
+        scorchers: "69c77763b4ae917c56cf1343",
+        a: "69d2b1bc0744872b91ab54da",
+    },
+    "000000000000000000000002": {
+        rsaians: "69903415e1930c015760a719",
+        aksians: "69942dc6d6d99b252e3a54ff",
+        testians: "69c77812b4ae917c56cf227f",
+        b: "69d2b2e50744872b91ab641f",
+    },
+};
+
+
 @injectable()
 export class CohortsService extends BaseService {
     constructor( 
@@ -395,23 +412,6 @@ export class CohortsService extends BaseService {
         cohortId: string,
         query: CohortStudentsListQueryDto
     ): Promise<CohortStudentItemDto[] | null> {
-        // Map: parentVersionId -> cohortName -> actualCourseVersionId
-        const EXISTING_COHORTS_MAP: Record<string, Record<string, string>> = {
-            "000000000000000000000001": {
-                euclideans: "6968e12cbf2860d6e39051af",
-                dijkstrians: "6970f87e30644cbc74b67150",
-                kruskalians: "697b4e262942654879011c57",
-                scorchers: "69c77763b4ae917c56cf1343",
-                a: "69d2b1bc0744872b91ab54da",
-            },
-            "000000000000000000000002": {
-                rsaians: "69903415e1930c015760a719",
-                aksians: "69942dc6d6d99b252e3a54ff",
-                testians: "69c77812b4ae917c56cf227f",
-                b: "69d2b2e50744872b91ab641f",
-            },
-        };
-
         const cohortIdStr = cohortId?.trim().toLowerCase();
         if (!cohortIdStr) return null;
 
@@ -675,8 +675,11 @@ export class CohortsService extends BaseService {
         throw new BadRequestError('Target Hp can not be negative');
       }
 
+      const legacyMap = EXISTING_COHORTS_MAP[courseVersionId];
+      const actualVersionId = legacyMap?.[cohortName.trim().toLowerCase()] ?? courseVersionId;
+
       const cohorts =
-        await this.cohortRepository.getCohortsByVersionId(courseVersionId);
+        await this.cohortRepository.getCohortsByVersionId(actualVersionId);
 
       const matchedCohort = cohorts.find(
         c => c.name.toLowerCase() === cohortName.trim().toLowerCase(),
@@ -687,7 +690,7 @@ export class CohortsService extends BaseService {
       }
 
       return this.cohortRepository.resetHpforCohort(
-        courseVersionId,
+        actualVersionId,
         matchedCohort._id.toString(),
         cohortName,
         targetHp,
@@ -710,25 +713,28 @@ export class CohortsService extends BaseService {
         throw new BadRequestError('Target Hp can not be negative');
         }
 
+        const legacyMap = EXISTING_COHORTS_MAP[courseVersionId];
+        const actualVersionId = legacyMap?.[cohortName.trim().toLowerCase()] ?? courseVersionId;
+
         const cohorts =
-        await this.cohortRepository.getCohortsByVersionId(courseVersionId);
+            await this.cohortRepository.getCohortsByVersionId(actualVersionId);
 
         const matchedCohort = cohorts.find(
-        c => c.name.toLowerCase() === cohortName.trim().toLowerCase(),
+            c => c.name.toLowerCase() === cohortName.trim().toLowerCase(),
         );
 
         if (!matchedCohort) {
-        throw new NotFoundError('Cohort Not found');
+            throw new NotFoundError('Cohort Not found');
         }
 
         return this.cohortRepository.resetHpForStudent(
-        courseVersionId,
-        matchedCohort._id.toString(),
-        cohortName,
-        studentId,
-        targetHp,
-        triggeredByUserId,
-        session,
+            actualVersionId,
+            matchedCohort._id.toString(),
+            cohortName,
+            studentId,
+            targetHp,
+            triggeredByUserId,
+            session,
         );
     });
   }

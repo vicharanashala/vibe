@@ -949,10 +949,24 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
     session?: ClientSession,
     ): Promise<number> {
 
+    const orVersionMatch: any[] = [{ courseVersionId }];
+    if (ObjectId.isValid(courseVersionId)) {
+      orVersionMatch.push({ courseVersionId: new ObjectId(courseVersionId) });
+    }
+
+    const orCohortMatch: any[] = [];
+    if (cohortId && ObjectId.isValid(cohortId)) {
+      orCohortMatch.push({ cohortId: new ObjectId(cohortId) });
+      orCohortMatch.push({ cohortId: cohortId });
+    } else {
+      orCohortMatch.push({ cohortId: { $exists: false } });
+      orCohortMatch.push({ cohortId: null });
+    }
+
     const filter: any = {
-        isDeleted: {$ne: true},
-        courseVersionId: toObjectId(courseVersionId,"courseVersionId"),
-        cohortId: toObjectId(cohortId,"cohortId"),
+      isDeleted: { $ne: true },
+      $or: orVersionMatch,
+      $and: [{ $or: orCohortMatch }],
     };
 
     if (mode === 'ONLY_ZERO_HP') {
@@ -1067,11 +1081,25 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
     session?: ClientSession,
     ): Promise<boolean> {
 
+    const orVersionMatch: any[] = [{ courseVersionId }];
+    if (ObjectId.isValid(courseVersionId)) {
+      orVersionMatch.push({ courseVersionId: new ObjectId(courseVersionId) });
+    }
+
+    const orCohortMatch: any[] = [];
+    if (cohortId && ObjectId.isValid(cohortId)) {
+      orCohortMatch.push({ cohortId: new ObjectId(cohortId) });
+      orCohortMatch.push({ cohortId: cohortId });
+    } else {
+      orCohortMatch.push({ cohortId: { $exists: false } });
+      orCohortMatch.push({ cohortId: null });
+    }
+
     const filter: any = {
-        isDeleted: { $ne: true },
-        courseVersionId: toObjectId(courseVersionId, "courseVersionId"),
-        cohortId: toObjectId(cohortId, "cohortId"),
-        userId: toObjectId(studentId, "studentId"),
+      isDeleted: { $ne: true },
+      $or: orVersionMatch,
+      $and: [{ $or: orCohortMatch }],
+      userId: toObjectId(studentId, "studentId"),
     };
 
     const student = await this.enrollmentCollection.findOne(filter, { session });
