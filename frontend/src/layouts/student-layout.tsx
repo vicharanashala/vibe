@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { logout } from "@/utils/auth"
 import { useNavigate, useLocation } from "@tanstack/react-router"
-import { LogOut, Menu, X, Bell, Flame } from "lucide-react"
+import { LogOut, Menu, X, Bell, Flame, Trophy, Calendar, CheckCircle2, XCircle } from "lucide-react"
 import { AuroraText } from "@/components/magicui/aurora-text"
 import { useState, useRef, useEffect } from "react"
 import InviteDropdown from "@/components/inviteDropDown"
@@ -40,9 +40,11 @@ export default function StudentLayout() {
 
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   const [showInvites, setShowInvites] = useState(false);
+  const [showStreak, setShowStreak] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const invitesRef = useRef<HTMLDivElement | null>(null);
+  const streakRef = useRef<HTMLDivElement | null>(null);
   const [selectedInvite, setSelectedInvite] = useState<Invite | null>(null);
 
   const { hasNew: hasNewAnnouncements, markSeen: markAnnouncementsSeen } = useNewAnnouncementIndicator();
@@ -171,6 +173,34 @@ percentCompleted !== 100){
     };
   }, [showInvites, selectedInvite]);
 
+  // Click-outside handler for streak popover
+  useEffect(() => {
+    if (!showStreak) return;
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (streakRef.current && target && !streakRef.current.contains(target)) {
+        setShowStreak(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowStreak(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown, { passive: true } as any);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown as any);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showStreak]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-background/95 bg-gray-50/50 dark:bg-orange-950/70">
 
@@ -280,30 +310,147 @@ percentCompleted !== 100){
           </div>
 
           <div className="flex items-center gap-2 lg:gap-4">
-            {/* 🔥 Learning Streak */}
-            <div 
-              className="group relative flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-default
-                bg-gradient-to-r from-orange-500/10 to-red-500/10 
-                border border-orange-500/20 
-                transition-all duration-300 
-                hover:from-orange-500/20 hover:to-red-500/20 
-                hover:border-orange-400/40 hover:shadow-lg hover:shadow-orange-500/10"
-              title={`Current streak: ${streakData?.currentStreak || 0} day${(streakData?.currentStreak || 0) !== 1 ? 's' : ''} | Best: ${streakData?.longestStreak || 0} day${(streakData?.longestStreak || 0) !== 1 ? 's' : ''}`}
-            >
-              <Flame className={`h-4 w-4 transition-all duration-300 ${
-                (streakData?.currentStreak || 0) > 0 
-                  ? 'text-orange-400 group-hover:text-orange-300 drop-shadow-[0_0_4px_rgba(251,146,60,0.5)]' 
-                  : 'text-gray-400 group-hover:text-gray-300'
-              }`} />
-              <span className={`text-sm font-bold transition-all duration-300 ${
-                (streakData?.currentStreak || 0) > 0 
-                  ? 'text-orange-400 group-hover:text-orange-300' 
-                  : 'text-gray-400 group-hover:text-gray-300'
-              }`}>
-                {streakData?.currentStreak || 0}
-              </span>
-              {streakData?.isActiveToday && (
-                <span className="absolute -top-0.5 -right-0.5 block h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+            {/* 🔥 Learning Streak with Popover */}
+            <div className="relative" ref={streakRef}>
+              <button
+                onClick={() => setShowStreak((prev) => !prev)}
+                className={`group relative flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer
+                  bg-gradient-to-r from-orange-500/10 to-red-500/10 
+                  border border-orange-500/20 
+                  transition-all duration-300 
+                  hover:from-orange-500/20 hover:to-red-500/20 
+                  hover:border-orange-400/40 hover:shadow-lg hover:shadow-orange-500/10
+                  focus:outline-none focus:ring-2 focus:ring-orange-400/30
+                  ${showStreak ? 'from-orange-500/20 to-red-500/20 border-orange-400/40 shadow-lg shadow-orange-500/10' : ''}`}
+              >
+                <Flame className={`h-4 w-4 transition-all duration-300 ${
+                  (streakData?.currentStreak || 0) > 0 
+                    ? 'text-orange-400 group-hover:text-orange-300 drop-shadow-[0_0_4px_rgba(251,146,60,0.5)]' 
+                    : 'text-gray-400 group-hover:text-gray-300'
+                }`} />
+                <span className={`text-sm font-bold transition-all duration-300 ${
+                  (streakData?.currentStreak || 0) > 0 
+                    ? 'text-orange-400 group-hover:text-orange-300' 
+                    : 'text-gray-400 group-hover:text-gray-300'
+                }`}>
+                  {streakData?.currentStreak || 0}
+                </span>
+                {streakData?.isActiveToday && (
+                  <span className="absolute -top-0.5 -right-0.5 block h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+                )}
+              </button>
+
+              {/* Streak Popover */}
+              {showStreak && (
+                <div className="absolute right-0 top-full mt-2 w-80 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="rounded-xl border border-orange-500/20 bg-background/95 backdrop-blur-xl shadow-2xl shadow-orange-500/10 overflow-hidden">
+                    {/* Header */}
+                    <div className="relative px-5 pt-5 pb-4 bg-gradient-to-br from-orange-500/10 via-red-500/5 to-transparent">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-base font-semibold text-foreground">Learning Streak</h3>
+                        <button
+                          onClick={() => setShowStreak(false)}
+                          className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-accent/50"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                      {/* Big Streak Display */}
+                      <div className="flex items-center gap-3">
+                        <div className={`flex items-center justify-center w-14 h-14 rounded-2xl ${
+                          (streakData?.currentStreak || 0) > 0
+                            ? 'bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/30'
+                            : 'bg-muted/50 border border-border/50'
+                        }`}>
+                          <Flame className={`h-7 w-7 ${
+                            (streakData?.currentStreak || 0) > 0
+                              ? 'text-orange-400 drop-shadow-[0_0_8px_rgba(251,146,60,0.6)]'
+                              : 'text-muted-foreground'
+                          }`} />
+                        </div>
+                        <div>
+                          <div className={`text-3xl font-bold ${
+                            (streakData?.currentStreak || 0) > 0 ? 'text-orange-400' : 'text-muted-foreground'
+                          }`}>
+                            {streakData?.currentStreak || 0}
+                          </div>
+                          <div className="text-xs text-muted-foreground font-medium">
+                            {(streakData?.currentStreak || 0) === 1 ? 'day streak' : 'days streak'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stats Grid */}
+                    <div className="px-5 py-4 space-y-3">
+                      {/* Longest Streak */}
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-accent/30 border border-border/30 transition-colors hover:bg-accent/50">
+                        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                          <Trophy className="h-4.5 w-4.5 text-yellow-500" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-xs text-muted-foreground font-medium">Longest Streak</div>
+                          <div className="text-sm font-bold text-foreground">
+                            {streakData?.longestStreak || 0} {(streakData?.longestStreak || 0) === 1 ? 'day' : 'days'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Last Active */}
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-accent/30 border border-border/30 transition-colors hover:bg-accent/50">
+                        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                          <Calendar className="h-4.5 w-4.5 text-blue-400" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-xs text-muted-foreground font-medium">Last Active</div>
+                          <div className="text-sm font-bold text-foreground">
+                            {streakData?.lastActiveDate
+                              ? new Date(streakData.lastActiveDate + 'T00:00:00+05:30').toLocaleDateString('en-IN', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                                })
+                              : 'No activity yet'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Active Today */}
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-accent/30 border border-border/30 transition-colors hover:bg-accent/50">
+                        <div className={`flex items-center justify-center w-9 h-9 rounded-lg border ${
+                          streakData?.isActiveToday
+                            ? 'bg-green-500/10 border-green-500/20'
+                            : 'bg-red-500/10 border-red-500/20'
+                        }`}>
+                          {streakData?.isActiveToday
+                            ? <CheckCircle2 className="h-4.5 w-4.5 text-green-400" />
+                            : <XCircle className="h-4.5 w-4.5 text-red-400" />
+                          }
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-xs text-muted-foreground font-medium">Today's Status</div>
+                          <div className={`text-sm font-bold ${
+                            streakData?.isActiveToday ? 'text-green-400' : 'text-red-400'
+                          }`}>
+                            {streakData?.isActiveToday ? 'Active ✓' : 'Not yet active'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer Motivation */}
+                    <div className="px-5 py-3 border-t border-border/30 bg-accent/10">
+                      <p className="text-xs text-muted-foreground text-center">
+                        {streakData?.isActiveToday
+                          ? '🎉 Great job! You\'re on fire today!'
+                          : (streakData?.currentStreak || 0) > 0
+                            ? '⏰ Complete a lesson today to keep your streak alive!'
+                            : '💪 Watch a video to start building your streak!'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
 
@@ -454,7 +601,10 @@ percentCompleted !== 100){
               </Button>
 
               {/* 🔥 Mobile Streak Display */}
-              <div className="flex items-center gap-2 px-4 py-2">
+              <button
+                onClick={() => { setIsMobileMenuOpen(false); setShowStreak(true); }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-accent/30 transition-colors"
+              >
                 <Flame className={`h-4 w-4 ${
                   (streakData?.currentStreak || 0) > 0 
                     ? 'text-orange-400' 
@@ -465,12 +615,12 @@ percentCompleted !== 100){
                     ? 'text-orange-400' 
                     : 'text-gray-400'
                 }`}>
-                  {streakData?.currentStreak || 0} day streak
+                  🔥 {streakData?.currentStreak || 0} day streak
                 </span>
                 {streakData?.isActiveToday && (
-                  <span className="ml-1 inline-block h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+                  <span className="ml-auto inline-block h-2 w-2 rounded-full bg-green-400 animate-pulse" />
                 )}
-              </div>
+              </button>
 
               <Button
                 variant="ghost"
