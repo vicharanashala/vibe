@@ -17,13 +17,12 @@ import { AudioTranscripter } from "./AudioTranscripter";
 import { TranscriberData } from "@/hooks/useTranscriber";
 import { useNavigate } from "@tanstack/react-router";
 import { 
-  AiWorkflow,
   CurrentJob, 
   JobHeader, 
   ProgressiveProgressBar, 
   QuestionGenerationView, 
   SegmentationView, 
-  Stepper, 
+  Stepper,
   UploadContentProps, 
   UploadContentView, 
   UploadParams, 
@@ -68,6 +67,10 @@ const AdvancedAiWorkflow = () => {
     const [editQuestion, setEditQuestion] = useState<any>(null);
     const [editingIdx, setEditingIdx] = useState<number | null>(null);
     const [isTranscribing, setIsTranscribing] = useState(false);
+    const [audioExtractionProgress, setAudioExtractionProgress] = useState(0);
+    const [audioExtractionStatus, setAudioExtractionStatus] = useState<"ready" | "processing" | "completed" | "failed" | "paused">("ready");
+    const [audioExtractionStartTime, setAudioExtractionStartTime] = useState<Date | null>(null);
+    const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<string>('');
     const [isAudioExtracting, setIsAudioExtracting] = useState(false);
     const [isCreatingAiJob, setIsCreatingAiJob] = useState(false);
     const [isAiJobStarted, setIsAiJobStarted] = useState(false);
@@ -213,6 +216,11 @@ const AdvancedAiWorkflow = () => {
 
             setAiJobStatus({ ...status, task: currentTaskData.task, status: currentTaskData.status });
             updateCurrentJob(currentTaskData.task, currentTaskData.status);
+            
+            if (currentTaskData.task.toLowerCase() === 'audioextraction' && currentTaskData.status.toLowerCase() === 'completed') {
+                setAudioExtractionStatus('completed');
+            }
+
             if (currentTaskData.status === "COMPLETED") {
                 handleShowHandleResult(currentJob.task);
             }
@@ -221,6 +229,33 @@ const AdvancedAiWorkflow = () => {
           console.error("Refresh status failed", error);
         }
     };
+    useEffect(() => {
+        let interval: NodeJS.Timeout | null = null;
+    
+        if (audioExtractionStatus === 'processing') {
+          interval = setInterval(() => {
+            setAudioExtractionProgress((prev) => {
+              if (prev >= 99) return 99;
+              return prev + Math.random() * 2;
+            });
+    
+            if (audioExtractionStartTime) {
+              const elapsed = Date.now() - audioExtractionStartTime.getTime();
+              const progress = audioExtractionProgress;
+              if (progress > 0) {
+                const totalEstimated = elapsed / (progress / 100);
+                const remaining = totalEstimated - elapsed;
+                const minutes = Math.max(0, Math.ceil(remaining / 60000));
+                setEstimatedTimeRemaining(`~${minutes} minute${minutes !== 1 ? 's' : ''}`);
+              }
+            }
+          }, 1000);
+        }
+    
+        return () => {
+          if (interval) clearInterval(interval);
+        };
+    }, [audioExtractionStatus, audioExtractionProgress, audioExtractionStartTime]);
 
     useEffect(() => {
         if (!aiJobId || !shouldPoll) return;
@@ -265,6 +300,15 @@ const AdvancedAiWorkflow = () => {
                 setCurrentJob({ status: "WAITING", task: 'SEGMENTATION' });
             } else {
                 setCurrentJob({ status: "RUNNING", task: 'AUDIO_EXTRACTION' });
+                setAudioExtractionStatus('processing');
+                setAudioExtractionStartTime(new Date());
+                try {
+                    await aiSectionAPI.postJobTask(jobId, 'AUDIO_EXTRACTION', {}, 0);
+                    setShouldPoll(true);
+                } catch (approveErr) {
+                    console.error("Failed to auto-start audio extraction", approveErr);
+                    setAudioExtractionStatus('failed');
+                }
             }
         } catch (err) {
             toast.error("Failed to create job");
@@ -274,7 +318,7 @@ const AdvancedAiWorkflow = () => {
         }
     };
 
-    const handleApproveTask = async (qnParams?: any, filteredQuestions?: any[]) => {
+    const handleApproveTask = async (taskToApprove: string, qnParams?: any, filteredQuestions?: any[]) => {
         if (!aiJobId) return;
         try {
             setIsApprovingTask(true);
@@ -288,6 +332,12 @@ const AdvancedAiWorkflow = () => {
             let params: any = null;
 
             switch (currentTaskData.task) {
+                case 'audioExtraction':
+                  params = { parameters: {}, type: "AUDIO_EXTRACTION" };
+                  break;
+                case 'transcriptGeneration':
+                  params = { parameters: {}, type: "TRANSCRIPT_GENERATION" };
+                  break;
                 case 'segmentation':
                   params = { parameters: customSegmentationParams, usePrevious: 0, type: "SEGMENTATION" };
                   break;
@@ -306,9 +356,19 @@ const AdvancedAiWorkflow = () => {
                   params = { parameters: uploadP, type: "UPLOAD_CONTENT", usePrevious: 0 };
                   break;
             }
+            if (taskToApprove !== 'audioExtraction' && taskToApprove !== 'transcriptGeneration') {
 
             await aiSectionAPI.approveContinueTask(aiJobId);
-            if (params) await aiSectionAPI.approveStartTask(aiJobId, params);
+            }
+
+            if (params) {
+                if (taskToApprove === 'audioExtraction' || taskToApprove === 'transcriptGeneration') {
+                    // Use postJobTask for the initial steps as per Custom Mode
+                    await aiSectionAPI.postJobTask(aiJobId, params.type, params.parameters, params.usePrevious || 0);
+                } else {
+                    await aiSectionAPI.approveStartTask(aiJobId, params);
+                }
+            }
             
             setShouldPoll(true);
             setIsWaitingServer(true);
@@ -476,7 +536,7 @@ const AdvancedAiWorkflow = () => {
                             </CardTitle>
                             <CardDescription>Unified and complete control over your AI sequence.</CardDescription>
                         </div>
-                        {isURLValidated && <div className="hidden sm:block"><Stepper currentJobData={currentJob} aiJobStatus={aiJobStatus} /></div>}
+                        {isURLValidated && <div className="hidden sm:block"><Stepper currentJobData={currentJob} aiJobStatus={aiJobStatus} firstStepLabel={audioChoice === 'upload' ? 'Audio Uploading' : 'Audio Extraction'} /></div>}
                     </div>
                 </CardHeader>
 
@@ -495,11 +555,29 @@ const AdvancedAiWorkflow = () => {
                         </div>
                     ) : (
                         <div className="space-y-8">
-                            <div className="sm:hidden"><Stepper currentJobData={currentJob} aiJobStatus={aiJobStatus} /></div>
+                            <div className="sm:hidden"><Stepper currentJobData={currentJob} aiJobStatus={aiJobStatus} firstStepLabel={audioChoice === 'upload' ? 'Audio Uploading' : 'Audio Extraction'} /></div>
                             
                             <JobHeader currentJob={currentJob} handleRefreshStatus={() => handleRefreshStatus()} aiJobId={!!aiJobId} />
                             
-                            <ProgressiveProgressBar value={progress} showTooltip={isLoading || isTranscribing} />
+                            {currentJob.task === 'AUDIO_EXTRACTION' && audioExtractionStatus === 'processing' ? (
+                                <div className="space-y-4 bg-card p-6 rounded-2xl border shadow-sm">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                                                <UploadCloud className="w-6 h-6 text-primary animate-pulse" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-lg">Extracting Audio</h3>
+                                                <p className="text-xs text-muted-foreground">{estimatedTimeRemaining ? `Estimated: ${estimatedTimeRemaining}` : 'Optimizing video for extraction...'}</p>
+                                            </div>
+                                        </div>
+                                        <span className="text-2xl font-bold text-primary">{Math.round(audioExtractionProgress)}%</span>
+                                    </div>
+                                    <ProgressiveProgressBar value={audioExtractionProgress} showTooltip={true} />
+                                </div>
+                            ) : (
+                                <ProgressiveProgressBar value={progress} showTooltip={isLoading || isTranscribing} />
+                            )}
 
                             {/* Branching UI */}
                             {audioChoice === null && (

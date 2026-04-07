@@ -1349,10 +1349,10 @@ const YoutubeIcon = () => (
   </svg>
 );
 
-export const Stepper = React.memo(({ currentJobData, aiJobStatus }: { currentJobData: any; aiJobStatus: any }) => {
+export const Stepper = React.memo(({ currentJobData, aiJobStatus, firstStepLabel }: { currentJobData: any; aiJobStatus: any; firstStepLabel?: string }) => {
 
   const WORKFLOW_STEPS = [
-    { key: 'audioExtraction', label: 'Audio Extraction', icon: <UploadCloud className="w-5 h-5" /> },
+    { key: 'audioExtraction', label: firstStepLabel || 'Audio Extraction', icon: <UploadCloud className="w-5 h-5" /> },
     { key: 'transcriptGeneration', label: 'Transcription', icon: <FileText className="w-5 h-5" /> },
     { key: 'segmentation', label: 'Segmentation', icon: <ListChecks className="w-5 h-5" /> },
     { key: 'questionGeneration', label: 'Question Generation', icon: <MessageSquareText className="w-5 h-5" /> },
