@@ -2044,21 +2044,8 @@ function VersionCard({
                   <Shield className="h-3 w-3 mr-1" />
                   Ejection Policies
                 </Button>
-                {/* <Button
-          variant="outline"
-          size="sm"
-          onClick={handleGenerateLink}
-          className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-          disabled={generateLinkMutation.isPending}
-        >
-          {generateLinkMutation.isPending ? (
-            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-          ) : (
-            <Link className="h-3 w-3 mr-1" /> 
-          )}
-          Generate Link
-        </Button> */}
-        </div>
+                
+        
                 <Button
                   variant="outline"
                   size="sm"
@@ -2073,7 +2060,7 @@ function VersionCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    size="sm"
+                   
                     className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
                     onClick={() => {
                     
@@ -2102,29 +2089,7 @@ function VersionCard({
                 </Button>
 
 
-                {/* <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setShowProctoringModal(true)
-                  }}
-                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
-                  disabled={isArchived}
-                  title={isArchived ? "Cannot open settings for archived version" : undefined}
-                >
-                  <Settings2 className="h-3 w-3 mr-1" />
-                  Settings
-                </Button> */}
-                {/* <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={configureCohorts}
-                    className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-                  >
-                    <Layers className="h-3 w-3 mr-1" />
-                    Configure Cohorts
-                </Button> */}
+                
               </div>
             </div>
 
@@ -2155,6 +2120,7 @@ function VersionCard({
               }}
               link={generatedLink}
             />
+            
           </div>
 
         </CardContent>
