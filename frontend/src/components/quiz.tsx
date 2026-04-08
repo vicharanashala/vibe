@@ -448,7 +448,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       return;
     }
 
-    if((isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId)) ){
+    if ((isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId))) {
       return;
     }
 
@@ -685,7 +685,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           const answersForSaving = convertAnswersToSaveFormat();
           await saveQuiz({
             params: { path: { quizId: processedQuizId, attemptId: attemptId } },
-            body: { answers: answersForSaving, cohortId: currentCourse?.cohortId??'' }
+            body: { answers: answersForSaving, cohortId: currentCourse?.cohortId ?? '' }
           });
         } catch (saveErr) {
           console.warn('Failed to save answers before submission:', saveErr);
@@ -701,7 +701,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           answers: answersForSubmission, isSkipped, courseId: currentCourse?.courseId,
           courseVersionId: currentCourse?.versionId,
           watchItemId: currentCourse?.watchItemId ?? undefined,
-          cohortId: currentCourse?.cohortId??''
+          cohortId: currentCourse?.cohortId ?? ''
         }
       });
 
@@ -749,7 +749,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       setFinshingQuiz(false);
     } catch (err) {
       console.error('Failed to submit quiz:', err);
-        setQuizCompleted(false);
+      setQuizCompleted(false);
       setFinshingQuiz(false);
     }
   }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem, saveQuiz]);
@@ -941,18 +941,18 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     setShowHint(false);
   }, [currentQuestionIndex]);
 
-  // Auto-start quiz for NO_DEADLINE type, but first check if quiz is empty
+  // Auto-start quiz, but check if empty first
   useEffect(() => {
-    if (!quizStarted && !quizCompleted && !isEmptyQuiz && !noAttemptsLeft && quizType === 'NO_DEADLINE' && quizQuestions.length === 0 && !isPending && !quizAttemptedRef.current && !dontStart) {
+    if (!quizStarted && !quizCompleted && !isEmptyQuiz && !noAttemptsLeft && quizQuestions.length === 0 && !isPending && !quizAttemptedRef.current && !dontStart) {
       // Check if quiz has any question banks first to detect empty quizzes early
       if (!questionBankRefs || questionBankRefs.length === 0) {
         handleEmptyQuiz();
+        setDontStart(true);
       } else {
         startQuiz();
       }
-      setDontStart(true);
     }
-  }, [quizType, quizStarted, quizCompleted, isEmptyQuiz, noAttemptsLeft, quizQuestions.length, isPending, dontStart, startQuiz, questionBankRefs]);
+  }, [quizStarted, quizCompleted, isEmptyQuiz, noAttemptsLeft, quizQuestions.length, isPending, dontStart, questionBankRefs, startQuiz]);
 
 
   useEffect(() => {
@@ -1040,7 +1040,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   useImperativeHandle(ref, () => ({
     stopItem: async () => {
       if (!currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
-      if( isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId) ){
+      if (isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId)) {
         return;
       }
       try {
@@ -1085,161 +1085,14 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   // Quiz not started
 
   if (!quizStarted) {
-    if (quizType === 'DEADLINE') {
-      return (
-        <div className="mx-auto space-y-8">
-          <Card className="border-2 border-primary/20 bg-gradient-to-br from-background to-muted/50">
-            <CardHeader className="pb-8">
-              <div className="flex items-center justify-between gap-8">
-                <div className="flex-1 space-y-4 text-left">
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                    <BookOpen className="w-8 h-8 text-primary" />
-                  </div>
-                  <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                    Ready to Start Your Quiz?
-                  </CardTitle>
-                  <CardDescription className="text-lg text-muted-foreground max-w-lg">
-                    Test your knowledge and track your progress. Take your time to read through the information below before starting.
-                  </CardDescription>
-                </div>
-                <div className="flex flex-col items-center space-y-4 min-w-fit">
-                  {deadline && (
-                    <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20 min-w-[300px]">
-                      <CardContent className="flex items-center space-x-3 px-4 py-0">
-                        <AlertCircle className="w-5 h-5 text-amber-600" />
-                        <div>
-                          <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                            Deadline: {new Date(deadline).toLocaleDateString()} at {new Date(deadline).toLocaleTimeString()}
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  <Button
-                    onClick={startQuiz}
-                    size="lg"
-                    className="w-full min-w-[300px] h-14 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-200"
-                    disabled={releaseTime && new Date() < releaseTime || isPending}
-                  >
-                    <PlayCircle className="mr-3 h-6 w-6" />
-                    {isPending ? 'Starting Quiz...' :
-                      releaseTime && new Date() < releaseTime ? 'Quiz Not Available Yet' : 'Start Quiz Now'}
-                  </Button>
-
-                  {attemptError && (
-                    <div className="text-sm text-red-600 text-center max-w-[300px]">
-                      {attemptError || 'Failed to start quiz. Please try again later.'}
-                    </div>
-                  )}
-                  <p className="text-sm text-muted-foreground text-center max-w-[300px]">
-                    Make sure you have a stable internet connection and enough time to complete the quiz.
-                  </p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-8">
-              {/* Key Stats Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card className="text-center p-4 hover:shadow-md transition-shadow">
-                  <div className="flex flex-col items-center space-y-2">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
-                      <BookOpen className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div className="text-2xl font-bold text-primary">
-                      {
-                        Array.isArray(questionBankRefs)
-                          ? questionBankRefs.reduce((sum, ref) => sum + (typeof ref === 'object' && ref !== null && 'count' in ref ? (ref as questionBankRef).count || 0 : 1), 0)
-                          : 0
-                      }
-                    </div>
-                    <div className="text-sm text-muted-foreground">Questions</div>
-                  </div>
-                </Card>
-
-                <Card className="text-center p-4 hover:shadow-md transition-shadow">
-                  <div className="flex flex-col items-center space-y-2">
-                    <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
-                      <Target className="w-5 h-5 text-green-600 dark:text-green-400" />
-                    </div>
-                    <div className="text-2xl font-bold text-primary">{Math.round(passThreshold * 100)}%</div>
-                    <div className="text-sm text-muted-foreground">Pass Score</div>
-                  </div>
-                </Card>
-                <Card className="text-center p-4 hover:shadow-md transition-shadow">
-                  <div className="flex flex-col items-center space-y-2">
-                    <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center">
-                      <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <div className="text-2xl font-bold text-primary">{maxAttempts}</div>
-                    <div className="text-sm text-muted-foreground">Max Attempts</div>
-                  </div>
-                </Card>
-                <Card className="text-center p-4 hover:shadow-md transition-shadow">
-                  <div className="flex flex-col items-center space-y-2">
-                    <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center">
-                      <Timer className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-                    </div>
-                    <div className="text-2xl font-bold text-primary">{approximateTimeToComplete}</div>
-                    <div className="text-sm text-muted-foreground">Est. Time</div>
-                  </div>
-                </Card>
-              </div>
-
-              {/* Show Next Lesson button at the bottom if displayNextLesson is true */}
-              {displayNextLesson && onNext && (
-                <div className="text-center pt-4">
-                  <Button
-                    onClick={onNext}
-                    disabled={isProgressUpdating}
-                    variant="outline"
-                    size="lg"
-                    className="min-w-[300px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
-                  >
-                    {isProgressUpdating ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-3" />
-                        Processing
-                      </>
-                    ) : (
-                      <>
-                        Skip to Next Lesson
-                        <ChevronRight className="h-5 w-5 ml-3" />
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
-              {!displayNextLesson && onPrevVideo && (
-                <div className="text-center pt-4">
-                  <Button
-                    onClick={onPrevVideo}
-                    disabled={isProgressUpdating}
-                    variant="outline"
-                    size="lg"
-                    className="min-w-[300px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
-                  >
-                    <ChevronLeft className="h-5 w-5 mr-3" />
-                    Rewatch Previous Video
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      );
-    }
-    else {
-      return (
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader />
-          <span
-            className='text-lg text-muted-foreground ml-4'
-          > Loading quiz...</span>
-        </div>
-      );
-    }
-
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader />
+        <span
+          className='text-lg text-muted-foreground ml-4'
+        > Loading quiz...</span>
+      </div>
+    );
   }
   // Quiz completed
   if (quizCompleted) {
@@ -1293,14 +1146,14 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 {/* Next Lesson Button-If user doesn't want to wait*/}
                 {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
                   <Button
-                    onClick={async ()=>{
-                        if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
-                          await handleSkipItem();
-                        }
-                        if(onNext){
-                        onNext();
-                        }
+                    onClick={async () => {
+                      if (!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))) {
+                        await handleSkipItem();
                       }
+                      if (onNext) {
+                        onNext();
+                      }
+                    }
                     }
                     disabled={isProgressUpdating}
                     className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
@@ -1570,7 +1423,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     );
   }
 
-  if(quizStarted && noAttemptsLeft){
+  if (quizStarted && noAttemptsLeft) {
     return (
       <Card className="mx-auto">
         <CardContent className="p-8 text-center space-y-6">
@@ -1612,16 +1465,16 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               {/* Next Lesson Button-If user doesn't want to wait*/}
               {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
                 <Button
-                  onClick={async ()=>{
-                      if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
-                        await handleSkipItem();
-                      }
-                      setQuizStarted(false);
-                      setNoAttemptsLeft(false);
-                      if(onNext){
-                        onNext();
-                      }
+                  onClick={async () => {
+                    if (!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))) {
+                      await handleSkipItem();
                     }
+                    setQuizStarted(false);
+                    setNoAttemptsLeft(false);
+                    if (onNext) {
+                      onNext();
+                    }
+                  }
                   }
                   disabled={isProgressUpdating}
                   className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
@@ -1941,6 +1794,21 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
         {/* Navigation */}
         <div className="flex justify-between items-center">
+          {/* Issue #561: Allow learner to rewatch the previous video from quiz */}
+          {onPrevVideo && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                onPrevVideo();
+              }}
+              disabled={isProgressUpdating || isSubmitting || isSaving}
+              className="border-blue-300 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/30"
+            >
+              <ChevronLeft className="mr-2 h-4 w-4" />
+              Rewatch Video
+            </Button>
+          )}
+
           {/* Skip button (shown after 5 attempts) */}
           {(attempts >= 5 && allowSkip == true) && (
             <Button
