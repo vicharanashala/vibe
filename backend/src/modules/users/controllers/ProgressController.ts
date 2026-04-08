@@ -973,6 +973,7 @@ It returns an empty body with a 200 status code.
     );
   }
 
+  ///////////////////////////////////////////////////// TO CORRECT THE STREAK COUNT OF STUDENTS ////////////////////////////////////////////
   @OpenAPI({
     summary: 'Get student learning streak',
     description:
