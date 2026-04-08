@@ -6,8 +6,6 @@ import {
     HpReasonCode,
     HpLedgerEventType,
     HpLedgerDirection,
-    COHORT_OVERRIDES,
-    LEGACY_COURSE_KEYS
 } from "../constants.js";
 import { ObjectId, ClientSession } from "mongodb";
 import { IUser, MongoDatabase } from "#root/shared/index.js";
@@ -111,13 +109,14 @@ const processActivityPenalties = async (
     }
 
     // Get actual course IDs (handle legacy vs new cohort system)
-    const { courseVersionId } = getActualCourseIds(activity);
+    const { courseVersionId } = await getActualCourseIds(activity, cohortRepo);
 
 
-    // Prioritize activity.cohortId if available, otherwise fallback to DB lookup (legacy behavior)
-    let cohortId = activity.cohortId?.toString();
+    // Use cohortId from activity record primarily.
+    const cohortId = activity.cohortId?.toString();
     if (!cohortId || cohortId === "undefined") {
-        cohortId = await cohortRepo.getCohortIdByCohortName(activity.cohort);
+        console.warn(`⚠️ Activity ${activity._id} is missing cohortId. Skipping penalty processing.`);
+        return false;
     }
 
     // Get enrolled students for this course/cohort
@@ -231,7 +230,7 @@ async function processStudentPenalty(
             }
 
             const newHp = Math.max(0, currentHp - penaltyAmount);
-            const { courseId, courseVersionId } = getActualCourseIds(activity);
+            const { courseId, courseVersionId } = await getActualCourseIds(activity, cohortRepo);
 
             const penaltyNote = `Penalty applied for missing deadline of mandatory activity "${activity.title}". Deducted ${penaltyAmount} HP`;
 

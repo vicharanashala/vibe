@@ -47,4 +47,16 @@ export interface IActivityRepository {
     getCountByCohortId(cohortId: string, courseVersionId?: string, session?: ClientSession): Promise<number>;
     getDraftCountByCohortId(cohortId: string, courseVersionId?: string): Promise<number>;
     getPublishedCountByCohortId(cohortId: string, courseVersionId?: string): Promise<number>;
+    getUpcomingDeadlinesForStudent(
+        studentId: string,
+        cohortIdOrName: string,
+        courseVersionId: string,
+        days?: number,
+        limit?: number,
+        session?: ClientSession
+    ): Promise<Array<{
+        activityTitle: string;
+        deadlineDate: string;
+        daysLeft: number;
+    }>>;
 }

@@ -9,13 +9,13 @@
  * 
  * Usage: npx ts-node src/modules/hpSystem/scripts/migrateCohortIds.ts
  */
-
+import "dotenv/config";
 import { MongoClient, ObjectId } from "mongodb";
 
 // ── Configuration ──────────────────────────────────────────────────────
 // Update this connection string to match your environment
-const MONGO_URI = "";
-const DB_NAME = "";
+const MONGO_URI = process.env.DB_URL;
+const DB_NAME = process.env.DB_NAME;
 
 // Hardcoded cohorts that need to be inserted into the cohorts collection
 const LEGACY_COHORTS = [

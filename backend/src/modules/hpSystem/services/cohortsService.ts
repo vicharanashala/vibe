@@ -471,23 +471,11 @@ export class CohortsService extends BaseService {
 
             // 2. If not a hardcoded cohort, try dynamic DB cohort
             if (!students) {
-                if (!ObjectId.isValid(cohortId)) {
-                    // Backwards compatibility layer for a frontend that sends a name
-                    const dbCohorts = await this.cohortRepository.getCohortsByVersionId(versionId);
-                    const matchedCohort = dbCohorts.find(
-                        c => c.name.toLowerCase() === cohortId.trim().toLowerCase()
-                    );
-                    if (matchedCohort && matchedCohort._id) {
-                        students = await this.cohortRepository.getStudentsForCohortByCohortId(
-                            versionId,
-                            matchedCohort._id.toString(),
-                            query
-                        );
-                    }
-                } else {
+                const resolved = await this.cohortRepository.resolveCohort(cohortId, undefined, versionId, session);
+                if (resolved) {
                     students = await this.cohortRepository.getStudentsForCohortByCohortId(
-                        versionId,
-                        cohortId,
+                        resolved.courseVersionId.toString(),
+                        resolved._id!.toString(),
                         query
                     );
                 }
@@ -675,24 +663,15 @@ export class CohortsService extends BaseService {
         throw new BadRequestError('Target Hp can not be negative');
       }
 
-      const legacyMap = EXISTING_COHORTS_MAP[courseVersionId];
-      const actualVersionId = legacyMap?.[cohortName.trim().toLowerCase()] ?? courseVersionId;
-
-      const cohorts =
-        await this.cohortRepository.getCohortsByVersionId(actualVersionId);
-
-      const matchedCohort = cohorts.find(
-        c => c.name.toLowerCase() === cohortName.trim().toLowerCase(),
-      );
-
-      if (!matchedCohort) {
+      const resolved = await this.cohortRepository.resolveCohort(cohortName, undefined, courseVersionId, session);
+      if (!resolved) {
         throw new NotFoundError('Cohort Not found');
       }
 
       return this.cohortRepository.resetHpforCohort(
-        actualVersionId,
-        matchedCohort._id.toString(),
-        cohortName,
+        resolved.courseVersionId.toString(),
+        resolved._id!.toString(),
+        resolved.name,
         targetHp,
         mode,
         triggeredByUserId,
@@ -713,24 +692,15 @@ export class CohortsService extends BaseService {
         throw new BadRequestError('Target Hp can not be negative');
         }
 
-        const legacyMap = EXISTING_COHORTS_MAP[courseVersionId];
-        const actualVersionId = legacyMap?.[cohortName.trim().toLowerCase()] ?? courseVersionId;
-
-        const cohorts =
-            await this.cohortRepository.getCohortsByVersionId(actualVersionId);
-
-        const matchedCohort = cohorts.find(
-            c => c.name.toLowerCase() === cohortName.trim().toLowerCase(),
-        );
-
-        if (!matchedCohort) {
+        const resolved = await this.cohortRepository.resolveCohort(cohortName, undefined, courseVersionId, session);
+        if (!resolved) {
             throw new NotFoundError('Cohort Not found');
         }
 
         return this.cohortRepository.resetHpForStudent(
-            actualVersionId,
-            matchedCohort._id.toString(),
-            cohortName,
+            resolved.courseVersionId.toString(),
+            resolved._id!.toString(),
+            resolved.name,
             studentId,
             targetHp,
             triggeredByUserId,

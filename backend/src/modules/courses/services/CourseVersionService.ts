@@ -401,6 +401,7 @@ export class CourseVersionService extends BaseService {
           const versionSetting = await this.settingsRepo.getSettingsByVersionIds([new ObjectId(courseVersionId)]);
           const baseHpValue = versionSetting?.[0]?.settings?.hpSystem === true ? versionSetting?.[0]?.settings?.baseHp ?? 0 : 0;
           const cohortIds = await this.courseRepo.createCohorts(
+          existingVersion.courseId.toString(),
           courseVersionId,
           body.cohorts,
           baseHpValue,

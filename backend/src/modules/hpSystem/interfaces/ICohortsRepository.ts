@@ -111,4 +111,15 @@ export interface ICohortRepository {
         triggeredByUserId: string,
         session?: ClientSession,
     ): Promise<number>
+
+    /**
+     * Resolves a cohort identifier (either cohortId or cohortName) into a full ICohort object.
+     * Use this for central resolution to support both ID and Name based lookups.
+     */
+    resolveCohort(
+        idOrName: string,
+        courseId?: string,
+        courseVersionId?: string,
+        session?: ClientSession,
+    ): Promise<ICohort | null>;
 }

@@ -140,6 +140,64 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
         });
     }
 
+    async resolveCohort(
+        idOrName: string,
+        courseId?: string,
+        courseVersionId?: string,
+        session?: ClientSession,
+    ): Promise<ICohort | null> {
+        await this.init();
+
+        if (!idOrName) return null;
+
+        // Helper to ensure we have a common format for comparison/assignment
+        const toId = (val: any) => ObjectId.isValid(val) ? new ObjectId(val) : val;
+
+        let cohort: ICohort | null = null;
+
+        // 1. Try to resolve by ObjectId if valid
+        if (ObjectId.isValid(idOrName)) {
+            cohort = await this.cohortsCollection.findOne({
+                _id: new ObjectId(idOrName),
+                isDeleted: { $ne: true },
+            }, { session });
+        }
+
+        // 2. Fallback to resolution by name if not found by ID
+        if (!cohort) {
+            const query: any = {
+                name: idOrName,
+                isDeleted: { $ne: true },
+            };
+
+            const isPseudoId = (id?: string) => id?.startsWith("00000000000000000");
+
+            // If scoping IDs are provided, use them to ensure uniqueness
+            // But SKIP if they are pseudoIDs (used as markers for legacy courses)
+            if (courseId && !isPseudoId(courseId)) query.courseId = toId(courseId);
+            if (courseVersionId && !isPseudoId(courseVersionId)) query.courseVersionId = toId(courseVersionId);
+
+            cohort = await this.cohortsCollection.findOne(query, { session });
+            
+            // Final fallback for names: if scoped query fails, try searching by name only
+            if (!cohort && !ObjectId.isValid(idOrName)) {
+                 cohort = await this.cohortsCollection.findOne({ name: idOrName, isDeleted: { $ne: true } }, { session });
+            }
+        }
+
+        if (cohort) {
+            // ✅ PROFESSIONAL FALLBACK:
+            // If the database record is missing scoping IDs (common in older dynamic cohorts),
+            // but they were provided in the call context (URL params), attach them.
+            // This ensures that downstream code receiving this 'ICohort' can safely call .toString() 
+            // on courseId/courseVersionId without crashing or requiring redundant DB lookups.
+            if (!cohort.courseId && courseId) cohort.courseId = toId(courseId);
+            if (!cohort.courseVersionId && courseVersionId) cohort.courseVersionId = toId(courseVersionId);
+        }
+
+        return cohort;
+    }
+
     async getTotalStudentsCountForCohort(courseVersionId: string, cohortId: string): Promise<number> {
         await this.init();
 

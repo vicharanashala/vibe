@@ -49,6 +49,7 @@ export interface ICourseRepository {
   ): Promise<ICohort[]>;
 
   createCohorts(
+    courseId: string,
     versionId: string,
     cohorts: string[],
     baseHp: number,

@@ -63,8 +63,8 @@ export class ActivityService extends BaseService {
                     courseVersionId: new ObjectId(body.courseVersionId),
                     cohortId: new ObjectId(body.cohortId),
                     cohort: await (async () => {
-                        const c = await this.cohortRepository.getCohortById(body.cohortId!);
-                        return c?.name || body.cohort || body.cohortId;
+                        const resolved = await this.cohortRepository.resolveCohort(body.cohortId!, body.courseId, body.courseVersionId, session);
+                        return resolved?.name || body.cohort || body.cohortId;
                     })(),
 
                     createdByTeacherId: new ObjectId(teacherId),
@@ -148,8 +148,13 @@ export class ActivityService extends BaseService {
                     ...(body.cohortId !== undefined ? { 
                         cohortId: new ObjectId(body.cohortId), 
                         cohort: await (async () => {
-                            const c = await this.cohortRepository.getCohortById(body.cohortId!);
-                            return c?.name || body.cohort || body.cohortId;
+                            const resolved = await this.cohortRepository.resolveCohort(
+                                body.cohortId!, 
+                                existing.courseId?.toString(), 
+                                existing.courseVersionId?.toString(), 
+                                session
+                            );
+                            return resolved?.name || body.cohort || body.cohortId;
                         })()
                     } : {}),
                     ...(body.required_percentage !== undefined ? { required_percentage: body.required_percentage } : {}),

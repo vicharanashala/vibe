@@ -15,7 +15,7 @@ import { HpActivitySubmission, HpLedger, HpLedgerDirection, HpLedgerEventType, H
 import { ClientSession, ObjectId } from "mongodb";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { SubmissionFeedbackItem } from "../classes/transformers/ActivitySubmission.js";
-import { COHORT_OVERRIDES, ID } from "../constants.js";
+import { ID } from "../constants.js";
 import { getHpLedgerOperationId } from "../utils/getHpLedgerOperationId .js";
 import { ISettingRepository } from "#root/shared/database/interfaces/ISettingRepository.js";
 import { ICourseRepository } from "#root/shared/database/interfaces/ICourseRepository.js";
@@ -264,31 +264,41 @@ export class ActivitySubmissionsService extends BaseService {
             if (latestSubmissions && latestSubmissions.status !== "REVERTED")
                 throw new BadRequestError("You have already attended this activity.")
 
-            const cohort = body.cohortId;
+            // 2. Resolve Cohort and Apply Overrides
+            //    We use the activity's cohort identifiers to resolve. 
+            //    Legacy courses with pseudo IDs (e.g. 000...001) are correctly mapped 
+            //    to their real DB IDs because those IDs were stored in the `cohorts` 
+            //    collection during migration.
+            const resolvedCohort = await this.cohortRepository.resolveCohort(
+                activity.cohortId?.toString() || activity.cohort,
+                activity.courseId?.toString(),
+                activity.courseVersionId?.toString(),
+                session
+            );
+            if (!resolvedCohort) {
+                throw new BadRequestError(`Cohort context not found for activity ${activityId}`);
+            }
 
-            // 2. Apply Overrides: `cohort` here is an ObjectId string, but COHORT_OVERRIDES
-            //    is keyed by cohort NAME. Use the activity's `cohort` field (the name) to look up overrides.
-            const cohortName = activity.cohort; // e.g. "Euclideans", "Dijkstrians", etc.
-            const override = COHORT_OVERRIDES[cohortName];
-            const finalCourseId = override?.courseId ?? body.courseId;
-            const finalVersionId = override?.versionId ?? body.courseVersionId;
+            const finalCourseId = resolvedCohort.courseId?.toString();
+            const finalVersionId = resolvedCohort.courseVersionId?.toString();
+            const resolvedCohortId = resolvedCohort._id?.toString();
 
-            // 3. Fetch Enrollment using the CORRECT (overridden) IDs.
-            //    Even though enrollments are being migrated to include cohortId, 
-            //    we MUST use the overridden course/version IDs here because legacy 
-            //    enrollments are stored under their real DB IDs, not the pseudo IDs 
-            //    used for display in the frontend.
+            if (!finalCourseId || !finalVersionId || !resolvedCohortId) {
+                throw new BadRequestError(`Incomplete cohort data resolved for activity ${activityId}. Please contact support.`);
+            }
+
+            // 3. Fetch Enrollment using the CORRECT (resolved) IDs.
             const enrollment = await this.cohortRepository.findEnrollment(
                 student.id,
                 finalCourseId,
                 finalVersionId,
-                cohort,
+                resolvedCohortId,
                 session
             );
 
             if (!enrollment) {
                 console.error(`Enrollment check failed for Student: ${student.id} in Course: ${finalCourseId}`);
-                throw new BadRequestError(`Student is not enrolled in the required course context for cohort: ${cohort}`);
+                throw new BadRequestError(`Student is not enrolled in the required course context for cohort: ${resolvedCohortId}`);
             }
 
             // Determine if submission is late based on activity rule config deadline
@@ -331,21 +341,12 @@ export class ActivitySubmissionsService extends BaseService {
             let uploadedImages: any[] = [];
 
 
-            // To create proper unique folder names based on cohort (exisiting cohort=>cohortName, new cohorts=>id)
-            let cohortFileName = body.cohortId
-            const isOverride = COHORT_OVERRIDES[body.cohortId]
-            if (!isOverride) {
-                const cohortId = await this.cohortRepository.getCohortIdByCohortName(body.cohortId);
-                if (cohortId)
-                    cohortFileName = cohortId;
-            }
-
             // Only call upload when there are files/images
             if (files.length > 0 || images.length > 0) {
                 const uploadResult = await this.uploadSubmissionAssets(
                     student.id,
-                    cohortFileName,
-                    body.activityId,
+                    resolvedCohortId, // Use the resolved ID for the upload logic
+                    activityId,
                     files,
                     images
                 );
@@ -395,10 +396,10 @@ export class ActivitySubmissionsService extends BaseService {
             // Create submission record, then calculate and apply rewards if applicable
             const submissionId = await this.activitySubmissionsRepository.create(
                 {
-                    courseId: new ObjectId(body.courseId),
-                    courseVersionId: new ObjectId(body.courseVersionId),
-                    cohortId: new ObjectId(body.cohortId),
-                    cohort: cohortName || body.cohortId,
+                    courseId: new ObjectId(finalCourseId),
+                    courseVersionId: new ObjectId(finalVersionId),
+                    cohortId: new ObjectId(resolvedCohortId),
+                    cohort: resolvedCohort.name,
                     activityId: new ObjectId(body.activityId),
 
                     studentId: new ObjectId(student.id),
@@ -471,10 +472,10 @@ export class ActivitySubmissionsService extends BaseService {
 
                 // 2. Prepare the Ledger Entry (Centralized)
                 const ledgerEntry: Omit<HpLedger, "_id" | "createdAt"> = {
-                    courseId: new ObjectId(body.courseId),
-                    courseVersionId: new ObjectId(body.courseVersionId),
-                    cohortId: new ObjectId(body.cohortId),
-                    cohort: cohortName || body.cohortId,
+                    courseId: new ObjectId(finalCourseId),
+                    courseVersionId: new ObjectId(finalVersionId),
+                    cohortId: new ObjectId(resolvedCohortId),
+                    cohort: resolvedCohort.name,
                     studentId: new ObjectId(student.id),
                     studentEmail: student.email,
                     activityId: new ObjectId(body.activityId),
@@ -508,7 +509,7 @@ export class ActivitySubmissionsService extends BaseService {
                         student.id,
                         finalCourseId,
                         finalVersionId,
-                        cohort,
+                        resolvedCohortId,
                         totalStudentHpPoints + incrementAmount,
                         session
                     )
@@ -569,11 +570,20 @@ export class ActivitySubmissionsService extends BaseService {
             let uploadedPdfs: any[] = [];
             let uploadedImages: any[] = [];
 
+            // Resolve cohort to get stable identifiers for the update logic
+            const resolvedCohort = await this.cohortRepository.resolveCohort(
+                body.cohortId,
+                body.courseId,
+                body.courseVersionId,
+                session
+            );
+            const resolvedCohortId = resolvedCohort?._id?.toString() || body.cohortId;
+
             // Only call upload when there are files/images
             if (files.length > 0 || images.length > 0) {
                 const uploadResult = await this.uploadSubmissionAssets(
                     student.id,
-                    body.cohortId,
+                    resolvedCohortId,
                     body.activityId,
                     files,
                     images
@@ -663,12 +673,13 @@ export class ActivitySubmissionsService extends BaseService {
 
         const effectiveQuery: ListSubmissionsQueryDto = { ...query };
 
-        const cohortId = query.cohortId;
-        const override = cohortId ? (COHORT_OVERRIDES[cohortId] || Object.values(COHORT_OVERRIDES).find(o => o.cohortId === cohortId)) : null;
-
-        if (override)
-            effectiveQuery.courseVersionId = override.versionId;
-
+        if (query.cohortId) {
+            const resolvedCohort = await this.cohortRepository.resolveCohort(query.cohortId, undefined, query.courseVersionId);
+            if (resolvedCohort) {
+                effectiveQuery.courseVersionId = resolvedCohort.courseVersionId.toString();
+                effectiveQuery.cohortId = resolvedCohort._id.toString();
+            }
+        }
 
         const docs = await this.activitySubmissionsRepository.list(effectiveQuery);
 
@@ -734,11 +745,14 @@ export class ActivitySubmissionsService extends BaseService {
             throw new BadRequestError("Student id not found");
         }
 
-        const cohortId = cohortIdOrName;
-        const override = COHORT_OVERRIDES[cohortId] || Object.values(COHORT_OVERRIDES).find(o => o.cohortId === cohortId);
-        const resolvedCohortName = override ? Object.keys(COHORT_OVERRIDES).find(key => COHORT_OVERRIDES[key] === override) : cohortIdOrName;
+        // Resolve cohort dynamically
+        const resolvedCohort = await this.cohortRepository.resolveCohort(cohortIdOrName);
+        if (!resolvedCohort) {
+            throw new BadRequestError(`Cohort not found: ${cohortIdOrName}`);
+        }
 
-        const cohortName = resolvedCohortName || cohortIdOrName;
+        const resolvedCohortName = resolvedCohort.name;
+        const resolvedCohortId = resolvedCohort._id!.toString();
 
         const student = await this.userRepo.findById(studentId);
         if (!student) {
@@ -750,7 +764,7 @@ export class ActivitySubmissionsService extends BaseService {
         //     courseId = override.courseId;
         //     courseVersionId = override.versionId;
         // } else {
-        const latestActivity = await this.activityRepository.getLatestActivityByCohortId(cohortName);
+        const latestActivity = await this.activityRepository.getLatestActivityByCohortId(resolvedCohortId);
 
         if (!latestActivity) {
             return {
@@ -761,16 +775,15 @@ export class ActivitySubmissionsService extends BaseService {
                     totalLateSubmissions: 0,
                     totalPendings: 0,
                     currentHp: 0,
-                    bestPerformingCohort: cohortName,
+                    bestPerformingCohort: resolvedCohortName,
                     coursePerformance: [],
                     weeklyActivity: [],
                 },
             };
         }
 
-        const courseId = latestActivity.courseId.toString();
-        const courseVersionId = latestActivity.courseVersionId.toString();
-        // }
+        const courseId = resolvedCohort.courseId.toString();
+        const courseVersionId = resolvedCohort.courseVersionId.toString();
 
         const [
             totalActivities,
@@ -779,12 +792,11 @@ export class ActivitySubmissionsService extends BaseService {
             totalPendingActivites,
             enrollment,
         ] = await Promise.all([
-            this.activityRepository.getCountByCohortId(cohortName),
-            this.activitySubmissionsRepository.getCountByStudentId(studentId, courseId, courseVersionId, cohortName),
-            this.activitySubmissionsRepository.getLateSubmissionCountByStudentId(studentId, courseId, courseVersionId, cohortName),
-            this.activityRepository.getPendingActivitesCount(studentId, courseId, courseVersionId, cohortName),
-            this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId, cohortName),
-            // this.activityRepository.getLatestActivityByCohortId(cohortName),
+            this.activityRepository.getCountByCohortId(resolvedCohortId),
+            this.activitySubmissionsRepository.getCountByStudentId(studentId, courseId, courseVersionId, resolvedCohortId),
+            this.activitySubmissionsRepository.getLateSubmissionCountByStudentId(studentId, courseId, courseVersionId, resolvedCohortId),
+            this.activityRepository.getPendingActivitesCount(studentId, courseId, courseVersionId, resolvedCohortId),
+            this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId, resolvedCohortId),
         ]);
 
         const data: StudentActivitySubmissionStatsViewDto = {
@@ -793,7 +805,7 @@ export class ActivitySubmissionsService extends BaseService {
             totalLateSubmissions,
             totalPendings: totalPendingActivites,
             currentHp: enrollment?.hpPoints ?? 0,
-            bestPerformingCohort: cohortName,
+            bestPerformingCohort: resolvedCohortName,
             coursePerformance: [],
             weeklyActivity: [],
         };
@@ -837,22 +849,29 @@ export class ActivitySubmissionsService extends BaseService {
             const submission = await this.activitySubmissionsRepository.findById(submissionId, { session });
             if (!submission) throw new NotFoundError(`Submission ${submissionId} not found.`);
 
-            const cohort = submission.cohort;
-            let courseId = submission.courseId.toString()
-            let courseVersionId = submission.courseVersionId.toString()
-
-            const override = COHORT_OVERRIDES[cohort];
-            if (override) {
-                courseId = override.courseId;
-                courseVersionId = override.versionId;
+            // Use the new resolver to handle both ID and legacy names
+            const resolvedCohort = await this.cohortRepository.resolveCohort(
+                submission.cohortId?.toString() || submission.cohort,
+                submission.courseId?.toString(),
+                submission.courseVersionId?.toString(),
+                session
+            );
+            if (!resolvedCohort) {
+                throw new BadRequestError(`Cohort context not found for submission ${submissionId}`);
             }
 
-            const cohortIdForEnrollment = submission.cohortId?.toString() || submission.cohort;
+            const courseId = resolvedCohort.courseId?.toString();
+            const courseVersionId = resolvedCohort.courseVersionId?.toString();
+            const resolvedCohortId = resolvedCohort._id?.toString();
+
+            if (!courseId || !courseVersionId || !resolvedCohortId) {
+                throw new BadRequestError(`Incomplete cohort data resolved for submission ${submissionId}. Please contact support.`);
+            }
 
             const [activityRuleConfig, user, enrollment, courseSettings] = await Promise.all([
                 this.ruleConfigService.getByActivityId(submission.activityId.toString()),
                 this.userRepo.findById(submission.studentId.toString()),
-                this.cohortRepository.findEnrollment(submission.studentId.toString(), courseId, courseVersionId, cohortIdForEnrollment, session),
+                this.cohortRepository.findEnrollment(submission.studentId.toString(), courseId, courseVersionId, resolvedCohortId, session),
                 this.settingRepository.readCourseSettings(courseId, courseVersionId, session)
             ]);
 
@@ -1012,7 +1031,7 @@ export class ActivitySubmissionsService extends BaseService {
 
             await Promise.all([
                 ...ledgerPromises,
-                this.cohortRepository.setHPForEnrollment(submission.studentId.toString(), courseId.toString(), courseVersionId.toString(), submission.cohortId.toString(), finalHpBalance, session)
+                this.cohortRepository.setHPForEnrollment(submission.studentId.toString(), courseId.toString(), courseVersionId.toString(), resolvedCohortId, finalHpBalance, session)
             ]);
 
             return { success: true };
@@ -1030,18 +1049,15 @@ export class ActivitySubmissionsService extends BaseService {
             throw new BadRequestError("Only reverted or rejected submissions can be restored.");
         }
 
-        const cohort = submission.cohort;
-        let courseId = submission.courseId.toString();
-        let courseVersionId = submission.courseVersionId.toString();
-
-        // 3. Handle both existing and new cohorts
-        const override = COHORT_OVERRIDES[cohort];
-        if (override) {
-            courseId = override.courseId;
-            courseVersionId = override.versionId;
+        // 3. Resolve cohort to get stable IDs
+        const resolvedCohort = await this.cohortRepository.resolveCohort(submission.cohortId?.toString() || submission.cohort);
+        if (!resolvedCohort) {
+            throw new BadRequestError(`Cohort context not found for submission ${submissionId}`);
         }
 
-        const cohortIdForEnrollment = submission.cohortId?.toString() || submission.cohort;
+        const courseId = resolvedCohort.courseId.toString();
+        const courseVersionId = resolvedCohort.courseVersionId.toString();
+        const resolvedCohortId = resolvedCohort._id.toString();
 
         // 4. Find the DEBIT ledger entry
         const debitLedger = await this.ledgerRepository.findDebitBySubmissionId(submissionId);
@@ -1061,7 +1077,7 @@ export class ActivitySubmissionsService extends BaseService {
                 submission.studentId.toString(),
                 courseId,
                 courseVersionId,
-                cohortIdForEnrollment,
+                resolvedCohortId,
                 session
             )
         ]);
@@ -1110,7 +1126,7 @@ export class ActivitySubmissionsService extends BaseService {
             submission.studentId.toString(),
             courseId,
             courseVersionId,
-            cohortIdForEnrollment,
+            resolvedCohortId,
             finalHpBalance,
             session
         );
@@ -1193,11 +1209,12 @@ export class ActivitySubmissionsService extends BaseService {
 
     async getCohortActivityStats(cohortIdOrName: string, activityId: string, session?: ClientSession): Promise<StudentCohortWiseActivitySubmissionsStatsDto> {
         return this._withTransaction(async (session) => {
-            const cohortId = cohortIdOrName;
-            const override = COHORT_OVERRIDES[cohortId] || Object.values(COHORT_OVERRIDES).find(o => o.cohortId === cohortId);
-            const resolvedCohortName = override ? Object.keys(COHORT_OVERRIDES).find(key => COHORT_OVERRIDES[key] === override) : cohortIdOrName;
+            const resolvedCohort = await this.cohortRepository.resolveCohort(cohortIdOrName);
+            if (!resolvedCohort) {
+                throw new BadRequestError(`Cohort not found: ${cohortIdOrName}`);
+            }
 
-            const data = await this.activitySubmissionsRepository.getCohortActivityStats(resolvedCohortName || cohortIdOrName, activityId, session);
+            const data = await this.activitySubmissionsRepository.getCohortActivityStats(resolvedCohort._id.toString(), activityId, session);
             return {
                 data
             };
@@ -1206,22 +1223,15 @@ export class ActivitySubmissionsService extends BaseService {
 
     async getBulkCohortActivityStats(cohortIdOrName: string, courseVersionId: string, session?: ClientSession): Promise<StudentActivitySubmissionStatsViewDto> {
         return this._withTransaction(async (session) => {
-            // Resolve cohortIdOrName: if it's an ObjectId, find in overrides, else use as name
-            const inputCohortId = cohortIdOrName;
-            const cohortOverride = COHORT_OVERRIDES[inputCohortId] || Object.values(COHORT_OVERRIDES).find(o => o.cohortId === inputCohortId);
-            const resolvedCohortName = cohortOverride ? Object.keys(COHORT_OVERRIDES)[Object.values(COHORT_OVERRIDES).indexOf(cohortOverride)] : cohortIdOrName;
-
-            const effectiveVersionId = courseVersionId;
-            
-            // Resolve the actual cohort ObjectId for repository queries that need it
-            let effectiveCohortId: string = cohortIdOrName;
-            if (cohortOverride?.cohortId) {
-                effectiveCohortId = cohortOverride.cohortId;
-            } else if (!ObjectId.isValid(cohortIdOrName)) {
-                // cohortIdOrName is a name string, look up the ObjectId
-                const lookedUpId = await this.cohortRepository.getCohortIdByCohortName(cohortIdOrName);
-                if (lookedUpId) effectiveCohortId = lookedUpId;
+            // Resolve cohort context dynamically
+            const resolvedCohort = await this.cohortRepository.resolveCohort(cohortIdOrName);
+            if (!resolvedCohort) {
+                throw new BadRequestError(`Cohort not found: ${cohortIdOrName}`);
             }
+
+            const resolvedCohortName = resolvedCohort.name;
+            const effectiveCohortId = resolvedCohort._id.toString();
+            const effectiveVersionId = resolvedCohort.courseVersionId.toString();
             
             // Execute all queries in parallel for optimal performance
             const [
@@ -1383,45 +1393,31 @@ export class ActivitySubmissionsService extends BaseService {
         }>;
     }> {
         return this._withTransaction(async (session) => {
-            // Resolve cohortName: if it's an ObjectId, look up the actual cohort name from the DB
-            let resolvedCohortName = cohortName;
-            if (ObjectId.isValid(cohortName)) {
-                const dbCohort = await this.cohortRepository.getCohortById(cohortName);
-                if (dbCohort?.name) {
-                    resolvedCohortName = dbCohort.name;
-                }
+            // Resolve cohort context dynamically
+            const resolvedCohort = await this.cohortRepository.resolveCohort(cohortName);
+            if (!resolvedCohort) {
+                throw new BadRequestError(`Cohort not found: ${cohortName}`);
             }
 
-            // Only apply cohort overrides for legacy courses
-            const legacyCourseIds = ["000000000000000000000001", "000000000000000000000002"];
-            const isLegacyCourse = legacyCourseIds.includes(courseVersionId);
-            
-            // Resolve effective versionId from legacy cohort overrides only for legacy courses
-            const cohortOverride = isLegacyCourse ? COHORT_OVERRIDES[resolvedCohortName] : null;
-            const effectiveVersionId = courseVersionId;
+            const resolvedCohortName = resolvedCohort.name;
+            const resolvedCohortId = resolvedCohort._id.toString();
+            const effectiveVersionId = resolvedCohort.courseVersionId.toString();
+            const courseId = resolvedCohort.courseId.toString();
 
             // 1. Get student dashboard stats from submissions repository
             const dashboardStats = await this.activitySubmissionsRepository.getStudentDashboardStats(
                 studentId,
-                resolvedCohortName,
+                resolvedCohortId,
                 effectiveVersionId,
                 session
             );
 
             // 2. Get current HP from enrollment
-            let courseId: string;
-            if (cohortOverride) {
-                // For legacy cohorts, use courseId directly from overrides
-                courseId = cohortOverride.courseId;
-            } else {
-                const courseVersion = await this.courseRepo.readVersion(effectiveVersionId, session);
-                courseId = courseVersion?.courseId?.toString() ?? "";
-            }
             const enrollment = await this.cohortRepository.findEnrollment(
                 studentId,
                 courseId,
                 effectiveVersionId,
-                resolvedCohortName,
+                resolvedCohortId,
                 session
             );
             const totalHp = enrollment?.hpPoints ?? 0; 
@@ -1429,7 +1425,7 @@ export class ActivitySubmissionsService extends BaseService {
             // 3. Get progress timeline from ledger
             const progressTimeline = await this.ledgerRepository.getStudentHpTimeline(
                 studentId,
-                resolvedCohortName,
+                resolvedCohortId,
                 effectiveVersionId,
                 timelineDays,
                 session
@@ -1438,7 +1434,7 @@ export class ActivitySubmissionsService extends BaseService {
             // 4. Get upcoming deadlines (within 7 days)
             const upcomingDeadlines = await this.activityRepository.getUpcomingDeadlinesForStudent(
                 studentId,
-                resolvedCohortName,
+                resolvedCohortId,
                 effectiveVersionId,
                 7, // days
                 5, // limit
@@ -1448,7 +1444,7 @@ export class ActivitySubmissionsService extends BaseService {
             // 5. Get recent submissions (last 5)
             const recentSubmissions = await this.activitySubmissionsRepository.getStudentRecentSubmissions(
                 studentId,
-                resolvedCohortName,
+                resolvedCohortId,
                 effectiveVersionId,
                 5,
                 session

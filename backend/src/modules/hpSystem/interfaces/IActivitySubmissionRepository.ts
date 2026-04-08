@@ -102,5 +102,38 @@ export interface IActivitySubmissionRepository {
         session?: ClientSession
     ): Promise<number>;
 
+    getStudentDashboardStats(
+        studentId: string,
+        cohortIdOrName: string,
+        courseVersionId: string,
+        session?: ClientSession
+    ): Promise<{
+        myStats: {
+            totalHp: number;
+            completedActivities: number;
+            pendingSubmissions: number;
+            completionPercentage: number;
+        };
+        activityBreakdown: {
+            notStarted: number;
+            submitted: number;
+            approved: number;
+            rejected: number;
+        };
+    }>;
+
+    getStudentRecentSubmissions(
+        studentId: string,
+        cohortIdOrName: string,
+        courseVersionId: string,
+        limit?: number,
+        session?: ClientSession
+    ): Promise<Array<{
+        activityTitle: string;
+        submittedAt: string;
+        status: string;
+        hpEarned: number;
+    }>>;
+
     listSubmissionsBeforeDeadline(activityId: string): Promise<HpActivitySubmission[]>
 }

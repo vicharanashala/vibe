@@ -639,12 +639,8 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
     async getLateSubmissionCount(cohortId: string, courseVersionId: string, session?: ClientSession): Promise<number> {
         await this.init();
 
-        const cohortMatch: any = ObjectId.isValid(cohortId)
-            ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
-            : { cohort: cohortId };
-
         return await this.hpActivitySubmissionCollection.countDocuments({
-            ...cohortMatch,
+            cohortId: new ObjectId(cohortId),
             courseVersionId: new ObjectId(courseVersionId),
             isLate: true
         }, { session });
@@ -653,12 +649,8 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
     async getPendingSubmissionsCount(cohortId: string, courseVersionId: string, session?: ClientSession): Promise<number> {
         await this.init();
 
-        const cohortMatch: any = ObjectId.isValid(cohortId)
-            ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
-            : { cohort: cohortId };
-
         return await this.hpActivitySubmissionCollection.countDocuments({
-            ...cohortMatch,
+            cohortId: new ObjectId(cohortId),
             courseVersionId: new ObjectId(courseVersionId),
             status: 'SUBMITTED'
         }, { session });
@@ -1053,7 +1045,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
 
     async getStudentRecentSubmissions(
         studentId: string,
-        cohortName: string,
+        cohortIdOrName: string,
         courseVersionId: string,
         limit: number = 5,
         session?: ClientSession
@@ -1065,11 +1057,15 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
     }>> {
         await this.init();
 
+        const cohortMatch: any = ObjectId.isValid(cohortIdOrName)
+            ? { $or: [{ cohortId: new ObjectId(cohortIdOrName) }, { cohort: cohortIdOrName }] }
+            : { cohort: cohortIdOrName };
+
         const docs = await this.hpActivitySubmissionCollection.aggregate([
             {
                 $match: {
                     studentId: new ObjectId(studentId),
-                    cohort: cohortName,
+                    ...cohortMatch,
                     courseVersionId: new ObjectId(courseVersionId)
                 }
             },

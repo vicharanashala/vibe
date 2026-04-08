@@ -6,7 +6,6 @@ import {
     HpReasonCode,
     HpLedgerEventType,
     HpLedgerDirection,
-    COHORT_OVERRIDES
 } from "../constants.js";
 import { ObjectId, ClientSession } from "mongodb";
 import { MongoDatabase } from "#root/shared/index.js";
@@ -95,14 +94,17 @@ const processMilestoneRewards = async (
     console.log(`💰 Reward type: ${activityConfig.reward.type}, Value: ${activityConfig.reward.value}`);
 
     // Get actual course IDs (handle legacy vs new cohort system)
-    const { courseId, courseVersionId } = getActualCourseIds(activity);
+    const { courseId, courseVersionId } = await getActualCourseIds(activity, cohortRepo);
     console.log(`🎯 Processing activity: ${activity._id} (Course: ${courseId}, Version: ${courseVersionId})`);
 
 
-    // Prioritize activity.cohortId if available, otherwise fallback to DB lookup (legacy behavior)
-    let cohortId = activity.cohortId?.toString();
+    // Use cohortId from activity record primarily. 
+    // Migration has already populated cohortId for all activities.
+    const cohortId = activity.cohortId?.toString();
+    
     if (!cohortId || cohortId === "undefined") {
-        cohortId = await cohortRepo.getCohortIdByCohortName(activity.cohort);
+        console.warn(`⚠️ Activity ${activity._id} is missing cohortId. Skipping reward processing.`);
+        return;
     }
 
 
@@ -370,7 +372,7 @@ const applyStudentReward = async (
 
     try {
         await session.withTransaction(async () => {
-            const { courseId, courseVersionId } = getActualCourseIds(activity);
+            const { courseId, courseVersionId } = await getActualCourseIds(activity, cohortRepo);
 
             const ledgerEntry: Omit<HpLedger, "_id" | "createdAt"> = {
                 courseId: new ObjectId(activity.courseId),

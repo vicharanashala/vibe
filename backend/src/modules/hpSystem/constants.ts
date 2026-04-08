@@ -108,6 +108,11 @@ export enum TriggeredBy {
 }
 
 
+/**
+ * @deprecated Use CohortRepository.resolveCohort() instead. 
+ * Hardcoded IDs differ across environments and should not be relied upon in logic.
+ * Keeping for backward compatibility fallback only.
+ */
 export interface CohortOverride {
   courseId: string;
   versionId: string;
@@ -115,6 +120,10 @@ export interface CohortOverride {
   cohortId?: string;
 }
 
+/**
+ * @deprecated These mappings are now stored in the 'cohorts' collection.
+ * Logic should resolve these dynamically using resolveCohort(cohortName).
+ */
 export const COHORT_OVERRIDES: Record<string, CohortOverride> = {
   Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af", cohortId: "69d31909b50379d839ff3492" },
   Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150", cohortId: "69d3190ab50379d839ff3493" },
@@ -127,6 +136,10 @@ export const COHORT_OVERRIDES: Record<string, CohortOverride> = {
   Testians: { courseId: "69c77812b4ae917c56cf227e", versionId: "69c77812b4ae917c56cf227f", cohortId: "69d3190ab50379d839ff3497" },
 };
 
+/**
+ * @deprecated Legacy course:version pseudo-IDs. 
+ * Managed via the isLegacy flag in the cohorts collection now.
+ */
 export const LEGACY_COURSE_KEYS = new Set([
   "000000000000000000000001:000000000000000000000001",
   "000000000000000000000002:000000000000000000000002",

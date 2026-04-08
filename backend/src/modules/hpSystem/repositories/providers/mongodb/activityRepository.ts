@@ -334,13 +334,9 @@ export class ActivityRepository implements IActivityRepository {
   ): Promise<HpActivity | null> {
     await this.init();
 
-    const cohortMatch: any = ObjectId.isValid(cohortId)
-      ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
-      : { cohort: cohortId };
-
     return await this.hpActivityCollection.findOne(
       {
-        ...cohortMatch,
+        cohortId: new ObjectId(cohortId),
       },
       { sort: { createdAt: -1 } },
     );
@@ -349,12 +345,8 @@ export class ActivityRepository implements IActivityRepository {
   async getDraftCountByCohortId(cohortId: string, courseVersionId?: string): Promise<number> {
     await this.init();
 
-    const cohortMatch: any = ObjectId.isValid(cohortId)
-      ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
-      : { cohort: cohortId };
-
     const query: any = {
-      ...cohortMatch,
+      cohortId: new ObjectId(cohortId),
       status: "DRAFT",
       isDeleted: { $ne: true },
     };
@@ -368,12 +360,8 @@ export class ActivityRepository implements IActivityRepository {
   async getPublishedCountByCohortId(cohortId: string, courseVersionId?: string): Promise<number> {
     await this.init();
 
-    const cohortMatch: any = ObjectId.isValid(cohortId)
-      ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
-      : { cohort: cohortId };
-
     const query: any = {
-      ...cohortMatch,
+      cohortId: new ObjectId(cohortId),
       status: "PUBLISHED",
       isDeleted: { $ne: true },
     };
@@ -388,12 +376,8 @@ export class ActivityRepository implements IActivityRepository {
   async getCountByCohortId(cohortId: string, courseVersionId?: string, session?: ClientSession): Promise<number> {
     await this.init();
 
-    const cohortMatch: any = ObjectId.isValid(cohortId)
-      ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
-      : { cohort: cohortId };
-
     const query: any = {
-      ...cohortMatch,
+      cohortId: new ObjectId(cohortId),
       isDeleted: { $ne: true },
     };
 
@@ -412,10 +396,6 @@ export class ActivityRepository implements IActivityRepository {
   ): Promise<number> {
     await this.init();
 
-    const cohortMatch: any = ObjectId.isValid(cohortId)
-      ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
-      : { cohort: cohortId };
-
     const result = await this.hpActivityCollection
       .aggregate([
         {
@@ -423,7 +403,7 @@ export class ActivityRepository implements IActivityRepository {
             courseId: new ObjectId(courseId),
             courseVersionId: new ObjectId(courseVersionId),
             isDeleted: { $ne: true },
-            ...cohortMatch
+            cohortId: new ObjectId(cohortId)
           },
         },
         {
@@ -467,7 +447,7 @@ export class ActivityRepository implements IActivityRepository {
   
   async getUpcomingDeadlinesForStudent(
     studentId: string,
-    cohortName: string,
+    cohortIdOrName: string,
     courseVersionId: string,
     days: number = 7,
     limit: number = 5,
@@ -488,7 +468,7 @@ export class ActivityRepository implements IActivityRepository {
     const pipeline = [
       {
         $match: {
-          cohort: cohortName,
+          cohortId: new ObjectId(cohortIdOrName),
           courseVersionId: new ObjectId(courseVersionId),
           status: "PUBLISHED",
           isDeleted: { $ne: true }

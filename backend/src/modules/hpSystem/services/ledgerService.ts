@@ -7,7 +7,6 @@ import { FilterQueryDto } from "../classes/validators/activitySubmissionValidato
 import { LedgerListResponseDto, StudentLedgerDetailsDto } from "../classes/validators/ledgerValidators.js";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { BadRequestError, UnauthorizedError } from "routing-controllers";
-import { COHORT_OVERRIDES } from "../constants.js";
 import { ObjectId } from "mongodb";
 
 
@@ -46,28 +45,30 @@ export class LedgerService extends BaseService {
         if (!student)
             throw new BadRequestError("Student not found");
 
-        // Resolve cohortName: if it's an ObjectId, look up the actual cohort name from the DB
-        let resolvedCohortName = cohortName;
-        if (ObjectId.isValid(cohortName)) {
-            const dbCohort = await this.cohortRepository.getCohortById(cohortName);
-            if (dbCohort?.name) {
-                resolvedCohortName = dbCohort.name;
-            }
+        // Resolve cohort: use the new resolver to handle both ID and Name
+        const resolvedCohort = await this.cohortRepository.resolveCohort(cohortName, courseId, courseVersionId);
+        if (!resolvedCohort) {
+            throw new BadRequestError(`Cohort not found: ${cohortName}`);
         }
 
-        // For legacy cohorts, resolve the real courseId and courseVersionId
-        // The frontend sends pseudo IDs (e.g. 000000000000000000000001) but enrollments
-        // are stored under the actual IDs from COHORT_OVERRIDES
-        const override = COHORT_OVERRIDES[resolvedCohortName];
-        const finalCourseId = override?.courseId ?? courseId;
-        const finalVersionId = override?.versionId ?? courseVersionId;
+        const resolvedCohortName = resolvedCohort.name;
+        const resolvedCohortId = resolvedCohort._id?.toString();
+
+        // For legacy cohorts, the cohorts record already contains the real courseId and courseVersionId
+        // discovered during migration. Use them to override the pseudo IDs if necessary.
+        const finalCourseId = resolvedCohort.courseId?.toString();
+        const finalVersionId = resolvedCohort.courseVersionId?.toString();
+
+        if (!resolvedCohortId || !finalCourseId || !finalVersionId) {
+            throw new BadRequestError(`Incomplete cohort data resolved for cohort: ${cohortName}`);
+        }
 
         // Try to find enrollment for HP points, but don't fail if not found
-        const requestedUserEnrollment = await this.cohortRepository.findEnrollment(requested_user_id, finalCourseId, finalVersionId, cohortName)
+        const requestedUserEnrollment = await this.cohortRepository.findEnrollment(requested_user_id, finalCourseId, finalVersionId, resolvedCohortId)
         if (!requestedUserEnrollment)
             throw new UnauthorizedError(`Requested user is not found for this user id: ${student._id}, email: ${student.email}`)
 
-        const enrollment = await this.cohortRepository.findEnrollment(studentId, finalCourseId, finalVersionId, cohortName)
+        const enrollment = await this.cohortRepository.findEnrollment(studentId, finalCourseId, finalVersionId, resolvedCohortId)
         if (!enrollment)
             throw new BadRequestError(`Enrollment not found for this user id: ${student._id}, email: ${student.email}`)
 

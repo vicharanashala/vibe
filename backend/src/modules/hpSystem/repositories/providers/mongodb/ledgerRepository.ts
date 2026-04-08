@@ -327,14 +327,10 @@ async findDebitBySubmissionId(submissionId: string): Promise<HpLedger | null> {
     }> {
         await this.init();
         
-        const cohortMatch: any = ObjectId.isValid(cohortId)
-            ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
-            : { cohort: cohortId };
-
         const pipeline = [
             {
                 $match: {
-                    ...cohortMatch,
+                    cohortId: new ObjectId(cohortId),
                     courseVersionId: new ObjectId(courseVersionId)
                 }
             },
@@ -391,7 +387,7 @@ async findDebitBySubmissionId(submissionId: string): Promise<HpLedger | null> {
 
     async getStudentHpTimeline(
         studentId: string,
-        cohortName: string,
+        cohortId: string,
         courseVersionId: string,
         days: number = 7,
         session?: ClientSession
@@ -412,7 +408,7 @@ async findDebitBySubmissionId(submissionId: string): Promise<HpLedger | null> {
             {
                 $match: {
                     studentId: new ObjectId(studentId),
-                    cohort: cohortName,
+                    cohortId: new ObjectId(cohortId),
                     courseVersionId: new ObjectId(courseVersionId),
                     createdAt: { $gte: startDate }
                 }
