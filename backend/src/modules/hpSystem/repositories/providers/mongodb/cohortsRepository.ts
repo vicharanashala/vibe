@@ -333,6 +333,7 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
         const page = query.page ?? 1;
         const limit = query.limit ?? 20;
         const skip = (page - 1) * limit;
+        const status = query.status;
 
         const search = query.search?.trim();
         const sortOrder = query.sortOrder === "desc" ? -1 : 1;
@@ -410,6 +411,53 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
                     },
                 ]
                 : []),
+            {
+                $lookup: {
+                    from: "cohorts",
+                    localField: "cohortId",
+                    foreignField: "_id",
+                    as: "cohort",
+                },
+            },
+            {
+                $unwind: {
+                    path: "$cohort",
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
+                $addFields: {
+                    safeHp: { $ifNull: ["$cohort.safeHp", 0] },
+                },
+            },
+
+            ...(status === "SAFE"
+                ? [
+                    {
+                        $match: {
+                        $expr: {
+                            $gte: [
+                            { $ifNull: ["$hpPoints", 0] },
+                            "$safeHp",
+                            ],
+                        },
+                        },
+                    },
+                    ]
+                : status === "UNSAFE"
+                ? [
+                    {
+                        $match: {
+                        $expr: {
+                            $lt: [
+                            { $ifNull: ["$hpPoints", 0] },
+                            "$safeHp",
+                            ],
+                        },
+                        },
+                    },
+                    ]
+                : []),
 
             {
                 $project: {
@@ -418,6 +466,13 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
                     name: "$fullName",
                     completionPercentage: { $ifNull: ["$percentCompleted", 0] },
                     totalHp: { $ifNull: ["$hpPoints", 0] },
+
+                    isSafe: {
+                        $gte: [
+                            { $ifNull: ["$hpPoints", 0] },
+                            { $ifNull: ["$safeHp", 0] },
+                        ],
+                    },
                 },
             },
 

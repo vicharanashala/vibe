@@ -241,7 +241,11 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     return (
         <MathRenderer className="h-full w-full bg-background">
             <div className="h-full w-full flex flex-col">
-                <NavigatingOverlay visible={isStopping} />
+                <NavigatingOverlay
+                    visible={isStopping}
+                    title="Verifying answers"
+                    message="Please wait while we submit and validate your responses…"
+                />
                 {/* Article Metadata Topbar */}
                 {(estimatedReadTimeInMinutes || points || tags?.length) && (
                     <div className="border-b bg-muted/50 px-4 py-3">
