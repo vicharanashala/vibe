@@ -1055,9 +1055,13 @@ export class ActivitySubmissionsService extends BaseService {
             throw new BadRequestError(`Cohort context not found for submission ${submissionId}`);
         }
 
-        const courseId = resolvedCohort.courseId.toString();
-        const courseVersionId = resolvedCohort.courseVersionId.toString();
-        const resolvedCohortId = resolvedCohort._id.toString();
+        const courseId = resolvedCohort.courseId?.toString();
+        const courseVersionId = resolvedCohort.courseVersionId?.toString();
+        const resolvedCohortId = resolvedCohort._id?.toString();
+
+        if (!resolvedCohortId || !courseId || !courseVersionId) {
+            throw new BadRequestError("Incomplete cohort data resolved for submission restore.");
+        }
 
         // 4. Find the DEBIT ledger entry
         const debitLedger = await this.ledgerRepository.findDebitBySubmissionId(submissionId);
@@ -1214,7 +1218,12 @@ export class ActivitySubmissionsService extends BaseService {
                 throw new BadRequestError(`Cohort not found: ${cohortIdOrName}`);
             }
 
-            const data = await this.activitySubmissionsRepository.getCohortActivityStats(resolvedCohort._id.toString(), activityId, session);
+            const resolvedCohortId = resolvedCohort._id?.toString();
+            if (!resolvedCohortId) {
+                throw new BadRequestError(`Incomplete cohort data resolved.`);
+            }
+
+            const data = await this.activitySubmissionsRepository.getCohortActivityStats(resolvedCohortId, activityId, session);
             return {
                 data
             };
@@ -1223,15 +1232,19 @@ export class ActivitySubmissionsService extends BaseService {
 
     async getBulkCohortActivityStats(cohortIdOrName: string, courseVersionId: string, session?: ClientSession): Promise<StudentActivitySubmissionStatsViewDto> {
         return this._withTransaction(async (session) => {
-            // Resolve cohort context dynamically
-            const resolvedCohort = await this.cohortRepository.resolveCohort(cohortIdOrName);
+            // Resolve cohort context dynamically - use courseVersionId as fallback context
+            const resolvedCohort = await this.cohortRepository.resolveCohort(cohortIdOrName, undefined, courseVersionId);
             if (!resolvedCohort) {
                 throw new BadRequestError(`Cohort not found: ${cohortIdOrName}`);
             }
 
             const resolvedCohortName = resolvedCohort.name;
-            const effectiveCohortId = resolvedCohort._id.toString();
-            const effectiveVersionId = resolvedCohort.courseVersionId.toString();
+            const effectiveCohortId = resolvedCohort._id?.toString();
+            const effectiveVersionId = resolvedCohort.courseVersionId?.toString();
+
+            if (!effectiveCohortId || !effectiveVersionId) {
+                throw new BadRequestError(`Incomplete cohort data resolved for stats.`);
+            }
             
             // Execute all queries in parallel for optimal performance
             const [
@@ -1393,16 +1406,20 @@ export class ActivitySubmissionsService extends BaseService {
         }>;
     }> {
         return this._withTransaction(async (session) => {
-            // Resolve cohort context dynamically
-            const resolvedCohort = await this.cohortRepository.resolveCohort(cohortName);
+            // Resolve cohort context dynamically - use courseVersionId as fallback context
+            const resolvedCohort = await this.cohortRepository.resolveCohort(cohortName, undefined, courseVersionId);
             if (!resolvedCohort) {
                 throw new BadRequestError(`Cohort not found: ${cohortName}`);
             }
 
             const resolvedCohortName = resolvedCohort.name;
-            const resolvedCohortId = resolvedCohort._id.toString();
-            const effectiveVersionId = resolvedCohort.courseVersionId.toString();
-            const courseId = resolvedCohort.courseId.toString();
+            const resolvedCohortId = resolvedCohort._id?.toString();
+            const effectiveVersionId = resolvedCohort.courseVersionId?.toString();
+            const courseId = resolvedCohort.courseId?.toString();
+
+            if (!resolvedCohortId || !effectiveVersionId || !courseId) {
+                throw new BadRequestError(`Incomplete cohort data resolved for student dashboard.`);
+            }
 
             // 1. Get student dashboard stats from submissions repository
             const dashboardStats = await this.activitySubmissionsRepository.getStudentDashboardStats(

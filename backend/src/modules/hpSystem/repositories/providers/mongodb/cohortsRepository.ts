@@ -186,13 +186,24 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
         }
 
         if (cohort) {
-            // ✅ PROFESSIONAL FALLBACK:
+            // ✅ PROFESSIONAL FALLBACK & INFERENCE:
             // If the database record is missing scoping IDs (common in older dynamic cohorts),
             // but they were provided in the call context (URL params), attach them.
-            // This ensures that downstream code receiving this 'ICohort' can safely call .toString() 
-            // on courseId/courseVersionId without crashing or requiring redundant DB lookups.
             if (!cohort.courseId && courseId) cohort.courseId = toId(courseId);
             if (!cohort.courseVersionId && courseVersionId) cohort.courseVersionId = toId(courseVersionId);
+
+            // ✅ SMART INFERENCE:
+            // If we still don't have a courseId but we DO have a courseVersionId (either from doc or argument),
+            // perform a one-time lookup to find the parent courseId.
+            if (!cohort.courseId && cohort.courseVersionId) {
+                const versionDoc = await this.courseVersionCollection.findOne(
+                    { _id: toId(cohort.courseVersionId) },
+                    { projection: { courseId: 1 }, session }
+                );
+                if (versionDoc?.courseId) {
+                    cohort.courseId = toId(versionDoc.courseId);
+                }
+            }
         }
 
         return cohort;
