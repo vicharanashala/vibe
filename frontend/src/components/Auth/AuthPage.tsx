@@ -27,6 +27,13 @@ export default function AuthPage({ role }: AuthPageProps) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [activeRole, setActiveRole] = useState<"teacher" | "student">(role || "student");
+  const loginFrom = (() => {
+    if (typeof window === "undefined") return undefined;
+    const path = window.location.pathname;
+    if (path.startsWith("/teacher/login")) return "teacher";
+    if (path.startsWith("/student/login")) return "student";
+    return undefined;
+  })();
 
   // New state variables
   const [isSignUp, setIsSignUp] = useState(false);
@@ -697,6 +704,21 @@ export default function AuthPage({ role }: AuthPageProps) {
                         {formErrors.password && (
                           <p className="text-xs text-destructive">{formErrors.password}</p>
                         )}
+                      </div>
+
+                      <div className="flex justify-end">
+                        <Button
+                          variant="link"
+                          className="p-0 h-auto text-sm"
+                          onClick={() =>
+                            navigate({
+                              to: "/forgot-password",
+                              search: loginFrom ? { from: loginFrom } : undefined,
+                            })
+                          }
+                        >
+                          Forgot password?
+                        </Button>
                       </div>
 
                       {/* reCAPTCHA */}

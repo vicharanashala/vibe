@@ -316,9 +316,44 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       throw new ChangePasswordError('User not found');
     }
 
+    if (!requestUser.email) {
+      throw new ChangePasswordError('User email not found');
+    }
+
     // Check password confirmation
     if (body.newPassword !== body.newPasswordConfirm) {
       throw new ChangePasswordError('New passwords do not match');
+    }
+
+    // Verify current password via Firebase REST API
+    const verifyResponse = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${appConfig.firebase.apiKey}`,
+      {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          email: requestUser.email,
+          password: body.currentPassword,
+          returnSecureToken: true,
+        }),
+      },
+    );
+
+    if (!verifyResponse.ok) {
+      const errorData = await verifyResponse.json().catch(() => null);
+      const errorCode = errorData?.error?.message;
+
+      if (errorCode === 'INVALID_PASSWORD') {
+        throw new ChangePasswordError('Current password is incorrect');
+      }
+      if (errorCode === 'USER_DISABLED') {
+        throw new ChangePasswordError('User account is disabled');
+      }
+      if (errorCode === 'EMAIL_NOT_FOUND') {
+        throw new ChangePasswordError('User not found');
+      }
+
+      throw new ChangePasswordError('Failed to verify current password');
     }
 
     // Update password in Firebase Auth

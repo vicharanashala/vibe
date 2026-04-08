@@ -25,6 +25,14 @@ export default function ResetPasswordPage() {
   const search = useSearch({ strict: false });
 
   const oobCode = search.oobCode as string | undefined;
+  const from = search.from as string | undefined;
+  const backTo =
+    from === "teacher"
+      ? "/teacher/login"
+      : from === "student"
+        ? "/student/login"
+        : "/auth";
+  const forgotPath = from ? `/forgot-password?from=${from}` : "/forgot-password";
 
   const [email, setEmail] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -148,7 +156,7 @@ export default function ResetPasswordPage() {
             <CardFooter>
               <Button
                 className="w-full"
-                onClick={() => navigate({ to: "/login" })}
+                onClick={() => navigate({ to: backTo })}
               >
                 Go to Login
               </Button>
@@ -174,7 +182,7 @@ export default function ResetPasswordPage() {
           <CardFooter>
             <Button
               className="w-full"
-              onClick={() => navigate({ to: "/forgot-password" })}
+              onClick={() => navigate({ to: forgotPath })}
             >
               Request New Link
             </Button>
