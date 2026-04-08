@@ -676,8 +676,8 @@ export class ActivitySubmissionsService extends BaseService {
         if (query.cohortId) {
             const resolvedCohort = await this.cohortRepository.resolveCohort(query.cohortId, undefined, query.courseVersionId);
             if (resolvedCohort) {
-                effectiveQuery.courseVersionId = resolvedCohort.courseVersionId.toString();
-                effectiveQuery.cohortId = resolvedCohort._id.toString();
+                effectiveQuery.courseVersionId = resolvedCohort.courseVersionId?.toString();
+                effectiveQuery.cohortId = resolvedCohort._id?.toString();
             }
         }
 
@@ -752,18 +752,19 @@ export class ActivitySubmissionsService extends BaseService {
         }
 
         const resolvedCohortName = resolvedCohort.name;
-        const resolvedCohortId = resolvedCohort._id!.toString();
+        const resolvedCohortId = resolvedCohort._id?.toString();
+        const courseId = resolvedCohort.courseId?.toString();
+        const courseVersionId = resolvedCohort.courseVersionId?.toString();
+
+        if (!resolvedCohortId || !courseId || !courseVersionId) {
+            throw new BadRequestError("Incomplete cohort data resolved for statistics.");
+        }
 
         const student = await this.userRepo.findById(studentId);
         if (!student) {
             throw new BadRequestError("Student not found");
         }
 
-
-        // if (override) {
-        //     courseId = override.courseId;
-        //     courseVersionId = override.versionId;
-        // } else {
         const latestActivity = await this.activityRepository.getLatestActivityByCohortId(resolvedCohortId);
 
         if (!latestActivity) {
@@ -782,9 +783,6 @@ export class ActivitySubmissionsService extends BaseService {
             };
         }
 
-        const courseId = resolvedCohort.courseId.toString();
-        const courseVersionId = resolvedCohort.courseVersionId.toString();
-
         const [
             totalActivities,
             totalSubmissions,
@@ -792,7 +790,7 @@ export class ActivitySubmissionsService extends BaseService {
             totalPendingActivites,
             enrollment,
         ] = await Promise.all([
-            this.activityRepository.getCountByCohortId(resolvedCohortId),
+            this.activityRepository.getCountByCohortId(resolvedCohortId, courseVersionId),
             this.activitySubmissionsRepository.getCountByStudentId(studentId, courseId, courseVersionId, resolvedCohortId),
             this.activitySubmissionsRepository.getLateSubmissionCountByStudentId(studentId, courseId, courseVersionId, resolvedCohortId),
             this.activityRepository.getPendingActivitesCount(studentId, courseId, courseVersionId, resolvedCohortId),
