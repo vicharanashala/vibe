@@ -2058,6 +2058,7 @@ function VersionCard({
           )}
           Generate Link
         </Button> */}
+        </div>
                 <Button
                   variant="outline"
                   size="sm"
@@ -2075,7 +2076,7 @@ function VersionCard({
                     size="sm"
                     className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
                     onClick={() => {
-                    onClick={() => {
+                    
                       navigate({
                         to: `/teacher/hp-system/${version._id}/cohorts`,
                         state: {
