@@ -543,8 +543,9 @@ export class CohortsService extends BaseService {
                 );
 
                 if (dynamicVersionIds.length > 0) {
+                    const validDynamicVersionIds = dynamicVersionIds.filter(id => ObjectId.isValid(id));
                     const courseSettings = await this.settingsRepository.getSettingsByVersionIds(
-                        dynamicVersionIds.map(id => new ObjectId(id))
+                        validDynamicVersionIds.map(id => new ObjectId(id))
                     );
 
                     const hpEnabledVersionIds = new Set(

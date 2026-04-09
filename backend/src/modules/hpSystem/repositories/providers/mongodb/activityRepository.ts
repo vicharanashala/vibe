@@ -334,6 +334,8 @@ export class ActivityRepository implements IActivityRepository {
   ): Promise<HpActivity | null> {
     await this.init();
 
+    if (!ObjectId.isValid(cohortId)) return null;
+
     return await this.hpActivityCollection.findOne(
       {
         cohortId: new ObjectId(cohortId),
@@ -345,13 +347,15 @@ export class ActivityRepository implements IActivityRepository {
   async getDraftCountByCohortId(cohortId: string, courseVersionId?: string): Promise<number> {
     await this.init();
 
+    if (!ObjectId.isValid(cohortId)) return 0;
+
     const query: any = {
       cohortId: new ObjectId(cohortId),
       status: "DRAFT",
       isDeleted: { $ne: true },
     };
 
-    if (courseVersionId) {
+    if (courseVersionId && ObjectId.isValid(courseVersionId)) {
       query.courseVersionId = new ObjectId(courseVersionId);
     }
 
@@ -360,13 +364,15 @@ export class ActivityRepository implements IActivityRepository {
   async getPublishedCountByCohortId(cohortId: string, courseVersionId?: string): Promise<number> {
     await this.init();
 
+    if (!ObjectId.isValid(cohortId)) return 0;
+
     const query: any = {
       cohortId: new ObjectId(cohortId),
       status: "PUBLISHED",
       isDeleted: { $ne: true },
     };
 
-    if (courseVersionId) {
+    if (courseVersionId && ObjectId.isValid(courseVersionId)) {
       query.courseVersionId = new ObjectId(courseVersionId);
     }
 
@@ -376,12 +382,14 @@ export class ActivityRepository implements IActivityRepository {
   async getCountByCohortId(cohortId: string, courseVersionId?: string, session?: ClientSession): Promise<number> {
     await this.init();
 
+    if (!ObjectId.isValid(cohortId)) return 0;
+
     const query: any = {
       cohortId: new ObjectId(cohortId),
       isDeleted: { $ne: true },
     };
 
-    if (courseVersionId) {
+    if (courseVersionId && ObjectId.isValid(courseVersionId)) {
       query.courseVersionId = new ObjectId(courseVersionId);
     }
 
