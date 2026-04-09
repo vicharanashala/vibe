@@ -24,6 +24,7 @@ import {
   ICourse,
   ICourseVersion,
   IItemRepository,
+  IModule,
   ProctoringComponent,
   ProgressRepository,
   SettingRepository,
@@ -83,6 +84,29 @@ export class CourseVersionService extends BaseService {
     private readonly database: MongoDatabase,
   ) {
     super(database);
+  }
+
+  private shuffleArray<T>(array: T[]): T[] {
+    const arr = [...array];
+
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+
+    return arr;
+  }
+
+  private shuffleCourseStructure(modules: IModule[]) {
+    return this.shuffleArray(
+      modules.map(module => ({
+        ...module,
+        sections: this.shuffleArray(module.sections || []).map(section => ({
+          ...section,
+          items: []
+        }))
+      }))
+    );
   }
 
   async createCourseVersion(
@@ -211,6 +235,11 @@ export class CourseVersionService extends BaseService {
         );
       }
 
+      const [hpSystem,shouldRandomize] = await Promise.all([
+        this.settingsRepo.getisHpSystemEnabled(new ObjectId(courseVersionId)),
+        this.settingsRepo.shouldRandomize(courseVersionId)
+      ]);
+
       if (enrollment.role === 'STUDENT') {
         // filter out hidden modules for students and include only visible sections
         readVersion.modules = readVersion.modules
@@ -222,20 +251,26 @@ export class CourseVersionService extends BaseService {
             return { ...module, sections: visibleSections };
           });
       }
-      const hpSystem = await this.settingsRepo.getisHpSystemEnabled(new ObjectId(courseVersionId));
 
-      readVersion.modules = this.sortItemsByOrder(readVersion.modules).map(module => ({
-        ...module,
-        sections: this.sortItemsByOrder(module.sections || []).map(section => ({
-          ...section,
-          items: this.sortItemsByOrder(section.items || [])
-        }))
-      }));
+      // Frontend is making multiple API calls when we are randomizing modules and sections.
+      // Address this case and uncomment the commented if statement and remove the if(false) statement.
+      //  if (shouldRandomize) {
+      if(false){
+        readVersion.modules = this.shuffleCourseStructure(readVersion.modules);
+      } else {
+        readVersion.modules = this.sortItemsByOrder(readVersion.modules).map(module => ({
+          ...module,
+          sections: this.sortItemsByOrder(module.sections || []).map(section => ({
+            ...section,
+            items: this.sortItemsByOrder(section.items || [])
+          }))
+        }));
+      }
 
       const version = instanceToPlain(
         Object.assign(new CourseVersion(), readVersion),
       ) as CourseVersion;
-      return { ...version, hpSystem: hpSystem };
+      return { ...version, hpSystem: hpSystem,shouldRandomize: shouldRandomize };
     });
   }
 

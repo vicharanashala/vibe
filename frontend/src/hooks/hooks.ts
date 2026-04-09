@@ -1211,6 +1211,8 @@ export function useMoveModule(): {
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
   const result = api.useMutation("put", "/courses/versions/{versionId}/modules/{moduleId}/move");
+  console.log(result,"API RESPONSE");
+  console.log(result.error, result?.error?.message)
   return {
     ...result,
     error: result.error ? (result.error.message || 'Module move failed') : null
@@ -2133,6 +2135,7 @@ export function useEditProctoringSettings() {
     isPublic: boolean,
     hpSystem: boolean,
     baseHp: number,
+    randomizeItems: boolean,
   ) => {
     setLoading(true);
     setError(null);
@@ -2153,6 +2156,7 @@ export function useEditProctoringSettings() {
         isPublic,
         hpSystem,
         baseHp,
+        randomizeItems,
       };
 
       const res = await fetch(url, {

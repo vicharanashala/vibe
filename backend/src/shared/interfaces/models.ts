@@ -585,6 +585,7 @@ export interface ISettings {
   hpSystem?: boolean;
   isPublic?: boolean;
   baseHp?: number;
+  randomizeItems?: boolean;
   // registration_settings?: IRegistrationSettings[];
   registration?: {
     jsonSchema?: any;

@@ -64,6 +64,7 @@ export interface ISettingRepository {
     hpSystem: boolean,
     isPublic: boolean,
     baseHp: number,
+    randomizeItems: boolean,
     audit: AuditingDto,
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
@@ -256,4 +257,11 @@ export interface ISettingRepository {
   getisHpSystemEnabled(
     courseVersionId: ObjectId,
   ): Promise<boolean>;
+
+  isLinearProgressionEnabledByVersionId(
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<boolean>;
+
+  shouldRandomize(versionId: string):Promise<boolean>;
 }
