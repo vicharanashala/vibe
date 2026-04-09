@@ -1969,6 +1969,9 @@ export function useStopItem() {
     "post",
     "/users/progress/courses/{courseId}/versions/{courseVersionId}/stop",
     {
+      retry: 5,
+      retryDelay: (attempt) => 1000 * attempt,
+
       onSuccess: (_data, variables) => {
         const {
           params: {
