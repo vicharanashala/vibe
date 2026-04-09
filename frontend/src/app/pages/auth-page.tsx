@@ -769,7 +769,7 @@ export default function AuthPage() {
                                   <Input
                                     id="confirmPassword"
                                     type="password"
-                                    placeholder="Confirm your password"
+                                    placeholder="Confirm"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                     className={cn(
