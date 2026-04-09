@@ -240,14 +240,12 @@ const ACTIVITY_TYPES = [
     { value: 'all', label: 'All Activities' },
     { value: 'assignment', label: 'Assignments' },
     { value: 'milestone', label: 'Milestones' },
-    { value: 'quiz', label: 'Quizzes' },
-    { value: 'project', label: 'Projects' },
 ];
 
 function ActivityBreakdown({ data, className }: { data: any; className?: string }) {
     const [selectedType, setSelectedType] = useState('all');
 
-    const totalActivities = data.notStarted + data.inProgress + data.submitted + data.approved;
+    const totalActivities = data.notStarted + data.submitted + data.approved + data.rejected;
 
     const breakdownItems = [
         {
@@ -256,13 +254,6 @@ function ActivityBreakdown({ data, className }: { data: any; className?: string 
             color: 'bg-gray-500',
             textColor: 'text-gray-600',
             percentage: totalActivities > 0 ? (data.notStarted / totalActivities) * 100 : 0
-        },
-        {
-            status: 'In Progress',
-            count: data.inProgress,
-            color: 'bg-blue-500',
-            textColor: 'text-blue-600',
-            percentage: totalActivities > 0 ? (data.inProgress / totalActivities) * 100 : 0
         },
         {
             status: 'Submitted',
@@ -277,6 +268,13 @@ function ActivityBreakdown({ data, className }: { data: any; className?: string 
             color: 'bg-green-500',
             textColor: 'text-green-600',
             percentage: totalActivities > 0 ? (data.approved / totalActivities) * 100 : 0
+        },
+        {
+            status: 'Rejected',
+            count: data.rejected,
+            color: 'bg-red-500',
+            textColor: 'text-red-600',
+            percentage: totalActivities > 0 ? (data.rejected / totalActivities) * 100 : 0
         }
     ];
 
@@ -541,7 +539,7 @@ export function OverviewTab({ courseVersionId, cohortName }: OverviewTabProps) {
                 {/* Personal Metrics Overview */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                     <StudentMetricCard
-                        title="My Total HP"
+                        title="Total HP"
                         value={stats.myStats.totalHp}
                         icon={TrendingUp}
                         tooltip="Your current House Points balance"

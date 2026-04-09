@@ -75,10 +75,11 @@ import type { BreadcrumbItemment } from "@/types/layout.types";
 import AiWorkflow from "./AiWorkflow";
 import AISectionPage from "./AISectionPage";
 import SmartBloomWorkflow from "./SmartBloomWorkflow";
-type Mode = "default" | "wizard" | "smartBloom" | "custom" | "ai-module";
+type Mode = "default" | "wizard" | "smartBloom" | "custom" | "ai-module" | "advanced";
 import { logout } from "@/utils/auth";
 import InviteDropdown from "@/components/inviteDropDown";
 import AiModule from "./AiModule";
+import AdvancedAiWorkflow from "./AdvancedAiWorkflow";
 import { useQueryClient } from "@tanstack/react-query"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -2153,6 +2154,22 @@ function TeacherCourseContent() {
                                                           >
                                                             AI Module Mode
                                                           </DropdownMenuItem>
+                                                          <DropdownMenuItem
+                                                            className="text-xs cursor-pointer"
+                                                            onClick={() => {
+                                                              setCurrentCourse({
+                                                                courseId,
+                                                                versionId,
+                                                                moduleId: module.moduleId,
+                                                                sectionId: section.sectionId,
+                                                                itemId: null,
+                                                                watchItemId: null,
+                                                              });
+                                                              setMode('advanced')
+                                                            }}
+                                                          >
+                                                            Advanced mode
+                                                          </DropdownMenuItem>
                                                       </DropdownMenuContent>
                                                     </DropdownMenu>
                                                   </TooltipTrigger>
@@ -2404,7 +2421,7 @@ function TeacherCourseContent() {
               )}
             </div>} */}
 
-            {mode==="ai-module" ? <AiModule /> : mode === "wizard" ? (
+            {mode==="ai-module" ? <AiModule /> : mode === "advanced" ? <AdvancedAiWorkflow /> : mode === "wizard" ? (
               <AiWorkflow />
             ) : mode === "smartBloom" ? (
               <SmartBloomWorkflow

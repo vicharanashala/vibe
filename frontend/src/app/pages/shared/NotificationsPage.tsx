@@ -6,7 +6,9 @@ import {
   useGetPendingStudentRegistrations, 
   useGetRejectedStudentRegistrations,
   useGetPendingRegistrations,
-  useMarkNotificationAsRead
+  useMarkNotificationAsRead,
+  processInviteApi,
+  useUserEnrollments
 } from "@/hooks/hooks";
 import { 
   useGetSystemNotifications, 
@@ -28,6 +30,7 @@ import { PolicyAcknowledgementModal } from "@/app/pages/student/components/polic
 import { AppealModal } from "@/app/pages/student/components/policies/AppealModal";
 import { PolicyReacknowledgementModal } from "@/app/pages/student/components/policies/PolicyReacknowledgementModal";
 import { SystemNotification } from "@/types/notification.types";
+import { hasActivePolicies } from "@/utils/ejectionPolicyUtils";
 
 const formatDate = (date: string | Date) => {
   const d = new Date(date);
@@ -81,11 +84,12 @@ function Pagination({ page, totalPages, setPage }: { page: number; totalPages: n
 }
 
 export default function NotificationsPage() {
-  const { user, isAuthReady } = useAuthStore();
+  const { user, isAuthReady, token } = useAuthStore();
   const userId = user?.uid || "";
   const role = user?.role;
   const navigate = useNavigate();
   const { setCurrentCourse } = useCourseStore();
+  const [invitePoliciesMap, setInvitePoliciesMap] = useState<Record<string, boolean>>({});
 
   // Data fetching
   const { getInvites } = useInvites();
@@ -95,6 +99,7 @@ export default function NotificationsPage() {
   const { data: approvedNotifications } = useGetUnreadApprovedRegistrations(userId);
   const { data: pendingStudentRegistrations } = useGetPendingStudentRegistrations(userId);
   const { data: rejectedStudentRegistrations } = useGetRejectedStudentRegistrations(userId);
+  const { data: enrollments } = useUserEnrollments(1, 100, !!token && !!user?.uid);
   
   // Teacher specific
   const { data: teacherPendingRegistrations } = useGetPendingRegistrations(userId);
@@ -124,67 +129,116 @@ export default function NotificationsPage() {
     const result = await getInvites();
     setPendingInvites(result.invites || []);
   };
+  const handleRejectInvite = async (invite: any) => {
+  await processInviteApi(invite.inviteId, "REJECTED");
+  fetchInvites(); // refresh list
+};
+const isAcknowledged = (notification: SystemNotification): boolean => {
+  if (!notification.courseId || !notification.cohortId) return false;
+
+  const enrollment = enrollments?.enrollments?.find(
+    (e: any) =>
+      e.courseId === notification.courseId &&
+      e.cohortId === notification.cohortId
+  );
+
+  return enrollment ? !enrollment.policyReacknowledgementRequired : false;
+};
+
+useEffect(() => {
+  const fetchPolicies = async () => {
+    const results: Record<string, boolean> = {};
+
+    await Promise.all(
+      pendingInvites.map(async (invite) => {
+        const hasPolicies = await hasActivePolicies(
+          invite.courseId,
+          invite.courseVersionId,
+          invite.cohortId
+        );
+
+        results[invite.inviteId] = hasPolicies;
+      })
+    );
+
+    setInvitePoliciesMap(results);
+  };
+
+  if (pendingInvites.length) {
+    fetchPolicies();
+  }
+}, [pendingInvites]);
 
   useEffect(() => {
     if (isAuthReady && userId) {
       fetchInvites();
     }
   }, [isAuthReady, userId]);
-
-  // Tab auto-selection logic
+  
   useEffect(() => {
-    const isTeacher = role === "instructor" || role === "teacher";
+    
+    const isTeacher = user?.role === "teacher" || user?.role === "admin";
 
-    const hasInvites = isTeacher
-      ? pendingInvites.length > 0 || (teacherPendingRegistrations?.length || 0) > 0
-      : pendingInvites.length > 0 ||
-        (approvedNotifications?.length || 0) > 0 ||
-        (pendingStudentRegistrations?.length || 0) > 0 ||
-        (rejectedStudentRegistrations?.length || 0) > 0;
+  const hasInvites = isTeacher
+    ? pendingInvites.length > 0 || (teacherPendingRegistrations?.length || 0) > 0
+    : pendingInvites.length > 0;  // ← only count actual invites, not registrations
 
-    const hasSystemNotifs = (systemNotifications?.length || 0) > 0;
+  if (hasInvites) {
+    setActiveTab("invitations");
+  } else {
+    setActiveTab("notifications"); // ← default to general notifications
+  }
+}, [ pendingInvites.length,
+  teacherPendingRegistrations?.length,user?.role]);
+  const invitationCount =  pendingInvites.length 
 
-    if (isTeacher) {
-      // Instructor: invitations if invites/registrations, else general
-      setActiveTab(hasInvites ? "invitations" : "notifications");
-    } else {
-      // Student: invitations if any, else general if any, else invitations as default
-      if (hasInvites) {
-        setActiveTab("invitations");
-      } else if (hasSystemNotifs) {
-        setActiveTab("notifications");
-      } else {
-        setActiveTab("invitations");
-      }
-    }
-  }, [role, pendingInvites.length, approvedNotifications?.length, pendingStudentRegistrations?.length, rejectedStudentRegistrations?.length, teacherPendingRegistrations?.length, systemNotifications?.length]);
+const allInvitationItems = useMemo(() => {
+  return pendingInvites.map(d => ({
+    type: 'invite',
+    data: d
+  }));
+}, [pendingInvites]);
+const invPagination = usePagination(allInvitationItems);
 
-  const invitationCount = 
-    pendingInvites.length + 
-    (approvedNotifications?.length || 0) + 
-    (pendingStudentRegistrations?.length || 0) + 
-    (rejectedStudentRegistrations?.length || 0) +
-    (teacherPendingRegistrations?.length || 0);
+// GENERAL
+const generalNotificationItems = useMemo(() => {
+  const items: { type: string; data: any }[] = [];
 
-  const systemCount = systemNotifications?.filter((n: any) => !n.read).length || 0;
+  if (role === 'student') {
+    approvedNotifications?.forEach((d: any) => items.push({ type: 'approval', data: d }));
+    pendingStudentRegistrations?.forEach((d: any) => items.push({ type: 'pending_reg', data: d }));
+    rejectedStudentRegistrations?.forEach((d: any) => items.push({ type: 'rejected_reg', data: d }));
+  }
 
-  // Build flat invitation items for pagination
-  const allInvitationItems = useMemo(() => {
-    const items: { type: string; data: any }[] = [];
-    pendingInvites.forEach(d => items.push({ type: 'invite', data: d }));
-    if (role === 'student') {
-      approvedNotifications?.forEach((d: any) => items.push({ type: 'approval', data: d }));
-      pendingStudentRegistrations?.forEach((d: any) => items.push({ type: 'pending_reg', data: d }));
-      rejectedStudentRegistrations?.forEach((d: any) => items.push({ type: 'rejected_reg', data: d }));
-    }
-    if (role === 'teacher') {
-      teacherPendingRegistrations?.forEach((d: any) => items.push({ type: 'teacher_reg_request', data: d }));
-    }
-    return items;
-  }, [pendingInvites, approvedNotifications, pendingStudentRegistrations, rejectedStudentRegistrations, teacherPendingRegistrations, role]);
+  if (role === 'teacher') {
+    teacherPendingRegistrations?.forEach((d: any) =>
+      items.push({ type: 'teacher_reg_request', data: d })
+    );
+  }
 
-  const invPagination = usePagination(allInvitationItems);
-  const sysPagination = usePagination(systemNotifications);
+  return items;
+}, [
+  role,
+  approvedNotifications,
+  pendingStudentRegistrations,
+  rejectedStudentRegistrations,
+  teacherPendingRegistrations,
+]);
+const combinedGeneralNotifications = useMemo(() => {
+  return [
+    ...generalNotificationItems,
+    ...systemNotifications.map((n: any) => ({
+      type: 'system',
+      data: n
+    }))
+  ];
+}, [generalNotificationItems, systemNotifications]);
+
+const sysPagination = usePagination(combinedGeneralNotifications);
+ const systemCount =
+  (systemNotifications?.filter((n: any) => !n.read).length || 0) +
+  generalNotificationItems.length;
+  // const sysPagination = usePagination(combinedGeneralNotifications);
 
   // Reset pages when tab changes
   useEffect(() => {
@@ -193,10 +247,26 @@ export default function NotificationsPage() {
   }, [activeTab]);
 
   // Handlers
-  const handleAcceptInvite = (invite: any) => {
-    setSelectedInvite(invite);
-    setShowPolicyModal(true);
-  };
+ const handleAcceptInvite = async (invite: any) => {
+  const isTeacher = role === "teacher" || role === "admin";
+  const hasPolicies = invitePoliciesMap[invite.inviteId];
+  if (!hasPolicies) {
+    await processInviteApi(invite.inviteId, "ACCEPT", false);
+    fetchInvites();
+    return;
+  }
+
+  if (isTeacher) {
+    //  Direct accept (NO modal)
+    await processInviteApi(invite.inviteId, "ACCEPT", false);
+    fetchInvites();
+    return;
+  }
+
+  //  Students → show policy modal
+  setSelectedInvite(invite);
+  setShowPolicyModal(true);
+};
 
   const handleReviewRequest = (reg: any) => {
     setCurrentCourse({
@@ -274,7 +344,7 @@ export default function NotificationsPage() {
               <Bell className="h-4 w-4" />
               <span>General Notifications</span>
               {systemCount > 0 && (
-                <Badge variant="destructive" className="ml-1">
+                <Badge variant="secondary" className="ml-1">
                   {systemCount}
                 </Badge>
               )}
@@ -307,7 +377,9 @@ export default function NotificationsPage() {
                       : type === 'rejected_reg' ? () => handleMarkAsReadAndNavigate(data._id)
                       : type === 'teacher_reg_request' ? () => handleReviewRequest(data)
                       : undefined;
-                    return <InvitationCard key={key} type={type} data={data} onAction={onAction} />;
+                    return <InvitationCard key={key} type={type} data={data} onAction={onAction} onReject={
+      type === "invite" ? () => handleRejectInvite(data) : undefined 
+    } hasPolicies={invitePoliciesMap[data.inviteId]} />;
                   })
                 )}
               </div>
@@ -327,31 +399,67 @@ export default function NotificationsPage() {
                     description="You have no new system notifications."
                   />
                 ) : (
-                  sysPagination.paged.map((notif: any) => {
-                    const isExpired = notif.metadata?.appealDeadline && new Date(notif.metadata.appealDeadline) < new Date();
-                    const alreadySubmitted = notif.metadata?.appealPending || submittedAppeals.has(appealKey(notif));
+                  sysPagination.paged.map(({ type, data }: any) => {
+                    if (type === 'system') {
+                      const notif = data;
+
+                      const isExpired =
+                        notif.metadata?.appealDeadline &&
+                        new Date(notif.metadata.appealDeadline) < new Date();
+
+                      const alreadySubmitted =
+                        notif.metadata?.appealPending ||
+                        submittedAppeals.has(appealKey(notif));
+
+                      return (
+                        <SystemNotificationCard
+                          key={notif._id}
+                          notification={notif}
+                          isExpired={isExpired}
+                          alreadySubmitted={alreadySubmitted}
+                          isMostRecentEjection={mostRecentEjectionIds.has(notif._id)}
+                          onMarkRead={(id) =>
+                            markSystemRead({ params: { path: { notificationId: id } } })
+                          }
+                          onAppeal={() => {
+                            if (notif.courseId && notif.courseVersionId && notif.cohortId) {
+                              setSelectedAppeal({
+                                courseId: notif.courseId,
+                                courseVersionId: notif.courseVersionId,
+                                cohortId: notif.cohortId,
+                              });
+                            }
+                          }}
+                          isAcknowledged={isAcknowledged(notif)}
+                          onReacknowledge={() => {
+                            if (!isAcknowledged(notif)) {
+                              setSelectedPolicyNotification(notif);
+                            }
+                          }}
+                        />
+                      );
+                    }
 
                     return (
-                      <SystemNotificationCard 
-                        key={notif._id} 
-                        notification={notif} 
-                        isExpired={isExpired}
-                        alreadySubmitted={alreadySubmitted}
-                        isMostRecentEjection={mostRecentEjectionIds.has(notif._id)}
-                        onMarkRead={(id) => {
-                          // @ts-ignore - notificationId type mismatch in generated client
-                          markSystemRead({ params: { path: { notificationId: id } } });
-                        }}
-                        onAppeal={() => {
-                          if (notif.courseId && notif.courseVersionId && notif.cohortId) {
-                            setSelectedAppeal({
-                              courseId: notif.courseId,
-                              courseVersionId: notif.courseVersionId,
-                              cohortId: notif.cohortId,
-                            });
-                          }
-                        }}
-                        onReacknowledge={() => setSelectedPolicyNotification(notif)}
+                      <InvitationCard
+                        key={data._id}
+                        type={type}
+                        data={data}
+                        hasPolicies={invitePoliciesMap[data.inviteId]}
+                        onAction={
+                          type === 'approval'
+                            ? () => handleMarkAsReadAndNavigate(data._id, data.courseId)
+                            : type === 'rejected_reg'
+                            ? () => handleMarkAsReadAndNavigate(data._id)
+                            : type === 'teacher_reg_request'
+                            ? () => handleReviewRequest(data)
+                            : undefined
+                        }
+                         onReject={
+                          type === "invite"
+                            ? () => handleRejectInvite(data)
+                            : undefined
+                        }
                       />
                     );
                   })
@@ -428,13 +536,15 @@ export default function NotificationsPage() {
   );
 }
 
-function InvitationCard({ type, data, onAction }: { type: string, data: any, onAction?: () => void }) {
+function InvitationCard({ type, data, onAction, onReject,hasPolicies  }: { type: string, data: any, onAction?: () => void, onReject?: () => void ,hasPolicies?:boolean}) {
+  const user = useAuthStore((state) => state.user);
+const isTeacher = user?.role === "teacher" || user?.role === "admin";
   const getDetails = () => {
     switch (type) {
       case 'invite':
         return {
-          title: "Course Invitation",
-          description: `You've been invited to join ${data.courseName || 'a new course'}.`,
+          title: data?.course?.name ||"Course Invitation",
+          description: ` ${data?.course?.description || "You've been invited to join this course."}`,
           icon: <Mail className="h-5 w-5 text-blue-500" />,
           action: "Accept Invite",
           time: data.createdAt
@@ -495,14 +605,47 @@ function InvitationCard({ type, data, onAction }: { type: string, data: any, onA
               )}
             </div>
             <p className="text-muted-foreground">{details.description}</p>
-            {details.action && onAction && (
-              <div className="pt-3 flex justify-end">
-                <Button size="sm" onClick={onAction}>
-                  {type === 'teacher_reg_request' && <ExternalLink className="h-3 w-3 mr-1" />}
-                  {details.action}
-                </Button>
-              </div>
-            )}
+            <div className="pt-3 flex gap-2 justify-end">
+            
+    
+    {type === "invite" && (
+  <div className="pt-3 flex gap-2 justify-end">
+
+    {/* TEACHER → ALWAYS Accept + Reject */}
+    {isTeacher ? (
+      <>
+        <Button size="sm" variant="outline" onClick={onReject}>
+          Reject
+        </Button>
+
+        <Button size="sm" onClick={onAction}>
+          Accept
+        </Button>
+      </>
+    ) : (
+      <>
+        {/*  STUDENT LOGIC */}
+
+        <Button size="sm" variant="outline" onClick={onReject}>
+          Reject
+        </Button>
+
+        {hasPolicies !== true && (
+  <Button size="sm" onClick={onAction}>
+    Accept
+  </Button>
+)}
+
+{hasPolicies === true && (
+  <Button size="sm" onClick={onAction}>
+    Check Course
+  </Button>
+)}
+      </>
+    )}
+  </div>
+)}
+          </div>
           </div>
         </div>
       </CardContent>
@@ -517,7 +660,9 @@ function SystemNotificationCard({
   onReacknowledge,
   isExpired,
   alreadySubmitted,
-  isMostRecentEjection
+  isMostRecentEjection,
+  isAcknowledged,
+  
 }: { 
   notification: any, 
   onMarkRead: (id: string) => void,
@@ -526,6 +671,7 @@ function SystemNotificationCard({
   isExpired?: boolean,
   alreadySubmitted?: boolean,
   isMostRecentEjection?: boolean
+  isAcknowledged?:boolean
 }) {
   const isUnread = !notification.read;
 
@@ -575,8 +721,14 @@ function SystemNotificationCard({
             
             <div className="flex gap-2 pt-3 justify-end items-center">
               {(notification.type === "policy_created" || notification.type === 'policy_updated') && (
-                <Button size="sm" variant="outline" onClick={onReacknowledge}>
-                   Re-acknowledge Policy
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isAcknowledged}
+                  onClick={onReacknowledge}
+                  className="disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isAcknowledged ? "Acknowledged ✓" : "Re-acknowledge Policy"}
                 </Button>
               )}
 

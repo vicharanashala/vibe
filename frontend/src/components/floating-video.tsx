@@ -1097,7 +1097,7 @@ const lastCalledRef = useRef<number>(0);
       ref={containerRef}
       className={`z-[999999] bg-black rounded-lg shadow-lg  overflow-hidden select-none transition-all duration-300 ${isPoppedOut
         ? 'fixed'
-        : 'relative'
+        : 'relative max-w-[200px]'
         }`}
       style={isPoppedOut ? {
         left: `${position.x}px`,
