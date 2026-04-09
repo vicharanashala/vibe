@@ -24,11 +24,11 @@ import ConfirmationModal from "../../components/confirmation-modal";
 
 interface ActivitiesTabProps {
     courseVersionId: string;
-    cohortName: string;
+    cohortId: string;
     courseId?: string;
 }
 
-export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProps) {
+export function ActivitiesTab({ courseVersionId, cohortId }: ActivitiesTabProps) {
     const [search, setSearch] = useState("");
     const [viewMode, setViewMode] = useState<"grid" | "list">("list");
     const [currentPage, setCurrentPage] = useState(1);
@@ -71,7 +71,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
         c.versions.some(v => v.courseVersionId === courseVersionId)
     )?.courseId || "000000000000000000000001";
     const { data: activities, isLoading: loading, refetch, isRefetching } = useHpActivities(
-        courseVersionId, cohortName, statusFilter, "", activityFilter
+        courseVersionId, cohortId, statusFilter, "", activityFilter
     );
     
     // Client-side filtering based only on activity title
@@ -111,7 +111,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
     const { mutateAsync: archiveActivity } = useArchiveHpActivity();
     const {mutateAsync: deleteActivity} = useDeleteHpActivity();
 
-    // const { data: statsMap } = useHpActivitiesStatsMap(cohortName, courseVersionId);
+    // const { data: statsMap } = useHpActivitiesStatsMap(cohortId, courseVersionId);
     // console.log("Stats Map:", statsMap);
 
     // Handle Search Debounce
@@ -291,7 +291,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                         <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
                         {isRefetching ? "Refreshing..." : "Refresh"}
                     </Button>
-                    <Button onClick={() => navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName)}/activities/create` , state: {from}})}>
+                    <Button onClick={() => navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortId)}/activities/create` , state: {from}})}>
                         <Plus className="mr-2 h-4 w-4" /> Add Activity
                     </Button>
                 </div>
@@ -576,7 +576,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                 onOpenChange={setIsRulesOpen}
                 courseId={courseId}
                 courseVersionId={courseVersionId}
-                cohortName={cohortName}
+                cohortId={cohortId}
                 activityId={selectedActivityId}
             />
 

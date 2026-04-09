@@ -462,6 +462,7 @@ export interface IWatchTime {
 
 export interface ICohort {
   _id?: string | ObjectId | null;
+  courseId: string | ObjectId;
   courseVersionId: string | ObjectId;
   name: string;
   description?: string;
@@ -471,6 +472,8 @@ export interface ICohort {
   isActive?: boolean;
   baseHp?: number;
   safeHp?: number;
+  isDeleted?: boolean;
+  isLegacy?: boolean;
 }
 
 export interface ICohortSettings {

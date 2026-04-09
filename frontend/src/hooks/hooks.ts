@@ -396,7 +396,7 @@ export interface Anomaly {
   date: string;
   status: 'Pending' | 'Investigated' | 'Resolved';
   cohortId?: string;
-  cohortName?: string;
+  cohortId?: string;
 }
 
 export interface ExportFeedbackSubmissionsProps {
@@ -4177,7 +4177,7 @@ export interface IssueReport {
   createdAt: string;
   updatedAt: string;
   cohortId?: string;
-  cohortName?: string;
+  cohortId?: string;
 }
 
 interface Params {
@@ -5206,6 +5206,8 @@ import {
   HpStudentSubmission,
   HpStudentSubmissionStats,
   HpCohortsResponse,
+  ResetHpPayload,
+  ResetStudentHpPayload,
 } from '../lib/api/hp-system';
 
 export function useHpCourseVersions() {
@@ -5294,15 +5296,15 @@ export function useHpStudentCohorts() {
   };
 }
 
-export function useHpStudentActivities(courseVersionId: string, cohortName: string) {
+export function useHpStudentActivities(courseVersionId: string, cohortId: string) {
   const query = useQuery({
-    queryKey: ['hp-student-activities', courseVersionId, cohortName],
+    queryKey: ['hp-student-activities', courseVersionId, cohortId],
     queryFn: async () => {
-      const res = await hpApi.getStudentActivities(courseVersionId, cohortName);
+      const res = await hpApi.getStudentActivities(courseVersionId, cohortId);
       if (!res.success) throw new Error(res.message || 'Failed to load activities');
       return res.data;
     },
-    enabled: !!courseVersionId && !!cohortName,
+    enabled: !!courseVersionId && !!cohortId,
     refetchOnWindowFocus: false,
   });
 
@@ -5321,7 +5323,7 @@ export function useSubmitActivity() {
     mutationFn: async (payload: {
       courseId: string;
       courseVersionId: string;
-      cohort: string;
+      cohortId: string;
       activityId: string;
       payload: {
         textResponse?: string;
@@ -5334,7 +5336,7 @@ export function useSubmitActivity() {
       return res.data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['hp-student-activities', variables.courseVersionId, variables.cohort] });
+      queryClient.invalidateQueries({ queryKey: ['hp-student-activities', variables.courseVersionId, variables.cohortId] });
       queryClient.invalidateQueries({ queryKey: ['hp-student-ledger'] });
       queryClient.invalidateQueries({ queryKey: ['hp-students'] });
       queryClient.invalidateQueries({ queryKey: ['hp-cohort-overview'] });
@@ -5355,12 +5357,14 @@ export function useUpdateActivitySubmission() {
       submissionId: string;
       courseId: string;
       courseVersionId: string;
-      cohort: string;
+      cohortId: string;
       activityId: string;
-      payload: {
-        textResponse?: string;
-        links?: { url: string; label: string }[];
-      };
+        payload: {
+          textResponse?: string;
+          links?: { url: string; label: string }[];
+          files?: any[];
+          images?: any[];
+        };
       submissionSource?: string;
       files?: File[];
       images?: File[];
@@ -5371,7 +5375,7 @@ export function useUpdateActivitySubmission() {
       return res.data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['studentMySubmissions', variables.courseVersionId, variables.cohort] });
+      queryClient.invalidateQueries({ queryKey: ['studentMySubmissions', variables.courseVersionId, variables.cohortId] });
       toast.success("Submission updated successfully");
     },
   });
@@ -5384,20 +5388,20 @@ export function useUpdateActivitySubmission() {
 
 export function useHpActivities(
   courseVersionId: string,
-  cohort: string,
+  cohortId: string,
   status?: string,
   search?: string,
   activity?: string
 ) {
   const query = useQuery({
-    queryKey: ['hp-activities', courseVersionId, cohort, status, search, activity],
+    queryKey: ['hp-activities', courseVersionId, cohortId, status, search, activity],
     queryFn: async () => {
-      const res = await hpApi.getActivities(courseVersionId, cohort, status, search, activity);
+      const res = await hpApi.getActivities(courseVersionId, cohortId, status, search, activity);
       if (!res.success) throw new Error(res.message || 'Failed to load activities');
       console.log("Fetched activities:", res.data);
       return res.data;
     },
-    enabled: !!courseVersionId && !!cohort,
+    enabled: !!courseVersionId && !!cohortId,
     refetchOnWindowFocus: false,
   });
 
@@ -5587,20 +5591,20 @@ export function useUpdateHpRuleConfig() {
   };
 }
 
-export function useHpStudents(courseVersionId: string, cohort: string, params?: {
+export function useHpStudents(courseVersionId: string, cohortId: string, params?: {
     page: number;
     limit: number;
     search: string;
     status: "ALL" | "SAFE" | "UNSAFE";
   }) {
   const query = useQuery({
-    queryKey: ['hp-students', courseVersionId, cohort, params],
+    queryKey: ['hp-students', courseVersionId, cohortId, params],
     queryFn: async () => {
-      const res = await hpApi.getStudents(courseVersionId, cohort, params);
+      const res = await hpApi.getStudents(courseVersionId, cohortId, params);
       if (!res.success) throw new Error(res.message || 'Failed to load students');
       return res.data;
     },
-    enabled: !!courseVersionId && !!cohort,
+    enabled: !!courseVersionId && !!cohortId,
     refetchOnWindowFocus: false,
   });
 
@@ -5613,19 +5617,69 @@ export function useHpStudents(courseVersionId: string, cohort: string, params?: 
   };
 }
 
+export function useResetHp() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: ResetHpPayload) => {
+      const res = await hpApi.resetHp(payload);
+
+      if (!res.success) {
+        throw res;
+      }
+      return res.documentsUpdated;
+    },
+
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [
+          "hp-students",
+          variables.courseVersionId,
+          variables.cohortName,
+        ],
+      });
+    },
+  });
+}
+
+export function useResetStudentHp() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: ResetStudentHpPayload) => {
+      const res = await hpApi.resetStudentHp(payload);
+
+      if (!res.success) {
+        throw res;
+      }
+      return res;
+    },
+
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [
+          "hp-students",
+          variables.courseVersionId,
+          variables.cohortName,
+        ],
+      });
+    },
+  });
+}
+
 export function useHpStudentLedger(
   studentId: string,
-  cohortName: string,
+  cohortId: string,
   courseId: string,
   courseVersionId: string
 ) {
   const query = useQuery({
-    queryKey: ['hp-student-ledger', studentId, cohortName, courseId, courseVersionId],
+    queryKey: ['hp-student-ledger', studentId, cohortId, courseId, courseVersionId],
     queryFn: async () => {
-      const res = await hpApi.getStudentLedger(studentId, cohortName, courseId, courseVersionId);
+      const res = await hpApi.getStudentLedger(studentId, cohortId, courseId, courseVersionId);
       return res;
     },
-    enabled: !!studentId && !!courseId && !!courseVersionId && !!cohortName,
+    enabled: !!studentId && !!courseId && !!courseVersionId && !!cohortId,
     refetchOnWindowFocus: false,
   });
 
@@ -5643,15 +5697,15 @@ export function useHpStudentLedger(
 export function useMyHpLedger(
   courseId: string,
   courseVersionId: string,
-  cohort: string
+  cohortId: string
 ) {
   const query = useQuery({
-    queryKey: ['hp-my-ledger', courseId, courseVersionId, cohort],
+    queryKey: ['hp-my-ledger', courseId, courseVersionId, cohortId],
     queryFn: async () => {
-      const res = await hpApi.getMyLedger(courseId, courseVersionId, cohort);
+      const res = await hpApi.getMyLedger(courseId, courseVersionId, cohortId);
       return res;
     },
-    enabled: !!courseId && !!courseVersionId && !!cohort,
+    enabled: !!courseId && !!courseVersionId && !!cohortId,
     refetchOnWindowFocus: false,
   });
 
@@ -5692,9 +5746,9 @@ export function useRevertHpEntry() {
 export function useRestoreHpEntry() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: async (entryId: string) => {
-      const res = await hpApi.restoreLedgerEntry(entryId);
-      if (!res.success) throw new Error(res.message || 'Failed to restore entry');
+    mutationFn: async ({ entryId, note }: { entryId: string; note?: string }) => {
+        const res = await hpApi.restoreLedgerEntry(entryId, note);
+        if (!res.success) throw new Error(res.message || 'Failed to restore entry');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hp-student-ledger'] });
@@ -5763,11 +5817,11 @@ export function useReviewSubmission() {
 }
 
 // Made by Rishabh Shukla....
-export function useHpCohortActivitySubmissionsStats(cohort: string, activityId: string) {
+export function useHpCohortActivitySubmissionsStats(cohortId: string, activityId: string) {
   const query = useQuery({
-    queryKey: ['hp-cohort-activity-submissions-stats', cohort, activityId],
+    queryKey: ['hp-cohort-activity-submissions-stats', cohortId, activityId],
     queryFn: async () => {
-      const res = await hpApi.getCohortActivityStats(cohort, activityId);
+      const res = await hpApi.getCohortActivityStats(cohortId, activityId);
       if (!res.success) throw new Error(res.message || 'Failed to load submission stats');
       return res.data;
     }
@@ -5781,11 +5835,11 @@ export function useHpCohortActivitySubmissionsStats(cohort: string, activityId: 
 }
 
 // Made by Rishabh Shukla....
-export function useHpActivitiesStatsMap(cohort: string, courseVersionId: string) {
+export function useHpActivitiesStatsMap(cohortId: string, courseVersionId: string) {
   return useQuery({
-    queryKey: ['hp-activities-stats-map', cohort, courseVersionId],
+    queryKey: ['hp-activities-stats-map', cohortId, courseVersionId],
     queryFn: async () => {
-      const res = await hpApi.getCohortActivityStatsMap(cohort, courseVersionId);
+      const res = await hpApi.getCohortActivityStatsMap(cohortId, courseVersionId);
       if (!res.success) throw new Error(res.message || 'Failed to load stats');
       return res.data;
     }
@@ -5799,7 +5853,7 @@ export function useDashboardStats() {
   
   // Get stats for each cohort
   const cohortQueries = enrollments?.data?.map((enrollment: any) => {
-    return useHpActivitiesStatsMap(enrollment.cohortName, enrollment.courseVersionId);
+    return useHpActivitiesStatsMap(enrollment.cohortId, enrollment.courseVersionId);
   }) || [];
 
   const isLoading = cohortQueries.some((query: any) => query.isLoading);
@@ -5829,7 +5883,7 @@ export function useDashboardStats() {
       },
       courses: allStats.flatMap(stat => stat.coursePerformance || []),
       hpDistribution: allStats.map(stat => ({
-        cohortName: stat.bestPerformingCohort || 'Unknown',
+        cohortId: stat.bestPerformingCohort || 'Unknown',
         totalHp: stat.currentHp || 0,
         percentage: totalHp > 0 ? ((stat.currentHp || 0) / totalHp) * 100 : 0
       })),
@@ -5909,15 +5963,15 @@ export function useAddFeedback() {
   };
 }
 
-export function useHpCohortOverviewStats(courseVersionId: string, cohort: string) {
+export function useHpCohortOverviewStats(courseVersionId: string, cohortId: string) {
   const query = useQuery({
-    queryKey: ['hp-cohort-overview', courseVersionId, cohort],
+    queryKey: ['hp-cohort-overview', courseVersionId, cohortId],
     queryFn: async () => {
-      const res = await hpApi.getCohortOverviewStats(courseVersionId, cohort);
+      const res = await hpApi.getCohortOverviewStats(courseVersionId, cohortId);
       if (!res.success) throw new Error(res.message || 'Failed to load cohort overview stats');
       return res.data;
     },
-    enabled: !!courseVersionId && !!cohort,
+    enabled: !!courseVersionId && !!cohortId,
     refetchOnWindowFocus: false,
   });
 
@@ -5929,12 +5983,12 @@ export function useHpCohortOverviewStats(courseVersionId: string, cohort: string
   };
 }
 
-export function useHpStudentSubmissions(studentId: string | undefined, courseVersionId: string, cohort: string) {
+export function useHpStudentSubmissions(studentId: string | undefined, courseVersionId: string, cohortId: string) {
   return useQuery({
-    queryKey: ['hpStudentSubmissions', studentId, courseVersionId, cohort],
+    queryKey: ['hpStudentSubmissions', studentId, courseVersionId, cohortId],
     queryFn: async () => {
       if (!studentId) return [];
-      const res = await hpApi.getStudentSubmissions(studentId, courseVersionId, cohort);
+      const res = await hpApi.getStudentSubmissions(studentId, courseVersionId, cohortId);
       if (!res.success) throw new Error("Failed to fetch student submissions");
       return res.data;
     },
@@ -5944,29 +5998,29 @@ export function useHpStudentSubmissions(studentId: string | undefined, courseVer
 
 export function useHpStudentSubmissionStats(
   studentId: string | undefined,
-  cohortName: string
+  cohortId: string
 ) {
   return useQuery({
-    queryKey: ['hpStudentSubmissionStats', studentId, cohortName],
+    queryKey: ['hpStudentSubmissionStats', studentId, cohortId],
     queryFn: async () => {
       if (!studentId) return null;
-      const res = await hpApi.getStudentSubmissionStats(studentId, cohortName);
+      const res = await hpApi.getStudentSubmissionStats(studentId, cohortId);
       if (!res.success) throw new Error("Failed to fetch submission stats");
       return res.data;
     },
-    enabled: !!studentId && !!cohortName,
+    enabled: !!studentId && !!cohortId,
   });
 }
 
-export function useStudentMySubmissions(courseVersionId: string, cohort: string) {
+export function useStudentMySubmissions(courseVersionId: string, cohortId: string) {
   return useQuery({
-    queryKey: ['studentMySubmissions', courseVersionId, cohort],
+    queryKey: ['studentMySubmissions', courseVersionId, cohortId],
     queryFn: async () => {
-      const res = await hpApi.getStudentMySubmissions(courseVersionId, cohort);
+      const res = await hpApi.getStudentMySubmissions(courseVersionId, cohortId);
       if (!res.success) throw new Error("Failed to fetch current student submissions");
       return res.data;
     },
-    enabled: !!courseVersionId && !!cohort,
+    enabled: !!courseVersionId && !!cohortId,
   });
 
 
