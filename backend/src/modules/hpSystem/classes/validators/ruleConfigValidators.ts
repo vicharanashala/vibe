@@ -8,6 +8,7 @@ import {
   IsString,
   Min,
   ValidateNested,
+  ValidateIf
 } from "class-validator";
 import { Type } from "class-transformer";
 import { SubmissionField } from "../../models.js";
@@ -41,20 +42,20 @@ export class HpRewardRuleDto {
   @IsBoolean()
   enabled!: boolean;
 
-  @IsOptional()
+  @ValidateIf(o => o.enabled)
   @IsEnum(RuleTypeEnum)
   type?: RuleTypeEnum;
 
-  @IsOptional()
+  @ValidateIf(o => o.enabled)
   @IsNumber()
   @Min(1)
   value?: number;
 
-  @IsOptional()
+  @ValidateIf(o => o.enabled)
   @IsEnum(RewardApplyWhenEnum)
   applyWhen?: RewardApplyWhenEnum;
 
-  @IsOptional()
+  @ValidateIf(o => o.enabled)
   @IsEnum(LateBehaviorEnum)
   lateBehavior?: LateBehaviorEnum;
 }
@@ -63,20 +64,20 @@ export class HpPenaltyRuleDto {
   @IsBoolean()
   enabled!: boolean;
 
-  @IsOptional()
+  @ValidateIf(o => o.enabled)
   @IsEnum(RuleTypeEnum)
   type?: RuleTypeEnum;
 
-  @IsOptional()
+  @ValidateIf(o => o.enabled)
   @IsNumber()
   @Min(1)
   value?: number;
 
-  @IsOptional()
+  @ValidateIf(o => o.enabled)
   @IsEnum(PenaltyApplyWhenEnum)
   applyWhen?: PenaltyApplyWhenEnum;
 
-  @IsOptional()
+  @ValidateIf(o => o.enabled)
   @IsNumber()
   @Min(0)
   graceMinutes?: number;
@@ -107,8 +108,9 @@ export class CreateHpRuleConfigBody {
   @IsString()
   courseVersionId!: string;
 
+  @IsOptional()
   @IsString()
-  activityId!: string;
+  activityId?: string;
 
   @IsBoolean()
   isMandatory!: boolean;

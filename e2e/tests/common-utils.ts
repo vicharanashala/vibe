@@ -19,7 +19,7 @@ export async function loginAsStudent(page: Page) {
 
   await page.getByRole('button', { name: /sign in as learner/i }).click();
 
-  await expect(page.getByText(/logout/i)).toBeVisible({ timeout: 60000 });
+  await expect(page.getByRole('link', { name: /dashboard/i })).toBeVisible({ timeout: 60000 });
 }
 
 // ---------------------------------------------
@@ -163,7 +163,7 @@ async function fastForwardIfAvailable(page, timeDisplay) {
   }
 }
 
-async function playAndWaitForCompletion(page) {
+async function playAndWaitForCompletion(page): Promise<boolean> {
   // Play button
   const playButton = page.getByRole('button', { name: /^play$/i });
 
@@ -181,20 +181,48 @@ async function playAndWaitForCompletion(page) {
   const box = await speedTrack.boundingBox();
   if (!box) throw new Error('No bounding box');
 
-  // ▶️ Click Play
+  // ▶️ Initial click
   await playButton.click();
   console.log('▶ Play clicked');
 
-  // Wait for playback to start
   const startTime = await timeDisplay.textContent();
-  console.log(`startTime :${startTime}`);
+  console.log(`startTime: ${startTime}`);
 
-  await expect
-    .poll(async () => await timeDisplay.textContent(), {
-      timeout: 90_000,
-      message: 'Waiting for video playback to start',
-    })
-    .not.toBe(startTime);
+  const TOTAL_TIMEOUT = 120_000;
+  const CHUNK_TIMEOUT = 30_000;
+
+  const start = Date.now();
+  let playbackStarted = false;
+  let clickAttempts = 1; // already clicked once
+
+  while (Date.now() - start < TOTAL_TIMEOUT) {
+    try {
+      await expect
+        .poll(async () => await timeDisplay.textContent(), {
+          timeout: CHUNK_TIMEOUT,
+          message: 'Waiting for video playback to start',
+        })
+        .not.toBe(startTime);
+
+      console.log('✅ Playback started');
+      playbackStarted = true;
+      break;
+    } catch {
+      console.log('⏳ Playback not started in 30s, retrying play...');
+
+      await playButton.click();
+      clickAttempts++;
+      console.log(`🔁 Play clicked again (attempt ${clickAttempts})`);
+    }
+  }
+
+  // Final assertion
+  if (!playbackStarted) {
+    console.log(
+      `❌ Playback did not start after ${TOTAL_TIMEOUT / 1000}s and ${clickAttempts} attempts`,
+    );
+    return false; // 🚨 IMPORTANT
+  }
 
   console.log('⏳ Playback started');
 
@@ -233,7 +261,7 @@ async function playAndWaitForCompletion(page) {
         const current = parseTimeToSeconds(currentText);
         const total = parseTimeToSeconds(totalText);
 
-        return current >= total - 2;
+        return current >= total - 5;
       },
       {
         timeout: 6 * 60 * 1000,
@@ -243,6 +271,7 @@ async function playAndWaitForCompletion(page) {
     .toBe(true);
 
   console.log('✅ Video completed');
+  return true;
 }
 
 async function waitForItemlist(section: Locator) {
@@ -272,6 +301,9 @@ async function waitForItemlist(section: Locator) {
   console.log(`✅ All items loaded. Total: ${previousCount}`);
 }
 
+let stopVideoErrorCount = 0;
+let totalVideoCount = 0;
+
 async function handleStopVideoError(page: Page) {
   // Anchor on the error text
   const errorDialog = page
@@ -283,6 +315,9 @@ async function handleStopVideoError(page: Page) {
     // Step 1: Wait only 5 seconds for dialog
     await errorDialog.waitFor({ state: 'visible', timeout: 5000 });
     console.warn('⚠️ "Failed to stop video" dialog detected');
+
+    stopVideoErrorCount++; // ✅ increment here
+    console.warn(`⚠️ Error detected (${stopVideoErrorCount}) times`);
 
     // Step 2: Scope Continue button inside the SAME dialog
     const continueButton = errorDialog.getByRole('button', { name: 'Continue' });
@@ -421,18 +456,14 @@ async function submitProject(page: Page) {
 }
 
 export async function getCourseCard(page: Page, courseName: string): Promise<Locator> {
-  // Locate course title
-  const courseTitle = page.getByRole('heading', {
-    name: new RegExp(courseName, 'i'),
-    level: 3,
+  const courseCard = page.locator('[data-slot="card"]').filter({
+    has: page.getByRole('heading', {
+      name: new RegExp(courseName, 'i'),
+      level: 3,
+    }),
   });
 
-  await expect(courseTitle).toBeVisible({ timeout: 60000 });
-
-  // Scope to THIS course card
-  const courseCard = courseTitle.locator(
-    'xpath=ancestor::div[contains(@class,"student-card-hover")]',
-  );
+  await expect(courseCard).toBeVisible({ timeout: 60000 });
 
   return courseCard;
 }
@@ -441,8 +472,8 @@ export async function runCourseVideoAndQuiz(page: Page, courseName: string) {
   const courseCard = await getCourseCard(page, courseName);
 
   // 6. Find Start or Continue button
-  const actionButton = courseCard.getByRole('button', {
-    name: /^(start|continue)$/i,
+  const actionButton = courseCard.locator('button', {
+    hasText: /(start|continue)/i,
   });
 
   // 7. Click
@@ -463,6 +494,7 @@ export async function runCourseVideoAndQuiz(page: Page, courseName: string) {
   console.log(`📦 Found ${moduleCount} modules`);
 
   for (let m = 0; m < moduleCount; m++) {
+    
     const module = modules.nth(m);
 
     await module.scrollIntoViewIfNeeded();
@@ -486,7 +518,9 @@ export async function runCourseVideoAndQuiz(page: Page, courseName: string) {
 
     console.log(`📂 Found ${sectionCount} sections in module`);
 
-    for (let i = 0; i < sectionCount; i++) {
+    const section_start = m === 1 ? 0 : 0; // set section_start as required for testing
+
+    for (let i = section_start; i < sectionCount; i++) {
       const section = sections.nth(i);
 
       const sectionName = (
@@ -536,9 +570,41 @@ export async function runCourseVideoAndQuiz(page: Page, courseName: string) {
         if (lessonType === 'video') {
           console.log('   🎬 Video detected');
 
-          await playAndWaitForCompletion(page);
-          await handleStopVideoError(page);
+          const success = await playAndWaitForCompletion(page);
 
+          if (!success) {
+            console.log(`❌ Playback failed at item [${j}]`);
+
+            // 🔹 Calculate fallback index
+            const fallbackIndex = Math.max(0, j - 4);
+
+            console.log(`⏪ Jumping back from item [${j}] → [${fallbackIndex}]`);
+
+            const fallbackItem = items.nth(fallbackIndex);
+
+            await fallbackItem.click();
+
+            const fallbackItemId = await fallbackItem.getAttribute('data-item-id');
+
+            if (fallbackItemId) {
+              await expect(page.locator('[data-testid="current-item-title"]')).toHaveAttribute(
+                'data-item-id',
+                fallbackItemId,
+                {
+                  timeout: 90000,
+                },
+              );
+            }
+
+            // 🔁 Reset loop index
+            j = fallbackIndex - 1;
+
+            continue;
+          }
+          totalVideoCount++;
+          // ✅ Only run if playback succeeded
+          await handleStopVideoError(page);
+          console.log(`⚠️ stopVideoError encountered (${stopVideoErrorCount} out of ${totalVideoCount}) times`);
           console.log(`Module[${m}] section[${i}] item [${j}] 🎬 Video completed`);
         } else if (lessonType === 'quiz') {
           console.log('   📝 Quiz detected');

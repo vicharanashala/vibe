@@ -666,6 +666,7 @@ export class TimeSlotService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
+    cohortId?: string,
   ): Promise<{ canAccess: boolean; message?: string }> {
     return this._withTransaction(async (session) => {
       // Get timeslots settings
@@ -684,6 +685,7 @@ export class TimeSlotService extends BaseService {
         userId,
         courseId,
         courseVersionId,
+        cohortId,
       );
 
       if (!enrollment) {

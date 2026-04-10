@@ -462,6 +462,7 @@ export interface IWatchTime {
 
 export interface ICohort {
   _id?: string | ObjectId | null;
+  courseId: string | ObjectId;
   courseVersionId: string | ObjectId;
   name: string;
   description?: string;
@@ -471,6 +472,8 @@ export interface ICohort {
   isActive?: boolean;
   baseHp?: number;
   safeHp?: number;
+  isDeleted?: boolean;
+  isLegacy?: boolean;
 }
 
 export interface ICohortSettings {
@@ -585,6 +588,7 @@ export interface ISettings {
   hpSystem?: boolean;
   isPublic?: boolean;
   baseHp?: number;
+  randomizeItems?: boolean;
   // registration_settings?: IRegistrationSettings[];
   registration?: {
     jsonSchema?: any;
