@@ -81,7 +81,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [failedRedirectCountdown, setFailedRedirectCountdown] = useState<number | null>(null);
   const [openQuestionId, setOpenQuestionId] = useState<string | null>(null);
   const [emptyQuizRedirectCountdown, setEmptyQuizRedirectCountdown] = useState<number | null>(null);
-  const emptyQuizNextTimerRef = useRef<ReturnType<typeof window.setTimeout> | undefined>(undefined);
   const [finshingQuiz, setFinshingQuiz] = useState(false);
 
   // ===== REFS AND CONSTANTS =====
@@ -103,8 +102,17 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const handleSkipItem = async () => {
     if (!currentCourse?.itemId) return;
     try {
-
-      await skipItemAsync({ params: { path: { itemId: currentCourse?.itemId }, query: { cohortId: currentCourse?.cohortId } } });
+      await skipItemAsync({
+        params: {
+          path: { itemId: currentCourse.itemId },
+          query: { cohortId: currentCourse.cohortId ?? undefined },
+        },
+      });
+      // ✅ RESTORED: Keeps progression state in sync
+      if (currentCourse.itemId) {
+        completedItemIdsRef.current.add(currentCourse.itemId);
+      }
+      itemStartedRef.current = false;
 
     } catch (error) {
       console.error('Error skipping item:', error);
@@ -241,9 +249,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             // Map the backend lotItems to frontend format
             // baseQuestion.lotItems = question.lotItems.map(item => ({
 
-            //   text: item.text,
-            //   explaination: item.explaination ||'', // This field doesn't exist in LotItem from API
-            //   _id: typeof item._id === 'string' ? item._id : item._id
+            //    text: item.text,
+            //    explaination: item.explaination ||'', // This field doesn't exist in LotItem from API
+            //    _id: typeof item._id === 'string' ? item._id : item._id
             // }));
             baseQuestion.lotItems = question.lotItems.map(item => {
               let optionId: string;
@@ -503,14 +511,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     },
     [currentCourse, stopItem, attemptId]
   );
-
-  useEffect(() => {
-    return () => {
-      if (emptyQuizNextTimerRef.current) {
-        clearTimeout(emptyQuizNextTimerRef.current);
-      }
-    };
-  }, []);
 
   // Handle empty quiz without attempting to start it
   const handleEmptyQuiz = useCallback(async () => {
@@ -1285,7 +1285,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   <Button
                     onClick={() => {
                       // setQuizCompleted(false);
-                      clearTimeout(emptyQuizNextTimerRef.current);
                       setEmptyQuizRedirectCountdown(null);
                       onPrevVideo();
                     }}
@@ -1810,8 +1809,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               )}
             </div>
           )}
-          {/* 
-          {explanationBox.open && (
+          {/* {explanationBox.open && (
             <div className={`mb-4 p-3 rounded-lg animate-in fade-in ${explanationBox.result === 'CORRECT'
               ? 'bg-green-100 dark:bg-green-950/20 text-green-900 dark:text-green-100 border border-green-300 dark:border-green-800'
               : 'bg-red-100 dark:bg-red-950/20 text-red-900 dark:text-red-100 border border-red-300 dark:border-red-800'
@@ -1958,18 +1956,39 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
         {/* Navigation */}
         <div className="flex justify-between items-center">
-          {/* Skip button (shown after 5 attempts) */}
-          {(attempts >= 5 && allowSkip == true) && (
-            <Button
-              // variant="outline"
-              onClick={handleSkipQuiz}
-              // className="text-white hover:text-background/90 hover:bg-foreground/10"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Skipping...' : 'Skip Quiz'}
-            </Button>
-          )}
 
+          {/* LEFT SIDE: Navigation & Skipping */}
+          <div className="flex gap-2">
+            {/* Issue #561: Allow learner to rewatch the previous video from quiz */}
+            {onPrevVideo && (
+              <Button
+                variant="outline"
+                onClick={() => onPrevVideo()}
+                disabled={isProgressUpdating || isSubmitting || isSaving || finshingQuiz}
+                aria-label="Return to previous video"
+                className="border-blue-300 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/30 transition-colors"
+              >
+                {isNavigatingToPrev ? (
+                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                ) : (
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                )}
+                Back to Video
+              </Button>
+            )}
+
+            {(attempts >= 5 && allowSkip == true) && (
+              <Button
+                onClick={handleSkipQuiz}
+                disabled={isSubmitting}
+                aria-label="Skip remaining quiz"
+              >
+                {isSubmitting ? 'Skipping...' : 'Skip Quiz'}
+              </Button>
+            )}
+          </div>
+
+          {/* RIGHT SIDE: Save + Next/Finish */}
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -2004,10 +2023,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             </Button>
           </div>
         </div>
-
-
-
-
 
         {/* Show save error if any */}
         {/* {saveError && !submitError && (
