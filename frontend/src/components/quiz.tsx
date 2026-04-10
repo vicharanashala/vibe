@@ -747,9 +747,14 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
       setQuizCompleted(true);
       setFinshingQuiz(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to submit quiz:', err);
+      // If attempt was already submitted, treat as completed
+      if (err?.message?.includes('already been submitted') || err?.response?.status === 400) {
+        setQuizCompleted(true);
+      } else {
         setQuizCompleted(false);
+      }
       setFinshingQuiz(false);
     }
   }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem, saveQuiz]);
@@ -828,6 +833,39 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }
   }, [attemptId, quizQuestions, processedQuizId, saveQuiz, convertAnswersToSaveFormat]);
 
+  //Return to video features
+  const handleReturnToVideo = useCallback(async () => {
+    if (!onPrevVideo) return;
+    if (quizCompleted) return; // Don't save state for already submitted quizzes
+
+    // Save progress to backend first
+    if (attemptId && quizQuestions.length > 0) {
+      try {
+        const answersForSaving = convertAnswersToSaveFormat();
+        await saveQuiz({
+          params: { path: { quizId: processedQuizId, attemptId: attemptId } },
+          body: { answers: answersForSaving }
+        });
+      } catch (err) {
+        console.warn('Failed to save before returning to video:', err);
+      }
+    }
+
+    // Persist quiz state to sessionStorage so it survives unmount/remount
+    const stateToSave = {
+      attemptId,
+      answers,
+      currentQuestionIndex,
+      quizQuestions,
+      quizStarted: true,
+      attempts,
+    };
+    sessionStorage.setItem(`quiz_state_${processedQuizId}`, JSON.stringify(stateToSave));
+
+    // Navigate to previous video
+    onPrevVideo();
+  }, [onPrevVideo, attemptId, quizQuestions, answers, currentQuestionIndex, attempts, processedQuizId, convertAnswersToSaveFormat, saveQuiz]);
+
   const currentQuestion = quizQuestions[currentQuestionIndex];
 
   const handleAnswer = useCallback((answer: string | number | number[] | string[] | undefined) => {
@@ -887,10 +925,37 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   // ===== EFFECTS =====
 
-  // Reset state when quiz ID changes
+  // Reset state when quiz ID changes, or restore saved state if returning from video
   useEffect(() => {
+    const savedStateKey = `quiz_state_${processedQuizId}`;
+    const savedState = sessionStorage.getItem(savedStateKey);
+
+    if (savedState) {
+      try {
+        const parsed = JSON.parse(savedState);
+        // Restore quiz state from before video rewatch
+        setAttemptId?.(parsed.attemptId);
+        setAnswers(parsed.answers || {});
+        setCurrentQuestionIndex(parsed.currentQuestionIndex || 0);
+        setQuizQuestions(parsed.quizQuestions || []);
+        setQuizStarted(true);
+        setQuizCompleted(false);
+        setAttempts(parsed.attempts || 0);
+        quizAttemptedRef.current = true;
+        setDontStart(true);
+        // Clear saved state so it's not reused on future visits
+        sessionStorage.removeItem(savedStateKey);
+        // Re-start item tracking
+        handleSendStartItem();
+        return;
+      } catch (err) {
+        console.warn('Failed to restore quiz state:', err);
+        sessionStorage.removeItem(savedStateKey);
+      }
+    }
+
     resetQuiz();
-  }, [processedQuizId, resetQuiz]);
+  }, [processedQuizId]);
 
   useEffect(() => {
     if (rewindVid) {
@@ -1954,6 +2019,18 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           )}
 
           <div className="flex gap-2">
+            {onPrevVideo && (
+              <Button
+                variant="outline"
+                onClick={handleReturnToVideo}
+                disabled={isSaving || isSubmitting}
+                title="Save progress and rewatch the video"
+              >
+                <PlayCircle className="mr-2 h-4 w-4" />
+                Rewatch Video
+              </Button>
+            )}
+
             <Button
               variant="outline"
               onClick={saveProgress}
