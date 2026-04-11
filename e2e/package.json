@@ -2,14 +2,23 @@
   "name": "vibe-e2e",
   "private": true,
   "scripts": {
+    "test-e2e:auth:record": "node capture-auth-state.mjs",
+    "test-e2e:auth:record:codegen": "playwright codegen --channel=chrome http://localhost:5173 --save-storage=playwright/.auth/student.json",
+    "test-e2e:video:skip-auth": "cross-env SKIP_AUTH_PAGE=true E2E_STORAGE_STATE=playwright/.auth/student.json playwright test tests/play-course-vidoes.test.ts",
+    "test-e2e:progress:skip-auth": "cross-env SKIP_AUTH_PAGE=true E2E_STORAGE_STATE=playwright/.auth/student.json playwright test tests/test-progress-status.test.ts",
+    "test-e2e:analyze": "node gemini-analyze.mjs",
     "test-e2e": "playwright test",
     "lint": "eslint \"tests/**/*.ts\"",
     "format": "prettier --write \"**/*.{ts,js,json,md}\""
+  },
+  "dependencies": {
+    "@google/genai": "^0.14.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
     "@typescript-eslint/eslint-plugin": "^8.54.0",
     "@typescript-eslint/parser": "^8.54.0",
+    "cross-env": "^7.0.3",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.8.1"
