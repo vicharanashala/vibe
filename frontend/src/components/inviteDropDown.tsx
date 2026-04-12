@@ -9,8 +9,9 @@ import {
   Bell,
   Check,
 } from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
 import {Button} from '@/components/ui/button';
-import {useMarkNotificationAsRead} from '@/hooks/hooks';
+import {processInviteApi, useMarkNotificationAsRead} from '@/hooks/hooks';
 import {
   useSubmitAppeal,
 } from '@/hooks/system-notification-hooks';
@@ -26,7 +27,8 @@ import { AppealModal } from '@/app/pages/student/components/policies/AppealModal
 import { useInvites } from "@/hooks/hooks";
 import { PolicyReacknowledgementModal } from '@/app/pages/student/components/policies/PolicyReacknowledgementModal';
 import { queryClient } from '@/lib/client';
-
+import { hasActivePolicies } from '@/utils/ejectionPolicyUtils';
+import { useAuthStore } from '@/store/auth-store';
 type InviteDropdownProps = {
   setShowInvites?: React.Dispatch<React.SetStateAction<boolean>>;
   onRejectClick?: (invite: any) => void;
@@ -97,7 +99,18 @@ const getSystemNotificationColors = (type: SystemNotification['type']) => {
       };
   }
 };
+const ROLE_MAP = {
+  INSTRUCTOR: ["teacher", "admin"],
+  STUDENT: ["student"],
+};
 
+const canSeeInvite = (
+  inviteRole: string,
+  userRole?: string | null
+) => {
+  if (!userRole) return false;
+  return ROLE_MAP[inviteRole]?.includes(userRole) ?? false;
+};
 const InviteDropdown = ({
   selectedInvite,
   setSelectedInvite,
@@ -116,21 +129,24 @@ const InviteDropdown = ({
   enrollments=[],
   
 }: InviteDropdownProps) => {
+  const navigate = useNavigate();
   const {mutate: markAsRead, isPending} = useMarkNotificationAsRead();
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const [selectedPolicyNotification, setSelectedPolicyNotification] = useState<SystemNotification | null>(null);
-
+  const user = useAuthStore((state) => state.user);
+  
   const [submittedAppeals, setSubmittedAppeals] = useState<Set<string>>(new Set());
-const appealKey = (n: SystemNotification) =>
-  `${n.courseId}-${n.courseVersionId}-${n.cohortId}`;
-
+  const appealKey = (n: SystemNotification) =>
+    `${n.courseId}-${n.courseVersionId}-${n.cohortId}`;
+  
   const unreadSystemNotifications = systemNotifications.filter(n => !n.read);
+  const [invitePoliciesMap, setInvitePoliciesMap] = useState<Record<string, boolean>>({});
   const hasAnyContent =
-    pendingInvites.length > 0 ||
-    approvedNotifications.length > 0 ||
-    pendingStudentRegistrations.length > 0 ||
-    rejectedStudentRegistrations.length > 0 ||
-    systemNotifications.length > 0;
+  pendingInvites.length > 0 ||
+  approvedNotifications.length > 0 ||
+  pendingStudentRegistrations.length > 0 ||
+  rejectedStudentRegistrations.length > 0 ||
+  systemNotifications.length > 0;
   
     const [selectedAppeal, setSelectedAppeal] = useState<{
   courseId: string;
@@ -140,11 +156,13 @@ const appealKey = (n: SystemNotification) =>
 const submitAppeal = useSubmitAppeal();
 const [localInvites, setLocalInvites] = useState<any[]>([]);
 const { getInvites } = useInvites();
+const invitesToShow = (pendingInvites.length ? pendingInvites : localInvites)
+  .filter((invite) => canSeeInvite(invite.role, user?.role));
 
 useEffect(() => {
   if (localInvites.length === 0) {
     getInvites().then((data) => {
-      console.log("INVITES API RESPONSE:", data); 
+      
 
       setLocalInvites(data?.invites || []);
     });
@@ -214,6 +232,31 @@ const mostRecentPolicyIds = useMemo(() => {
 
   return new Set(map.values());
 }, [systemNotifications]);
+useEffect(() => {
+  const fetchPolicies = async () => {
+    const results: Record<string, boolean> = {};
+
+    const invites = pendingInvites.length ? pendingInvites : localInvites;
+
+    await Promise.all(
+      invites.map(async (invite) => {
+        const hasPolicies = await hasActivePolicies(
+          invite.courseId,
+          invite.courseVersionId,
+          invite.cohortId
+        );
+
+        results[invite.inviteId] = hasPolicies;
+      })
+    );
+
+    setInvitePoliciesMap(results);
+  };
+
+  if (pendingInvites.length || localInvites.length) {
+    fetchPolicies();
+  }
+}, [pendingInvites, localInvites]);
 
   return (
     <>
@@ -244,16 +287,56 @@ const mostRecentPolicyIds = useMemo(() => {
           ) : (
             <>
              {/* ── Invites ── */}
-             {(pendingInvites.length ? pendingInvites : localInvites).map((invite, idx) => (
+             {invitesToShow.map((invite, idx) => (
                 <InviteItem
-                  key={`invite-${idx}`}
-                  invite={invite}
-                  onRejectClick={onRejectClick ?? (() => {})}
-                  onAcceptClick={invite => {
-                    setSelectedInvite(invite);
-                    setShowPolicyModal(true);
-                  }}
-                />
+  invite={invite}
+  hasPolicies={invitePoliciesMap[invite.inviteId]}
+  onAcceptClick={async (invite) => {
+    const hasPolicies = await hasActivePolicies(
+      invite.courseId,
+      invite.courseVersionId,
+      invite.cohortId
+    );
+
+    if (!hasPolicies) {
+  await processInviteApi(invite.inviteId, "ACCEPT", false);
+
+  setPendingInvites((prev) =>
+    prev.filter((i) => i.inviteId !== invite.inviteId)
+  );
+
+  setLocalInvites((prev) =>
+    prev.filter((i) => i.inviteId !== invite.inviteId)
+  );
+
+  queryClient.invalidateQueries({
+    queryKey: ["get", "/notifications/user"],
+  });
+
+  return;
+}
+
+    setSelectedInvite(invite);
+    setShowPolicyModal(true);
+  }}
+  onRejectClick={async (invite) => {
+  await processInviteApi(invite.inviteId, "REJECTED");
+
+  
+  setPendingInvites((prev) =>
+    prev.filter((i) => i.inviteId !== invite.inviteId)
+  );
+
+  setLocalInvites((prev) =>
+    prev.filter((i) => i.inviteId !== invite.inviteId)
+  );
+
+  
+  queryClient.invalidateQueries({
+    queryKey: ["get", "/notifications/user"],
+  });
+}}
+/>
               ))}
 
               {/* ── System Notifications (ejection, reinstatement, policy) ── */}
@@ -262,7 +345,7 @@ const mostRecentPolicyIds = useMemo(() => {
                 const isExpired =
                   notification.metadata?.appealDeadline &&
                   new Date(notification.metadata.appealDeadline) < new Date();
-                  console.log("SYSTEM NOTIFICATION:", notification);
+                  
                 return (
                   <li
                     key={`system-${idx}`}
@@ -466,9 +549,12 @@ const mostRecentPolicyIds = useMemo(() => {
             size="sm"
             className="w-full text-xs text-primary hover:text-primary hover:bg-primary/5"
             onClick={() => {
-              const isTeacher = window.location.pathname.startsWith('/teacher');
-              const target = isTeacher ? '/teacher/notifications' : '/student/notifications';
-              window.location.href = target;
+              const isTeacher = user?.role === "teacher" || user?.role === "admin";
+              navigate({
+                to: isTeacher
+                  ? "/teacher/notifications"
+                  : "/student/notifications",
+              } as any);
               setShowInvites?.(false);
             }}
           >

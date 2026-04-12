@@ -806,6 +806,8 @@ Accessible to:
           cohort: body.newCohortName,
           isPublic: body.isPublic,
           isActive: body.isActive,
+          baseHp: body.baseHp,
+          safeHp: body.safeHp,
         }
       },
       outcome:{
