@@ -291,6 +291,7 @@ export class CourseRepository implements ICourseRepository {
   }
 
   async createCohorts(
+    courseId: string,
     versionId: string,
     cohorts: string[],
     baseHp: number,
@@ -304,8 +305,10 @@ export class CourseRepository implements ICourseRepository {
     const unique = [...new Set(cohorts.map(c => c.trim()))];
 
     const versionObjectId = new ObjectId(versionId);
+    const courseObjectId = new ObjectId(courseId);
 
     const cohortsToInsert: ICohort[] = unique.map(name => ({
+      courseId: courseObjectId,
       courseVersionId: versionObjectId,
       name,
       baseHp:baseHp,

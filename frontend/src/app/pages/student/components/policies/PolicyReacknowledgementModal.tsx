@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Shield } from "lucide-react";
@@ -38,18 +38,19 @@ export function PolicyReacknowledgementModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-4xl max-h-[90vh]" onClick={(e) => e.stopPropagation()} onInteractOutside={(e) => e.preventDefault()}>
+    <Dialog open={open} 
+    onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-xl" onClick={(e) => e.stopPropagation()} onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-blue-600" />
+            <Shield className="h-5 w-5 text-primary" />
             Policy Updated — Re-acknowledgement Required
           </DialogTitle>
         </DialogHeader>
-
-        <p className="text-sm text-muted-foreground">
+        <DialogDescription className="my-2 ml-1">
           The ejection policy for this course has been updated. Please review and acknowledge the new policy to continue accessing the course.
-        </p>
+        </DialogDescription>
+        
 
         <div className="max-h-[50vh] overflow-y-auto pr-2">
           {isLoading ? <div className="text-center py-6">Loading policies...</div> : <StudentPolicyList policies={policies} />}

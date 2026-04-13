@@ -225,7 +225,7 @@ function SimplifiedSubmissionCard({ sub, onViewMore }: { sub: HpStudentSubmissio
 }
 
 export default function StudentSubmissionsPage() {
-    const { courseVersionId, cohortName, studentId } = useParams({ strict: false });
+    const { courseVersionId, cohortId, studentId } = useParams({ strict: false });
     const navigate = useNavigate();
 
     // Pagination and search state
@@ -234,13 +234,13 @@ export default function StudentSubmissionsPage() {
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const { data: submissions, isLoading: submissionsLoading, error, refetch, isRefetching } = useHpStudentSubmissions(
-        studentId || "", courseVersionId || "", cohortName || ""
+        studentId || "", courseVersionId || "", cohortId || ""
     ) as any;
     const { data: stats } = useHpStudentSubmissionStats(
         studentId || "",
-        decodeURIComponent(cohortName || "")
+        decodeURIComponent(cohortId || "")
     );
-    const { data: students, isLoading: studentsLoading } = useHpStudents(courseVersionId || "", cohortName || "");
+    const { data: students, isLoading: studentsLoading } = useHpStudents(courseVersionId || "", cohortId || "");
     const student = students.find(s => s._id === studentId);
 
 
@@ -319,7 +319,7 @@ export default function StudentSubmissionsPage() {
                     variant="outline"
                     size="icon"
                     onClick={() => navigate({
-                        to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || "")}/activities`
+                        to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortId || "")}/activities`
                     })}
                 >
                     <ArrowLeft className="h-4 w-4" />
@@ -329,7 +329,7 @@ export default function StudentSubmissionsPage() {
                         {student?.name || "Student"} — Submissions
                     </h2>
                     <p className="text-muted-foreground">
-                        {student?.email || ""} · {decodeURIComponent(cohortName || "")}
+                        {student?.email || ""} · {decodeURIComponent(cohortId || "")}
                     </p>
                 </div>
                 <Button
@@ -490,7 +490,7 @@ export default function StudentSubmissionsPage() {
                         key={`${sub._id || sub.activity?.id || 'unknown'}-${sub.submission?._id || index}-${currentPage}`}
                         sub={sub}
                         onViewMore={() => navigate({
-                            to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || "")}/student/${studentId}/submission/${sub.submission?._id || sub._id}`
+                            to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortId || "")}/student/${studentId}/submission/${sub.submission?._id || sub._id}`
                         })}
                     />
                 ))}

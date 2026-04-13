@@ -303,6 +303,63 @@ export class ItemService extends BaseService {
     });
   }
 
+  private shuffleArray<T>(arr: T[]): T[] {
+    const cloned = [...arr];
+
+    for (let i = cloned.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [cloned[i], cloned[j]] = [cloned[j], cloned[i]];
+    }
+    return cloned;
+  }
+
+  private groupItems(items: ItemRef[]): ItemRef[][] {
+    const paired: ItemRef[][] = [];
+    const singles: ItemRef[][] = [];
+    const standaloneFeedback: ItemRef[][] = [];
+
+    for (let i = 0; i < items.length; i++) {
+      const current = items[i];
+      const next = items[i + 1];
+
+      // Pair: VIDEO + QUIZ / FEEDBACK
+      if (
+        current?.type === 'VIDEO' &&
+        next &&
+        (next.type === 'QUIZ' || next.type === 'FEEDBACK')
+      ) {
+        paired.push([current, next]);
+        i++; 
+        continue;
+      }
+
+      // Everything else → single
+      singles.push([current]);
+    }
+
+    // Shuffle paired + singles together
+    const mainGroups = this.shuffleArray([...paired, ...singles]);
+
+    // Feedback always at end (can also shuffle internally if needed)
+    const shuffledFeedback = this.shuffleArray(standaloneFeedback);
+
+    return [...mainGroups, ...shuffledFeedback];
+  }
+
+  private shuffleItems(items: ItemRef[]): ItemRef[] {
+    const grouped = this.groupItems(items);
+    return grouped.flat();
+  }
+
+  private maybeShuffleItems(
+    items: ItemRef[],
+    shouldShuffle: boolean
+  ): ItemRef[] {
+    console.log("Should shuffle in mybeShuffleItems",shouldShuffle)
+    if (!shouldShuffle) return items;
+    return this.shuffleItems(items);
+  }
+
   public async readAllItems(
     versionId: string,
     moduleId: string,
@@ -332,11 +389,12 @@ export class ItemService extends BaseService {
     if (user.role === 'STUDENT') {
       itemsGroup.items = itemsGroup.items.filter(item => !item.isHidden);
 
-      const progress = await this.progressRepo.getUserProgressByVersionId(
+      const [progress,shouldRandomize] = 
+      await Promise.all([this.progressRepo.getUserProgressByVersionId(
         userId,
         versionId,
         cohortId
-      );
+      ),this.courseSettingService.shouldRandomize(versionId)]);
 
       // If no progress yet, nothing is completed
       if (!progress) {
@@ -344,7 +402,7 @@ export class ItemService extends BaseService {
           ...item,
           isCompleted: false,
         }));
-        return itemsGroup.items;
+        return this.maybeShuffleItems(itemsGroup.items, shouldRandomize);
       }
 
       const currentModuleIndex = course.modules.findIndex(
@@ -357,7 +415,7 @@ export class ItemService extends BaseService {
 
       // Guard against invalid module indices
       if (currentModuleIndex === -1 || moduleIndex === -1) {
-        return itemsGroup.items;
+        return this.maybeShuffleItems(itemsGroup.items, shouldRandomize);
       }
 
       const completionEntries = await Promise.all(
@@ -380,7 +438,7 @@ export class ItemService extends BaseService {
         // isCompleted: true,
         isCompleted: completionMap.get(item._id.toString()) ?? false
       }));
-      return itemsGroup.items;
+      return this.maybeShuffleItems(itemsGroup.items, shouldRandomize);
 
       // // All items completed if module is before current module
       // if (moduleIndex < currentModuleIndex) {
@@ -869,10 +927,17 @@ export class ItemService extends BaseService {
     body: MoveItemBody,
   ) {
     return this._withTransaction(async session => {
-      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+      const [versionStatus,isLinearProgressionEnabled]=await Promise.all(
+        [this.courseRepo.getCourseVersionStatus(versionId,session),
+        this.courseSettingService.isLinearProgressionEnabledByVersionId(versionId,session)]);
+
 
       if(versionStatus==="archived"){
         throw new ForbiddenError("This course version is archived and cannot be modified.");
+      }
+
+      if(isLinearProgressionEnabled){
+        throw new ForbiddenError("Cannot re-order items, because Linear progression is enabled")
       }
       
       const { afterItemId, beforeItemId } = body;

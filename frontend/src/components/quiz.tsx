@@ -103,8 +103,14 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const handleSkipItem = async () => {
     if (!currentCourse?.itemId) return;
     try {
-
-      await skipItemAsync({ params: { path: { itemId: currentCourse?.itemId }, query: { cohortId: currentCourse?.cohortId } } });
+      await skipItemAsync({
+        params: {
+          path: { itemId: currentCourse.itemId },
+          query: { cohortId: currentCourse.cohortId ?? undefined },
+        },
+      });
+      completedItemIdsRef.current.add(currentCourse.itemId);
+      itemStartedRef.current = false;
 
     } catch (error) {
       console.error('Error skipping item:', error);
@@ -650,30 +656,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         toast.info('You have used all available attempts for this quiz.');
 
         try {
-          const watchItemIdForStop = await handleSendStartItem(true);
-
-          if (currentCourse?.itemId && watchItemIdForStop) {
-            await stopItem.mutateAsync({
-              params: {
-                path: {
-                  courseId: currentCourse.courseId,
-                  courseVersionId: currentCourse.versionId ?? '',
-                },
-              },
-              body: {
-                watchItemId: watchItemIdForStop,
-                itemId: currentCourse.itemId,
-                moduleId: currentCourse.moduleId ?? '',
-                sectionId: currentCourse.sectionId ?? '',
-                attemptId,
-                isSkipped: true,
-                nextItemId,
-                cohortId: currentCourse.cohortId ?? undefined,
-              },
-            });
-            completedItemIdsRef.current.add(currentCourse.itemId);
-            itemStartedRef.current = false;
-          }
+          await handleSkipItem();
         } catch (progressErr) {
           console.error('Failed to update progress for exhausted quiz attempts:', progressErr);
         }

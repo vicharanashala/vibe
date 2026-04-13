@@ -4,7 +4,14 @@ import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { EditActivityDialog } from "./EditActivityDialog";
 import { RuleSettingsDialog } from "./RuleSettingsDialog";
 import { useHpActivities, useUpdateHpActivity, usePublishHpActivity, useArchiveHpActivity, useHpCourseVersions, useDeleteHpActivity, useHpActivitiesStatsMap } from "@/hooks/hooks";
-import { Plus, Search, Trash2, Paperclip, Edit, Link as LinkIcon, FileText, Send, Settings, LayoutGrid, List, Archive, RefreshCw } from "lucide-react";
+import { Plus, Search, Trash2, Paperclip, Edit, Link as LinkIcon, FileText, Send, Settings, LayoutGrid, List, Archive, RefreshCw, MoreVertical } from "lucide-react";
+import{
+    DropdownMenu,
+        DropdownMenuTrigger,
+        DropdownMenuContent,
+        DropdownMenuItem,
+        DropdownMenuSeparator,
+}from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -17,11 +24,11 @@ import ConfirmationModal from "../../components/confirmation-modal";
 
 interface ActivitiesTabProps {
     courseVersionId: string;
-    cohortName: string;
+    cohortId: string;
     courseId?: string;
 }
 
-export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProps) {
+export function ActivitiesTab({ courseVersionId, cohortId }: ActivitiesTabProps) {
     const [search, setSearch] = useState("");
     const [viewMode, setViewMode] = useState<"grid" | "list">("list");
     const [currentPage, setCurrentPage] = useState(1);
@@ -64,7 +71,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
         c.versions.some(v => v.courseVersionId === courseVersionId)
     )?.courseId || "000000000000000000000001";
     const { data: activities, isLoading: loading, refetch, isRefetching } = useHpActivities(
-        courseVersionId, cohortName, statusFilter, "", activityFilter
+        courseVersionId, cohortId, statusFilter, "", activityFilter
     );
     
     // Client-side filtering based only on activity title
@@ -104,7 +111,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
     const { mutateAsync: archiveActivity } = useArchiveHpActivity();
     const {mutateAsync: deleteActivity} = useDeleteHpActivity();
 
-    // const { data: statsMap } = useHpActivitiesStatsMap(cohortName, courseVersionId);
+    // const { data: statsMap } = useHpActivitiesStatsMap(cohortId, courseVersionId);
     // console.log("Stats Map:", statsMap);
 
     // Handle Search Debounce
@@ -284,7 +291,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                         <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
                         {isRefetching ? "Refreshing..." : "Refresh"}
                     </Button>
-                    <Button onClick={() => navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName)}/activities/create` , state: {from}})}>
+                    <Button onClick={() => navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortId)}/activities/create` , state: {from}})}>
                         <Plus className="mr-2 h-4 w-4" /> Add Activity
                     </Button>
                 </div>
@@ -321,80 +328,43 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                             {activity.title}
                                         </CardTitle>
 
-                                        <div className="flex flex-wrap sm:flex-nowrap gap-2">
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button variant="outline" size="sm" onClick={() => handleOpenEdit(activity)}>
-                                                            <Edit className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>Edit</TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-
-                                            {activity.status !== "ARCHIVED" && <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button variant="outline" size="sm" onClick={() => handleArchive(activity._id)}>
-                                                            <Archive className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>Archive</TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>}
-
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="secondary"
-                                                            disabled={activity.status === "PUBLISHED"}
-                                                            onClick={() => handlePublish(activity._id)}
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="outline" size="sm">
+                                                    <MoreVertical className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" className="w-48">
+                                                <DropdownMenuItem onSelect={() => handleOpenEdit(activity)}>
+                                                    <Edit className="mr-2 h-4 w-4" /> Edit
+                                                </DropdownMenuItem>
+                                                {activity.status !== "ARCHIVED" && (
+                                                    <DropdownMenuItem onSelect={() => handleArchive(activity._id)}>
+                                                        <Archive className="mr-2 h-4 w-4" /> Archive
+                                                    </DropdownMenuItem>
+                                                )}
+                                                <DropdownMenuItem
+                                                    onSelect={() => handlePublish(activity._id)}
+                                                    disabled={activity.status === "PUBLISHED"}
+                                                >
+                                                    <Send className="mr-2 h-4 w-4" /> Publish
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => { setSelectedActivityId(activity._id); setIsRulesOpen(true); }}>
+                                                    <Settings className="mr-2 h-4 w-4" /> Rules
+                                                </DropdownMenuItem>
+                                                {activity.status === "ARCHIVED" && (
+                                                    <>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            onSelect={() => handleDelete(activity._id)}
+                                                            className="text-destructive focus:text-destructive"
                                                         >
-                                                            <Send className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>Publish</TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => {
-                                                                setSelectedActivityId(activity._id);
-                                                                setIsRulesOpen(true);
-                                                            }}
-                                                        >
-                                                            <Settings className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>Settings</TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-
-                                            {activity.status === "ARCHIVED" &&<TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => {
-                                                                handleDelete(activity._id);
-                                                            }}
-                                                        >
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>Delete</TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>}
-                                        </div>
+                                                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                        </DropdownMenuItem>
+                                                    </>
+                                                )}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </div>
 
                                     <div className="flex gap-2 text-xs">
@@ -533,35 +503,50 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                         <span className="text-green-600"><span className="font-medium">Completed:</span> {(Number(statsMap?.[activity._id]?.approvedCount)) || 0}</span> */}
                                     </div>
                                 </div>
-                                <div className="flex flex-wrap sm:flex-nowrap justify-end gap-2">
-                                    <Button variant="outline" size="sm" className="h-9 px-4" onClick={() => handleOpenEdit(activity)}>
-                                        <Edit className="mr-2 h-3.5 w-3.5" /> Edit
-                                    </Button>
-                                    {activity.status !== "ARCHIVED" && (
-                                        <Button variant="outline" size="sm" className="h-9 px-4" onClick={() => handleArchive(activity._id)}>
-                                            <Archive className="mr-2 h-3.5 w-3.5" /> Archive
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" size="sm" className="h-9 px-3">
+                                            <MoreVertical className="h-4 w-4" />
                                         </Button>
-                                    )}
-
-                                    <Button size="sm" variant="outline" className="h-9 px-4" disabled={activity.status === 'PUBLISHED'} onClick={() => handlePublish(activity._id)}>
-                                        <Send className="mr-2 h-3.5 w-3.5" /> Publish
-                                    </Button>
-                                    <Button variant="outline" size="sm" className="h-9 px-4" onClick={() => { setSelectedActivityId(activity._id); setIsRulesOpen(true); console.log("Opening rule settings for activity:", activity._id) }}>
-                                        <Settings className="mr-2 h-3.5 w-3.5" /> Rules
-                                    </Button>
-                                    {activity.status === "ARCHIVED" && (
-                                        <Button variant="outline" size="sm" className="h-9 px-4" onClick={() => { handleDelete(activity._id); }}>
-                                            <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
-                                        </Button>
-                                    )}
-                                </div>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48">
+                                        <DropdownMenuItem onSelect={() => handleOpenEdit(activity)}>
+                                            <Edit className="mr-2 h-4 w-4" /> Edit
+                                        </DropdownMenuItem>
+                                        {activity.status !== "ARCHIVED" && (
+                                            <DropdownMenuItem onSelect={() => handleArchive(activity._id)}>
+                                                <Archive className="mr-2 h-4 w-4" /> Archive
+                                            </DropdownMenuItem>
+                                        )}
+                                        <DropdownMenuItem
+                                            onSelect={() => handlePublish(activity._id)}
+                                            disabled={activity.status === "PUBLISHED"}
+                                        >
+                                            <Send className="mr-2 h-4 w-4" /> Publish
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => { setSelectedActivityId(activity._id); setIsRulesOpen(true); }}>
+                                            <Settings className="mr-2 h-4 w-4" /> Rules
+                                        </DropdownMenuItem>
+                                        {activity.status === "ARCHIVED" && (
+                                            <>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem
+                                                    onSelect={() => handleDelete(activity._id)}
+                                                    className="text-destructive focus:text-destructive"
+                                                >
+                                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                </DropdownMenuItem>
+                                            </>
+                                        )}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                         </Card>
                     ))}
                 </div>
             )}
 
-            {activities && activities.length > 0 && (
+            {activities && activities.length > itemsPerPage && (
                 <Card>
                     <CardContent className="p-3">
                         <div className="flex items-center justify-between mb-2">
@@ -591,7 +576,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                 onOpenChange={setIsRulesOpen}
                 courseId={courseId}
                 courseVersionId={courseVersionId}
-                cohortName={cohortName}
+                cohortId={cohortId}
                 activityId={selectedActivityId}
             />
 
