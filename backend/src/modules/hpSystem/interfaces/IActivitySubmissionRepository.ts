@@ -10,6 +10,8 @@ export interface IActivitySubmissionRepository {
     create(input: {
         courseId: ID;
         courseVersionId: ID;
+        cohortId: ID;
+        /** @deprecated kept for backward compat */
         cohort: ID;
         activityId: ID;
 
@@ -44,14 +46,94 @@ export interface IActivitySubmissionRepository {
         query: FilterQueryDto,
         courseId?: string,
         courseVersionId?: string,
-        cohortName?: string
+        cohortId?: string
     ): Promise<StudentActivitySubmissionsViewDto[]>
 
     getLatestByStudentId(studentId: string, activityId: string): Promise<HpActivitySubmission>
 
-    getCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number>
+    getCountByStudentId(studentId: string, courseId: string, courseVersionId: string, cohortId: string): Promise<number>
 
-    getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number>
+    getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string, cohortId: string): Promise<number>
+
+    getLateSubmissionCount(cohortId: string, courseVersionId: string, session?: ClientSession): Promise<number>
 
     updateFeedbackById(id: string, feedback: SubmissionFeedbackItem, session?: ClientSession): Promise<boolean>
+
+    getCompletedActivitiesCountByStudentId(studentId: string): Promise<Array<{ cohort: string, count: number }>>
+
+    getCohortActivityStats(cohortId: string, activityId: string, session?: ClientSession): Promise<{
+        totalSubmissions: number;
+        approvedCount: number;
+        rejectedCount: number;
+        revertedCount: number;
+    }>
+
+    getDailyActivityCount(
+        cohortId: string,
+        courseVersionId: string,
+        startDate: Date,
+        endDate: Date,
+        session?: ClientSession
+    ): Promise<number>;
+
+    getDailyActivityCountByStatus(
+        cohortId: string,
+        courseVersionId: string,
+        startDate: Date,
+        endDate: Date,
+        status: string,
+        session?: ClientSession
+    ): Promise<number>;
+
+
+    getStudentProgressForCohort(
+        cohortId: string,
+        courseVersionId: string,
+        session?: ClientSession
+    ): Promise<{
+        completed: number;
+        inProgress: number;
+        notStarted: number;
+    }>;
+
+    getPendingSubmissionsCount(
+        cohortId: string,
+        courseVersionId: string,
+        session?: ClientSession
+    ): Promise<number>;
+
+    getStudentDashboardStats(
+        studentId: string,
+        cohortIdOrName: string,
+        courseVersionId: string,
+        session?: ClientSession
+    ): Promise<{
+        myStats: {
+            totalHp: number;
+            completedActivities: number;
+            pendingSubmissions: number;
+            completionPercentage: number;
+        };
+        activityBreakdown: {
+            notStarted: number;
+            submitted: number;
+            approved: number;
+            rejected: number;
+        };
+    }>;
+
+    getStudentRecentSubmissions(
+        studentId: string,
+        cohortIdOrName: string,
+        courseVersionId: string,
+        limit?: number,
+        session?: ClientSession
+    ): Promise<Array<{
+        activityTitle: string;
+        submittedAt: string;
+        status: string;
+        hpEarned: number;
+    }>>;
+
+    listSubmissionsBeforeDeadline(activityId: string): Promise<HpActivitySubmission[]>
 }

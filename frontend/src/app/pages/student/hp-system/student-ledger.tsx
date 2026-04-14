@@ -1,10 +1,13 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useHpStudentCohorts, useMyHpLedger, useHpActivities } from "@/hooks/hooks";
-import { getEffectiveIds } from "@/lib/api/hp-system";
+import { getEffectiveIds, hpApi } from "@/lib/api/hp-system";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Pagination } from "@/components/ui/Pagination";
 import {
     Table,
     TableBody,
@@ -29,70 +32,106 @@ import {
     Calendar,
     AlertCircle,
     CheckCircle2,
+    Search,
+    RefreshCw,
 } from "lucide-react";
+import { DirectionBadge } from "@/app/pages/teacher/hp-system/components/DirectionBadge";
+import { useQueries } from "@tanstack/react-query";
 
 export default function StudentLedgerPage() {
     const navigate = useNavigate();
     const [selectedEntry, setSelectedEntry] = useState<any>(null);
 
+    // Pagination and search state
+    const [searchQuery, setSearchQuery] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+
     // 1. Get student's cohorts so we can call getMyLedger with valid IDs
-    const { data: cohorts = [], isLoading: isLoadingCohorts } = useHpStudentCohorts();
+    const { data: cohorts = [], totalHp, isLoading: isLoadingCohorts } = useHpStudentCohorts();
 
     // Pick the first cohort for the API call (backend returns ALL transactions regardless)
     const firstCohort = cohorts[0];
     const { courseId: effectiveCourseId, courseVersionId: effectiveVersionId } = getEffectiveIds(
-        firstCohort?.cohortName || "",
+        firstCohort?.cohortId || "",
         firstCohort?.courseId || "",
         firstCohort?.courseVersionId || ""
     );
 
     // 2. Fetch Ledger Data
-    const { data: ledger = [], studentDetails, isLoading: isLoadingLedger, error } = useMyHpLedger(
+    const { data: ledger = [], studentDetails, isLoading: isLoadingLedger, error, refetch, isRefetching } = useMyHpLedger(
         effectiveCourseId,
         effectiveVersionId,
-        firstCohort?.cohortName || ""
+        firstCohort?.cohortId || ""
     );
 
     // 3. Build a combined activity map from all cohorts for resolving activity names
     const cohortQueries = cohorts.map((c: any) => {
-        const { courseVersionId: evId } = getEffectiveIds(c.cohortName, c.courseId, c.courseVersionId);
-        return { versionId: evId, cohortName: c.cohortName };
+        const { courseVersionId: evId } = getEffectiveIds(c.cohortId, c.courseId, c.courseVersionId);
+        return { versionId: evId, cohortId: c.cohortId };
     });
 
-    // We'll use just the first cohort's activities for now (can extend later)
-    const { data: activities = [], isLoading: isLoadingActivities } = useHpActivities(
-        cohortQueries[0]?.versionId || "",
-        cohortQueries[0]?.cohortName || ""
-    );
+    // Fetch activities from all cohorts to build complete activity map
+    const activityQueries = useQueries({
+        queries: cohortQueries.map((query) => ({
+            queryKey: ["hp-activities", query.versionId, query.cohortId],
+            queryFn: async () => {
+                const res = await hpApi.getActivities(query.versionId, query.cohortId);
+                if (!res.success) {
+                    throw new Error(res.message || "Failed to load activities");
+                }
+                return res.data ?? [];
+            },
+            enabled: !!query.versionId && !!query.cohortId,
+        })),
+    });
+    // Combine all activities from all cohorts
+    const allActivities = activityQueries.reduce((acc: any[], queryResult) => {
+        if (queryResult.data) {
+            acc.push(...queryResult.data);
+        }
+        return acc;
+    }, []);
 
     const activityMap = useMemo(() => {
         const map: Record<string, string> = {};
-        activities.forEach((act: any) => {
+        allActivities.forEach((act: any) => {
             map[act._id] = act.title;
         });
         return map;
-    }, [activities]);
+    }, [allActivities]);
 
-    const totalLoading = isLoadingCohorts || isLoadingLedger || isLoadingActivities;
+    const totalLoading = isLoadingCohorts || isLoadingLedger || activityQueries.some(q => q.isLoading);
 
-    const getDirectionBadge = (direction: string) => {
-        switch (direction) {
-            case 'CREDIT':
-                return (
-                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 gap-1">
-                        <CheckCircle2 className="h-3 w-3" /> Credit
-                    </Badge>
-                );
-            case 'DEBIT':
-                return (
-                    <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 gap-1">
-                        <AlertCircle className="h-3 w-3" /> Debit
-                    </Badge>
-                );
-            default:
-                return <Badge variant="secondary">{direction}</Badge>;
-        }
+    // Pagination logic
+    const filteredLedger = useMemo(() => {
+        if (!ledger) return [];
+        return ledger.filter((entry: any) => {
+            const activityName = entry.activityTitle || 'Manual Adjustment';
+            return activityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                entry.cohort?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                entry.eventType?.toLowerCase().includes(searchQuery.toLowerCase());
+        });
+    }, [ledger, searchQuery]);
+
+    const paginatedLedger = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return filteredLedger.slice(startIndex, endIndex);
+    }, [filteredLedger, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(filteredLedger?.length / itemsPerPage);
+
+    const handleSearchChange = (value: string) => {
+        setSearchQuery(value);
+        setCurrentPage(1); // Reset to first page when searching
     };
+
+    const handleItemsPerPageChange = (value: string) => {
+        setItemsPerPage(parseInt(value));
+        setCurrentPage(1); // Reset to first page when changing items per page
+    };
+
 
     const formatDateTime = (iso?: string) => {
         if (!iso) return '—';
@@ -135,6 +174,15 @@ export default function StudentLedgerPage() {
                         Your House Points transaction history across all cohorts
                     </p>
                 </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetch()}
+                    disabled={isRefetching || totalLoading}
+                >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                    {isRefetching ? "Refreshing..." : "Refresh"}
+                </Button>
             </div>
 
             {/* Student Info Card */}
@@ -160,7 +208,7 @@ export default function StudentLedgerPage() {
                     <div className="text-right">
                         <div className="flex items-center gap-2 text-3xl font-bold">
                             <Zap className="h-7 w-7 text-yellow-500" />
-                            {studentDetails?.hpPoints ?? 0}
+                            {totalHp}
                         </div>
                         <div className="text-sm text-muted-foreground">Current Total HP</div>
                     </div>
@@ -172,35 +220,67 @@ export default function StudentLedgerPage() {
                 <div className="flex items-center justify-center py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                 </div>
-            ) : ledger.length === 0 ? (
+            ) : ledger?.length === 0 ? (
                 <div className="text-center py-12 border-2 border-dashed rounded-lg text-muted-foreground">
                     No HP transactions found yet.
                 </div>
             ) : (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg">Transaction History</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-0 overflow-x-auto">
-                        <Table className="w-full">
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Activity Name</TableHead>
-                                    <TableHead>Cohort</TableHead>
-                                    <TableHead>Event Type</TableHead>
-                                    <TableHead>Direction</TableHead>
-                                    <TableHead className="text-right">Amount</TableHead>
-                                    <TableHead>Deadline</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead className="text-center">Action</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {ledger.map((entry: any) => (
+                <>
+                    {/* Search and Pagination Controls */}
+                    <div className="flex flex-col lg:flex-row items-center justify-between gap-4 mb-6">
+                        <div className="relative w-full max-w-md">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search transactions..."
+                                value={searchQuery}
+                                onChange={(e) => handleSearchChange(e.target.value)}
+                                className="pl-10"
+                            />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">Show:</span>
+                            <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                                <SelectTrigger className="w-[80px]">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="5">5</SelectItem>
+                                    <SelectItem value="10">10</SelectItem>
+                                    <SelectItem value="15">15</SelectItem>
+                                    <SelectItem value="20">20</SelectItem>
+                                    <SelectItem value="30">30</SelectItem>
+                                    <SelectItem value="40">40</SelectItem>
+                                    <SelectItem value="50">50</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg">Transaction History</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0 overflow-x-auto">
+                            <Table className="w-full">
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Activity Name</TableHead>
+                                        <TableHead>Cohort</TableHead>
+                                        <TableHead>Event Type</TableHead>
+                                        <TableHead>Direction</TableHead>
+                                        <TableHead className="text-right">Amount</TableHead>
+                                        <TableHead>Deadline</TableHead>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead className="text-center">Action</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {paginatedLedger.map((entry: any) => (
                                     <TableRow key={entry._id}>
                                         <TableCell>
                                             <div className="font-medium max-w-[200px] truncate">
-                                                {activityMap[entry.activityId] || entry.activityId || 'Manual Adjustment'}
+                                                {activityMap[entry.activityTitle] || entry.activityTitle || 'Manual Adjustment'}
                                             </div>
                                         </TableCell>
                                         <TableCell>
@@ -213,7 +293,7 @@ export default function StudentLedgerPage() {
                                                 {entry.eventType}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell>{getDirectionBadge(entry.direction)}</TableCell>
+                                        <TableCell><DirectionBadge direction={entry.direction} /></TableCell>
                                         <TableCell className="text-right">
                                             <span className={`font-semibold ${entry.direction === 'CREDIT' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                                 {entry.direction === 'CREDIT' ? '+' : '-'}{entry.amount}
@@ -245,6 +325,15 @@ export default function StudentLedgerPage() {
                         </Table>
                     </CardContent>
                 </Card>
+                
+                {/* Pagination Component */}
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalDocuments={filteredLedger?.length}
+                    onPageChange={setCurrentPage}
+                />
+                </>
             )}
 
             {/* Detail View Modal */}
@@ -261,7 +350,7 @@ export default function StudentLedgerPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Activity</p>
-                                    <p className="text-sm font-semibold">{activityMap[selectedEntry.activityId] || selectedEntry.activityId || 'Manual Adjustment'}</p>
+                                    <p className="text-sm font-semibold">{selectedEntry.activityTitle || 'Manual Adjustment'}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cohort</p>
@@ -274,7 +363,7 @@ export default function StudentLedgerPage() {
                                 <div className="space-y-1">
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Amount</p>
                                     <div className="flex items-center gap-2">
-                                        {getDirectionBadge(selectedEntry.direction)}
+                                        <DirectionBadge direction={selectedEntry.direction} />
                                         <span className={`text-lg font-bold ${selectedEntry.direction === 'CREDIT' ? 'text-green-600' : 'text-red-600'}`}>
                                             {selectedEntry.direction === 'CREDIT' ? '+' : '-'}{selectedEntry.amount}
                                         </span>
@@ -303,7 +392,12 @@ export default function StudentLedgerPage() {
                                     <div className="flex items-center gap-2 text-sm bg-muted/50 p-2 rounded-md">
                                         <User className="h-4 w-4 text-muted-foreground" />
                                         <span className="font-medium">{selectedEntry.meta?.triggeredBy || 'SYSTEM'}</span>
-                                        <span className="text-xs text-muted-foreground">({selectedEntry.meta?.triggeredByUserId || 'Automated'})</span>
+                                        <span className="text-xs text-muted-foreground">
+                                            ({selectedEntry.meta?.triggeredBy === 'SYSTEM'
+                                                ? 'Automated'
+                                                : selectedEntry.meta?.triggeredByUserName || selectedEntry.meta?.triggeredByUserId || 'Automated'
+                                            })
+                                        </span>
                                     </div>
                                 </div>
 

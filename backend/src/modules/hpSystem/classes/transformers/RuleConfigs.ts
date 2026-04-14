@@ -4,11 +4,11 @@
 ========================================================= */
 
 import { Expose, Transform, Type } from "class-transformer";
-import { IsBoolean, IsEnum, IsNumber, IsString, ValidateNested } from "class-validator";
+import { IsArray, IsBoolean, IsEnum, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
 import { JSONSchema } from "class-validator-jsonschema";
-import { HpRuleStatus, LateBehavior, LateRewardPolicy, PenaltyApplyWhen, RewardApplyWhen, RuleType } from "../../constants.js";
+import { HpRuleStatus, LateBehavior, PenaltyApplyWhen, RewardApplyWhen, RuleType } from "../../constants.js";
 import { ID, ObjectIdToString, StringToObjectId } from "#root/shared/index.js";
-import { LateRewardPolicyEnum } from "../validators/ruleConfigValidators.js";
+import { SubmissionField } from "../../models.js";
 
 export class HpRewardRule {
     @Expose()
@@ -37,16 +37,6 @@ export class HpRewardRule {
     applyWhen: RewardApplyWhen;
 
     @Expose()
-    @IsBoolean()
-    @JSONSchema({ title: 'Only Within Deadline', type: 'boolean', example: true })
-    onlyWithinDeadline: boolean;
-
-    @Expose()
-    @IsBoolean()
-    @JSONSchema({ title: 'Allow Late', type: 'boolean', example: false })
-    allowLate: boolean;
-
-    @Expose()
     @IsEnum(LateBehavior)
     @JSONSchema({
         title: 'Late Behavior',
@@ -55,11 +45,6 @@ export class HpRewardRule {
         example: 'NO_REWARD',
     })
     lateBehavior: LateBehavior;
-
-    @Expose()
-    @IsNumber()
-    @JSONSchema({ title: 'Min HP Floor', type: 'number', example: 0 })
-    minHpFloor: number;
 }
 
 export class HpPenaltyRule {
@@ -101,14 +86,16 @@ export class HpPenaltyRule {
 
 export class HpRuleLimits {
     @Expose()
+    @IsOptional()
     @IsNumber()
     @JSONSchema({ title: 'Min HP', type: 'number', example: 0 })
-    minHp: number;
+    minHp?: number;
 
     @Expose()
+    @IsOptional()
     @IsNumber()
     @JSONSchema({ title: 'Max HP', type: 'number', example: 100000 })
-    maxHp: number;
+    maxHp?: number;
 }
 
 /**
@@ -163,24 +150,16 @@ export class HpRuleConfigTransformer {
     isMandatory: boolean;
 
     @Expose()
+    @IsOptional()
     @Type(() => Date)
     @JSONSchema({ title: "Deadline At", type: "string", format: "date-time" })
-    deadlineAt: Date;
+    deadlineAt?: Date;
 
     @Expose()
     @IsBoolean()
     @JSONSchema({ title: "Allow Late Submission", type: "boolean", example: false })
     allowLateSubmission: boolean;
 
-    @Expose()
-    @IsEnum(LateRewardPolicyEnum)
-    @JSONSchema({
-        title: "Late Reward Policy",
-        type: "string",
-        enum: Object.values(LateRewardPolicy),
-        example: "REWARD_DENIED",
-    })
-    lateRewardPolicy: LateRewardPolicy;
 
     @Expose()
     @ValidateNested()
@@ -216,6 +195,17 @@ export class HpRuleConfigTransformer {
     status: HpRuleStatus;
 
     @Expose()
+    @IsArray()
+    @IsEnum(SubmissionField, { each: true })
+    @JSONSchema({
+    title: "Submission Validation",
+    type: "array",
+    items: { type: "string", enum: Object.values(SubmissionField) },
+    example: ["TEXT", "PDF"]
+    })
+    submissionValidation: SubmissionField[];
+
+    @Expose()
     @Type(() => Date)
     @JSONSchema({ title: 'Created At', type: 'string', format: 'date-time' })
     createdAt?: Date;
@@ -230,5 +220,6 @@ export class HpRuleConfigTransformer {
         this.reward = this.reward ?? ({} as any);
         this.penalty = this.penalty ?? ({} as any);
         this.limits = this.limits ?? ({} as any);
+        this.submissionValidation = this.submissionValidation ?? [SubmissionField.TEXT];
     }
 }

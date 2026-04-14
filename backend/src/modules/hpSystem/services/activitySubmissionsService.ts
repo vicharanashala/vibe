@@ -3,7 +3,7 @@ import { GLOBAL_TYPES } from "#root/types.js";
 import { inject, injectable } from "inversify";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivityRepository, ActivitySubmissionsRepository, LedgerRepository } from "../repositories/index.js";
-import { CreateOrUpdateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, StudentActivitySubmissionStatsViewDto, StudentActivitySubmissionsViewDto } from "../classes/validators/activitySubmissionValidators.js";
+import { CreateOrUpdateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, StudentActivitySubmissionStatsViewDto, StudentActivitySubmissionsViewDto, StudentCohortWiseActivitySubmissionsStatsDto } from "../classes/validators/activitySubmissionValidators.js";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { appConfig } from "#root/config/app.js";
 import { Bucket, Storage } from '@google-cloud/storage';
@@ -11,11 +11,14 @@ import path from "path";
 import { randomBytes } from "crypto";
 import { ActivityService } from "./activityService.js";
 import { RuleConfigService } from "./ruleConfigsService.js";
-import { HpActivitySubmission, HpLedger, HpLedgerDirection, HpLedgerEventType, HpReasonCode, ReviewDecision, TriggeredBy } from "../models.js";
-import { ObjectId } from "mongodb";
+import { HpActivitySubmission, HpLedger, HpLedgerDirection, HpLedgerEventType, HpReasonCode, ReviewDecision, SubmissionField, TriggeredBy } from "../models.js";
+import { ClientSession, ObjectId } from "mongodb";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { SubmissionFeedbackItem } from "../classes/transformers/ActivitySubmission.js";
-import { COHORT_OVERRIDES, ID } from "../constants.js";
+import { ID } from "../constants.js";
+import { getHpLedgerOperationId } from "../utils/getHpLedgerOperationId .js";
+import { ISettingRepository } from "#root/shared/database/interfaces/ISettingRepository.js";
+import { ICourseRepository } from "#root/shared/database/interfaces/ICourseRepository.js";
 
 
 @injectable()
@@ -49,6 +52,8 @@ export class ActivitySubmissionsService extends BaseService {
         private readonly activityRepository: ActivityRepository,
 
         @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
+        @inject(GLOBAL_TYPES.SettingRepo) private readonly settingRepository: ISettingRepository,
+        @inject(GLOBAL_TYPES.CourseRepo) private readonly courseRepo: ICourseRepository,
 
     ) {
         super(mongoDatabase);
@@ -107,7 +112,13 @@ export class ActivitySubmissionsService extends BaseService {
         files: Express.Multer.File[],
         images: Express.Multer.File[]
     ) {
+
         const bucket = this.getActivitySubmissionBucket();
+        // Determine environment prefix
+        const isProduction = appConfig.isProduction;
+        const envPrefix = isProduction ? "" : `[${appConfig.sentry.environment}]`;
+
+        const basePath = `${envPrefix} hp-activity-submissions/${cohort}/${activityId}/${studentId}`;
 
         const [uploadedPdfs, uploadedImages] = await Promise.all([
             Promise.all(
@@ -116,7 +127,7 @@ export class ActivitySubmissionsService extends BaseService {
                         bucket,
                         studentId,
                         file,
-                        `hp-activity-submissions/${cohort}/${activityId}/${studentId}/files`
+                        `${basePath}/files`
                     )
                 )
             ),
@@ -126,7 +137,7 @@ export class ActivitySubmissionsService extends BaseService {
                         bucket,
                         studentId,
                         image,
-                        `hp-activity-submissions/${cohort}/${activityId}/${studentId}/images`
+                        `${basePath}/images`
                     )
                 )
             ),
@@ -220,7 +231,7 @@ export class ActivitySubmissionsService extends BaseService {
     async submit(student: { id: string; email: string; name: string }, body: CreateOrUpdateHpActivitySubmissionBodyDto, upload?: { files?: Express.Multer.File[]; images?: Express.Multer.File[] }
     ) {
         return this._withTransaction(async (session) => {
-            if (!body.courseId || !body.courseVersionId || !body.activityId || !body.cohort) {
+            if (!body.courseId || !body.courseVersionId || !body.activityId || !body.cohortId) {
                 throw new BadRequestError("Missing required fields");
             }
 
@@ -230,34 +241,65 @@ export class ActivitySubmissionsService extends BaseService {
             if (!activity) {
                 throw new BadRequestError("Activity not found");
             }
+            if (activity.status !== "PUBLISHED")
+                throw new BadRequestError("You can't submit this activity, it is not set to public")
+            if (activity.activityType !== "ASSIGNMENT")
+                throw new BadRequestError("You can't submit this activity")
 
             const activityRuleConfig = await this.ruleConfigService.getByActivityId(activityId);
             if (!activityRuleConfig) {
                 throw new BadRequestError("Activity rule config not found");
             }
 
+            const ledger = await this.ledgerRepository.findByStudentAndActivityId(activityId, student.id);
+            if (ledger && ledger.direction == "CREDIT") {
+                throw new BadRequestError(
+                    activityRuleConfig.reward.applyWhen === "ON_APPROVAL"
+                        ? "This activity has already been submitted. Please wait for the instructor to review it and credit the HP points."
+                        : "This activity has already been submitted and the HP points for this activity have already been credited."
+                );
+            }
+
             const latestSubmissions = await this.activitySubmissionsRepository.getLatestByStudentId(student.id, activityId)
             if (latestSubmissions && latestSubmissions.status !== "REVERTED")
                 throw new BadRequestError("You have already attended this activity.")
 
-            const cohort = body.cohort;
+            // 2. Resolve Cohort and Apply Overrides
+            //    We use the activity's cohort identifiers to resolve. 
+            //    Legacy courses with pseudo IDs (e.g. 000...001) are correctly mapped 
+            //    to their real DB IDs because those IDs were stored in the `cohorts` 
+            //    collection during migration.
+            const resolvedCohort = await this.cohortRepository.resolveCohort(
+                activity.cohortId?.toString() || activity.cohort,
+                activity.courseId?.toString(),
+                activity.courseVersionId?.toString(),
+                session
+            );
+            if (!resolvedCohort) {
+                throw new BadRequestError(`Cohort context not found for activity ${activityId}`);
+            }
 
-            // 2. Apply Overrides (Fall back to body values if cohort isn't in the map)
-            const finalCourseId = COHORT_OVERRIDES[cohort]?.courseId ?? body.courseId;
-            const finalVersionId = COHORT_OVERRIDES[cohort]?.versionId ?? body.courseVersionId;
+            const finalCourseId = resolvedCohort.courseId?.toString();
+            const finalVersionId = resolvedCohort.courseVersionId?.toString();
+            const resolvedCohortId = resolvedCohort._id?.toString();
 
-            // 3. Fetch Enrollment using the CORRECT (overridden) IDs
+            if (!finalCourseId || !finalVersionId || !resolvedCohortId) {
+                throw new BadRequestError(`Incomplete cohort data resolved for activity ${activityId}. Please contact support.`);
+            }
+
+            // 3. Fetch Enrollment using the CORRECT (resolved) IDs.
             const enrollment = await this.cohortRepository.findEnrollment(
                 student.id,
                 finalCourseId,
                 finalVersionId,
+                resolvedCohortId,
                 session
             );
 
-            // if (!enrollment) {
-            //     console.error(`Enrollment check failed for Student: ${student.id} in Course: ${finalCourseId}`);
-            //     throw new BadRequestError(`Student is not enrolled in the required course context for cohort: ${cohort}`);
-            // }
+            if (!enrollment) {
+                console.error(`Enrollment check failed for Student: ${student.id} in Course: ${finalCourseId}`);
+                throw new BadRequestError(`Student is not enrolled in the required course context for cohort: ${resolvedCohortId}`);
+            }
 
             // Determine if submission is late based on activity rule config deadline
             const deadline = activityRuleConfig?.deadlineAt
@@ -287,87 +329,31 @@ export class ActivitySubmissionsService extends BaseService {
                     throw new BadRequestError(`Only PDF allowed in files. Invalid: ${f.originalname}`);
                 }
             }
+
             for (const img of images) {
                 if (!img.mimetype.startsWith("image/")) {
                     throw new BadRequestError(`Only images allowed in images. Invalid: ${img.originalname}`);
                 }
             }
 
-            // // GCP Storage setup
-            // const storage = new Storage({
-            //     keyFilename: appConfig.GOOGLE_APPLICATION_CREDENTIALS,
-            // });
 
-            // const bucketName = appConfig.GCP_BACKUP_ACTIVITY_BUCKET;
-            // const bucket = storage.bucket(bucketName);
+            let uploadedPdfs: any[] = [];
+            let uploadedImages: any[] = [];
 
 
-            // const uploadToGcp = async (f: Express.Multer.File, folder: string) => {
-            //     const ext = path.extname(f.originalname) || "";
-            //     const baseName = path.basename(f.originalname, ext);
+            // Only call upload when there are files/images
+            if (files.length > 0 || images.length > 0) {
+                const uploadResult = await this.uploadSubmissionAssets(
+                    student.id,
+                    resolvedCohortId, // Use the resolved ID for the upload logic
+                    activityId,
+                    files,
+                    images
+                );
 
-            //     const safeBase = baseName.replace(/[^\w\-]+/g, "_");
-
-            //     const unique = randomBytes(8).toString("hex");
-            //     const timestamp = Date.now();
-
-            //     const fileName = `${student.id}_${safeBase}_${timestamp}_${unique}${ext}`;
-
-            //     const objectPath = `${folder}/${fileName}`;
-
-            //     const file = bucket.file(objectPath);
-
-            //     await file.save(f.buffer, {
-            //         resumable: false,
-            //         contentType: f.mimetype,
-            //         metadata: {
-            //             contentDisposition: `inline; filename="${f.originalname}"`,
-            //         },
-            //     });
-
-            //     const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectPath}`;
-
-            //     const [signedUrl] = await file.getSignedUrl({
-            //         action: "read",
-            //         expires: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 days
-            //     });
-
-            //     return {
-            //         fileId: objectPath,
-            //         url: signedUrl,
-            //         name: fileName,
-            //         mimeType: f.mimetype,
-            //         sizeBytes: f.size,
-            //     };
-            // };
-
-            // // Upload concurrently
-            // const [uploadedPdfs, uploadedImages] = await Promise.all([
-            //     Promise.all(
-            //         files.map((f) =>
-            //             uploadToGcp(
-            //                 f,
-            //                 `hp-activity-submissions/${body.cohort}/${body.activityId}/${student.id}/files`
-            //             )
-            //         )
-            //     ),
-            //     Promise.all(
-            //         images.map((img) =>
-            //             uploadToGcp(
-            //                 img,
-            //                 `hp-activity-submissions/${body.cohort}/${body.activityId}/${student.id}/images`
-            //             )
-            //         )
-            //     ),
-            // ]);
-
-            const { uploadedPdfs, uploadedImages } = await this.uploadSubmissionAssets(
-                student.id,
-                body.cohort,
-                body.activityId,
-                files,
-                images
-            );
+                uploadedPdfs = uploadResult.uploadedPdfs ?? [];
+                uploadedImages = uploadResult.uploadedImages ?? [];
+            }
 
             const payload = {
                 ...basePayload,
@@ -389,13 +375,31 @@ export class ActivitySubmissionsService extends BaseService {
                 ],
             };
 
+            const validation = activityRuleConfig.submissionValidation ?? [SubmissionField.TEXT];
+
+            if (validation.includes(SubmissionField.TEXT) && !payload.textResponse?.trim()) {
+                throw new BadRequestError("Text response is required");
+            }
+
+            if (validation.includes(SubmissionField.PDF) && (!payload.files || payload.files.length === 0)) {
+                throw new BadRequestError("At least one PDF file is required");
+            }
+
+            if (validation.includes(SubmissionField.IMAGE) && (!payload.images || payload.images.length === 0)) {
+                throw new BadRequestError("At least one image is required");
+            }
+
+            if (validation.includes(SubmissionField.URL) && (!payload.links || payload.links.length === 0)) {
+                throw new BadRequestError("At least one URL is required");
+            }
 
             // Create submission record, then calculate and apply rewards if applicable
             const submissionId = await this.activitySubmissionsRepository.create(
                 {
-                    courseId: new ObjectId(body.courseId),
-                    courseVersionId: new ObjectId(body.courseVersionId),
-                    cohort: body.cohort,
+                    courseId: new ObjectId(finalCourseId),
+                    courseVersionId: new ObjectId(finalVersionId),
+                    cohortId: new ObjectId(resolvedCohortId),
+                    cohort: resolvedCohort.name,
                     activityId: new ObjectId(body.activityId),
 
                     studentId: new ObjectId(student.id),
@@ -417,12 +421,8 @@ export class ActivitySubmissionsService extends BaseService {
 
             if (activityReward?.enabled && activityReward.applyWhen === "ON_SUBMISSION") {
 
-                // Reward allocation conditions
                 const shouldSkipReward =
-                    isLate && (
-                        activityReward.lateBehavior === "NO_REWARD" ||
-                        activityReward.onlyWithinDeadline === true
-                    ) || activityRuleConfig?.lateRewardPolicy == "REWARD_DENIED"
+                    isLate && activityReward.lateBehavior === "NO_REWARD";
 
                 if (shouldSkipReward) {
                     return;
@@ -439,16 +439,28 @@ export class ActivitySubmissionsService extends BaseService {
                 if (ruleType === "ABSOLUTE") {
                     incrementAmount = rewardValue;
                 } else if (ruleType === "PERCENTAGE") {
-                    const rewardMaxLimit = activityRuleConfig.limits?.maxHp ?? 0;
+                    const rewardMaxLimit = activityRuleConfig.limits?.maxHp;
+                    const rewardMinLimit = activityRuleConfig.limits?.minHp;
 
-                    // Calculate percentage reward
-                    const calculatedReward = Math.round((totalStudentHpPoints * rewardValue) / 100);
+                    // Fetch course base HP from settings for percentage calculation baseline
+                    const courseSettings = await this.settingRepository.readCourseSettings(finalCourseId, finalVersionId, session);
+                    const courseBaseHp = courseSettings?.settings?.baseHp ?? 100;
 
-                    // Apply max limit if defined
-                    incrementAmount =
-                        rewardMaxLimit > 0
-                            ? Math.min(calculatedReward, rewardMaxLimit)
-                            : calculatedReward;
+                    // Calculate percentage reward using current HP, or base HP if current is 0
+                    const calculationBase = totalStudentHpPoints > 0 ? totalStudentHpPoints : courseBaseHp;
+                    const calculatedReward = Math.round((calculationBase * rewardValue) / 100);
+
+                    let finalReward = calculatedReward;
+
+                    if (rewardMinLimit && finalReward < rewardMinLimit) {
+                        finalReward = rewardMinLimit;
+                    }
+
+                    if (rewardMaxLimit && finalReward > rewardMaxLimit) {
+                        finalReward = rewardMaxLimit;
+                    }
+
+                    incrementAmount = Math.max(0, finalReward);
                 }
 
                 // For transparency in the audit trail, we create a human-readable note about how the reward was calculated
@@ -460,9 +472,10 @@ export class ActivitySubmissionsService extends BaseService {
 
                 // 2. Prepare the Ledger Entry (Centralized)
                 const ledgerEntry: Omit<HpLedger, "_id" | "createdAt"> = {
-                    courseId: new ObjectId(body.courseId),
-                    courseVersionId: new ObjectId(body.courseVersionId),
-                    cohort: body.cohort,
+                    courseId: new ObjectId(finalCourseId),
+                    courseVersionId: new ObjectId(finalVersionId),
+                    cohortId: new ObjectId(resolvedCohortId),
+                    cohort: resolvedCohort.name,
                     studentId: new ObjectId(student.id),
                     studentEmail: student.email,
                     activityId: new ObjectId(body.activityId),
@@ -496,6 +509,7 @@ export class ActivitySubmissionsService extends BaseService {
                         student.id,
                         finalCourseId,
                         finalVersionId,
+                        resolvedCohortId,
                         totalStudentHpPoints + incrementAmount,
                         session
                     )
@@ -516,7 +530,7 @@ export class ActivitySubmissionsService extends BaseService {
         upload?: { files?: Express.Multer.File[]; images?: Express.Multer.File[] }
     ) {
         return this._withTransaction(async (session) => {
-            if (!body.courseId || !body.courseVersionId || !body.activityId || !body.cohort) {
+            if (!body.courseId || !body.courseVersionId || !body.activityId || !body.cohortId) {
                 throw new BadRequestError("Missing required fields");
             }
 
@@ -531,6 +545,7 @@ export class ActivitySubmissionsService extends BaseService {
                     "This submission cannot be updated because it has already been reviewed or approved by the instructor."
                 );
             }
+
             const basePayload = {
                 textResponse: body.payload?.textResponse ?? "",
                 links: body.payload?.links ?? [],
@@ -552,29 +567,76 @@ export class ActivitySubmissionsService extends BaseService {
                 }
             }
 
-            const { uploadedPdfs, uploadedImages } = await this.uploadSubmissionAssets(
-                student.id,
-                body.cohort,
-                body.activityId,
-                files,
-                images
+            let uploadedPdfs: any[] = [];
+            let uploadedImages: any[] = [];
+
+            // Resolve cohort to get stable identifiers for the update logic
+            const resolvedCohort = await this.cohortRepository.resolveCohort(
+                body.cohortId,
+                body.courseId,
+                body.courseVersionId,
+                session
             );
+            const resolvedCohortId = resolvedCohort?._id?.toString() || body.cohortId;
+
+            // Only call upload when there are files/images
+            if (files.length > 0 || images.length > 0) {
+                const uploadResult = await this.uploadSubmissionAssets(
+                    student.id,
+                    resolvedCohortId,
+                    body.activityId,
+                    files,
+                    images
+                );
+
+                uploadedPdfs = uploadResult.uploadedPdfs ?? [];
+                uploadedImages = uploadResult.uploadedImages ?? [];
+            }
 
             const payload = {
                 ...basePayload,
-                files: uploadedPdfs.map((x) => ({
-                    fileId: x.fileId,
-                    url: x.url,
-                    name: x.name,
-                    mimeType: x.mimeType,
-                    sizeBytes: x.sizeBytes,
-                })),
-                images: uploadedImages.map((x) => ({
-                    fileId: x.fileId,
-                    url: x.url,
-                    name: x.name,
-                })),
+                files: [
+                    ...(body.payload?.files ?? []),
+                    ...uploadedPdfs.map((x) => ({
+                        fileId: x.fileId,
+                        url: x.url,
+                        name: x.name,
+                        mimeType: x.mimeType,
+                        sizeBytes: x.sizeBytes,
+                    })),
+                ],
+                images: [
+                    ...(body.payload?.images ?? []),
+                    ...uploadedImages.map((x) => ({
+                        fileId: x.fileId,
+                        url: x.url,
+                        name: x.name,
+                    })),
+                ],
             };
+
+            const activityRuleConfig = await this.ruleConfigService.getByActivityId(body.activityId);
+            if (!activityRuleConfig) {
+                throw new BadRequestError("Activity rule config not found");
+            }
+
+            const validation: SubmissionField[] = activityRuleConfig.submissionValidation ?? [SubmissionField.TEXT];
+
+            if (validation.includes(SubmissionField.TEXT) && !payload.textResponse?.trim()) {
+                throw new BadRequestError("Text response is required");
+            }
+
+            if (validation.includes(SubmissionField.PDF) && (!payload.files || payload.files.length === 0)) {
+                throw new BadRequestError("At least one PDF file is required");
+            }
+
+            if (validation.includes(SubmissionField.IMAGE) && (!payload.images || payload.images.length === 0)) {
+                throw new BadRequestError("At least one image is required");
+            }
+
+            if (validation.includes(SubmissionField.URL) && (!payload.links || payload.links.length === 0)) {
+                throw new BadRequestError("At least one URL is required");
+            }
 
             await this.activitySubmissionsRepository.updateById(
                 submissionId,
@@ -611,9 +673,13 @@ export class ActivitySubmissionsService extends BaseService {
 
         const effectiveQuery: ListSubmissionsQueryDto = { ...query };
 
-        if (query.cohort && COHORT_OVERRIDES[query.cohort])
-            effectiveQuery.courseVersionId = COHORT_OVERRIDES[query.cohort].versionId;
-
+        if (query.cohortId) {
+            const resolvedCohort = await this.cohortRepository.resolveCohort(query.cohortId, undefined, query.courseVersionId);
+            if (resolvedCohort) {
+                effectiveQuery.courseVersionId = resolvedCohort.courseVersionId?.toString();
+                effectiveQuery.cohortId = resolvedCohort._id?.toString();
+            }
+        }
 
         const docs = await this.activitySubmissionsRepository.list(effectiveQuery);
 
@@ -626,14 +692,43 @@ export class ActivitySubmissionsService extends BaseService {
         }));
     }
 
-    async listStudentCohortWiseSubmssions(teacherId: string, studentId: string, query: FilterQueryDto, cohortName: string): Promise<StudentActivitySubmissionsResponseDto> {
+    async listStudentCohortWiseSubmssions(teacherId: string, studentId: string, query: FilterQueryDto, cohortIdOrName: string): Promise<StudentActivitySubmissionsResponseDto> {
 
         const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined,
-            undefined, cohortName);
+            undefined, cohortIdOrName);
+
+        // Get ledger data for all submissions
+        const submissionIds = submissions.map(sub => sub.submission?._id).filter(Boolean);
+        const ledgerEntries = submissionIds.length > 0
+            ? await this.ledgerRepository.findBySubmissionIds(submissionIds)
+            : [];
+
+        // Create a map of submissionId to ledger entries for quick lookup
+        const ledgerMap = new Map();
+        ledgerEntries.forEach(entry => {
+            const submissionId = entry.submissionId?.toString();
+            if (submissionId) {
+                if (!ledgerMap.has(submissionId)) {
+                    ledgerMap.set(submissionId, []);
+                }
+                ledgerMap.get(submissionId).push(entry);
+            }
+        });
+
+        // Attach ledger data to each submission
+        const submissionsWithLedger = submissions.map(submission => {
+            const submissionId = submission.submission?._id;
+            const relatedLedgerEntries = ledgerMap.get(submissionId) || [];
+
+            return {
+                ...submission,
+                ledgerEntries: relatedLedgerEntries
+            };
+        });
 
         return {
             success: true,
-            data: submissions,
+            data: submissionsWithLedger,
             meta: {
                 total: submissions.length,
                 page: query.page ?? 1,
@@ -644,10 +739,25 @@ export class ActivitySubmissionsService extends BaseService {
 
     async listStudentWiseSubmissionsStats(
         studentId: string,
-        cohortName: string
+        cohortIdOrName: string
     ): Promise<StudentActivitySubmissionStatsResponseDto> {
         if (!studentId) {
             throw new BadRequestError("Student id not found");
+        }
+
+        // Resolve cohort dynamically
+        const resolvedCohort = await this.cohortRepository.resolveCohort(cohortIdOrName);
+        if (!resolvedCohort) {
+            throw new BadRequestError(`Cohort not found: ${cohortIdOrName}`);
+        }
+
+        const resolvedCohortName = resolvedCohort.name;
+        const resolvedCohortId = resolvedCohort._id?.toString();
+        const courseId = resolvedCohort.courseId?.toString();
+        const courseVersionId = resolvedCohort.courseVersionId?.toString();
+
+        if (!resolvedCohortId || !courseId || !courseVersionId) {
+            throw new BadRequestError("Incomplete cohort data resolved for statistics.");
         }
 
         const student = await this.userRepo.findById(studentId);
@@ -655,32 +765,22 @@ export class ActivitySubmissionsService extends BaseService {
             throw new BadRequestError("Student not found");
         }
 
-        let courseId: string;
-        let courseVersionId: string;
+        const latestActivity = await this.activityRepository.getLatestActivityByCohortId(resolvedCohortId);
 
-        const override = COHORT_OVERRIDES[cohortName];
-
-        if (override) {
-            courseId = override.courseId;
-            courseVersionId = override.versionId;
-        } else {
-            const latestActivity = await this.activityRepository.getLatestActivityByCohortName(cohortName);
-
-            if (!latestActivity) {
-                return {
-                    success: true,
-                    data: {
-                        totalActivities: 0,
-                        totalSubmissions: 0,
-                        totalLateSubmissions: 0,
-                        totalPendings: 0,
-                        currentHp: 0,
-                    },
-                };
-            }
-
-            courseId = latestActivity.courseId.toString();
-            courseVersionId = latestActivity.courseVersionId.toString();
+        if (!latestActivity) {
+            return {
+                success: true,
+                data: {
+                    totalActivities: 0,
+                    totalSubmissions: 0,
+                    totalLateSubmissions: 0,
+                    totalPendings: 0,
+                    currentHp: 0,
+                    bestPerformingCohort: resolvedCohortName,
+                    coursePerformance: [],
+                    weeklyActivity: [],
+                },
+            };
         }
 
         const [
@@ -690,11 +790,11 @@ export class ActivitySubmissionsService extends BaseService {
             totalPendingActivites,
             enrollment,
         ] = await Promise.all([
-            this.activityRepository.getCountByCohortName(cohortName),
-            this.activitySubmissionsRepository.getCountByStudentId(studentId, courseId, courseVersionId),
-            this.activitySubmissionsRepository.getLateSubmissionCountByStudentId(studentId, courseId, courseVersionId),
-            this.activityRepository.getPendingActivitesCount(studentId, courseId, courseVersionId),
-            this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId),
+            this.activityRepository.getCountByCohortId(resolvedCohortId, courseVersionId),
+            this.activitySubmissionsRepository.getCountByStudentId(studentId, courseId, courseVersionId, resolvedCohortId),
+            this.activitySubmissionsRepository.getLateSubmissionCountByStudentId(studentId, courseId, courseVersionId, resolvedCohortId),
+            this.activityRepository.getPendingActivitesCount(studentId, courseId, courseVersionId, resolvedCohortId),
+            this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId, resolvedCohortId),
         ]);
 
         const data: StudentActivitySubmissionStatsViewDto = {
@@ -703,6 +803,9 @@ export class ActivitySubmissionsService extends BaseService {
             totalLateSubmissions,
             totalPendings: totalPendingActivites,
             currentHp: enrollment?.hpPoints ?? 0,
+            bestPerformingCohort: resolvedCohortName,
+            coursePerformance: [],
+            weeklyActivity: [],
         };
 
         return {
@@ -711,9 +814,9 @@ export class ActivitySubmissionsService extends BaseService {
         };
     }
 
-    async listMySubmissions(studentId: string, query: FilterQueryDto, cohortName?: string): Promise<any> {
-        const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined, undefined, cohortName);
 
+    async listMySubmissions(studentId: string, query: FilterQueryDto, cohortIdOrName?: string): Promise<any> {
+        const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query, undefined, undefined, cohortIdOrName);
         return {
             success: true,
             data: submissions,
@@ -744,23 +847,35 @@ export class ActivitySubmissionsService extends BaseService {
             const submission = await this.activitySubmissionsRepository.findById(submissionId, { session });
             if (!submission) throw new NotFoundError(`Submission ${submissionId} not found.`);
 
-            const cohort = submission.cohort;
-            let courseId = submission.courseId.toString()
-            let courseVersionId = submission.courseVersionId.toString()
-
-            const override = COHORT_OVERRIDES[cohort];
-            if (override) {
-                courseId = override.courseId;
-                courseVersionId = override.versionId;
+            // Use the new resolver to handle both ID and legacy names
+            const resolvedCohort = await this.cohortRepository.resolveCohort(
+                submission.cohortId?.toString() || submission.cohort,
+                submission.courseId?.toString(),
+                submission.courseVersionId?.toString(),
+                session
+            );
+            if (!resolvedCohort) {
+                throw new BadRequestError(`Cohort context not found for submission ${submissionId}`);
             }
 
-            const [activityRuleConfig, user, enrollment] = await Promise.all([
+            const courseId = resolvedCohort.courseId?.toString();
+            const courseVersionId = resolvedCohort.courseVersionId?.toString();
+            const resolvedCohortId = resolvedCohort._id?.toString();
+
+            if (!courseId || !courseVersionId || !resolvedCohortId) {
+                throw new BadRequestError(`Incomplete cohort data resolved for submission ${submissionId}. Please contact support.`);
+            }
+
+            const [activityRuleConfig, user, enrollment, courseSettings] = await Promise.all([
                 this.ruleConfigService.getByActivityId(submission.activityId.toString()),
                 this.userRepo.findById(submission.studentId.toString()),
-                this.cohortRepository.findEnrollment(submission.studentId.toString(), courseId, courseVersionId)
+                this.cohortRepository.findEnrollment(submission.studentId.toString(), courseId, courseVersionId, resolvedCohortId, session),
+                this.settingRepository.readCourseSettings(courseId, courseVersionId, session)
             ]);
 
             if (!user || !enrollment) throw new BadRequestError(!user ? "Student account missing." : "Enrollment data missing.");
+
+            const baseHpValue = courseSettings?.settings?.baseHp ?? 100;
 
             // 2. Flags & Config
             const rewardConfig = activityRuleConfig?.reward;
@@ -784,8 +899,8 @@ export class ActivitySubmissionsService extends BaseService {
                 throw new BadRequestError("This activity requires approval. Only APPROVE/REJECT is allowed.");
             }
 
-            if (isApprove && (currentStatus === "APPROVED" || (currentStatus === "SUBMITTED" && rewardConfig?.applyWhen !== "ON_APPROVAL"))) {
-                throw new BadRequestError("Conflict: Points already granted. Use REVERT or REJECT.");
+            if (isApprove && currentStatus === "APPROVED") {
+                throw new BadRequestError("Conflict: This submission is already approved.");
             }
 
             if (isReject && body.pointsToDeduct !== undefined && body.pointsToDeduct > baseHp) {
@@ -800,20 +915,11 @@ export class ActivitySubmissionsService extends BaseService {
                 const isLate = deadline && new Date() > deadline;
 
                 // 2. Define the "Hard Block" conditions
-                const isLatePolicyViolated = isLate && (
-                    rewardConfig?.lateBehavior === "NO_REWARD" ||
-                    rewardConfig?.onlyWithinDeadline === true
-                );
-
-                const isGlobalPolicyViolated = activityRuleConfig?.lateRewardPolicy === "REWARD_DENIED";
+                const isLatePolicyViolated = isLate && rewardConfig?.lateBehavior === "NO_REWARD";
 
                 // 3. Throw Detailed Errors
                 if (isLatePolicyViolated) {
                     throw new BadRequestError(`Approval Denied: This submission is late, and the activity policy is set to 'No Reward' for late work.`);
-                }
-
-                if (isGlobalPolicyViolated) {
-                    throw new BadRequestError("Approval Denied: The global course policy for this activity currently denies all late rewards.");
                 }
             }
 
@@ -826,26 +932,38 @@ export class ActivitySubmissionsService extends BaseService {
             if (isApprove) {
                 const rewardValue = rewardConfig?.value ?? 0;
                 let rewardDetailsNote = "";
-
                 let incrementAmount = 0;
-                if (ruleType === "ABSOLUTE") {
-                    incrementAmount = rewardValue;
-                    rewardDetailsNote = `Reward Type: ABSOLUTE, Reward HP: ${rewardValue}`;
 
-                } else if (ruleType === "PERCENTAGE") {
-                    const rewardMaxLimit = activityRuleConfig.limits?.maxHp ?? 0;
+                // Prevention of double-rewarding for ON_SUBMISSION activities
+                if (rewardConfig?.applyWhen === "ON_SUBMISSION") {
+                    incrementAmount = 0;
+                    rewardDetailsNote = "Reward already applied on submission.";
+                } else {
+                    if (ruleType === "ABSOLUTE") {
+                        incrementAmount = rewardValue;
+                        rewardDetailsNote = `Reward Type: ABSOLUTE, Reward HP: ${rewardValue}`;
 
-                    // Calculate percentage reward
-                    const calculatedReward = Math.round((totalStudentHpPoints * rewardValue) / 100);
+                    } else if (ruleType === "PERCENTAGE") {
+                        const rewardMaxLimit = activityRuleConfig.limits?.maxHp;
+                        const rewardMinLimit = activityRuleConfig.limits?.minHp;
 
-                    // Apply max limit if defined
-                    incrementAmount =
-                        rewardMaxLimit > 0
-                            ? Math.min(calculatedReward, rewardMaxLimit)
-                            : calculatedReward;
+                        // Calculate percentage reward using current HP, or base HP if current is 0
+                        const calculationBase = totalStudentHpPoints > 0 ? totalStudentHpPoints : baseHpValue;
+                        const calculatedReward = Math.round((calculationBase * rewardValue) / 100);
 
-                    rewardDetailsNote = `Reward Type: PERCENTAGE, Base HP: ${totalStudentHpPoints}, Percentage: ${rewardValue}%`;
+                        let finalReward = calculatedReward;
 
+                        if (rewardMinLimit && finalReward < rewardMinLimit) {
+                            finalReward = rewardMinLimit;
+                        }
+
+                        if (rewardMaxLimit && finalReward > rewardMaxLimit) {
+                            finalReward = rewardMaxLimit;
+                        }
+
+                        incrementAmount = Math.max(0, finalReward);
+                        rewardDetailsNote = `Reward Type: PERCENTAGE, Base HP: ${calculationBase}${totalStudentHpPoints === 0 ? " (from course settings)" : ""}, Percentage: ${rewardValue}%`;
+                    }
                 }
 
                 const finalTeacherNote = teacherNote
@@ -871,11 +989,17 @@ export class ActivitySubmissionsService extends BaseService {
                 if (originalLedger && originalLedger.direction == "CREDIT") {
                     rewardToUndo = originalLedger.amount ?? 0;
                     const hpBeforeReversal = finalHpBalance;
-                    finalHpBalance -= rewardToUndo;
+                    // finalHpBalance -= rewardToUndo;
+                    finalHpBalance = Math.max(0, finalHpBalance - rewardToUndo);
+
 
                     // First Ledger: The Reversal
+                    const restoreLedger = await this.ledgerRepository.findRestoreBySubmissionId(submissionId);
+                    const revertReasonCode = isRevert ? (restoreLedger ? "RESTORE_REVERSAL" : "REWARD_REVERSAL") : "REJECTION_PENALTY";
+                    const revertOperationId = getHpLedgerOperationId("revert");
+
                     ledgerPromises.push(this.ledgerRepository.create(
-                        this._buildLedgerData(submission, user, "REVERSAL", "DEBIT", rewardToUndo, hpBeforeReversal, finalHpBalance, isRevert ? "REWARD_REVERSAL" : "REJECTION_PENALTY", `Reversed original reward of ${rewardToUndo} HP.`, originalLedger._id.toString(), teacherId, activityRuleConfig),
+                        this._buildLedgerData(submission, user, "REVERSAL", "DEBIT", rewardToUndo, hpBeforeReversal, finalHpBalance, revertReasonCode, `Reversed original reward of ${rewardToUndo} HP.`, originalLedger._id.toString(), teacherId, activityRuleConfig, undefined, revertOperationId),
                         session
                     ));
                 }
@@ -883,8 +1007,9 @@ export class ActivitySubmissionsService extends BaseService {
                 if (isReject) {
                     const penaltyAmount = Number(body.pointsToDeduct) ?? 0;
                     if (penaltyAmount > 0) {
-                        const hpBeforePenalty = finalHpBalance ;
-                        finalHpBalance -= penaltyAmount;
+                        const hpBeforePenalty = finalHpBalance;
+                        // finalHpBalance -= penaltyAmount;
+                        finalHpBalance = Math.max(0, finalHpBalance - penaltyAmount);
 
                         // Second Ledger: The Penalty
                         ledgerPromises.push(this.ledgerRepository.create(
@@ -904,19 +1029,135 @@ export class ActivitySubmissionsService extends BaseService {
 
             await Promise.all([
                 ...ledgerPromises,
-                this.cohortRepository.setHPForEnrollment(submission.studentId.toString(), courseId, courseVersionId, finalHpBalance, session)
+                this.cohortRepository.setHPForEnrollment(submission.studentId.toString(), courseId.toString(), courseVersionId.toString(), resolvedCohortId, finalHpBalance, session)
             ]);
 
             return { success: true };
         });
     }
 
+    async restore(submissionId: string, teacherId: string, note?: string) {
+    return this._withTransaction(async (session) => {
+        // 1. Fetch submission
+        const submission = await this.activitySubmissionsRepository.findById(submissionId, { session });
+        if (!submission) throw new NotFoundError(`Submission ${submissionId} not found.`);
 
-    private _buildLedgerData(sub: HpActivitySubmission, user: IUser, event: HpLedgerEventType, dir: HpLedgerDirection, amt: number, base: number, computed: number, reasonCode: HpReasonCode, note: string, refId: string | null, teacherId: string, config: any, isLate?: boolean) {
+        // 2. Validate — only REVERTED or REJECTED submissions can be restored
+        if (submission.status !== "REVERTED" && submission.status !== "REJECTED") {
+            throw new BadRequestError("Only reverted or rejected submissions can be restored.");
+        }
+
+        // 3. Resolve cohort to get stable IDs
+        const resolvedCohort = await this.cohortRepository.resolveCohort(submission.cohortId?.toString() || submission.cohort);
+        if (!resolvedCohort) {
+            throw new BadRequestError(`Cohort context not found for submission ${submissionId}`);
+        }
+
+        const courseId = resolvedCohort.courseId?.toString();
+        const courseVersionId = resolvedCohort.courseVersionId?.toString();
+        const resolvedCohortId = resolvedCohort._id?.toString();
+
+        if (!resolvedCohortId || !courseId || !courseVersionId) {
+            throw new BadRequestError("Incomplete cohort data resolved for submission restore.");
+        }
+
+        // 4. Find the DEBIT ledger entry
+        const debitLedger = await this.ledgerRepository.findDebitBySubmissionId(submissionId);
+        if (!debitLedger) {
+            throw new BadRequestError("No debit ledger entry found for this submission. Cannot restore.");
+        }
+
+        // 5. Validate — only allow if ledger is DEBIT
+        if (debitLedger.direction !== "DEBIT") {
+            throw new BadRequestError("Restore is only allowed for debit ledger entries.");
+        }
+
+        // 6. Fetch user and enrollment
+        const [user, enrollment] = await Promise.all([
+            this.userRepo.findById(submission.studentId.toString()),
+            this.cohortRepository.findEnrollment(
+                submission.studentId.toString(),
+                courseId,
+                courseVersionId,
+                resolvedCohortId,
+                session
+            )
+        ]);
+
+        if (!user || !enrollment) {
+            throw new BadRequestError(!user ? "Student account missing." : "Enrollment data missing.");
+        }
+
+        // 7. Calculate new HP balance
+        const totalStudentHpPoints = enrollment.hpPoints ?? 0;
+        const restoreAmount = debitLedger.amount ?? 0;
+        const finalHpBalance = totalStudentHpPoints + restoreAmount;
+
+        const activityRuleConfig = await this.ruleConfigService.getByActivityId(
+            submission.activityId.toString()
+        );
+
+        const ledgerNote = note
+            ? `Restored ${restoreAmount} HP. Instructor note: ${note}`
+            : `Restored ${restoreAmount} HP. Original debit reversed by instructor.`;
+        const operationId = getHpLedgerOperationId("restore");
+
+        // 8. Create CREDIT ledger entry
+        await this.ledgerRepository.create(
+            this._buildLedgerData(
+                submission,
+                user,
+                "RESTORE",
+                "CREDIT",
+                restoreAmount,
+                totalStudentHpPoints,
+                finalHpBalance,
+                "MANUAL",
+                ledgerNote,
+                debitLedger._id.toString(),
+                teacherId,
+                activityRuleConfig,
+                undefined,
+                operationId
+            ),
+            session
+        );
+
+        // 9. Update HP in enrollment
+        await this.cohortRepository.setHPForEnrollment(
+            submission.studentId.toString(),
+            courseId,
+            courseVersionId,
+            resolvedCohortId,
+            finalHpBalance,
+            session
+        );
+
+        // 10. Update submission status back to APPROVED
+        await this.activitySubmissionsRepository.updateStatusAndReview(
+            submissionId,
+            {
+                status: "APPROVED",
+                review: {
+                    reviewedByTeacherId: teacherId,
+                    reviewedAt: new Date(),
+                    decision: "APPROVED",
+                    note: note || "Restored by instructor"
+                }
+            },
+            { session }
+        );
+
+        return { success: true };
+    });
+}
+
+    private _buildLedgerData(sub: HpActivitySubmission, user: IUser, event: HpLedgerEventType, dir: HpLedgerDirection, amt: number, base: number, computed: number, reasonCode: HpReasonCode, note: string, refId: string | null, teacherId: string, config: any, isLate?: boolean, operationId?: string) {
         return {
             courseId: new ObjectId(sub.courseId),
             courseVersionId: new ObjectId(sub.courseVersionId),
-            cohort: sub.cohort,
+            cohortId: new ObjectId(sub.cohortId),
+            cohort: (sub.cohort || sub.cohortId).toString(),
             studentId: new ObjectId(sub.studentId.toString()),
             studentEmail: user.email,
             activityId: new ObjectId(sub.activityId),
@@ -933,7 +1174,7 @@ export class ActivitySubmissionsService extends BaseService {
                 deadlineAt: config?.deadlineAt ? new Date(config.deadlineAt) : null,
             },
             links: refId ? { reversedLedgerId: new ObjectId(refId), relatedLedgerIds: [] } : null,
-            meta: { triggeredBy: "TEACHER" as TriggeredBy, triggeredByUserId: new ObjectId(teacherId), note }
+            meta: { triggeredBy: "TEACHER" as TriggeredBy, triggeredByUserId: new ObjectId(teacherId), note, operationId }
         };
     }
 
@@ -966,6 +1207,275 @@ export class ActivitySubmissionsService extends BaseService {
                 message: result ? "Feedback added successfully" : "Failed to add feedback"
             };
         })
+    }
+
+    async getCohortActivityStats(cohortIdOrName: string, activityId: string, session?: ClientSession): Promise<StudentCohortWiseActivitySubmissionsStatsDto> {
+        return this._withTransaction(async (session) => {
+            const resolvedCohort = await this.cohortRepository.resolveCohort(cohortIdOrName);
+            if (!resolvedCohort) {
+                throw new BadRequestError(`Cohort not found: ${cohortIdOrName}`);
+            }
+
+            const resolvedCohortId = resolvedCohort._id?.toString();
+            if (!resolvedCohortId) {
+                throw new BadRequestError(`Incomplete cohort data resolved.`);
+            }
+
+            const data = await this.activitySubmissionsRepository.getCohortActivityStats(resolvedCohortId, activityId, session);
+            return {
+                data
+            };
+        });
+    }
+
+    async getBulkCohortActivityStats(cohortIdOrName: string, courseVersionId: string, session?: ClientSession): Promise<StudentActivitySubmissionStatsViewDto> {
+        return this._withTransaction(async (session) => {
+            // Resolve cohort context dynamically - use courseVersionId as fallback context
+            const resolvedCohort = await this.cohortRepository.resolveCohort(cohortIdOrName, undefined, courseVersionId);
+            if (!resolvedCohort) {
+                throw new BadRequestError(`Cohort not found: ${cohortIdOrName}`);
+            }
+
+            const resolvedCohortName = resolvedCohort.name;
+            const effectiveCohortId = resolvedCohort._id?.toString();
+            const effectiveVersionId = resolvedCohort.courseVersionId?.toString();
+
+            if (!effectiveCohortId || !effectiveVersionId) {
+                throw new BadRequestError(`Incomplete cohort data resolved for stats.`);
+            }
+            
+            // Execute all queries in parallel for optimal performance
+            const [
+                statsMap,
+                totalActivitiesCounts,
+                weeklyActivity,
+                hpDistribution,
+                studentProgress,
+                lateSubmissionCount,
+                pendingSubmissionsCount
+            ] = await Promise.all([
+                // Get submission statistics
+                this.activitySubmissionsRepository.getCohortStatsMap(effectiveCohortId, effectiveVersionId, session),
+                
+                // Get total activities count only (this method handles both ObjectId and name)
+                this.activityRepository.getCountByCohortId(effectiveCohortId, effectiveVersionId, session),
+                
+                // Get weekly activity data
+                this.getWeeklyActivityData(effectiveCohortId, effectiveVersionId, session),
+                
+                // Get HP distribution data
+                this.ledgerRepository.getHpDistributionForCohort(effectiveCohortId, effectiveVersionId, session),
+                
+                // Get student progress data
+                this.activitySubmissionsRepository.getStudentProgressForCohort(effectiveCohortId, effectiveVersionId, session),
+                
+                // Get late submission count
+                this.activitySubmissionsRepository.getLateSubmissionCount(effectiveCohortId, effectiveVersionId, session),
+                
+                // Get pending submissions count
+                this.activitySubmissionsRepository.getPendingSubmissionsCount(effectiveCohortId, effectiveVersionId, session)
+            ]);
+
+            // Build result object
+            const result = {
+                totalActivities: totalActivitiesCounts || 0,
+                totalSubmissions: totalActivitiesCounts || 0,
+                totalPendings: pendingSubmissionsCount || 0,
+                totalLateSubmissions: lateSubmissionCount || 0,
+                currentHp: 0,
+                reward: null,
+                bestPerformingCohort: resolvedCohortName,
+                coursePerformance: [],
+                weeklyActivity: weeklyActivity || [],
+                completionRates: this.formatCompletionRates(statsMap),
+                hpDistribution: this.formatHpDistribution(hpDistribution),
+                studentProgress: [studentProgress || { completed: 0, inProgress: 0, notStarted: 0 }]
+            };
+            
+            return result;
+        });
+    }
+
+    // Helper methods for data formatting to keep main method clean
+    private formatCompletionRates(statsMap: any): any[] {
+        if (!statsMap) return [];
+        
+        return Object.entries(statsMap).map(([activityId, stats]: [string, any]) => ({
+            activityId,
+            activityTitle: `Activity ${activityId}`,
+            submittedCount: stats.submittedCount || 0,
+            pendingCount: stats.submittedCount || 0,
+            revertedCount: stats.revertedCount || 0,
+            totalAssigned: (stats.submittedCount || 0) + (stats.approvedCount || 0) + (stats.rejectedCount || 0) + (stats.revertedCount || 0)
+        }));
+    }
+
+    private formatHpDistribution(distribution: any): any[] {
+        if (!distribution) return [];
+        
+        const total = distribution.low + distribution.medium + distribution.high + distribution.veryHigh;
+        
+        return [
+            { range: '0-50 HP', count: distribution.low, percentage: total > 0 ? Math.round((distribution.low / total) * 100) : 0 },
+            { range: '51-100 HP', count: distribution.medium, percentage: total > 0 ? Math.round((distribution.medium / total) * 100) : 0 },
+            { range: '101-200 HP', count: distribution.high, percentage: total > 0 ? Math.round((distribution.high / total) * 100) : 0 },
+            { range: '200+ HP', count: distribution.veryHigh, percentage: total > 0 ? Math.round((distribution.veryHigh / total) * 100) : 0 }
+        ];
+    }
+
+
+    private async getWeeklyActivityData(cohortName: string, courseVersionId: string, session: ClientSession): Promise<any[]> {
+        // Get real weekly activity data from activity submissions
+        try {
+            const weeklyData = [];
+            const today = new Date();
+            
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                const startDate = new Date(date);
+                startDate.setHours(0, 0, 0, 0);
+                const endDate = new Date(date);
+                endDate.setHours(23, 59, 59, 999);
+                
+                // Get activity counts for this specific day by status
+                const [submittedCount, approvedCount, rejectedCount] = await Promise.all([
+                    this.activitySubmissionsRepository.getDailyActivityCountByStatus(
+                        cohortName, courseVersionId, startDate, endDate, 'SUBMITTED', session
+                    ),
+                    this.activitySubmissionsRepository.getDailyActivityCountByStatus(
+                        cohortName, courseVersionId, startDate, endDate, 'APPROVED', session
+                    ),
+                    this.activitySubmissionsRepository.getDailyActivityCountByStatus(
+                        cohortName, courseVersionId, startDate, endDate, 'REJECTED', session
+                    )
+                ]);
+                
+                weeklyData.push({
+                    date: date.toISOString().split('T')[0], // YYYY-MM-DD format
+                    submitted: submittedCount || 0,
+                    approved: approvedCount || 0,
+                    rejected: rejectedCount || 0
+                });
+            }
+            
+            return weeklyData;
+        } catch (error) {
+            console.error('Error getting weekly activity data:', error);
+            // Fallback to empty array if there's an error
+            return [];
+        }
+    }
+
+    async getStudentDashboardStats(
+        studentId: string,
+        cohortName: string,
+        courseVersionId: string,
+        timelineDays: number = 7,
+        session?: ClientSession
+    ): Promise<{
+        myStats: {
+            totalHp: number;
+            completedActivities: number;
+            pendingSubmissions: number;
+            completionPercentage: number;
+        };
+        progressTimeline: Array<{
+            date: string;
+            hpChange: number;
+            activitiesCompleted: number;
+        }>;
+        activityBreakdown: {
+            notStarted: number;
+            submitted: number;
+            approved: number;
+            rejected: number;
+        };
+        upcomingDeadlines: Array<{
+            activityTitle: string;
+            deadlineDate: string;
+            daysLeft: number;
+        }>;
+        recentSubmissions: Array<{
+            activityTitle: string;
+            submittedAt: string;
+            status: string;
+            hpEarned: number;
+        }>;
+    }> {
+        return this._withTransaction(async (session) => {
+            // Resolve cohort context dynamically - use courseVersionId as fallback context
+            const resolvedCohort = await this.cohortRepository.resolveCohort(cohortName, undefined, courseVersionId);
+            if (!resolvedCohort) {
+                throw new BadRequestError(`Cohort not found: ${cohortName}`);
+            }
+
+            const resolvedCohortName = resolvedCohort.name;
+            const resolvedCohortId = resolvedCohort._id?.toString();
+            const effectiveVersionId = resolvedCohort.courseVersionId?.toString();
+            const courseId = resolvedCohort.courseId?.toString();
+
+            if (!resolvedCohortId || !effectiveVersionId || !courseId) {
+                throw new BadRequestError(`Incomplete cohort data resolved for student dashboard.`);
+            }
+
+            // 1. Get student dashboard stats from submissions repository
+            const dashboardStats = await this.activitySubmissionsRepository.getStudentDashboardStats(
+                studentId,
+                resolvedCohortId,
+                effectiveVersionId,
+                session
+            );
+
+            // 2. Get current HP from enrollment
+            const enrollment = await this.cohortRepository.findEnrollment(
+                studentId,
+                courseId,
+                effectiveVersionId,
+                resolvedCohortId,
+                session
+            );
+            const totalHp = enrollment?.hpPoints ?? 0; 
+
+            // 3. Get progress timeline from ledger
+            const progressTimeline = await this.ledgerRepository.getStudentHpTimeline(
+                studentId,
+                resolvedCohortId,
+                effectiveVersionId,
+                timelineDays,
+                session
+            );
+
+            // 4. Get upcoming deadlines (within 7 days)
+            const upcomingDeadlines = await this.activityRepository.getUpcomingDeadlinesForStudent(
+                studentId,
+                resolvedCohortId,
+                effectiveVersionId,
+                7, // days
+                5, // limit
+                session
+            );
+
+            // 5. Get recent submissions (last 5)
+            const recentSubmissions = await this.activitySubmissionsRepository.getStudentRecentSubmissions(
+                studentId,
+                resolvedCohortId,
+                effectiveVersionId,
+                5,
+                session
+            );
+
+            return {
+                myStats: {
+                    ...dashboardStats.myStats,
+                    totalHp
+                },
+                progressTimeline,
+                activityBreakdown: dashboardStats.activityBreakdown,
+                upcomingDeadlines,
+                recentSubmissions
+            };
+        });
     }
 }
 

@@ -1,7 +1,8 @@
 import { ClientSession, ObjectId } from "mongodb";
-import { CohortStudentItemDto, CohortStudentsListQueryDto } from "../classes/validators/courseAndCohorts.js";
-import { IEnrollment } from "#root/shared/index.js";
+import { CohortStudentItemDto, CohortStudentsListQueryDto, CourseWithVersionsDto } from "../classes/validators/courseAndCohorts.js";
+import { ICohort, IEnrollment } from "#root/shared/index.js";
 import { ID } from "../constants.js";
+import { HpResetMode } from "../models.js";
 
 export interface ICohortRepository {
     /**
@@ -9,6 +10,22 @@ export interface ICohortRepository {
      */
     getTotalStudentsCountForCourseVersion(
         courseVersionId: string
+    ): Promise<number>;
+
+    /**
+     * Returns cohorts from the DB `cohorts` collection for a given course version.
+     */
+    getCohortsByVersionId(
+        courseVersionId: string,
+        isPublic?: boolean
+    ): Promise<ICohort[]>;
+
+    /**
+     * Returns total number of students enrolled in a specific cohort within a course version.
+     */
+    getTotalStudentsCountForCohort(
+        courseVersionId: string,
+        cohortId: string
     ): Promise<number>;
 
     /**
@@ -26,7 +43,17 @@ export interface ICohortRepository {
      */
     getStudentsForCohortByVersionAndCohortName(
         courseVersionId: string,
-        cohortName: string
+        cohortId: string
+    ): Promise<CohortStudentItemDto[]>;
+
+    /**
+     * Returns students filtered by versionId and cohortId
+     * (used for dynamic cohorts where enrollment has a cohortId field).
+     */
+    getStudentsForCohortByCohortId(
+        courseVersionId: string,
+        cohortId: string,
+        query: CohortStudentsListQueryDto
     ): Promise<CohortStudentItemDto[]>;
 
 
@@ -34,6 +61,7 @@ export interface ICohortRepository {
         userId: string | ObjectId,
         courseId: string,
         courseVersionId: string,
+        cohortId: string,
         session?: ClientSession,
     ): Promise<IEnrollment | null>
 
@@ -41,7 +69,57 @@ export interface ICohortRepository {
         userId: ID,
         courseId: ID,
         courseVersionId: ID,
+        cohortId: string,
         amount: number,
         session?: ClientSession,
     ): Promise<boolean>
+
+    getDynamicCoursesWithVersions(
+        session?: ClientSession
+    ): Promise<CourseWithVersionsDto[]>
+
+    getInstructorActiveEnrollments(
+        userId: string
+    ): Promise<{ courseId: string; courseVersionId: string; cohortId?: string }[]>
+
+    getTotalHpDistributedByCohort(courseVersionId: string, cohortId: string): Promise<number>
+
+    getCohortIdByCohortName(cohortName: string): Promise<string | null>
+
+    updateCohortNameAcrossDB(
+        courseVersionId: string,
+        oldCohortName: string,
+        newCohortName: string,
+    ): Promise<void>
+
+    getCurrentHpPointsByCohortId(
+        studentId: string,
+        courseId: string,
+        courseVersionId: string,
+        cohortId: string,
+        session?: ClientSession
+    ): Promise<number>
+
+    getCourseVersionNameById(versionId: string): Promise<string>
+
+    resetHpforCohort(
+        courseVersionId: string,
+        cohortId: string,
+        cohortName:string,
+        targetHp: number,
+        mode: HpResetMode,
+        triggeredByUserId: string,
+        session?: ClientSession,
+    ): Promise<number>
+
+    /**
+     * Resolves a cohort identifier (either cohortId or cohortName) into a full ICohort object.
+     * Use this for central resolution to support both ID and Name based lookups.
+     */
+    resolveCohort(
+        idOrName: string,
+        courseId?: string,
+        courseVersionId?: string,
+        session?: ClientSession,
+    ): Promise<ICohort | null>;
 }

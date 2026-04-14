@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsBoolean,
   IsDateString,
   IsEnum,
@@ -7,8 +8,10 @@ import {
   IsString,
   Min,
   ValidateNested,
+  ValidateIf
 } from "class-validator";
 import { Type } from "class-transformer";
+import { SubmissionField } from "../../models.js";
 
 /* ===== Enums (same values as your types) ===== */
 
@@ -20,6 +23,7 @@ export enum RuleTypeEnum {
 export enum RewardApplyWhenEnum {
   ON_SUBMISSION = "ON_SUBMISSION",
   ON_APPROVAL = "ON_APPROVAL",
+  ON_MILESTONE_COMPLETION = "ON_MILESTONE_COMPLETION",
 }
 
 export enum LateBehaviorEnum {
@@ -31,11 +35,6 @@ export enum PenaltyApplyWhenEnum {
   AFTER_DEADLINE = "AFTER_DEADLINE",
 }
 
-export enum LateRewardPolicyEnum {
-  NONE = "NONE",
-  REWARD_ALLOWED = "REWARD_ALLOWED",
-  REWARD_DENIED = "REWARD_DENIED",
-}
 
 /* ===== Nested DTOs ===== */
 
@@ -43,55 +42,61 @@ export class HpRewardRuleDto {
   @IsBoolean()
   enabled!: boolean;
 
+  @ValidateIf(o => o.enabled)
   @IsEnum(RuleTypeEnum)
-  type!: RuleTypeEnum;
+  type?: RuleTypeEnum;
 
+  @ValidateIf(o => o.enabled)
   @IsNumber()
-  value!: number;
+  @Min(1)
+  value?: number;
 
+  @ValidateIf(o => o.enabled)
   @IsEnum(RewardApplyWhenEnum)
-  applyWhen!: RewardApplyWhenEnum;
+  applyWhen?: RewardApplyWhenEnum;
 
-  @IsBoolean()
-  onlyWithinDeadline!: boolean;
-
-  @IsBoolean()
-  allowLate!: boolean;
-
+  @ValidateIf(o => o.enabled)
   @IsEnum(LateBehaviorEnum)
-  lateBehavior!: LateBehaviorEnum;
-
-  @IsNumber()
-  minHpFloor!: number;
+  lateBehavior?: LateBehaviorEnum;
 }
 
 export class HpPenaltyRuleDto {
   @IsBoolean()
   enabled!: boolean;
 
+  @ValidateIf(o => o.enabled)
   @IsEnum(RuleTypeEnum)
-  type!: RuleTypeEnum;
+  type?: RuleTypeEnum;
 
+  @ValidateIf(o => o.enabled)
   @IsNumber()
-  value!: number;
+  @Min(1)
+  value?: number;
 
+  @ValidateIf(o => o.enabled)
   @IsEnum(PenaltyApplyWhenEnum)
-  applyWhen!: PenaltyApplyWhenEnum;
+  applyWhen?: PenaltyApplyWhenEnum;
 
+  @ValidateIf(o => o.enabled)
   @IsNumber()
   @Min(0)
-  graceMinutes!: number;
+  graceMinutes?: number;
 
+  @IsOptional()
   @IsBoolean()
-  runOnce!: boolean;
+  runOnce?: boolean;
 }
 
 export class HpRuleLimitsDto {
+  @IsOptional()
   @IsNumber()
-  minHp!: number;
+  @Min(0)
+  minHp?: number;
 
+  @IsOptional()
   @IsNumber()
-  maxHp!: number;
+  @Min(0)
+  maxHp?: number;
 }
 
 /* ===== Create Body ===== */
@@ -103,20 +108,20 @@ export class CreateHpRuleConfigBody {
   @IsString()
   courseVersionId!: string;
 
+  @IsOptional()
   @IsString()
-  activityId!: string;
+  activityId?: string;
 
   @IsBoolean()
   isMandatory!: boolean;
 
+  @IsOptional()
   @IsDateString()
-  deadlineAt!: string;
+  deadlineAt?: string;
 
   @IsBoolean()
   allowLateSubmission!: boolean;
 
-  @IsEnum(LateRewardPolicyEnum)
-  lateRewardPolicy!: LateRewardPolicyEnum;
 
   @ValidateNested()
   @Type(() => HpRewardRuleDto)
@@ -129,11 +134,16 @@ export class CreateHpRuleConfigBody {
   @ValidateNested()
   @Type(() => HpRuleLimitsDto)
   limits!: HpRuleLimitsDto;
+
+  @IsArray()
+  @IsEnum(SubmissionField, { each: true })
+  submissionValidation!: SubmissionField[];
 }
 
 /* ===== Update Body (partial) ===== */
 
 export class UpdateHpRuleConfigBody {
+
   @IsOptional()
   @IsBoolean()
   isMandatory?: boolean;
@@ -146,9 +156,6 @@ export class UpdateHpRuleConfigBody {
   @IsBoolean()
   allowLateSubmission?: boolean;
 
-  @IsOptional()
-  @IsEnum(LateRewardPolicyEnum)
-  lateRewardPolicy?: LateRewardPolicyEnum;
 
   @IsOptional()
   @ValidateNested()
@@ -164,4 +171,8 @@ export class UpdateHpRuleConfigBody {
   @ValidateNested()
   @Type(() => HpRuleLimitsDto)
   limits?: HpRuleLimitsDto;
+  
+  @IsArray()
+  @IsEnum(SubmissionField, { each: true })
+  submissionValidation!: SubmissionField[];
 }

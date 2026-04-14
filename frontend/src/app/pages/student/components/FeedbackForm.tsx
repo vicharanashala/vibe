@@ -26,6 +26,7 @@ interface FeedbackFormProps {
   onNext: () => void
   isAlreadyWatched?: boolean;
   completedItemIdsRef: React.RefObject<Set<string>>;
+  previousItem?: object
 }
 
 const FeedbackForm = ({
@@ -40,6 +41,7 @@ const FeedbackForm = ({
   onNext,
   isAlreadyWatched,
   completedItemIdsRef,
+  previousItem
 }: FeedbackFormProps) => {
   const watchItemIdRef = useRef<string | null>(null);
 
@@ -48,6 +50,7 @@ const FeedbackForm = ({
   const { currentCourse, setWatchItemId } = useCourseStore();
   const submitFeedback = useSubmitFeedback(currentCourse?.itemId || '')
   const watchItemId = watchItemIdRef.current
+
 
   // useEffect(() => {
   //   handleSendStartItem()
@@ -189,7 +192,7 @@ const FeedbackForm = ({
 
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-6">
+    <div>{ previousItem === null || previousItem === undefined ? (      <div className="w-full max-w-4xl mx-auto space-y-6">
       {/* Static Header */}
       <div className="text-center space-y-3">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
@@ -255,6 +258,73 @@ const FeedbackForm = ({
           </div>
         </CardContent>
       </Card>
+    </div>): (previousItem?.isCompleted ? (<div className="w-full max-w-4xl mx-auto space-y-6">
+      {/* Static Header */}
+      <div className="text-center space-y-3">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+          Feedback Form
+        </h1>
+        {description && (
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            {description}
+          </p>
+        )}
+      </div>
+
+      {/* Form Card */}
+      <Card className="w-full">
+        <CardHeader className="pb-4 border-b">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <CardTitle className="text-xl font-semibold">{title}</CardTitle>
+              <CardDescription className="text-sm">
+                Please fill out the form below
+              </CardDescription>
+            </div>
+            {isOptional && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Optional</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSkip}
+                  disabled={isSubmitting}
+                  className="text-muted-foreground flex items-center gap-1"
+                  size="sm"
+                >
+                  Skip
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+
+        <CardContent className="pt-6">
+          <div className="max-h-[60vh] overflow-y-auto pr-4">            
+            <Form
+              // schema={jsonSchema}
+              schema={normalizeSchemaOptions(jsonSchema)}
+              validator={validator}
+              uiSchema={uiSchema}
+              onSubmit={handleSubmit}
+              disabled={isSubmitting}
+              formData={buildEmptyFormData(jsonSchema)}
+              templates={{
+                  FieldTemplate: AlignedFieldTemplate,
+                  ButtonTemplates: {
+                    SubmitButton: CustomSubmitButton,
+                  },
+                }}
+              widgets={{
+                SelectWidget: FocusableSelectWidget, 
+              }}
+             
+            />
+          </div>
+        </CardContent>
+      </Card>
+    </div>): <h1>{`This feed back form is locked please see previous video ${previousItem?.name}`}</h1>)}
     </div>
   );
 }

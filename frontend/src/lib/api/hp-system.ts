@@ -18,7 +18,10 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
     });
     if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || `Request failed (${res.status})`);
+        const err: any = new Error(errData.message || `Request failed (${res.status})`);
+        err.response = { json: async () => errData };
+        err.data = errData;
+        throw err;
     }
     return res.json();
 }
@@ -26,12 +29,16 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
 // ─── ID Resolution Workaround ────────────────────────────────
 // Maps cohort name to the real database IDs used in the enrollment collection.
 // This allows the frontend to resolve placeholder IDs ("000...1") before API calls.
-export const COHORT_ID_MAP: Record<string, { courseId: string; versionId: string }> = {
-    Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
-    Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150" },
-    Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57" },
-    RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719" },
-    AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
+export const COHORT_ID_MAP: Record<string, { courseId: string; versionId: string; cohortId: string }> = {
+    Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af", cohortId: "69d31909b50379d839ff3492" },
+    Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150", cohortId: "69d3190ab50379d839ff3493" },
+    Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57", cohortId: "69d3190ab50379d839ff3494" },
+    RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719", cohortId: "69d3190ab50379d839ff3495" },
+    AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff", cohortId: "69d3190ab50379d839ff3496" },
+    A: { courseId: "69d2b1bc0744872b91ab54d9", versionId: "69d2b1bc0744872b91ab54da", cohortId: "69d31a4697aaee1324e583d5" },
+    B: { courseId: "69d2b2e50744872b91ab641e", versionId: "69d2b2e50744872b91ab641f", cohortId: "69d31a4697aaee1324e583d6" },
+    Scorchers: { courseId: "69c77763b4ae917c56cf1342", versionId: "69c77763b4ae917c56cf1343", cohortId: "69d3190ab50379d839ff3498" },
+    Testians: { courseId: "69c77812b4ae917c56cf227e", versionId: "69c77812b4ae917c56cf227f", cohortId: "69d3190ab50379d839ff3497" },
 };
 
 export function getEffectiveIds(cohortName: string, fallbackCourseId: string, fallbackVersionId: string) {
@@ -39,6 +46,7 @@ export function getEffectiveIds(cohortName: string, fallbackCourseId: string, fa
     return {
         courseId: mapping?.courseId ?? fallbackCourseId,
         courseVersionId: mapping?.versionId ?? fallbackVersionId,
+        cohortId: mapping?.cohortId ?? cohortName,
     };
 }
 
@@ -58,7 +66,7 @@ export interface CourseWithVersions {
 }
 
 export interface CohortStats {
-    cohortId?: string;
+    cohortId: string;
     cohortName: string;
     courseVersionId: string;
     stats: {
@@ -80,7 +88,7 @@ export interface HpActivity {
     _id: string;
     courseVersionId: string;
     courseId: string;
-    cohort: string;
+    cohortId: string;
     createdByTeacherId?: string;
     publishedByTeacherId?: string;
     instructorName?: string;
@@ -90,6 +98,7 @@ export interface HpActivity {
     activityType: "ASSIGNMENT" | "MILESTONE" | "EXTERNAL_IMPORT" | "VIBE_MILESTONE" | "OTHER";
     submissionMode: "IN_PLATFORM" | "EXTERNAL_LINK";
     externalLink?: string;
+    // required_percentage?: number;
     attachments?: {
         name: string;
         url: string;
@@ -107,8 +116,10 @@ export interface HpActivity {
         deadlineAt: Date | string;
         allowLateSubmission: boolean;
     };
+    required_percentage?: number;
     createdAt: string;
     updatedAt: string;
+    isSubmitted?: boolean;
 }
 
 export interface HpStudent {
@@ -117,6 +128,7 @@ export interface HpStudent {
     email: string;
     totalHp: number;
     completionPercentage: number;
+    isSafe: boolean;
     avatar?: string;
 }
 
@@ -134,6 +146,7 @@ export interface HpLedgerCalcEntry {
 export interface HpLedgerMetaEntry {
     triggeredBy?: string;
     triggeredByUserId?: string;
+    triggeredByUserName?: string | null;
     note?: string;
 }
 
@@ -174,16 +187,89 @@ export interface LedgerListResponse {
     limit: number;
 }
 
+export interface StudentDashboardStats {
+    myStats: {
+        totalHp: number;
+        completedActivities: number;
+        pendingSubmissions: number;
+        completionPercentage: number;
+    };
+    progressTimeline: {
+        date: string;
+        hpChange: number;
+        activitiesCompleted: number;
+    }[];
+    activityBreakdown: {
+        notStarted: number;
+        submitted: number;
+        approved: number;
+        rejected: number;
+    };
+    upcomingDeadlines: {
+        activityTitle: string;
+        deadlineDate: string;
+        daysLeft: number;
+    }[];
+    recentSubmissions: {
+        activityTitle: string;
+        submittedAt: string;
+        status: string;
+        hpEarned?: number;
+    }[];
+}
+
 export interface HpCohortOverviewStats {
+    totalActivities: number;
+    totalSubmissions: number;
+    totalPendings: number;
+    totalLateSubmissions: number;
+    currentHp: number;
+    reward?: {
+        type: string;
+        value: number;
+    } | null;
     totalStudents: number;
-    totalOverdue: number;
-    completionRates: {
+    bestPerformingCohort: string;
+    coursePerformance: {
+        courseId: string;
+        courseName: string;
+        totalHp: number;
+        studentCount: number;
+    }[];
+    weeklyActivity: {
+        date: string;
+        submitted: number;
+        approved: number;
+        rejected: number;
+    }[];
+    // Add missing fields that the component expects
+    completionRates?: {
         activityId: string;
         activityTitle: string;
         submittedCount: number;
         pendingCount: number;
         revertedCount: number;
         totalAssigned: number;
+    }[];
+    hpDistribution?: {
+        range: string;
+        count: number;
+        percentage: number;
+    }[];
+    studentProgress?: {
+        completed: number;
+        inProgress: number;
+        notStarted: number;
+    }[];
+    studentPerformance?: {
+        studentId: string;
+        name: string;
+        email: string;
+        completedActivities: number;
+        hpBalance: number;
+        completionPercentage: number;
+        lastActivityDate: string;
+        status: 'on-track' | 'at-risk' | 'inactive';
     }[];
 }
 
@@ -192,6 +278,18 @@ export interface SubmissionAttachment {
     name: string;
     url: string;
     type: 'image' | 'pdf' | 'document' | 'link' | 'other';
+    textResponse?: string;
+    files?: Array<{ _id: string; name: string; url: string; type: string }>;
+    images?: Array<{ _id: string; name: string; url: string; type: string }>;
+    links?: Array<{ _id: string; name: string; url: string; type: string }>;
+}
+
+export interface InstructorFeedback {
+    decision?: string;
+    reviewerName?: string;
+    reviewerEmail?: string;
+    reviewedAt?: string;
+    note?: string;
 }
 
 export interface HpStudentSubmission {
@@ -217,16 +315,30 @@ export interface HpStudentSubmission {
     };
     feedbacks?: Array<{
         feedback: string;
-        teacherId?: string;
-        feedbackAt?: string;
+        feedbackAt: string;
+        username: string;
+        email: string;
     }>;
     submission?: {
         _id: string;
         status: string;
         submittedAt: string;
+        attachments?: {
+            textResponse?: string;
+            files?: Array<{ _id: string; name: string; url: string; type: string }>;
+            images?: Array<{ _id: string; name: string; url: string; type: string }>;
+            links?: Array<{ _id: string; name: string; url: string; type: string }>;
+        };
     };
     safetyStatus?: 'safe' | 'unsafe';
     isRequiredInstructorApproval?: boolean;
+}
+
+export enum SubmissionField {
+    TEXT = "TEXT",
+    PDF = "PDF",
+    IMAGE = "IMAGE",
+    URL = "URL",
 }
 
 export interface HpRuleConfig {
@@ -235,18 +347,15 @@ export interface HpRuleConfig {
     courseVersionId: string;
     activityId: string;
     isMandatory: boolean;
+    submissionValidation:SubmissionField[];
     deadlineAt?: string;
     allowLateSubmission?: boolean;
-    lateRewardPolicy?: "NONE" | "REWARD_ALLOWED" | "REWARD_DENIED";
     reward?: {
         enabled: boolean;
         type: "ABSOLUTE" | "PERCENTAGE";
         value: number;
         applyWhen: "ON_SUBMISSION" | "ON_APPROVAL";
-        onlyWithinDeadline: boolean;
-        allowLate: boolean;
         lateBehavior: "NO_REWARD" | "REWARD";
-        minHpFloor: number;
     };
     penalty?: {
         enabled: boolean;
@@ -257,8 +366,8 @@ export interface HpRuleConfig {
         runOnce: boolean;
     };
     limits?: {
-        minHp: number;
-        maxHp: number;
+        minHp?: number;
+        maxHp?: number;
     };
     createdAt?: string;
     updatedAt?: string;
@@ -268,7 +377,7 @@ export interface HpStudentActivity {
     _id: string;
     courseVersionId: string;
     courseId: string;
-    cohort: string;
+    cohortId: string;
     title: string;
     description: string;
     activityType: "ASSIGNMENT" | "MILESTONE" | "EXTERNAL_IMPORT" | "VIBE_MILESTONE" | "OTHER";
@@ -291,7 +400,7 @@ export interface HpStudentActivity {
 export interface CreateHpActivityPayload {
     courseId: string;
     courseVersionId: string;
-    cohort: string;
+    cohortId: string;
     title: string;
     description: string;
     activityType: string;
@@ -300,42 +409,78 @@ export interface CreateHpActivityPayload {
     status?: "DRAFT" | "PUBLISHED";
     deadlineAt?: string;
     allowLateSubmission?: boolean;
-    lateRewardPolicy?: string;
     attachments?: { name: string; url: string; kind: string }[];
+    required_percentage?: number;
 }
 
+export interface HpStudentSubmissionStats {
+    totalActivities: number;
+    totalSubmissions: number;
+    totalPendings: number;
+    totalLateSubmissions: number;
+    currentHp: number;
+    reward?: {
+        type: "ABSOLUTE" | "PERCENTAGE";
+        value: number;
+    } | null;
+}
+export type HpCohortsResponse = {
+    success: boolean;
+    message: string;
+    data: CohortStats[];
+    courseVersionName: string;
+};
+
+export type ResetHpPayload = {
+  courseVersionId: string;
+  cohortName: string;
+  mode: "ALL" | "ONLY_ZERO_HP" | "ONLY_WITH_HP";
+  targetHp: number;
+};
+
+export type ResetStudentHpPayload = {
+  courseVersionId: string;
+  studentId: string;
+  cohortName: string;
+  targetHp: number;
+}
 // ─── API Functions ───────────────────────────────────────────
 
 export const hpApi = {
 
     // ── Courses & Cohorts (mock backend) ──────────────────────
-
+    
     getCourseVersions: async (): Promise<{ success: boolean; data: CourseWithVersions[] }> => {
         return apiFetch(`${BASE_URL}/courses-cohorts/courses/versions`);
     },
 
-    getCohorts: async (courseVersionId: string): Promise<{ success: boolean; message: string; data: CohortStats[] }> => {
+    getCourseDetails: async (versionId: string) => {
+    return apiFetch(`${BASE_URL}/courses-cohorts/course/${versionId}/details`);
+},
+
+    // getCohorts: async (courseVersionId: string): Promise<{ success: boolean; message: string; data: CohortStats[] }> => {
+    getCohorts: async (courseVersionId: string): Promise<HpCohortsResponse> => {
         const params = new URLSearchParams({ courseVersionId });
         return apiFetch(`${BASE_URL}/courses-cohorts/cohorts?${params.toString()}`);
     },
 
-    getStudentCohorts: async (): Promise<{ success: boolean; message: string; data: any[] }> => {
-        return apiFetch(`${BASE_URL}/courses-cohorts/cohorts`);
+    getStudentCohorts: async (): Promise<{ success: boolean; message: string; data: any[]; totalHp?: number }> => {
+        return apiFetch(`${BASE_URL}/courses-cohorts/student-cohorts`);
     },
 
     getStudentActivities: async (
         courseVersionId: string,
-        cohortName: string
+        cohortId: string
     ): Promise<{ success: boolean; data: HpActivity[] }> => {
         // Use the existing activities endpoint, filtered to PUBLISHED only for students
-        const params = new URLSearchParams({ courseVersionId, cohort: cohortName, status: 'PUBLISHED' });
+        const params = new URLSearchParams({ courseVersionId, cohortId: cohortId, status: 'PUBLISHED' });
         return apiFetch(`${BASE_URL}/activities?${params.toString()}`);
     },
 
     submitActivity: async (options: {
         courseId: string;
         courseVersionId: string;
-        cohort: string;
+        cohortId: string;
         activityId: string;
         payload: {
             textResponse?: string;
@@ -352,7 +497,7 @@ export const hpApi = {
             const formData = new FormData();
             formData.append('courseId', rest.courseId);
             formData.append('courseVersionId', rest.courseVersionId);
-            formData.append('cohort', rest.cohort);
+            formData.append('cohortId', rest.cohortId);
             formData.append('activityId', rest.activityId);
             if (rest.submissionSource) {
                 formData.append('submissionSource', rest.submissionSource);
@@ -386,7 +531,10 @@ export const hpApi = {
             });
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.message || `Request failed (${res.status})`);
+                const err: any = new Error(errData.message || `Request failed (${res.status})`);
+                err.response = { json: async () => errData };
+                err.data = errData;
+                throw err;
             }
             return res.json();
         }
@@ -397,26 +545,112 @@ export const hpApi = {
         });
     },
 
+    updateActivitySubmission: async (submissionId: string, options: {
+        courseId: string;
+        courseVersionId: string;
+        cohortId: string;
+        activityId: string;
+        payload: {
+            textResponse?: string;
+            links?: { url: string; label: string }[];
+            files?: any[];
+            images?: any[];
+        };
+        submissionSource?: string;
+        files?: File[];
+        images?: File[];
+    }): Promise<{ success: boolean; data: any }> => {
+        const { files, images, ...rest } = options;
+        const hasFiles = (files && files.length > 0) || (images && images.length > 0);
+
+        if (hasFiles) {
+            const formData = new FormData();
+            formData.append('courseId', rest.courseId);
+            formData.append('courseVersionId', rest.courseVersionId);
+            formData.append('cohortId', rest.cohortId);
+            formData.append('activityId', rest.activityId);
+            if (rest.submissionSource) {
+                formData.append('submissionSource', rest.submissionSource);
+            }
+            if (rest.payload.textResponse) {
+                formData.append('payload[textResponse]', rest.payload.textResponse);
+            }
+            if (rest.payload.links) {
+                rest.payload.links.forEach((link, idx) => {
+                    formData.append(`payload[links][${idx}][url]`, link.url);
+                    formData.append(`payload[links][${idx}][label]`, link.label);
+                });
+            }
+            if (rest.payload.files) {
+                rest.payload.files.forEach((file: any, idx: number) => {
+                    if (file.fileId) formData.append(`payload[files][${idx}][fileId]`, file.fileId);
+                    if (file.url) formData.append(`payload[files][${idx}][url]`, file.url);
+                    if (file.name) formData.append(`payload[files][${idx}][name]`, file.name);
+                    if (file.mimeType) formData.append(`payload[files][${idx}][mimeType]`, file.mimeType);
+                    if (file.sizeBytes !== undefined) formData.append(`payload[files][${idx}][sizeBytes]`, String(file.sizeBytes));
+                });
+            }
+            if (rest.payload.images) {
+                rest.payload.images.forEach((img: any, idx: number) => {
+                    if (img.fileId) formData.append(`payload[images][${idx}][fileId]`, img.fileId);
+                    if (img.url) formData.append(`payload[images][${idx}][url]`, img.url);
+                    if (img.name) formData.append(`payload[images][${idx}][name]`, img.name);
+                });
+            }
+
+            if (files) {
+                files.forEach(f => formData.append('files', f));
+            }
+            if (images) {
+                images.forEach(img => formData.append('images', img));
+            }
+
+            const token = localStorage.getItem('firebase-auth-token');
+            const res = await fetch(`${BASE_URL}/activity-submissions/${submissionId}`, {
+                method: 'PUT',
+                body: formData,
+                headers: {
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                credentials: 'include',
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                const err: any = new Error(errData.message || `Request failed (${res.status})`);
+                err.response = { json: async () => errData };
+                err.data = errData;
+                throw err;
+            }
+            return res.json();
+        }
+
+        return apiFetch(`${BASE_URL}/activity-submissions/${submissionId}`, {
+            method: 'PUT',
+            body: JSON.stringify(rest),
+        });
+    },
+
     // ── Activities (real backend) ────────────────────────────
 
     getActivities: async (
         courseVersionId: string,
-        cohort: string,
+        cohortId: string,
         status?: string,
-        search?: string
+        search?: string,
+        activity?: string
     ): Promise<{ success: boolean; data: HpActivity[] }> => {
-        const params = new URLSearchParams({ courseVersionId, cohort });
+        const params = new URLSearchParams({ courseVersionId, cohortId });
         if (status && status !== 'ALL') params.append('status', status);
         if (search) params.append('search', search);
-
+        if (activity && activity !== 'ALL') params.append('activity', activity);
         return apiFetch(`${BASE_URL}/activities?${params.toString()}`);
     },
 
     getStudentMySubmissions: async (
         courseVersionId: string,
-        cohort: string
+        cohortId: string
     ): Promise<{ success: boolean; data: any[] }> => {
-        const params = new URLSearchParams({ courseVersionId, cohort });
+        const params = new URLSearchParams({ courseVersionId, cohortId });
         // The teacher list endpoint returns the submissions according to the query.
         // It relies on the token if we had a specific student endpoint, but we can reuse the generic list one 
         // if the backend filters it by the token's user ID.
@@ -455,8 +689,15 @@ export const hpApi = {
 
     deleteActivity: async (activityId: string): Promise<{ success: boolean }> => {
         // Backend does not have a DELETE endpoint; archive instead
-        return apiFetch(`${BASE_URL}/activities/${activityId}/archive`, {
+        return apiFetch(`${BASE_URL}/activities/${activityId}/delete`, {
             method: 'POST',
+        });
+    },
+
+    createActivityWithRule: async (payload: { activity: CreateHpActivityPayload; ruleConfig: Partial<HpRuleConfig>; }): Promise<{ success: boolean; data: HpRuleConfig }> => {
+        return apiFetch(`${BASE_URL}/activities/with-rule`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
         });
     },
 
@@ -485,7 +726,7 @@ export const hpApi = {
     },
 
     // ── Legacy compatibility shim (kept for RuleSettingsDialog) ──
-    getRuleConfigs: async (_courseVersionId: string, _cohort: string): Promise<{ success: boolean; data: HpRuleConfig[] }> => {
+    getRuleConfigs: async (_courseVersionId: string, _cohortId: string): Promise<{ success: boolean; data: HpRuleConfig[] }> => {
         // No list-all endpoint on backend; return empty for now
         return { success: true, data: [] };
     },
@@ -494,44 +735,82 @@ export const hpApi = {
 
     getStudents: async (
         courseVersionId: string,
-        cohort: string,
+        cohortId: string,
+        params?: {
+        page?: number;
+        limit?: number;
+        search?: string;
+        status?: "ALL" | "SAFE" | "UNSAFE";
+    }
     ): Promise<{ success: boolean; data: HpStudent[] }> => {
-        // Pass a large limit so we get all students for client-side pagination
-        return apiFetch(`${BASE_URL}/courses-cohorts/version/${courseVersionId}/cohort/${cohort}/students?limit=1000&page=1`);
+        // Pass a large limit so we get all students for client-side pagination 
+        const { page = 1, limit = 10000, search = "", status = "ALL" } = params || {};
+        return apiFetch(`${BASE_URL}/courses-cohorts/version/${courseVersionId}/cohort/${cohortId}/students?limit=${limit}&page=${page}&search=${search}&status=${status}`);
     },
 
     getCohortOverviewStats: async (
-        _courseVersionId: string,
-        _cohort: string,
+        courseVersionId: string,
+        cohortId: string,
     ): Promise<{ success: boolean; data: HpCohortOverviewStats }> => {
-        // Mock data for the overview
-        const mockStats: HpCohortOverviewStats = {
-            totalStudents: 45,
-            totalOverdue: 12,
-            completionRates: [
-                { activityId: 'a1', activityTitle: 'Build REST API', submittedCount: 40, pendingCount: 3, revertedCount: 2, totalAssigned: 45 },
-                { activityId: 'a2', activityTitle: 'Week 1 Quiz', submittedCount: 45, pendingCount: 0, revertedCount: 0, totalAssigned: 45 },
-                { activityId: 'a3', activityTitle: 'Database Schema Design', submittedCount: 28, pendingCount: 15, revertedCount: 2, totalAssigned: 45 },
-                { activityId: 'a4', activityTitle: 'Deploy to Cloud', submittedCount: 15, pendingCount: 25, revertedCount: 5, totalAssigned: 45 },
-                { activityId: 'a5', activityTitle: 'Midterm Project', submittedCount: 38, pendingCount: 5, revertedCount: 2, totalAssigned: 45 },
-            ]
-        };
-        return { success: true, data: mockStats };
+        const response = await apiFetch(`${BASE_URL}/activity-submissions/stats/cohort/${cohortId}/courseversion/${courseVersionId}`);
+        return response as { success: boolean; data: HpCohortOverviewStats };
+    },
+
+    getStudentDashboardStats: async (
+        courseVersionId: string,
+        cohortId: string,
+        timelineDays: number = 7,
+    ): Promise<{ success: boolean; data: StudentDashboardStats }> => {
+        const params = new URLSearchParams({ 
+            courseVersionId, 
+            cohortName: cohortId, 
+            timelineDays: String(timelineDays) 
+        });
+        return apiFetch(`${BASE_URL}/activity-submissions/student/dashboard-stats?${params.toString()}`);
+    },
+
+    getStudentSubmissionStats: async (
+        studentId: string,
+        cohortId: string,
+    ): Promise<{ success: boolean; data: HpStudentSubmissionStats | null }> => {
+        return apiFetch(
+            `${BASE_URL}/activity-submissions/stats/student/${studentId}/cohort/${encodeURIComponent(cohortId)}`
+        );
     },
 
     getStudentSubmissions: async (
         studentId: string,
         courseVersionId: string,
-        cohort: string,
+        cohortId: string,
+        sortOrder: 'asc' | 'desc' = 'desc',
     ): Promise<{ success: boolean; data: any[] }> => {
-        const params = new URLSearchParams({ courseVersionId, cohort });
+        const params = new URLSearchParams({ courseVersionId, cohortId, sortOrder });
         // The backend returns { success, data: StudentActivitySubmissionsViewDto[] }
-        return apiFetch(`${BASE_URL}/activity-submissions/student/${studentId}/cohort/${cohort}?${params.toString()}`);
+        return apiFetch(`${BASE_URL}/activity-submissions/student/${studentId}/cohort/${cohortId}?${params.toString()}`);
+    },
+
+
+    // TODO: Do not remove this function, later we will use it
+    // getStudentSubmissionStats: async(
+    //     studentId: string,
+    //     cohortId: string,
+    // ): Promise<{ success: boolean; data: any }> => {
+    //     return apiFetch(`${BASE_URL}/activity-submissions/stats/student/${studentId}/cohort/${cohort}`);
+    // },
+
+    // Made by Rishabh Shukla
+    getCohortActivityStats: async (cohortId: string, activityId: string): Promise<{ data: any }> => {
+        return apiFetch(`${BASE_URL}/activity-submissions/stats/cohort/${cohortId}/activity/${activityId}`);
+    },
+
+    // Made by Rishabh Shukla
+    getCohortActivityStatsMap: async (cohortId: string, courseVersionId: string): Promise<{ success: boolean; data: any }> => {
+        return apiFetch(`${BASE_URL}/activity-submissions/stats/cohort/${cohortId}/courseversion/${courseVersionId}`);
     },
 
     getStudentLedger: async (
         studentId: string,
-        cohortName: string,
+        cohortId: string,
         courseId: string,
         courseVersionId: string,
         page: number = 1,
@@ -539,20 +818,20 @@ export const hpApi = {
     ): Promise<LedgerListResponse> => {
         const params = new URLSearchParams({ page: String(page), limit: String(limit) });
         return apiFetch(
-            `${BASE_URL}/ledger/student/${studentId}/cohort/${encodeURIComponent(cohortName)}/course/${courseId}/courseVersion/${courseVersionId}?${params.toString()}`
+            `${BASE_URL}/ledger/student/${studentId}/cohort/${encodeURIComponent(cohortId)}/course/${courseId}/courseVersion/${courseVersionId}?${params.toString()}`
         );
     },
 
     getMyLedger: async (
         courseId: string,
         courseVersionId: string,
-        cohort: string,
+        cohortId: string,
         page: number = 1,
         limit: number = 50,
     ): Promise<LedgerListResponse> => {
         const params = new URLSearchParams({ page: String(page), limit: String(limit) });
         return apiFetch(
-            `${BASE_URL}/ledger/student/my-ledger/course/${courseId}/courseVersion/${courseVersionId}/cohort/${encodeURIComponent(cohort)}?${params.toString()}`
+            `${BASE_URL}/ledger/student/my-ledger/course/${courseId}/courseVersion/${courseVersionId}/cohort/${encodeURIComponent(cohortId)}?${params.toString()}`
         );
     },
 
@@ -561,9 +840,11 @@ export const hpApi = {
         return { success: true };
     },
 
-    restoreLedgerEntry: async (entryId: string): Promise<{ success: boolean }> => {
-        console.log('Mock restore for entry:', entryId);
-        return { success: true };
+    restoreLedgerEntry: async (submissionId: string, note?: string): Promise<{ success: boolean }> => {
+        return apiFetch(`${BASE_URL}/activity-submissions/${submissionId}/restore`, {
+            method: 'POST',
+            body: JSON.stringify({ note }),
+        });
     },
 
     reviewSubmission: async (submissionId: string, decision: "APPROVED" | "REJECTED" | "REVERTED", note?: string, pointsToDeduct?: number): Promise<{ success: boolean; data: any }> => {
@@ -578,4 +859,18 @@ export const hpApi = {
             body: JSON.stringify({ feedback }),
         });
     },
+
+    resetHp: async ({courseVersionId,cohortName,targetHp,mode}:ResetHpPayload ): Promise<{success: boolean, documentsUpdated: number}> => {
+        return apiFetch(`${BASE_URL}/courses-cohorts/version/${courseVersionId}/cohort/${cohortName}/reset-hp`, {
+            method: 'POST',
+            body:JSON.stringify({targetHp:targetHp,mode:mode})
+        });
+    },
+
+    resetStudentHp: async ({courseVersionId,studentId,cohortName,targetHp}:ResetStudentHpPayload ): Promise<{success: boolean}> => {
+        return apiFetch(`${BASE_URL}/courses-cohorts/version/${courseVersionId}/cohort/${cohortName}/student/${studentId}/reset-hp`, {
+            method: 'POST',
+            body:JSON.stringify({targetHp:targetHp})
+        });
+    }
 };

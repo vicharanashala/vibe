@@ -1,9 +1,11 @@
 import { SubmissionFeedbackItem } from "#root/modules/hpSystem/classes/transformers/ActivitySubmission.js";
 import { FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsViewDto, SubmissionPayloadDto } from "#root/modules/hpSystem/classes/validators/activitySubmissionValidators.js";
 import { IActivitySubmissionRepository } from "#root/modules/hpSystem/interfaces/IActivitySubmissionRepository.js";
-import { HpActivitySubmission, SubmissionSource, SubmissionStatus } from "#root/modules/hpSystem/models.js";
+import { IActivityRepository } from "#root/modules/hpSystem/interfaces/IActivityRepository.js";
+import { HpActivitySubmission, HpRuleConfig, SubmissionSource, SubmissionStatus } from "#root/modules/hpSystem/models.js";
 import { ID, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
+import { HP_SYSTEM_TYPES } from "#root/modules/hpSystem/types.js";
 import { plainToInstance } from "class-transformer";
 import { inject, injectable } from "inversify";
 import { ClientSession, Collection, ObjectId } from "mongodb";
@@ -12,16 +14,21 @@ import { NotFoundError } from "routing-controllers";
 @injectable()
 export class ActivitySubmissionsRepository implements IActivitySubmissionRepository {
     private hpActivitySubmissionCollection: Collection<HpActivitySubmission>;
+    private hpRuleConfigsCollection!: Collection<HpRuleConfig>;
 
     constructor(
         @inject(GLOBAL_TYPES.Database)
         private db: MongoDatabase,
+        @inject(HP_SYSTEM_TYPES.activityRepository)
+        private activityRepository: IActivityRepository,
     ) { }
 
     async init() {
         this.hpActivitySubmissionCollection = await this.db.getCollection<HpActivitySubmission>(
             'hp_activity_submissions',
         );
+        this.hpRuleConfigsCollection =
+            await this.db.getCollection<HpRuleConfig>("hp_activity_rules");
     }
 
 
@@ -29,6 +36,8 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         input: {
             courseId: ID;
             courseVersionId: ID;
+            cohortId: ID;
+            /** @deprecated kept for backward compat */
             cohort: ID;
             activityId: ID;
 
@@ -110,29 +119,29 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         query: FilterQueryDto,
         courseId?: string,
         courseVersionId?: string,
-        cohortName?: string
-    ): Promise<StudentActivitySubmissionsViewDto[]> {
+        cohortId?: string
+    ): Promise<any[]> {
         await this.init();
 
         const page = query.page ?? 1;
-        const limit = query.limit ?? 20;
-        const skip = (page - 1) * limit;
-
+        const limit = query.limit ?? 0;
+        const skip = limit > 0 ? (page - 1) * limit : 0;
         const search = query.search?.trim();
         const searchRegex = search
             ? new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")
             : null;
 
-        const sortOrder = query.sortOrder === "asc" ? 1 : -1;
+        const sortOrder = query.sortOrder === "desc" ? -1 : 1;
+
         const sortByRaw = (query.sortBy ?? "submittedAt").trim();
 
         // allowlist sort keys
         const SORT_MAP: Record<string, any> = {
-            submittedAt: { submittedAt: sortOrder },
+            submittedAt: { "submission.submittedAt": sortOrder },
             updatedAt: { updatedAt: sortOrder },
-            status: { status: sortOrder },
+            status: { "submission.status": sortOrder },
             activityTitle: { "activity.title": sortOrder },
-            deadline: { "rule.deadlineAt": sortOrder },
+            deadline: { deadline: sortOrder }
         };
         const sortStage = SORT_MAP[sortByRaw] ?? { submittedAt: -1 };
 
@@ -150,8 +159,8 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         if (courseVersionId)
             matchStage.courseVersionId = new ObjectId(courseVersionId)
 
-        if (cohortName)
-            matchStage.cohort = cohortName;
+        if (cohortId)
+            matchStage.cohortId = new ObjectId(cohortId);
 
 
         const pipeline: any[] = [
@@ -176,16 +185,12 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             {
                 $lookup: {
                     from: "hp_activity_rules",
-                    let: { aid: "$activityId", cvid: "$courseVersionId", cid: "$courseId" },
+                    let: { aid: "$activityId" },
                     pipeline: [
                         {
                             $match: {
                                 $expr: {
-                                    $and: [
-                                        { $eq: ["$activityId", "$$aid"] },
-                                        { $eq: ["$courseVersionId", "$$cvid"] },
-                                        { $eq: ["$courseId", "$$cid"] },
-                                    ],
+                                    $eq: ["$activityId", "$$aid"],
                                 },
                             },
                         },
@@ -196,10 +201,105 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             },
             { $unwind: { path: "$rule", preserveNullAndEmptyArrays: true } },
 
-            // 5) Include all feedbacks from feedbacks array
+            // 5) Lookup teachers for feedback enrichment
+            {
+                $lookup: {
+                    from: "users",
+                    let: {
+                        teacherIds: {
+                            $setUnion: [
+                                {
+                                    $map: {
+                                        input: { $ifNull: ["$feedbacks", []] },
+                                        as: "fb",
+                                        in: { $toObjectId: "$$fb.teacherId" }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $in: ["$_id", "$$teacherIds"] }
+                            }
+                        },
+                        {
+                            $project: {
+                                _id: 1,
+                                email: 1,
+                                firstName: 1,
+                                lastName: 1
+                            }
+                        }
+                    ],
+                    as: "teachers"
+                }
+            },
+
+            // 6) Include all feedbacks from feedbacks array and enrich with teacher info
             {
                 $addFields: {
-                    feedbacks: { $ifNull: ["$feedbacks", []] }
+                    feedbacks: {
+                        $map: {
+                            input: { $ifNull: ["$feedbacks", []] },
+                            as: "fb",
+                            in: {
+                                $mergeObjects: [
+                                    "$$fb",
+                                    {
+                                        teacherId: { $toString: "$$fb.teacherId" },
+                                        username: {
+                                            $let: {
+                                                vars: {
+                                                    teacher: {
+                                                        $arrayElemAt: [
+                                                            {
+                                                                $filter: {
+                                                                    input: "$teachers",
+                                                                    cond: { $eq: ["$$this._id", { $toObjectId: "$$fb.teacherId" }] }
+                                                                }
+                                                            },
+                                                            0
+                                                        ]
+                                                    }
+                                                },
+                                                in: {
+                                                    $ifNull: [
+                                                        { $concat: ["$$teacher.firstName", " ", "$$teacher.lastName"] },
+                                                        "Unknown"
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        email: {
+                                            $let: {
+                                                vars: {
+                                                    teacher: {
+                                                        $arrayElemAt: [
+                                                            {
+                                                                $filter: {
+                                                                    input: "$teachers",
+                                                                    cond: { $eq: ["$$this._id", { $toObjectId: "$$fb.teacherId" }] }
+                                                                }
+                                                            },
+                                                            0
+                                                        ]
+                                                    }
+                                                },
+                                                in: {
+                                                    $ifNull: [
+                                                        "$$teacher.email",
+                                                        "N/A"
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
                 }
             },
 
@@ -236,6 +336,15 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                         $switch: {
                             branches: [
                                 { case: { $eq: ["$status", "APPROVED"] }, then: "$baseHp" },
+                                {
+                                    case: {
+                                        $and: [
+                                            { $eq: ["$status", "SUBMITTED"] },
+                                            { $eq: ["$rule.reward.applyWhen", "ON_SUBMISSION"] }
+                                        ]
+                                    },
+                                    then: "$baseHp"
+                                },
                                 { case: { $eq: ["$status", "REVERTED"] }, then: 0 },
                                 { case: { $eq: ["$status", "REJECTED"] }, then: 0 },
                                 { case: { $eq: ["$status", "SUBMITTED"] }, then: 0 },
@@ -273,27 +382,55 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             {
                 $project: {
                     id: { $toString: "$_id" },
+                    courseId: { $toString: "$courseId" },
 
-                    isRequiredInstructorApproval: {
-                        $cond: {
-                            if: {
-                                $and: [
-                                    { $eq: ["$status", "SUBMITTED"] },
-                                    { $eq: ["$rule.reward.applyWhen", "ON_APPROVAL"] }
-                                ]
-                            },
-                            then: true,
-                            else: false
-                        }
-                    },
                     activity: {
                         id: { $toString: "$activity._id" },
                         title: { $ifNull: ["$activity.title", ""] },
                         description: { $ifNull: ["$activity.description", ""] },
                         activityType: { $ifNull: ["$activity.activityType", "OTHER"] },
+                        required_percentage: "activity.required_percentage"
                     },
 
                     deadline: "$rule.deadlineAt",
+
+                    rule: {
+                        isMandatory: "$rule.isMandatory",
+                        allowLateSubmission: "$rule.allowLateSubmission",
+                        submissionValidation: {
+                            $cond: [
+                                { $eq: ["$activity.activityType", "VIBE_MILESTONE"] },
+                                [],
+                                { $ifNull: ["$rule.submissionValidation", ["TEXT"]] }
+                            ]
+                        },
+                        lateRewardPolicy: "$rule.lateRewardPolicy",
+
+                        reward: {
+                            enabled: "$rule.reward.enabled",
+                            type: "$rule.reward.type",
+                            value: "$rule.reward.value",
+                            applyWhen: "$rule.reward.applyWhen",
+                            onlyWithinDeadline: "$rule.reward.onlyWithinDeadline",
+                            allowLate: "$rule.reward.allowLate",
+                            lateBehavior: "$rule.reward.lateBehavior",
+                            minHpFloor: "$rule.reward.minHpFloor",
+                            // required_percentage: "$rule.reward.required_percentage"
+                        },
+
+                        penalty: {
+                            enabled: "$rule.penalty.enabled",
+                            type: "$rule.penalty.type",
+                            value: "$rule.penalty.value",
+                            applyWhen: "$rule.penalty.applyWhen",
+                            graceMinutes: "$rule.penalty.graceMinutes"
+                        },
+
+                        limits: {
+                            minHp: "$rule.limits.minHp",
+                            maxHp: "$rule.limits.maxHp"
+                        }
+                    },
 
                     submission: {
                         _id: { $toString: "$_id" },
@@ -366,7 +503,9 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                             in: {
                                 feedback: "$$fb.feedback",
                                 teacherId: { $toString: "$$fb.teacherId" },
-                                feedbackAt: "$$fb.feedbackAt"
+                                feedbackAt: "$$fb.feedbackAt",
+                                username: "$$fb.username",
+                                email: "$$fb.email"
                             }
                         }
                     },
@@ -376,23 +515,25 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             // 8) sort + paginate
             { $sort: sortStage },
             { $skip: skip },
-            { $limit: limit },
+            ...(limit > 0 ? [{ $limit: limit }] : []),
         ];
 
         const docs = await this.hpActivitySubmissionCollection.aggregate(pipeline).toArray();
 
-        return plainToInstance(StudentActivitySubmissionsViewDto, docs, {
-            excludeExtraneousValues: true,
-            enableImplicitConversion: true,
-        });
+        // return plainToInstance(StudentActivitySubmissionsViewDto, docs, {
+        //     excludeExtraneousValues: true,
+        //     enableImplicitConversion: true,
+        // });
+
+        return docs;
     }
 
     async list(query: ListSubmissionsQueryDto, opts?: { session?: ClientSession }): Promise<HpActivitySubmission[]> {
         await this.init();
 
         const page = query.page ?? 1;
-        const limit = query.limit ?? 20;
-        const skip = (page - 1) * limit;
+        const limit = query.limit ?? 0;
+        const skip = limit > 0 ? (page - 1) * limit : 0;
 
         const sortOrder = query.sortOrder === "desc" ? -1 : 1;
         const sortByRaw = (query.sortBy ?? "submittedAt").trim();
@@ -409,7 +550,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         const q: any = {};
 
         if (query.courseVersionId) q.courseVersionId = new ObjectId(query.courseVersionId);
-        if (query.cohort) q.cohort = query.cohort;
+        if (query.cohortId) q.cohortId = new ObjectId(query.cohortId);
         if (query.activityId) q.activityId = new ObjectId(query.activityId);
         if (query.status) q.status = query.status;
 
@@ -424,6 +565,32 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             .sort(sortStage)
             .skip(skip)
             .limit(limit)
+            .toArray();
+    }
+
+    async listSubmissionsBeforeDeadline(activityId: string): Promise<HpActivitySubmission[]> {
+        await this.init();
+
+        const ruleConfig = await this.hpRuleConfigsCollection.findOne({
+            activityId: new ObjectId(activityId),
+            isDeleted: { $ne: true }
+        });
+
+        if (!ruleConfig) {
+            return [];
+        }
+
+        const graceMinutes = ruleConfig.penalty?.graceMinutes ?? 0;
+
+        const effectiveDeadline = new Date(
+            ruleConfig.deadlineAt.getTime() + graceMinutes * 60000
+        );
+
+        return this.hpActivitySubmissionCollection
+            .find({
+                activityId: new ObjectId(activityId),
+                createdAt: { $lte: effectiveDeadline }
+            })
             .toArray();
     }
 
@@ -448,23 +615,103 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         return await this.hpActivitySubmissionCollection.findOne({ studentId: new ObjectId(studentId), activityId: new ObjectId(activityId) }, { sort: { createdAt: -1 } })
     }
 
-    async getCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number> {
+    async getCountByStudentId(studentId: string, courseId: string, courseVersionId: string, cohortId: string): Promise<number> {
         await this.init();
         return await this.hpActivitySubmissionCollection.countDocuments({
             studentId: new ObjectId(studentId),
             courseId: new ObjectId(courseId),
             courseVersionId: new ObjectId(courseVersionId),
+            cohortId: new ObjectId(cohortId)
         });
     }
 
-    async getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number> {
+    async getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string, cohortId: string): Promise<number> {
         await this.init();
         return await this.hpActivitySubmissionCollection.countDocuments({
             studentId: new ObjectId(studentId),
             courseId: new ObjectId(courseId),
             courseVersionId: new ObjectId(courseVersionId),
+            cohortId: new ObjectId(cohortId),
             isLate: true
         });
+    }
+
+    async getLateSubmissionCount(cohortId: string, courseVersionId: string, session?: ClientSession): Promise<number> {
+        await this.init();
+
+        return await this.hpActivitySubmissionCollection.countDocuments({
+            cohortId: new ObjectId(cohortId),
+            courseVersionId: new ObjectId(courseVersionId),
+            isLate: true
+        }, { session });
+    }
+
+    async getPendingSubmissionsCount(cohortId: string, courseVersionId: string, session?: ClientSession): Promise<number> {
+        await this.init();
+
+        return await this.hpActivitySubmissionCollection.countDocuments({
+            cohortId: new ObjectId(cohortId),
+            courseVersionId: new ObjectId(courseVersionId),
+            status: 'SUBMITTED'
+        }, { session });
+    }
+
+    async getCompletedActivitiesCountByStudentId(studentId: string): Promise<Array<{ cohort: string, count: number }>> {
+        await this.init();
+
+        return await this.hpActivitySubmissionCollection.aggregate([
+            {
+                $match: {
+                    studentId: new ObjectId(studentId),
+                    status: { $in: ["SUBMITTED", "APPROVED"] },
+                    isDeleted: { $ne: true }
+                }
+            },
+            {
+                $lookup: {
+                    from: "hp_ledger",
+                    let: { submissionId: "$_id", activityId: "$activityId" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $or: [
+                                        { $eq: ["$submissionId", "$$submissionId"] },
+                                        { $eq: ["$activityId", "$$activityId"] }
+                                    ]
+                                },
+                                // Ensure it's for the same student
+                                studentId: new ObjectId(studentId)
+                            }
+                        },
+                        { $sort: { createdAt: -1 } },
+                        { $limit: 1 }
+                    ],
+                    as: "latestLedger"
+                }
+            },
+            {
+                $unwind: "$latestLedger"
+            },
+            {
+                $match: {
+                    "latestLedger.direction": "CREDIT"
+                }
+            },
+            {
+                $group: {
+                    _id: { cohort: "$cohort" },
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    cohort: "$_id.cohort",
+                    count: 1
+                }
+            }
+        ]).toArray() as any;
     }
 
     async updateFeedbackById(id: string, feedback: SubmissionFeedbackItem, session?: ClientSession): Promise<boolean> {
@@ -490,4 +737,402 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         return true;
     }
 
+    async getCohortActivityStats(
+        cohortId: string,
+        activityId: string,
+        session?: ClientSession
+    ): Promise<{
+        totalSubmissions: number;
+        approvedCount: number;
+        rejectedCount: number;
+        revertedCount: number;
+        submittedCount: number;
+    }> {
+        await this.init();
+
+        const result = await this.hpActivitySubmissionCollection.aggregate([
+
+            {
+                $match: {
+                    cohortId: new ObjectId(cohortId),
+                    activityId: new ObjectId(activityId)
+                }
+            },
+
+            {
+                $group: {
+                    _id: "$status",
+                    count: { $sum: 1 }
+                }
+            }
+
+        ], { session }).toArray();
+
+        // Default structure
+        const stats = {
+            totalSubmissions: 0,
+            approvedCount: 0,
+            rejectedCount: 0,
+            revertedCount: 0,
+            submittedCount: 0
+
+
+        };
+
+        // Fill counts
+        result.forEach(r => {
+            const count = r.count || 0;
+
+            stats.totalSubmissions += count;
+
+            if (r._id === "APPROVED") stats.approvedCount = count;
+            if (r._id === "REJECTED") stats.rejectedCount = count;
+            if (r._id === "REVERT") stats.revertedCount = count;
+            if (r._id === "SUBMITTED") stats.submittedCount = count;
+        });
+
+        return stats;
+    }
+    async getCohortStatsMap(
+        cohortId: string,
+        courseVersionId: string,
+        session?: ClientSession
+    ) {
+        await this.init();
+
+        const cohortMatch: any = ObjectId.isValid(cohortId)
+            ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+            : { cohort: cohortId };
+
+        const result = await this.hpActivitySubmissionCollection.aggregate([
+
+            {
+                $match: {
+                    ...cohortMatch,
+                    courseVersionId: new ObjectId(courseVersionId)
+                }
+            },
+
+            {
+                $group: {
+                    _id: {
+                        activityId: "$activityId",
+                        status: "$status"
+                    },
+                    count: { $sum: 1 }
+                }
+            }
+
+        ]).toArray();
+
+        const statsMap: Record<string, any> = {};
+
+        result.forEach(r => {
+            const activityId = r._id.activityId.toString();
+            const status = r._id.status;
+
+            if (!statsMap[activityId]) {
+                statsMap[activityId] = {
+                    approvedCount: 0,
+                    rejectedCount: 0,
+                    submittedCount: 0,
+                    revertedCount: 0,
+                };
+            }
+
+            if (status === "APPROVED") statsMap[activityId].approvedCount = r.count;
+            if (status === "REJECTED") statsMap[activityId].rejectedCount = r.count;
+            if (status === "SUBMITTED") statsMap[activityId].submittedCount = r.count;
+            if (status === "REVERT") statsMap[activityId].revertedCount = r.count;
+            if (status === "SUBMITTED") statsMap[activityId].submittedCount = r.count;
+        });
+
+        return statsMap;
+    }
+
+    async getDailyActivityCount(
+        cohortId: string, 
+        courseVersionId: string, 
+        startDate: Date, 
+        endDate: Date, 
+        session?: ClientSession
+    ): Promise<number> {
+        await this.init();
+        
+        const cohortMatch: any = ObjectId.isValid(cohortId)
+            ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+            : { cohort: cohortId };
+
+        const filter = {
+            ...cohortMatch,
+            courseVersionId: new ObjectId(courseVersionId),
+            createdAt: {
+                $gte: startDate,
+                $lte: endDate
+            }
+        };
+
+        const count = await this.hpActivitySubmissionCollection.countDocuments(filter, { session });
+        return count;
+    }
+
+    async getDailyActivityCountByStatus(
+        cohortId: string,
+        courseVersionId: string,
+        startDate: Date,
+        endDate: Date,
+        status: string,
+        session?: ClientSession
+    ): Promise<number> {
+        await this.init();
+        
+        const cohortMatch: any = ObjectId.isValid(cohortId)
+            ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+            : { cohort: cohortId };
+
+        const filter = {
+            ...cohortMatch,
+            courseVersionId: new ObjectId(courseVersionId),
+            status: status as SubmissionStatus,
+            createdAt: {
+                $gte: startDate,
+                $lte: endDate
+            }
+        };
+
+        const count = await this.hpActivitySubmissionCollection.countDocuments(filter, { session });
+        return count;
+    }
+
+    async getUniqueStudentCountForCohort(
+        cohortId: string,
+        courseVersionId: string,
+        session?: ClientSession
+    ): Promise<number> {
+        await this.init();
+        
+        const cohortMatch: any = ObjectId.isValid(cohortId)
+            ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+            : { cohort: cohortId };
+
+        const filter = {
+            ...cohortMatch,
+            courseVersionId: new ObjectId(courseVersionId)
+        };
+
+        const uniqueStudents = await this.hpActivitySubmissionCollection.distinct('studentId', filter, { session });
+        return uniqueStudents.length;
+    }
+
+    async getStudentProgressForCohort(
+        cohortId: string,
+        courseVersionId: string,
+        session?: ClientSession
+    ): Promise<{
+        completed: number;
+        inProgress: number;
+        notStarted: number;
+    }> {
+        await this.init();
+        
+        const collection = this.hpActivitySubmissionCollection;
+
+        const cohortMatch: any = ObjectId.isValid(cohortId)
+            ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+            : { cohort: cohortId };
+
+        // Get total activities for this cohort
+        const totalActivities = await this.activityRepository.getCountByCohortId(cohortId, courseVersionId);
+        
+        // Get unique students
+        const uniqueStudents = await this.hpActivitySubmissionCollection.distinct('studentId', {
+            ...cohortMatch,
+            courseVersionId: new ObjectId(courseVersionId)
+        }, { session });
+
+        let completed = 0;
+        let inProgress = 0;
+        let notStarted = 0;
+
+        for (const studentId of uniqueStudents) {
+            // Get student's submissions
+            const submissions = await collection.find({
+                ...cohortMatch,
+                courseVersionId: new ObjectId(courseVersionId),
+                studentId
+            }, { session }).toArray();
+
+            const approvedCount = submissions.filter(s => s.status === 'APPROVED').length;
+            const submittedCount = submissions.filter(s => s.status === 'SUBMITTED').length;
+
+            if (approvedCount === totalActivities) {
+                completed++;
+            } else if (submittedCount > 0 || approvedCount > 0) {
+                inProgress++;
+            } else {
+                notStarted++;
+            }
+        }
+
+        return { completed, inProgress, notStarted };
+    }
+
+    async getStudentDashboardStats(
+        studentId: string,
+        cohortId: string,
+        courseVersionId: string,
+        session?: ClientSession
+    ): Promise<{
+        myStats: {
+            totalHp: number;
+            completedActivities: number;
+            pendingSubmissions: number;
+            completionPercentage: number;
+        };
+        activityBreakdown: {
+            notStarted: number;
+            submitted: number;
+            approved: number;
+            rejected: number;
+        };
+    }> {
+        await this.init();
+        
+        const collection = this.hpActivitySubmissionCollection;
+
+        // Get total published activities for this cohort
+        const totalActivities = await this.activityRepository.getCountByCohortId(cohortId, courseVersionId);
+
+        // Get student's submissions with their status
+        const cohortMatch: any = ObjectId.isValid(cohortId)
+            ? { $or: [{ cohortId: new ObjectId(cohortId) }, { cohort: cohortId }] }
+            : { cohort: cohortId };
+
+        const studentSubmissions = await collection.find({
+            studentId: new ObjectId(studentId),
+            ...cohortMatch,
+            courseVersionId: new ObjectId(courseVersionId)
+        }, { session }).toArray();
+
+        // Calculate stats
+        const approvedCount = studentSubmissions.filter(s => s.status === 'APPROVED').length;
+        const submittedCount = studentSubmissions.filter(s => s.status === 'SUBMITTED').length;
+        const rejectedCount = studentSubmissions.filter(s => s.status === 'REJECTED').length;
+
+        // Calculate not started = total activities - any submission exists
+        const activityIdsWithSubmissions = new Set(studentSubmissions.map(s => s.activityId.toString()));
+        const notStartedCount = totalActivities - activityIdsWithSubmissions.size;
+
+        const completionPercentage = totalActivities > 0 
+            ? Math.round((approvedCount / totalActivities) * 100) 
+            : 0;
+
+        return {
+            myStats: {
+                totalHp: 0, // Will be populated from ledger
+                completedActivities: approvedCount,
+                pendingSubmissions: submittedCount,
+                completionPercentage
+            },
+            activityBreakdown: {
+                notStarted: notStartedCount,
+                submitted: submittedCount,
+                approved: approvedCount,
+                rejected: rejectedCount
+            }
+        };
+    }
+
+    async getStudentRecentSubmissions(
+        studentId: string,
+        cohortIdOrName: string,
+        courseVersionId: string,
+        limit: number = 5,
+        session?: ClientSession
+    ): Promise<Array<{
+        activityTitle: string;
+        submittedAt: string;
+        status: string;
+        hpEarned: number;
+    }>> {
+        await this.init();
+
+        const cohortMatch: any = ObjectId.isValid(cohortIdOrName)
+            ? { $or: [{ cohortId: new ObjectId(cohortIdOrName) }, { cohort: cohortIdOrName }] }
+            : { cohort: cohortIdOrName };
+
+        const docs = await this.hpActivitySubmissionCollection.aggregate([
+            {
+                $match: {
+                    studentId: new ObjectId(studentId),
+                    ...cohortMatch,
+                    courseVersionId: new ObjectId(courseVersionId)
+                }
+            },
+            {
+                $lookup: {
+                    from: "hp_activities",
+                    let: { activityId: "$activityId" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: ["$_id", "$$activityId"] }
+                            }
+                        },
+                        { $project: { _id: 0, title: 1 } }
+                    ],
+                    as: "activity"
+                }
+            },
+            { $unwind: "$activity" },
+            {
+                $lookup: {
+                    from: "hp_ledger",
+                    let: { submissionId: "$_id" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: ["$submissionId", "$$submissionId"] },
+                                studentId: new ObjectId(studentId),
+                                direction: "CREDIT"
+                            }
+                        },
+                        { $project: { amount: 1 } }
+                    ],
+                    as: "ledgerEntries"
+                }
+            },
+            {
+                $addFields: {
+                    hpEarned: {
+                        $sum: {
+                            $map: {
+                                input: "$ledgerEntries",
+                                as: "entry",
+                                in: "$$entry.amount"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    activityTitle: "$activity.title",
+                    submittedAt: { $toString: "$submittedAt" },
+                    status: { $toLower: "$status" },
+                    hpEarned: 1
+                }
+            },
+            { $sort: { submittedAt: -1 } },
+            { $limit: limit }
+        ], { session }).toArray();
+
+        return docs.map(doc => ({
+            activityTitle: doc.activityTitle,
+            submittedAt: doc.submittedAt,
+            status: doc.status,
+            hpEarned: doc.hpEarned || 0
+        }));
+    }
 }

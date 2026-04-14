@@ -1,42 +1,59 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "@tanstack/react-router";
+import { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useHpStudentActivities, useSubmitActivity } from "@/hooks/hooks";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Pagination } from "@/components/ui/Pagination";
 import {
     FileText,
     Link as LinkIcon,
-    Clock,
     ArrowLeft,
-    Paperclip,
     Plus,
     Trash2,
     Loader2,
     Send,
     Image as ImageIcon,
-    User
+    Search,
+    Clock,
+    Calendar,
+    Flame,
+    Eye,
+    Filter,
+    FileSearch,
+    RefreshCw,
+    ChartPie
 } from "lucide-react";
 import { HpActivity } from "@/lib/api/hp-system";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { OverviewTab } from "./OverviewTab";
+
+// Helper for character-count truncation
+const truncateText = (text: string | null | undefined, maxLength: number = 70) => {
+    if (!text) return "";
+    return text.length > maxLength ? text.substring(0, maxLength).trim() + "..." : text;
+};
 
 // Countdown timer component for deadline display
 const DeadlineCountdown = ({ deadline, allowLate }: { deadline: string; allowLate: boolean }) => {
-    const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; isExpired: boolean }>(() => {
+    const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number; isExpired: boolean }>(() => {
         const now = new Date().getTime();
         const deadlineTime = new Date(deadline).getTime();
         const diff = deadlineTime - now;
-        
+
         if (diff <= 0) {
-            return { days: 0, hours: 0, minutes: 0, isExpired: true };
+            return { days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true };
         }
-        
+
         return {
             days: Math.floor(diff / (1000 * 60 * 60 * 24)),
             hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
             minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+            seconds: Math.floor((diff % (1000 * 60)) / 1000),
             isExpired: false
         };
     });
@@ -48,45 +65,66 @@ const DeadlineCountdown = ({ deadline, allowLate }: { deadline: string; allowLat
             const diff = deadlineTime - now;
 
             if (diff <= 0) {
-                setTimeLeft({ days: 0, hours: 0, minutes: 0, isExpired: true });
+                setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true });
                 clearInterval(timer);
             } else {
                 setTimeLeft({
                     days: Math.floor(diff / (1000 * 60 * 60 * 24)),
                     hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
                     minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+                    seconds: Math.floor((diff % (1000 * 60)) / 1000),
                     isExpired: false
                 });
             }
-        }, 60000); // Update every minute
+        }, 1000); // Update every second
 
         return () => clearInterval(timer);
     }, [deadline]);
 
     if (timeLeft.isExpired) {
         return (
-            <span className={`font-medium ${allowLate ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>
-                {allowLate ? 'Deadline passed (late submission allowed)' : 'Deadline passed'}
-            </span>
+            <div className={`flex items-center gap-1.5 text-sm font-medium ${allowLate ? 'text-amber-600 dark:text-amber-500' : 'text-destructive'}`}>
+                <Clock className="h-4 w-4" />
+                <span>{allowLate ? 'Late Submission' : 'Deadline Passed'}</span>
+            </div>
         );
     }
 
+    const isUrgent = timeLeft.days === 0 && timeLeft.hours < 12;
+
     return (
-        <span className="font-medium text-orange-600 dark:text-orange-400">
-            {timeLeft.days > 0 && `${timeLeft.days}d `}
-            {timeLeft.hours > 0 && `${timeLeft.hours}h `}
-            {timeLeft.minutes}m left
-        </span>
+        <div className={`flex items-center gap-1.5 text-sm font-medium ${isUrgent ? 'text-orange-600 dark:text-orange-500' : 'text-emerald-600 dark:text-emerald-500'}`}>
+            <Clock className="h-4 w-4" />
+            <div className="flex items-baseline gap-1 font-mono tracking-tight">
+                {timeLeft.days > 0 && <span>{timeLeft.days}d</span>}
+                {timeLeft.hours > 0 && <span>{timeLeft.hours}h</span>}
+                <span>{timeLeft.minutes}m</span>
+                <span className="opacity-70">{timeLeft.seconds}s</span>
+            </div>
+            <span className="text-xs font-normal opacity-70">left</span>
+        </div>
     );
 };
 
 export default function StudentActivities() {
-    const { courseVersionId, cohortName } = useParams({ strict: false });
+    const { courseVersionId, cohortId } = useParams({ strict: false });
     const navigate = useNavigate();
 
-    const { data: activities, isLoading, error, refetch } = useHpStudentActivities(
+    const router = useRouterState();
+    const from = router.location.state?.from;
+
+    // Pagination and search state
+    const [searchQuery, setSearchQuery] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const ACTIVITY_TYPE_OPTIONS = ["ASSIGNMENT", "VIBE_MILESTONE"] as const;
+
+    const [selectedActivityType, setSelectedActivityType] = useState<string>("ASSIGNMENT");
+    const [showOverview, setShowOverview] = useState(false);
+
+    const { data: activities, isLoading, error, refetch, isRefetching } = useHpStudentActivities(
         courseVersionId as string,
-        cohortName as string
+        cohortId as string
     );
     const { mutateAsync: submitActivity, isPending: isSubmitting } = useSubmitActivity();
 
@@ -98,6 +136,7 @@ export default function StudentActivities() {
     const [files, setFiles] = useState<File[]>([]);
     const [images, setImages] = useState<File[]>([]);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [submissionFilter, setSubmissionFilter] = useState<"PENDING" | "ALL">("PENDING");
 
     const formatDate = (dateString: string) => {
         try {
@@ -155,7 +194,7 @@ export default function StudentActivities() {
             await submitActivity({
                 courseId: selectedActivity.courseId,
                 courseVersionId: selectedActivity.courseVersionId,
-                cohort: selectedActivity.cohort,
+                cohortId: selectedActivity.cohortId,
                 activityId: selectedActivity._id!,
                 payload: {
                     textResponse: textResponse.trim() || undefined,
@@ -183,6 +222,68 @@ export default function StudentActivities() {
         return labels[type] || type;
     };
 
+    // Pagination logic
+    const filteredActivities = useMemo(() => {
+        if (!activities) return [];
+        return activities.filter((activity: HpActivity) => {
+            const matchesSearch = activity.title?.toLowerCase().includes(searchQuery.toLowerCase());
+
+            const matchesType = activity.activityType === selectedActivityType;
+
+            const isSubmitted = activity.isSubmitted === true;
+            const matchesSubmission = submissionFilter === "ALL" || !isSubmitted;
+
+            return matchesSearch && matchesType && matchesSubmission;
+        });
+    }, [activities, searchQuery, selectedActivityType, submissionFilter]);
+
+    const paginatedActivities = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return filteredActivities.slice(startIndex, endIndex);
+    }, [filteredActivities, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(filteredActivities.length / itemsPerPage);
+
+    // Get unique activity types for filter options
+    const activityTypes = useMemo(() => {
+        if (!activities) return [];
+        const types = [...new Set(activities.map((a: HpActivity) => a.activityType).filter(Boolean))];
+        return types.sort();
+    }, [activities]);
+
+    const handleSearchChange = (value: string) => {
+        setSearchQuery(value);
+        setCurrentPage(1); // Reset to first page when searching
+    };
+
+    const handleItemsPerPageChange = (value: string) => {
+        setItemsPerPage(parseInt(value));
+        setCurrentPage(1); // Reset to first page when changing items per page
+    };
+
+    // const handleActivityTypeToggle = (type: string) => {
+    //     setSelectedActivityTypes(prev => {
+    //         if (prev.includes(type)) {
+    //             return prev.filter(t => t !== type);
+    //         } else {
+    //             return [...prev, type];
+    //         }
+    //     });
+    //     setCurrentPage(1); // Reset to first page when filtering
+    // };
+
+    const getActivityTypeName = (type: string) => {
+        switch (type) {
+            case "VIBE_MILESTONE":
+                return "milestone";
+            case "ASSIGNMENT":
+                return "assignment";
+            default:
+                return "activity";
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="p-8 text-center text-muted-foreground flex items-center justify-center min-h-[50vh]">
@@ -201,344 +302,544 @@ export default function StudentActivities() {
     }
 
     return (
-        <div className="container mx-auto p-6 max-w-5xl space-y-6">
-            <div className="flex items-center gap-4 mb-6">
-                <Button variant="ghost" size="icon" onClick={() => navigate({ to: '/student/hp-system/cohorts' })}>
-                    <ArrowLeft className="h-5 w-5" />
-                </Button>
-                <div className="flex-1">
-                    <h1 className="text-3xl font-bold tracking-tight">Activities</h1>
-                    <p className="text-muted-foreground">
-                        {decodeURIComponent(cohortName as string)}
-                    </p>
+        <TooltipProvider>
+            <div className="container mx-auto p-6 max-w-7xl space-y-6">
+                <div className="flex items-center gap-4 mb-6">
+                    <Button variant="ghost" size="icon" onClick={() => navigate({ to: from || '/student/hp-system/cohorts' })}>
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                    <div className="flex-1">
+                        <h1 className="text-3xl font-bold tracking-tight">Activities</h1>
+                        <p className="text-muted-foreground">
+                            Dashboard</p>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refetch()}
+                        disabled={isRefetching}
+                    >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                        {isRefetching ? "Refreshing..." : "Refresh"}
+                    </Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant={showOverview ? "default" : "outline"}
+                                className="flex items-center gap-2"
+                                onClick={() => setShowOverview(!showOverview)}
+                            >
+                                <ChartPie className="h-4 w-4" />
+                                {showOverview ? "Back to Activities" : "Overview Stats"}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            {showOverview ? "Return to activities list" : "View your progress overview and statistics"}
+                        </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="outline"
+                                className="flex items-center gap-2"
+                                onClick={() =>
+                                    navigate({
+                                        to: `/student/hp-system/${courseVersionId}/${cohortId}/submissions`,
+                                        state: { from }
+                                    })
+                                }
+                            >
+                                <Eye className="h-4 w-4" />
+                                View Submissions
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            View all your submitted activities and their status
+                        </TooltipContent>
+                    </Tooltip>
                 </div>
-                <Button
-                    variant="outline"
-                    onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/submissions` })}
-                >
-                    View My Submissions
-                </Button>
-            </div>
 
-            {(!activities || activities.length === 0) ? (
-                <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
-                    <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                    <h3 className="text-lg font-medium">No Activities Yet</h3>
-                    <p className="text-sm text-muted-foreground mt-2 max-w-sm">
-                        There are no activities published for this cohort at the moment.
-                    </p>
-                </Card>
-            ) : (
-                <div className="grid grid-cols-1 gap-6">
-                    {activities.map((activity: HpActivity) => (
-                        <Card key={activity._id} className="group relative overflow-hidden border-border/60 bg-card/80 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg">
-                            <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-400/60 via-rose-400/60 to-sky-400/60" />
-                            <CardHeader className="relative pb-3 pt-4">
-                                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                                    <div className="space-y-1.5">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <Badge variant="secondary" className="bg-secondary/60 text-secondary-foreground shadow-none">
-                                                {getActivityTypeLabel(activity.activityType)}
-                                            </Badge>
-                                            <Badge variant="outline" className="bg-background/80">
-                                                {activity.submissionMode === 'EXTERNAL_LINK' ? 'External Link' : 'In Platform'}
-                                            </Badge>
-                                            {activity.rules && (
-                                                activity.rules.isMandatory ? (
-                                                    <Badge className="border-red-600/70 bg-red-600 text-white">
-                                                        Mandatory
-                                                    </Badge>
+                {showOverview ? (
+                    <OverviewTab
+                        courseVersionId={courseVersionId as string}
+                        cohortId={cohortId as string}
+                    />
+                ) : (!activities || activities.length === 0) ? (
+                    <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
+                        <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                        <h3 className="text-lg font-medium">No Activities Yet</h3>
+                        <p className="text-sm text-muted-foreground mt-2 max-w-sm">
+                            There are no activities published for this cohort at the moment.
+                        </p>
+                    </Card>
+                ) : (
+                    <>
+                        {/* Search and Filter Controls */}
+                        <div className="flex flex-col gap-4 mb-6">
+                            {/* Search Bar */}
+                            <div className="relative w-full max-w-md">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search by activity title..."
+                                    value={searchQuery}
+                                    onChange={(e) => handleSearchChange(e.target.value)}
+                                    className="pl-10"
+                                />
+                            </div>
+
+                            {/* Filters Row */}
+                            <div className="flex flex-wrap items-center gap-3">
+                                {/* Activity Type Filter */}
+                                <Select
+                                    value={selectedActivityType}
+                                    onValueChange={(v) => {
+                                        setSelectedActivityType(v);
+                                        setCurrentPage(1);
+                                    }}
+                                >
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue placeholder="Activity Type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {ACTIVITY_TYPE_OPTIONS.map((type) => (
+                                            <SelectItem key={type} value={type}>
+                                                {getActivityTypeLabel(type)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                {/* Submission Filter */}
+                                <Select
+                                    value={submissionFilter}
+                                    onValueChange={(v) => setSubmissionFilter(v as "PENDING" | "ALL")}
+                                >
+                                    <SelectTrigger className="w-[200px]">
+                                        <SelectValue placeholder="Submissions" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="PENDING">Pending Only</SelectItem>
+                                        <SelectItem value="ALL">All (incl. submitted)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+
+                                {/* Items Per Page */}
+                                <div className="flex items-center gap-2 ml-auto">
+                                    <span className="text-sm text-muted-foreground">Show:</span>
+                                    <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                                        <SelectTrigger className="w-[80px]">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="5">5</SelectItem>
+                                            <SelectItem value="10">10</SelectItem>
+                                            <SelectItem value="15">15</SelectItem>
+                                            <SelectItem value="20">20</SelectItem>
+                                            <SelectItem value="30">30</SelectItem>
+                                            <SelectItem value="40">40</SelectItem>
+                                            <SelectItem value="50">50</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {(() => {
+                            const milestones = paginatedActivities.filter(
+                                (a: HpActivity) => a.activityType === "VIBE_MILESTONE"
+                            );
+                            const others = paginatedActivities.filter(
+                                (a: HpActivity) => a.activityType !== "VIBE_MILESTONE"
+                            );
+                            console.log("Milestones: ", milestones)
+                            console.log("others", others)
+
+                            const hasActivities = activities?.length > 0;
+                            const hasFilteredActivities = filteredActivities.length > 0;
+                            const hasMilestones = milestones.length > 0;
+                            const hasOthers = others.length > 0;
+
+                            if (!hasActivities) {
+                                return <p>No activities exist</p>;
+                            }
+
+                            if (!hasFilteredActivities) {
+                                return (
+                                    <div className="flex flex-col items-center justify-center py-16 px-4">
+                                        <div className="relative mb-6">
+                                            <div className="absolute inset-0 bg-primary/10 rounded-full blur-2xl" />
+                                            <div className="relative w-20 h-20 rounded-full border-2 border-border bg-background flex items-center justify-center">
+                                                {submissionFilter === "PENDING" ? (
+                                                    <Clock className="h-10 w-10 text-muted-foreground" />
                                                 ) : (
-                                                    <Badge variant="outline" className="bg-background/80">
-                                                        Optional
-                                                    </Badge>
-                                                )
-                                            )}
+                                                    <FileSearch className="h-10 w-10 text-muted-foreground" />
+                                                )}
+                                            </div>
                                         </div>
-                                        <CardTitle className="text-xl tracking-tight">{activity.title}</CardTitle>
-                                        <div className="space-y-1.5 text-xs text-muted-foreground">
-                                            {activity.createdAt && (
-                                                <div className="flex items-center gap-1.5">
-                                                    <Clock className="h-4 w-4" />
-                                                    <span>Created {formatDate(activity.createdAt)}</span>
-                                                </div>
-                                            )}
-                                            {activity.instructorName && (
-                                                <div className="flex items-center gap-1.5">
-                                                    <User className="h-4 w-4" />
-                                                    <span className="font-medium">Instructor:</span>
-                                                    <span>{activity.instructorName}</span>
-                                                </div>
-                                            )}
+
+                                        <h3 className="text-lg font-semibold text-foreground mb-2">
+                                            {submissionFilter === "PENDING"
+                                                ? "No Pending Activities"
+                                                : "No Activities Found"
+                                            }
+                                        </h3>
+
+                                        <p className="text-sm text-muted-foreground text-center max-w-md mb-4">
+                                            {submissionFilter === "PENDING"
+                                                ? `There are no pending ${getActivityTypeName(selectedActivityType)} at the moment. Check back later or adjust your filters.`
+                                                : `No ${getActivityTypeName(selectedActivityType)} match your current filter selection. Try adjusting your filters or selecting a different activity type.`
+                                            }
+                                        </p>
+
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <Filter className="h-3 w-3" />
+                                            <span>Current filter: {submissionFilter}</span>
                                         </div>
                                     </div>
-                                    {activity.rules?.deadlineAt && (
-                                        <div className="rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground shadow-sm">
-                                            <div className="flex items-center gap-1.5 text-orange-600/90 dark:text-orange-400">
-                                                <Clock className="h-4 w-4" />
-                                                <span className="font-medium text-foreground">Deadline</span>
-                                            </div>
-                                            <div className="mt-1 text-sm font-medium text-foreground">
-                                                {formatDate(activity.rules.deadlineAt.toString())}
-                                            </div>
-                                            <div className="mt-1 text-[11px]">
-                                                <DeadlineCountdown
-                                                    deadline={activity.rules.deadlineAt.toString()}
-                                                    allowLate={activity.rules.allowLateSubmission ?? true}
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4 pt-3">
-                                <div>
-                                    <h4 className="text-sm font-semibold mb-1">Description</h4>
-                                    <p className="text-muted-foreground text-sm whitespace-pre-wrap">
-                                        {activity.description}
-                                    </p>
-                                </div>
+                                );
+                            }
 
-                                {activity.attachments && activity.attachments.length > 0 && (
-                                    <div>
-                                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                                            <Paperclip className="h-4 w-4" />
-                                            Attachments
-                                        </h4>
-                                        <div className="grid gap-2 sm:grid-cols-2">
-                                            {activity.attachments.map((att, idx) => (
-                                                <a
-                                                    key={idx}
-                                                    href={att.url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-2 rounded-lg border bg-background/70 px-3 py-2 text-sm transition-colors hover:bg-muted/60"
+                            return (
+                                <>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                                        {milestones.map((activity: HpActivity) => (
+                                            <Card
+                                                key={activity._id}
+                                                className="group relative overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:border-primary/50 hover:shadow-md min-h-[280px] sm:min-h-[300px] flex flex-col"
+                                            >
+                                                <div className="flex flex-col justify-between h-full p-4 sm:p-5">
+                                                    {/* Top: title + badges */}
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-start gap-2 flex-wrap">
+                                                            <span
+                                                                className="font-semibold text-sm sm:text-base leading-snug break-words"
+                                                                title={activity.title}
+                                                            >
+                                                                {truncateText(activity.title, 40)}
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            <Badge variant="secondary" className="text-[10px] sm:text-xs">
+                                                                {getActivityTypeLabel(activity.activityType)}
+                                                            </Badge>
+
+                                                            {activity.isSubmitted && (
+                                                                <Badge variant="default" className="text-[10px] sm:text-xs">
+                                                                    Submitted
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+
+                                                        {activity.description && (
+                                                            <p
+                                                                className="text-[11px] sm:text-xs text-muted-foreground break-words"
+                                                                title={activity.description}
+                                                            >
+                                                                {truncateText(activity.description, 60)}
+                                                            </p>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Middle: required percentage */}
+                                                    {activity.required_percentage != null && (
+                                                        <div className="flex flex-col items-center justify-center flex-1 py-4">
+                                                            <span className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-primary leading-none text-center">
+                                                                {activity.required_percentage ?? "N/A"}%
+                                                            </span>
+                                                            <span className="text-[10px] sm:text-xs text-muted-foreground mt-1 font-medium uppercase tracking-wide text-center">
+                                                                Required
+                                                            </span>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Bottom: deadline + view */}
+                                                    <div className="space-y-2">
+                                                        {activity.rules?.deadlineAt && (
+                                                            <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-muted-foreground flex-wrap">
+                                                                {/* <Clock className="h-3.5 w-3.5 text-orange-500 opacity-70 shrink-0" /> */}
+                                                                <DeadlineCountdown
+                                                                    deadline={activity.rules.deadlineAt.toString()}
+                                                                    allowLate={activity.rules.allowLateSubmission ?? true}
+                                                                />
+                                                            </div>
+                                                        )}
+
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="w-full"
+                                                            onClick={() =>
+                                                                navigate({
+                                                                    to: `/student/hp-system/${courseVersionId}/${cohortId}/activities/${activity._id}`,
+                                                                    state: { from }
+                                                                })
+                                                            }
+                                                        >
+                                                            View
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </Card>
+                                        ))}
+                                    </div>
+
+                                    {others.length > 0 && (
+                                        <div className="grid grid-cols-1 gap-4">
+                                            {others.map((activity: HpActivity) => (
+                                                <Card
+                                                    key={activity._id}
+                                                    className="group relative overflow-hidden rounded-xl border bg-card p-0 shadow-sm transition-all hover:border-primary/50 hover:shadow-md"
                                                 >
-                                                    {att.kind === 'LINK' ? <LinkIcon className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
-                                                    {att.name}
-                                                </a>
+                                                    <div className="flex items-center justify-between gap-6 px-6 py-5">
+                                                        <div className="flex-1 min-w-0 space-y-1.5">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <span className="font-semibold text-base" title={activity.title}>
+                                                                    {truncateText(activity.title, 70)}
+                                                                </span>
+                                                                <Badge variant="secondary" className="text-xs">
+                                                                    {getActivityTypeLabel(activity.activityType)}
+                                                                </Badge>
+                                                                {activity.isSubmitted && (
+                                                                    <Badge variant="default" className="text-xs">Submitted</Badge>
+                                                                )}
+                                                            </div>
+                                                            {activity.description && (
+                                                                <p className="text-sm text-muted-foreground" title={activity.description}>
+                                                                    {truncateText(activity.description, 85)}
+                                                                </p>
+                                                            )}
+                                                            <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-border/50">
+                                                                {activity.createdAt && (
+                                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                                        <Calendar className="h-3.5 w-3.5 opacity-70" />
+                                                                        <span>
+                                                                            <span className="font-medium text-foreground/80">Created:</span>{" "}
+                                                                            {formatDate(activity.createdAt)}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                                {activity.rules?.deadlineAt && (
+                                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                                        <Clock className="h-3.5 w-3.5 opacity-70 text-orange-500" />
+                                                                        <span>
+                                                                            <span className="font-medium text-foreground/80">Deadline:</span>{" "}
+                                                                            <span className="text-foreground font-medium">{formatDate(activity.rules.deadlineAt.toString())}</span>
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-4 shrink-0">
+                                                            {activity.rules?.deadlineAt && (
+                                                                <div className="text-sm font-semibold">
+                                                                    <DeadlineCountdown
+                                                                        deadline={activity.rules.deadlineAt.toString()}
+                                                                        allowLate={activity.rules.allowLateSubmission ?? true}
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() =>
+                                                                    navigate({
+                                                                        to: `/student/hp-system/${courseVersionId}/${cohortId}/activities/${activity._id}`,
+                                                                        state: { from }
+                                                                    })
+                                                                }
+                                                            >
+                                                                View
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </Card>
                                             ))}
                                         </div>
-                                    </div>
-                                )}
+                                    )}
+                                </>
+                            );
+                        })()}
 
-                                {activity.submissionMode === 'EXTERNAL_LINK' && activity.externalLink && (
-                                    <div>
-                                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                                            <LinkIcon className="h-4 w-4" />
-                                            External Link
-                                        </h4>
-                                        <a
-                                            href={activity.externalLink}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-2 rounded-lg border border-blue-200/60 bg-blue-50/70 px-3 py-2 text-sm text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-800/60 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
-                                        >
-                                            <LinkIcon className="h-4 w-4" />
-                                            {activity.externalLink}
-                                        </a>
-                                    </div>
-                                )}
-                            </CardContent>
-                            <CardFooter className="border-t bg-muted/10 px-6 py-1">
-                                {(() => {
-                                    const now = new Date().getTime();
-                                    const deadlineTime = activity.rules?.deadlineAt ? new Date(activity.rules.deadlineAt.toString()).getTime() : null;
-                                    const isExpired = deadlineTime ? now > deadlineTime : false;
-                                    const allowLate = activity.rules?.allowLateSubmission ?? true;
-                                    const canSubmit = !isExpired || allowLate;
+                        {/* Pagination Component */}
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            totalDocuments={filteredActivities.length}
+                            onPageChange={setCurrentPage}
+                        />
+                    </>
+                )}
 
-                                    return (
-                                         <div className="flex w-full items-center justify-between gap-2">
-                                            <div className="text-xs text-muted-foreground">
-                                                {isExpired && !allowLate ? "Submission closed" : "Ready to submit"}
-                                            </div>
-                                            <Button
-                                                size="sm"
-                                                onClick={() => openSubmitDialog(activity)}
-                                                disabled={!canSubmit}
-                                                title={!canSubmit ? "Submission deadline has passed" : undefined}
-                                            >
-                                                <Send className="h-4 w-4 mr-2" />
-                                                {isExpired && !allowLate ? 'Deadline Passed' : 'Submit'}
-                                            </Button>
-                                        </div>
-                                    );
-                                })()}
-                            </CardFooter>
-                        </Card>
-                    ))}
-                </div>
-            )}
+                {/* Submit Activity Dialog */}
+                <Dialog open={submitDialogOpen} onOpenChange={setSubmitDialogOpen}>
+                    <DialogContent className="sm:max-w-[600px]">
+                        <DialogHeader>
+                            <DialogTitle>Submit Activity</DialogTitle>
+                            <DialogDescription>
+                                {selectedActivity?.title}
+                            </DialogDescription>
+                        </DialogHeader>
 
-            {/* Submit Activity Dialog */}
-            <Dialog open={submitDialogOpen} onOpenChange={setSubmitDialogOpen}>
-                <DialogContent className="sm:max-w-[600px]">
-                    <DialogHeader>
-                        <DialogTitle>Submit Activity</DialogTitle>
-                        <DialogDescription>
-                            {selectedActivity?.title}
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="space-y-6 py-4">
-                        {/* Text Response */}
-                        <div className="space-y-2">
-                            <Label htmlFor="textResponse">Your Response</Label>
-                            <textarea
-                                id="textResponse"
-                                className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                placeholder="Write your response here..."
-                                value={textResponse}
-                                onChange={(e) => setTextResponse(e.target.value)}
-                                disabled={isSubmitting}
-                            />
-                        </div>
-
-                        {/* File Uploads */}
-                        <div className="space-y-3">
-                            <Label>Files (PDF, DOCX, etc)</Label>
-                            <Input
-                                type="file"
-                                multiple
-                                onChange={(e) => {
-                                    if (e.target.files) {
-                                        setFiles((prev) => [...prev, ...Array.from(e.target.files as FileList)]);
-                                    }
-                                }}
-                                disabled={isSubmitting}
-                            />
-                            {files.length > 0 && (
-                                <div className="space-y-2 mt-2">
-                                    {files.map((file, idx) => (
-                                        <div key={idx} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded border">
-                                            <div className="flex items-center gap-2 truncate">
-                                                <FileText className="h-4 w-4 text-muted-foreground" />
-                                                <span className="truncate">{file.name}</span>
-                                            </div>
-                                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={() => setFiles(files.filter((_, i) => i !== idx))}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Image Uploads */}
-                        <div className="space-y-3">
-                            <Label>Images (JPG, PNG)</Label>
-                            <Input
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                onChange={(e) => {
-                                    if (e.target.files) {
-                                        setImages((prev) => [...prev, ...Array.from(e.target.files as FileList)]);
-                                    }
-                                }}
-                                disabled={isSubmitting}
-                            />
-                            {images.length > 0 && (
-                                <div className="space-y-2 mt-2">
-                                    {images.map((img, idx) => (
-                                        <div key={idx} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded border">
-                                            <div className="flex items-center gap-2 truncate">
-                                                <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                                                <span className="truncate">{img.name}</span>
-                                            </div>
-                                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={() => setImages(images.filter((_, i) => i !== idx))}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Links */}
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                                <Label>Links</Label>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={addLink}
+                        <div className="space-y-6 py-4">
+                            {/* Text Response */}
+                            <div className="space-y-2">
+                                <Label htmlFor="textResponse">Your Response</Label>
+                                <textarea
+                                    id="textResponse"
+                                    className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    placeholder="Write your response here..."
+                                    value={textResponse}
+                                    onChange={(e) => setTextResponse(e.target.value)}
                                     disabled={isSubmitting}
-                                >
-                                    <Plus className="h-4 w-4 mr-1" />
-                                    Add Link
-                                </Button>
+                                />
                             </div>
-                            {links.map((link, index) => (
-                                <div key={index} className="flex gap-2 items-start">
-                                    <div className="flex-1 space-y-2">
-                                        <Input
-                                            placeholder="URL (e.g. https://github.com/...)"
-                                            value={link.url}
-                                            onChange={(e) => updateLink(index, 'url', e.target.value)}
-                                            disabled={isSubmitting}
-                                        />
-                                        <Input
-                                            placeholder="Label (e.g. GitHub Repository)"
-                                            value={link.label}
-                                            onChange={(e) => updateLink(index, 'label', e.target.value)}
-                                            disabled={isSubmitting}
-                                        />
+
+                            {/* File Uploads */}
+                            <div className="space-y-3">
+                                <Label>Files (PDF, DOCX, etc)</Label>
+                                <Input
+                                    type="file"
+                                    multiple
+                                    onChange={(e) => {
+                                        if (e.target.files) {
+                                            setFiles((prev) => [...prev, ...Array.from(e.target.files as FileList)]);
+                                        }
+                                    }}
+                                    disabled={isSubmitting}
+                                />
+                                {files.length > 0 && (
+                                    <div className="space-y-2 mt-2">
+                                        {files.map((file, idx) => (
+                                            <div key={idx} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded border">
+                                                <div className="flex items-center gap-2 truncate">
+                                                    <FileText className="h-4 w-4 text-muted-foreground" />
+                                                    <span className="truncate">{file.name}</span>
+                                                </div>
+                                                <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={() => setFiles(files.filter((_, i) => i !== idx))}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        ))}
                                     </div>
+                                )}
+                            </div>
+
+                            {/* Image Uploads */}
+                            <div className="space-y-3">
+                                <Label>Images (JPG, PNG)</Label>
+                                <Input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    onChange={(e) => {
+                                        if (e.target.files) {
+                                            setImages((prev) => [...prev, ...Array.from(e.target.files as FileList)]);
+                                        }
+                                    }}
+                                    disabled={isSubmitting}
+                                />
+                                {images.length > 0 && (
+                                    <div className="space-y-2 mt-2">
+                                        {images.map((img, idx) => (
+                                            <div key={idx} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded border">
+                                                <div className="flex items-center gap-2 truncate">
+                                                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                                    <span className="truncate">{img.name}</span>
+                                                </div>
+                                                <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={() => setImages(images.filter((_, i) => i !== idx))}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Links */}
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <Label>Links</Label>
                                     <Button
                                         type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => removeLink(index)}
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={addLink}
                                         disabled={isSubmitting}
-                                        className="mt-1 text-destructive hover:text-destructive"
                                     >
-                                        <Trash2 className="h-4 w-4" />
+                                        <Plus className="h-4 w-4 mr-1" />
+                                        Add Link
                                     </Button>
                                 </div>
-                            ))}
-                            {links.length === 0 && (
-                                <p className="text-sm text-muted-foreground">No links added yet.</p>
+                                {links.map((link, index) => (
+                                    <div key={index} className="flex gap-2 items-start">
+                                        <div className="flex-1 space-y-2">
+                                            <Input
+                                                placeholder="URL (e.g. https://github.com/...)"
+                                                value={link.url}
+                                                onChange={(e) => updateLink(index, 'url', e.target.value)}
+                                                disabled={isSubmitting}
+                                            />
+                                            <Input
+                                                placeholder="Label (e.g. GitHub Repository)"
+                                                value={link.label}
+                                                onChange={(e) => updateLink(index, 'label', e.target.value)}
+                                                disabled={isSubmitting}
+                                            />
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => removeLink(index)}
+                                            disabled={isSubmitting}
+                                            className="mt-1 text-destructive hover:text-destructive"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                {links.length === 0 && (
+                                    <p className="text-sm text-muted-foreground">No links added yet.</p>
+                                )}
+                            </div>
+
+                            {submitError && (
+                                <div className="text-sm text-red-500 bg-red-50 p-3 rounded-md">
+                                    {submitError}
+                                </div>
                             )}
                         </div>
 
-                        {submitError && (
-                            <div className="text-sm text-red-500 bg-red-50 p-3 rounded-md">
-                                {submitError}
-                            </div>
-                        )}
-                    </div>
-
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setSubmitDialogOpen(false)} disabled={isSubmitting}>
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={isSubmitting || !textResponse.trim() || (files.length === 0 && images.length === 0 && links.every(l => !l.url.trim())) || (selectedActivity?.rules?.deadlineAt && new Date().getTime() > new Date(selectedActivity.rules.deadlineAt.toString()).getTime() && !(selectedActivity?.rules?.allowLateSubmission ?? true))}
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    Submitting...
-                                </>
-                            ) : (selectedActivity?.rules?.deadlineAt && new Date().getTime() > new Date(selectedActivity.rules.deadlineAt.toString()).getTime() && !(selectedActivity?.rules?.allowLateSubmission ?? true)) ? (
-                                <>
-                                    <Clock className="h-4 w-4 mr-2" />
-                                    Deadline Passed
-                                </>
-                            ) : (
-                                <>
-                                    <Send className="h-4 w-4 mr-2" />
-                                    Submit
-                                </>
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setSubmitDialogOpen(false)} disabled={isSubmitting}>
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleSubmit}
+                                disabled={isSubmitting || !textResponse.trim() || (files.length === 0 && images.length === 0 && links.every(l => !l.url.trim())) || (selectedActivity?.rules?.deadlineAt && new Date().getTime() > new Date(selectedActivity.rules.deadlineAt.toString()).getTime() && !(selectedActivity?.rules?.allowLateSubmission ?? true))}
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                        Submitting...
+                                    </>
+                                ) : (selectedActivity?.rules?.deadlineAt && new Date().getTime() > new Date(selectedActivity.rules.deadlineAt.toString()).getTime() && !(selectedActivity?.rules?.allowLateSubmission ?? true)) ? (
+                                    <>
+                                        <Clock className="h-4 w-4 mr-2" />
+                                        Deadline Passed
+                                    </>
+                                ) : (
+                                    <>
+                                        <Send className="h-4 w-4 mr-2" />
+                                        Submit
+                                    </>
+                                )}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
+        </TooltipProvider>
     );
 }

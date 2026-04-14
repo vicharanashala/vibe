@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
-import { useHpStudentSubmissions, useHpStudents, useRevertHpEntry, useRestoreHpEntry, useReviewSubmission, useAddFeedback } from "@/hooks/hooks";
+import { useHpStudentSubmissions, useHpStudents, useRevertHpEntry, useRestoreHpEntry, useReviewSubmission, useAddFeedback, useHpStudentSubmissionStats } from "@/hooks/hooks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Pagination } from "@/components/ui/Pagination";
+
 import {
     Dialog,
     DialogContent,
@@ -15,17 +17,37 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import {
-    ArrowLeft, ExternalLink, Clock, FileText, CheckCircle, AlertCircle, XCircle,
-    Image as ImageIcon, File, Link2, MessageSquare, CalendarClock, RotateCcw,
-    Timer, Send, Zap, Undo2, ThumbsUp, ThumbsDown, ChevronDown,
-    ChevronUp
+    ArrowLeft,
+    ExternalLink,
+    Clock,
+    FileText,
+    CheckCircle,
+    AlertCircle,
+    XCircle,
+    Image as ImageIcon,
+    File,
+    Link2,
+    MessageSquare,
+    CalendarClock,
+    RotateCcw,
+    Timer,
+    Send,
+    Zap,
+    Undo2,
+    ThumbsUp,
+    ThumbsDown,
+    ChevronDown,
+    ChevronUp,
+    Mail,
+    User,
+    Search,
+    RefreshCw
 } from "lucide-react";
-import type { SubmissionAttachment, HpStudentSubmission } from "@/lib/api/hp-system";
-import { toast } from "sonner";
+import type { HpStudentSubmission } from "@/lib/api/hp-system";
 
 const statusConfig = {
     SUBMITTED: { label: "Submitted", variant: "default" as const, icon: CheckCircle, color: "text-green-600" },
-    PENDING: { label: "Pending", variant: "secondary" as const, icon: Clock, color: "text-yellow-600" },
+    PENDING: { label: "Wating Approval", variant: "secondary" as const, icon: Clock, color: "text-yellow-600" },
     REVERTED: { label: "Reverted", variant: "destructive" as const, icon: XCircle, color: "text-red-600" },
     APPROVED: { label: "Approved", variant: "default" as const, icon: CheckCircle, color: "text-green-600" },
     REJECTED: { label: "Rejected", variant: "destructive" as const, icon: XCircle, color: "text-red-600" },
@@ -39,231 +61,187 @@ function formatDate(iso?: string): string {
     });
 }
 
-function AttachmentIcon({ type }: { type: SubmissionAttachment['type'] }) {
-    switch (type) {
-        case 'image': return <ImageIcon className="h-4 w-4 text-blue-500" />;
-        case 'pdf': return <File className="h-4 w-4 text-red-500" />;
-        case 'document': return <FileText className="h-4 w-4 text-indigo-500" />;
-        case 'link': return <Link2 className="h-4 w-4 text-purple-500" />;
-        default: return <File className="h-4 w-4 text-muted-foreground" />;
-    }
-}
+function SimplifiedSubmissionCard({ sub, onViewMore }: { sub: HpStudentSubmission; onViewMore: () => void }) {
+    const [isTextExpanded, setIsTextExpanded] = useState(false);
+    const status = sub.status || 'PENDING';
+    const cfg = statusConfig[status as keyof typeof statusConfig] || statusConfig.PENDING;
+    const StatusIcon = cfg.icon;
 
-function AttachmentPreview({ attachment }: { attachment: SubmissionAttachment }) {
-    if (attachment.type === 'image') {
-        return (
-            <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="block group">
-                <div className="relative w-20 h-20 rounded-lg overflow-hidden border bg-muted">
-                    <img src={attachment.url} alt={attachment.name || 'Image'} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200" />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1 truncate max-w-[80px]">{attachment.name}</p>
-            </a>
-        );
-    }
+    const textResponse = sub.submission?.attachments?.textResponse || '';
+    const shouldShowExpandable = textResponse && textResponse.length > 100;
+    const displayText = isTextExpanded ? textResponse : textResponse.substring(0, 100);
+
+    console.log("Rendring values of sub here-> ", sub);
+
+    const toggleTextExpansion = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        setIsTextExpanded(!isTextExpanded);
+    }, [isTextExpanded]);
+
+    const submissionStatus = sub.submission?.status || "PENDING";
+    const isOnSubmissionReward = sub.rule.reward.applyWhen === "ON_SUBMISSION";
+
     return (
-        <a href={attachment.url} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-muted/50 hover:bg-muted transition-colors group max-w-[220px]"
-        >
-            <AttachmentIcon type={attachment.type} />
-            <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{attachment.name || attachment.url}</p>
-            </div>
-            <ExternalLink className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-        </a>
-    );
-}
-
-function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
-    const [feedbackText, setFeedbackText] = useState("");
-    const [showInput, setShowInput] = useState(false);
-    const { mutateAsync: addFeedback, isPending } = useAddFeedback();
-
-    const handleSubmitFeedback = async () => {
-        if (!feedbackText.trim() || feedbackText.trim().length < 10) {
-            toast.error('Feedback must be at least 10 characters long');
-            return;
-        }
-        try {
-            await addFeedback({ submissionId: sub.submission?._id || '', feedback: feedbackText.trim() });
-            setFeedbackText("");
-            setShowInput(false);
-        } catch (error) {
-            // Error is handled by the hook
-        }
-    };
-
-    return(
-    <div className="space-y-3">
-  {/* Instructor Feedback */}
-  {sub.instructorFeedback && (
-    <div className="rounded-lg bg-muted/50 p-3 border">
-      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5">
-        <MessageSquare className="h-3.5 w-3.5" />
-        Instructor Feedback: {String((sub.instructorFeedback as any)?.decision || "Reviewed")}
-      </div>
-
-      {(sub.instructorFeedback as any)?.reviewerName && (
-        <div className="text-xs text-muted-foreground mb-1">
-          <div>Instructor Name: {(sub.instructorFeedback as any).reviewerName}</div>
-          <div>Email: {(sub.instructorFeedback as any).reviewerEmail}</div>
-        </div>
-      )}
-
-      {(sub.instructorFeedback as any)?.reviewedAt && (
-        <div className="text-xs text-muted-foreground mb-1">
-          {new Date((sub.instructorFeedback as any).reviewedAt).toLocaleString("en-IN")}
-        </div>
-      )}
-
-      <p className="text-sm">
-        {String((sub.instructorFeedback as any)?.note || "No note provided")}
-      </p>
-    </div>
-  )}
-
-            {/* Feedback Controls */}
-            <div className="flex items-center gap-2">
-                {/* Add Feedback Button */}
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowInput(true)}
-                    className="flex items-center gap-2"
-                >
-                    <MessageSquare className="h-3.5 w-3.5" />
-                    <span className="text-xs">{sub.instructorFeedback ? "Update Feedback" : "Add Feedback"}</span>
-                </Button>
-
-                {/* View All Feedbacks */}
-                {sub.feedbacks && sub.feedbacks.length > 0 && (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                            const panel = document.getElementById(`feedback-panel-${sub.submission?._id}`);
-                            panel?.classList.toggle('hidden');
-                        }}
-                        className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded border"
-                    >
-                        {sub.feedbacks && sub.feedbacks.length > 0 && (
-                            <div className="">
-                                {sub.feedbacks.length} Feedback{sub.feedbacks.length !== 1 ? 's' : ''}
-                            </div>
+        <Card className={`border-l-4 ${status === 'SUBMITTED' ? 'border-l-green-500' : status === 'REVERTED' ? 'border-l-red-500' : 'border-l-yellow-500'}`}>
+            <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                        <CardTitle className="text-base">{sub.activity?.title || "Unknown Activity"}</CardTitle>
+                        {sub.activity?.description && (
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{sub.activity.description}</p>
                         )}
-                        <ChevronDown className={`h-3 w-3 transition-transform ${document.getElementById(`feedback-panel-${sub.submission?._id}`)?.classList.contains('hidden') ? '' : 'rotate-180'}`} />
-                    </Button>
-                )}
-            </div>
-
-            {/* Feedback Panel */}
-            {sub.feedbacks && sub.feedbacks.length > 0 && (
-                <div
-                    id={`feedback-panel-${sub.submission?._id}`}
-                    className="hidden bg-muted/20 rounded-lg border p-2"
-                >
-                    <div className="space-y-2">
-                        {sub.feedbacks.map((feedback: any, idx: number) => (
-                            <div key={idx} className="bg-background rounded border p-2">
-                                <p className="text-sm leading-relaxed">{feedback.feedback}</p>
-                                {feedback.feedbackAt && (
-                                    <div className="text-xs text-muted-foreground mt-2">
-                                        {new Date(feedback.feedbackAt).toLocaleDateString()}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Add Feedback Input */}
-            {showInput && (
-                <div className="space-y-3 bg-muted/20 rounded-lg border p-4">
-                    <Textarea
-                        placeholder="Write feedback for this submission..."
-                        value={feedbackText}
-                        onChange={e => setFeedbackText(e.target.value)}
-                        rows={3}
-                        className="resize-none bg-background"
-                    />
-                    <div className="flex items-center gap-2 justify-end">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => { setShowInput(false); setFeedbackText(""); }}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            size="sm"
-                            disabled={!feedbackText.trim() || feedbackText.trim().length < 10 || isPending}
-                            onClick={handleSubmitFeedback}
-                            className="flex items-center gap-2"
-                        >
-                            {isPending ? (
-                                <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white" />
-                            ) : (
-                                <Send className="h-3.5 w-3.5" />
+                        <CardDescription className="flex flex-wrap items-center gap-3 mt-1.5">
+                            {sub.deadline && (
+                                <span className="flex items-center gap-1 text-xs">
+                                    <CalendarClock className="h-3 w-3" />
+                                    Due: {formatDate(sub.deadline)}
+                                </span>
                             )}
-                            {isPending ? "Sending..." : "Send Feedback"}
-                        </Button>
+                            {sub.submission?.submittedAt && (
+                                <span className="flex items-center gap-1 text-xs">
+                                    <Clock className="h-3 w-3" />
+                                    Submitted: {(sub.submission?.submittedAt) ? formatDate(sub.submission.submittedAt) : '—'}
+                                </span>
+                            )}
+                        </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+
+                        {/* 1. STATUS BADGE */}
+                        {(submissionStatus === "SUBMITTED" && sub.rule.reward.applyWhen !== "ON_SUBMISSION") && (
+                            <Badge variant="outline" className="text-sm font-semibold text-yellow-600">
+                                <Clock className="h-3 w-3 mr-1" />
+                                In Review
+                            </Badge>
+                        )}
+
+                        {submissionStatus === "APPROVED" && (
+                            <Badge variant="outline" className="text-sm font-semibold text-green-600">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Approved
+                            </Badge>
+                        )}
+
+                        {submissionStatus === "REJECTED" && (
+                            <Badge variant="destructive" className="flex items-center gap-1">
+                                <XCircle className="h-3 w-3" />
+                                Rejected
+                            </Badge>
+                        )}
+
+                        {submissionStatus === "REVERTED" && (
+                            <Badge variant="destructive" className="flex items-center gap-1">
+                                <RotateCcw className="h-3 w-3" />
+                                Reverted
+                            </Badge>
+                        )}
+
+                        {/* 2. HP BADGE */}
+                        {(isOnSubmissionReward || submissionStatus === "APPROVED") && (
+                            <Badge variant="outline" className="text-sm font-semibold text-green-600">
+                                <Zap className="h-3 w-3 mr-1 text-yellow-500" />
+                                {sub.rule.reward.value} HP
+                            </Badge>
+                        )}
+
+                        {/* 3. BASE / REWARD INFO */}
+                        <Badge variant="outline" className="text-sm text-muted-foreground">
+
+                            Activity Reward {sub.rule.reward.value}
+
+                        </Badge>
+
+                        {/* 4. LATE FLAG */}
+                        {sub.isLate && (
+                            <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50">
+                                <Timer className="h-3 w-3 mr-1" />
+                                Late
+                            </Badge>
+                        )}
+
                     </div>
                 </div>
-            )}
-        </div>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-3">
+                {/* Text response preview - full width with expandable functionality */}
+                {textResponse && (
+                    <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Response Preview</p>
+                        <div className="p-2 bg-muted/30 rounded border text-sm w-full">
+                            {displayText}
+                            {shouldShowExpandable && (
+                                <span
+                                    onClick={toggleTextExpansion}
+                                    className="text-primary hover:text-primary/80 cursor-pointer text-xs ml-1"
+                                >
+                                    {isTextExpanded ? ' (show less)' : '...view more'}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Attachments count and View More button */}
+                <div className="flex items-center justify-end gap-2">
+                    {/* Attachments count - more noticeable and bigger */}
+                    {((sub.submission?.attachments?.files?.length || 0) + (sub.submission?.attachments?.images?.length || 0) + (sub.submission?.attachments?.links?.length || 0)) > 0 && (
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-lg border border-border">
+                            <div className="w-2.5 h-2.5 bg-primary rounded-full"></div>
+                            <span className="text-sm font-medium text-foreground">
+                                attachments: {((sub.submission?.attachments?.files?.length || 0) + (sub.submission?.attachments?.images?.length || 0) + (sub.submission?.attachments?.links?.length || 0))}
+                            </span>
+                        </div>
+                    )}
+
+                    {/* View More button - wider, shorter, and consistently aligned */}
+                    {/* <div className="flex justify-end w-full"> */}
+                    <Button
+                        variant="default"
+                        size="default"
+                        onClick={onViewMore}
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold px-6 py-1 h-auto min-h-[32px]"
+                    >
+                        View More
+                    </Button>
+                    {/* </div> */}
+                </div>
+
+                {/* View More button for submissions without attachments - wider, shorter, and consistently aligned */}
+                {/* {((sub.submission?.attachments?.files?.length || 0) + (sub.submission?.attachments?.images?.length || 0) + (sub.submission?.attachments?.links?.length || 0)) === 0 && (
+                    <div className="flex justify-end">
+                        <Button
+                            variant="default"
+                            size="default"
+                            onClick={onViewMore}
+                            className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold px-6 py-1 h-auto min-h-[32px]"
+                        >
+                            View More
+                        </Button>
+                    </div>
+                )} */}
+            </CardContent>
+        </Card>
     );
 }
 
 export default function StudentSubmissionsPage() {
-    const { courseVersionId, cohortName, studentId } = useParams({ strict: false });
+    const { courseVersionId, cohortId, studentId } = useParams({ strict: false });
     const navigate = useNavigate();
-    const { data: submissions, isLoading: submissionsLoading, error } = useHpStudentSubmissions(
-    studentId || "", courseVersionId || "", cohortName || ""
+
+    // Pagination and search state
+    const [searchQuery, setSearchQuery] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+
+    const { data: submissions, isLoading: submissionsLoading, error, refetch, isRefetching } = useHpStudentSubmissions(
+        studentId || "", courseVersionId || "", cohortId || ""
+    ) as any;
+    const { data: stats } = useHpStudentSubmissionStats(
+        studentId || "",
+        decodeURIComponent(cohortId || "")
     );
-    const { data: students, isLoading: studentsLoading } = useHpStudents(courseVersionId || "", cohortName || "");
+    const { data: students, isLoading: studentsLoading } = useHpStudents(courseVersionId || "", cohortId || "");
     const student = students.find(s => s._id === studentId);
-
-    const { mutateAsync: revertEntry, isPending: isReverting } = useRevertHpEntry();
-    const { mutateAsync: restoreEntry, isPending: isRestoring } = useRestoreHpEntry();
-    const { mutateAsync: reviewSubmission, isPending: isReviewing } = useReviewSubmission();
-
-    const [actionSubId, setActionSubId] = useState<string | null>(null);
-    const [reasonDialog, setReasonDialog] = useState<{
-        open: boolean;
-        subId: string;
-        action: 'revert' | 'restore' | 'approve' | 'reject';
-        activityTitle: string;
-        baseHp: number;
-        note: string;
-        pointsToDeduct: number;
-    }>({ open: false, subId: '', action: 'revert', activityTitle: '', baseHp: 0, note: '', pointsToDeduct: 0 });
-
-    const openReasonDialog = (subId: string, action: 'revert' | 'restore' | 'approve' | 'reject', activityTitle: string, baseHp: number = 0) => {
-        const displayTitle = activityTitle && !isNaN(Number(activityTitle))
-            ? `Activity ${activityTitle}`
-            : activityTitle || 'Activity';
-        setReasonDialog({ open: true, subId, action, activityTitle: displayTitle, baseHp, note: '', pointsToDeduct: baseHp });
-    };
-
-    const handleConfirmAction = async () => {
-        const { subId, action, note, pointsToDeduct } = reasonDialog;
-        setReasonDialog({ ...reasonDialog, open: false });
-        setActionSubId(subId);
-        try {
-            if (action === 'restore') {
-                await restoreEntry(subId);
-            } else if (action === 'approve' || action === 'reject' || action === 'revert') {
-                await reviewSubmission({
-                    submissionId: subId,
-                    decision: action === 'approve' ? 'APPROVED' : action === 'reject' ? 'REJECTED' : 'REVERTED',
-                    note: note.trim() || undefined,
-                    pointsToDeduct: action === 'reject' ? pointsToDeduct : undefined
-                });
-            }
-        } finally {
-            setActionSubId(null);
-        }
-    };
 
 
 
@@ -277,14 +255,62 @@ export default function StudentSubmissionsPage() {
     }
 
 
-
     const safeSubmissions = submissions ?? [];
-    const totalActivities = safeSubmissions.length;
-    const submitted = safeSubmissions.filter((s: any) => s.submission?.status === "SUBMITTED").length;
-    const pending = safeSubmissions.filter((s: any) => s.submission?.status === "PENDING").length;
-    const late = safeSubmissions.filter((s: any) => s.submission?.isLate).length;
-    const totalCurrentHp = safeSubmissions.reduce((sum: number, s: any) => sum + (s.hp?.currentHp || 0), 0);
-    const totalBaseHp = safeSubmissions.reduce((sum: number, s: any) => sum + (s.hp?.baseHp || 0), 0);
+    console.log("Submissions data here-> ", safeSubmissions);
+
+    // Filter submissions based on search query with prioritized results
+    const filteredSubmissions = useMemo(() => {
+        if (!searchQuery.trim()) return safeSubmissions;
+
+        const query = searchQuery.toLowerCase();
+
+        // Separate submissions into priority groups
+        const startsWithMatches: any[] = [];
+        const containsMatches: any[] = [];
+
+        safeSubmissions.forEach((sub: any) => {
+            const title = sub.activity?.title || '';
+            const description = sub.activity?.description || '';
+
+            const titleStartsWith = title.toLowerCase().startsWith(query);
+            const titleContains = title.toLowerCase().includes(query);
+            const descriptionContains = description.toLowerCase().includes(query);
+
+            if (titleStartsWith) {
+                startsWithMatches.push(sub);
+            } else if (titleContains || descriptionContains) {
+                containsMatches.push(sub);
+            }
+        });
+
+        // Return prioritized results: starts with > contains
+        return [...startsWithMatches, ...containsMatches];
+    }, [safeSubmissions, searchQuery]);
+
+    // Pagination logic
+    const totalPages = Math.ceil(filteredSubmissions.length / itemsPerPage);
+    const paginatedSubmissions = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return filteredSubmissions.slice(startIndex, endIndex);
+    }, [filteredSubmissions, currentPage, itemsPerPage]);
+
+    // Reset page when search or items per page changes
+    const handleSearchChange = (value: string) => {
+        setSearchQuery(value);
+        setCurrentPage(1);
+    };
+
+    const handleItemsPerPageChange = (value: string) => {
+        setItemsPerPage(Number(value));
+        setCurrentPage(1);
+    };
+
+    const totalActivities = stats?.totalActivities ?? 0;
+    const submitted = stats?.totalSubmissions ?? 0;
+    const pending = stats?.totalPendings ?? 0;
+    const late = stats?.totalLateSubmissions ?? 0;
+    const totalCurrentHp = stats?.currentHp ?? 0;
     return (
         <div className="space-y-6 w-full pb-12">
             {/* Header */}
@@ -293,19 +319,28 @@ export default function StudentSubmissionsPage() {
                     variant="outline"
                     size="icon"
                     onClick={() => navigate({
-                        to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || "")}/activities`
+                        to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortId || "")}/activities`
                     })}
                 >
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
-                <div>
+                <div className="flex-1">
                     <h2 className="text-2xl font-bold tracking-tight">
                         {student?.name || "Student"} — Submissions
                     </h2>
                     <p className="text-muted-foreground">
-                        {student?.email || ""} · {decodeURIComponent(cohortName || "")}
+                        {student?.email || ""} · {decodeURIComponent(cohortId || "")}
                     </p>
                 </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetch()}
+                    disabled={isRefetching}
+                >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                    {isRefetching ? "Refreshing..." : "Refresh"}
+                </Button>
             </div>
 
             {/* Summary Cards */}
@@ -314,79 +349,134 @@ export default function StudentSubmissionsPage() {
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
                 </div>
             ) : (
-            <div className="grid gap-4 md:grid-cols-6">
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Total Activities</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold flex items-center gap-2">
-                            <FileText className="h-5 w-5 text-muted-foreground" />
-                            {totalActivities}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Submitted</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-600 flex items-center gap-2">
-                            <CheckCircle className="h-5 w-5" />
-                            {submitted}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Pending</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-yellow-600 flex items-center gap-2">
-                            <Clock className="h-5 w-5" />
-                            {pending}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Late Submissions</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-orange-600 flex items-center gap-2">
-                            <Timer className="h-5 w-5" />
-                            {late}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Current HP</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-600 flex items-center gap-2">
-                            <Zap className="h-5 w-5 text-yellow-500" />
-                            {totalCurrentHp}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Base HP</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-muted-foreground flex items-center gap-2">
-                            <Zap className="h-5 w-5 text-yellow-500" />
-                            {totalBaseHp}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+                <div className="grid gap-4 md:grid-cols-5">
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>Total Activities</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold flex items-center gap-2">
+                                <FileText className="h-5 w-5 text-muted-foreground" />
+                                {totalActivities}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>Submitted</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-green-600 flex items-center gap-2">
+                                <CheckCircle className="h-5 w-5" />
+                                {submitted}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>Pending</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-yellow-600 flex items-center gap-2">
+                                <Clock className="h-5 w-5" />
+                                {pending}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>Late Submissions</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-orange-600 flex items-center gap-2">
+                                <Timer className="h-5 w-5" />
+                                {late}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>Current HP</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-green-600 flex items-center gap-2">
+                                <Zap className="h-5 w-5 text-yellow-500" />
+                                {totalCurrentHp}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    {/* <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>Activity Reward</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {(() => {
+                                if (!stats?.reward) return (
+                                    <div className="text-2xl font-bold text-muted-foreground">—</div>
+                                );
+                                const { type, value } = stats.reward;
+                                if (type === "ABSOLUTE") return (
+                                    <div className="text-2xl font-bold text-muted-foreground flex items-center gap-2">
+                                        <Zap className="h-5 w-5 text-yellow-500" />
+                                        {value}
+                                    </div>
+                                );
+                                return (
+                                    <div className="flex flex-col gap-0.5">
+                                        <div className="text-2xl font-bold text-muted-foreground flex items-center gap-2">
+                                            <Zap className="h-5 w-5 text-yellow-500" />
+                                            {type === "PERCENTAGE" ? `${value}%` : value}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            of Current HP ({totalCurrentHp})
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </CardContent>
+                    </Card> */}
+                </div>
             )}
+
+            {/* Search and Pagination Controls */}
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
+                <div className="relative w-full max-w-md">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search by activity title..."
+                        value={searchQuery}
+                        onChange={(e) => handleSearchChange(e.target.value)}
+                        className="pl-10"
+                    />
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Show:</span>
+                    <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                        <SelectTrigger className="w-[80px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="5">5</SelectItem>
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="15">15</SelectItem>
+                            <SelectItem value="20">20</SelectItem>
+                            <SelectItem value="30">30</SelectItem>
+                            <SelectItem value="40">40</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
 
             {/* Submission Cards */}
             <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Activity Submissions</h3>
+                <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Activity Submissions</h3>
+                    <span className="text-sm text-muted-foreground">
+                        Showing {paginatedSubmissions.length} of {filteredSubmissions.length} submissions
+                    </span>
+                </div>
                 {submissionsLoading ? (
                     <div className="flex items-center justify-center py-12">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -395,286 +485,30 @@ export default function StudentSubmissionsPage() {
                     <div className="text-center py-12 border border-dashed rounded-lg">
                         <div className="text-muted-foreground">No submissions found for this student.</div>
                     </div>
-                ) : safeSubmissions.map((sub: any) => {
-                    const status = sub.submission?.status || 'PENDING';
-                    const cfg = statusConfig[status as keyof typeof statusConfig] || statusConfig.PENDING;
-                    const StatusIcon = cfg.icon;
-                    const attachments = [
-                        ...(sub.submission?.attachments?.files || []).map((f: any) => ({ ...f, type: 'document' })),
-                        ...(sub.submission?.attachments?.images || []).map((i: any) => ({ ...i, type: 'image' }))
-                    ];
-                    const links = sub.submission?.attachments?.links || [];
-
-                    return (
-                        <Card key={sub.submission?._id || sub.activity?.id} className={`border-l-4 ${status === 'SUBMITTED' ? 'border-l-green-500' : status === 'REVERTED' ? 'border-l-red-500' : 'border-l-yellow-500'}`}>
-                            <CardHeader className="pb-3">
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex-1 min-w-0">
-                                        <CardTitle className="text-base">{sub.activity?.title || "Unknown Activity"}</CardTitle>
-                                        {sub.activity?.description && (
-                                            <p className="text-sm text-muted-foreground mt-1">{sub.activity.description}</p>
-                                        )}
-                                        <CardDescription className="flex flex-wrap items-center gap-3 mt-1.5">
-                                            {sub.deadline && (
-                                                <span className="flex items-center gap-1 text-xs">
-                                                    <CalendarClock className="h-3 w-3" />
-                                                    Due: {formatDate(sub.deadline)}
-                                                </span>
-                                            )}
-                                        </CardDescription>
-                                    </div>
-                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                        {/* HP badges */}
-                                        {/* HP badges - show waiting for review for unapproved submissions */}
-                                        {status === 'SUBMITTED' ? (
-                                            <Badge variant="outline" className="text-sm font-semibold text-yellow-600">
-                                                <Clock className="h-3 w-3 mr-1" />
-                                                In Review
-                                            </Badge>
-                                        ) : (
-                                            <>
-                                                <Badge variant="outline" className="text-sm font-semibold text-green-600">
-                                                    <Zap className="h-3 w-3 mr-1 text-yellow-500" />
-                                                    {sub.hp?.currentHp || 0} HP
-                                                </Badge>
-                                                <Badge variant="outline" className="text-sm text-muted-foreground">
-                                                    Base: {sub.hp?.baseHp || 0}
-                                                </Badge>
-                                            </>
-                                        )}
-                                        {sub.submission?.isLate && (
-                                            <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950/20">
-                                                <Timer className="h-3 w-3 mr-1" />
-                                                Late
-                                            </Badge>
-                                        )}
-                                        <Badge variant={cfg.variant} className="flex items-center gap-1">
-                                            <StatusIcon className="h-3 w-3" />
-                                            {cfg.label}
-                                        </Badge>
-                                    </div>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {/* Submission Timestamps */}
-                                {sub.submission?.submittedAt && (
-                                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                                        <span className="flex items-center gap-1">
-                                            <Clock className="h-3.5 w-3.5" />
-                                            Submitted: {formatDate(sub.submission.submittedAt)}
-                                        </span>
-                                    </div>
-                                )}
-
-                                {/* Text response */}
-                                {sub.submission?.attachments?.textResponse && (
-                                    <div className="mt-2 p-3 bg-muted/30 rounded border text-sm whitespace-pre-wrap">
-                                        {sub.submission.attachments.textResponse}
-                                    </div>
-                                )}
-
-                                {/* Links */}
-                                {links.length > 0 && (
-                                    <div>
-                                        <p className="text-xs font-medium text-muted-foreground mb-1.5">Links</p>
-                                        <div className="flex flex-col gap-1">
-                                            {links.map((link: any, idx: number) => (
-                                                <a
-                                                    key={idx}
-                                                    href={link.url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-                                                >
-                                                    <Link2 className="h-3.5 w-3.5" />
-                                                    {link.label || link.url}
-                                                </a>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Attachments */}
-                                {attachments.length > 0 && (
-                                    <div>
-                                        <p className="text-xs font-medium text-muted-foreground mb-2">
-                                            Attachments ({attachments.length})
-                                        </p>
-                                        <div className="flex flex-wrap gap-3">
-                                            {attachments.map((att: any, idx: number) => (
-                                                <AttachmentPreview key={idx} attachment={att} />
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Instructor Feedback + Revert/Restore Actions */}
-                                {status !== 'PENDING' && (
-                                    <>
-                                        <Separator />
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className="flex-1">
-                                                <FeedbackSection sub={sub} />
-                                            </div>
-                                            <div className="flex-shrink-0 pt-1">
-                                                {status === 'SUBMITTED' && (
-                                                    <div className="flex gap-2">
-                                                        {sub.isRequiredInstructorApproval && (
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                                                disabled={isReviewing && actionSubId === sub.submission?._id}
-                                                                onClick={() => openReasonDialog(sub.submission?._id || '', 'approve', sub.activity?.title || '', sub.hp?.baseHp || 0)}
-                                                            >
-                                                                <ThumbsUp className="h-3.5 w-3.5 mr-1.5" />
-                                                                {isReviewing && actionSubId === sub.submission?._id ? 'Approving...' : 'Approve'}
-                                                            </Button>
-                                                        )}
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                            disabled={isReviewing && actionSubId === sub.submission?._id}
-                                                            onClick={() => openReasonDialog(sub.submission?._id || '', 'reject', sub.activity?.title || '', sub.hp?.baseHp || 0)}
-                                                        >
-                                                            <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
-                                                            {isReviewing && actionSubId === sub.submission?._id ? 'Rejecting...' : 'Reject'}
-                                                        </Button>
-                                                    </div>
-                                                )}
-                                                {(status === 'APPROVED' || status === 'REJECTED') && (
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="text-destructive hover:text-destructive"
-                                                            disabled={isReviewing && actionSubId === sub.submission?._id}
-                                                            onClick={() => openReasonDialog(sub.submission?._id || '', 'revert', sub.activity?.title || '', sub.hp?.baseHp || 0)}
-                                                        >
-                                                            <Undo2 className="h-3.5 w-3.5 mr-1.5" />
-                                                            {isReviewing && actionSubId === sub.submission?._id ? 'Reverting...' : 'Revert'}
-                                                        </Button>
-                                                )}
-                                                {status === 'REVERTED' && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        disabled={isRestoring && actionSubId === sub.submission?._id}
-                                                        onClick={() => openReasonDialog(sub.submission?._id || '', 'restore', sub.activity?.title)}
-                                                    >
-                                                        <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-                                                        {isRestoring && actionSubId === sub.submission?._id ? 'Restoring...' : 'Restore'}
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-
-                                {/* No submission yet */}
-                                {status === 'PENDING' && attachments.length === 0 && links.length === 0 && !sub.submission?.attachments?.textResponse && (
-                                    <div className="text-center py-6 text-muted-foreground text-sm border border-dashed rounded-lg">
-                                        No submission yet
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    );
-                })}
+                ) : paginatedSubmissions.map((sub: any, index: number) => (
+                    <SimplifiedSubmissionCard
+                        key={`${sub._id || sub.activity?.id || 'unknown'}-${sub.submission?._id || index}-${currentPage}`}
+                        sub={sub}
+                        onViewMore={() => navigate({
+                            to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortId || "")}/student/${studentId}/submission/${sub.submission?._id || sub._id}`
+                        })}
+                    />
+                ))}
             </div>
 
-            {/* Reason Dialog for Revert/Restore/Approve/Reject */}
-            <Dialog open={reasonDialog.open} onOpenChange={(open) => setReasonDialog({ ...reasonDialog, open })}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>
-                            {reasonDialog.action === 'revert' ? 'Revert Submission' :
-                                reasonDialog.action === 'restore' ? 'Restore Submission' :
-                                    reasonDialog.action === 'approve' ? 'Approve Submission' :
-                                        'Reject Submission'}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {reasonDialog.action === 'revert'
-                                ? `This will revert the submission for "${reasonDialog.activityTitle}" and set the current HP to 0.`
-                                : reasonDialog.action === 'restore'
-                                    ? `This will restore the submission for "${reasonDialog.activityTitle}" and reinstate the original HP.`
-                                    : reasonDialog.action === 'approve'
-                                        ? `This will approve the submission for "${reasonDialog.activityTitle}" and award HP points.`
-                                        : `This will reject the submission for "${reasonDialog.activityTitle}" and may deduct HP points.`}
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    {(reasonDialog.action === 'reject' || reasonDialog.action === 'revert') && (
-                        <div className="py-4 space-y-4">
-
-                            <div>
-                                <label className="text-sm font-medium mb-2 block">
-                                    Note <span className="text-red-500 ml-1">*</span>
-                                </label>
-                                <Textarea
-                                    placeholder="Add feedback (minimum 10 characters)"
-                                    value={reasonDialog.note}
-                                    onChange={(e) =>
-                                        setReasonDialog({ ...reasonDialog, note: e.target.value })
-                                    }
-                                    className="min-h-[80px]"
-                                />
-                                {reasonDialog.note && reasonDialog.note.length < 10 && (
-                                    <p className="text-xs text-red-500 mt-1">
-                                        Note must be at least 10 characters
-                                    </p>
-                                )}
-                            </div>
-
-                            {reasonDialog.action === 'reject' && (
-                                <div>
-                                    <label className="text-sm font-medium mb-2 block">
-                                        Points to Deduct
-                                    </label>
-                                    <div className="flex items-center gap-3">
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            max={reasonDialog.baseHp}
-                                            value={reasonDialog.pointsToDeduct}
-                                            onChange={(e) =>
-                                                setReasonDialog({
-                                                    ...reasonDialog,
-                                                    pointsToDeduct: Math.max(
-                                                        0,
-                                                        Math.min(
-                                                            reasonDialog.baseHp,
-                                                            parseInt(e.target.value) || 0
-                                                        )
-                                                    ),
-                                                })
-                                            }
-                                            className="w-24 px-3 py-2 border border-input rounded-md text-sm"
-                                        />
-                                        <span className="text-sm text-muted-foreground">
-                                            / {reasonDialog.baseHp} (base HP)
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setReasonDialog({ ...reasonDialog, open: false })}>Cancel</Button>
-                        <Button
-                            variant={reasonDialog.action === 'revert' || reasonDialog.action === 'reject' ? 'destructive' : 'default'}
-                            onClick={handleConfirmAction}
-                            disabled={(reasonDialog.action === 'approve' || reasonDialog.action === 'reject' || reasonDialog.action === 'revert') && isReviewing && actionSubId === reasonDialog.subId}
-                        >
-                            {reasonDialog.action === 'revert' ? 'Confirm Revert' :
-                                reasonDialog.action === 'restore' ? 'Confirm Restore' :
-                                    reasonDialog.action === 'approve' ? 'Confirm Approve' :
-                                        'Confirm Reject'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <Card>
+                    <CardContent className="p-4">
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            totalDocuments={filteredSubmissions.length}
+                            onPageChange={setCurrentPage}
+                        />
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate } from "@tanstack/react-router"
-import { Users, Loader2, ChevronDown, ArrowUp, ArrowDown, Pencil, Flag, User, Clock, MessageSquare, BookOpen, ChevronRight } from 'lucide-react'
+import { Users, Loader2, ChevronDown, ArrowUp, ArrowDown, Pencil, Flag, User, Clock, MessageSquare, BookOpen, ChevronRight, RefreshCw } from 'lucide-react'
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -62,7 +62,7 @@ export default function FlaggedList() {
   }
   const [currentPage, setCurrentPage] = useState(1)
   // Fetch reports based on course id and version id
-  const { data: flagsData, isLoading: reportLoading, error: reportError } = useGetReports(courseId || "", versionId || "", pageLimit, currentPage, selectedStatus, selectedEntityType, sortBy, sortOrder);
+  const { data: flagsData, isLoading: reportLoading, error: reportError, refetch: refetchFlags, isRefetching: isRefetchingFlags } = useGetReports(courseId || "", versionId || "", pageLimit, currentPage, selectedStatus, selectedEntityType, sortBy, sortOrder);
 
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
@@ -275,7 +275,15 @@ export default function FlaggedList() {
               <div className="h-1 w-32 bg-gradient-to-r from-primary to-accent rounded-full ml-4"></div>
             </div>
           </div>
-
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetchFlags()}
+            disabled={isRefetchingFlags || reportLoading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefetchingFlags ? "animate-spin" : ""}`} />
+            {isRefetchingFlags ? "Refreshing..." : "Refresh"}
+          </Button>
         </div>
         <div className="md:flex items-center gap-4 mt-4">
           <div>
@@ -653,6 +661,7 @@ export default function FlaggedList() {
                         <div>
                           <span className="font-medium">Course :</span>
                           <p className="font-mono mt-1 break-all">{selectedFlagData.courseId.name}</p>
+                          {selectedFlagData.cohortName && <p className="font-mono mt-1 break-all">Cohort: {selectedFlagData.cohortName}</p>}
                         </div>
                         <div>
                           <span className="font-medium">Entity ID:</span>

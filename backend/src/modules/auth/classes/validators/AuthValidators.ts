@@ -5,6 +5,8 @@ import {
   IsString,
   Matches,
   IsOptional,
+  IsArray,
+  IsNumber,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 
@@ -70,6 +72,29 @@ class SignUpBody {
   @IsString()
   @IsNotEmpty()
   recaptchaToken: string;
+
+  @JSONSchema({
+    title: 'Profile Image',
+    description: 'Optional student profile image as a data URL or remote URL',
+    example: 'data:image/jpeg;base64,/9j/4AAQSk...',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  profileImage?: string;
+
+  @JSONSchema({
+    title: 'Face Embedding',
+    description: 'Optional 128-length face embedding generated from the registration image',
+    type: 'array',
+    items: {
+      type: 'number',
+    },
+  })
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, {each: true})
+  faceEmbedding?: number[];
 }
 
 class GoogleSignUpBody {

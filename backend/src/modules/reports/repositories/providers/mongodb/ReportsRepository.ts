@@ -179,6 +179,21 @@ class ReportRepository {
           preserveNullAndEmptyArrays: true 
         } 
       },
+      //cohort look up
+      {
+        $lookup: {
+          from: "cohorts",
+          localField: "cohortId",
+          foreignField: "_id",
+          as: "cohortData"
+        }
+      },
+      {
+        $unwind: {
+          path: "$cohortData",
+          preserveNullAndEmptyArrays: true
+        }
+      },
       // Version
       {
         $lookup: {
@@ -412,6 +427,16 @@ class ReportRepository {
           versionId: { $toString: '$versionId' },
           entityId: { $toString: '$entityId' },
 
+          cohortId: {
+            $cond: {
+              if: { $ifNull: ["$cohortId", false] },
+              then: { $toString: "$cohortId" },
+              else: "$$REMOVE",
+            },
+          },
+
+          cohortName: "$cohortData.name",
+
           questionId: {
             $cond: {
               if: { $ifNull: ['$questionId', false] },
@@ -445,6 +470,7 @@ class ReportRepository {
           blogData: 0,
           projectData: 0,
           moduleInfo: 0,
+          cohortData: 0,
         },
       },
     ];
@@ -468,6 +494,7 @@ class ReportRepository {
         versionId: report.versionId,
         entityId: report.entityId,
         entityType: report.entityType,
+        ...(report.cohortId ? { cohortId: new ObjectId(report.cohortId) } : {}),
       },
       { session },
     );
@@ -558,7 +585,16 @@ class ReportRepository {
             as: 'courseInfo',
           },
         },
+        {
+          $lookup: {
+            from: 'cohorts',
+            localField: 'cohortId',
+            foreignField: '_id',
+            as: 'cohortData',
+          },
+        },
         { $unwind: { path: '$courseInfo', preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: '$cohortData', preserveNullAndEmptyArrays: true } },
         { $sort: sortQuery },
         { $skip: skip },
         { $limit: limit },
@@ -568,6 +604,8 @@ class ReportRepository {
       ...item,
       _id: item._id?.toString(),
       courseId: item.courseInfo?.name || '-',
+      cohortId: item.cohortData?._id?.toString() || '',
+      cohortName: item.cohortData?.name || '',
       versionId: item.versionId?.toString(),
       entityId: item.entityId?.toString(),
       reportedBy: item.reportedBy?.toString(),

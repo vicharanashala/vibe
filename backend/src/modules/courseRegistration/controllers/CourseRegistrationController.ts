@@ -31,6 +31,8 @@ import {
   AutoApprovalSettingsBody,
   BulkUpdateStatusBody,
   CourseVersionDetailsResponse,
+  GetPendingStudentRegistrationsParams,
+  GetRejectedStudentRegistrationsParams,
   GetPendingRegistrationsParams,
   GetUnreadApprovedRegistrationsParams,
   markNotificationAsReadResponse,
@@ -198,6 +200,11 @@ class CourseRegistrationController {
         if(cohortSetting?.registrationsAutoApproved){
           if (!cohortSetting.autoapproval_emails || cohortSetting.autoapproval_emails.length === 0) {
             await this.courseRegistrationService.updateStatus(result, "APPROVED", cohortId);
+            // Return with APPROVED status when auto-approved
+            return {
+              registrationId: result,
+              status: "APPROVED"
+            };
           } else {
             const userDetails = await this.userRepository.findById(userId);
             if (userDetails?.email) {
@@ -207,6 +214,11 @@ class CourseRegistrationController {
               );
               if (shouldAutoApprove) {
                 await this.courseRegistrationService.updateStatus(result, "APPROVED", cohortId);
+                // Return with APPROVED status when auto-approved
+                return {
+                  registrationId: result,
+                  status: "APPROVED"
+                };
               }
             }
           }
@@ -217,6 +229,11 @@ class CourseRegistrationController {
       if (!registrationSettings.autoapproval_emails || registrationSettings.autoapproval_emails.length === 0) {
         // No specific emails set - auto-approve all
         await this.courseRegistrationService.updateStatus(result, "APPROVED");
+        // Return with APPROVED status when auto-approved
+        return {
+          registrationId: result,
+          status: "APPROVED"
+        };
       } else {
         // Check if user email matches any of the specified patterns
         const userDetails = await this.userRepository.findById(userId);
@@ -229,12 +246,21 @@ class CourseRegistrationController {
 
           if (shouldAutoApprove) {
             await this.courseRegistrationService.updateStatus(result, "APPROVED");
+            // Return with APPROVED status when auto-approved
+            return {
+              registrationId: result,
+              status: "APPROVED"
+            };
           }
         }
       }
     }
 
-    return result;
+    // Return with PENDING status when not auto-approved
+    return {
+      registrationId: result,
+      status: "PENDING"
+    };
   }
 
   @OpenAPI({
@@ -599,6 +625,76 @@ class CourseRegistrationController {
     const result = await this.courseRegistrationService.getPendingRegistrations(mongoInstructorId);
 
     return result;
+  }
+
+  @OpenAPI({
+    summary: 'Get pending registrations for student dashboard',
+    description:
+      'Get all pending course registrations for a student to display waiting-for-approval status.',
+  })
+  @Get('/pending/student')
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(PendingRegistrationResponse, {
+    description: 'Pending student registrations retrieved successfully',
+    statusCode: 200,
+    isArray: true,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async getPendingRegistrationsForStudent(
+    @QueryParams() query: GetPendingStudentRegistrationsParams,
+    @Ability(getCourseRegistrationAbility) { user },
+  ) {
+    const { studentId } = query;
+
+    if (user.firebaseUID !== studentId && user.role !== 'ADMIN') {
+      throw new ForbiddenError('You can only view your own pending registrations');
+    }
+
+    const userRecord = await this.userRepository.findByFirebaseUID(studentId);
+    if (!userRecord) {
+      throw new NotFoundError('User not found');
+    }
+
+    return this.courseRegistrationService.getPendingRegistrationsByStudent(userRecord._id.toString());
+  }
+
+  @OpenAPI({
+    summary: 'Get rejected registrations for student notifications',
+    description:
+      'Get all unread rejected course registrations for a student to display in notifications.',
+  })
+  @Get('/rejected/student')
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(PendingRegistrationResponse, {
+    description: 'Rejected student registrations retrieved successfully',
+    statusCode: 200,
+    isArray: true,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async getRejectedRegistrationsForStudent(
+    @QueryParams() query: GetRejectedStudentRegistrationsParams,
+    @Ability(getCourseRegistrationAbility) { user },
+  ) {
+    const { studentId } = query;
+
+    if (user.firebaseUID !== studentId && user.role !== 'ADMIN') {
+      throw new ForbiddenError('You can only view your own registrations');
+    }
+
+    const userRecord = await this.userRepository.findByFirebaseUID(studentId);
+    if (!userRecord) {
+      throw new NotFoundError('User not found');
+    }
+
+    return this.courseRegistrationService.getRejectedRegistrationsByStudent(userRecord._id.toString());
   }
 
 

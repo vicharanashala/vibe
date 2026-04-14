@@ -1,5 +1,5 @@
 import { Expose, Type } from "class-transformer";
-import { ArrayMaxSize, IsArray, IsBoolean, IsDateString, IsEmail, IsEnum, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min, ValidateNested } from "class-validator";
+import { ArrayMaxSize, IsArray, IsBoolean, IsDateString, IsEmail, IsEnum, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, Max, MaxLength, Min, ValidateNested } from "class-validator";
 import { ReviewDecision, SubmissionSource, SubmissionStatus } from "../../constants.js";
 import { ToNumber } from "../../utils/toNumber.js";
 
@@ -37,8 +37,10 @@ export class SubmissionFileDto {
     mimeType!: string;
 
     @Expose()
-    @IsOptional()
-    sizeBytes?: number;
+    @ToNumber()
+    @IsNumber()
+    @IsNotEmpty()
+    sizeBytes!: number;
 }
 
 export class SubmissionImageDto {
@@ -72,6 +74,20 @@ export class SubmissionPayloadDto {
     @Type(() => SubmissionLinkDto)
     @ArrayMaxSize(20)
     links?: SubmissionLinkDto[];
+
+    @Expose()
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => SubmissionFileDto)
+    files?: SubmissionFileDto[];
+
+    @Expose()
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => SubmissionImageDto)
+    images?: SubmissionImageDto[];
 }
 
 export class CreateOrUpdateHpActivitySubmissionBodyDto {
@@ -88,7 +104,7 @@ export class CreateOrUpdateHpActivitySubmissionBodyDto {
     @Expose()
     @IsString()
     @IsNotEmpty()
-    cohort!: string;
+    cohortId!: string;
 
     @Expose()
     @IsString()
@@ -129,6 +145,18 @@ export class SubmissionFeedbackDto {
     @Expose()
     @IsString()
     feedback!: string;
+
+    @Expose()
+    @IsString()
+    username!: string;
+
+    @Expose()
+    @IsString()
+    email!: string;
+
+    @Expose()
+    @IsDateString()
+    feedbackAt!: Date;
 }
 
 export class SubmissionFeedbackBody {
@@ -166,7 +194,7 @@ export class ListSubmissionsQueryDto {
     @Expose()
     @IsOptional()
     @IsString()
-    cohort?: string;
+    cohortId?: string;
 
     @Expose()
     @IsOptional()
@@ -334,6 +362,10 @@ export class StudentActivitySubmissionsViewDto {
     activity!: StudentSubmissionActivityDto;
 
     @Expose()
+    @IsString()
+    courseId!: string;
+
+    @Expose()
     @IsDateString()
     deadline!: Date;
 
@@ -392,6 +424,44 @@ export class StudentActivitySubmissionsResponseDto {
     meta?: PaginationMetaDto;
 }
 
+export class RewardInfoDto {
+    @Expose()
+    @IsString()
+    @IsIn(["ABSOLUTE", "PERCENTAGE"])
+    type!: string;
+
+    @Expose()
+    @IsNumber()
+    value!: number;
+}
+
+export class CoursePerformanceDto {
+    @Expose()
+    @IsString()
+    courseId!: string;
+
+    @Expose()
+    @IsString()
+    courseName!: string;
+
+    @Expose()
+    @IsNumber()
+    totalHp!: number;
+
+    @Expose()
+    @IsNumber()
+    studentCount!: number;
+}
+
+export class WeeklyActivityDto {
+    @Expose()
+    @IsString()
+    date!: string;
+
+    @Expose()
+    @IsNumber()
+    studentCount!: number;
+}
 
 export class StudentActivitySubmissionStatsViewDto {
     @Expose()
@@ -409,6 +479,29 @@ export class StudentActivitySubmissionStatsViewDto {
     @Expose()
     @IsNumber()
     currentHp!: number;
+    @Expose()
+    @IsOptional()
+    @Type(() => RewardInfoDto)
+    reward?: RewardInfoDto | null;
+
+    // Dashboard metrics
+    @Expose()
+    @IsNumber()
+    totalStudents?: number;
+
+    @Expose()
+    @IsString()
+    bestPerformingCohort!: string;
+
+    @Expose()
+    @IsArray()
+    @Type(() => CoursePerformanceDto)
+    coursePerformance!: CoursePerformanceDto[];
+
+    @Expose()
+    @IsArray()
+    @Type(() => WeeklyActivityDto)
+    weeklyActivity!: WeeklyActivityDto[];
 }
 
 export class StudentActivitySubmissionStatsResponseDto {
@@ -419,4 +512,154 @@ export class StudentActivitySubmissionStatsResponseDto {
 
     @Expose()
     data!: StudentActivitySubmissionStatsViewDto
+}
+
+export class StudentCohortWiseActivitySubmissionsStatsDto {
+    @Expose()
+    data!: {
+        totalSubmissions: number;
+        approvedCount: number;
+        rejectedCount: number;
+        revertedCount: number;
+        submittedCount: number;
+    };
+}
+
+// ─── Student Dashboard Stats DTOs ─────────────────────────────────────────
+
+export class StudentDashboardStatsQueryDto {
+    @Expose()
+    @IsString()
+    @IsNotEmpty()
+    cohortName!: string;
+
+    @Expose()
+    @IsString()
+    @IsNotEmpty()
+    courseVersionId!: string;
+
+    @Expose()
+    @IsOptional()
+    @ToNumber()
+    @IsNumber()
+    @Min(1)
+    @Max(30)
+    timelineDays?: number = 7;
+}
+
+export class MyStatsDto {
+    @Expose()
+    @IsNumber()
+    totalHp!: number;
+
+    @Expose()
+    @IsNumber()
+    completedActivities!: number;
+
+    @Expose()
+    @IsNumber()
+    pendingSubmissions!: number;
+
+    @Expose()
+    @IsNumber()
+    completionPercentage!: number;
+}
+
+export class ProgressTimelineItemDto {
+    @Expose()
+    @IsString()
+    date!: string;
+
+    @Expose()
+    @IsNumber()
+    hpChange!: number;
+
+    @Expose()
+    @IsNumber()
+    activitiesCompleted!: number;
+}
+
+export class ActivityBreakdownDto {
+    @Expose()
+    @IsNumber()
+    notStarted!: number;
+
+    @Expose()
+    @IsNumber()
+    submitted!: number;
+
+    @Expose()
+    @IsNumber()
+    approved!: number;
+
+    @Expose()
+    @IsNumber()
+    rejected!: number;
+}
+
+export class UpcomingDeadlineDto {
+    @Expose()
+    @IsString()
+    activityTitle!: string;
+
+    @Expose()
+    @IsString()
+    deadlineDate!: string;
+
+    @Expose()
+    @IsNumber()
+    daysLeft!: number;
+}
+
+export class RecentSubmissionDto {
+    @Expose()
+    @IsString()
+    activityTitle!: string;
+
+    @Expose()
+    @IsString()
+    submittedAt!: string;
+
+    @Expose()
+    @IsString()
+    status!: string;
+
+    @Expose()
+    @IsNumber()
+    hpEarned!: number;
+}
+
+export class StudentDashboardStatsDataDto {
+    @Expose()
+    @Type(() => MyStatsDto)
+    myStats!: MyStatsDto;
+
+    @Expose()
+    @IsArray()
+    @Type(() => ProgressTimelineItemDto)
+    progressTimeline!: ProgressTimelineItemDto[];
+
+    @Expose()
+    @Type(() => ActivityBreakdownDto)
+    activityBreakdown!: ActivityBreakdownDto;
+
+    @Expose()
+    @IsArray()
+    @Type(() => UpcomingDeadlineDto)
+    upcomingDeadlines!: UpcomingDeadlineDto[];
+
+    @Expose()
+    @IsArray()
+    @Type(() => RecentSubmissionDto)
+    recentSubmissions!: RecentSubmissionDto[];
+}
+
+export class StudentDashboardStatsResponseDto {
+    @Expose()
+    @IsBoolean()
+    success!: boolean;
+
+    @Expose()
+    @Type(() => StudentDashboardStatsDataDto)
+    data!: StudentDashboardStatsDataDto;
 }

@@ -11,6 +11,7 @@ export interface FaceDetectorsProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   onRecognitionResult?: (recognitions: FaceRecognition[]) => void;
   onDebugInfoUpdate?: (debugInfo: FaceRecognitionDebugInfo) => void;
+  onMismatchChange?: (hasMismatch: boolean) => void;
   settings:{
     isFaceCountDetectionEnabled:boolean, 
     isFaceRecognitionEnabled:boolean, 
@@ -66,6 +67,7 @@ export interface FaceRecognitionComponentProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   onRecognitionResult?: (recognitions: FaceRecognition[]) => void;
   onDebugInfoUpdate?: (debugInfo: FaceRecognitionDebugInfo) => void;
+  onMismatchChange?: (hasMismatch: boolean) => void;
 }
 
 export interface FaceRecognitionOverlayProps {

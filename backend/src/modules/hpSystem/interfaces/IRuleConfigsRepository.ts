@@ -4,10 +4,10 @@ import { HpRuleConfig } from "../models.js";
 
 
 export interface IRuleConfigsRepository {
-    createRuleConfig(input: Omit<HpRuleConfig, "_id">): Promise<HpRuleConfigTransformer>;
+    createRuleConfig(input: Omit<HpRuleConfig, "_id">, session?: ClientSession): Promise<HpRuleConfigTransformer>;
     updateRuleConfig(
         ruleConfigId: string,
-        patch: Partial<Omit<HpRuleConfig, "_id" | "courseId" | "courseVersionId" | "activityId" | "createdAt">>
+        patch: Partial<Omit<HpRuleConfig, "_id" | "courseId" | "courseVersionId" | "activityId" | "createdAt">>, session?: ClientSession
     ): Promise<HpRuleConfigTransformer | null>;
 
     findById(ruleConfigId: string): Promise<HpRuleConfigTransformer | null>;
@@ -16,5 +16,7 @@ export interface IRuleConfigsRepository {
         activityId: string,
         deletedByTeacherId?: string,
         session?: ClientSession,
-    ): Promise<{ modifiedCount: number }>
+    ): Promise<{ modifiedCount: number }>;
+    getAllMandatoryLateActivities(): Promise<HpRuleConfigTransformer[]>;
+    getAllMilestoneActivities(): Promise<HpRuleConfigTransformer[]>;
 }

@@ -3,34 +3,57 @@ import { useNavigate } from "@tanstack/react-router";
 import { useHpStudents } from "@/hooks/hooks";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, History, Mail, FileText } from "lucide-react";
+import { Search, History, Mail, FileText, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card"
 import { ArrowUp, ArrowDown } from "lucide-react"
 import { Pagination } from "@/components/ui/Pagination";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ResetHpDialog } from "./ResetHpDialog";
+import { ResetStudentHpDialog } from "./ResetStudentHpDialog";
 
 export interface StudentsTabProps {
   courseVersionId: string;
+  cohortId: string;
   cohortName: string;
 }
 
-export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
+export function StudentsTab({ courseVersionId, cohortId, cohortName }: StudentsTabProps) {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<"name" | "hp" | "completion">("name")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
   const [currentPage, setCurrentPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "SAFE" | "UNSAFE">("ALL");
+  const [openReset, setOpenReset] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [openStudentReset, setOpenStudentReset] = useState(false);
 
   const itemsPerPage = 10;
   const navigate = useNavigate();
 
-  const { data: students = [], isLoading } = useHpStudents(
+  const { data: students = [], isLoading, refetch, isRefetching } = useHpStudents(
     courseVersionId,
-    cohortName
+    cohortId
   );
 
   const filteredStudents = students.filter((s) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q);
+    const matchesSearch =
+      !search ||
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.email.toLowerCase().includes(search.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === "ALL" ||
+      (statusFilter === "SAFE" && s.isSafe) ||
+      (statusFilter === "UNSAFE" && !s.isSafe);
+
+    return matchesSearch && matchesStatus;
   });
   const handleSort = (key: typeof sortKey) => {
     if (sortKey === key) {
@@ -81,24 +104,64 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
     <div className="space-y-6">
 
       {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search students by name or email..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value)
-            setCurrentPage(1)
-          }}
-          className="pl-10"
-        />
+      <div className="flex items-center justify-between gap-3">
+        <div className="relative max-w-md flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search students by name or email..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setCurrentPage(1)
+            }}
+            className="pl-10"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <Select
+              value={statusFilter}
+              onValueChange={(value: "ALL" | "SAFE" | "UNSAFE") => {
+                setStatusFilter(value);
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Students</SelectItem>
+                <SelectItem value="SAFE">Safe</SelectItem>
+                <SelectItem value="UNSAFE">Unsafe</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isRefetching || isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+              {isRefetching ? "Refreshing..." : "Refresh"}
+            </Button>
+            
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setOpenReset(true)}
+            >
+              Reset HP
+            </Button>
+          </div>
+
       </div>
 
       {/* Student Count */}
-      <div className="text-sm text-muted-foreground">
+      {/* <div className="text-sm text-muted-foreground">
         {filteredStudents.length} student
         {filteredStudents.length !== 1 ? "s" : ""}
-      </div>
+      </div> */}
 
       {/* Table */}
       {filteredStudents.length === 0 ? (
@@ -152,6 +215,7 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
                       ))}
                   </span>
                 </th>
+                <th className="text-center px-4 py-3">Status</th>
                 <th className="text-center px-4 py-3">Actions</th>
               </tr>
             </thead>
@@ -191,6 +255,19 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
                     {student.totalHp}
                   </td>
 
+                  {/* Safe status */}
+                    <td className="text-center px-4 py-3">
+                      <Badge
+                      className={`px-3 py-1 text-xs font-medium rounded-full border ${
+                        student.isSafe
+                          ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800"
+                          : "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800"
+                      }`}
+                    >
+                      {student.isSafe ? "SAFE" : "UNSAFE"}
+                    </Badge>
+                  </td>
+
                   {/* Actions */}
                   <td className="text-center px-4 py-3 space-x-2">
                     <Button
@@ -199,7 +276,7 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
                       onClick={() =>
                         navigate({
                           to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(
-                            cohortName
+                            cohortId
                           )}/student/${student._id}/submissions`,
                         })
                       }
@@ -214,13 +291,24 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
                       onClick={() =>
                         navigate({
                           to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(
-                            cohortName
+                            cohortId
                           )}/student/${student._id}/ledger`,
                         })
                       }
                     >
                       <History className="h-4 w-4 mr-1" />
                       HP History
+                    </Button>
+
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedStudent(student);
+                        setOpenStudentReset(true);
+                      }}
+                    >
+                      Reset HP
                     </Button>
                   </td>
 
@@ -242,6 +330,20 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
           />
         </CardContent>
       </Card>
+       <ResetHpDialog
+        open={openReset}
+        onOpenChange={setOpenReset}
+        courseVersionId={courseVersionId}
+        cohortName={cohortName}
+        onSuccess={refetch}
+      />
+      <ResetStudentHpDialog
+        open={openStudentReset}
+        onOpenChange={setOpenStudentReset}
+        student={selectedStudent}
+        courseVersionId={courseVersionId}
+        cohortName={cohortName}
+      />
     </div>
   );
 }

@@ -55,6 +55,8 @@ export class IAnomalyData {
   fileName?: string;
   fileType?: FileType;
   createdAt: Date;
+  cohortId?: string | ObjectId;
+  cohortName?: string;
 
   constructor(data: Partial<IAnomalyData>, userId: string) {
     this.userId = new ObjectId(userId);
@@ -63,6 +65,9 @@ export class IAnomalyData {
     this.versionId = new ObjectId(data.versionId);
     this.itemId = new ObjectId(data.itemId);
     this.createdAt = new Date();
+    if (data.cohortId) {
+      this.cohortId = new ObjectId(data.cohortId);
+    }
   }
 }
 

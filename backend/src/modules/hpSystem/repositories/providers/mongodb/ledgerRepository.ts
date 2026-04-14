@@ -2,8 +2,8 @@ import { HpLedgerTransformer } from "#root/modules/hpSystem/classes/transformers
 import { FilterQueryDto } from "#root/modules/hpSystem/classes/validators/activitySubmissionValidators.js";
 import { LedgerListResponseDto } from "#root/modules/hpSystem/classes/validators/ledgerValidators.js";
 import { ILedgerRepository } from "#root/modules/hpSystem/interfaces/ILedgerRepository.js";
-import { HpLedger } from "#root/modules/hpSystem/models.js";
-import { MongoDatabase } from "#root/shared/index.js";
+import { HpActivity, HpLedger } from "#root/modules/hpSystem/models.js";
+import { EnrollmentRole, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { instanceToPlain, plainToInstance } from "class-transformer";
 import { inject, injectable } from "inversify";
@@ -12,7 +12,7 @@ import { ClientSession, Collection, InsertOneResult, ObjectId } from "mongodb";
 @injectable()
 export class LedgerRepository implements ILedgerRepository {
     private hpLedgerCollection: Collection<HpLedger>;
-
+    private hpActivityCollection: Collection<HpActivity>;
     constructor(
         @inject(GLOBAL_TYPES.Database)
         private db: MongoDatabase,
@@ -20,6 +20,7 @@ export class LedgerRepository implements ILedgerRepository {
 
     async init() {
         this.hpLedgerCollection = await this.db.getCollection<HpLedger>('hp_ledger');
+        this.hpActivityCollection = await this.db.getCollection<HpActivity>('hp_activities');
     }
 
     async create(entry: Omit<HpLedger, "_id" | "createdAt">, session?: ClientSession): Promise<InsertOneResult<HpLedger>> {
@@ -33,7 +34,9 @@ export class LedgerRepository implements ILedgerRepository {
 
     async listByStudentId(
         studentId: string,
-        filter: FilterQueryDto
+        filter: FilterQueryDto,
+        cohortId: string,
+        role: EnrollmentRole,
     ): Promise<{
         data: HpLedgerTransformer[];
         total: number;
@@ -68,14 +71,102 @@ export class LedgerRepository implements ILedgerRepository {
             [sortBy]: sortOrder === "asc" ? 1 : -1,
         };
 
+        const matchQuery: any = { ...query };
+
+        if (role !== "STUDENT") {
+            matchQuery.cohortId = new ObjectId(cohortId);
+        }
+
         const [docs, total] = await Promise.all([
-            this.hpLedgerCollection
-                .find(query)
-                .sort(sort)
-                .skip(skip)
-                .limit(limit)
-                .toArray(),
-            this.hpLedgerCollection.countDocuments(query),
+
+            this.hpLedgerCollection.aggregate([
+
+                { $match: matchQuery },
+
+                {
+                    $lookup: {
+                        from: "hp_activities",
+                        let: { activityId: "$activityId" },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: { $eq: ["$_id", "$$activityId"] }
+                                }
+                            },
+                            {
+                                $project: { _id: 0, title: 1 }
+                            }
+                        ],
+                        as: "activity"
+                    }
+                },
+
+                {
+                    $unwind: {
+                        path: "$activity",
+                        preserveNullAndEmptyArrays: true
+                    }
+                },
+
+                {
+                    $addFields: {
+                        triggeredByUserObjectId: {
+                            $convert: {
+                                input: "$meta.triggeredByUserId",
+                                to: "objectId",
+                                onError: null,
+                                onNull: null,
+                            }
+                        }
+                    }
+                },
+
+                {
+                    $lookup: {
+                        from: "users",
+                        localField: "triggeredByUserObjectId",
+                        foreignField: "_id",
+                        as: "triggeredByUser"
+                    }
+                },
+
+                {
+                    $unwind: {
+                        path: "$triggeredByUser",
+                        preserveNullAndEmptyArrays: true
+                    }
+                },
+
+                { $sort: sort },
+                { $skip: skip },
+                { $limit: limit },
+
+                {
+                    $addFields: {
+                        activityTitle: "$activity.title",
+                        triggeredByUserName: {
+                            $cond: [
+                                { $ifNull: ["$triggeredByUser._id", false] },
+                                {
+                                    $trim: {
+                                        input: {
+                                            $concat: [
+                                                { $ifNull: ["$triggeredByUser.firstName", ""] },
+                                                " ",
+                                                { $ifNull: ["$triggeredByUser.lastName", ""] }
+                                            ]
+                                        }
+                                    }
+                                },
+                                null
+                            ]
+                        }
+                    }
+                }
+
+            ]).toArray(),
+
+            this.hpLedgerCollection.countDocuments(matchQuery)
         ]);
 
         const data = docs.map((doc) => ({
@@ -86,6 +177,7 @@ export class LedgerRepository implements ILedgerRepository {
             studentId: doc.studentId?.toString(),
             studentEmail: doc.studentEmail,
             activityId: doc.activityId?.toString(),
+            activityTitle: doc.activityTitle,
             submissionId: doc.submissionId?.toString(),
             eventType: doc.eventType,
             direction: doc.direction,
@@ -114,6 +206,7 @@ export class LedgerRepository implements ILedgerRepository {
                 ? {
                     triggeredBy: doc.meta.triggeredBy,
                     triggeredByUserId: doc.meta.triggeredByUserId?.toString(),
+                    triggeredByUserName: doc.triggeredByUserName ?? null,
                     note: doc.meta.note,
                 }
                 : null,
@@ -143,5 +236,242 @@ export class LedgerRepository implements ILedgerRepository {
                 sort: { createdAt: -1 },
             }
         );
+    }
+    
+    async findRestoreBySubmissionId(submissionId: string): Promise<HpLedger | null> {
+    await this.init();
+    return await this.hpLedgerCollection.findOne(
+        {
+            submissionId: new ObjectId(submissionId),
+            eventType: "RESTORE",
+        },
+        {
+            sort: { createdAt: -1 },
+        }
+    );
+}
+
+async findDebitBySubmissionId(submissionId: string): Promise<HpLedger | null> {
+    await this.init();
+    return await this.hpLedgerCollection.findOne(
+        {
+            submissionId: new ObjectId(submissionId),
+            direction: "DEBIT",
+        },
+        {
+            sort: { createdAt: -1 },
+        }
+    );
+}
+    async findByStudentAndActivityId(
+        activityId: string,
+        studentId: string
+    ): Promise<HpLedger | null> {
+        await this.init();
+
+        return await this.hpLedgerCollection.findOne(
+            {
+                activityId: new ObjectId(activityId),
+                studentId: new ObjectId(studentId),
+            },
+            {
+                sort: { createdAt: -1 },
+            }
+        );
+    }
+
+    async findPenaltiesByActivityId(activityId: string): Promise<HpLedger[]> {
+        await this.init();
+
+        return await this.hpLedgerCollection.find({
+            activityId: new ObjectId(activityId),
+            "calc.reasonCode": "MISSED_DEADLINE_PENALTY"
+        }).toArray();
+    }
+
+    async findAllExisitingMilestoneRewards(activityId: string): Promise<HpLedger[]> {
+        await this.init();
+
+        return await this.hpLedgerCollection.find({
+            activityId: new ObjectId(activityId),
+            "calc.reasonCode": "MILESTONE_REWARD"
+        }).toArray();
+    }
+
+    async findRewardsByActivityId(activityId: string): Promise<HpLedger[]> {
+        await this.init();
+
+        return await this.hpLedgerCollection.find({
+            activityId: new ObjectId(activityId),
+            // "calc.reasonCode": "MILESTONE_REWARD"
+        }).toArray();
+    }
+
+    async findBySubmissionIds(submissionIds: string[]): Promise<HpLedger[]> {
+    await this.init();
+    const objectIds = submissionIds.map(id => new ObjectId(id));
+    return await this.hpLedgerCollection.find({
+        submissionId: { $in: objectIds }
+    }).toArray();
+}
+
+    async getHpDistributionForCohort(
+        cohortId: string,
+        courseVersionId: string,
+        session?: ClientSession
+    ): Promise<{
+        low: number;
+        medium: number;
+        high: number;
+        veryHigh: number;
+    }> {
+        await this.init();
+        
+        const pipeline = [
+            {
+                $match: {
+                    cohortId: new ObjectId(cohortId),
+                    courseVersionId: new ObjectId(courseVersionId)
+                }
+            },
+            {
+                $group: {
+                    _id: "$studentId",
+                    totalHp: { $sum: "$points" }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    low: {
+                        $sum: {
+                            $cond: [{ $lte: ["$totalHp", 50] }, 1, 0]
+                        }
+                    },
+                    medium: {
+                        $sum: {
+                            $cond: [
+                                { $and: [{ $gt: ["$totalHp", 50] }, { $lte: ["$totalHp", 100] }] },
+                                1,
+                                0
+                            ]
+                        }
+                    },
+                    high: {
+                        $sum: {
+                            $cond: [
+                                { $and: [{ $gt: ["$totalHp", 100] }, { $lte: ["$totalHp", 200] }] },
+                                1,
+                                0
+                            ]
+                        }
+                    },
+                    veryHigh: {
+                        $sum: {
+                            $cond: [{ $gt: ["$totalHp", 200] }, 1, 0]
+                        }
+                    }
+                }
+            }
+        ];
+        
+        const result = await this.hpLedgerCollection.aggregate(pipeline, { session }).toArray();
+        
+        return {
+            low: result[0]?.low || 0,
+            medium: result[0]?.medium || 0,
+            high: result[0]?.high || 0,
+            veryHigh: result[0]?.veryHigh || 0
+        };
+    }
+
+    async getStudentHpTimeline(
+        studentId: string,
+        cohortId: string,
+        courseVersionId: string,
+        days: number = 7,
+        session?: ClientSession
+    ): Promise<Array<{
+        date: string;
+        hpChange: number;
+        activitiesCompleted: number;
+    }>> {
+        await this.init();
+
+        const today = new Date();
+        const startDate = new Date(today);
+        startDate.setDate(today.getDate() - days + 1);
+        startDate.setHours(0, 0, 0, 0);
+
+        // Get daily HP changes and completed activities for the student
+        const pipeline = [
+            {
+                $match: {
+                    studentId: new ObjectId(studentId),
+                    cohortId: new ObjectId(cohortId),
+                    courseVersionId: new ObjectId(courseVersionId),
+                    createdAt: { $gte: startDate }
+                }
+            },
+            {
+                $addFields: {
+                    dateStr: {
+                        $dateToString: {
+                            format: "%Y-%m-%d",
+                            date: "$createdAt"
+                        }
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: "$dateStr",
+                    hpChange: {
+                        $sum: {
+                            $cond: [
+                                { $eq: ["$direction", "CREDIT"] },
+                                "$amount",
+                                { $multiply: ["$amount", -1] }
+                            ]
+                        }
+                    },
+                    activitiesCompleted: {
+                        $sum: {
+                            $cond: [
+                                { 
+                                    $and: [
+                                        { $eq: ["$direction", "CREDIT"] },
+                                        { $eq: ["$calc.reasonCode", "SUBMISSION_REWARD"] }
+                                    ]
+                                },
+                                1,
+                                0
+                            ]
+                        }
+                    }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ];
+
+        const result = await this.hpLedgerCollection.aggregate(pipeline, { session }).toArray();
+
+        // Fill in missing dates with 0 values
+        const timeline: Array<{ date: string; hpChange: number; activitiesCompleted: number }> = [];
+        
+        for (let i = days - 1; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            
+            const entry = result.find(r => r._id === dateStr);
+            timeline.push({
+                date: dateStr,
+                hpChange: entry?.hpChange || 0,
+                activitiesCompleted: entry?.activitiesCompleted || 0
+            });
+        }
+
+        return timeline;
     }
 }

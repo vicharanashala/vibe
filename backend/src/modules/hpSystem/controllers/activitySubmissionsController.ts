@@ -21,7 +21,7 @@ import multer from "multer";
 
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivitySubmissionsService } from "../services/activitySubmissionsService.js";
-import { CreateOrUpdateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, SubmissionFeedbackBody } from "../classes/validators/activitySubmissionValidators.js";
+import { CreateOrUpdateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, StudentCohortWiseActivitySubmissionsStatsDto, StudentDashboardStatsQueryDto, StudentDashboardStatsResponseDto, SubmissionFeedbackBody } from "../classes/validators/activitySubmissionValidators.js";
 
 @OpenAPI({
   tags: ["HP Activity Submissions"],
@@ -109,6 +109,28 @@ export class ActivitySubmissionsController {
     return { success: true, data: doc.data };
   }
 
+  @OpenAPI({ summary: "Get student dashboard stats with timeline filter" })
+  @Get("/student/dashboard-stats")
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(StudentDashboardStatsResponseDto)
+  async getStudentDashboardStats(
+    @CurrentUser() user: IUser,
+    @QueryParams() query: StudentDashboardStatsQueryDto,
+  ): Promise<StudentDashboardStatsResponseDto> {
+    const studentId = user._id.toString();
+    const { cohortName, courseVersionId, timelineDays = 7 } = query;
+    
+    const data = await this.submissionService.getStudentDashboardStats(
+      studentId,
+      cohortName,
+      courseVersionId,
+      timelineDays
+    );
+    
+    return { success: true, data };
+  }
+
   @OpenAPI({ summary: "List submissions (teacher/admin)" })
   @Get("/")
   @Authorized()
@@ -119,32 +141,32 @@ export class ActivitySubmissionsController {
   }
 
   @OpenAPI({ summary: "List student wise submissions" })
-  @Get("/student/:studentId/cohort/:cohortName")
+  @Get("/student/:studentId/cohort/:cohortId")
   @Authorized()
   @HttpCode(200)
   @ResponseSchema(StudentActivitySubmissionsResponseDto)
   async listStudentCohortWiseSubmssions(
     @CurrentUser() user: IUser,
     @Param("studentId") studentId: string,
-    @Param("cohortName") cohortName: string,
+    @Param("cohortId") cohortId: string,
     @QueryParams() query: FilterQueryDto,
   ): Promise<StudentActivitySubmissionsResponseDto> {
     const teacherId = user._id.toString();
-    return await this.submissionService.listStudentCohortWiseSubmssions(teacherId, studentId, query, cohortName);
+    return await this.submissionService.listStudentCohortWiseSubmssions(teacherId, studentId, query, cohortId);
   }
 
   @OpenAPI({ summary: "List student wise submissions stats" })
-  @Get("/stats/student/:studentId/cohort/:cohortName")
+  @Get("/stats/student/:studentId/cohort/:cohortId")
   @Authorized()
   @HttpCode(200)
   @ResponseSchema(StudentActivitySubmissionStatsResponseDto)
   async listStatsByStudentId(
     @CurrentUser() user: IUser,
     @Param("studentId") studentId: string,
-    @Param("cohortName") cohortName: string,
+    @Param("cohortId") cohortId: string,
   ): Promise<StudentActivitySubmissionStatsResponseDto> {
     const teacherId = user._id.toString();
-    return await this.submissionService.listStudentWiseSubmissionsStats(studentId, cohortName);
+    return await this.submissionService.listStudentWiseSubmissionsStats(studentId, cohortId);
   }
 
   @OpenAPI({ summary: "Review submission (approve/reject/revert)" })
@@ -176,5 +198,45 @@ export class ActivitySubmissionsController {
     return { success: true, data: result };
   }
 
+  @OpenAPI({ summary: "Restore a reverted submission" })
+  @Post("/:id/restore")
+  @Authorized()
+  @HttpCode(200)
+  async restore(
+      @Param("id") id: string,
+      @CurrentUser() user: IUser,
+      @Body() body: { note?: string }
+  ) {
+      const teacherId = user._id.toString();
+      const doc = await this.submissionService.restore(id, teacherId, body.note);
+      return { success: true, data: doc };
+  }
+
+  @OpenAPI({ summary: "get submission stats of a activity for a cohort" })
+  @Get("/stats/cohort/:cohortId/activity/:activityId")
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(StudentCohortWiseActivitySubmissionsStatsDto)
+  async getCohortActivityStats(
+    @CurrentUser() user: IUser,
+    @Param("cohortId") cohortId: string,
+    @Param("activityId") activityId: string,
+  ): Promise<StudentCohortWiseActivitySubmissionsStatsDto> {
+    return await this.submissionService.getCohortActivityStats(cohortId, activityId);
+  }
+
+  @OpenAPI( { summary: "get bulk stats of activity submissions for a cohort" })
+  @Get("/stats/cohort/:cohortId/courseversion/:courseVersionId")
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(StudentActivitySubmissionStatsResponseDto)
+  async getBulkCohortActivityStats(
+    @CurrentUser() user: IUser,
+    @Param("cohortId") cohortId: string,
+    @Param("courseVersionId") courseVersionId: string,
+  ): Promise<StudentActivitySubmissionStatsResponseDto> {
+    const data =  await this.submissionService.getBulkCohortActivityStats(cohortId, courseVersionId);
+    return { success: true, data };
+  }
 
 }

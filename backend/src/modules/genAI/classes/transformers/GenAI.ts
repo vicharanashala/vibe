@@ -49,6 +49,18 @@ export interface QuestionGenerationParameters {
 	DES?: number;
 	BIN?: number;
 	prompt?: string;
+	smartBloom?: {
+		enabled?: boolean;
+		segmentationStrategy?: 'DEFAULT' | 'CONCEPT_END';
+		distribution?: {
+			knowledge: number;
+			understanding: number;
+			application: number;
+			analysis?: number;
+			evaluation?: number;
+			creation?: number;
+		};
+	};
 }
 
 export interface UploadParameters {
@@ -59,6 +71,8 @@ export interface UploadParameters {
 	videoItemBaseName?: string;
 	quizItemBaseName?: string;
 	questionsPerQuiz?: number;
+	smartBloomEnabled?: boolean;
+	questions?: any[];
 }
 
 export interface audioData {

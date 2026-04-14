@@ -493,6 +493,27 @@ class SubmissionRepository {
     );
   }
 
+  async isQuizAlreadyPassed(
+    userId: string,
+    quizId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+    const filter: any = {
+      quizId: new ObjectId(quizId),
+      userId: new ObjectId(userId),
+      'gradingResult.gradingStatus': 'PASSED',
+      ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+    };
+
+    const passedSubmission = await this.submissionResultCollection.findOne(filter, {
+      session,
+    });
+
+    return !!passedSubmission;
+  }
+  
 
 }
 

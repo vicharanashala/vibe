@@ -16,12 +16,15 @@ export type ActivityType =
 
 export type SubmissionMode = "IN_PLATFORM" | "EXTERNAL_LINK";
 
-export type LateRewardPolicy =
-    | "NONE"
-    | "REWARD_ALLOWED"
-    | "REWARD_DENIED";
 
 export type AttachmentKind = "PDF" | "LINK" | "OTHER";
+
+export enum SubmissionField {
+    TEXT = "TEXT",
+    PDF = "PDF",
+    IMAGE = "IMAGE",
+    URL = "URL",
+}
 
 export interface HpActivity {
     _id: ID;
@@ -29,6 +32,8 @@ export interface HpActivity {
     // Scoping
     courseVersionId: ID;
     courseId: ID;
+    cohortId: ID;
+    /** @deprecated Use cohortId instead. Kept for human-readable debugging. */
     cohort: string;
 
     // Authoring
@@ -49,6 +54,9 @@ export interface HpActivity {
         url: string;
         kind: AttachmentKind;
     }[];
+
+    // Activity constraints
+    required_percentage?: number;
 
     // Stats
     stats: { // to track submission stats for this activity, updated by a scheduled job that runs every hour
@@ -89,6 +97,8 @@ export interface HpActivitySubmission {
 
     courseId: ID;
     courseVersionId: ID;
+    cohortId: ID;
+    /** @deprecated Use cohortId instead. Kept for human-readable debugging. */
     cohort: string;
     activityId: ID;
 
@@ -156,7 +166,7 @@ export interface HpActivitySubmission {
 
 export type RuleType = "ABSOLUTE" | "PERCENTAGE";
 
-export type RewardApplyWhen = "ON_SUBMISSION" | "ON_APPROVAL";
+export type RewardApplyWhen = "ON_SUBMISSION" | "ON_APPROVAL" | "ON_MILESTONE_COMPLETION";
 
 export type LateBehavior = "NO_REWARD" | "REWARD";
 
@@ -175,20 +185,18 @@ export interface HpRuleConfig {
 
     deadlineAt: Date;
     allowLateSubmission: boolean;
-    lateRewardPolicy: LateRewardPolicy;
+
+    submissionValidation: SubmissionField[];
 
     // Reward rule
     reward: {
         enabled: boolean;
-        type: RuleType;
-        value: number;
-        applyWhen: RewardApplyWhen;
-        onlyWithinDeadline: boolean;
-        allowLate: boolean;
-        lateBehavior: LateBehavior;
-        minHpFloor: number;
+        type?: RuleType;
+        value?: number;
+        applyWhen?: RewardApplyWhen;
+        lateBehavior?: LateBehavior;
     };
-    
+
     // students => hpPOints = 50 (shouldn't be -ve)
 
     // penalty type = % => 10 => 10% of 50 => 5 => 50 -5 
@@ -196,17 +204,17 @@ export interface HpRuleConfig {
     // Penalty rule 
     penalty: {
         enabled: boolean;
-        type: RuleType;
-        value: number;
-        applyWhen: PenaltyApplyWhen;
-        graceMinutes: number;
+        type?: RuleType;
+        value?: number;
+        applyWhen?: PenaltyApplyWhen;
+        graceMinutes?: number;
         // runOnce: boolean;
     };
 
     // Safety guards
-    limits: {
-        minHp: number;
-        maxHp: number;
+    limits?: {
+        minHp?: number;
+        maxHp?: number;
     };
 
     createdAt: Date;
@@ -224,25 +232,34 @@ export type HpLedgerEventType =
     | "REVERSAL"
     | "MANUAL_ADJUST"
     | "MILESTONE"
-    | "REJECTION";
+    | "REJECTION"
+    | "AUTO_REWARD"
+    | "AUTO_PENALTY"
+    | "RESTORE"
+    | "RESET";
 
 export type HpLedgerDirection = "CREDIT" | "DEBIT";
 
 export type HpReasonCode =
     | "SUBMISSION_REWARD"
+    | "MILESTONE_REWARD"
     | "MISSED_DEADLINE_PENALTY"
     | "REWARD_REVERSAL"
     | "REJECTION_PENALTY"
     | "BASE_INIT"
-    | "MANUAL";
+    | "MANUAL"
+    | "HP_RESET"
+    | "RESTORE_REVERSAL";
 
-export type TriggeredBy = "SYSTEM" | "TEACHER" | "STUDENT" | "JOB";
+export type TriggeredBy = "SYSTEM" | "TEACHER" | "STUDENT" | "SYSTEM_AUTOMATION";
 
 export interface HpLedger {
     _id?: ID;
 
     courseId: ID;
     courseVersionId: ID;
+    cohortId: ID;
+    /** @deprecated Use cohortId instead. Kept for human-readable debugging. */
     cohort: String;
 
     // Identity
@@ -265,8 +282,8 @@ export interface HpLedger {
         absolutePoints?: number;
         baseHpAtTime: number;
         computedAmount: number;
-        deadlineAt: Date;
-        withinDeadline: boolean;
+        deadlineAt?: Date;
+        withinDeadline?: boolean;
         reasonCode: HpReasonCode;
     };
 
@@ -279,8 +296,13 @@ export interface HpLedger {
     meta: {
         triggeredBy: TriggeredBy;
         triggeredByUserId: ID;
+        operationId?: string; // reset hp for a student => operationId = "reset-<timestamp>"
         note: string;
     };
 
     createdAt: Date;
 }
+
+export type statusFilter = "ALL" | "SAFE" | "UNSAFE";
+
+export type HpResetMode = 'ALL' | 'ONLY_ZERO_HP' | 'ONLY_WITH_HP';

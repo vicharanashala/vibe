@@ -382,7 +382,7 @@ export class InviteService extends BaseService {
     inviteData: {email: string; role: EnrollmentRole}[],
     courseId: string,
     courseVersionId: string,
-    cohortId?: string
+    cohortId?: string,
   ): Promise<InviteResult[]> {
     // Get Course Details (outside transaction)
     const course = await this.courseRepo.read(courseId.toString());
@@ -438,13 +438,19 @@ export class InviteService extends BaseService {
         );
       }
 
-      if(courseVersion.cohorts && courseVersion.cohorts.length > 0) {
-        if(!cohortId){
-          throw new BadRequestError("Course version contains cohorts, student must choose a cohort");
+      if (courseVersion.cohorts && courseVersion.cohorts.length > 0) {
+        if (!cohortId) {
+          throw new BadRequestError(
+            'Course version contains cohorts, student must choose a cohort',
+          );
         }
-        const validCohort = courseVersion.cohorts.find(c => c.toString() === cohortId);
-        if(!validCohort) {
-          throw new BadRequestError("Invalid cohort. Cohort does not exist in course version.");
+        const validCohort = courseVersion.cohorts.find(
+          c => c.toString() === cohortId,
+        );
+        if (!validCohort) {
+          throw new BadRequestError(
+            'Invalid cohort. Cohort does not exist in course version.',
+          );
         }
       }
     }
@@ -487,11 +493,11 @@ export class InviteService extends BaseService {
 
         const isAlreadyEnrolled = user
           ? !!(await this.enrollmentRepo.findActiveEnrollment(
-            user._id.toString(),
-            courseId,
-            courseVersionId,
-            cohortId
-          ))
+              user._id.toString(),
+              courseId,
+              courseVersionId,
+              cohortId,
+            ))
           : false;
 
         const invite = new Invite({
@@ -503,7 +509,7 @@ export class InviteService extends BaseService {
           isNewUser: !user,
           expiresAt: oneWeekFromNow,
           type: InviteType.SINGLE,
-          cohortId: role === "STUDENT" ? new ObjectId(cohortId) : undefined,
+          cohortId: role === "STUDENT" && ObjectId.isValid(cohortId) ? new ObjectId(cohortId) : undefined,
         });
 
         const id = await this.inviteRepo.create(invite, session);
@@ -544,12 +550,19 @@ export class InviteService extends BaseService {
   }
 
   // New function for Link creation
-  async generateLink(courseId: string, courseVersionId: string, role: EnrollmentRole, cohortId?: string): Promise<string> {
+  async generateLink(
+    courseId: string,
+    courseVersionId: string,
+    role: EnrollmentRole,
+    cohortId?: string,
+  ): Promise<string> {
+    const versionStatus =
+      await this.courseRepo.getCourseVersionStatus(courseVersionId);
 
-    const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId);
-                
-    if(versionStatus==="archived"){
-      throw new ForbiddenError("This enrollment is invalid. Because course version is archived.");
+    if (versionStatus === 'archived') {
+      throw new ForbiddenError(
+        'This enrollment is invalid. Because course version is archived.',
+      );
     }
     const token = crypto.randomBytes(24).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -559,7 +572,7 @@ export class InviteService extends BaseService {
       role,
       expiresAt,
       type: InviteType.BULK,
-      ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+      ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
     });
     const InviteId = await this.inviteRepo.create(invite);
     return `${appConfig.url}/api/notifications/invite/${InviteId}`;
@@ -568,15 +581,17 @@ export class InviteService extends BaseService {
   async processInvite(
     inviteId: string,
     action: 'ACCEPT' | 'REJECTED' = 'ACCEPT',
+    policyAcknowledged: boolean = false,
   ): Promise<{message: string; isBulk?: boolean}> {
     const invite = await this.inviteRepo.findInviteById(inviteId);
     if (!invite) {
       throw new NotFoundError('Invite not found');
     }
-    const versionStatus=await this.courseRepo.getCourseVersionStatus(invite.courseVersionId.toString());
-                
-    if(versionStatus==="archived"){
-      
+    const versionStatus = await this.courseRepo.getCourseVersionStatus(
+      invite.courseVersionId.toString(),
+    );
+
+    if (versionStatus === 'archived') {
       await this.inviteRepo.updateInvite(inviteId, {
         inviteStatus: 'CANCELLED',
       });
@@ -585,7 +600,7 @@ export class InviteService extends BaseService {
         "Can'not process invite. Because course version is archived.",
       );
     }
-console.log("====invite----", invite);
+    console.log('====invite----', invite);
     if (invite.type === InviteType.BULK) {
       return {
         message: 'Processing Your Invite...',
@@ -658,7 +673,7 @@ console.log("====invite----", invite);
         invite.courseVersionId.toString(),
         invite.role,
         true,
-        invite.cohortId?.toString()
+        invite.cohortId?.toString(),
       );
       if (!result) {
         throw new InternalServerError('Failed to enroll user in course');
@@ -874,6 +889,7 @@ console.log("====invite----", invite);
           invite.acceptedAt,
           invite.courseId,
           invite.courseVersionId,
+          invite.cohortId,
           course,
         );
       }),
@@ -902,6 +918,7 @@ console.log("====invite----", invite);
           invite.acceptedAt,
           invite.courseId,
           invite.courseVersionId,
+          invite.cohortId,
           course,
         );
       }),

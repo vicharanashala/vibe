@@ -4,7 +4,7 @@ import { inject, injectable } from "inversify";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivityRepository, RuleConfigsRepository } from "../repositories/index.js";
 import { BadRequestError, ForbiddenError, NotFoundError } from "routing-controllers";
-import { CreateActivityBody, UpdateActivityBody } from "../classes/validators/activityValidators.js";
+import { CreateActivityBody, ListActivitiesQuery, UpdateActivityBody } from "../classes/validators/activityValidators.js";
 import { ObjectId } from "mongodb";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 
@@ -40,13 +40,32 @@ export class ActivityService extends BaseService {
             if (body.status == "ARCHIVED") {
                 throw new BadRequestError("New activity cannot be created with ARCHIVED status");
             }
+            if (body.activityType === "EXTERNAL_IMPORT" || body.activityType === "MILESTONE" || body.activityType === "OTHER")
+                throw new BadRequestError(
+                    "Invalid activity type. Only 'ASSIGNMENT' and 'VIBE_MILESTONE' activities can be created."
+                );
+
+            if (body.activityType === "VIBE_MILESTONE" && !body.deadlineAt)
+                throw new BadRequestError(
+                    "Deadline is required when creating a Vibe Milestone activity."
+                );
+
+            if (body.activityType === "VIBE_MILESTONE" && !body.required_percentage)
+                throw new BadRequestError(
+                    "Required percentage must be provided for a Vibe Milestone activity."
+                );
 
             const now = new Date();
+
             const doc = await this.activityRepository.createActivity(
                 {
                     courseId: new ObjectId(body.courseId),
                     courseVersionId: new ObjectId(body.courseVersionId),
-                    cohort: body.cohort,
+                    cohortId: new ObjectId(body.cohortId),
+                    cohort: await (async () => {
+                        const resolved = await this.cohortRepository.resolveCohort(body.cohortId!, body.courseId, body.courseVersionId, session);
+                        return resolved?.name || body.cohort || body.cohortId;
+                    })(),
 
                     createdByTeacherId: new ObjectId(teacherId),
                     publishedByTeacherId: body.status === "PUBLISHED" ? new ObjectId(teacherId) : undefined,
@@ -59,6 +78,7 @@ export class ActivityService extends BaseService {
                     submissionMode: body.submissionMode,
                     externalLink: body.externalLink,
                     attachments: body.attachments ?? [],
+                    required_percentage: body.required_percentage,
 
                     stats: {
                         totalStudents: 0,
@@ -88,21 +108,56 @@ export class ActivityService extends BaseService {
                 throw new BadRequestError("externalLink is required when submissionMode is EXTERNAL_LINK");
             }
 
+            if (body.activityType === "EXTERNAL_IMPORT" || body.activityType === "MILESTONE" || body.activityType === "OTHER")
+                throw new BadRequestError(
+                    "Invalid activity type. Only 'ASSIGNMENT' and 'VIBE_MILESTONE' activities can be created."
+                );
+
+            const effectiveActivityType = body.activityType ?? existing.activityType;
+
+            if (effectiveActivityType === "VIBE_MILESTONE") {
+                // Deadline lives in the rule config, not the activity document
+                const ruleConfig = await this.ruleConfigRepository.findByActivityId(activityId);
+                const hasDeadline = body.deadlineAt || ruleConfig?.deadlineAt;
+                const hasPercentage = body.required_percentage || existing.required_percentage;
+
+                if (!hasDeadline)
+                    throw new BadRequestError(
+                        "Deadline is required when creating a Vibe Milestone activity."
+                    );
+
+                if (!hasPercentage)
+                    throw new BadRequestError(
+                        "Required percentage must be provided for a Vibe Milestone activity."
+                    );
+            }
+
             const updated = await this.activityRepository.updateActivityById(
                 activityId,
                 {
                     ...(body.title !== undefined ? { title: body.title } : {}),
                     ...(body.description !== undefined ? { description: body.description } : {}),
                     ...(body.activityType !== undefined ? { activityType: body.activityType } : {}),
-                    ...(body.deadlineAt !== undefined ? { deadlineAt: new Date(body.deadlineAt) } : {}),
+                    ...(body.deadlineAt !== undefined ? { deadlineAt: body.deadlineAt ? new Date(body.deadlineAt) : null } : {}),
                     ...(body.allowLateSubmission !== undefined ? { allowLateSubmission: body.allowLateSubmission } : {}),
-                    ...(body.lateRewardPolicy !== undefined ? { lateRewardPolicy: body.lateRewardPolicy } : {}),
                     ...(body.submissionMode !== undefined ? { submissionMode: body.submissionMode } : {}),
                     ...(body.externalLink !== undefined ? { externalLink: body.externalLink } : {}),
                     ...(body.attachments !== undefined ? { attachments: body.attachments } : {}),
                     ...(body.ruleConfigId !== undefined ? { ruleConfigId: new ObjectId(body.ruleConfigId) } : {}),
                     ...(body.isMandatory !== undefined ? { isMandatory: body.isMandatory } : {}),
-                    ...(body.cohort !== undefined ? { cohort: body.cohort } : {}),
+                    ...(body.cohortId !== undefined ? { 
+                        cohortId: new ObjectId(body.cohortId), 
+                        cohort: await (async () => {
+                            const resolved = await this.cohortRepository.resolveCohort(
+                                body.cohortId!, 
+                                existing.courseId?.toString(), 
+                                existing.courseVersionId?.toString(), 
+                                session
+                            );
+                            return resolved?.name || body.cohort || body.cohortId;
+                        })()
+                    } : {}),
+                    ...(body.required_percentage !== undefined ? { required_percentage: body.required_percentage } : {}),
                     updatedAt: new Date(),
                 },
                 session,
@@ -202,17 +257,13 @@ export class ActivityService extends BaseService {
         return doc;
     }
 
-    async list(filters: {
-        courseId?: string;
-        courseVersionId?: string;
-        cohort?: string;
-        status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
-        createdByTeacherId?: string;
-    }, userId: string) {
+    async list(filters: ListActivitiesQuery, userId: string) {
         // const enrollment = await this.cohortRepository.findEnrollment(userId, filters.courseId, filters.courseVersionId)
         // if (!enrollment) throw new BadRequestError("Enrollment not found!")
         // const role = enrollment.role;
 
-        return this.activityRepository.listActivities(filters);
+        const activities = await this.activityRepository.listActivities(filters, userId);
+
+        return activities;
     }
 }

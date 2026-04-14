@@ -721,6 +721,7 @@ Access control logic:
             userId.toString(),
             courseId,
             versionId,
+            cohortId,
           );
 
         if (!timeSlotAccess.canAccess) {
@@ -904,7 +905,7 @@ Accessible to:
   - Instructors, managers, and teaching assistants of the course.`,
   })
   @Authorized()
-  @Put('/versions/:versionId/items/:itemId/toggle-visibility')
+  @Put('/:courseId/versions/:versionId/items/:itemId/toggle-visibility')
   @UseInterceptor(AuditTrailsHandler)
   @HttpCode(200)
   @ResponseSchema(ItemDataResponse, {
@@ -924,7 +925,7 @@ Accessible to:
     @Ability(getItemAbility) {ability, user},
     @Req() req: Request,
   ) {
-    const {versionId, itemId} = params;
+    const {courseId, versionId, itemId} = params;
     const {hide} = body;
 
     // Create an item resource object for permission checking
@@ -944,6 +945,7 @@ Accessible to:
       user._id.toString(),
       versionId,
       itemId,
+      courseId
     );
 
     await this.itemService.toggleItemVisibility(versionId, itemId, hide);

@@ -31,22 +31,22 @@ export class RuleConfigsController {
         private readonly ruleConfigService: RuleConfigService,
     ) { }
 
-    @OpenAPI({ summary: "Create HP rule configuration" })
-    @Authorized()
-    @HttpCode(201)
-    @ResponseSchema(BadRequestErrorResponse, {
-        description: "Bad Request Error",
-        statusCode: 400,
-    })
-    @Post("/")
-    async create(@Body() body: CreateHpRuleConfigBody) {
-        const data = await this.ruleConfigService.create(body);
-        return {
-            success: true,
-            message: "Rule config created successfully",
-            data: instanceToPlain(data),
-        };
-    }
+    // @OpenAPI({ summary: "Create HP rule configuration" })
+    // @Authorized()
+    // @HttpCode(201)
+    // @ResponseSchema(BadRequestErrorResponse, {
+    //     description: "Bad Request Error",
+    //     statusCode: 400,
+    // })
+    // @Post("/")
+    // async create(@Body() body: CreateHpRuleConfigBody) {
+    //     const data = await this.ruleConfigService.create(body);
+    //     return {
+    //         success: true,
+    //         message: "Rule config created successfully",
+    //         data: instanceToPlain(data),
+    //     };
+    // }
 
     @OpenAPI({ summary: "Update HP rule configuration" })
     @Authorized()
@@ -55,6 +55,8 @@ export class RuleConfigsController {
         @Param("ruleConfigId") ruleConfigId: string,
         @Body() body: UpdateHpRuleConfigBody,
     ) {
+        // console.log("Received update request for ruleConfigId:", ruleConfigId);
+        // console.log("Update body:", body);
         const data = await this.ruleConfigService.update(ruleConfigId, body);
         return {
             success: true,

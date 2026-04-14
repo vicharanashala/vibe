@@ -56,7 +56,10 @@ import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
 import { useModuleProgress } from "@/hooks/hooks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MobileFallbackScreen from "@/components/MobileFallbackScreen";
+import { EmotionSelector, EmotionType } from "@/components/EmotionSelector";
+import { useSubmitEmotion } from "@/hooks/use-emotion";
 
+import { runProctoringChecks } from "@/utils/proctoring/proctoringGuard";
 // Helper function to get icon for item type
 const getItemIcon = (type: string) => {
   switch (type.toLowerCase()) {
@@ -95,10 +98,11 @@ export default function CoursePage() {
   const [showProctorDialog, setShowProctorDialog] = useState(true);
   const { user } = useAuthStore();
   const router = useRouter();
-  const COURSE_ID = useCourseStore.getState().currentCourse?.courseId || "";
-  const VERSION_ID = useCourseStore.getState().currentCourse?.versionId || "";
-  const COHORT_ID = useCourseStore.getState().currentCourse?.cohortId || "";
-  const COHORT_NAME = useCourseStore.getState().currentCourse?.cohortName || "";
+  const currentCourse = useCourseStore((state) => state.currentCourse);
+  const COURSE_ID = currentCourse?.courseId || "";
+  const VERSION_ID = currentCourse?.versionId || "";
+  const COHORT_ID = currentCourse?.cohortId || "";
+  const COHORT_NAME = currentCourse?.cohortName || "";
   const { getSettings, settingLoading: proctoringLoading } = useGetProcotoringSettings();
 
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
@@ -111,6 +115,10 @@ export default function CoursePage() {
   const [allProctorsDisabled, setAllProctorsDisabled] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // Emotion tracking state
+  const [selectedEmotion, setSelectedEmotion] = useState<{ [key: string]: EmotionType }>({});
+  const { mutateAsync: submitEmotionAsync } = useSubmitEmotion();
+
   const isMobile = useIsMobile();
 
 
@@ -120,6 +128,19 @@ export default function CoursePage() {
       try {
         // Try to get both camera and microphone access
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        // Proctoring check: block virtual camera usage at session start
+        // This ensures user cannot enter course with spoofed camera
+        const violations = await runProctoringChecks(stream);
+
+        if (violations.length > 0) {
+          stream.getTracks().forEach(t => t.stop());
+
+          alert(violations[0].reason);
+
+          router.navigate({ to: "/student" });
+          return;
+        }
+        
         unRegisterStream("course-page-stream");
         registerStream("course-page-stream", stream);
         streamRef.current = stream;
@@ -127,6 +148,17 @@ export default function CoursePage() {
         alert("Please allow camera and microphone access to continue. You will be redirected to the dashboard if access is denied.");
         try {
           const retryStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          const violations = await runProctoringChecks(retryStream);
+          
+          if (violations.length > 0) {
+          retryStream.getTracks().forEach(t => t.stop());
+
+          alert(violations[0].reason);
+
+          router.navigate({ to: "/student" });
+          return;
+        }
+          
           unRegisterStream("course-page-retrystream");
           registerStream("course-page-retrystream", retryStream);
           streamRef.current = retryStream;
@@ -220,7 +252,15 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
   // Fetch course version data
   const { data: courseVersionData, isLoading: versionLoading, error: versionError, refetch: refetchVersion } =
-    useCourseVersionById(VERSION_ID);
+    useCourseVersionById(VERSION_ID, undefined, COHORT_ID);
+
+  const shouldRandomize = courseVersionData?.shouldRandomize || false;
+
+    console.log("******************")
+    console.log("******************")
+    console.log(courseVersionData)
+    console.log("******************")
+    console.log("******************")
 
   // Fetch user progress
   const { data: progressData, isLoading: progressLoading, error: progressError } =
@@ -335,7 +375,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
       setSectionItems(prev => ({
         ...prev,
-        [activeSectionInfo.sectionId]: sortItemsByOrder(itemsArray),
+        [activeSectionInfo.sectionId]: shouldRandomize? itemsArray : sortItemsByOrder(itemsArray),
       }));
     }
   }, [
@@ -415,6 +455,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
       if (allProctorsDisabled) {
         setShowProctorDialog(false);
         setAllProctorsDisabled(true);
+        setReadyToDetect(true);
       }
     }
     fetch();
@@ -433,7 +474,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
         (Array.isArray(currentSectionItems) ? currentSectionItems : []);
 
       // Sort items by order property before storing
-      const sortedItems = sortItemsByOrder(itemsArray);
+      const sortedItems = shouldRandomize? itemsArray : sortItemsByOrder(itemsArray);
       setSectionItems(prev => ({
         ...prev,
         [activeSectionInfo.sectionId]: sortedItems
@@ -606,7 +647,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
         entityId: currentItem._id,
         entityType: currentItem.type as EntityType,
         reason,
-        questionId: itemContainerRef.current?.getCurrentDetails?.()?.questionId
+        questionId: itemContainerRef.current?.getCurrentDetails?.()?.questionId,
+        cohortId: COHORT_ID
       }
 
       await submitFlagAsyncMutate({ body: submitFlagBody })
@@ -616,6 +658,34 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     } finally {
       setIsFlagSubmitted(true);
       setIsFlagModalOpen(false);
+    }
+  };
+
+  // Emotion tracking handler
+  const handleEmotionSubmit = async (emotion: EmotionType, feedbackText?: string) => {
+    try {
+      if (!currentItem?._id) return;
+      if (!COURSE_ID || !VERSION_ID) {
+        throw new Error("Course context is not ready yet. Please wait a moment and try again.");
+      }
+
+      const payload = {
+        courseId: COURSE_ID,
+        courseVersionId: VERSION_ID,
+        itemId: currentItem._id,
+        emotion,
+        feedbackText,
+        cohortId: COHORT_ID,
+      };
+
+      await submitEmotionAsync(payload);
+      setSelectedEmotion(prev => ({ ...prev, [currentItem._id]: emotion }));
+      toast.success(
+        feedbackText?.trim() ? "Your emotion and note have been recorded!" : "Your feedback has been recorded!",
+        { position: 'top-right', duration: 2000 }
+      );
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to record emotion", { position: 'top-right' });
     }
   };
   const moduleProgressMap = useMemo(() => {
@@ -1043,6 +1113,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
         // 1️⃣ Stop current item (clean + API)
         if (itemContainerRef.current) {
           try {
+            console.log("Handle next is called to end the current item.....")
             await itemContainerRef.current.stopCurrentItem();
           } catch (error: any) {
             const errorMessage = error?.response?.data?.message || error?.message || 'Failed to save progress. Please try again.';
@@ -1145,9 +1216,9 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
               requestAnimationFrame(frame);
             };
             frame();
+            setTimeout(() => router.navigate({ to: "/student" }), 3500);
           }
 
-          setTimeout(() => router.navigate({ to: "/student" }), 3500);
           // Recalcualate and update the progress % and completed items count properly
           await recalculateStudentProgressAsync({
             body: {
@@ -1332,6 +1403,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     try {
       // Stop current item before moving to previous video with proper cleanup
       if (itemContainerRef.current) {
+        console.log("Stoped the item from the handlePrevVideo....")
         itemContainerRef.current.stopCurrentItem();
 
         // Allow a small delay for cleanup
@@ -1408,6 +1480,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   const handleGoBack = () => {
     // Stop current item before navigating away
     if (itemContainerRef.current) {
+      console.log("Handle go back is called....")
       itemContainerRef.current.stopCurrentItem();
     }
     // Navigate back to courses page
@@ -1696,7 +1769,10 @@ useEffect(() => {
                                               <Skeleton className="h-4 w-4/5 rounded" />
                                             </div>
                                           ) : sectionItems[sectionId] ? (
-                                            sortItemsByOrder(sectionItems[sectionId]).map((item: any) => {
+                                            (shouldRandomize
+                                              ? sectionItems[sectionId]
+                                              : sortItemsByOrder(sectionItems[sectionId])
+                                            ).map((item: any) => {
                                               const itemId = item._id;
                                               const isCurrentItem = itemId === selectedItemId;
 
@@ -1926,6 +2002,18 @@ useEffect(() => {
                 </div>
               </header>
 
+              {/* Emotion Selector Bar */}
+              {currentItem && (
+                <div className="border-b border-border/20 bg-background/50 backdrop-blur-sm px-4 py-2">
+                  <EmotionSelector
+                    itemId={currentItem._id}
+                    onEmotionSelect={handleEmotionSubmit}
+                    disabled={false}
+                    selectedEmotion={selectedEmotion[currentItem._id] || null}
+                  />
+                </div>
+              )}
+
               <div className="flex-1 overflow-hidden relative">
                 {/* Ambient background effect */}
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.01] via-transparent to-secondary/[0.01] pointer-events-none" />
@@ -1985,7 +2073,7 @@ useEffect(() => {
 
                   {/* Quiz Passed/Failed */}
 
-                  {quizPassed !== 2 && !isQuizSkipped && (
+                  {quizPassed !== 2 && quizPassed !== 3 && !isQuizSkipped && (
                     <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-5 fade-in duration-200">
                       <div
                         className={`relative w-[380px] rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 

@@ -1,21 +1,46 @@
-import React from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from "recharts";
 import { useHpCohortOverviewStats } from "@/hooks/hooks";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, Users, FileText, CheckCircle, TrendingUp, Clock, AlertTriangle } from "lucide-react";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { MetricCard } from "./dashboard/MetricCard";
+import { ProgressChart } from "./dashboard/ProgressChart";
+// import { FilterPanel, FilterState } from "./dashboard/FilterPanel";
 
 interface CohortOverviewTabProps {
     courseVersionId: string;
-    cohortName: string;
+    cohortId: string;
 }
 
-export function CohortOverviewTab({ courseVersionId, cohortName }: CohortOverviewTabProps) {
-    const { data: stats, isLoading, error } = useHpCohortOverviewStats(courseVersionId, cohortName);
+export function CohortOverviewTab({ courseVersionId, cohortId }: CohortOverviewTabProps) {
+    const { data: stats, isLoading, error } = useHpCohortOverviewStats(courseVersionId, cohortId);
+
+    // const [, setFilters] = useState<FilterState>({
+    //     dateRange: '30days',
+    //     activityType: 'all',
+    //     status: 'all',
+    //     studentProgress: 'all',
+    // });
 
     if (isLoading) {
         return (
-            <div className="flex justify-center items-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <div className="space-y-6">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    {[1, 2, 3, 4].map((i) => (
+                        <MetricCard key={i} title="" value="" loading />
+                    ))}
+                </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Loading dashboard...</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="h-[400px] flex items-center justify-center">
+                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         );
     }
@@ -30,63 +55,124 @@ export function CohortOverviewTab({ courseVersionId, cohortName }: CohortOvervie
     }
 
     return (
-        <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.totalStudents}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Overdue Submissions</CardTitle>
-                        <AlertCircle className="h-4 w-4 text-destructive" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-destructive">{stats.totalOverdue}</div>
-                        <p className="text-xs text-muted-foreground">Across all activities</p>
-                    </CardContent>
-                </Card>
-            </div>
+        <TooltipProvider>
+            <div className="space-y-6">
+                {/* Filter Panel */}
+                {/* <FilterPanel
+                    onFiltersChange={setFilters}
+                    className="mb-6"
+                /> */}
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Activity Completion Rates</CardTitle>
-                    <CardDescription>Status breakdown per activity for {decodeURIComponent(cohortName)}</CardDescription>
-                </CardHeader>
-                <CardContent className="pl-2">
-                    <div className="h-[400px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                                data={stats.completionRates}
-                                margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                            >
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                <XAxis
-                                    dataKey="activityTitle"
-                                    angle={-45}
-                                    textAnchor="end"
-                                    height={80}
-                                    interval={0}
-                                    tick={{ fontSize: 12 }}
-                                />
-                                <YAxis />
-                                <Tooltip
-                                    cursor={{ fill: 'var(--muted)', opacity: 0.2 }}
-                                    contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)' }}
-                                />
-                                <Legend verticalAlign="top" height={36} />
-                                <Bar dataKey="submittedCount" name="Submitted" stackId="a" fill="#10b981" radius={[0, 0, 4, 4]} />
-                                <Bar dataKey="pendingCount" name="Pending" stackId="a" fill="#f59e0b" />
-                                <Bar dataKey="revertedCount" name="Reverted" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
+                {/* Metrics Overview */}
+                <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-3">
+                    <MetricCard
+                        title="Active Activities"
+                        value={stats.totalActivities}
+                        icon={FileText}
+                        subtitle="Total activities"
+                        tooltip="Number of activities in this cohort"
+                    />
+                    <MetricCard
+                        title="Pending Reviews"
+                        value={stats.totalPendings}
+                        icon={Clock}
+                        subtitle="Awaiting approval"
+                        tooltip="Number of submissions waiting for teacher review"
+                        trend={{ value: 12, direction: 'down' }}
+                    />
+                    <MetricCard
+                        title="Overdue Submissions"
+                        value={stats.totalLateSubmissions}
+                        icon={AlertCircle}
+                        subtitle="Late submissions"
+                        tooltip="Number of late submissions in this cohort"
+                        iconColor="text-destructive"
+                    />
+                </div>
+
+                {/* Charts Row */}
+                <div className="grid gap-6 lg:grid-cols-2">
+                    {/* Activity Completion Rates */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Activity Completion Rates</CardTitle>
+                            <CardDescription>Status breakdown per activity for Dashboard</CardDescription>
+                        </CardHeader>
+                        <CardContent className="pl-2">
+                            <div className="h-[300px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart
+                                        data={stats.completionRates || []}
+                                        margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                                    >
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                        <XAxis
+                                            dataKey="activityTitle"
+                                            angle={-45}
+                                            textAnchor="end"
+                                            height={80}
+                                            interval={0}
+                                            tick={{ fontSize: 12 }}
+                                        />
+                                        <YAxis />
+                                        <RechartsTooltip
+                                            cursor={{ fill: 'var(--muted)', opacity: 0.2 }}
+                                            contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)' }}
+                                        />
+                                        <Legend verticalAlign="top" height={36} />
+                                        <Bar dataKey="submittedCount" name="Submitted" stackId="a" fill="#10b981" radius={[0, 0, 4, 4]} />
+                                        <Bar dataKey="pendingCount" name="Pending" stackId="a" fill="#f59e0b" />
+                                        <Bar dataKey="revertedCount" name="Reverted" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* HP Distribution */}
+                    <ProgressChart
+                        title="HP Distribution"
+                        description="Distribution of House Points among students"
+                        type="pie"
+                        data={stats.hpDistribution || []}
+                        height={300}
+                    />
+                </div>
+
+                {/* Submission Timeline */}
+                <ProgressChart
+                    title="Submission Timeline"
+                    description="Daily submission trends over the selected period"
+                    type="line"
+                    data={stats.weeklyActivity || []}
+                    height={350}
+                />
+
+                {/* Student Progress Overview */}
+                <div className="grid gap-6 lg:grid-cols-3">
+                    <MetricCard
+                        title="Completed Activities"
+                        value={stats.studentProgress?.[0]?.completed || 0}
+                        icon={CheckCircle}
+                        subtitle="Students finished"
+                        iconColor="text-green-600"
+                    />
+                    <MetricCard
+                        title="In Progress"
+                        value={stats.studentProgress?.[0]?.inProgress || 0}
+                        icon={TrendingUp}
+                        subtitle="Currently working"
+                        iconColor="text-blue-600"
+                    />
+                    <MetricCard
+                        title="Not Started"
+                        value={stats.studentProgress?.[0]?.notStarted || 0}
+                        icon={AlertCircle}
+                        subtitle="Yet to begin"
+                        iconColor="text-orange-600"
+                    />
+                </div>
+            </div>
+        </TooltipProvider>
     );
 }

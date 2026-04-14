@@ -19,7 +19,7 @@ import {
 
 import { Expose, Transform, Type } from 'class-transformer';
 import { JSONSchema } from 'class-validator-jsonschema';
-import { ActivityStatus, ActivityType, AttachmentKind, LateRewardPolicy, ReviewDecision, SubmissionMode } from '../../constants.js';
+import { ActivityStatus, ActivityType, AttachmentKind, ReviewDecision, SubmissionMode } from '../../constants.js';
 
 
 export class HpActivityAttachment {
@@ -78,9 +78,10 @@ export class HpActivityRules {
   isMandatory: boolean;
 
   @Expose()
+  @IsOptional()
   @Type(() => Date)
   @JSONSchema({ title: "Deadline At", type: "string", format: "date-time" })
-  deadlineAt: Date;
+  deadlineAt?: Date;
 
   @Expose()
   @IsBoolean()
@@ -114,6 +115,12 @@ export class HpActivityTransformer {
   @Transform(StringToObjectId.transformer, { toClassOnly: true })
   @JSONSchema({ title: 'Course ID', type: 'string' })
   courseId: ID;
+
+  @Expose()
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @JSONSchema({ title: 'Cohort ID', type: 'string' })
+  cohortId: ID;
 
   @Expose()
   @IsString()
@@ -194,14 +201,11 @@ export class HpActivityTransformer {
   submissionCount?: boolean;
 
   @Expose()
-  @IsEnum(LateRewardPolicy)
-  @JSONSchema({
-    title: 'Late Reward Policy',
-    type: 'string',
-    enum: Object.values(LateRewardPolicy),
-    example: 'REWARD_DENIED',
-  })
-  lateRewardPolicy: LateRewardPolicy;
+  @IsNumber()
+  @IsOptional()
+  @JSONSchema({ title: 'Required Percentage', type: 'number', example: 75 })
+  required_percentage?: number;
+
 
   // Submission mode
   @Expose()

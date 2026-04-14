@@ -1,6 +1,7 @@
-import { IsArray, IsBoolean, IsDateString, IsEnum, IsMongoId, IsOptional, IsString, ValidateNested } from "class-validator";
-import { ActivityStatus, ActivityType, AttachmentKind, LateRewardPolicy, SubmissionMode } from "../../models.js";
+import { IsArray, IsBoolean, IsDateString, IsEnum, IsMongoId, IsNumber, IsOptional, IsString, Max, Min, ValidateNested } from "class-validator";
+import { ActivityStatus, ActivityType, AttachmentKind, SubmissionMode } from "../../models.js";
 import { Type } from "class-transformer";
+import { CreateHpRuleConfigBody } from "./ruleConfigValidators.js";
 
 export class AttachmentDto {
     @IsString()
@@ -19,10 +20,16 @@ export class CreateActivityBody {
     courseVersionId!: string;
 
     @IsString()
+    @IsOptional()
     courseId!: string;
 
     @IsString()
-    cohort!: string;
+    @IsOptional()
+    cohortId?: string;
+
+    @IsString()
+    @IsOptional()
+    cohort?: string;
 
     // Content
     @IsString()
@@ -38,14 +45,13 @@ export class CreateActivityBody {
     status!: ActivityStatus
 
     // Timing
+    @IsOptional()
     @IsDateString()
-    deadlineAt!: string; // ISO
+    deadlineAt?: string; // ISO
 
     @IsBoolean()
     allowLateSubmission!: boolean;
 
-    @IsEnum(["NONE", "REWARD_ALLOWED", "REWARD_DENIED"])
-    lateRewardPolicy!: LateRewardPolicy;
 
     // Submission mode
     @IsEnum(["IN_PLATFORM", "EXTERNAL_LINK"])
@@ -60,9 +66,23 @@ export class CreateActivityBody {
     @ValidateNested({ each: true })
     @Type(() => AttachmentDto)
     attachments?: AttachmentDto[];
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    @Max(100)
+    required_percentage?: number;
 }
 
+export class CreateActivityWithRuleBody{
+    @ValidateNested()
+    @Type(() => CreateActivityBody)
+    activity!: CreateActivityBody;
 
+    @ValidateNested()
+    @Type(() => CreateHpRuleConfigBody)
+    ruleConfig!: CreateHpRuleConfigBody;
+}
 
 export class UpdateActivityBody {
     @IsOptional()
@@ -86,8 +106,6 @@ export class UpdateActivityBody {
     allowLateSubmission?: boolean;
 
     @IsOptional()
-    @IsEnum(["NONE", "REWARD_ALLOWED", "REWARD_DENIED"])
-    lateRewardPolicy?: LateRewardPolicy;
 
     @IsOptional()
     @IsEnum(["IN_PLATFORM", "EXTERNAL_LINK"])
@@ -113,22 +131,32 @@ export class UpdateActivityBody {
 
     @IsOptional()
     @IsString()
+    cohortId?: string;
+
+    @IsOptional()
+    @IsString()
     cohort?: string;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    @Max(100)
+    required_percentage?: number;
 }
 
 
 export class ListActivitiesQuery {
     @IsOptional()
-    @IsMongoId({ message: "courseId must be a valid MongoDB ObjectId" })
+    @IsString({ message: "courseId must be a string" })
     courseId?: string;
 
     @IsOptional()
-    @IsMongoId({ message: "courseVersionId must be a valid MongoDB ObjectId" })
+    @IsString({ message: "courseVersionId must be a string" })
     courseVersionId?: string;
 
     @IsOptional()
-    @IsString({ message: "cohort must be a string" })
-    cohort?: string;
+    @IsString({ message: "cohortId must be a string" })
+    cohortId?: string;
 
     @IsOptional()
     @IsEnum(["DRAFT", "PUBLISHED", "ARCHIVED"], {
@@ -137,6 +165,24 @@ export class ListActivitiesQuery {
     status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
 
     @IsOptional()
+    @IsEnum(["ASSIGNMENT", "MILESTONE", "EXTERNAL_IMPORT", "VIBE_MILESTONE", "OTHER"], {
+        message: "activityType must be one of ASSIGNMENT, MILESTONE, EXTERNAL_IMPORT, VIBE_MILESTONE, OTHER ",
+    })
+    activityType?: | "ASSIGNMENT"
+        | "MILESTONE"
+        | "EXTERNAL_IMPORT"
+        | "VIBE_MILESTONE"
+        | "OTHER";
+
+    @IsOptional()
     @IsMongoId({ message: "createdByTeacherId must be a valid MongoDB ObjectId" })
     createdByTeacherId?: string;
+
+    @IsOptional()
+    @IsString({ message: "search must be a string" })
+    search?: string;
+
+    @IsOptional()
+    @IsString({ message: "activity must be a string" })
+    activity?: string;
 }
