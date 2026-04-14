@@ -74,7 +74,7 @@ jobs:
           DB_URL: ${{ secrets.DB_URL }}
 
       - name: Report Coverage on PR
-        if: always()
+        if: ${{ always() && github.event.pull_request.head.repo.full_name == github.repository }}
         uses: davelosert/vitest-coverage-report-action@v2
         with:
           working-directory: backend
