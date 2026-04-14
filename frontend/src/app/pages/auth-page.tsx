@@ -2,24 +2,19 @@ import { loginWithGoogle, loginWithEmail, createUserWithEmail } from "@/lib/fire
 import { useAuthStore } from "@/store/auth-store";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { useState, createContext, useContext, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Check, AlertCircle, Github } from "lucide-react";
+import { PasswordVisibilityToggle } from "@/components/ui/password-visibility-toggle";
 import { cn } from "@/utils/utils";
 import { useSignup } from "@/hooks/hooks.ts";
-import classroom from "../../../public/img/classroom.svg";
-import learningImg from "../../../public/img/learning-img.svg";
-import innovators from "../../../public/img/innovators.svg";
-import logos from "../../../public/img/logos.png";
-import vledLogo from "../../../public/img/vled-logo-login.png";
-import iitLogo from "../../../public/img/iit-clear.png";
-
-// Create a context for tab state management
-const TabsContext = createContext<{
-  value: string;
-  onValueChange?: (value: string) => void;
-}>({ value: "" });
+const classroom = "/img/classroom.svg";
+const learningImg = "/img/learning-img.svg";
+const innovators = "/img/innovators.svg";
+const logos = "/img/logos.png";
+const vledLogo = "/img/vled-logo-login.png";
+const iitLogo = "/img/iit-clear.png";
 
 const links = {
   GITHUB: 'https://github.com/vicharanashala/vibe.git',
@@ -28,78 +23,14 @@ const links = {
 
 }
 
-// Create simplified versions of missing components
-const Tabs = ({ defaultValue, className, children, value, onValueChange }: {
-  defaultValue: string;
-  className: string;
-  children: React.ReactNode;
-  value?: string;
-  onValueChange?: (value: string) => void;
-}) => {
-  // Use internal state if no value is provided (uncontrolled component)
-  const [internalValue, setInternalValue] = useState(defaultValue);
-
-  // Determine which value to use (controlled or uncontrolled)
-  const activeValue = value !== undefined ? value : internalValue;
-
-  // Handle value change
-  const handleValueChange = (newValue: string) => {
-    // Update internal state if uncontrolled
-    if (value === undefined) {
-      setInternalValue(newValue);
-    }
-
-    // Call external handler if provided
-    if (onValueChange) {
-      onValueChange(newValue);
-    }
-  };
-
-  return (
-    <TabsContext.Provider value={{ value: activeValue, onValueChange: handleValueChange }}>
-      <div className={className} data-value={activeValue}>
-        {children}
-      </div>
-    </TabsContext.Provider>
-  );
-};
-
-const TabsList = ({ className, children }: { className: string; children: React.ReactNode }) => {
-  return <div className={className}>{children}</div>;
-};
-
-const TabsTrigger = ({ value, children, onClick }: {
-  value: string;
-  children: React.ReactNode;
-  onClick?: () => void;
-}) => {
-  const { value: activeValue, onValueChange } = useContext(TabsContext);
-
-  const handleClick = () => {
-    if (onClick) onClick();
-    if (onValueChange) onValueChange(value);
-  };
-
-  const isActive = activeValue === value;
-
-  return (
-    <button
-      onClick={handleClick}
-      className={`px-4 py-2 ${isActive ? "bg-background font-medium" : "text-muted-foreground"}`}
-      data-value={value}
-      data-state={isActive ? "active" : "inactive"}
-    >
-      {children}
-    </button>
-  );
-};
-
 export default function AuthPage() {
   const { isAuthenticated, user } = useAuthStore();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // New state variables
   const [isSignUp, setIsSignUp] = useState(false);
@@ -141,23 +72,6 @@ export default function AuthPage() {
     setFormErrors({});
   };
 
-  const validateForm = () => {
-    const errors: typeof formErrors = {};
-    if (!fullName) errors.fullName = "Name is required";
-    else if (!/^[A-Za-z ]+$/.test(fullName)) errors.fullName = "Name can only contain letters and spaces";
-
-    if (!email) errors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(email)) errors.email = "Invalid email format";
-
-    if (!password) errors.password = "Password is required";
-    else if (isSignUp && password.length < 8) errors.password = "Password must be at least 8 characters";
-
-    if (isSignUp && !fullName) errors.fullName = "Full name is required";
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
   const fetchBackendProfile = async (token: string) => {
     try {
       const response = await fetch(`${import.meta.env.VITE_BASE_URL}/users/me`, {
@@ -182,12 +96,13 @@ export default function AuthPage() {
       setLoading(true);
       setFormErrors({});
       const result = await loginWithGoogle();
+      const resolvedRole = result._tokenResponse.isNewUser ? "student" : activeRole;
       // Check if the user is new
       if (result._tokenResponse.isNewUser) {
         // If new user, set the default role to student
         setActiveRole("student");
         const backendUrl = `${import.meta.env.VITE_BASE_URL}/auth/signup/google/`;
-        const response = await fetch(backendUrl, {
+        await fetch(backendUrl, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${result._tokenResponse.idToken}`,
@@ -211,7 +126,7 @@ export default function AuthPage() {
         name: `${backendProfile?.firstName || ""} ${backendProfile?.lastName || ""}`.trim() || result.user.displayName || "",
         firstName: backendProfile?.firstName || "",
         lastName: backendProfile?.lastName || "",
-        role: activeRole, // Use the selected role from tabs
+        role: resolvedRole,
         avatar: backendProfile?.avatar || result.user.photoURL || "",
         gender: backendProfile?.gender || "",
         country: backendProfile?.country || "",
@@ -219,12 +134,19 @@ export default function AuthPage() {
         city: backendProfile?.city || "",
       });
 
-      navigate({ to: `/${activeRole}` });
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectUrl = searchParams.get("redirect");
+
+      if (redirectUrl) {
+        navigate({ to: redirectUrl });
+      } else {
+        navigate({ to: `/${resolvedRole}` });
+      }
     } catch (error) {
       console.error("Google Login Failed", error);
       setFormErrors({
         ...formErrors,
-        auth: "Failed to sign in with Google. Please try again."
+        auth: error instanceof Error ? error.message : "Failed to sign in with Google. Please try again."
       });
     } finally {
       setLoading(false);
@@ -336,23 +258,28 @@ export default function AuthPage() {
     } catch (error: any) {
       console.error("Email Signup Failed", error);
       console.log(signupError, isSignUpError);
+      const parsedSignupError = signupError as {
+        message?: string;
+        errors?: Array<{ property: string; constraints?: Record<string, string> }>;
+      } | null;
+
       if (isSignUpError) {
         let message = "";
-        if (signupError?.message === "Invalid body, check 'errors' property for more info.") {
-          for (const error of signupError?.errors || []) {
-            message += `${Object.values(error.constraints).join(', ')}`;
+        if (parsedSignupError?.message === "Invalid body, check 'errors' property for more info.") {
+          for (const error of parsedSignupError?.errors || []) {
+            message += `${Object.values(error.constraints || {}).join(', ')}`;
           }
         }
-        else message = signupError?.message || "An error occurred during signup";
+        else message = parsedSignupError?.message || "An error occurred during signup";
 
         setFormErrors({
           ...formErrors,
           auth: message || "Failed to create account. Please try again.",
-          email: Object.values(signupError?.errors?.find((e: any) => e.property === 'email')?.constraints || {}).join(', ') || "",
+          email: Object.values(parsedSignupError?.errors?.find((e: any) => e.property === 'email')?.constraints || {}).join(', ') || "",
           fullName:
-            (Object.values(signupError?.errors?.find((e: any) => e.property === 'firstName')?.constraints || {}).join(', ') +
-              (Object.values(signupError?.errors?.find((e: any) => e.property === 'lastName')?.constraints || {}).join(', '))).trim() || "",
-          password: Object.values(signupError?.errors?.find((e: any) => e.property === 'password')?.constraints || {}).join(', ') || ""
+            (Object.values(parsedSignupError?.errors?.find((e: any) => e.property === 'firstName')?.constraints || {}).join(', ') +
+              (Object.values(parsedSignupError?.errors?.find((e: any) => e.property === 'lastName')?.constraints || {}).join(', '))).trim() || "",
+          password: Object.values(parsedSignupError?.errors?.find((e: any) => e.property === 'password')?.constraints || {}).join(', ') || ""
         });
       }
     } finally {
@@ -578,19 +505,25 @@ export default function AuthPage() {
                                 </div>
 
                                 <div className="space-y-2">
-                                  <Input
-                                    id="password"
-                                    name="new-password"
-                                    type="password"
-                                    placeholder="Enter your password"
-                                    autoComplete="new-password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className={cn(
-                                      "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16",
-                                      formErrors.password && "border-destructive focus-visible:ring-destructive"
-                                    )}
-                                  />
+                                  <div className="relative">
+                                    <Input
+                                      id="password"
+                                      name="new-password"
+                                      type={showPassword ? "text" : "password"}
+                                      placeholder="Enter your password"
+                                      autoComplete="new-password"
+                                      value={password}
+                                      onChange={(e) => setPassword(e.target.value)}
+                                      className={cn(
+                                        "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16 pr-14",
+                                        formErrors.password && "border-destructive focus-visible:ring-destructive"
+                                      )}
+                                    />
+                                    <PasswordVisibilityToggle
+                                      visible={showPassword}
+                                      onToggle={() => setShowPassword((prev) => !prev)}
+                                    />
+                                  </div>
                                   {formErrors.password && (
                                     <p className="text-xs text-destructive">{formErrors.password}</p>
                                   )}
@@ -694,17 +627,23 @@ export default function AuthPage() {
                                 </div>
 
                                 <div className="space-y-2">
-                                  <Input
-                                    id="signup-password"
-                                    type="password"
-                                    placeholder="Create a strong password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className={cn(
-                                      "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16",
-                                      formErrors.password && "border-destructive focus-visible:ring-destructive"
-                                    )}
-                                  />
+                                  <div className="relative">
+                                    <Input
+                                      id="signup-password"
+                                      type={showPassword ? "text" : "password"}
+                                      placeholder="Create a strong password"
+                                      value={password}
+                                      onChange={(e) => setPassword(e.target.value)}
+                                      className={cn(
+                                        "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16 pr-14",
+                                        formErrors.password && "border-destructive focus-visible:ring-destructive"
+                                      )}
+                                    />
+                                    <PasswordVisibilityToggle
+                                      visible={showPassword}
+                                      onToggle={() => setShowPassword((prev) => !prev)}
+                                    />
+                                  </div>
                                   {password && (
                                     <div className="space-y-2">
                                       <div className="flex items-center justify-between">
@@ -766,17 +705,24 @@ export default function AuthPage() {
                                 </div>
 
                                 <div className="space-y-2">
-                                  <Input
-                                    id="confirmPassword"
-                                    type="password"
-                                    placeholder="Confirm your password"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className={cn(
-                                      "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16",
-                                      !passwordsMatch && confirmPassword && "border-destructive focus-visible:ring-destructive"
-                                    )}
-                                  />
+                                  <div className="relative">
+                                    <Input
+                                      id="confirmPassword"
+                                      type={showConfirmPassword ? "text" : "password"}
+                                      placeholder="Confirm your password"
+                                      value={confirmPassword}
+                                      onChange={(e) => setConfirmPassword(e.target.value)}
+                                      className={cn(
+                                        "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16 pr-14",
+                                        !passwordsMatch && confirmPassword && "border-destructive focus-visible:ring-destructive"
+                                      )}
+                                    />
+                                    <PasswordVisibilityToggle
+                                      visible={showConfirmPassword}
+                                      onToggle={() => setShowConfirmPassword((prev) => !prev)}
+                                      label="confirm password"
+                                    />
+                                  </div>
                                   {!passwordsMatch && confirmPassword && (
                                     <p className="text-xs text-destructive">Passwords do not match</p>
                                   )}

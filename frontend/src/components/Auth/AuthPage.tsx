@@ -1,4 +1,4 @@
-import { loginWithGoogle, loginWithEmail } from "@/lib/firebase";
+import { loginWithGoogle, loginWithEmail, isFirebaseConfigured } from "@/lib/firebase";
 import { useAuthStore } from "@/store/auth-store";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -8,13 +8,14 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Check, AlertCircle, Eye, EyeOff, Camera, Upload, RefreshCcw, X } from "lucide-react";
+import { Check, AlertCircle, Camera, Upload, RefreshCcw, X } from "lucide-react";
 import { ShineBorder } from "@/components/magicui/shine-border";
 import { AnimatedGridPattern } from "@/components/magicui/animated-grid-pattern";
 import { cn } from "@/utils/utils";
 import { useSignup } from "@/hooks/hooks.ts";
 import ReCAPTCHA from "react-google-recaptcha";
 import { LeftHeroSection } from "@/components/Auth/LeftHeroSection";
+import { PasswordVisibilityToggle } from "@/components/ui/password-visibility-toggle";
 
 type AuthPageProps = {
   role?: "teacher" | "student";
@@ -26,6 +27,7 @@ export default function AuthPage({ role }: AuthPageProps) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [activeRole, setActiveRole] = useState<"teacher" | "student">(role || "student");
 
   // New state variables
@@ -276,6 +278,8 @@ export default function AuthPage({ role }: AuthPageProps) {
       setLoading(true);
       setFormErrors({});
       const result = await loginWithGoogle();
+      const resolvedRole = result._tokenResponse.isNewUser ? "student" : activeRole;
+
       // Check if the user is new
       if (result._tokenResponse.isNewUser) {
         // If new user, set the default role to student
@@ -300,7 +304,7 @@ export default function AuthPage({ role }: AuthPageProps) {
         uid: result.user.uid,
         email: result.user.email || "",
         name: result.user.displayName || "",
-        role: activeRole, // Use the selected role from tabs
+        role: resolvedRole,
         avatar: result.user.photoURL || "",
       });
 
@@ -311,13 +315,14 @@ export default function AuthPage({ role }: AuthPageProps) {
       if (redirectUrl) {
         navigate({ to: redirectUrl });
       } else {
-        navigate({ to: `/${activeRole}` });
+        navigate({ to: `/${resolvedRole}` });
       }
     } catch (error) {
       console.error("Google Login Failed", error);
+      const message = error instanceof Error ? error.message : "Failed to sign in with Google. Please try again.";
       setFormErrors({
         ...formErrors,
-        auth: "Failed to sign in with Google. Please try again."
+        auth: message
       });
     } finally {
       setLoading(false);
@@ -530,13 +535,10 @@ export default function AuthPage({ role }: AuthPageProps) {
     if (isAuthenticated && user) {
       if (redirectUrl) {
         navigate({ to: redirectUrl });
-      } else {
-        // Redirect based on role
-        if (user.role === 'teacher') {
-          navigate({ to: '/teacher' });
-        } else if (user.role === 'student') {
-          navigate({ to: '/student' });
-        }
+      } else if (user.role === 'teacher') {
+        navigate({ to: '/teacher' });
+      } else if (user.role === 'student') {
+        navigate({ to: '/student' });
       }
     }
   }, [isAuthenticated, user, navigate]);
@@ -686,13 +688,14 @@ export default function AuthPage({ role }: AuthPageProps) {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className={cn(
-                              "transition-all duration-200",
+                              "transition-all duration-200 pr-14",
                               formErrors.password && "border-destructive focus-visible:ring-destructive"
                             )}
                           />
-                          <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
-                            {showPassword ? <EyeOff /> : <Eye />}
-                          </Button>
+                          <PasswordVisibilityToggle
+                            visible={showPassword}
+                            onToggle={() => setShowPassword((prev) => !prev)}
+                          />
                         </div>
                         {formErrors.password && (
                           <p className="text-xs text-destructive">{formErrors.password}</p>
@@ -751,7 +754,7 @@ export default function AuthPage({ role }: AuthPageProps) {
                         variant="outline"
                         className="w-full h-11 font-medium border-2 hover:bg-muted/50 transition-all duration-200"
                         onClick={handleGoogleLogin}
-                        disabled={loading}
+                        disabled={loading || !isFirebaseConfigured}
                       >
                         <svg className="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                           <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -843,17 +846,23 @@ export default function AuthPage({ role }: AuthPageProps) {
                         <Label htmlFor="signup-password" className="font-medium">
                           Password
                         </Label>
-                        <Input
-                          id="signup-password"
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Create a strong password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className={cn(
-                            "transition-all duration-200",
-                            formErrors.password && "border-destructive focus-visible:ring-destructive"
-                          )}
-                        />
+                        <div className="relative">
+                          <Input
+                            id="signup-password"
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Create a strong password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className={cn(
+                              "transition-all duration-200 pr-14",
+                              formErrors.password && "border-destructive focus-visible:ring-destructive"
+                            )}
+                          />
+                          <PasswordVisibilityToggle
+                            visible={showPassword}
+                            onToggle={() => setShowPassword((prev) => !prev)}
+                          />
+                        </div>
                         {password && (
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
@@ -922,19 +931,21 @@ export default function AuthPage({ role }: AuthPageProps) {
                         <div className="relative">
                           <Input
                             id="confirmPassword"
-                            type={showPassword ? "text" : "password"}
+                            type={showConfirmPassword ? "text" : "password"}
 
                             placeholder="Confirm your password"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             className={cn(
-                              "transition-all duration-200",
+                              "transition-all duration-200 pr-14",
                               !passwordsMatch && confirmPassword && "border-destructive focus-visible:ring-destructive"
                             )}
                           />
-                          <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
-                            {showPassword ? <EyeOff /> : <Eye />}
-                          </Button>
+                          <PasswordVisibilityToggle
+                            visible={showConfirmPassword}
+                            onToggle={() => setShowConfirmPassword((prev) => !prev)}
+                            label="confirm password"
+                          />
                         </div>
                         {!passwordsMatch && confirmPassword && (
                           <p className="text-xs text-destructive">Passwords do not match</p>
