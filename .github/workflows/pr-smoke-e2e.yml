@@ -14,8 +14,8 @@ jobs:
     name: Smoke E2E (Staging)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Only run when the staging URL secret is available (won't run on external forks)
-    if: ${{ vars.STAGING_FRONTEND_URL != '' || secrets.STAGING_FRONTEND_URL != '' }}
+    # Only run when STAGING_FRONTEND_URL is set as a repository variable
+    if: ${{ vars.STAGING_FRONTEND_URL != '' }}
 
     steps:
       - name: Checkout Repository
