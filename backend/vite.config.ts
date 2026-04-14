@@ -38,5 +38,9 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.ts'],
     hookTimeout: 30000,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary', 'json', 'html'],
+    },
   }
 });

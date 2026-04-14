@@ -122,4 +122,14 @@ export interface ICohortRepository {
         courseVersionId?: string,
         session?: ClientSession,
     ): Promise<ICohort | null>;
+
+    resetHpForStudent(
+        courseVersionId: string,
+        cohortId: string,
+        cohortName: string,
+        studentId: string,
+        targetHp: number,
+        triggeredByUserId: string,
+        session?: ClientSession,
+    ): Promise<boolean>;
 }

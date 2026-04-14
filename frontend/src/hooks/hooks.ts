@@ -4868,7 +4868,8 @@ export function useGetUnreadApprovedRegistrations(studentId: string): {
     }
   }, {
     enabled: !!studentId,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    refetchInterval: 30000
   });
 
   return {
@@ -4942,7 +4943,12 @@ export function useMarkNotificationAsRead(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("patch", "/course/registration/notifications/{registrationId}/read");
+  const queryClient = useQueryClient();
+  const result = api.useMutation("patch", "/course/registration/notifications/{registrationId}/read", {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["get", "/course/registration/notifications/unread"] });
+    }
+  });
 
   return {
     ...result,

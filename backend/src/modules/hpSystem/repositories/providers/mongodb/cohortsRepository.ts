@@ -1174,113 +1174,1708 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
     if (ledgerDocs.length) {
         await this.hpLedgerCollection.insertMany(ledgerDocs, { session });
     }
+  }
 
-    if (bulkEnrollmentOps.length) {
-        await this.enrollmentCollection.bulkWrite(bulkEnrollmentOps, { session });
-    }
+    async tempRes() {
+        await this.init();
 
-    return bulkEnrollmentOps.length;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // TO GET SINGLE COURSE ENROLLMENT AND WATCHHOURS RELATED DATA
+
+
+        // return await this.courseVersionCollection.aggregate([
+        //     { $match: { _id: new ObjectId("6981df886e100cfe04f9c4ae") } },
+
+        //     {
+        //         $lookup: {
+        //             from: "newCourse",
+        //             let: { cid: new ObjectId("6981df886e100cfe04f9c4ad") },
+        //             pipeline: [
+        //                 { $match: { $expr: { $eq: ["$_id", "$$cid"] } } },
+        //                 { $project: { _id: 0, name: 1 } }
+        //             ],
+        //             as: "courseDoc"
+        //         }
+        //     },
+
+        //     { $unwind: "$modules" },
+        //     { $unwind: "$modules.sections" },
+        //     {
+        //         $project: {
+        //             version: 1,
+        //             itemsGroupId: {
+        //                 $cond: [
+        //                     { $eq: [{ $type: "$modules.sections.itemsGroupId" }, "string"] },
+        //                     {
+        //                         $convert: {
+        //                             input: "$modules.sections.itemsGroupId",
+        //                             to: "objectId",
+        //                             onError: null,
+        //                             onNull: null
+        //                         }
+        //                     },
+        //                     "$modules.sections.itemsGroupId"
+        //                 ]
+        //             },
+        //             courseName: { $arrayElemAt: ["$courseDoc.name", 0] }
+        //         }
+        //     },
+        //     {
+        //         $group: {
+        //             _id: "$_id",
+        //             version: { $first: "$version" },
+        //             courseName: { $first: "$courseName" },
+        //             groupIds: { $addToSet: "$itemsGroupId" }
+        //         }
+        //     },
+
+        //     {
+        //         $lookup: {
+        //             from: "itemsGroup",
+        //             localField: "groupIds",
+        //             foreignField: "_id",
+        //             as: "groups"
+        //         }
+        //     },
+
+        //     {
+        //         $unwind: {
+        //             path: "$groups",
+        //             preserveNullAndEmptyArrays: true
+        //         }
+        //     },
+        //     {
+        //         $unwind: {
+        //             path: "$groups.items",
+        //             preserveNullAndEmptyArrays: true
+        //         }
+        //     },
+
+        //     {
+        //         $group: {
+        //             _id: "$_id",
+        //             courseName: { $first: "$courseName" },
+        //             version: { $first: "$version" },
+        //             quizIds: {
+        //                 $addToSet: {
+        //                     $cond: [
+        //                         { $eq: ["$groups.items.type", "QUIZ"] },
+        //                         {
+        //                             $cond: [
+        //                                 { $eq: [{ $type: "$groups.items._id" }, "string"] },
+        //                                 {
+        //                                     $convert: {
+        //                                         input: "$groups.items._id",
+        //                                         to: "objectId",
+        //                                         onError: null,
+        //                                         onNull: null
+        //                                     }
+        //                                 },
+        //                                 "$groups.items._id"
+        //                             ]
+        //                         },
+        //                         null
+        //                     ]
+        //                 }
+        //             }
+        //         }
+        //     },
+
+        //     {
+        //         $addFields: {
+        //             quizIds: {
+        //                 $filter: {
+        //                     input: { $ifNull: ["$quizIds", []] },
+        //                     as: "q",
+        //                     cond: { $ne: ["$$q", null] }
+        //                 }
+        //             }
+        //         }
+        //     },
+
+        //     {
+        //         $lookup: {
+        //             from: "enrollment",
+        //             let: {
+        //                 cid: new ObjectId("6981df886e100cfe04f9c4ad"),
+        //                 vid: "$_id",
+        //                 qids: "$quizIds"
+        //             },
+        //             pipeline: [
+        //                 {
+        //                     $match: {
+        //                         $expr: {
+        //                             $and: [
+        //                                 { $eq: ["$courseId", "$$cid"] },
+        //                                 { $eq: ["$courseVersionId", "$$vid"] }
+        //                             ]
+        //                         }
+        //                     }
+        //                 },
+
+        //                 {
+        //                     $lookup: {
+        //                         from: "users",
+        //                         let: { uid: "$userId" },
+        //                         pipeline: [
+        //                             { $match: { $expr: { $eq: ["$_id", "$$uid"] } } },
+        //                             { $project: { _id: 0, firstName: 1, lastName: 1 } }
+        //                         ],
+        //                         as: "userDoc"
+        //                     }
+        //                 },
+        //                 {
+        //                     $addFields: {
+        //                         userName: {
+        //                             $trim: {
+        //                                 input: {
+        //                                     $concat: [
+        //                                         { $ifNull: [{ $arrayElemAt: ["$userDoc.firstName", 0] }, ""] },
+        //                                         " ",
+        //                                         { $ifNull: [{ $arrayElemAt: ["$userDoc.lastName", 0] }, ""] }
+        //                                     ]
+        //                                 }
+        //                             }
+        //                         }
+        //                     }
+        //                 },
+
+        //                 {
+        //                     $lookup: {
+        //                         from: "quiz_attempts",
+        //                         let: { qids: "$$qids", uid: "$userId" },
+        //                         pipeline: [
+        //                             {
+        //                                 $addFields: {
+        //                                     quizObjId: {
+        //                                         $cond: [
+        //                                             { $eq: [{ $type: "$quizId" }, "string"] },
+        //                                             {
+        //                                                 $convert: {
+        //                                                     input: "$quizId",
+        //                                                     to: "objectId",
+        //                                                     onError: null,
+        //                                                     onNull: null
+        //                                                 }
+        //                                             },
+        //                                             "$quizId"
+        //                                         ]
+        //                                     }
+        //                                 }
+        //                             },
+        //                             {
+        //                                 $match: {
+        //                                     $expr: {
+        //                                         $and: [
+        //                                             { $eq: ["$userId", "$$uid"] },
+        //                                             { $in: ["$quizObjId", "$$qids"] }
+        //                                         ]
+        //                                     }
+        //                                 }
+        //                             },
+        //                             { $count: "cnt" }
+        //                         ],
+        //                         as: "quizAttemptsAgg"
+        //                     }
+        //                 },
+
+        //                 {
+        //                     $lookup: {
+        //                         from: "watchTime",
+        //                         let: { uid: "$userId", cid: "$courseId", vid: "$courseVersionId" },
+        //                         pipeline: [
+        //                             {
+        //                                 $match: {
+        //                                     $expr: {
+        //                                         $and: [
+        //                                             { $eq: ["$userId", "$$uid"] },
+        //                                             { $eq: ["$courseId", "$$cid"] },
+        //                                             { $eq: ["$courseVersionId", "$$vid"] },
+        //                                             { $ne: ["$endTime", null] },
+        //                                             { $ne: ["$isNotPure", true] }
+        //                                         ]
+        //                                     }
+        //                                 }
+        //                             },
+        //                             {
+        //                                 $group: {
+        //                                     _id: null,
+        //                                     totalMs: { $sum: { $subtract: ["$endTime", "$startTime"] } }
+        //                                 }
+        //                             },
+        //                             {
+        //                                 $project: {
+        //                                     _id: 0,
+        //                                     totalWatchHours: {
+        //                                         $round: [{ $divide: ["$totalMs", 1000 * 60 * 60] }, 2]
+        //                                     }
+        //                                 }
+        //                             }
+        //                         ],
+        //                         as: "watchAgg"
+        //                     }
+        //                 },
+
+        //                 {
+        //                     $project: {
+        //                         _id: 0,
+        //                         userId: { $toString: "$userId" },
+        //                         userName: 1,
+        //                         enrolledAt: {
+        //                             $dateToString: {
+        //                                 date: "$enrollmentDate",
+        //                                 format: "%d-%m-%Y %H:%M",
+        //                                 timezone: "Asia/Kolkata"
+        //                             }
+        //                         },
+        //                         percentCompleted: 1,
+        //                         completedItemsCount: 1,
+        //                         status: 1,
+        //                         isDeleted: 1,
+        //                         isInactiveUser: {
+        //                             $cond: [
+        //                                 {
+        //                                     $or: [
+        //                                         { $eq: ["$isDeleted", true] },
+        //                                         { $eq: ["$status", "INACTIVE"] }
+        //                                     ]
+        //                                 },
+        //                                 true,
+        //                                 false
+        //                             ]
+        //                         },
+        //                         totalQuizAttempts: {
+        //                             $ifNull: [{ $arrayElemAt: ["$quizAttemptsAgg.cnt", 0] }, 0]
+        //                         },
+        //                         totalWatchHours: {
+        //                             $ifNull: [{ $arrayElemAt: ["$watchAgg.totalWatchHours", 0] }, 0]
+        //                         }
+        //                     }
+        //                 }
+        //             ],
+        //             as: "enrollments"
+        //         }
+        //     },
+
+        //     {
+        //         $addFields: {
+        //             totalEnrollments: { $size: { $ifNull: ["$enrollments", []] } },
+        //             totalWatchTimeHours: {
+        //                 $round: [
+        //                     {
+        //                         $sum: {
+        //                             $map: {
+        //                                 input: { $ifNull: ["$enrollments", []] },
+        //                                 as: "e",
+        //                                 in: { $ifNull: ["$$e.totalWatchHours", 0] }
+        //                             }
+        //                         }
+        //                     },
+        //                     2
+        //                 ]
+        //             }
+        //         }
+        //     },
+
+        //     {
+        //         $unwind: {
+        //             path: "$enrollments",
+        //             preserveNullAndEmptyArrays: true
+        //         }
+        //     },
+
+        //     {
+        //         $project: {
+        //             _id: 0,
+        //             // course: "$courseName",
+        //             // courseName: "$courseName",
+        //             // version: "$version.version",
+        //             // totalEnrollments: 1,
+        //             // totalWatchTimeHours: 1,
+        //             // quizIds: 1,
+
+        //             userId: "$enrollments.userId",
+        //             userName: "$enrollments.userName",
+        //             enrolledAt: "$enrollments.enrolledAt",
+        //             percentCompleted: "$enrollments.percentCompleted",
+        //             completedItemsCount: "$enrollments.completedItemsCount",
+        //             status: "$enrollments.status",
+        //             isDeleted: "$enrollments.isDeleted",
+        //             isInactiveUser: "$enrollments.isInactiveUser",
+        //             totalQuizAttempts: "$enrollments.totalQuizAttempts",
+        //             totalWatchHours: "$enrollments.totalWatchHours"
+        //         }
+        //     }
+        // ]).toArray();
+
+
+
+
+
+
+        // SINGLE COURSE ENROLLMENTS ITEM WISE WATCH HOURS DATA
+
+        // return await this.courseVersionCollection.aggregate([
+        //     { $match: { _id: new ObjectId("6981df886e100cfe04f9c4ae") } },
+
+        //     {
+        //         $lookup: {
+        //             from: "newCourse",
+        //             let: { cid: new ObjectId("6981df886e100cfe04f9c4ad") },
+        //             pipeline: [
+        //                 { $match: { $expr: { $eq: ["$_id", "$$cid"] } } },
+        //                 { $project: { _id: 0, name: 1 } }
+        //             ],
+        //             as: "courseDoc"
+        //         }
+        //     },
+
+        //     { $unwind: "$modules" },
+        //     { $unwind: "$modules.sections" },
+        //     {
+        //         $project: {
+        //             version: 1,
+        //             itemsGroupId: {
+        //                 $cond: [
+        //                     { $eq: [{ $type: "$modules.sections.itemsGroupId" }, "string"] },
+        //                     {
+        //                         $convert: {
+        //                             input: "$modules.sections.itemsGroupId",
+        //                             to: "objectId",
+        //                             onError: null,
+        //                             onNull: null
+        //                         }
+        //                     },
+        //                     "$modules.sections.itemsGroupId"
+        //                 ]
+        //             },
+        //             courseName: { $arrayElemAt: ["$courseDoc.name", 0] }
+        //         }
+        //     },
+        //     {
+        //         $group: {
+        //             _id: "$_id",
+        //             version: { $first: "$version" },
+        //             courseName: { $first: "$courseName" },
+        //             groupIds: { $addToSet: "$itemsGroupId" }
+        //         }
+        //     },
+
+        //     {
+        //         $lookup: {
+        //             from: "itemsGroup",
+        //             localField: "groupIds",
+        //             foreignField: "_id",
+        //             as: "groups"
+        //         }
+        //     },
+
+        //     {
+        //         $unwind: {
+        //             path: "$groups",
+        //             preserveNullAndEmptyArrays: true
+        //         }
+        //     },
+        //     {
+        //         $unwind: {
+        //             path: "$groups.items",
+        //             preserveNullAndEmptyArrays: true
+        //         }
+        //     },
+
+        //     {
+        //         $group: {
+        //             _id: "$_id",
+        //             courseName: { $first: "$courseName" },
+        //             version: { $first: "$version" },
+
+        //             quizIds: {
+        //                 $addToSet: {
+        //                     $cond: [
+        //                         { $eq: ["$groups.items.type", "QUIZ"] },
+        //                         {
+        //                             $cond: [
+        //                                 { $eq: [{ $type: "$groups.items._id" }, "string"] },
+        //                                 {
+        //                                     $convert: {
+        //                                         input: "$groups.items._id",
+        //                                         to: "objectId",
+        //                                         onError: null,
+        //                                         onNull: null
+        //                                     }
+        //                                 },
+        //                                 "$groups.items._id"
+        //                             ]
+        //                         },
+        //                         null
+        //                     ]
+        //                 }
+        //             },
+
+        //             courseItems: {
+        //                 $addToSet: {
+        //                     itemId: {
+        //                         $cond: [
+        //                             { $eq: [{ $type: "$groups.items._id" }, "string"] },
+        //                             {
+        //                                 $convert: {
+        //                                     input: "$groups.items._id",
+        //                                     to: "objectId",
+        //                                     onError: null,
+        //                                     onNull: null
+        //                                 }
+        //                             },
+        //                             "$groups.items._id"
+        //                         ]
+        //                     },
+        //                     name: { $ifNull: ["$groups.items.name", "Unknown Item"] },
+        //                     type: "$groups.items.type"
+        //                 }
+        //             }
+        //         }
+        //     },
+
+        //     {
+        //         $addFields: {
+        //             quizIds: {
+        //                 $filter: {
+        //                     input: { $ifNull: ["$quizIds", []] },
+        //                     as: "q",
+        //                     cond: { $ne: ["$$q", null] }
+        //                 }
+        //             },
+        //             courseItems: {
+        //                 $filter: {
+        //                     input: { $ifNull: ["$courseItems", []] },
+        //                     as: "item",
+        //                     cond: { $ne: ["$$item.itemId", null] }
+        //                 }
+        //             }
+        //         }
+        //     },
+
+        //     {
+        //         $lookup: {
+        //             from: "enrollment",
+        //             let: {
+        //                 cid: new ObjectId("6981df886e100cfe04f9c4ad"),
+        //                 vid: "$_id",
+        //                 qids: "$quizIds",
+        //                 courseItems: "$courseItems"
+        //             },
+        //             pipeline: [
+        //                 {
+        //                     $match: {
+        //                         $expr: {
+        //                             $and: [
+        //                                 { $eq: ["$courseId", "$$cid"] },
+        //                                 { $eq: ["$courseVersionId", "$$vid"] }
+        //                             ]
+        //                         }
+        //                     }
+        //                 },
+
+        //                 {
+        //                     $lookup: {
+        //                         from: "users",
+        //                         let: { uid: "$userId" },
+        //                         pipeline: [
+        //                             { $match: { $expr: { $eq: ["$_id", "$$uid"] } } },
+        //                             { $project: { _id: 0, firstName: 1, lastName: 1 } }
+        //                         ],
+        //                         as: "userDoc"
+        //                     }
+        //                 },
+        //                 {
+        //                     $addFields: {
+        //                         userName: {
+        //                             $trim: {
+        //                                 input: {
+        //                                     $concat: [
+        //                                         { $ifNull: [{ $arrayElemAt: ["$userDoc.firstName", 0] }, ""] },
+        //                                         " ",
+        //                                         { $ifNull: [{ $arrayElemAt: ["$userDoc.lastName", 0] }, ""] }
+        //                                     ]
+        //                                 }
+        //                             }
+        //                         }
+        //                     }
+        //                 },
+
+        //                 {
+        //                     $lookup: {
+        //                         from: "quiz_attempts",
+        //                         let: { qids: "$$qids", uid: "$userId" },
+        //                         pipeline: [
+        //                             {
+        //                                 $addFields: {
+        //                                     quizObjId: {
+        //                                         $cond: [
+        //                                             { $eq: [{ $type: "$quizId" }, "string"] },
+        //                                             {
+        //                                                 $convert: {
+        //                                                     input: "$quizId",
+        //                                                     to: "objectId",
+        //                                                     onError: null,
+        //                                                     onNull: null
+        //                                                 }
+        //                                             },
+        //                                             "$quizId"
+        //                                         ]
+        //                                     }
+        //                                 }
+        //                             },
+        //                             {
+        //                                 $match: {
+        //                                     $expr: {
+        //                                         $and: [
+        //                                             { $eq: ["$userId", "$$uid"] },
+        //                                             { $in: ["$quizObjId", "$$qids"] }
+        //                                         ]
+        //                                     }
+        //                                 }
+        //                             },
+        //                             { $count: "cnt" }
+        //                         ],
+        //                         as: "quizAttemptsAgg"
+        //                     }
+        //                 },
+
+        //                 {
+        //                     $lookup: {
+        //                         from: "watchTime",
+        //                         let: {
+        //                             uid: "$userId",
+        //                             cid: "$courseId",
+        //                             vid: "$courseVersionId"
+        //                         },
+        //                         pipeline: [
+        //                             {
+        //                                 $addFields: {
+        //                                     itemObjId: {
+        //                                         $cond: [
+        //                                             { $eq: [{ $type: "$itemId" }, "string"] },
+        //                                             {
+        //                                                 $convert: {
+        //                                                     input: "$itemId",
+        //                                                     to: "objectId",
+        //                                                     onError: null,
+        //                                                     onNull: null
+        //                                                 }
+        //                                             },
+        //                                             "$itemId"
+        //                                         ]
+        //                                     }
+        //                                 }
+        //                             },
+        //                             {
+        //                                 $match: {
+        //                                     $expr: {
+        //                                         $and: [
+        //                                             { $eq: ["$userId", "$$uid"] },
+        //                                             { $eq: ["$courseId", "$$cid"] },
+        //                                             { $eq: ["$courseVersionId", "$$vid"] },
+        //                                             { $ne: ["$endTime", null] },
+        //                                             { $ne: ["$isNotPure", true] },
+        //                                             { $ne: ["$itemObjId", null] }
+        //                                         ]
+        //                                     }
+        //                                 }
+        //                             },
+        //                             {
+        //                                 $group: {
+        //                                     _id: "$itemObjId",
+        //                                     totalMs: {
+        //                                         $sum: { $subtract: ["$endTime", "$startTime"] }
+        //                                     },
+        //                                     viewCount: { $sum: 1 }
+        //                                 }
+        //                             },
+        //                             {
+        //                                 $project: {
+        //                                     _id: 0,
+        //                                     itemId: "$_id",
+        //                                     watchHours: {
+        //                                         $round: [{ $divide: ["$totalMs", 1000 * 60 * 60] }, 2]
+        //                                     },
+        //                                     viewCount: 1
+        //                                 }
+        //                             }
+        //                         ],
+        //                         as: "itemWatchAgg"
+        //                     }
+        //                 },
+
+        //                 {
+        //                     $addFields: {
+        //                         itemWiseWatchHours: {
+        //                             $map: {
+        //                                 input: { $ifNull: ["$$courseItems", []] },
+        //                                 as: "courseItem",
+        //                                 in: {
+        //                                     name: "$$courseItem.name",
+        //                                     type: "$$courseItem.type",
+        //                                     watchHours: {
+        //                                         $let: {
+        //                                             vars: {
+        //                                                 matchedWatch: {
+        //                                                     $arrayElemAt: [
+        //                                                         {
+        //                                                             $filter: {
+        //                                                                 input: "$itemWatchAgg",
+        //                                                                 as: "wa",
+        //                                                                 cond: {
+        //                                                                     $eq: ["$$wa.itemId", "$$courseItem.itemId"]
+        //                                                                 }
+        //                                                             }
+        //                                                         },
+        //                                                         0
+        //                                                     ]
+        //                                                 }
+        //                                             },
+        //                                             in: { $ifNull: ["$$matchedWatch.watchHours", 0] }
+        //                                         }
+        //                                     },
+        //                                     viewCount: {
+        //                                         $let: {
+        //                                             vars: {
+        //                                                 matchedWatch: {
+        //                                                     $arrayElemAt: [
+        //                                                         {
+        //                                                             $filter: {
+        //                                                                 input: "$itemWatchAgg",
+        //                                                                 as: "wa",
+        //                                                                 cond: {
+        //                                                                     $eq: ["$$wa.itemId", "$$courseItem.itemId"]
+        //                                                                 }
+        //                                                             }
+        //                                                         },
+        //                                                         0
+        //                                                     ]
+        //                                                 }
+        //                                             },
+        //                                             in: { $ifNull: ["$$matchedWatch.viewCount", 0] }
+        //                                         }
+        //                                     }
+        //                                 }
+        //                             }
+        //                         }
+        //                     }
+        //                 },
+
+        //                 {
+        //                     $project: {
+        //                         _id: 0,
+        //                         userId: { $toString: "$userId" },
+        //                         userName: 1,
+        //                         enrolledAt: {
+        //                             $dateToString: {
+        //                                 date: "$enrollmentDate",
+        //                                 format: "%d-%m-%Y %H:%M",
+        //                                 timezone: "Asia/Kolkata"
+        //                             }
+        //                         },
+        //                         percentCompleted: 1,
+        //                         completedItemsCount: 1,
+        //                         status: 1,
+        //                         isDeleted: 1,
+        //                         isInactiveUser: {
+        //                             $cond: [
+        //                                 {
+        //                                     $or: [
+        //                                         { $eq: ["$isDeleted", true] },
+        //                                         { $eq: ["$status", "INACTIVE"] }
+        //                                     ]
+        //                                 },
+        //                                 true,
+        //                                 false
+        //                             ]
+        //                         },
+        //                         totalQuizAttempts: {
+        //                             $ifNull: [{ $arrayElemAt: ["$quizAttemptsAgg.cnt", 0] }, 0]
+        //                         },
+        //                         totalWatchHours: {
+        //                             $round: [
+        //                                 {
+        //                                     $sum: {
+        //                                         $map: {
+        //                                             input: { $ifNull: ["$itemWiseWatchHours", []] },
+        //                                             as: "item",
+        //                                             in: { $ifNull: ["$$item.watchHours", 0] }
+        //                                         }
+        //                                     }
+        //                                 },
+        //                                 2
+        //                             ]
+        //                         },
+        //                         itemWiseWatchHours: 1
+        //                     }
+        //                 }
+        //             ],
+        //             as: "enrollments"
+        //         }
+        //     },
+
+        //     {
+        //         $addFields: {
+        //             totalEnrollments: { $size: { $ifNull: ["$enrollments", []] } },
+        //             totalWatchTimeHours: {
+        //                 $round: [
+        //                     {
+        //                         $sum: {
+        //                             $map: {
+        //                                 input: { $ifNull: ["$enrollments", []] },
+        //                                 as: "e",
+        //                                 in: { $ifNull: ["$$e.totalWatchHours", 0] }
+        //                             }
+        //                         }
+        //                     },
+        //                     2
+        //                 ]
+        //             }
+        //         }
+        //     },
+
+        //     {
+        //         $unwind: {
+        //             path: "$enrollments",
+        //             preserveNullAndEmptyArrays: true
+        //         }
+        //     },
+
+        //     {
+        //         $project: {
+        //             _id: 0,
+        //             userId: "$enrollments.userId",
+        //             userName: "$enrollments.userName",
+        //             enrolledAt: "$enrollments.enrolledAt",
+        //             percentCompleted: "$enrollments.percentCompleted",
+        //             completedItemsCount: "$enrollments.completedItemsCount",
+        //             status: "$enrollments.status",
+        //             isDeleted: "$enrollments.isDeleted",
+        //             isInactiveUser: "$enrollments.isInactiveUser",
+        //             totalQuizAttempts: "$enrollments.totalQuizAttempts",
+        //             totalWatchHours: "$enrollments.totalWatchHours",
+        //             itemWiseWatchHours: "$enrollments.itemWiseWatchHours"
+        //         }
+        //     }
+        // ]).toArray();
+
+
+
+
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+        // const courseId = new ObjectId("6981df886e100cfe04f9c4ad");
+        // const versionId = new ObjectId("6981df886e100cfe04f9c4ae");
+        /*
+        STEP 1: Fetch FEEDBACK items and forms
+        */
+
+        // const meta = await this.courseVersionCollection.aggregate([
+        //     { $match: { _id: versionId } },
+
+        //     { $unwind: "$modules" },
+        //     { $unwind: "$modules.sections" },
+
+        //     {
+        //         $project: {
+        //             itemsGroupId: {
+        //                 $cond: [
+        //                     { $eq: [{ $type: "$modules.sections.itemsGroupId" }, "string"] },
+        //                     {
+        //                         $convert: {
+        //                             input: "$modules.sections.itemsGroupId",
+        //                             to: "objectId",
+        //                             onError: null,
+        //                             onNull: null
+        //                         }
+        //                     },
+        //                     "$modules.sections.itemsGroupId"
+        //                 ]
+        //             }
+        //         }
+        //     },
+
+        //     {
+        //         $group: {
+        //             _id: null,
+        //             groupIds: { $addToSet: "$itemsGroupId" }
+        //         }
+        //     },
+
+        //     {
+        //         $lookup: {
+        //             from: "itemsGroup",
+        //             localField: "groupIds",
+        //             foreignField: "_id",
+        //             as: "groups"
+        //         }
+        //     },
+
+        //     { $unwind: "$groups" },
+        //     { $unwind: "$groups.items" },
+
+        //     { $match: { "groups.items.type": "FEEDBACK" } },
+
+        //     {
+        //         $addFields: {
+        //             feedbackId: {
+        //                 $cond: [
+        //                     { $eq: [{ $type: "$groups.items._id" }, "string"] },
+        //                     { $toObjectId: "$groups.items._id" },
+        //                     "$groups.items._id"
+        //                 ]
+        //             }
+        //         }
+        //     },
+
+        //     {
+        //         $lookup: {
+        //             from: "feedback_forms",
+        //             localField: "feedbackId",
+        //             foreignField: "_id",
+        //             as: "form"
+        //         }
+        //     },
+
+        //     { $unwind: "$form" },
+
+        //     {
+        //         $group: {
+        //             _id: null,
+        //             feedbackFormIds: { $addToSet: "$form._id" },
+        //             feedbackForms: {
+        //                 $addToSet: {
+        //                     feedbackFormId: "$form._id",
+        //                     name: "$form.name"
+        //                 }
+        //             }
+        //         }
+        //     },
+
+        //     {
+        //         $project: {
+        //             _id: 0,
+        //             feedbackFormIds: 1,
+        //             feedbackForms: 1,
+        //             totalFeedbackForms: { $size: "$feedbackFormIds" }
+        //         }
+        //     }
+
+        // ]).toArray();
+
+        // const metaData = meta[0] || {
+        //     feedbackFormIds: [],
+        //     feedbackForms: [],
+        //     totalFeedbackForms: 0
+        // };
+
+        /*
+        STEP 2: Fetch students + feedback submission stats
+        */
+
+        // const students = await this.enrollmentCollection.aggregate([
+        //     {
+        //         $match: {
+        //             courseId: courseId,
+        //             courseVersionId: versionId
+        //         }
+        //     },
+
+        //     {
+        //         $lookup: {
+        //             from: "users",
+        //             localField: "userId",
+        //             foreignField: "_id",
+        //             as: "user"
+        //         }
+        //     },
+
+        //     { $unwind: "$user" },
+
+        //     {
+        //         $addFields: {
+        //             userName: {
+        //                 $concat: [
+        //                     { $ifNull: ["$user.firstName", ""] },
+        //                     " ",
+        //                     { $ifNull: ["$user.lastName", ""] }
+        //                 ]
+        //             },
+        //             isInactiveUser: {
+        //                 $cond: [
+        //                     {
+        //                         $or: [
+        //                             { $eq: ["$isDeleted", true] },
+        //                             { $eq: ["$status", "INACTIVE"] }
+        //                         ]
+        //                     },
+        //                     true,
+        //                     false
+        //                 ]
+        //             }
+        //         }
+        //     },
+
+        //     {
+        //         $lookup: {
+        //             from: "feedback_submission",
+        //             let: {
+        //                 uid: "$userId",
+        //                 formIds: metaData.feedbackFormIds
+        //             },
+        //             pipeline: [
+        //                 {
+        //                     $match: {
+        //                         $expr: {
+        //                             $and: [
+        //                                 { $eq: ["$userId", "$$uid"] },
+        //                                 { $in: ["$feedbackFormId", "$$formIds"] }
+        //                             ]
+        //                         }
+        //                     }
+        //                 },
+        //                 {
+        //                     $group: {
+        //                         _id: null,
+        //                         totalSubmitted: { $sum: 1 },
+        //                         uniqueForms: { $addToSet: "$feedbackFormId" }
+        //                     }
+        //                 },
+        //                 {
+        //                     $project: {
+        //                         totalSubmitted: 1,
+        //                         uniqueSubmitted: { $size: "$uniqueForms" }
+        //                     }
+        //                 }
+        //             ],
+        //             as: "feedbackAgg"
+        //         }
+        //     },
+
+        //     {
+        //         $addFields: {
+        //             totalFeedbackForms: metaData.totalFeedbackForms,
+        //             totalFeedbackSubmitted: {
+        //                 $ifNull: [{ $arrayElemAt: ["$feedbackAgg.totalSubmitted", 0] }, 0]
+        //             },
+        //             uniqueFeedbackSubmitted: {
+        //                 $ifNull: [{ $arrayElemAt: ["$feedbackAgg.uniqueSubmitted", 0] }, 0]
+        //             }
+        //         }
+        //     },
+
+        //     {
+        //         $addFields: {
+        //             submittedAllFeedback: {
+        //                 $eq: ["$uniqueFeedbackSubmitted", "$totalFeedbackForms"]
+        //             },
+        //             completionPercentage: {
+        //                 $cond: [
+        //                     { $gt: ["$totalFeedbackForms", 0] },
+        //                     {
+        //                         $multiply: [
+        //                             { $divide: ["$uniqueFeedbackSubmitted", "$totalFeedbackForms"] },
+        //                             100
+        //                         ]
+        //                     },
+        //                     0
+        //                 ]
+        //             }
+        //         }
+        //     },
+
+        //     {
+        //         $project: {
+        //             _id: 0,
+        //             userId: { $toString: "$userId" },
+        //             email: "$user.email",
+        //             userName: 1,
+        //             status: 1,
+        //             isDeleted: 1,
+        //             isInactiveUser: 1,
+        //             totalFeedbackForms: 1,
+        //             totalFeedbackSubmitted: 1,
+        //             uniqueFeedbackSubmitted: 1,
+        //             submittedAllFeedback: 1,
+        //             completionPercentage: { $round: ["$completionPercentage", 2] }
+        //         }
+        //     }
+
+        // ], { allowDiskUse: true }).toArray();
+
+
+        /*
+        FINAL RESULT
+        */
+        // return {
+        //     courseId: courseId.toString(),
+        //     courseVersionId: versionId.toString(),
+        //     totalFeedbackForms: metaData.totalFeedbackForms,
+        //     feedbackForms: metaData.feedbackForms.map((f) => ({
+        //         feedbackFormId: f.feedbackFormId?.toString(),
+        //         name: f.name
+        //     })),
+        //     totalStudents: students.length,
+        //     students
+        // };
+
+
+
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
+        // TO GET FEEDBACK SUBMISSION DETAILS OF ENRLLED STUDENTS IN A COURSE
+
+
+        /*
+        const courseId = new ObjectId("6981df886e100cfe04f9c4ad");
+        const versionId = new ObjectId("6981df886e100cfe04f9c4ae");
+
+        const result = await this.enrollmentCollection.aggregate([
+            {
+                $match: {
+                    courseId,
+                    courseVersionId: versionId,
+                    role: "STUDENT",
+                    isDeleted: { $ne: true }
+                }
+            },
+
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "userId",
+                    foreignField: "_id",
+                    as: "user"
+                }
+            },
+            {
+                $unwind: {
+                    path: "$user",
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+
+            {
+                $lookup: {
+                    from: "feedback_submission",
+                    let: {
+                        uid: "$userId",
+                        cid: "$courseId",
+                        vid: "$courseVersionId"
+                    },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ["$userId", "$$uid"] },
+                                        { $eq: ["$courseId", "$$cid"] },
+                                        { $eq: ["$courseVersionId", "$$vid"] }
+                                    ]
+                                }
+                            }
+                        },
+
+                        // latest record first
+                        { $sort: { updatedAt: -1, createdAt: -1, _id: -1 } },
+
+                        // keep only one unique submission
+                        {
+                            $group: {
+                                _id: {
+                                    userId: "$userId",
+                                    feedbackFormId: "$feedbackFormId",
+                                    previousItemId: "$previousItemId"
+                                },
+                                doc: { $first: "$$ROOT" }
+                            }
+                        },
+                        { $replaceRoot: { newRoot: "$doc" } },
+
+                        {
+                            $lookup: {
+                                from: "feedback_forms",
+                                localField: "feedbackFormId",
+                                foreignField: "_id",
+                                as: "feedbackForm"
+                            }
+                        },
+                        {
+                            $unwind: {
+                                path: "$feedbackForm",
+                                preserveNullAndEmptyArrays: true
+                            }
+                        },
+
+                        // BLOG lookup
+                        {
+                            $lookup: {
+                                from: "blogs",
+                                let: {
+                                    prevId: "$previousItemId",
+                                    prevType: "$previousItemType"
+                                },
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    { $eq: ["$$prevType", "BLOG"] },
+                                                    { $eq: ["$_id", "$$prevId"] }
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    {
+                                        $project: {
+                                            _id: 1,
+                                            name: { $ifNull: ["$name", "$title"] }
+                                        }
+                                    }
+                                ],
+                                as: "blogItem"
+                            }
+                        },
+
+                        // VIDEO lookup
+                        {
+                            $lookup: {
+                                from: "videos",
+                                let: {
+                                    prevId: "$previousItemId",
+                                    prevType: "$previousItemType"
+                                },
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    { $eq: ["$$prevType", "VIDEO"] },
+                                                    { $eq: ["$_id", "$$prevId"] }
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    {
+                                        $project: {
+                                            _id: 1,
+                                            name: { $ifNull: ["$name", "$title"] }
+                                        }
+                                    }
+                                ],
+                                as: "videoItem"
+                            }
+                        },
+
+                        // QUIZ lookup
+                        {
+                            $lookup: {
+                                from: "quizzes",
+                                let: {
+                                    prevId: "$previousItemId",
+                                    prevType: "$previousItemType"
+                                },
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    { $eq: ["$$prevType", "QUIZ"] },
+                                                    { $eq: ["$_id", "$$prevId"] }
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    {
+                                        $project: {
+                                            _id: 1,
+                                            name: { $ifNull: ["$name", "$title"] }
+                                        }
+                                    }
+                                ],
+                                as: "quizItem"
+                            }
+                        },
+
+                        {
+                            $addFields: {
+                                previousItemName: {
+                                    $ifNull: [
+                                        { $arrayElemAt: ["$blogItem.name", 0] },
+                                        {
+                                            $ifNull: [
+                                                { $arrayElemAt: ["$videoItem.name", 0] },
+                                                { $arrayElemAt: ["$quizItem.name", 0] }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+
+                        {
+                            $project: {
+                                _id: 0,
+                                feedbackSubmissionId: { $toString: "$_id" },
+                                feedbackFormId: { $toString: "$feedbackFormId" },
+                                feedbackName: "$feedbackForm.name",
+                                previousItemId: {
+                                    $cond: [
+                                        { $ifNull: ["$previousItemId", false] },
+                                        { $toString: "$previousItemId" },
+                                        null
+                                    ]
+                                },
+                                previousItemType: 1,
+                                previousItemName: 1,
+                                details: 1,
+                                createdAt: 1,
+                                updatedAt: 1
+                            }
+                        },
+
+                        { $sort: { updatedAt: -1, createdAt: -1 } }
+                    ],
+                    as: "feedbackSubmissions"
+                }
+            },
+
+            // one row per feedback submission
+            {
+                $unwind: {
+                    path: "$feedbackSubmissions",
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+
+            {
+                $project: {
+                    _id: 0,
+                    enrollmentId: { $toString: "$_id" },
+                    userId: { $toString: "$userId" },
+                    userEmail: "$user.email",
+                    userName: {
+                        $trim: {
+                            input: {
+                                $concat: [
+                                    { $ifNull: ["$user.firstName", ""] },
+                                    " ",
+                                    { $ifNull: ["$user.lastName", ""] }
+                                ]
+                            }
+                        }
+                    },
+                    role: 1,
+                    status: 1,
+
+                    feedbackSubmissionId: "$feedbackSubmissions.feedbackSubmissionId",
+                    feedbackFormId: "$feedbackSubmissions.feedbackFormId",
+                    feedbackName: "$feedbackSubmissions.feedbackName",
+                    previousItemId: "$feedbackSubmissions.previousItemId",
+                    previousItemType: "$feedbackSubmissions.previousItemType",
+                    previousItemName: "$feedbackSubmissions.previousItemName",
+                    details: "$feedbackSubmissions.details",
+                    createdAt: "$feedbackSubmissions.createdAt",
+                    updatedAt: "$feedbackSubmissions.updatedAt"
+                }
+            },
+
+            {
+                $sort: {
+                    userEmail: 1,
+                    updatedAt: -1
+                }
+            }
+        ], { allowDiskUse: true }).toArray();
+
+        return result;
+        */
+
+
+        // NEW QUERY: GuruSetu pilot feedback rows for students with >50% watch-time per video.
+        const guruSetuCourseId = new ObjectId("6981df886e100cfe04f9c4ad");
+        const guruSetuVersionId = new ObjectId("6981df886e100cfe04f9c4ae");
+        const watchTimeCollection = await this.db.getCollection<any>("watchTime");
+
+        const result = await watchTimeCollection.aggregate([
+            {
+                $match: {
+                    courseId: guruSetuCourseId,
+                    courseVersionId: guruSetuVersionId,
+                    endTime: { $ne: null },
+                    isNotPure: { $ne: true },
+                },
+            },
+            {
+                $addFields: {
+                    itemObjId: {
+                        $cond: [
+                            { $eq: [{ $type: "$itemId" }, "string"] },
+                            {
+                                $convert: {
+                                    input: "$itemId",
+                                    to: "objectId",
+                                    onError: null,
+                                    onNull: null,
+                                },
+                            },
+                            "$itemId",
+                        ],
+                    },
+                },
+            },
+            {
+                $match: {
+                    itemObjId: { $ne: null },
+                },
+            },
+            {
+                $group: {
+                    _id: {
+                        userId: "$userId",
+                        videoId: "$itemObjId",
+                    },
+                    rawWatchedMs: { $sum: { $subtract: ["$endTime", "$startTime"] } },
+                    watchSessionCount: { $sum: 1 },
+                    firstWatchAt: { $min: "$startTime" },
+                    lastWatchAt: { $max: "$startTime" },
+                },
+            },
+            {
+                $addFields: {
+                    userId: "$_id.userId",
+                    videoId: "$_id.videoId",
+                    rawWatchedSeconds: {
+                        $round: [{ $divide: ["$rawWatchedMs", 1000] }, 2],
+                    },
+                },
+            },
+            {
+                $lookup: {
+                    from: "videos",
+                    localField: "videoId",
+                    foreignField: "_id",
+                    as: "video",
+                },
+            },
+            {
+                $unwind: {
+                    path: "$video",
+                    preserveNullAndEmptyArrays: false,
+                },
+            },
+            {
+                $addFields: {
+                    videoName: { $ifNull: ["$video.name", "$video.title"] },
+                    videoDurationSeconds: {
+                        $let: {
+                            vars: {
+                                startParts: {
+                                    $split: [{ $ifNull: ["$video.details.startTime", "00:00:00"] }, ":"],
+                                },
+                                endParts: {
+                                    $split: [{ $ifNull: ["$video.details.endTime", "00:00:00"] }, ":"],
+                                },
+                            },
+                            in: {
+                                $max: [
+                                    0,
+                                    {
+                                        $subtract: [
+                                            {
+                                                $add: [
+                                                    {
+                                                        $multiply: [
+                                                            {
+                                                                $convert: {
+                                                                    input: { $arrayElemAt: ["$$endParts", 0] },
+                                                                    to: "int",
+                                                                    onError: 0,
+                                                                    onNull: 0,
+                                                                },
+                                                            },
+                                                            3600,
+                                                        ],
+                                                    },
+                                                    {
+                                                        $multiply: [
+                                                            {
+                                                                $convert: {
+                                                                    input: { $arrayElemAt: ["$$endParts", 1] },
+                                                                    to: "int",
+                                                                    onError: 0,
+                                                                    onNull: 0,
+                                                                },
+                                                            },
+                                                            60,
+                                                        ],
+                                                    },
+                                                    {
+                                                        $convert: {
+                                                            input: { $arrayElemAt: ["$$endParts", 2] },
+                                                            to: "int",
+                                                            onError: 0,
+                                                            onNull: 0,
+                                                        },
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                $add: [
+                                                    {
+                                                        $multiply: [
+                                                            {
+                                                                $convert: {
+                                                                    input: { $arrayElemAt: ["$$startParts", 0] },
+                                                                    to: "int",
+                                                                    onError: 0,
+                                                                    onNull: 0,
+                                                                },
+                                                            },
+                                                            3600,
+                                                        ],
+                                                    },
+                                                    {
+                                                        $multiply: [
+                                                            {
+                                                                $convert: {
+                                                                    input: { $arrayElemAt: ["$$startParts", 1] },
+                                                                    to: "int",
+                                                                    onError: 0,
+                                                                    onNull: 0,
+                                                                },
+                                                            },
+                                                            60,
+                                                        ],
+                                                    },
+                                                    {
+                                                        $convert: {
+                                                            input: { $arrayElemAt: ["$$startParts", 2] },
+                                                            to: "int",
+                                                            onError: 0,
+                                                            onNull: 0,
+                                                        },
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+            },
+            {
+                $addFields: {
+                    rawWatchedSecondsUncapped: "$rawWatchedSeconds",
+                    rawWatchedSeconds: {
+                        $min: ["$rawWatchedSeconds", "$videoDurationSeconds"],
+                    },
+                },
+            },
+            {
+                $match: {
+                    $expr: {
+                        $and: [
+                            { $gt: ["$videoDurationSeconds", 0] },
+                            {
+                                $gt: [
+                                    "$rawWatchedSeconds",
+                                    { $multiply: ["$videoDurationSeconds", 0.5] },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "userId",
+                    foreignField: "_id",
+                    as: "user",
+                },
+            },
+            {
+                $unwind: {
+                    path: "$user",
+                    preserveNullAndEmptyArrays: false,
+                },
+            },
+            {
+                $lookup: {
+                    from: "enrollment",
+                    let: { uid: "$userId" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ["$userId", "$$uid"] },
+                                        { $eq: ["$courseId", guruSetuCourseId] },
+                                        { $eq: ["$courseVersionId", guruSetuVersionId] },
+                                        { $eq: ["$role", "STUDENT"] },
+                                        { $ne: ["$isDeleted", true] },
+                                    ],
+                                },
+                            },
+                        },
+                        { $limit: 1 },
+                    ],
+                    as: "enrollment",
+                },
+            },
+            {
+                $match: {
+                    "enrollment.0": { $exists: true },
+                },
+            },
+            {
+                $lookup: {
+                    from: "feedback_submission",
+                    let: {
+                        uid: "$userId",
+                        vid: "$videoId",
+                    },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ["$userId", "$$uid"] },
+                                        { $eq: ["$courseId", guruSetuCourseId] },
+                                        { $eq: ["$courseVersionId", guruSetuVersionId] },
+                                        { $eq: ["$previousItemId", "$$vid"] },
+                                        { $eq: ["$previousItemType", "VIDEO"] },
+                                    ],
+                                },
+                            },
+                        },
+                        { $sort: { updatedAt: -1, createdAt: -1, _id: -1 } },
+                        {
+                            $group: {
+                                _id: {
+                                    userId: "$userId",
+                                    feedbackFormId: "$feedbackFormId",
+                                    previousItemId: "$previousItemId",
+                                },
+                                doc: { $first: "$$ROOT" },
+                            },
+                        },
+                        { $replaceRoot: { newRoot: "$doc" } },
+                    ],
+                    as: "feedbackSubmission",
+                },
+            },
+            {
+                $unwind: {
+                    path: "$feedbackSubmission",
+                    preserveNullAndEmptyArrays: false,
+                },
+            },
+            {
+                $lookup: {
+                    from: "feedback_forms",
+                    localField: "feedbackSubmission.feedbackFormId",
+                    foreignField: "_id",
+                    as: "feedbackForm",
+                },
+            },
+            {
+                $unwind: {
+                    path: "$feedbackForm",
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
+                $project: {
+                    _id: 0,
+                    userId: { $toString: "$userId" },
+                    userEmail: "$user.email",
+                    videoName: 1,
+                    videoDurationSeconds: 1,
+                    rawWatchedSeconds: 1,
+                    rawWatchedSecondsUncapped: 1,
+                    watchSessionCount: 1,
+                    firstWatchAt: 1,
+                    lastWatchAt: 1,
+                    details: "$feedbackSubmission.details",
+                    feedbackFormName: "$feedbackForm.name",
+                    "Was the explanation in the video clear?": {
+                        $getField: {
+                            field: "Was the explanation in the video clear?",
+                            input: "$feedbackSubmission.details",
+                        },
+                    },
+                    "How would you rate the Audio & Visual quality?": {
+                        $getField: {
+                            field: "How would you rate the Audio & Visual quality?",
+                            input: "$feedbackSubmission.details",
+                        },
+                    },
+                    "How was the pacing of the content in the video?": {
+                        $getField: {
+                            field: "How was the pacing of the content in the video?",
+                            input: "$feedbackSubmission.details",
+                        },
+                    },
+                    "Did the video hold your attention?": {
+                        $getField: {
+                            field: "Did the video hold your attention?",
+                            input: "$feedbackSubmission.details",
+                        },
+                    },
+                    "How useful do you find this content ?": {
+                        $getField: {
+                            field: "How useful do you find this content ?",
+                            input: "$feedbackSubmission.details",
+                        },
+                    },
+                    "How confident do you feel applying this concept in your daily/ professional life?": {
+                        $getField: {
+                            field: "How confident do you feel applying this concept in your daily/ professional life?",
+                            input: "$feedbackSubmission.details",
+                        },
+                    },
+                    "Please share your feedback here": {
+                        $getField: {
+                            field: "Please share your feedback here",
+                            input: "$feedbackSubmission.details",
+                        },
+                    },
+                    createdAt: "$feedbackSubmission.createdAt",
+                },
+            },
+            {
+                $sort: {
+                    userEmail: 1,
+                    videoName: 1,
+                    createdAt: -1,
+                },
+            },
+        ], { allowDiskUse: true }).toArray();
+
+        return result;
     }
 
     async resetHpForStudent(
-    courseVersionId: string,
-    cohortId: string,
-    cohortName: string,
-    studentId: string,
-    targetHp: number,
-    triggeredByUserId: string,
-    session?: ClientSession,
+        courseVersionId: string,
+        cohortId: string,
+        cohortName: string,
+        studentId: string,
+        targetHp: number,
+        triggeredByUserId: string,
+        session?: ClientSession,
     ): Promise<boolean> {
-
-    const orVersionMatch: any[] = [{ courseVersionId }];
-    if (ObjectId.isValid(courseVersionId)) {
-      orVersionMatch.push({ courseVersionId: new ObjectId(courseVersionId) });
+        // TODO: implement per-student HP reset
+        throw new Error('resetHpForStudent is not yet implemented');
     }
 
-    const orCohortMatch: any[] = [];
-    if (cohortId && ObjectId.isValid(cohortId)) {
-      orCohortMatch.push({ cohortId: new ObjectId(cohortId) });
-      orCohortMatch.push({ cohortId: cohortId });
-    } else {
-      orCohortMatch.push({ cohortId: { $exists: false } });
-      orCohortMatch.push({ cohortId: null });
-    }
-
-    const filter: any = {
-      isDeleted: { $ne: true },
-      $or: orVersionMatch,
-      $and: [{ $or: orCohortMatch }],
-      userId: toObjectId(studentId, "studentId"),
-    };
-
-    const student = await this.enrollmentCollection.findOne(filter, { session });
-
-    if (!student) {
-        throw new NotFoundError('Student not found in this cohort');
-    }
-
-    const currentHp = student.hpPoints ?? 0;
-    const diff = targetHp - currentHp;
-
-    // No change case
-    if (diff === 0) return false;
-
-    const direction = diff > 0 ? 'CREDIT' : 'DEBIT';
-
-    const user = await this.userRepo.getUsersByIds([studentId]);
-    const studentEmail = user?.[0]?.email;
-
-    // ✅ Ledger entry
-    const ledgerDoc: HpLedger = {
-        courseId: student.courseId,
-        courseVersionId: student.courseVersionId,
-        cohortId: student.cohortId,
-        cohort: cohortName,
-
-        studentId: student.userId,
-        studentEmail:studentEmail,
-
-        activityId: null,
-        submissionId: null,
-
-        eventType: 'RESET',
-        direction: direction,
-        amount: Math.abs(diff),
-
-        calc: {
-            ruleType: 'ABSOLUTE',
-            absolutePoints: targetHp,
-            baseHpAtTime: currentHp,
-            computedAmount: currentHp+diff,
-            reasonCode: 'HP_RESET',
-        },
-
-        links: null,
-
-        meta: {
-            triggeredBy: "TEACHER",
-            triggeredByUserId: toObjectId(triggeredByUserId, "triggeredByUserId"),
-            operationId: getHpLedgerOperationId('RESET_HP_SINGLE_STUDENT'),
-            note: `Your HP was updated from ${currentHp} to ${targetHp}.`,
-        },
-
-        createdAt: new Date(),
-    };
-
-    await this.hpLedgerCollection.insertOne(ledgerDoc, { session });
-
-    // Update enrollment
-    await this.enrollmentCollection.updateOne(
-        { _id: student._id },
-        {
-            $set: {
-                hpPoints: targetHp,
-                updatedAt: new Date(),
-            },
-        },
-        { session },
-    );
-
-    return true;
-    }
 }

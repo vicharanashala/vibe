@@ -66,12 +66,12 @@ percentCompleted !== 100){
     return pathname === path || pathname.startsWith(path + "/");
   };
 
-  // Sync local state with hook data
+  // Sync local state with hook data whenever the server response changes
   useEffect(() => {
-    if (approvedNotifications && approvedNotifications.length !== approvedNotificationsList.length) {
+    if (approvedNotifications) {
       setApprovedNotificationsList(approvedNotifications);
     }
-  }, [approvedNotifications, setApprovedNotificationsList,approvedNotificationsList]);
+  }, [approvedNotifications]);
 
   useEffect(() => {
     if (rejectedStudentRegistrations) {

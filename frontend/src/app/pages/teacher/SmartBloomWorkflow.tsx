@@ -1129,8 +1129,10 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
       "\n" +
       "OPTION LENGTH RULES (strict):\n" +
       "- Every answer option must be 8-20 words long.\n" +
-      "- The correct answer must NOT be longer than any distractor.\n" +
-      "- Write all four options at the same level of specificity and detail.\n" +
+      "- ALL options — correct and incorrect — must be within ±2 words of each other in length.\n" +
+      "- Write every distractor to be as specific, detailed, and plausible as the correct answer — not vague or shorter.\n" +
+      "- The correct answer must NOT have more words or characters than any distractor.\n" +
+      "- Before finalising, count the words in each option. If the correct answer is the longest, rewrite the distractors to match or exceed its length.\n" +
       "- A student comparing only option lengths must not be able to identify the correct answer.\n" +
       "- For Yes/No, True/False, or binary questions, provide exactly 2 options only.\n" +
       "\n" +
