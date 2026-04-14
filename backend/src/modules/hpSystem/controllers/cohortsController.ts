@@ -1,10 +1,10 @@
 import { inject, injectable } from "inversify";
-import { Authorized, BadRequestError, CurrentUser, Get, HttpCode, JsonController, Param, Post, QueryParams } from "routing-controllers";
+import { Authorized, BadRequestError, Body, CurrentUser, Get, HttpCode, JsonController, Param, Params, Post, QueryParams } from "routing-controllers";
 import { OpenAPI, ResponseSchema } from "routing-controllers-openapi";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { CohortsService } from "../services/cohortsService.js";
 import { BadRequestErrorResponse, IUser } from "#root/shared/index.js";
-import { CohortListQueryDto, CohortStudentsListQueryDto, CohortStudentsResponseDto, CourseVersionListQueryDto } from "../classes/validators/courseAndCohorts.js";
+import { CohortListQueryDto, CohortStudentsListQueryDto, CohortStudentsResponseDto, CourseVersionListQueryDto, ResetHpRequest, ResetRequestParams, ResetStudentHpRequest, ResetStudentRequestParams } from "../classes/validators/courseAndCohorts.js";
 import { plainToInstance } from "class-transformer";
 
 @OpenAPI({
@@ -141,7 +141,7 @@ export class CohortsController {
 
     @OpenAPI({ summary: "List cohort students with HP and completion percentage" })
     @Authorized()
-    @Get("/version/:versionId/cohort/:cohortName/students")
+    @Get("/version/:versionId/cohort/:cohortId/students")
     @ResponseSchema(CohortStudentsResponseDto)
     @HttpCode(200)
     @ResponseSchema(BadRequestErrorResponse, {
@@ -149,12 +149,12 @@ export class CohortsController {
         statusCode: 400,
     })
     async listCohortStudents(@Param("versionId") versionId: string,
-        @Param("cohortName") cohortName: string,
+        @Param("cohortId") cohortId: string,
         @QueryParams() query: CohortStudentsListQueryDto): Promise<CohortStudentsResponseDto> {
 
 
         if (!versionId?.trim()) throw new BadRequestError("versionId is required");
-        if (!cohortName?.trim()) throw new BadRequestError("cohortName is required");
+        if (!cohortId?.trim()) throw new BadRequestError("cohortId is required");
 
         const page = query.page ?? 1;
         const limit = query.limit ?? 20;
@@ -163,8 +163,72 @@ export class CohortsController {
         const search = query.search?.trim();
         const status = query.status ?? "ALL";
 
-        return await this.cohortsService.listCohortStudents({ versionId, cohortName, query: { page, limit, sortBy, sortOrder, search, status } });
+        return await this.cohortsService.listCohortStudents({ versionId, cohortId, query: { page, limit, sortBy, sortOrder, search, status } });
 
+    }
+
+  
+    @OpenAPI({summary: 'Reset HP for cohort students'})
+    @Post('/version/:versionId/cohort/:cohortName/reset-hp')
+    @Authorized()
+    async resetHp(
+      @Params() params: ResetRequestParams,
+      @Body() body: ResetHpRequest,
+      @CurrentUser() user: IUser,
+    ) {
+      const {versionId, cohortName} = params;
+      if (!versionId?.trim()) {
+        throw new BadRequestError('versionId is required');
+      }
+
+      if (!cohortName?.trim()) {
+        throw new BadRequestError('cohortId is required');
+      }
+      const {targetHp, mode} = body;
+
+      const documentsUpdated = await this.cohortsService.resetHpforCohort(
+        versionId,
+        cohortName,
+        targetHp,
+        mode,
+        user._id.toString(),
+      );
+
+      return {success: true, documentsUpdated: documentsUpdated};
+    }
+
+    @OpenAPI({ summary: 'Reset HP for a single student' })
+    @Post('/version/:versionId/cohort/:cohortName/student/:studentId/reset-hp')
+    @Authorized()
+    async resetHpForStudent(
+        @Params() params: ResetStudentRequestParams,
+        @Body() body: ResetStudentHpRequest,
+        @CurrentUser() user: IUser,
+    ) {
+        const { versionId, cohortName, studentId } = params;
+
+        if (!versionId?.trim()) {
+            throw new BadRequestError('versionId is required');
+        }
+
+        if (!cohortName?.trim()) {
+            throw new BadRequestError('cohortName is required');
+        }
+
+        if (!studentId?.trim()) {
+            throw new BadRequestError('studentId is required');
+        }
+
+        const { targetHp } = body;
+
+        const updated = await this.cohortsService.resetHpForStudent(
+            versionId,
+            cohortName,
+            studentId,
+            targetHp,
+            user._id.toString(),
+        );
+        return { success: true, updated };
     }
 
 }

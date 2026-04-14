@@ -1239,76 +1239,64 @@ function TeacherCourseContent() {
   // Interim state of modules
   const pendingOrder = useRef<typeof module[]>(modules);
 
+  const pendingOrderSections = useRef<Record<string, any[]>>({});
   // Interim state of items
   const pendingOrderItems = useRef<typeof sectionItems>(sectionItems);
 
   // Move module
-  const handleMoveModule = (moduleId: string, versionId?: string) => {
+  const handleMoveModule = async (moduleId: string, versionId?: string) => {
+    try {
+      const newList = pendingOrder.current;
+      const newIndex = newList.findIndex((mod: any) => mod.moduleId === moduleId);
 
-    const newList = pendingOrder.current;
-    const newIndex = newList.findIndex((mod: any) => mod.moduleId === moduleId);
+      const before = newList[newIndex + 1] || null;
+      const after = newList[newIndex - 1] || null;
 
-    const before = newList[newIndex + 1] || null;
-    const after = newList[newIndex - 1] || null;
-
-
-    if (versionId && moduleId) {
-      moveModuleAsync({
-        params: {
-          path: {
-            versionId,
-            moduleId,
+      if (versionId && moduleId) {
+        await moveModuleAsync({
+          params: {
+            path: { versionId, moduleId },
           },
-        },
-        body: {
-          ...(before
+          body: before
             ? { beforeModuleId: before?.moduleId || "" }
-            : { afterModuleId: after?.moduleId || "" }),
+            : { afterModuleId: after?.moduleId || "" },
+        });
 
-
-        },
-      }).then((res) => {
         refetchVersion();
-      })
+      }
+    } catch (error) {
+      toast.error(error?.message|| "Failed to move module");
     }
-  }
-
-  // Move section
-  const handleMoveSection = (
-    moduleId: string,
-    sectionId: string,
-    versionId: string
-  ) => {
-    const order = pendingOrder.current[moduleId];
-
-    if (!order) return;
-
-    const movedIndex = order.findIndex((s) => s.sectionId === sectionId);
-    if (movedIndex === -1) return;
-
-    const after = order[movedIndex - 1] || null;
-    const before = order[movedIndex + 1] || null;
-
-    moveSectionAsync({
-      params: {
-        path: {
-          versionId,
-          moduleId,
-          sectionId,
-        },
-      },
-      body: {
-        ...(before
-          ? { beforeSectionId: before.sectionId }
-          : after
-            ? { afterSectionId: after.sectionId }
-            : {}),
-      },
-    }).then((res) => {
-      refetchVersion();
-    })
   };
 
+  const handleMoveSection = async (moduleId: string, sectionId: string, versionId: string) => {
+    const snapshot = initialModules.map(m => ({ ...m, sections: [...(m.sections || [])] }));
+    try {
+      const order = pendingOrderSections.current[moduleId]; // ✅ was pendingOrder.current[moduleId]
+      if (!order) return;
+
+      const movedIndex = order.findIndex((s) => s.sectionId === sectionId);
+      if (movedIndex === -1) return;
+
+      const after = order[movedIndex - 1] || null;
+      const before = order[movedIndex + 1] || null;
+
+      await moveSectionAsync({ 
+          params: {
+            path: { versionId, moduleId, sectionId },
+          },
+          body: before
+            ? { beforeSectionId: before.sectionId }
+            : after
+            ? { afterSectionId: after.sectionId }
+            : {}, });
+      refetchVersion();
+    } catch (error) {
+      toast.error(error?.message || "Failed to move section");
+      setInitialModules(snapshot);
+    }
+  };
+  
   // Move item
   const handleMoveItem = async (
     moduleId: string,
@@ -1316,37 +1304,33 @@ function TeacherCourseContent() {
     itemId: string,
     versionId: string
   ) => {
-    const order = pendingOrderItems.current[sectionId];
-    if (!order) return;
+    try {
+      const order = pendingOrderItems.current[sectionId];
+      if (!order) return;
 
-    const movedIndex = order.findIndex((i) => i._id === itemId);
-    if (movedIndex === -1) return;
+      const movedIndex = order.findIndex((i) => i._id === itemId);
+      if (movedIndex === -1) return;
 
-    const after = order[movedIndex - 1] || null;
-    const before = order[movedIndex + 1] || null;
+      const after = order[movedIndex - 1] || null;
+      const before = order[movedIndex + 1] || null;
 
-    moveItemAsync({
-      params: {
-        path: {
-          versionId,
-          moduleId,
-          sectionId,
-          itemId,
+      await moveItemAsync({
+        params: {
+          path: { versionId, moduleId, sectionId, itemId },
         },
-      },
-      body: {
-        ...(before
+        body: before
           ? { beforeItemId: before._id }
           : after
-            ? { afterItemId: after._id }
-            : {}),
-      },
-    }).then((res) => {
+          ? { afterItemId: after._id }
+          : {},
+      });
+
       if (shouldFetchItems) {
         refetchItems();
       }
-    })
-
+    } catch (error) {
+      toast.error(error?.message || "Failed to move item");
+    }
   };
 
   const handleConfirmDelete = async () => {
@@ -1689,7 +1673,7 @@ function TeacherCourseContent() {
                               axis="y"
                               values={module.sections}
                               onReorder={(newSectionOrder) => {
-                                pendingOrder.current[module.moduleId] = newSectionOrder;
+                                pendingOrderSections.current[module.moduleId] = newSectionOrder;
                               }}
                             >
                               <SidebarMenuSub className="ml-2">
@@ -1704,7 +1688,7 @@ function TeacherCourseContent() {
                                       setInitialModules((prev) =>
                                         prev.map((mod) =>
                                           mod.moduleId === module.moduleId
-                                            ? { ...mod, sections: pendingOrder.current[module.moduleId] }
+                                            ? { ...mod, sections: pendingOrderSections.current[module.moduleId] ?? mod.sections }
                                             : mod
                                         )
                                       );
@@ -1756,7 +1740,9 @@ function TeacherCourseContent() {
                                           axis="y"
                                           values={sectionItems[section.sectionId] || []}
                                           onReorder={(newItemOrder) => {
+                                            //
                                             pendingOrderItems.current[section.sectionId] = newItemOrder;
+                                            //
                                           }}
                                         >
                                           <SidebarMenuSub className="ml-4 space-y-1 pt-1">

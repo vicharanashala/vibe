@@ -32,6 +32,8 @@ export interface HpActivity {
     // Scoping
     courseVersionId: ID;
     courseId: ID;
+    cohortId: ID;
+    /** @deprecated Use cohortId instead. Kept for human-readable debugging. */
     cohort: string;
 
     // Authoring
@@ -95,6 +97,8 @@ export interface HpActivitySubmission {
 
     courseId: ID;
     courseVersionId: ID;
+    cohortId: ID;
+    /** @deprecated Use cohortId instead. Kept for human-readable debugging. */
     cohort: string;
     activityId: ID;
 
@@ -228,7 +232,11 @@ export type HpLedgerEventType =
     | "REVERSAL"
     | "MANUAL_ADJUST"
     | "MILESTONE"
-    | "REJECTION";
+    | "REJECTION"
+    | "AUTO_REWARD"
+    | "AUTO_PENALTY"
+    | "RESTORE"
+    | "RESET";
 
 export type HpLedgerDirection = "CREDIT" | "DEBIT";
 
@@ -239,7 +247,9 @@ export type HpReasonCode =
     | "REWARD_REVERSAL"
     | "REJECTION_PENALTY"
     | "BASE_INIT"
-    | "MANUAL";
+    | "MANUAL"
+    | "HP_RESET"
+    | "RESTORE_REVERSAL";
 
 export type TriggeredBy = "SYSTEM" | "TEACHER" | "STUDENT" | "SYSTEM_AUTOMATION";
 
@@ -248,6 +258,8 @@ export interface HpLedger {
 
     courseId: ID;
     courseVersionId: ID;
+    cohortId: ID;
+    /** @deprecated Use cohortId instead. Kept for human-readable debugging. */
     cohort: String;
 
     // Identity
@@ -270,8 +282,8 @@ export interface HpLedger {
         absolutePoints?: number;
         baseHpAtTime: number;
         computedAmount: number;
-        deadlineAt: Date;
-        withinDeadline: boolean;
+        deadlineAt?: Date;
+        withinDeadline?: boolean;
         reasonCode: HpReasonCode;
     };
 
@@ -284,6 +296,7 @@ export interface HpLedger {
     meta: {
         triggeredBy: TriggeredBy;
         triggeredByUserId: ID;
+        operationId?: string; // reset hp for a student => operationId = "reset-<timestamp>"
         note: string;
     };
 
@@ -291,3 +304,5 @@ export interface HpLedger {
 }
 
 export type statusFilter = "ALL" | "SAFE" | "UNSAFE";
+
+export type HpResetMode = 'ALL' | 'ONLY_ZERO_HP' | 'ONLY_WITH_HP';

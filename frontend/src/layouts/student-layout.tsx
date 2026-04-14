@@ -52,7 +52,7 @@ export default function StudentLayout() {
   const { token } = useAuthStore();
 const { data: enrollmentsData } = useUserEnrollments(1, 100, !!token && !!user?.uid);
 const enrollments = enrollmentsData?.enrollments ?? [];
-console.log("Enrollments from student layout -> ", enrollments)
+
 let hasHpSystem = false;
 enrollments.forEach(obj => {
   if(obj.hpSystem === true && obj.status === "ACTIVE" && obj. 

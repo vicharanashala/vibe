@@ -5,7 +5,7 @@
 ========================================================= */
 
 import { Expose, Transform, Type } from "class-transformer";
-import { IsBoolean, IsEnum, IsNumber, IsString, ValidateNested } from "class-validator";
+import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
 import { HpLedgerDirection, HpLedgerEventType, HpReasonCode, ID, RuleType, TriggeredBy } from "../../constants.js";
 import { JSONSchema } from "class-validator-jsonschema";
 import { ObjectIdArrayToStringArray, ObjectIdToString, StringArrayToObjectIdArray, StringToObjectId } from "#root/shared/index.js";
@@ -17,14 +17,16 @@ export class HpLedgerCalc {
     ruleType: RuleType;
 
     @Expose()
+    @IsOptional()
     @IsNumber()
     @JSONSchema({ title: 'Percentage', type: 'number', example: 20 })
-    percentage: number;
+    percentage?: number;
 
     @Expose()
+    @IsOptional()
     @IsNumber()
     @JSONSchema({ title: 'Absolute Points', type: 'number', example: 10 })
-    absolutePoints: number;
+    absolutePoints?: number;
 
     @Expose()
     @IsNumber()
@@ -37,6 +39,7 @@ export class HpLedgerCalc {
     computedAmount: number;
 
     @Expose()
+    @IsOptional()
     @Type(() => Date)
     @JSONSchema({ title: 'Deadline At', type: 'string', format: 'date-time' })
     deadlineAt: Date;
@@ -119,10 +122,11 @@ export class HpLedgerTransformer {
     courseVersionId: ID;
 
     @Expose()
+    @IsOptional()
     @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
     @Transform(StringToObjectId.transformer, { toClassOnly: true })
     @JSONSchema({ title: 'Cohort ID', type: 'string' })
-    cohort: string;
+    cohort?: string;
 
     // Identity
     @Expose()
@@ -137,16 +141,18 @@ export class HpLedgerTransformer {
 
     // Context
     @Expose()
+    @IsOptional()
     @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
     @Transform(StringToObjectId.transformer, { toClassOnly: true })
     @JSONSchema({ title: 'Activity ID', type: 'string' })
-    activityId: ID;
+    activityId?: ID;
 
     @Expose()
+    @IsOptional()
     @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
     @Transform(StringToObjectId.transformer, { toClassOnly: true })
     @JSONSchema({ title: 'Submission ID', type: 'string' })
-    submissionId: ID;
+    submissionId?: ID;
 
     // Event
     @Expose()

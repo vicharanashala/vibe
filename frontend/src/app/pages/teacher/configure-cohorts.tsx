@@ -29,6 +29,8 @@ const RESTRICTED_VERSION_IDS = [
   '697b4e262942654879011c57',
   '69903415e1930c015760a719',
   '69942dc6d6d99b252e3a54ff',
+  '69d2b1bc0744872b91ab54da',
+  '69d2b2e50744872b91ab641f',
 ];
 
 export default function ConfigureCohorts() {
@@ -116,7 +118,7 @@ export default function ConfigureCohorts() {
         toast.error("Keep cohort name length below 50");
         return;
     }
-    const BLOCKED_COHORT_NAMES = ["euclideans", "dijkstrians", "kruskalians", "rsaians", "aksians"];
+    const BLOCKED_COHORT_NAMES = ["euclideans", "dijkstrians", "kruskalians", "rsaians", "aksians", "a", "b"];
     if (BLOCKED_COHORT_NAMES.includes(cohortName.trim().toLowerCase())) {
       setCohortError(`"${cohortName.trim()}" is a reserved cohort name and cannot be used.`);
       return;

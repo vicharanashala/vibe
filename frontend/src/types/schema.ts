@@ -921,6 +921,12 @@ export interface components {
             readonly hpSystem: boolean;
 
             /**
+             * @description Can we randomize the items
+             * @example true
+             */
+            readonly shouldRandomize?: boolean;
+
+            /**
              * Format: date-time
              * @description Last update timestamp
              * @example 2023-10-01T12:00:00Z
