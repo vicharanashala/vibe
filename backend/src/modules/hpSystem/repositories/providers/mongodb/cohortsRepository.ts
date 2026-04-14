@@ -1174,6 +1174,7 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
     if (ledgerDocs.length) {
         await this.hpLedgerCollection.insertMany(ledgerDocs, { session });
     }
+  }
 
     async tempRes() {
         await this.init();
@@ -2862,6 +2863,19 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
         ], { allowDiskUse: true }).toArray();
 
         return result;
+    }
+
+    async resetHpForStudent(
+        courseVersionId: string,
+        cohortId: string,
+        cohortName: string,
+        studentId: string,
+        targetHp: number,
+        triggeredByUserId: string,
+        session?: ClientSession,
+    ): Promise<boolean> {
+        // TODO: implement per-student HP reset
+        throw new Error('resetHpForStudent is not yet implemented');
     }
 
 }

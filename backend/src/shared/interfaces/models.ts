@@ -602,6 +602,7 @@ export interface ISettings {
     isActive: boolean;
     slots: ITimeSlot[];
   };
+  crowdsourcedQuestionSubmissionEnabled?: boolean;
   // jsonSchema?: any;
   // uiSchema?: any;
 }

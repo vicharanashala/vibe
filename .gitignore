@@ -69,6 +69,7 @@ google_credentials.json
 gcp-service-account.json
 backend/tsconfig.tsbuildinfo
 frontend/tsconfig.tsbuildinfo
+.firebase/
 frontend/.firebase
 
 
