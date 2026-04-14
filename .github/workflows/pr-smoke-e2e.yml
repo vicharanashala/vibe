@@ -1,0 +1,55 @@
+name: PR Smoke E2E
+
+on:
+  pull_request:
+    branches:
+      - combined-updates
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Smoke E2E (Staging)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Only run when the staging URL secret is available (won't run on external forks)
+    if: ${{ vars.STAGING_FRONTEND_URL != '' || secrets.STAGING_FRONTEND_URL != '' }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Install Playwright Browsers (Chromium only)
+        run: pnpm --dir e2e exec playwright install chromium --with-deps
+
+      - name: Run Smoke Tests Against Staging
+        run: pnpm --dir e2e exec playwright test smoke.spec.ts
+        env:
+          BASE_URL: ${{ secrets.STAGING_FRONTEND_URL }}
+          INSTRUCTOR_EMAIL: ${{ secrets.INSTRUCTOR_EMAIL }}
+          INSTRUCTOR_PASSWORD: ${{ secrets.INSTRUCTOR_PASSWORD }}
+          STUDENT_EMAIL: ${{ secrets.STUDENT_EMAIL }}
+          STUDENT_PASSWORD: ${{ secrets.STUDENT_PASSWORD }}
+
+      - name: Upload Smoke Test Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-report-pr-${{ github.event.pull_request.number }}
+          path: e2e/playwright-report/
+          retention-days: 7

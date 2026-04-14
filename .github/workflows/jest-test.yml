@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -68,6 +72,14 @@ jobs:
         run: pnpm test:ci
         env:
           DB_URL: ${{ secrets.DB_URL }}
+
+      - name: Report Coverage on PR
+        if: always()
+        uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          working-directory: backend
+          json-summary-path: backend/coverage/coverage-summary.json
+          json-final-path: backend/coverage/coverage-final.json
 
       - name: Remove IP from MongoDB Atlas Access List
         if: always()
