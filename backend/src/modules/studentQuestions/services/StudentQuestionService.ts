@@ -60,7 +60,10 @@ export class StudentQuestionService {
       throw new BadRequestError('Question must be between 10 and 300 characters.');
     }
 
-    if (/^(https?:\/\/\S+\s*)+$/.test(normalized)) {
+    const tokens = normalized.split(/\s+/).filter(Boolean);
+    const isOnlyUrls =
+      tokens.length > 0 && tokens.every(token => /^https?:\/\/\S+$/i.test(token));
+    if (isOnlyUrls) {
       throw new BadRequestError('Question cannot contain only URLs.');
     }
 
