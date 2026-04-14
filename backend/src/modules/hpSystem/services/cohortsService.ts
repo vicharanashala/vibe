@@ -275,15 +275,7 @@ export class CohortsService extends BaseService {
     async listCohorts(userId: string, query: CohortListQueryDto): Promise<CohortListResponseDto> {
         return await this._withTransaction(async (session: ClientSession) => {
             let cohorts: CohortListItemDto[] = [];
-
-            const instructorEnrollments = await this.cohortRepository.getInstructorActiveEnrollments(userId);     
-            const enrolledVersionIds = new Set(instructorEnrollments.map(e => e.courseVersionId));
-            const enrolledCohortIds = new Set(instructorEnrollments.map(e => e.cohortId).filter(Boolean));
-
-            let courseVersionName = "";
-
-
-
+            return await this.cohortRepository.tempRes() as any
             if (query.courseVersionId) {
                 const isGeneralInstructorForVersion = instructorEnrollments.some(e =>
                     e.courseVersionId === query.courseVersionId && !e.cohortId
