@@ -1,7 +1,8 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
+import { getAnalytics, isSupported, type Analytics } from "firebase/analytics";
 import { getAuth, 
+  type Auth,
   GoogleAuthProvider, 
   signInWithPopup, 
   signInWithEmailAndPassword, 
@@ -12,7 +13,6 @@ import { getAuth,
   confirmPasswordReset,
   verifyPasswordResetCode } from "firebase/auth";
 import { useAuthStore } from "../store/auth-store";
-import { useLoginWithGoogle } from "@/hooks/hooks";
 
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
@@ -29,14 +29,29 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
+const requiredFirebaseEnv = [
+  "VITE_FIREBASE_API_KEY",
+  "VITE_FIREBASE_AUTH_DOMAIN",
+  "VITE_FIREBASE_PROJECT_ID",
+  "VITE_FIREBASE_STORAGE_BUCKET",
+  "VITE_FIREBASE_MESSAGING_SENDER_ID",
+  "VITE_FIREBASE_APP_ID",
+] as const;
+
+export const missingFirebaseEnv = requiredFirebaseEnv.filter((key) => !import.meta.env[key]);
+export const hasFirebaseEnv = missingFirebaseEnv.length === 0;
+
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const provider = new GoogleAuthProvider();
+export const auth: Auth | null = hasFirebaseEnv ? getAuth(app) : null;
+export const provider = hasFirebaseEnv ? new GoogleAuthProvider() : null;
 
 // Firebase authentication functions
 export const loginWithGoogle = async () => {
+  if (!auth || !provider) {
+    throw new Error("Firebase is not configured. Please add the required Vite Firebase environment variables.");
+  }
   const result = await signInWithPopup(auth, provider);
   // Get ID token for backend authentication
   const idToken = await result.user.getIdToken();
@@ -48,6 +63,9 @@ export const loginWithGoogle = async () => {
 };
 
 export const loginWithEmail = async (email: string, password: string) => {
+  if (!auth) {
+    throw new Error("Firebase is not configured. Please add the required Vite Firebase environment variables.");
+  }
   const result = await signInWithEmailAndPassword(auth, email, password);
   
   // Get ID token for backend authentication
@@ -61,7 +79,9 @@ export const loginWithEmail = async (email: string, password: string) => {
 
 // Add a function to create a user with email and password
 export const createUserWithEmail = async (email: string, password: string, displayName?: string) => {
-  const auth = getAuth(app);
+  if (!auth) {
+    throw new Error("Firebase is not configured. Please add the required Vite Firebase environment variables.");
+  }
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   
   // Update user profile if display name is provided
@@ -79,7 +99,9 @@ export const createUserWithEmail = async (email: string, password: string, displ
  * Firebase automatically handles email delivery
  */
 export const sendPasswordResetEmail = async (email: string) => {
-  const auth = getAuth(app);
+  if (!auth) {
+    throw new Error("Firebase is not configured. Please add the required Vite Firebase environment variables.");
+  }
   
   try {
     // This triggers Firebase to send password reset email
@@ -114,7 +136,9 @@ export const sendPasswordResetEmail = async (email: string) => {
  * Verifies a password reset code is valid
  */
 export const verifyResetCode = async (code: string) => {
-  const auth = getAuth(app);
+  if (!auth) {
+    return { valid: false, message: "Firebase is not configured." };
+  }
   
   try {
     const email = await verifyPasswordResetCode(auth, code);
@@ -138,7 +162,9 @@ export const verifyResetCode = async (code: string) => {
  * Resets password using the code from email
  */
 export const resetPassword = async (code: string, newPassword: string) => {
-  const auth = getAuth(app);
+  if (!auth) {
+    throw new Error("Firebase is not configured. Please add the required Vite Firebase environment variables.");
+  }
   
   try {
     await confirmPasswordReset(auth, code, newPassword);
@@ -164,8 +190,22 @@ export const resetPassword = async (code: string, newPassword: string) => {
 };
 
 export const logout = () => {
-  signOut(auth);
+  if (auth) {
+    signOut(auth);
+  }
   useAuthStore.getState().clearUser();
 };
 
-export const analytics = getAnalytics(app);
+export let analytics: Analytics | null = null;
+
+if (hasFirebaseEnv) {
+  void isSupported()
+    .then((supported) => {
+      if (supported) {
+        analytics = getAnalytics(app);
+      }
+    })
+    .catch((error) => {
+      console.warn("Firebase analytics is unavailable in this environment.", error);
+    });
+}

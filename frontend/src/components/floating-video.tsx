@@ -70,6 +70,10 @@ function FloatingVideo({
   const [facesCount, setFacesCount] = useState(0);
   const [recognizedFaces, setRecognizedFaces] = useState<any[]>([]);
   const [hasFaceRecognitionMismatch, setHasFaceRecognitionMismatch] = useState(false);
+  const [isLookingDown, setIsLookingDown] = useState(false);
+  const [isSlouching, setIsSlouching] = useState(false);
+  const [isSleepy, setIsSleepy] = useState(false);
+  const [isYawning, setIsYawning] = useState(false);
   const [penaltyPoints, setPenaltyPoints] = useState(0);
   const [penaltyType, setPenaltyType] = useState("");
   const [contiguousAnomalyPoints, setContiguousAnomalyPoints] = useState(0);
@@ -156,6 +160,38 @@ function FloatingVideo({
   const handleFaceRecognitionMismatchChange = useCallback((hasMismatch: boolean) => {
     setHasFaceRecognitionMismatch(hasMismatch);
   }, []);
+
+  const handleFaceBehaviorResult = useCallback((behavior: {
+    isSlouching: boolean;
+    isLookingDown: boolean;
+    isSleepy: boolean;
+    isYawning: boolean;
+    eyeAspectRatio: number;
+    mouthAspectRatio: number;
+    headDownScore: number;
+  }) => {
+    setIsSlouching(behavior.isSlouching);
+    setIsLookingDown(behavior.isLookingDown);
+    setIsSleepy(behavior.isSleepy);
+    setIsYawning(behavior.isYawning);
+
+    if (behavior.isSleepy) {
+      setPenaltyType('Sleepiness');
+      setPenaltyPoints(10);
+    } else if (behavior.isYawning) {
+      setPenaltyType('Yawning');
+      setPenaltyPoints(8);
+    } else if (behavior.isLookingDown) {
+      setPenaltyType('Looking Down');
+      setPenaltyPoints(6);
+    } else if (behavior.isSlouching) {
+      setPenaltyType('Slouching');
+      setPenaltyPoints(5);
+    } else if (!hasFaceRecognitionMismatch) {
+      setPenaltyType('');
+      setPenaltyPoints(0);
+    }
+  }, [hasFaceRecognitionMismatch]);
 
   // Handle face recognition debug info updates
   // const handleFaceRecognitionDebugUpdate = useCallback((debugInfo: FaceRecognitionDebugInfo) => {
@@ -813,12 +849,15 @@ const lastCalledRef = useRef<number>(0);
   }, [gesture, isThumbsUpChallenge, isHandGestureDetectionEnabled, setDoGesture]);
 
   // Check if any anomalies are detected - only consider enabled detectors
+  const isBehaviorAnomalyDetected = isSleepy || isYawning || isLookingDown || isSlouching;
+
   const isAnomaliesDetected = (isSpeaking === "Yes" && isVoiceDetectionEnabled) || 
                               (facesCount !== 1 && isFaceCountDetectionEnabled) || 
                               (isBlur === "Yes" && isBlurDetectionEnabled) || 
                               (!isFocused && isFocusEnabled) ||
                               (hasFaceRecognitionMismatch && isFaceRecognitionEnabled) ||
-                              (isThumbsUpChallenge && isHandGestureDetectionEnabled);
+                              (isThumbsUpChallenge && isHandGestureDetectionEnabled) ||
+                              isBehaviorAnomalyDetected;
 
   useEffect(() => {
     console.log('[FaceRecognitionDebug] floating-video state', {
@@ -1378,6 +1417,19 @@ const lastCalledRef = useRef<number>(0);
                           </span></div>
                         )}
 
+                        {isSlouching && (
+                          <div>Posture: <span className="text-red-400">Slouching / Head Down</span></div>
+                        )}
+                        {isLookingDown && !isSlouching && (
+                          <div>Posture: <span className="text-red-400">Looking Down</span></div>
+                        )}
+                        {isSleepy && (
+                          <div>Sleepiness: <span className="text-red-400">Low Attention / Eyes Closing</span></div>
+                        )}
+                        {isYawning && (
+                          <div>Sleepiness: <span className="text-red-400">Yawning Detected</span></div>
+                        )}
+
                         {/* Face Recognition Results */}
                         {recognizedFaces.length > 0 && (
                           <div>Recognized:
@@ -1450,6 +1502,7 @@ const lastCalledRef = useRef<number>(0);
             videoRef={videoRef}
             onRecognitionResult={handleFaceRecognitionResult}
             onMismatchChange={handleFaceRecognitionMismatchChange}
+            onBehaviorResult={handleFaceBehaviorResult}
             settings={{
               isFaceCountDetectionEnabled,
               isFaceRecognitionEnabled, 

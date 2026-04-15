@@ -60,39 +60,18 @@ export class DeleteCronService extends BaseService {
       console.log(
         `⏰ Running parallel progress cron for ${/*courseVersionMap.length*/''} course versions`,
       );
+
+      try {
+        const response = await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion();
+        console.log(`🎉 Parallel progress cron completed \n
+          Total count : ${response.totalCount} \n
+          Updated count : ${response.updatedCount}`);
+      } catch (error) {
+        console.error('❌ Parallel progress cron failed:', error);
+      }
     });
 
-    // const results = await Promise.allSettled(
-    //   courseVersionMap.map(({ courseId, versionId }) =>
-    //     this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion(
-    //       courseId,
-    //       versionId,
-    //     ),
-    //   ),
-    // );
-    const response = await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion();
-    // results.forEach((result, index) => {
-    //   const { courseId, versionId } = courseVersionMap[index];
-
-    //   if (result.status === 'fulfilled') {
-    //     console.log(
-    //       `✅ Course ${courseId} | Version ${versionId} completed`,
-    //       `Total count:${result.value.totalCount}`, `Updated count:${result.value.updatedCount}`,
-    //     );
-    //   } else {
-    //     console.error(
-    //       `❌ Course ${courseId} | Version ${versionId} failed`,
-    //       result.reason?.message || result.reason,
-    //     );
-    //   }
-    // });
-
-    console.log(`🎉 Parallel progress cron completed \n
-        Total count : ${response.totalCount} \n
-        Updated count : ${response.updatedCount}`);
-    // });
-
-    // console.log('🗓️ Progress update cron scheduled (hourly, parallel)');
+    console.log('Parallel progress cron scheduled for 3:00 AM daily');
   }
 
 

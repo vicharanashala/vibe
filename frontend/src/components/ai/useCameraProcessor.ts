@@ -16,12 +16,15 @@ const useCameraProcessor = (frameRate = 3) => {
   const [imageSrcs, setImageSrcs] = useState<string[]>([]);
   const [modelReady, setModelReady] = useState(false);
   const [faces, setFaces] = useState<faceDetection.Face[]>([]);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const cameraProcessorRef = useRef<CameraProcessor | null>(null);
   const workerRef = useRef<Worker | null>(null);
   const modelReadyRef = useRef(false); // Add a ref to track model readiness without causing re-renders
 
   useEffect(() => {
     const initializeCamera = async () => {
+      setCameraError(null);
+
       // Clean up previous processor
       if (cameraProcessorRef.current) {
         cameraProcessorRef.current.stopCapturing();
@@ -31,30 +34,20 @@ const useCameraProcessor = (frameRate = 3) => {
 
       if (!videoRef.current || !cameraProcessorRef.current) return;
 
-      // Wait for video to be ready before initializing processor
-      const video = videoRef.current;
-      if (video.readyState < 2) {
-        await new Promise((resolve) => {
-          const checkReady = () => {
-            if (video.readyState >= 2) {
-              resolve(null);
-            } else {
-              setTimeout(checkReady, 100);
-            }
-          };
-          checkReady();
-        });
+      try {
+        await cameraProcessorRef.current.initialize(videoRef.current);
+
+        // Small delay before starting capture to ensure everything is ready
+        setTimeout(() => {
+          cameraProcessorRef.current?.startCapturing();
+        }, 200);
+      } catch (error) {
+        console.error("[useCameraProcessor] Camera initialization failed:", error);
+        setCameraError(error instanceof Error ? error.message : String(error));
       }
-
-      await cameraProcessorRef.current.initialize(videoRef.current);
-
-      // Small delay before starting capture to ensure everything is ready
-      setTimeout(() => {
-        cameraProcessorRef.current?.startCapturing();
-      }, 200);
     };
 
-    initializeCamera();
+    void initializeCamera();
 
     return () => {
       cameraProcessorRef.current?.stopCapturing();
@@ -149,9 +142,10 @@ const useCameraProcessor = (frameRate = 3) => {
       modelReady,
       facesCount: faces.length,
       hasWorker: !!workerRef.current,
-      hasVideo: !!videoRef.current
+      hasVideo: !!videoRef.current,
+      cameraError,
     });
-  }, [modelReady, faces.length]);
+  }, [modelReady, faces.length, cameraError]);
 
   //   const processWithML: MLProcessor = (image) => {
   //     // if (!workerRef.current || !modelReady) return;
@@ -175,7 +169,7 @@ const useCameraProcessor = (frameRate = 3) => {
   // }, []);
   // }, [modelReady]);
 
-  return { videoRef, modelReady, faces, imageSrcs };
+  return { videoRef, modelReady, faces, imageSrcs, cameraError };
 
 };
 
