@@ -587,14 +587,24 @@ class ProgressRepository {
   async stopItemTracking(
     watchTimeId: string,
     session?: ClientSession,
+    watchedSeconds?: number,
+    isExpired?: boolean,
   ): Promise<IWatchTime | null> {
     await this.init();
+    const now = new Date();
+    const updateFields: Partial<IWatchTime> = { endTime: now };
+    if (typeof watchedSeconds === 'number' && watchedSeconds >= 0) {
+      updateFields.duration = watchedSeconds;
+    }
+    if (isExpired === true) {
+      updateFields.isExpired = true;
+    }
     const result = await this.watchTimeCollection.findOneAndUpdate(
       {
         _id: new ObjectId(watchTimeId),
         isDeleted: { $ne: true },
       },
-      { $set: { endTime: new Date() } },
+      { $set: updateFields },
       { returnDocument: 'after', session },
     );
     return result;
@@ -1090,6 +1100,7 @@ class ProgressRepository {
             courseVersionId: new ObjectId(versionId),
             itemId: new ObjectId(videoId),
             isDeleted: { $ne: true },
+            isExpired: { $ne: true },
           },
         },
 
@@ -1104,21 +1115,27 @@ class ProgressRepository {
             totalWatchMs: {
               $sum: {
                 $cond: [
-                  {
-                    $and: [
-                      { $ne: ["$startTime", null] },
-                      { $ne: ["$endTime", null] },
-                    ],
-                  },
+                  { $ne: ["$startTime", null] },
                   {
                     $let: {
                       vars: {
-                        rawMs: { $subtract: ["$endTime", "$startTime"] },
+                        // Prefer client-reported duration (seconds→ms); fall back to wall-clock diff
+                        effectiveMs: {
+                          $cond: [
+                            { $and: [{ $ne: ["$duration", null] }, { $gte: ["$duration", 0] }] },
+                            { $multiply: ["$duration", 1000] },
+                            { $cond: [
+                              { $ne: ["$endTime", null] },
+                              { $subtract: ["$endTime", "$startTime"] },
+                              0,
+                            ]},
+                          ],
+                        },
                       },
                       in: {
                         $cond: [
-                          { $gt: ["$$rawMs", 0] },
-                          { $min: ["$$rawMs", capMs] },
+                          { $gt: ["$$effectiveMs", 0] },
+                          { $min: ["$$effectiveMs", capMs] },
                           0,
                         ],
                       },
@@ -1264,13 +1281,24 @@ class ProgressRepository {
             courseVersionId: new ObjectId(versionId),
             isDeleted: { $ne: true },
             startTime: { $ne: null },
-            endTime: { $ne: null },
+            isExpired: { $ne: true },
           },
         },
 
         {
           $addFields: {
-            diffMs: { $subtract: ['$endTime', '$startTime'] },
+            // Prefer client-reported duration (seconds→ms); fall back to wall-clock diff
+            effectiveMs: {
+              $cond: [
+                { $and: [{ $ne: ['$duration', null] }, { $gte: ['$duration', 0] }] },
+                { $multiply: ['$duration', 1000] },
+                { $cond: [
+                  { $ne: ['$endTime', null] },
+                  { $subtract: ['$endTime', '$startTime'] },
+                  0,
+                ]},
+              ],
+            },
           },
         },
 
@@ -1280,8 +1308,8 @@ class ProgressRepository {
             totalMs: {
               $sum: {
                 $cond: [
-                  { $gt: ['$diffMs', 0] },
-                  { $min: ['$diffMs', capMs] },
+                  { $gt: ['$effectiveMs', 0] },
+                  { $min: ['$effectiveMs', capMs] },
                   0,
                 ],
               },
@@ -1322,14 +1350,28 @@ class ProgressRepository {
               userId: { $in: [userId, userIdObj] },
               courseId: { $in: [courseId, courseIdObj] },
               courseVersionId: { $in: [courseVersionId, versionIdObj] },
-              endTime: { $ne: null, $exists: true },
               isDeleted: { $ne: true },
+              isExpired: { $ne: true },
             },
           },
           {
             $project: {
+              // Prefer client-reported duration (seconds→hours); fall back to wall-clock diff
               duration: {
-                $divide: [{ $subtract: ['$endTime', '$startTime'] }, 3600000],
+                $divide: [
+                  {
+                    $cond: [
+                      { $and: [{ $ne: ['$duration', null] }, { $gte: ['$duration', 0] }] },
+                      { $multiply: ['$duration', 1000] },
+                      { $cond: [
+                        { $ne: ['$endTime', null] },
+                        { $subtract: ['$endTime', '$startTime'] },
+                        0,
+                      ]},
+                    ],
+                  },
+                  3600000,
+                ],
               },
             },
           },
@@ -1370,15 +1412,28 @@ class ProgressRepository {
             $match: {
               courseId: { $in: [courseId, courseIdObj] },
               courseVersionId: { $in: [courseVersionId, versionIdObj] },
-              endTime: { $ne: null, $exists: true },
               isDeleted: { $ne: true },
+              isExpired: { $ne: true },
             },
           },
           {
             $project: {
               userId: 1,
               duration: {
-                $divide: [{ $subtract: ['$endTime', '$startTime'] }, 3600000],
+                $divide: [
+                  {
+                    $cond: [
+                      { $and: [{ $ne: ['$duration', null] }, { $gte: ['$duration', 0] }] },
+                      { $multiply: ['$duration', 1000] },
+                      { $cond: [
+                        { $ne: ['$endTime', null] },
+                        { $subtract: ['$endTime', '$startTime'] },
+                        0,
+                      ]},
+                    ],
+                  },
+                  3600000,
+                ],
               },
             },
           },
