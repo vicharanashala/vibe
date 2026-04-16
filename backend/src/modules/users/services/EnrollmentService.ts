@@ -491,7 +491,7 @@ export class EnrollmentService extends BaseService {
         // };
         const itemCounts = enr.courseVersion?.itemCounts || {};
         const ratio = completedCount / (enr.totalItems || 1);
-        const calculatedPercent = Number((ratio * 100).toFixed(2));
+        const calculatedPercent = Math.min(Number((ratio * 100).toFixed(2)), 100);
 
         if (enr.percentCompleted !== calculatedPercent) {
           void this.enrollmentRepo.updateProgressPercentById(
@@ -660,7 +660,7 @@ export class EnrollmentService extends BaseService {
         const completedCount = watchedItemsMap.get(watchedKey) || 0;
 
         const ratio = completedCount / (enr.totalItems || 1);
-        const calculatedPercent = Number((ratio * 100).toFixed(2));
+        const calculatedPercent = Math.min(Number((ratio * 100).toFixed(2)), 100);
 
         if (enr.percentCompleted !== calculatedPercent) {
           void this.enrollmentRepo.updateProgressPercentById(
@@ -943,19 +943,29 @@ export class EnrollmentService extends BaseService {
           });
         });
 
+        console.log('[QuizScore Debug] courseVersionId:', courseVersionId);
+        console.log('[QuizScore Debug] itemGroupIds:', itemGroupIds);
+
         if (itemGroupIds.length > 0) {
           const quizInfo = await this.itemRepo.getQuizInfo(itemGroupIds);
+          console.log('[QuizScore Debug] quizInfo:', JSON.stringify(quizInfo));
           const allQuizIds = quizInfo
             .filter((quiz: any) => quiz.items?._id)
             .map((quiz: any) => quiz.items._id.toString());
+
+          console.log('[QuizScore Debug] allQuizIds:', allQuizIds);
+          console.log('[QuizScore Debug] userId:', userId);
 
           if (allQuizIds.length > 0) {
             const quizSubmissions =
               await this.enrollmentRepo.getBatchQuizSubmissionGrades(
                 [userId],
                 allQuizIds,
-                [cohortId]
+                undefined // don't filter by cohort — fetch all submissions for this student
               );
+
+            console.log('[QuizScore Debug] quizSubmissions count:', quizSubmissions.length);
+            console.log('[QuizScore Debug] quizSubmissions:', JSON.stringify(quizSubmissions));
 
             quizSubmissions.forEach((submission: any) => {
               const gradingResult = submission.gradingResult;
