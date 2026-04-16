@@ -419,7 +419,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] bg-white dark:bg-slate-900 rounded-[24px] p-6 border-2 border-primary/20 shadow-xl flex flex-col cursor-pointer" onClick={() => setIsFlipped(false)}>
             <div className="flex-1 overflow-y-auto scrollbar-hide pr-1">
               <div className="flex items-center justify-between mb-4">
-                <Badge className={cn("font-bold px-3 py-1", theme.bg, theme.icon.replace('text-', 'bg-').replace('[', '').replace(']', '/10'))}>
+                <Badge className={cn("font-bold px-3 py-1", theme.bg, theme.icon.replace('text-', 'bg-').replace(/\[/g, '').replace(/\]/g, '/10'))}>
                   Course Details
                 </Badge>
                 <div className="p-2 rounded-full bg-slate-100 dark:bg-slate-800">
