@@ -1969,7 +1969,12 @@ export function useStopItem() {
     "post",
     "/users/progress/courses/{courseId}/versions/{courseVersionId}/stop",
     {
-      retry: 5,
+      retry: (failureCount, error: any) => {
+        // 404 = watch time not found / already stopped — treat as success, don't retry
+        const status = error?.status ?? error?.response?.status;
+        if (status === 404) return false;
+        return failureCount < 5;
+      },
       retryDelay: (attempt) => 1000 * attempt,
 
       onSuccess: (_data, variables) => {

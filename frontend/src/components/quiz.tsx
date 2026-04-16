@@ -452,40 +452,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       return;
     }
 
-    await stopItem.mutateAsync({
-      params: {
-        path: {
-          courseId: currentCourse.courseId,
-          courseVersionId: currentCourse.versionId ?? '',
-        },
-      },
-      body: {
-        watchItemId: currentCourse.watchItemId,
-        itemId: currentCourse.itemId,
-        moduleId: currentCourse.moduleId ?? '',
-        sectionId: currentCourse.sectionId ?? '',
-        attemptId,
-        isSkipped,
-        nextItemId,
-        cohortId: currentCourse.cohortId ?? '',
-      }
-    });
-    completedItemIdsRef.current.add(currentCourse.itemId);
-    itemStartedRef.current = false;
-  }, [currentCourse, stopItem, attemptId, isAlreadyWatched, completedItemIdsRef]);
-
-
-  const stopItemAsync = useCallback(
-    async (isSkipped?: boolean) => {
-      if (!currentCourse?.itemId || !currentCourse.watchItemId) {
-        itemStartedRef.current = false;
-        return;
-      }
-
-      if (!itemStartedRef.current) {
-        return;
-      }
-
+    try {
       await stopItem.mutateAsync({
         params: {
           path: {
@@ -504,6 +471,51 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           cohortId: currentCourse.cohortId ?? '',
         },
       });
+    } catch (err: any) {
+      // 404 means watch record was already stopped — safe to treat as completed
+      const status = err?.status ?? err?.response?.status;
+      if (status !== 404) throw err;
+    }
+    completedItemIdsRef.current.add(currentCourse.itemId);
+    itemStartedRef.current = false;
+  }, [currentCourse, stopItem, attemptId, isAlreadyWatched, completedItemIdsRef]);
+
+
+  const stopItemAsync = useCallback(
+    async (isSkipped?: boolean) => {
+      if (!currentCourse?.itemId || !currentCourse.watchItemId) {
+        itemStartedRef.current = false;
+        return;
+      }
+
+      if (!itemStartedRef.current) {
+        return;
+      }
+
+      try {
+        await stopItem.mutateAsync({
+          params: {
+            path: {
+              courseId: currentCourse.courseId,
+              courseVersionId: currentCourse.versionId ?? '',
+            },
+          },
+          body: {
+            watchItemId: currentCourse.watchItemId,
+            itemId: currentCourse.itemId,
+            moduleId: currentCourse.moduleId ?? '',
+            sectionId: currentCourse.sectionId ?? '',
+            attemptId,
+            isSkipped,
+            nextItemId,
+            cohortId: currentCourse.cohortId ?? '',
+          },
+        });
+      } catch (err: any) {
+        // 404 means watch record was already stopped — safe to treat as completed
+        const status = err?.status ?? err?.response?.status;
+        if (status !== 404) throw err;
+      }
 
       itemStartedRef.current = false;
     },
@@ -588,24 +600,29 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
         const watchItemIdForStop = await handleSendStartItem(true);
         if (currentCourse?.itemId && watchItemIdForStop) {
-          await stopItem.mutateAsync({
-            params: {
-              path: {
-                courseId: currentCourse.courseId,
-                courseVersionId: currentCourse.versionId ?? '',
+          try {
+            await stopItem.mutateAsync({
+              params: {
+                path: {
+                  courseId: currentCourse.courseId,
+                  courseVersionId: currentCourse.versionId ?? '',
+                },
               },
-            },
-            body: {
-              watchItemId: watchItemIdForStop,
-              itemId: currentCourse.itemId,
-              moduleId: currentCourse.moduleId ?? '',
-              sectionId: currentCourse.sectionId ?? '',
-              attemptId,
-              isSkipped: true,
-              nextItemId,
-              cohortId: currentCourse.cohortId ?? '',
-            },
-          });
+              body: {
+                watchItemId: watchItemIdForStop,
+                itemId: currentCourse.itemId,
+                moduleId: currentCourse.moduleId ?? '',
+                sectionId: currentCourse.sectionId ?? '',
+                attemptId,
+                isSkipped: true,
+                nextItemId,
+                cohortId: currentCourse.cohortId ?? '',
+              },
+            });
+          } catch (err: any) {
+            const status = err?.status ?? err?.response?.status;
+            if (status !== 404) throw err;
+          }
           completedItemIdsRef.current.add(currentCourse.itemId);
           itemStartedRef.current = false;
         }
@@ -1065,8 +1082,14 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         itemStartedRef.current = false;
         completedItemIdsRef.current.add(currentCourse.itemId);
       } catch (error: any) {
-        console.error('❌ Quiz stopItem error:', error);
-        throw error; // Re-throw for parent to catch
+        // 404 = already stopped — treat as success
+        const status = error?.status ?? error?.response?.status;
+        if (status !== 404) {
+          console.error('❌ Quiz stopItem error:', error);
+          throw error;
+        }
+        itemStartedRef.current = false;
+        completedItemIdsRef.current.add(currentCourse.itemId);
       }
     },
     cleanup: () => {

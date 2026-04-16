@@ -717,19 +717,18 @@ export class EnrollmentService extends BaseService {
         // };
         // const itemCounts = enr.courseVersion?.itemCounts || {};
         const ratio = completedCount / (enr.totalItems || 1);
-        // const calculatedPercent = Number((ratio * 100).toFixed(2));
-        const hpSystem = hpSystemMap.get(versionIdStr) ?? false;
+        const calculatedPercent = Math.min(Number((ratio * 100).toFixed(2)), 100);
 
-        // if (enr.percentCompleted !== calculatedPercent) {
-        //   void this.enrollmentRepo.updateProgressPercentById(
-        //     enr._id.toString(),
-        //     calculatedPercent,
-        //     completedCount,
-        //     enr.cohortId?.toString(),
-        //   );
-        //   enr.percentCompleted = calculatedPercent;
-        //   enr.completedItemsCount = completedCount;
-        // }
+        if (enr.percentCompleted !== calculatedPercent) {
+          void this.enrollmentRepo.updateProgressPercentById(
+            enr._id.toString(),
+            calculatedPercent,
+            completedCount,
+            enr.cohortId?.toString(),
+          );
+          enr.percentCompleted = calculatedPercent;
+          enr.completedItemsCount = completedCount;
+        }
 
         if (enr.percentCompleted >= 0) {
           return {
@@ -926,9 +925,16 @@ export class EnrollmentService extends BaseService {
           //     enr.cohortId?.toString(),
           //   );
 
-          //   enr.percentCompleted = calculatedPercent;
-          //   enr.completedItemsCount = totalCompletedItemsCount;
-          // }
+        const ratio = completedCount / (enr.totalItems || 1);
+        const calculatedPercent = Math.min(Number((ratio * 100).toFixed(2)), 100);
+
+        if (enr.percentCompleted !== calculatedPercent) {
+          void this.enrollmentRepo.updateProgressPercentById(
+            enr._id.toString(),
+            calculatedPercent,
+            completedCount,
+            enr.cohort,
+          );
 
           if (enr.percentCompleted >= 0) {
             let itemCounts = enr.itemCounts || {};
@@ -959,6 +965,10 @@ export class EnrollmentService extends BaseService {
               }
             }
 
+            completedItems: watchedItemsMap.get(watchedKey) || 0,
+          };
+        }
+      });
             const completedByType = watchedItemsByTypeMap.get(watchedKey) || {
               videos: 0,
               quizzes: 0,
@@ -975,7 +985,7 @@ export class EnrollmentService extends BaseService {
               enrollmentDate: new Date(enr.enrollmentDate),
               course: this.filterCourseVersions(enr.course, enrolledVersionIds),
               // courseVersion: enr.courseVersion,
-              percentCompleted: enr.percentCompleted || 0,
+              percentCompleted: calculatedPercent,
               assignedTimeSlot: enr.assignedTimeSlots,
               moduleNumber: enr.moduleNumber,
               sectionNumber: enr.sectionNumber,
@@ -1194,19 +1204,29 @@ export class EnrollmentService extends BaseService {
           });
         });
 
+        console.log('[QuizScore Debug] courseVersionId:', courseVersionId);
+        console.log('[QuizScore Debug] itemGroupIds:', itemGroupIds);
+
         if (itemGroupIds.length > 0) {
           const quizInfo = await this.itemRepo.getQuizInfo(itemGroupIds);
+          console.log('[QuizScore Debug] quizInfo:', JSON.stringify(quizInfo));
           const allQuizIds = quizInfo
             .filter((quiz: any) => quiz.items?._id)
             .map((quiz: any) => quiz.items._id.toString());
+
+          console.log('[QuizScore Debug] allQuizIds:', allQuizIds);
+          console.log('[QuizScore Debug] userId:', userId);
 
           if (allQuizIds.length > 0) {
             const quizSubmissions =
               await this.enrollmentRepo.getBatchQuizSubmissionGrades(
                 [userId],
                 allQuizIds,
-                cohortId ? [cohortId] : undefined,
+                undefined // don't filter by cohort — fetch all submissions for this student
               );
+
+            console.log('[QuizScore Debug] quizSubmissions count:', quizSubmissions.length);
+            console.log('[QuizScore Debug] quizSubmissions:', JSON.stringify(quizSubmissions));
 
             quizSubmissions.forEach((submission: any) => {
               const gradingResult = submission.gradingResult;

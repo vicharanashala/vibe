@@ -82,7 +82,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       ? "vibe-support@vicharanashala.zohodesk"
       : "internship-support@vicharanashala.zohodesk";
 
-
+  // const progress = Math.round(enrollment.percentCompleted || 0) as number 
   const progress = Number(Math.min(enrollment.percentCompleted ?? 0, 100).toFixed(2));
 
   const hasAssignedTimeslot = enrollment.assignedTimeSlot &&
@@ -243,7 +243,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                     <div className="space-y-2">
                       <div className="flex justify-between items-center text-sm font-semibold">
 
-                        {enrollment.courseId !== "6981df886e100cfe04f9c4ad" && <> <span className="text-muted-foreground">Progress</span><span className="text-foreground">{progress.toFixed(0)}%</span></>}
+                        {enrollment.courseId !== "6981df886e100cfe04f9c4ad" && <> <span className="text-muted-foreground">Completion Percentage</span><span className="text-foreground">{progress.toFixed(0)}%</span></>}
                       </div>
 
                       {enrollment.courseId !== "6981df886e100cfe04f9c4ad" ? (<div className="h-2 w-full bg-[#F1F5F9] dark:bg-slate-800 rounded-full overflow-hidden">
@@ -561,15 +561,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
             hasAssignedTimeslot={!!hasAssignedTimeslot}
           />
         </div>
-        <StudentPolicyModal
-          open={showPolicies}
-          onClose={() => setShowPolicies(false)}
-          courseId={courseId}
-          courseVersionId={versionId}
-          cohortId={cohortId}
-          enrollmentDate={enrollment.enrollmentDate}
-          currentProgressPercent={progress}
-        />
       </div>
     );
   }

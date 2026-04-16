@@ -107,7 +107,8 @@ class ProgressRepository {
         courseVersionId: new ObjectId(courseVersionId),
         endTime: { $exists: true, $ne: null },
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false } }),
+
       },
       { session },
     );
@@ -1295,51 +1296,47 @@ class ProgressRepository {
     return Math.floor(totalMs / 1000);
   }
 
-  async getHiddenOrDeletedItems(
+  /**
+   * Computes the total watch hours for a single student in a course version.
+   * This is the single source of truth for the ms-to-hours conversion (÷ 3600000).
+   */
+  async getStudentWatchHours(
+    userId: string,
+    courseId: string,
     courseVersionId: string,
     session?: ClientSession,
-  ): Promise<
-    { itemId: string;}[]
-  > {
+  ): Promise<number> {
     await this.init();
 
-    const results = await this.courseVersionCollection
-      .aggregate(
+    const userIdObj = ObjectId.isValid(userId) ? new ObjectId(userId) : null;
+    const courseIdObj = ObjectId.isValid(courseId) ? new ObjectId(courseId) : null;
+    const versionIdObj = ObjectId.isValid(courseVersionId) ? new ObjectId(courseVersionId) : null;
+
+    if (!userIdObj || !courseIdObj || !versionIdObj) return 0;
+
+    const result = await this.watchTimeCollection
+      .aggregate<{ totalHours: number }>(
         [
           {
             $match: {
-              _id: new ObjectId(courseVersionId),
+              userId: { $in: [userId, userIdObj] },
+              courseId: { $in: [courseId, courseIdObj] },
+              courseVersionId: { $in: [courseVersionId, versionIdObj] },
+              endTime: { $ne: null, $exists: true },
+              isDeleted: { $ne: true },
             },
           },
-
-          { $unwind: "$modules" },
-          { $unwind: "$modules.sections" },
-
-          {
-            $lookup: {
-              from: "itemsGroup",
-              localField: "modules.sections.itemsGroupId",
-              foreignField: "_id",
-              as: "itemsGroup",
-            },
-          },
-
-          { $unwind: "$itemsGroup" },
-          { $unwind: "$itemsGroup.items" },
-
-          {
-            $match: {
-              $or: [
-                { "itemsGroup.items.isHidden": true },
-                { "itemsGroup.items.isDeleted": true },
-              ],
-            },
-          },
-
           {
             $project: {
-              _id: 0,
-              itemId: { $toString: "$itemsGroup.items._id" },
+              duration: {
+                $divide: [{ $subtract: ['$endTime', '$startTime'] }, 3600000],
+              },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalHours: { $sum: '$duration' },
             },
           },
         ],
@@ -1347,22 +1344,65 @@ class ProgressRepository {
       )
       .toArray();
 
-    return results as {
-      itemId: string;
-    }[];
+    return Math.round((result[0]?.totalHours ?? 0) * 100) / 100;
   }
 
-  async findWatchTimeById(
-    id: string,
+  /**
+   * Computes the average watch hours per user across all students enrolled in a course version.
+   * Reuses the same ms-to-hours conversion as getStudentWatchHours.
+   */
+  async getAverageWatchHoursForVersion(
+    courseId: string,
+    courseVersionId: string,
     session?: ClientSession,
-  ): Promise<IWatchTime | null> {
+  ): Promise<number> {
     await this.init();
-    return await this.watchTimeCollection.findOne(
-      { _id: new ObjectId(id), isDeleted: { $ne: true } },
-      {
-        session,
-      },
-    );
+
+    const courseIdObj = ObjectId.isValid(courseId) ? new ObjectId(courseId) : null;
+    const versionIdObj = ObjectId.isValid(courseVersionId) ? new ObjectId(courseVersionId) : null;
+
+    if (!courseIdObj || !versionIdObj) return 0;
+
+    const result = await this.watchTimeCollection
+      .aggregate<{ averageWatchHoursPerUser: number }>(
+        [
+          {
+            $match: {
+              courseId: { $in: [courseId, courseIdObj] },
+              courseVersionId: { $in: [courseVersionId, versionIdObj] },
+              endTime: { $ne: null, $exists: true },
+              isDeleted: { $ne: true },
+            },
+          },
+          {
+            $project: {
+              userId: 1,
+              duration: {
+                $divide: [{ $subtract: ['$endTime', '$startTime'] }, 3600000],
+              },
+            },
+          },
+          {
+            $group: {
+              _id: '$userId',
+              totalHours: { $sum: '$duration' },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              averageWatchHoursPerUser: { $avg: '$totalHours' },
+            },
+          },
+          {
+            $project: { _id: 0, averageWatchHoursPerUser: 1 },
+          },
+        ],
+        { session },
+      )
+      .toArray();
+
+    return Number((result[0]?.averageWatchHoursPerUser ?? 0).toFixed(2));
   }
 
 }

@@ -376,23 +376,29 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         stopInFlightRef.current = true;
         try {
           if (watchItemId && !isAlreadyWatched && !(currentCourse!.itemId && completedItemIdsRef.current.has(currentCourse!.itemId)) && !isCompleted) {
-            await stopItem.mutateAsync({
-              params: {
-                path: {
-                  courseId: currentCourse!.courseId,
-                  courseVersionId: currentCourse!.versionId ?? '',
+            try {
+              await stopItem.mutateAsync({
+                params: {
+                  path: {
+                    courseId: currentCourse!.courseId,
+                    courseVersionId: currentCourse!.versionId ?? '',
+                  },
                 },
-              },
-              body: {
-                watchItemId,
-                itemId: currentCourse!.itemId ?? '',
-                moduleId: currentCourse!.moduleId ?? '',
-                sectionId: currentCourse!.sectionId ?? '',
-                seekForwardEnabled,
-                nextItemId,
-                cohortId: currentCourse!.cohortId ?? '',
-              },
-            });
+                body: {
+                  watchItemId,
+                  itemId: currentCourse!.itemId ?? '',
+                  moduleId: currentCourse!.moduleId ?? '',
+                  sectionId: currentCourse!.sectionId ?? '',
+                  seekForwardEnabled,
+                  nextItemId,
+                  cohortId: currentCourse!.cohortId ?? '',
+                },
+              });
+            } catch (err: any) {
+              // 404 = already stopped — treat as success, don't show warning toast
+              const status = err?.status ?? err?.response?.status;
+              if (status !== 404) throw err;
+            }
           }
 
           if (!currentCourse?.itemId) return;

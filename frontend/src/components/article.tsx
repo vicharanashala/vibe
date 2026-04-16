@@ -129,8 +129,14 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
             completedItemIdsRef.current.add(currentCourse!.itemId);
             itemStartedRef.current = false;
         } catch (error: any) {
+            // 404 = already stopped — treat as success
+            const status = (error as any)?.status ?? (error as any)?.response?.status;
+            if (status === 404) {
+              completedItemIdsRef.current.add(currentCourse!.itemId);
+              itemStartedRef.current = false;
+              return;
+            }
             console.error('❌ handleStopItem error:', error);
-            // Re-throw the error so it can be caught by the parent
             throw error;
         }
     }
