@@ -85,8 +85,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   // const progress = Math.round(enrollment.percentCompleted || 0) as number 
   const progress = Number(Math.min(enrollment.percentCompleted ?? 0, 100).toFixed(2));
 
-  const progress = Number(Math.min(enrollment.percentCompleted ?? 0, 100).toFixed(2));
-
   const hasAssignedTimeslot = enrollment.assignedTimeSlot &&
     Array.isArray(enrollment.assignedTimeSlot) &&
     enrollment.assignedTimeSlot.length > 0;
