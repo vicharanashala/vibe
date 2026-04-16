@@ -1,14 +1,15 @@
-import { JSX, useState } from "react";
+import { JSX, SetStateAction, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, BookOpen, Plus, AlertCircle, CheckCircle, Rocket, GitBranch, HelpCircle, Lightbulb, Info, GraduationCap } from "lucide-react";
+import { Loader2, BookOpen, Plus, AlertCircle, CheckCircle, Rocket, GitBranch, HelpCircle, Lightbulb, Info, GraduationCap, Activity  } from "lucide-react";
 import { useCreateCourse } from "@/hooks/hooks";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
@@ -26,6 +27,8 @@ export default function CreateCourse() {
   const [versionName, setVersionName] = useState("");
   const [versionDescription, setVersionDescription] = useState("");
   const [cohorts, setCohorts] = useState<string[]>([]);
+  const [hpSystemEnabled, setHpSystemEnabled] = useState<boolean>(false);
+  const [baseHp, setBaseHp] = useState<number | "">(100);
 
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,12 +41,13 @@ export default function CreateCourse() {
   const queryClient = useQueryClient();
 
   const handleCreateCourse = async () => {
-    if (!courseName.trim() || !courseDescription.trim() || !versionName.trim() || !versionDescription.trim() || versionName.trim().length < 3) {
+    if (!courseName.trim() || !courseDescription.trim() || !versionName.trim() || !versionDescription.trim() || versionName.trim().length < 3 || (hpSystemEnabled && (baseHp === "" || baseHp < 0 || baseHp > 100))) {
       const errors = {
         courseName: !courseName.trim() ? "Course Name is required" : "",
         courseDescription: !courseDescription.trim() ? "Course description is required" : "",
         versionName: !versionName.trim() ? "Version Name is required" : versionName.trim().length < 3 ? "Version Name must be at least 3 characters" : "",
         versionDescription: !versionDescription.trim() ? "Version description is required" : "",
+        baseHp: hpSystemEnabled && (baseHp === "" || baseHp < 0 || baseHp > 100) ? "Base HP must be between 0 and 100": "",
       };
       setCreateErrors(errors);
 
@@ -67,7 +71,9 @@ export default function CreateCourse() {
           description: courseDescription,
           versionName,
           versionDescription,
-          cohorts
+          cohorts,
+          hpSystem:hpSystemEnabled,
+          baseHp:hpSystemEnabled && baseHp!=="" ? baseHp : undefined
         }
       });
 
@@ -143,6 +149,13 @@ export default function CreateCourse() {
             setCreateErrors={setCreateErrors}
             cohorts={cohorts}
             setCohorts={setCohorts}
+          />
+
+          <HpCard 
+            hpSystemEnabled={hpSystemEnabled}
+            setHpSystemEnabled={setHpSystemEnabled}
+            baseHp={baseHp}
+            setBaseHp={setBaseHp}
           />
 
 
@@ -431,19 +444,26 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
   setCohorts
 }) => {
   const [cohortInput, setCohortInput] = useState("");
+  const [cohortError, setCohortError] = useState("");
   const MAX_COHORTS = 10;
+  const BLOCKED_COHORT_NAMES = ["euclideans", "dijkstrians", "kruskalians", "rsaians", "aksians", "a", "b"];
+
   const addCohort = (value: string) => {
     const trimmed = value.trim();
-
     if (!trimmed) return;
-    if (cohorts.includes(trimmed)) return;
+    if (BLOCKED_COHORT_NAMES.includes(trimmed.toLowerCase())) {
+      setCohortError(`"${trimmed}" is a reserved cohort name and cannot be used.`);
+      return;
+    }
+    if (cohorts.includes(trimmed.toLowerCase())) return;
     if (cohorts.length >= MAX_COHORTS) return;
-
-    setCohorts(prev => [...prev, trimmed.toLocaleLowerCase()]);
+    setCohortError("");
+    setCohorts(prev => [...prev, trimmed.toLowerCase()]);
     setCohortInput("");
   };
-  const removeCohort = (cohortToRemove: string) => {
-    setCohorts(prev => prev.filter(cohort => cohort !== cohortToRemove));
+
+  const removeCohort = (name: string) => {
+    setCohorts(prev => prev.filter(c => c !== name));
   };
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || e.key === ",") {
@@ -602,16 +622,24 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
                   <input
                     type="text"
                     value={cohortInput}
-                    onChange={e => setCohortInput(e.target.value)}
+                    onChange={e => {
+                      setCohortInput(e.target.value);
+                      if (cohortError) setCohortError("");
+                    }}
                     onKeyDown={handleKeyDown}
                     placeholder="Add a cohort name and press Enter"
                     className="flex-1 bg-transparent outline-none text-sm min-w-[120px]"
                   />
                 </div>
 
-                <p className="text-xs text-muted-foreground mt-1">
-                  Press Enter or comma to add cohorts (max {MAX_COHORTS})
-                </p>
+                {cohortError && (
+                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" /> {cohortError}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Press Enter or comma to add cohorts (max {MAX_COHORTS})
+                  </p>
               </div>
             </div>
           </div>
@@ -676,3 +704,86 @@ const CreateCourseCard = ({
   );
 }
 
+type HpCardProps = {
+  hpSystemEnabled: boolean;
+  setHpSystemEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+  baseHp: number | "";
+  setBaseHp: React.Dispatch<React.SetStateAction<number | "">>;
+};
+
+const HpCard = ({
+  hpSystemEnabled,
+  setHpSystemEnabled,
+  baseHp,
+  setBaseHp,
+}: HpCardProps) => {
+  return (
+    <div className="relative">
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-primary/10 rounded-xl blur-sm"></div>
+
+      <Card className="relative bg-card/95 backdrop-blur-sm border border-border/50 p-6">
+        <div className="flex items-center justify-between gap-4">
+
+          <div className="flex items-start gap-3">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-lg blur-sm"></div>
+              <div className="relative bg-gradient-to-r from-primary to-accent p-2 rounded-lg">
+                {<Activity className="h-5 w-5 text-primary-foreground" />}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-sm font-semibold">HP System</Label>
+              <p className="text-xs text-muted-foreground">
+                Enable HP system for this course. Students can gain or lose HP
+                based on activities and performance.
+              </p>
+            </div>
+          </div>
+
+          <Switch
+            checked={hpSystemEnabled}
+            onCheckedChange={() =>
+              setHpSystemEnabled((prev) => !prev)
+            }
+          />
+
+        </div>
+
+         {hpSystemEnabled && (
+          <div className="mt-4 space-y-2">
+            <Label className="text-sm font-medium">
+              Base HP (0 - 100)
+            </Label>
+
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              placeholder="Enter base HP"
+              value={baseHp}
+              onChange={(e) => {
+                const val = e.target.value;
+
+                if (val === "") {
+                  setBaseHp("");
+                  return;
+                }
+
+                const num = Number(val);
+
+                if (num >= 0 && num <= 100) {
+                  setBaseHp(num);
+                }
+              }}
+            />
+
+            <p className="text-xs text-muted-foreground">
+              Default HP assigned to students at the start.
+            </p>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+};

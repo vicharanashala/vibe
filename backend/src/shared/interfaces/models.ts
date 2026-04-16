@@ -1,6 +1,6 @@
-import {ObjectId} from 'mongodb';
-import {ProctoringComponent} from '../database/index.js';
-import {Type} from 'class-transformer';
+import { ObjectId } from 'mongodb';
+import { ProctoringComponent } from '../database/index.js';
+import { Type } from 'class-transformer';
 import {
   IsOptional,
   IsInt,
@@ -19,6 +19,13 @@ export interface IUser {
   email: string;
   firstName: string;
   lastName?: string;
+  avatar?: string;
+  gender?: string;
+  country?: string;
+  state?: string;
+  city?: string;
+  profileImage?: string;
+  faceEmbedding?: number[];
   roles: 'admin' | 'user';
 }
 
@@ -406,8 +413,20 @@ export interface IEnrollment {
   isDeleted?: boolean;
   deletedAt?: Date;
   unenrolledAt?: Date;
+  hpPoints?: number;
   hasNewItemsAfterCompletion?: boolean;
-  cohortId?: ID
+  cohortId?: ID;
+  policyAcknowledgedAt?: Date;
+  policyReacknowledgementRequired?: boolean;
+  isEjected?: boolean;
+  ejectionHistory?: Array<{
+    ejectedAt: Date;
+    ejectionReason: string;
+    ejectedBy: string | ObjectId;
+    policyId?: string | ObjectId;
+    reinstatedAt?: Date;
+    reinstatedBy?: string | ObjectId;
+  }>;
 }
 
 export interface IProgress {
@@ -424,9 +443,9 @@ export interface IProgress {
 }
 
 export interface ICurrentProgressPath {
-  module: {id: string; name: string} | null;
-  section: {id: string; name: string} | null;
-  item: {id: string; name: string; type: string} | null;
+  module: { id: string; name: string } | null;
+  section: { id: string; name: string } | null;
+  item: { id: string; name: string; type: string } | null;
   message?: string;
 }
 
@@ -443,20 +462,26 @@ export interface IWatchTime {
 
 export interface ICohort {
   _id?: string | ObjectId | null;
+  courseId: string | ObjectId;
   courseVersionId: string | ObjectId;
   name: string;
   description?: string;
   createdAt: Date;
   updatedAt: Date;
   isPublic: boolean;
+  isActive?: boolean;
+  baseHp?: number;
+  safeHp?: number;
+  isDeleted?: boolean;
+  isLegacy?: boolean;
 }
 
-export interface ICohortSettings{
+export interface ICohortSettings {
   _id?: string | ObjectId | null;
   courseVersionId: string | ObjectId;
   cohortId: string | ObjectId;
-  registrationsAutoApproved: boolean,
-  autoapproval_emails: string[]
+  registrationsAutoApproved: boolean;
+  autoapproval_emails: string[];
 }
 
 export interface IUserActivityEvent {
@@ -536,14 +561,14 @@ export interface IRegistrationSettings {
   _id?: ID;
   label: string;
   type:
-    | 'TEXT'
-    | 'TEXTAREA'
-    | 'EMAIL'
-    | 'TEL'
-    | 'DATE'
-    | 'NUMBER'
-    | 'URL'
-    | 'SELECT';
+  | 'TEXT'
+  | 'TEXTAREA'
+  | 'EMAIL'
+  | 'TEL'
+  | 'DATE'
+  | 'NUMBER'
+  | 'URL'
+  | 'SELECT';
   isDefault: boolean;
   required: boolean;
   options?: string[];
@@ -560,7 +585,10 @@ export interface ISettings {
   proctors: IProctoringSettings;
   linearProgressionEnabled: boolean;
   seekForwardEnabled: boolean;
+  hpSystem?: boolean;
   isPublic?: boolean;
+  baseHp?: number;
+  randomizeItems?: boolean;
   // registration_settings?: IRegistrationSettings[];
   registration?: {
     jsonSchema?: any;
@@ -574,6 +602,7 @@ export interface ISettings {
     isActive: boolean;
     slots: ITimeSlot[];
   };
+  crowdsourcedQuestionSubmissionEnabled?: boolean;
   // jsonSchema?: any;
   // uiSchema?: any;
 }
@@ -656,6 +685,10 @@ export class EnrollmentFilterQuery {
   @IsOptional()
   @IsIn(['active', 'archived'])
   tab?: courseVersionStatus = 'active';
+
+  @IsOptional()
+  @IsString()
+  cohortId?: string;
 }
 
 export class EnrollmentsQuery {
@@ -755,8 +788,8 @@ export interface AuthenticatedUser {
 // }
 
 export interface ICohortResponse {
-  _id: ID,
-  name: string
+  _id: ID;
+  name: string;
 }
 export interface ICourseRegistration {
   _id?: string | ObjectId;

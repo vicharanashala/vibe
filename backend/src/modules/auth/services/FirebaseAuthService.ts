@@ -165,6 +165,8 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       email: body.email,
       firstName: body.firstName,
       lastName: body.lastName || '',
+      profileImage: body.profileImage,
+      faceEmbedding: body.faceEmbedding,
       roles: 'user',
     };
 
@@ -331,9 +333,21 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     firebaseUID: string,
     body: Partial<IUser>,
   ): Promise<void> {
-    // Update user in Firebase Auth
+    // Update Firebase display name only when name fields are provided.
+    if (typeof body.firstName !== 'string' && typeof body.lastName !== 'string') {
+      return;
+    }
+
+    const firebaseUser = await this.auth.getUser(firebaseUID);
+    const [existingFirstName = '', ...existingLastNameParts] =
+      (firebaseUser.displayName || '').trim().split(' ');
+    const existingLastName = existingLastNameParts.join(' ');
+
+    const firstName = body.firstName ?? existingFirstName;
+    const lastName = body.lastName ?? existingLastName;
+
     await this.auth.updateUser(firebaseUID, {
-      displayName: `${body.firstName} ${body.lastName}`,
+      displayName: `${firstName} ${lastName}`.trim(),
     });
   }
 }

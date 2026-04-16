@@ -16,8 +16,10 @@ import {
   IsOptional,
   IsObject,
   IsNumber,
+  Min,
+  Max,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import {Type} from 'class-transformer';
 import {
   ICourseSetting,
   ID,
@@ -27,8 +29,8 @@ import {
   IUserSetting,
   ITimeSlot,
 } from '#shared/interfaces/models.js';
-import { JSONSchema } from 'class-validator-jsonschema';
-import { ProctoringComponent } from '#root/shared/database/interfaces/ISettingRepository.js';
+import {JSONSchema} from 'class-validator-jsonschema';
+import {ProctoringComponent} from '#root/shared/database/interfaces/ISettingRepository.js';
 
 /**
  * This file contains classes and DTOs for validating course and user settings related to proctoring.
@@ -51,7 +53,7 @@ export class DetectorSettingsDto implements IDetectorSettings {
 
 export class ProctoringSettingsDto {
   @IsArray()
-  @ValidateNested({ each: true })
+  @ValidateNested({each: true})
   @Type(() => DetectorSettingsDto)
   detectors: DetectorSettingsDto[];
 }
@@ -152,11 +154,41 @@ export class SettingsDto {
   @IsOptional()
   @IsBoolean()
   @JSONSchema({
+    description: 'Indicates whether HP System is enabled',
+    examples: [true, false],
+    default: false,
+  })
+  hpSystem?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  @JSONSchema({
+    description: "Indicates the base health points",
+    example: 100,
+    default: 0,
+  })
+  baseHp?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
     description: 'Indicates whether the course is publicly visible',
     examples: [true, false],
     default: false,
   })
   isPublic?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether the course items can be randomized or not',
+    examples: [true, false],
+    default: false,
+  })
+  randomizeItems?: boolean;
+
   // jsonSchema?:any
   // uiSchema?:any
   @IsOptional()
@@ -178,7 +210,7 @@ export class SettingsDto {
   timeslots?: TimeSlotSchema;
 
   @IsOptional()
-  @ValidateNested({ each: true })
+  @ValidateNested({each: true})
   @Type(() => AuditingDto)
   @JSONSchema({
     description: 'Auditing information for settings modification',
@@ -187,9 +219,8 @@ export class SettingsDto {
   audit?: AuditingDto[];
 }
 
-@ValidatorConstraint({ async: false })
-export class containsAllDetectorsConstraint
-  implements ValidatorConstraintInterface {
+@ValidatorConstraint({async: false})
+export class containsAllDetectorsConstraint implements ValidatorConstraintInterface {
   validate(value: Array<any>, args: ValidationArguments) {
     if (!Array.isArray(value)) {
       return false;
@@ -231,7 +262,6 @@ export class UpdateCourseSettingResponse {
   success: boolean;
 }
 
-
 export class SettingNotFoundErrorResponse {
   @JSONSchema({
     description: 'The error message',
@@ -271,7 +301,6 @@ export class CreateCourseSettingBody implements Partial<ICourseSetting> {
   @ValidateNested()
   @Type(() => SettingsDto)
   settings: SettingsDto;
-
 }
 
 // This class represents the validation schema for reading course settings.
@@ -326,9 +355,8 @@ export class AddCourseProctoringParams {
 
 // This class represents the validation schema of body for adding proctoring to a course.
 export class AddCourseProctoringBody {
-
   @IsNotEmpty()
-  @ValidateNested({ each: true })
+  @ValidateNested({each: true})
   @containsAllDetectors()
   @JSONSchema({
     title: 'Proctoring Component',
@@ -338,20 +366,29 @@ export class AddCourseProctoringBody {
   @Type(() => DetectorSettingsDto)
   detectors: IDetectorSettings[];
 
-
   @IsDefined()
   @IsBoolean()
   @JSONSchema({
-    description: 'Student should follow the cours linearly if this is enabled'
+    description: 'Student should follow the cours linearly if this is enabled',
   })
   linearProgressionEnabled: boolean;
 
   @IsDefined()
   @IsBoolean()
   @JSONSchema({
-    description: 'Allow students to seek forward in all videos if this is enabled'
+    description:
+      'Allow students to seek forward in all videos if this is enabled',
   })
   seekForwardEnabled: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether HP System is enabled',
+    examples: [true, false],
+    default: false,
+  })
+  hpSystem?: boolean;
 
   @IsOptional()
   @IsBoolean()
@@ -362,6 +399,23 @@ export class AddCourseProctoringBody {
   })
   isPublic?: boolean;
 
+  @IsOptional()
+  @IsNumber()
+  @JSONSchema({
+    description: 'Indicated the base Hp',
+    example: 100,
+    default: 0,
+  })
+  baseHp?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether the course items can be randomized or not',
+    examples: [true, false],
+    default: false,
+  })
+  randomizeItems?: boolean;
 }
 
 // This class represents the validation schema of Parameters for removing proctoring from a course.
@@ -521,9 +575,8 @@ export class AddUserProctoringBody {
     enum: Object.values(ProctoringComponent),
     example: ProctoringComponent.CAMERAMICRO,
   })
-
   @IsNotEmpty()
-  @ValidateNested({ each: true })
+  @ValidateNested({each: true})
   @containsAllDetectors()
   @Type(() => DetectorSettingsDto)
   detectors: IDetectorSettings[];
@@ -578,7 +631,6 @@ export class RemoveUserProctoringBody {
 }
 
 export class UpdateSettingResponse {
-
   @JSONSchema({
     description: 'Indicates whether the update was successful',
     type: 'boolean',

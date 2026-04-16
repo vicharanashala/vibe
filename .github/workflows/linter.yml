@@ -3,18 +3,19 @@ name: Lint and Format Check on Pull Request
 on:
   pull_request:
     branches:
-      - main # Or your main branch name
-    paths:
-      - 'backend/**' # Only trigger when files in backend folder are changed
+      - combined-updates
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  lint:
+  lint-backend:
     name: Lint Backend
     runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      contains(toJson(github.event.pull_request.changed_files), 'backend/')
 
     steps:
       - name: Checkout code
@@ -23,7 +24,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v2
         with:
-          version: 8 # or your pnpm version
+          version: 8
 
       - name: Install dependencies
         run: pnpm install
@@ -32,3 +33,27 @@ jobs:
       - name: Lint Backend Code
         run: pnpm run lint
         working-directory: backend
+
+  lint-frontend:
+    name: Lint Frontend
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      contains(toJson(github.event.pull_request.changed_files), 'frontend/')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install
+        working-directory: frontend
+
+      - name: Lint Frontend Code
+        run: pnpm run lint
+        working-directory: frontend

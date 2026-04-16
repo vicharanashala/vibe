@@ -150,7 +150,9 @@ export interface paths {
     };
     "/courses/versions/{id}": {
         parameters: {
-            query?: never;
+            query?: {
+                cohortId?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -953,15 +955,29 @@ export interface components {
 
             /**
              * @description version status
-             * @example open
+             * @example active
              */
             readonly versionStatus: 'active' | 'archived';
+
+            /**
+             * @description Hp system is enabled or not
+             * @example true
+             */
+            readonly hpSystem: boolean;
+
+            /**
+             * @description Can we randomize the items
+             * @example true
+             */
+            readonly shouldRandomize?: boolean;
+
             /**
              * Format: date-time
              * @description Last update timestamp
              * @example 2023-10-01T12:00:00Z
              */
             readonly updatedAt: string;
+
         };
         UpdateCourseVersionStatusBody:{
             /**

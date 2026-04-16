@@ -103,8 +103,14 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const handleSkipItem = async () => {
     if (!currentCourse?.itemId) return;
     try {
-
-      await skipItemAsync({ params: { path: { itemId: currentCourse?.itemId }, query: { cohortId: currentCourse?.cohortId } } });
+      await skipItemAsync({
+        params: {
+          path: { itemId: currentCourse.itemId },
+          query: { cohortId: currentCourse.cohortId ?? undefined },
+        },
+      });
+      completedItemIdsRef.current.add(currentCourse.itemId);
+      itemStartedRef.current = false;
 
     } catch (error) {
       console.error('Error skipping item:', error);
@@ -398,10 +404,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, [quizQuestions, answers]);
 
   // ===== COURSE ITEM TRACKING FUNCTIONS =====
-  const handleSendStartItem = useCallback(async () => {
-    if (!currentCourse?.itemId) return;
+  const handleSendStartItem = useCallback(async (forceStart = false) => {
+    if (!currentCourse?.itemId) return currentCourse?.watchItemId;
+
+    let resolvedWatchItemId = currentCourse.watchItemId;
     try {
-      if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
+      if ((forceStart || !isAlreadyWatched) && currentCourse.itemId && !completedItemIdsRef.current.has(currentCourse.itemId)) {
         const response = await startItem.mutateAsync({
           params: {
             path: {
@@ -417,15 +425,16 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           }
         });
 
-        if (!response?.watchItemId) {
-          console.error('No watchItemId returned from startItem');
-          return;
+        if (response?.watchItemId) {
+          setWatchItemId(response.watchItemId);
+          resolvedWatchItemId = response.watchItemId;
         }
-        if (response?.watchItemId) setWatchItemId(response.watchItemId);
       }
       itemStartedRef.current = true;
+      return resolvedWatchItemId;
     } catch (error) {
       console.error('Failed to start item:', error);
+      return resolvedWatchItemId;
     }
   }, [currentCourse, startItem, setWatchItemId, isAlreadyWatched, completedItemIdsRef]);
 
@@ -570,24 +579,37 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         body: { cohortId: currentCourse?.cohortId ?? '' }
       }) as CreateAttemptResponse | { message: string };
 
-      // Check if we got a message about no attempts left 
+      // Check if we got a message about no attempts left
       if ('message' in response) {
-        console.log('Quiz attempt failed with message:', response.message);
         toast.error(response.message);
 
-        // Instead of showing UI, properly mark the quiz as completed with skip
         setQuizCompleted(true);
-        setQuizPassed?.(1);
+        setQuizPassed?.(3);
 
-        // Start tracking item first so we can stop it with isSkipped
-        await handleSendStartItem();
+        const watchItemIdForStop = await handleSendStartItem(true);
+        if (currentCourse?.itemId && watchItemIdForStop) {
+          await stopItem.mutateAsync({
+            params: {
+              path: {
+                courseId: currentCourse.courseId,
+                courseVersionId: currentCourse.versionId ?? '',
+              },
+            },
+            body: {
+              watchItemId: watchItemIdForStop,
+              itemId: currentCourse.itemId,
+              moduleId: currentCourse.moduleId ?? '',
+              sectionId: currentCourse.sectionId ?? '',
+              attemptId,
+              isSkipped: true,
+              nextItemId,
+              cohortId: currentCourse.cohortId ?? '',
+            },
+          });
+          completedItemIdsRef.current.add(currentCourse.itemId);
+          itemStartedRef.current = false;
+        }
 
-        // Mark the quiz as skipped in the progress system
-        setTimeout(() => {
-          handleStopItem(true); // isSkipped = true
-        }, 500);
-
-        // Set flag to show completion UI
         setNoAttemptsLeft(true);
         return;
       }
@@ -630,13 +652,16 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       } catch {
         errorMessage = 'Failed to start quiz';
       }
-      console.log('Error message:', errorMessage);
-
       if (errorMessage && (errorMessage.includes('No available attempts left') || errorMessage.includes('no available attempts'))) {
         toast.info('You have used all available attempts for this quiz.');
 
-        setQuizCompleted(true);
-        setQuizPassed?.(1);
+        try {
+          await handleSkipItem();
+        } catch (progressErr) {
+          console.error('Failed to update progress for exhausted quiz attempts:', progressErr);
+        }
+
+        setQuizStarted(true);
         setNoAttemptsLeft(true);
 
         return;
@@ -645,7 +670,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       quizAttemptedRef.current = false;
       toast.error('Failed to start quiz: ' + errorMessage);
     }
-  }, [attemptQuiz, processedQuizId, setAttemptId, convertBackendQuestions, handleSendStartItem, quizStarted, isPending]);
+  }, [attemptQuiz, processedQuizId, setAttemptId, convertBackendQuestions, handleSendStartItem, stopItem, currentCourse, attemptId, nextItemId, quizStarted, isPending]);
 
   const completeQuiz = useCallback(async (isSkipped?: boolean) => {
     if (!attemptId) {
@@ -675,6 +700,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         body: {
           answers: answersForSubmission, isSkipped, courseId: currentCourse?.courseId,
           courseVersionId: currentCourse?.versionId,
+          watchItemId: currentCourse?.watchItemId ?? undefined,
           cohortId: currentCourse?.cohortId??''
         }
       });
@@ -828,6 +854,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     setNoAttemptsLeft(false);
     // Reset the attempt flag so quiz can be started again
     quizAttemptedRef.current = false;
+    setDontStart(false);
   }, [setAttemptId]);
 
   // ===== DRAG AND DROP HANDLERS =====
@@ -944,9 +971,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         passThreshold
       });
 
-      // For no attempts left, always proceed to next (since we marked it as passed)
+      // For no attempts left, proceed to next without showing pass/fail UI.
       if (noAttemptsLeft) {
-        setQuizPassed?.(1);
+        setQuizPassed?.(3);
         setTimeout(() => {
           setQuizCompleted(false);
           onNext?.();
@@ -1267,7 +1294,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
                   <Button
                     onClick={async ()=>{
-                        await handleSkipItem();
+                        if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
+                          await handleSkipItem();
+                        }
                         if(onNext){
                         onNext();
                         }
@@ -1534,6 +1563,83 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   </Card>
                 );
               })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if(quizStarted && noAttemptsLeft){
+    return (
+      <Card className="mx-auto">
+        <CardContent className="p-8 text-center space-y-6">
+          <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center mx-auto">
+            <FileQuestion className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+          </div>
+          <h3 className="text-2xl font-semibold text-foreground">
+            No attempts remaining for this quiz.
+          </h3>
+          {/* Action Buttons - side by side */}
+          <div className="pt-4 flex flex-col items-center gap-3">
+            <div className="flex flex-wrap justify-center gap-3">
+              {/* Rewatch Video Button - always available */}
+              {onPrevVideo && (
+                <Button
+                  onClick={() => {
+                    setNoAttemptsLeft(false);
+                    setQuizStarted(false);
+                    onPrevVideo();
+                  }}
+                  disabled={isProgressUpdating}
+                  variant="outline"
+                  className="min-w-[180px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
+                  size="lg"
+                >
+                  {isNavigatingToPrev ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2" />
+                      Processing
+                    </>
+                  ) : (
+                    <>
+                      <ChevronLeft className="h-4 w-4 mr-2" />
+                      Rewatch Video
+                    </>
+                  )}
+                </Button>
+              )}
+              {/* Next Lesson Button-If user doesn't want to wait*/}
+              {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
+                <Button
+                  onClick={async ()=>{
+                      if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
+                        await handleSkipItem();
+                      }
+                      setQuizStarted(false);
+                      setNoAttemptsLeft(false);
+                      if(onNext){
+                        onNext();
+                      }
+                    }
+                  }
+                  disabled={isProgressUpdating}
+                  className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
+                  size="lg"
+                >
+                  {isProgressUpdating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
+                      Processing
+                    </>
+                  ) : (
+                    <>
+                      Next Lesson
+                      <ChevronRight className="h-4 w-4 ml-2" />
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>

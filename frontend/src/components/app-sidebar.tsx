@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import {
-  AudioWaveform,
+  Bell,
   BookOpen,
   Bot,
   Command,
@@ -12,6 +12,7 @@ import {
   Megaphone,
   PieChart,
   Settings2,
+  Shield,
   SquareTerminal,
 } from "lucide-react"
 
@@ -61,6 +62,16 @@ export function AppSidebar() {
         url: "/teacher/announcements",
         icon: Megaphone,
       },
+      {
+        title: "HP System",
+        url: "/teacher/hp-system",
+        icon: SquareTerminal,
+      },
+      // {
+      //   title: "Notifications",
+      //   url: "/teacher/notifications",
+      //   icon: Bell,
+      // },
     ],
   }
 

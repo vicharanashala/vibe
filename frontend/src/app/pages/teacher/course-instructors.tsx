@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Users, UserX, X, Loader2, ArrowUp, ArrowDown, AlertTriangle } from 'lucide-react'
+import { Search, Users, UserX, X, Loader2, ArrowUp, ArrowDown, AlertTriangle, RefreshCw } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -113,6 +113,7 @@ export default function CourseInstructors() {
     isLoading: enrollmentsLoading,
     error: enrollmentsError,
     refetch: refetchInstructors,
+    isRefetching: isRefetchingInstructors,
   } = useCourseVersionEnrollments(
     courseId,
     versionId,
@@ -165,7 +166,7 @@ export default function CourseInstructors() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto py-4 space-y-8">
-        <CourseBackButton />
+        {/* <CourseBackButton /> */}
         <div className="flex flex-col space-y-4">
 
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -196,8 +197,17 @@ export default function CourseInstructors() {
         {/* Instructors Table */}
         <Card className="border-0 shadow-lg overflow-hidden">
           <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
+            <div className="flex items-center gap-3">
               <CardTitle className="text-xl font-medium text-card-foreground">Instructors</CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchInstructors()}
+                disabled={isRefetchingInstructors}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isRefetchingInstructors ? "animate-spin" : ""}`} />
+                {isRefetchingInstructors ? "Refreshing..." : "Refresh"}
+              </Button>
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full sm:w-auto">

@@ -250,7 +250,7 @@ export class CourseRepository implements ICourseRepository {
     cohortIds: ID[],
     options?: {
       search?: string
-      sortBy?: "name" | "createdAt" | "updatedAt"
+      sortBy?: "name" | "createdAt" | "updatedAt" | "baseHp" | "safeHp"
       sortOrder?: "asc" | "desc"
       skip?: number
       limit?: number
@@ -271,28 +271,30 @@ export class CourseRepository implements ICourseRepository {
     //   .find({ _id: { $in: objectIds } }, { session })
     //   .toArray();
     const query: any = {
-    _id: { $in: objectIds }
-  }
+      _id: { $in: objectIds }
+    }
 
-  if (search && search.trim() !== "") {
-    query.name = { $regex: search, $options: "i" }
-  }
+    if (search && search.trim() !== "") {
+      query.name = { $regex: search, $options: "i" }
+    }
 
-  const sort: any = {
-    [sortBy]: sortOrder === "asc" ? 1 : -1
-  }
+    const sort: any = {
+      [sortBy]: sortOrder === "asc" ? 1 : -1
+    }
 
-  return this.cohortsCollection
-    .find(query, { session })
-    .sort(sort)
-    .skip(skip)
-    .limit(limit)
-    .toArray()
+    return await this.cohortsCollection
+      .find(query, { session })
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .toArray();
   }
 
   async createCohorts(
+    courseId: string,
     versionId: string,
     cohorts: string[],
+    baseHp: number,
     session?: ClientSession
   ): Promise<ObjectId[]> {
 
@@ -303,13 +305,18 @@ export class CourseRepository implements ICourseRepository {
     const unique = [...new Set(cohorts.map(c => c.trim()))];
 
     const versionObjectId = new ObjectId(versionId);
+    const courseObjectId = new ObjectId(courseId);
 
     const cohortsToInsert: ICohort[] = unique.map(name => ({
+      courseId: courseObjectId,
       courseVersionId: versionObjectId,
       name,
+      baseHp:baseHp,
+      safeHp:0,
       createdAt: new Date(),
       updatedAt: new Date(),
       isPublic: false,
+      isActive: true
     }));
 
     const result = await this.cohortsCollection.insertMany(
@@ -324,16 +331,16 @@ export class CourseRepository implements ICourseRepository {
     versionId: string,
     cohortIds: ObjectId[],
     session?: ClientSession
-  ):Promise<boolean> {
+  ): Promise<boolean> {
     await this.init();
-    try{
+    try {
       await this.courseVersionCollection.updateOne(
         { _id: new ObjectId(versionId) },
         { $set: { cohorts: cohortIds } },
         { session }
       );
       return true;
-    } catch(err){
+    } catch (err) {
       throw new InternalServerError(
         'Failed to add Cohorts To Version.\n More Details: ' + err,
       );
@@ -368,6 +375,9 @@ export class CourseRepository implements ICourseRepository {
     cohortId: ObjectId,
     cohortName?: string,
     isPublic?: boolean,
+    isActive?: boolean,
+    baseHp?: number,
+    safeHp?: number,
     session?: ClientSession
   ): Promise<boolean> {
     try {
@@ -378,6 +388,15 @@ export class CourseRepository implements ICourseRepository {
       }
       if (!(isPublic === null || isPublic === undefined)) {
         updateFields.isPublic = isPublic
+      }
+      if (!(isActive === null || isActive === undefined)) {
+        updateFields.isActive = isActive
+      }
+      if (!(baseHp === null || baseHp === undefined)) {
+        updateFields.baseHp = baseHp
+      }
+      if (!(safeHp === null || safeHp === undefined)) {
+        updateFields.safeHp = safeHp
       }
       if (Object.keys(updateFields).length === 0) {
         return false
@@ -430,7 +449,7 @@ export class CourseRepository implements ICourseRepository {
     );
 
     return result.modifiedCount === 1;
-}
+  }
 
   async createVersion(
     courseVersion: CourseVersion,
@@ -754,7 +773,7 @@ export class CourseRepository implements ICourseRepository {
             itemsGroupId: new ObjectId(section.itemsGroupId),
           })),
         })),
-        cohorts: (courseVersion.cohorts||[]).map(cohort=> new ObjectId(cohort))
+        cohorts: (courseVersion.cohorts || []).map(cohort => new ObjectId(cohort))
       }
       const { _id: _, ...fields } = courseVersion;
 
@@ -792,6 +811,11 @@ export class CourseRepository implements ICourseRepository {
     }
   }
 
+  async updateTotalItemCount(versionId: string, newCount: number, session?: ClientSession) {
+    await this.init();
+    await this.courseVersionCollection.updateOne({ _id: new ObjectId(versionId) }, { $set: { totalItems: newCount } }, { session })
+  }
+
   async deleteVersion(
     courseId: string,
     versionId: string,
@@ -823,7 +847,7 @@ export class CourseRepository implements ICourseRepository {
       });
 
       if (version?.cohorts?.length > 0) {
-        const cohortDeleteResult =  await this.cohortsCollection.updateMany(
+        const cohortDeleteResult = await this.cohortsCollection.updateMany(
           { courseVersionId: new ObjectId(versionId) },
           {
             $set: {
@@ -1382,8 +1406,8 @@ export class CourseRepository implements ICourseRepository {
   async getCourseVersionStatus(versionId: string, session?: ClientSession): Promise<courseVersionStatus> {
     await this.init();
     const isExistVersion = await this.courseVersionCollection.findOne(
-      {_id: new ObjectId(versionId)},
-      {session}
+      { _id: new ObjectId(versionId) },
+      { session }
     );
     if (!isExistVersion)
       throw new NotFoundError('Course version not founded!',);
@@ -1397,10 +1421,10 @@ export class CourseRepository implements ICourseRepository {
     autoapproval_emails: string[],
     session?: ClientSession
   ): Promise<string> {
-    try{
+    try {
       await this.init();
       const result = await this.cohortSettingsCollection.insertOne(
-      {
+        {
           courseVersionId: new ObjectId(versionId),
           cohortId: new ObjectId(cohortId),
           registrationsAutoApproved,
@@ -1420,8 +1444,8 @@ export class CourseRepository implements ICourseRepository {
   async getCohortSettingById(
     id: string,
     session?: ClientSession
-  ): Promise<any>{
-    try{
+  ): Promise<any> {
+    try {
       await this.init();
       const setting = await this.cohortSettingsCollection.findOne(
         {
@@ -1446,7 +1470,7 @@ export class CourseRepository implements ICourseRepository {
     cohortId: string,
     session?: ClientSession
   ): Promise<string> {
-    try{
+    try {
       await this.init();
       const setting = await this.cohortSettingsCollection.findOne(
         {
@@ -1473,7 +1497,7 @@ export class CourseRepository implements ICourseRepository {
     autoapproval_emails: string[],
     session?: ClientSession
   ): Promise<boolean> {
-    try{
+    try {
       await this.init();
       const result = await this.cohortSettingsCollection.updateOne(
         { _id: new ObjectId(settingId) },

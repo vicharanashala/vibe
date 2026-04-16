@@ -5,6 +5,8 @@
 	"license": "MIT",
 	"author": "adityabmv",
 	"devDependencies": {
+		"@commitlint/cli": "^20.5.0",
+		"@commitlint/config-conventional": "^20.5.0",
 		"husky": "^9.1.7",
 		"lint-staged": "^15.5.0",
 		"ts-node": "^10.9.2",
@@ -18,6 +20,11 @@
 	"lint-staged": {
 		"backend/**/*.{js,jsx,ts,tsx}": [
 			"pnpm --filter backend lint"
+		]
+	},
+	"commitlint": {
+		"extends": [
+			"@commitlint/config-conventional"
 		]
 	},
 	"dependencies": {

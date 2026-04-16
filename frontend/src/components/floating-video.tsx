@@ -15,6 +15,7 @@ import { useCourseStore } from '@/store/course-store';
 import type { FloatingVideoProps } from '@/types/video.types';
 import { useReportAnomalyAudio, useReportAnomalyImage } from '@/hooks/hooks';
 import {registerStream, unRegisterStream} from "@/lib/MediaRegistry";
+import { runProctoringChecks } from "@/utils/proctoring/proctoringGuard";
 
 // let flag = 0;
 function FloatingVideo({
@@ -38,6 +39,7 @@ function FloatingVideo({
   }, []);
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cameraCheckIntervalRef = useRef<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [position, setPosition] = useState({ x: 20, y: 20 });
@@ -52,7 +54,7 @@ function FloatingVideo({
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [isVideoActive, setIsVideoActive] = useState(false);
-
+  
   // Grace period state for anomaly detection
   const [anomalyDetectionStartTime, setAnomalyDetectionStartTime] = useState<number | null>(null);
   const gracePeriod = 10000; // 10 seconds grace period
@@ -67,6 +69,7 @@ function FloatingVideo({
   const [isFocused, setIsFocused] = useState(true); 
   const [facesCount, setFacesCount] = useState(0);
   const [recognizedFaces, setRecognizedFaces] = useState<any[]>([]);
+  const [hasFaceRecognitionMismatch, setHasFaceRecognitionMismatch] = useState(false);
   const [penaltyPoints, setPenaltyPoints] = useState(0);
   const [penaltyType, setPenaltyType] = useState("");
   const [contiguousAnomalyPoints, setContiguousAnomalyPoints] = useState(0);
@@ -148,6 +151,10 @@ function FloatingVideo({
     } else {
       // console.log('❓ [FloatingVideo] No known faces recognized');
     }
+  }, []);
+
+  const handleFaceRecognitionMismatchChange = useCallback((hasMismatch: boolean) => {
+    setHasFaceRecognitionMismatch(hasMismatch);
   }, []);
 
   // Handle face recognition debug info updates
@@ -426,6 +433,16 @@ const lastCalledRef = useRef<number>(0);
           height: { ideal: 480 }
         }
       });
+      // Runtime proctoring check: prevents switching to virtual camera mid-session
+      const violations = await runProctoringChecks(stream);
+
+      if (violations.length > 0) {
+        stream.getTracks().forEach(t => t.stop());
+
+        console.error("Proctoring violation:", violations[0]);
+        return;
+      }
+
       unRegisterStream("floating-video-restart-stream")
       registerStream("floating-video-restart-stream", stream);
 
@@ -453,6 +470,50 @@ const lastCalledRef = useRef<number>(0);
       console.error('[FloatingVideo] Error restarting video:', error);
     }
   }, [videoRef, currentStream]);
+
+  useEffect(() => {
+  if (!currentStream || !readyToDetect || !isVideoActive) return;
+
+  /**
+   * Periodic Proctoring Validation
+   *
+   * Why:
+   * - Detect camera switching after session start
+   * - Detect delayed spoofing attempts
+   * - Ensure continuous integrity of camera stream
+   */
+  cameraCheckIntervalRef.current = window.setInterval(async () => {
+
+    const violations = await runProctoringChecks(currentStream);
+
+    if (violations.length > 0) {
+      console.error("Camera integrity violation detected:", violations[0]);
+
+      // Stop stream immediately
+      currentStream.getTracks().forEach(track => track.stop());
+
+      // Reset stream
+      setCurrentStream(null);
+
+      // Trigger existing proctoring flow
+      setPauseVid(true);
+      setRewindVid(true);
+
+      // Log anomaly (optional but recommended)
+      setAnomalies([...anomalies, "cameraIntegrity"]);
+    }
+
+  }, 5000); // every 5 seconds
+
+  return () => {
+    if (cameraCheckIntervalRef.current) {
+      clearInterval(cameraCheckIntervalRef.current);
+      cameraCheckIntervalRef.current = null;
+    }
+  };
+
+}, [currentStream, readyToDetect, isVideoActive]);
+
 
   // Update face count when faces change
   useEffect(() => {
@@ -571,6 +632,14 @@ const lastCalledRef = useRef<number>(0);
         newPenaltyPoints += 1;
       }
 
+      // Condition 5: Registered face does not match current camera frame
+      if (hasFaceRecognitionMismatch && isFaceRecognitionEnabled) {
+        setPauseVid(true);
+        setAnomalies([...anomalies, "faceRecognition"]);
+        newPenaltyType = "Face Recognition";
+        newPenaltyPoints += 2;
+      }
+
       // // Condition 1: If speaking is detected (only if voice detection is enabled)
       // if (isSpeaking === "Yes" && isVoiceDetectionEnabled) {
       //   // setRewindVid(true);
@@ -650,6 +719,8 @@ const lastCalledRef = useRef<number>(0);
     isFaceCountDetectionEnabled,
     isBlurDetectionEnabled,
     isFocusEnabled,
+    isFaceRecognitionEnabled,
+    hasFaceRecognitionMismatch,
     // data,
     // error,
     rewindVid,
@@ -746,7 +817,28 @@ const lastCalledRef = useRef<number>(0);
                               (facesCount !== 1 && isFaceCountDetectionEnabled) || 
                               (isBlur === "Yes" && isBlurDetectionEnabled) || 
                               (!isFocused && isFocusEnabled) ||
+                              (hasFaceRecognitionMismatch && isFaceRecognitionEnabled) ||
                               (isThumbsUpChallenge && isHandGestureDetectionEnabled);
+
+  useEffect(() => {
+    console.log('[FaceRecognitionDebug] floating-video state', {
+      hasFaceRecognitionMismatch,
+      isFaceRecognitionEnabled,
+      isAnomaliesDetected,
+      recognizedFaces,
+      readyToDetect,
+      modelReady,
+      isVideoActive,
+    });
+  }, [
+    hasFaceRecognitionMismatch,
+    isFaceRecognitionEnabled,
+    isAnomaliesDetected,
+    recognizedFaces,
+    readyToDetect,
+    modelReady,
+    isVideoActive,
+  ]);
 
 
   // Smart overlay positioning based on face detection
@@ -1005,7 +1097,7 @@ const lastCalledRef = useRef<number>(0);
       ref={containerRef}
       className={`z-[999999] bg-black rounded-lg shadow-lg  overflow-hidden select-none transition-all duration-300 ${isPoppedOut
         ? 'fixed'
-        : 'relative'
+        : 'relative max-w-[200px]'
         }`}
       style={isPoppedOut ? {
         left: `${position.x}px`,
@@ -1322,6 +1414,7 @@ const lastCalledRef = useRef<number>(0);
                 Score: {penaltyPoints}
               </div>
             )}
+
           </>
         )}
       </div>
@@ -1356,6 +1449,7 @@ const lastCalledRef = useRef<number>(0);
             setIsFocused={()=>{}}
             videoRef={videoRef}
             onRecognitionResult={handleFaceRecognitionResult}
+            onMismatchChange={handleFaceRecognitionMismatchChange}
             settings={{
               isFaceCountDetectionEnabled,
               isFaceRecognitionEnabled, 

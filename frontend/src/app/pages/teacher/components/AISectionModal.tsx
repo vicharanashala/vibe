@@ -170,6 +170,30 @@ export default function AISectionModal({ open, onOpenChange, onSectionUploaded }
           break;
         case "question":
           taskType = "QUESTION_GENERATION";
+          try {
+            // Fix for "No file URL found": Persist segmentation map and provide transcript fallback
+            const jobData = (await aiSectionAPI.getJobStatus(aiJobId)) as any;
+            const lastSeg = jobData.segmentation?.[jobData.segmentation?.length - 1];
+            const segMap = lastSeg?.segmentationMap;
+            if (segMap) {
+              await aiSectionAPI.editSegmentMap!(aiJobId, segMap);
+            }
+            const lastTranscript = jobData.transcriptGeneration?.[jobData.transcriptGeneration?.length - 1];
+            const transcriptUrl = lastTranscript?.fileUrl;
+
+            // Standardize parameters with fallback to NAT: 10 if all are zero
+            params = {
+              SOL: 0,
+              SML: 0,
+              NAT: 10, // Default to 10 NAT questions in this simple modal
+              DES: 0,
+              BIN: 0,
+              prompt: "Focus on conceptual understanding...", // Standard default prompt
+              transcriptFileUrl: transcriptUrl,
+            };
+          } catch (e) {
+            console.error("Failed to prepare question generation params:", e);
+          }
           break;
         case "upload":
           taskType = "UPLOAD_TO_COURSE";
@@ -179,7 +203,7 @@ export default function AISectionModal({ open, onOpenChange, onSectionUploaded }
       }
       
       // Post the task to the job
-      await aiSectionAPI.postJobTask(aiJobId, taskType, params);
+      await aiSectionAPI.postJobTask!(aiJobId, taskType, params);
 
       // Poll for completion
       const finalStatus = await aiSectionAPI.pollForTaskCompletion(
@@ -222,6 +246,35 @@ export default function AISectionModal({ open, onOpenChange, onSectionUploaded }
         }, 1500);
       }
     } catch (error) {
+      if (task === "upload") {
+        console.warn("Upload content might have deadlocked but succeeded. Verifying status...");
+        try {
+          // Wait longer (5s) for the DB to settle
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          const status = await aiSectionAPI.getJobStatus(aiJobId!) as any;
+          const uploadStatus = status.jobStatus?.uploadContent;
+          const hasResults = Array.isArray(status.uploadContent) && status.uploadContent.length > 0;
+
+          if (uploadStatus === "COMPLETED" || hasResults) {
+            setTaskRuns(prev => ({
+              ...prev,
+              [task]: prev[task].map(run =>
+                run.id === runId ? { ...run, status: "done", result: status } : run
+              ),
+            }));
+            toast.success("Section verified as uploaded successfully!");
+            if (onSectionUploaded) onSectionUploaded();
+            setTimeout(() => {
+              resetModal();
+              onOpenChange(false);
+            }, 1500);
+            return;
+          }
+        } catch (innerError) {
+          console.error("Failed to verify status after upload error:", innerError);
+        }
+      }
+
       setTaskRuns(prev => ({
         ...prev,
         [task]: prev[task].map(run => 
@@ -328,7 +381,7 @@ export default function AISectionModal({ open, onOpenChange, onSectionUploaded }
                     )}
                     {run.status === "failed" && (
                       <div className="text-sm text-red-500">
-                        This run failed. Try running the task again.
+                        {run.result?.error || "This run failed. Try running the task again."}
                       </div>
                     )}
                   </div>

@@ -45,6 +45,7 @@ export class WebhookService {
    */
   async approveTaskStart(jobId: string, jobState: JobState): Promise<any> {
     const response = await this.httpClient.post(`/jobs/${jobId}/tasks/approve/start`, jobState);
+    console.log('approveTaskStart response:', response.data);
     return response.data;
   }
 

@@ -1,4 +1,4 @@
-import {  router, studentCourseInviteRegistration } from '@/app/routes/router';
+import { router, studentCourseInviteRegistration } from '@/app/routes/router';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import Form from "@rjsf/shadcn";
 import { useGetCourseRegistration, useGetDynamicFields, useSubmitCourseRegistration } from '@/hooks/hooks';
-import { useParams } from '@tanstack/react-router';
 import React, { useEffect, useRef, useState } from 'react';
 import ReCAPTCHA from "react-google-recaptcha";
 import { toast } from 'sonner';
@@ -145,6 +144,8 @@ const CourseRegistration: React.FC = () => {
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
   const [submitErrors, setSubmitErrors] = useState<string[]>([]);
+  const [registrationStatus, setRegistrationStatus] = useState<'IDLE' | 'APPROVED' | 'PENDING'>('IDLE');
+  const isMountedRef = useRef(true);
 
   const isRecaptchaEnabled: boolean = import.meta.env.VITE_IS_RECAPTCHA_ENABLED === "true";
   // const [showModules, setShowModules] = useState(false);
@@ -161,8 +162,35 @@ const CourseRegistration: React.FC = () => {
     return d.toLocaleDateString();
   };
 
+  const getStatusValue = (value: any): string => {
+    const rawStatus =
+      value?.status ??
+      value?.approvalStatus ??
+      value?.registrationStatus ??
+      value?.data?.status ??
+      value?.data?.approvalStatus ??
+      value?.data?.registrationStatus;
+
+    return typeof rawStatus === 'string' ? rawStatus.toUpperCase() : '';
+  };
+
+  const getRegistrationsFromResult = (result: any): any[] => {
+    const candidate = result?.data ?? result;
+
+    if (Array.isArray(candidate)) return candidate;
+    if (Array.isArray(candidate?.registrations)) return candidate.registrations;
+    if (Array.isArray(candidate?.data?.registrations)) return candidate.data.registrations;
+    if (Array.isArray(candidate?.courseRegistrations)) return candidate.courseRegistrations;
+    if (Array.isArray(candidate?.records)) return candidate.records;
+
+    return [];
+  };
+
+
   const onSubmit = async (data: IChangeEvent<any>) => {
     try {
+      // Capture the email from the submitted form before it's cleared
+      const submittedEmail = data.formData?.Email || data.formData?.email || user?.email;
 
       let body: any = { ...data.formData, recaptchaToken: isRecaptchaEnabled ? recaptchaToken : "NO_CAPTCHA" };
       if (cohort) {
@@ -188,7 +216,11 @@ const CourseRegistration: React.FC = () => {
         body = formDataObj;
       }
 
-      await submitRegistration({
+      // Show "Checking registration status…" immediately while the API call is in progress
+      setIsRegistering(false);
+      setIsRegistered(true);
+
+      const response = await submitRegistration({
         params: {
           path: {
             versionId: versionId || '',
@@ -197,15 +229,26 @@ const CourseRegistration: React.FC = () => {
         body,
       });
 
-
-      setIsRegistering(false);
-      setIsRegistered(true)
       setFormData(buildEmptyFormData(jsonSchema!));
 
+      const submissionStatus = getStatusValue(response);
+
+      if (submissionStatus === 'APPROVED') {
+        setRegistrationStatus('APPROVED');
+        toast.success('You have been successfully registered! Redirecting to dashboard…');
+        setTimeout(() => {
+          router.navigate({ to: '/student' });
+        }, 2000);
+      } else {
+        setRegistrationStatus('PENDING');
+      }
+
     } catch (err: any) {
+      // Reset to form on error so the student can retry
+      setIsRegistered(false);
+      setRegistrationStatus('IDLE');
       toast.error(err?.message || 'Something went wrong, please try again.');
-      if(err?.message.includes("You are already enrolled")){
-        console.log("err?.message----",err?.message);
+      if(err?.message?.includes("You are already enrolled")){
         setTimeout(() => {
           router.navigate({ to: '/student' });
         }, 1000);
@@ -251,11 +294,11 @@ const CourseRegistration: React.FC = () => {
 
   const emptyData = buildEmptyFormData(jsonSchema);
 
-  setFormData(prev => ({
+  setFormData({
     ...emptyData,
     Name: user?.name ?? "emptyData.Name",
     Email: user?.email ?? "emptyData.Email",
-  }));
+  });
 }, [jsonSchema, user]);
 
 
@@ -277,11 +320,10 @@ const computedUiSchema = React.useMemo(() => {
 }, [uiSchema]);
 
 
-  useEffect(() => { setIsRegistered(false) }, [])
-
-
-
-
+  useEffect(() => { 
+  setIsRegistered(false);
+  setRegistrationStatus('IDLE');
+}, []);
 
 
   if (isLoadingVersionData) {
@@ -305,6 +347,62 @@ const computedUiSchema = React.useMemo(() => {
 
   return (
     <main className="mx-auto max-w-5xl space-y-8 my-8">
+      {isRegistered && (
+        <Card className="w-full max-w-3xl mx-auto border border-green-300 dark:border-green-700 rounded-xl shadow-sm animate-in fade-in zoom-in-95 duration-500">
+          <CardHeader className="text-center space-y-2 pb-2">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
+              <GraduationCap className="h-7 w-7 text-green-600 dark:text-green-400" />
+            </div>
+            {registrationStatus === 'IDLE' && (
+              <>
+                <CardTitle className="text-2xl font-bold text-green-700 dark:text-green-400">
+                  Checking registration status...
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Please wait while we check your registration status.
+                </CardDescription>
+              </>
+            )}
+            {registrationStatus === 'APPROVED' && (
+              <>
+                <CardTitle className="text-2xl font-bold text-green-700 dark:text-green-400">
+                  Successfully Registered 🎉
+                </CardTitle>
+                <CardDescription className="text-base">
+                  You are successfully registered to the course.
+                </CardDescription>
+              </>
+            )}
+            {registrationStatus === 'PENDING' && (
+              <>
+                <CardTitle className="text-2xl font-bold text-green-700 dark:text-green-400">
+                  Waiting for instructor approval
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Your enrollment request has been submitted.<br />
+                  Waiting for instructor approval. Login later to check your registration status.
+                </CardDescription>
+              </>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-1 text-center py-3">
+            {registrationStatus === 'APPROVED' && (
+              <div className="flex flex-col items-center justify-center gap-1 pt-2">
+                <Button
+                  onClick={() => window.location.href = "/student"}
+                  className="flex items-center gap-2 px-6 py-4 text-base"
+                >
+                  <BookOpen className="w-5 h-5" />
+                  GO TO DASHBOARD
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {!isRegistered && (
+        <>
       <header className="space-y-1">
         <div className="flex items-center gap-3 mb-2">
           <div className="relative">
@@ -539,7 +637,7 @@ const computedUiSchema = React.useMemo(() => {
                             </ul>
                           </div>
                         )}
-                        {formFieldData && (formFieldData as any).isActive === false && (
+                        {(formFieldData && (formFieldData as any).isActive === false) || (versionData && (versionData as any).cohorts?.find((c: any) => c.cohortId === cohort)?.isActive === false) && (
                           <div className="w-full rounded-md border border-amber-200 bg-amber-50 p-4 mb-4">
                             <div className="flex gap-3">
                               <div className="text-amber-600">
@@ -558,7 +656,7 @@ const computedUiSchema = React.useMemo(() => {
                         )}
                         <Button
                           type="submit"
-                          disabled={isSubmitting || (!recaptchaToken && isRecaptchaEnabled) || (formFieldData as any)?.isActive === false}
+                          disabled={isSubmitting || (!recaptchaToken && isRecaptchaEnabled) ||((formFieldData as any)?.isActive === false) || (versionData && (versionData as any).cohorts?.find((c: any) => c.cohortId === cohort)?.isActive === false)}
                         >
                           {isSubmitting ? (
                             <>
@@ -579,42 +677,7 @@ const computedUiSchema = React.useMemo(() => {
                 )}
               </CardContent>
             </Card>
-          ) : (
-            <>
-
-              <Card className="w-full max-w-3xl mx-auto border border-green-300 dark:border-green-700 rounded-xl shadow-sm animate-in fade-in zoom-in-95 duration-500">
-                <CardHeader className="text-center space-y-2 pb-2">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
-                    <GraduationCap className="h-7 w-7 text-green-600 dark:text-green-400" />
-                  </div>
-
-                  <CardTitle className="text-2xl font-bold text-green-700 dark:text-green-400">
-                     Registration Request Submitted 🎉
-                  </CardTitle>
-
-                  <CardDescription className="text-base">
-                      Your enrollment request has been successfully submitted.
-                  </CardDescription>
-
-                   <p className="text-sm text-muted-foreground max-w-md mx-auto text-center">
-                      Our team will review your request and notify you once it is approved.
-                    </p>
-                </CardHeader>
-
-                <CardContent className="space-y-1 text-center py-3">
-                  <div className="flex flex-col items-center justify-center gap-1 pt-2">
-                   <Button
-                      onClick={() => window.location.href = "/student"}
-                      className="flex items-center gap-2 px-6 py-4 text-base"
-                      >
-                      <BookOpen className="w-5 h-5" />
-                      Go to Dashboard
-                    </Button>
-                  </div>
-                </CardContent>
-
-              </Card>
-            </>)}
+          ) : null}
         </section>
       </section>
 
@@ -772,6 +835,8 @@ const computedUiSchema = React.useMemo(() => {
           );
         })()}
       </section>
+        </>
+      )}
     </main>
   );
 };
