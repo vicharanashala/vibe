@@ -2226,15 +2226,16 @@ class ProgressService extends BaseService {
      * Allow stopping if:
      * - current item matches progress.currentItem
      * OR
-     * - previous item in sequence is already completed
+     * - previous item in sequence is already completed (only when linear progression is enabled)
      *
      * This prevents frontend/backend desync from blocking users after refresh.
      *
      * Skip strict validation for:
      * - QUIZ reattempt flows
      * - skipped items
+     * - linear progression disabled (only current item completion is considered)
      */
-    if (item.type !== 'QUIZ' && !isSkipped) {
+    if (linearProgressionEnabled && item.type !== 'QUIZ' && !isSkipped) {
       await this.validateProgressPositionOrPreviousCompleted(
         progress,
         courseVersion,
