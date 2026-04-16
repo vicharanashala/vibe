@@ -412,7 +412,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
       const executeStop = async () => {
         stopInFlightRef.current = true;
         try {
-          if (watchItemId) {
+          if (watchItemId && (isExpired || (!isAlreadyWatched && !(currentCourse!.itemId && completedItemIdsRef.current.has(currentCourse!.itemId)) && !isCompleted))) {
             try {
               await stopItem.mutateAsync({
                 params: {
