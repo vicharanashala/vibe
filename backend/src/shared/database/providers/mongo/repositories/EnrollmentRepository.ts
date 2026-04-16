@@ -1591,7 +1591,11 @@ export class EnrollmentRepository {
           userId: { $in: [userId, userIdObj] },
           courseId: { $in: [courseId, courseIdObj] },
           courseVersionId: { $in: [courseVersionId, versionIdObj] },
+<<<<<<< Updated upstream
           ...(cohortIdObj ? { cohortId: cohortIdObj } : {cohortId: { $exists: false }}),
+=======
+          ...(cohortIdObj ? { cohortId: cohortIdObj } : {}),
+>>>>>>> Stashed changes
           role: 'STUDENT',
         },
       },
@@ -1651,7 +1655,7 @@ export class EnrollmentRepository {
       {
         $lookup: {
           from: 'watchTime',
-          let: { uid: '$userId' },
+          let: { uid: '$userId', enrollCohortId: '$cohortId' },
           pipeline: [
             {
               $match: {
@@ -4079,4 +4083,1167 @@ export class EnrollmentRepository {
     // console.log("---enrollment------", enrollment);
     return !!enrollment;
   }
+<<<<<<< Updated upstream
+=======
+  async moveEnrollmentsToCohort(
+    enrollmentIds: string[],
+    courseId: string,
+    versionId: string,
+    targetCohortId: string,
+    session?: ClientSession,
+  ): Promise<{ modifiedCount: number }> {
+    const objectIds = enrollmentIds.map(id => new ObjectId(id));
+    const courseObjectId = new ObjectId(courseId);
+    const versionObjectId = new ObjectId(versionId);
+    const cohortObjectId = new ObjectId(targetCohortId);
+
+    // 1. Get userIds of selected enrollments
+    const userIds = await this.enrollmentCollection.distinct(
+      'userId',
+      { _id: { $in: objectIds } },
+      { session },
+    );
+
+    // 2. Check if already in target cohort
+    const duplicateUserIds = await this.enrollmentCollection.distinct(
+      'userId',
+      {
+        userId: { $in: userIds },
+        courseId: courseObjectId,
+        courseVersionId: versionObjectId,
+        cohortId: cohortObjectId,
+        isDeleted: { $ne: true },
+      },
+      { session },
+    );
+
+    if (duplicateUserIds.length > 0) {
+      throw new BadRequestError(
+        'Some students are already enrolled in the target cohort',
+      );
+    }
+
+    // 3. Update (no null restriction)
+    const result = await this.enrollmentCollection.updateMany(
+      {
+        _id: { $in: objectIds },
+        courseId: courseObjectId,
+        courseVersionId: versionObjectId,
+        isDeleted: { $ne: true },
+      },
+      {
+        $set: { cohortId: cohortObjectId },
+      },
+      { session },
+    );
+
+    return {
+      modifiedCount: result.modifiedCount ?? 0,
+    };
+  }
+  async moveRelatedDocumentsToCohort(
+    enrollmentIds: string[],
+    courseId: string,
+    versionId: string,
+    targetCohortId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    const objectIds = enrollmentIds.map(id => new ObjectId(id));
+    const courseObjectId = new ObjectId(courseId);
+    const versionObjectId = new ObjectId(versionId);
+    const cohortObjectId = new ObjectId(targetCohortId);
+
+    // 1. Get userIds
+    const userIds = await this.enrollmentCollection.distinct(
+      'userId',
+      { _id: { $in: objectIds } },
+      { session },
+    );
+
+    if (!userIds.length) return;
+
+    const quizIds: ObjectId[] = [];
+    const courseVersion = await this.courseVersionCollection.findOne(
+      { _id: versionObjectId },
+      { session },
+    );
+
+    for (const module of courseVersion.modules) {
+      for (const section of module.sections) {
+        const itemsGroup = await this.itemsGroupCollection.findOne({
+          _id: section.itemsGroupId,
+        });
+
+        for (const item of itemsGroup.items) {
+          if (item.type === 'QUIZ') {
+            quizIds.push(new ObjectId(item._id));
+          }
+        }
+      }
+    }
+
+    // 2. Update related collections
+    await Promise.all([
+      this.progressCollection.updateMany(
+        {
+          userId: { $in: userIds },
+          courseId: courseObjectId,
+          courseVersionId: versionObjectId,
+          isDeleted: { $ne: true },
+          cohortId: null,
+        },
+        { $set: { cohortId: cohortObjectId } },
+        { session },
+      ),
+
+      this.watchTimeCollection.updateMany(
+        {
+          userId: { $in: userIds },
+          courseId: courseObjectId,
+          courseVersionId: versionObjectId,
+          isDeleted: { $ne: true },
+          cohortId: null,
+        },
+        { $set: { cohortId: cohortObjectId } },
+        { session },
+      ),
+
+      this.feedbackCollection.updateMany(
+        {
+          userId: { $in: userIds },
+          courseId: courseObjectId,
+          courseVersionId: versionObjectId,
+          isDeleted: { $ne: true },
+          cohortId: null,
+        },
+        { $set: { cohortId: cohortObjectId } },
+        { session },
+      ),
+
+      this.projectSubmissionCollection.updateMany(
+        {
+          userId: { $in: userIds },
+          courseId: courseObjectId,
+          courseVersionId: versionObjectId,
+          isDeleted: { $ne: true },
+          cohortId: null,
+        },
+        { $set: { cohortId: cohortObjectId } },
+        { session },
+      ),
+
+      this.reportCollection.updateMany(
+        {
+          reportedBy: { $in: userIds },
+          courseId: courseObjectId,
+          versionId: versionObjectId,
+          isDeleted: { $ne: true },
+          cohortId: null,
+        },
+        { $set: { cohortId: cohortObjectId } },
+        { session },
+      ),
+
+      this.userActivityEventCollection.updateMany(
+        {
+          userId: { $in: userIds },
+          courseId: courseObjectId,
+          courseVersionId: versionObjectId,
+          isDeleted: { $ne: true },
+          cohortId: null,
+        },
+        { $set: { cohortId: cohortObjectId } },
+        { session },
+      ),
+
+      this.submissionCollection.updateMany(
+        {
+          userId: { $in: userIds },
+          quizId: { $in: quizIds },
+          isDeleted: { $ne: true },
+          cohortId: null,
+        },
+        { $set: { cohortId: cohortObjectId } },
+        { session },
+      ),
+
+      this.userQuizMetricsCollection.updateMany(
+        {
+          userId: { $in: userIds },
+          quizId: { $in: quizIds },
+          isDeleted: { $ne: true },
+          cohortId: null,
+        },
+        { $set: { cohortId: cohortObjectId } },
+        { session },
+      ),
+
+      this.attemptCollection.updateMany(
+        {
+          userId: { $in: userIds },
+          quizId: { $in: quizIds },
+          isDeleted: { $ne: true },
+          cohortId: null,
+        },
+        { $set: { cohortId: cohortObjectId } },
+        { session },
+      ),
+    ]);
+  }
+
+  async ejectEnrollment(
+    enrollmentId: string,
+    reason: string,
+    ejectedBy: string,
+    policyId?: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment | null> {
+    await this.init();
+
+    const historyEntry: any = {
+      ejectedAt: new Date(),
+      ejectionReason: reason,
+      // ejectedBy: new ObjectId(ejectedBy),
+      ejectedBy: ObjectId.isValid(ejectedBy)
+        ? new ObjectId(ejectedBy)
+        : ejectedBy,
+      ...(policyId ? { policyId: new ObjectId(policyId) } : {}),
+    };
+    const existing = await this.enrollmentCollection.findOne(
+      { _id: new ObjectId(enrollmentId) },
+      { session },
+    );
+
+    const result = await this.enrollmentCollection.findOneAndUpdate(
+      {
+        _id: new ObjectId(enrollmentId),
+        isDeleted: { $ne: true }, // must not be deleted
+        isEjected: { $ne: true }, // must not already be ejected
+      },
+      {
+        $set: {
+          status: 'INACTIVE' as EnrollmentStatus,
+          isEjected: true,
+          updatedAt: new Date(),
+          // DO NOT set isDeleted — ejection is reversible
+        },
+        $push: { ejectionHistory: historyEntry },
+      },
+      { returnDocument: 'after', session },
+    );
+
+    return result;
+  }
+  async findActiveStudentEnrollment(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment | null> {
+    await this.init();
+
+    return await this.enrollmentCollection.findOne(
+      {
+        userId: { $in: [new ObjectId(userId), userId] },
+        courseId: { $in: [new ObjectId(courseId), courseId] },
+        courseVersionId: {
+          $in: [new ObjectId(courseVersionId), courseVersionId],
+        },
+        role: 'STUDENT', //addition
+        status: 'ACTIVE',
+        isDeleted: { $ne: true },
+        isEjected: { $ne: true },
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+      },
+      { session },
+    );
+  }
+
+  async getStudentsForEjectionPage(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+    page: number,
+    limit: number,
+    search: string = '',
+    statusFilter: 'all' | 'active' | 'ejected' = 'all',
+    session?: ClientSession,
+  ): Promise<{
+    students: any[];
+    totalDocuments: number;
+  }> {
+    await this.init();
+
+    const skip = (page - 1) * limit;
+
+    const matchStage: any = {
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      cohortId: new ObjectId(cohortId),
+      isDeleted: { $ne: true },
+      role: 'STUDENT',
+    };
+
+    if (statusFilter === 'active') {
+      matchStage.isEjected = { $ne: true };
+    } else if (statusFilter === 'ejected') {
+      matchStage.isEjected = true;
+    }
+
+    const pipeline: any[] = [
+      { $match: matchStage },
+
+      // Join user details
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+
+      // Join last active date from watchTime
+      {
+        $lookup: {
+          from: 'watchTime',
+          let: {
+            uid: '$userId',
+            cid: '$courseId',
+            vid: '$courseVersionId',
+            coId: '$cohortId',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$userId', '$$uid'] },
+                    { $eq: ['$courseId', '$$cid'] },
+                    { $eq: ['$courseVersionId', '$$vid'] },
+                    { $eq: ['$cohortId', '$$coId'] },
+                    { $ne: ['$isDeleted', true] },
+                  ],
+                },
+              },
+            },
+            { $sort: { startTime: -1 } },
+            { $limit: 1 },
+            { $project: { startTime: 1 } },
+          ],
+          as: 'lastActivity',
+        },
+      },
+
+      // Join users for ejection history actors
+      {
+        $lookup: {
+          from: 'users',
+          let: {
+            ejectedByIds: {
+              $map: {
+                input: { $ifNull: ['$ejectionHistory', []] },
+                as: 'h',
+                in: '$$h.ejectedBy',
+              },
+            },
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $in: ['$_id', '$$ejectedByIds'] },
+              },
+            },
+            {
+              $project: { firstName: 1, lastName: 1 },
+            },
+          ],
+          as: 'ejectionActors',
+        },
+      },
+
+      // Attach ejectedByName to each history entry when possible
+      {
+        $addFields: {
+          ejectionHistory: {
+            $map: {
+              input: { $ifNull: ['$ejectionHistory', []] },
+              as: 'h',
+              in: {
+                $mergeObjects: [
+                  '$$h',
+                  {
+                    ejectedByName: {
+                      $let: {
+                        vars: {
+                          actor: {
+                            $arrayElemAt: [
+                              {
+                                $filter: {
+                                  input: '$ejectionActors',
+                                  as: 'a',
+                                  cond: { $eq: ['$$a._id', '$$h.ejectedBy'] },
+                                },
+                              },
+                              0,
+                            ],
+                          },
+                        },
+                        in: {
+                          $cond: [
+                            { $ifNull: ['$$actor', false] },
+                            {
+                              $trim: {
+                                input: {
+                                  $concat: [
+                                    '$$actor.firstName',
+                                    ' ',
+                                    '$$actor.lastName',
+                                  ],
+                                },
+                              },
+                            },
+                            '$$h.ejectedBy',
+                          ],
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+
+      // Search filter
+      ...(search
+        ? [
+          {
+            $match: {
+              $or: [
+                { 'user.firstName': { $regex: search, $options: 'i' } },
+                { 'user.lastName': { $regex: search, $options: 'i' } },
+                { 'user.email': { $regex: search, $options: 'i' } },
+              ],
+            },
+          },
+        ]
+        : []),
+
+      // Project only what the ejection page needs
+      {
+        $project: {
+          _id: 1,
+          userId: 1,
+          status: 1,
+          isEjected: 1,
+          ejectionHistory: 1,
+          enrollmentDate: 1,
+          percentCompleted: 1,
+          cohortId: 1,
+          'user._id': 1,
+          'user.firstName': 1,
+          'user.lastName': 1,
+          'user.email': 1,
+          lastActiveAt: {
+            $arrayElemAt: ['$lastActivity.startTime', 0],
+          },
+        },
+      },
+
+      { $sort: { enrollmentDate: -1 } },
+    ];
+
+    const [data, countResult] = await Promise.all([
+      this.enrollmentCollection
+        .aggregate([...pipeline, { $skip: skip }, { $limit: limit }])
+        .toArray(),
+      this.enrollmentCollection
+        .aggregate([...pipeline, { $count: 'total' }])
+        .toArray(),
+    ]);
+
+    return {
+      students: data,
+      totalDocuments: countResult[0]?.total ?? 0,
+    };
+  }
+
+  async partialReinstateEnrollment(
+    enrollmentId: string,
+    reinstatedBy: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment | null> {
+    await this.init();
+
+    const existing = await this.enrollmentCollection.findOne(
+      { _id: new ObjectId(enrollmentId) },
+      { session },
+    );
+
+    if (!existing) throw new NotFoundError('Enrollment not found');
+    if (!existing.isEjected)
+      throw new BadRequestError('This learner is not currently ejected');
+
+    return this.enrollmentCollection.findOneAndUpdate(
+      {
+        _id: new ObjectId(enrollmentId),
+        isEjected: true,
+        isDeleted: { $ne: true },
+      },
+      {
+        $set: {
+          // isEjected lifted so appeal/ejection checks pass
+          isEjected: false,
+          // status stays INACTIVE — course hidden until acknowledged
+          status: 'INACTIVE' as EnrollmentStatus,
+          policyReacknowledgementRequired: true,
+          updatedAt: new Date(),
+          'ejectionHistory.$[last].reinstatedAt': new Date(),
+          'ejectionHistory.$[last].reinstatedBy': new ObjectId(reinstatedBy),
+        },
+      },
+      {
+        returnDocument: 'after',
+        arrayFilters: [{ 'last.reinstatedAt': { $exists: false } }],
+        session,
+      },
+    );
+  }
+
+  async reinstateEnrollment(
+    enrollmentId: string,
+    reinstatedBy: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment | null> {
+    await this.init();
+
+    const existing = await this.enrollmentCollection.findOne(
+      { _id: new ObjectId(enrollmentId) },
+      { session },
+    );
+
+    if (!existing) {
+      throw new NotFoundError('Enrollment not found');
+    }
+
+    if (!existing.isEjected) {
+      throw new BadRequestError('This learner is not currently ejected');
+    }
+
+    // Add reinstatedAt + reinstatedBy to the last ejection history entry
+    // that doesn't already have a reinstatedAt
+    const result = await this.enrollmentCollection.findOneAndUpdate(
+      {
+        _id: new ObjectId(enrollmentId),
+        isEjected: true,
+        isDeleted: { $ne: true },
+      },
+      {
+        $set: {
+          status: 'ACTIVE' as EnrollmentStatus,
+          isEjected: false,
+          enrollmentDate: new Date(),
+          updatedAt: new Date(),
+          // Update the last history entry that hasn't been reinstated yet
+          'ejectionHistory.$[last].reinstatedAt': new Date(),
+          'ejectionHistory.$[last].reinstatedBy': new ObjectId(reinstatedBy),
+        },
+      },
+      {
+        returnDocument: 'after',
+        arrayFilters: [{ 'last.reinstatedAt': { $exists: false } }],
+        session,
+      },
+    );
+
+    return result;
+  }
+
+  async findEjectedEnrollment(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment | null> {
+    await this.init();
+
+    return await this.enrollmentCollection.findOne(
+      {
+        userId: { $in: [new ObjectId(userId), userId] },
+        courseId: { $in: [new ObjectId(courseId), courseId] },
+        courseVersionId: {
+          $in: [new ObjectId(courseVersionId), courseVersionId],
+        },
+        role: 'STUDENT',
+        isEjected: true,
+        isDeleted: { $ne: true },
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+      },
+      { session },
+    );
+  }
+  async findActiveEnrollmentsByCohort(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+  ): Promise<IEnrollment[]> {
+    await this.init();
+    return this.enrollmentCollection
+      .find({
+        courseId: { $in: [courseId, new ObjectId(courseId)] },
+        courseVersionId: {
+          $in: [courseVersionId, new ObjectId(courseVersionId)],
+        },
+        cohortId: new ObjectId(cohortId),
+        role: 'STUDENT',
+        status: 'ACTIVE',
+        isDeleted: { $ne: true },
+        isEjected: { $ne: true },
+      })
+      .toArray();
+  }
+  async getCohortStaff(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+  ) {
+    await this.init();
+
+    return this.enrollmentCollection
+      .find({
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        cohortId: new ObjectId(cohortId),
+
+        role: { $in: ['INSTRUCTOR', 'MANAGER'] },
+        status: 'ACTIVE',
+        isDeleted: { $ne: true },
+      })
+      .project({ userId: 1, _id: 0 })
+      .toArray();
+  }
+  async getGlobalEjectionHistory(
+    courseId: string,
+    courseVersionId: string,
+    params: {
+      triggerType?: string;
+      startDate?: Date;
+      endDate?: Date;
+      search?: string;
+      page?: number;
+      limit?: number;
+      cohortId?: string;
+      timezoneOffset?: number;
+    },
+    session?: ClientSession,
+  ): Promise<{ history: any[]; totalDocuments: number }> {
+    await this.init();
+
+    const {
+      triggerType,
+      startDate,
+      endDate,
+      search,
+      page = 1,
+      limit = 10,
+      cohortId,
+      timezoneOffset,
+    } = params;
+    const skip = (page - 1) * limit;
+
+    const pipeline: any[] = [
+      {
+        $match: {
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+          role: 'STUDENT',
+          ejectionHistory: { $exists: true, $not: { $size: 0 } },
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        },
+      },
+      {
+        $project: {
+          enrollmentId: '$_id',
+          userId: 1,
+          cohortId: 1,
+          events: {
+            $concatArrays: [
+              {
+                $map: {
+                  input: '$ejectionHistory',
+                  as: 'h',
+                  in: {
+                    type: 'EJECTED',
+                    date: '$$h.ejectedAt',
+                    ejectionReason: '$$h.ejectionReason',
+                    adminId: '$$h.ejectedBy',
+                    policyId: '$$h.policyId',
+                    triggerType: {
+                      $cond: [
+                        { $ifNull: ['$$h.policyId', false] },
+                        'POLICY',
+                        'MANUAL',
+                      ],
+                    },
+                  },
+                },
+              },
+              {
+                $reduce: {
+                  input: '$ejectionHistory',
+                  initialValue: [],
+                  in: {
+                    $concatArrays: [
+                      '$$value',
+                      {
+                        $cond: [
+                          { $ifNull: ['$$this.reinstatedAt', false] },
+                          [
+                            {
+                              type: 'REINSTATED',
+                              date: '$$this.reinstatedAt',
+                              adminId: '$$this.reinstatedBy',
+                              ejectionReason: {
+                                $cond: [
+                                  { $eq: ['$$this.triggerType', 'APPEAL'] },
+                                  'Reinstated from appeal',
+                                  'Reinstated by admin',
+                                ],
+                              },
+                              policyId: '$$this.policyId',
+                              triggerType: {
+                                $cond: [
+                                  { $ifNull: ['$$this.policyId', false] },
+                                  'POLICY',
+                                  'MANUAL',
+                                ],
+                              },
+                            },
+                          ],
+                          [],
+                        ],
+                      },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+      { $unwind: '$events' },
+      {
+        $project: {
+          _id: 0,
+          enrollmentId: 1,
+          userId: 1,
+          cohortId: 1,
+          type: '$events.type',
+          date: '$events.date',
+          ejectionReason: '$events.ejectionReason',
+          adminId: '$events.adminId',
+          policyId: '$events.policyId',
+          triggerType: '$events.triggerType',
+        },
+      },
+      {
+        $unionWith: {
+          coll: 'appeals',
+          pipeline: [
+            {
+              $match: {
+                courseId: new ObjectId(courseId),
+                courseVersionId: new ObjectId(courseVersionId),
+                ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+              },
+            },
+            {
+              $project: {
+                userId: 1,
+                cohortId: 1,
+                events: {
+                  $concatArrays: [
+                    [
+                      {
+                        type: 'APPEAL_SUBMITTED',
+                        date: '$createdAt',
+                        ejectionReason: {
+                          $ifNull: ['$reason', 'Appeal submitted'],
+                        },
+                        adminId: '$userId',
+                        triggerType: 'APPEAL',
+                        policyId: '$policyId',
+                      },
+                    ],
+                    {
+                      $cond: [
+                        {
+                          $and: [
+                            { $ne: ['$status', 'PENDING'] },
+                            { $ifNull: ['$reviewedAt', false] },
+                          ],
+                        },
+                        [
+                          {
+                            type: {
+                              $cond: [
+                                { $eq: ['$status', 'APPROVED'] },
+                                'APPEAL_APPROVED',
+                                'APPEAL_REJECTED',
+                              ],
+                            },
+                            date: '$reviewedAt',
+                            ejectionReason: {
+                              $concat: ['Appeal ', { $toLower: '$status' }],
+                            },
+                            adminId: '$reviewedBy',
+                            triggerType: 'APPEAL',
+                            policyId: '$policyId',
+                          },
+                        ],
+                        [],
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+            { $unwind: '$events' },
+            {
+              $project: {
+                userId: 1,
+                cohortId: 1,
+                type: '$events.type',
+                date: '$events.date',
+                ejectionReason: '$events.ejectionReason',
+                adminId: '$events.adminId',
+                triggerType: '$events.triggerType',
+                policyId: '$events.policyId',
+              },
+            },
+          ],
+        },
+      },
+      // Join user details (the student)
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+      // Join admin details
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'adminId',
+          foreignField: '_id',
+          as: 'adminUser',
+        },
+      },
+      { $unwind: { path: '$adminUser', preserveNullAndEmptyArrays: true } },
+      // Join cohort details
+      {
+        $lookup: {
+          from: 'cohorts',
+          localField: 'cohortId',
+          foreignField: '_id',
+          as: 'cohort',
+        },
+      },
+      { $unwind: { path: '$cohort', preserveNullAndEmptyArrays: true } },
+      // Join policy details
+      {
+        $lookup: {
+          from: 'ejectionPolicies',
+          localField: 'policyId',
+          foreignField: '_id',
+          as: 'policy',
+        },
+      },
+      { $unwind: { path: '$policy', preserveNullAndEmptyArrays: true } },
+
+      ...(triggerType ? [{ $match: { triggerType: triggerType } }] : []),
+      ...(startDate || endDate
+        ? [
+          {
+            $match: {
+              date: {
+                ...(startDate
+                  ? {
+                    $gte: new Date(
+                      new Date(startDate).getTime() + (timezoneOffset ?? 0) * 60000,
+                    ),
+                  }
+                  : {}),
+                ...(endDate
+                  ? {
+                    $lte: new Date(
+                      new Date(endDate).getTime() +
+                      (timezoneOffset ?? 0) * 60000 +
+                      86399999, // Add 23h 59m 59s 999ms
+                    ),
+                  }
+                  : {}),
+              },
+            },
+          },
+        ]
+        : []),
+      ...(search
+        ? [
+          {
+            $match: {
+              $or: [
+                { 'user.firstName': { $regex: search, $options: 'i' } },
+                { 'user.lastName': { $regex: search, $options: 'i' } },
+                { 'user.email': { $regex: search, $options: 'i' } },
+              ],
+            },
+          },
+        ]
+        : []),
+
+      {
+        $project: {
+          _id: 0,
+          enrollmentId: 1,
+          userId: 1,
+          firstName: '$user.firstName',
+          lastName: '$user.lastName',
+          email: '$user.email',
+          cohortId: 1,
+          cohortName: '$cohort.name',
+          type: 1,
+          ejectedAt: '$date',
+          ejectionReason: 1,
+          adminId: 1,
+          ejectedByName: {
+            $cond: [
+              { $eq: ['$type', 'APPEAL_SUBMITTED'] },
+              'Student',
+              {
+                $cond: [
+                  { $ifNull: ['$adminUser', false] },
+                  {
+                    $trim: {
+                      input: {
+                        $concat: [
+                          { $ifNull: ['$adminUser.firstName', ''] },
+                          ' ',
+                          { $ifNull: ['$adminUser.lastName', ''] },
+                        ],
+                      },
+                    },
+                  },
+                  'System',
+                ],
+              },
+            ],
+          },
+          policyId: 1,
+          policyName: '$policy.name',
+          triggerType: 1,
+        },
+      },
+
+      { $sort: { ejectedAt: -1 } },
+    ];
+
+    const [data, countResult] = await Promise.all([
+      this.enrollmentCollection
+        .aggregate([...pipeline, { $skip: skip }, { $limit: limit }], { session })
+        .toArray(),
+      this.enrollmentCollection
+        .aggregate([...pipeline, { $count: 'total' }], { session })
+        .toArray(),
+    ]);
+
+    return {
+      history: data,
+      totalDocuments: countResult[0]?.total ?? 0,
+    };
+  }
+  // Mark all students in a cohort as needing re-ack
+  async markReacknowledgementRequired(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    await this.enrollmentCollection.updateMany(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        cohortId: new ObjectId(cohortId),
+        role: 'STUDENT',
+        isEjected: { $ne: true },
+      },
+      { $set: { policyReacknowledgementRequired: true, status: 'INACTIVE' } },
+      { session },
+    );
+  }
+  async markReacknowledgementRequiredForCohort(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    await this.enrollmentCollection.updateMany(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        cohortId: new ObjectId(cohortId),
+        role: 'STUDENT',
+        isEjected: { $ne: true },
+        isDeleted: { $ne: true },
+      },
+      { $set: { policyReacknowledgementRequired: true, status: 'INACTIVE' } },
+      { session },
+    );
+  }
+
+  async markReacknowledgementRequiredForUser(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    await this.enrollmentCollection.updateOne(
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        cohortId: new ObjectId(cohortId),
+        role: 'STUDENT',
+        isDeleted: { $ne: true },
+      },
+      { $set: { policyReacknowledgementRequired: true, status: 'INACTIVE' } },
+      { session },
+    );
+  }
+
+  // Clear re-ack flag for a specific student
+  async clearPolicyReacknowledgement(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string,
+  ): Promise<void> {
+    await this.init();
+    await this.enrollmentCollection.updateOne(
+      {
+        userId: { $in: [userId, new ObjectId(userId)] },
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        cohortId: new ObjectId(cohortId),
+      },
+      { $set: { policyReacknowledgementRequired: false, status: 'ACTIVE' } },
+    );
+  }
+  async updateOne(enrollmentId: string, update: any) {
+    await this.enrollmentCollection.updateOne(
+      { _id: new ObjectId(enrollmentId) },
+      { $set: update },
+    );
+  }
+  async findActiveStudentsForPolicy(
+    courseId?: ObjectId,
+    courseVersionId?: ObjectId,
+    cohortId?: ObjectId,
+  ): Promise<IEnrollment[]> {
+    const query: any = {
+      role: 'STUDENT',
+      status: 'ACTIVE',
+      isDeleted: { $ne: true },
+      isEjected: { $ne: true },
+    };
+    if (courseId) query.courseId = courseId;
+    if (courseVersionId) query.courseVersionId = courseVersionId;
+    if (cohortId) query.cohortId = cohortId;
+
+    return this.enrollmentCollection.find(query).toArray();
+  }
+  async findLastActivityForStudent(
+    userId: ObjectId,
+    courseId: ObjectId,
+    courseVersionId: ObjectId,
+    cohortId?: ObjectId,
+  ): Promise<{ startTime: Date } | null> {
+    await this.init();
+
+    return this.watchTimeCollection.findOne(
+      {
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId: cohortId ?? { $exists: false },
+        isDeleted: { $ne: true },
+      },
+      { sort: { startTime: -1 }, projection: { startTime: 1 } },
+    );
+  }
+
+  async getUserEnrollmentStatistics(
+    userId: string,
+  ): Promise<UserEnrollmentStatisticsResponse> {
+    await this.init();
+
+    const stats = await this.enrollmentCollection
+      .aggregate<UserEnrollmentStatisticsResponse>([
+        {
+          $match: {
+            userId: new ObjectId(userId),
+            status: 'ACTIVE',
+            role: 'STUDENT',
+            isDeleted: { $ne: true },
+            isEjected: { $ne: true },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalCourses: { $sum: 1 },
+            completedCourses: {
+              $sum: {
+                $cond: [{ $eq: ['$percentCompleted', 100] }, 1, 0],
+              },
+            },
+            completedItems: { $sum: { $ifNull: ['$completedItemsCount', 0] } },
+            overallProgress: { $avg: '$percentCompleted' },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            totalCourses: 1,
+            completedCourses: 1,
+            completedItems: 1,
+            overallProgress: { $round: ['$overallProgress', 2] },
+          },
+        },
+      ])
+      .toArray();
+
+    return (
+      stats[0] ?? {
+        totalCourses: 0,
+        completedCourses: 0,
+        completedItems: 0,
+        overallProgress: 0,
+      }
+    );
+  }
+>>>>>>> Stashed changes
 }

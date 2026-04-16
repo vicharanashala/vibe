@@ -107,7 +107,11 @@ class ProgressRepository {
         courseVersionId: new ObjectId(courseVersionId),
         endTime: { $exists: true, $ne: null },
         isDeleted: { $ne: true },
+<<<<<<< Updated upstream
         ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false } }),
+=======
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+>>>>>>> Stashed changes
       },
       { session },
     );

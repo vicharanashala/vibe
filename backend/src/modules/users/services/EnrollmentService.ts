@@ -718,10 +718,119 @@ export class EnrollmentService extends BaseService {
               completedProjects: completedByType.projects,
             },
 
+<<<<<<< Updated upstream
             completedItems: watchedItemsMap.get(watchedKey) || 0,
           };
         }
       });
+=======
+          // Guru Setu Override
+          // console.log(`Checking Guru Setu for course ${enr.courseId?.toString()} and version ${versionIdStr}`);
+          if (
+            enr.courseId?.toString() === GURU_SETU_COURSE_ID &&
+            versionIdStr === GURU_SETU_VERSION_ID
+          ) {
+            // console.log(`Guru Setu Match Found for user ${userId}`);
+            const guruProgress =
+              await this.progressService.calculateGuruSetuProgress(
+                userId,
+                versionIdStr,
+              );
+            calculatedPercent = guruProgress.percentCompleted;
+            totalCompletedItemsCount = guruProgress.completedItemsCount;
+          }
+
+          // if (enr.percentCompleted !== calculatedPercent) {
+          //   void this.enrollmentRepo.updateProgressPercentById(
+          //     enr._id.toString(),
+          //     calculatedPercent,
+          //     totalCompletedItemsCount,
+          //     enr.cohortId?.toString(),
+          //   );
+
+          //   enr.percentCompleted = calculatedPercent;
+          //   enr.completedItemsCount = totalCompletedItemsCount;
+          // }
+
+          if (enr.percentCompleted >= 0) {
+            let itemCounts = enr.itemCounts || {};
+            let totalItems = Number(enr.totalItems ?? 0);
+
+            const hasItemCounts = Object.values(itemCounts).some(
+              (count: any) => Number(count) > 0,
+            );
+
+            if (totalItems <= 0 || !hasItemCounts) {
+              if (!itemCountsFallbackCache.has(versionIdStr)) {
+                const fallback =
+                  await this.itemRepo.calculateItemCountsForVersion(
+                    versionIdStr,
+                  );
+                itemCountsFallbackCache.set(versionIdStr, {
+                  totalItems: Number(fallback.totalItems ?? 0),
+                  itemCounts: fallback.itemCounts ?? {},
+                });
+              }
+
+              const fallback = itemCountsFallbackCache.get(versionIdStr)!;
+              if (totalItems <= 0) {
+                totalItems = fallback.totalItems;
+              }
+              if (!hasItemCounts) {
+                itemCounts = fallback.itemCounts;
+              }
+            }
+
+            const completedByType = watchedItemsByTypeMap.get(watchedKey) || {
+              videos: 0,
+              quizzes: 0,
+              articles: 0,
+              projects: 0,
+            };
+
+            return {
+              _id: enr._id.toString(),
+              courseId: enr.courseId.toString(),
+              courseVersionId: versionIdStr,
+              role: enr.role,
+              status: enr.status,
+              enrollmentDate: new Date(enr.enrollmentDate),
+              course: this.filterCourseVersions(enr.course, enrolledVersionIds),
+              // courseVersion: enr.courseVersion,
+              percentCompleted: calculatedPercent,
+              assignedTimeSlot: enr.assignedTimeSlots,
+              moduleNumber: enr.moduleNumber,
+              sectionNumber: enr.sectionNumber,
+              itemType: enr.itemType,
+              contentCounts: {
+                totalItems,
+                videos: itemCounts.VIDEO ?? itemCounts.videos ?? 0,
+                quizzes: itemCounts.QUIZ ?? itemCounts.quizzes ?? 0,
+                articles: itemCounts.BLOG ?? itemCounts.articles ?? 0,
+                project: itemCounts.PROJECT ?? itemCounts.project ?? 0,
+                totalQuizScore: enrollmentQuizGrades.reduce(
+                  (sum, grade) => sum + (grade.totalScore || 0),
+                  0,
+                ),
+                totalQuizMaxScore: enrollmentQuizGrades.reduce(
+                  (sum, grade) => sum + (grade.totalMaxScore || 0),
+                  0,
+                ),
+                // Completed counts by type
+                completedVideos: completedByType.videos,
+                completedQuizzes: completedByType.quizzes,
+                completedArticles: completedByType.articles,
+                completedProjects: completedByType.projects,
+              },
+
+              completedItems: watchedItemsMap.get(watchedKey) || 0,
+            };
+          }
+        }),
+      );
+
+      return detailedEnrollments.filter(Boolean);
+>>>>>>> Stashed changes
     }
   }
   async detailedCountEnrollment(

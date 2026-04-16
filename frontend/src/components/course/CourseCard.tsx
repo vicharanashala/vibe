@@ -173,6 +173,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   if (variant === 'dashboard' || variant === 'available') {
     return (
+<<<<<<< Updated upstream
       <>
       <Card className={`dark:bg-[#4b341e4b] border border-border overflow-hidden flex flex-col sm:flex-row student-card-hover p-0 ${className || ''}`}>
         <div className="w-full h-40 sm:h-auto sm:w-32 flex-shrink-0 flex items-center justify-center">
@@ -181,6 +182,377 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
             alt={enrollment?.course?.name || `Course ${index + 1}`}
             aspectRatio="aspect-square"
             className="w-full h-full object-cover rounded-t-lg sm:rounded-l-lg sm:rounded-t-none"
+=======
+      <div className={cn("[perspective:1000px] transition-all duration-300 hover:-translate-y-1", className)}>
+        <div className={cn("relative w-full transition-all duration-700 [transform-style:preserve-3d]", isFlipped && "[transform:rotateY(180deg)]")}>
+          {/* Front Side - Determines the height */}
+          <div className="relative w-full [backface-visibility:hidden]">
+            <Card
+              className={cn(
+                "border-0 bg-white dark:bg-card overflow-hidden flex flex-col rounded-[24px] shadow-sm transition-shadow duration-300 group",
+                variant !== 'available' ? "cursor-pointer hover:shadow-md" : "cursor-default"
+              )}
+              onClick={() => variant !== 'available' && setIsFlipped(true)}
+            >
+              {/* Thumbnail/Icon Area */}
+              <div className={cn("relative w-full aspect-[4/3] flex items-center justify-center transition-colors duration-300", theme.bg)}>
+                <div className={cn("transition-transform duration-500 group-hover:scale-110", theme.icon)}>
+                  {theme.iconComponent}
+                </div>
+                {enrollment.hasNewItemsAfterCompletion && (
+                  <Badge className="absolute top-4 right-4 bg-yellow-400 text-yellow-900 border-0">New Content</Badge>
+                )}
+                <div className="absolute top-4 left-4 p-2 rounded-full bg-white/20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Info className="h-4 w-4 text-white" />
+                </div>
+              </div>
+
+              <CardContent className="p-6 pb-10 flex flex-col">
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <Badge variant="secondary" className="bg-[#F1F5F9] text-[#64748B] dark:bg-slate-800 dark:text-slate-400 border-0 font-medium px-3">Course</Badge>
+                  {enrollment.cohortName && (
+                    <Badge variant="outline" className="border-primary/30 text-primary dark:bg-primary/10 dark:text-blue-400 dark:border-blue-400/30 font-medium px-3">
+                      {enrollment.cohortName}
+                    </Badge>
+                  )}
+                  {isCompleted && <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 font-medium">Completed</Badge>}
+                </div>
+
+                <h3
+                  className="font-bold text-xl text-foreground mb-1 line-clamp-2 leading-tight break-words min-h-[3.25rem]"
+                  title={enrollment?.course?.name || `Course ${index + 1}`}
+                >
+                  {enrollment?.course?.name || `Course ${index + 1}`}
+                </h3>
+                <p
+                  className="text-sm text-muted-foreground mb-6 line-clamp-1 break-words min-h-[1.25rem]"
+                  title={enrollment?.course?.description || "Accelerate your learning journey"}
+                >
+                  {enrollment?.course?.description || "Accelerate your learning journey"}
+                </p>
+
+                <div className="space-y-4">
+                  {variant !== 'available' && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-sm font-semibold">
+
+                        {enrollment.courseId !== "6981df886e100cfe04f9c4ad" && <> <span className="text-muted-foreground">Completion Percentage</span><span className="text-foreground">{progress.toFixed(0)}%</span></>}
+                      </div>
+
+                      {enrollment.courseId !== "6981df886e100cfe04f9c4ad" ? (<div className="h-2 w-full bg-[#F1F5F9] dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div className={cn("h-full rounded-full transition-all duration-700 ease-out", theme.progress)} style={{ width: `${progress}%` }} />
+                      </div>) : (<div className="flex justify-between items-center text-sm font-semibold">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span>{enrollment.completedItems}/{enrollment.contentCounts?.totalItems} (More videos soon)</span>
+                      </div>)}
+
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-3 pt-2">
+                    <Button
+                      onClick={(e) => { e.stopPropagation(); handleContinue(); }}
+                      disabled={!isCurrentTimeInTimeSlot(enrollment.assignedTimeSlot)}
+                      className={cn(
+                        "w-full h-12 rounded-xl text-lg font-bold transition-all duration-300 shadow-md active:scale-95 flex items-center justify-center gap-2",
+                        variant === 'available' ? "bg-primary text-primary-foreground" : isStart ? "bg-[#22C55E] text-white" : "bg-[#FACC15] text-black"
+                      )}
+                    >
+                      {variant === 'available' ? (
+                        <span className="flex items-center gap-2">
+                          Register Now
+                          <ExternalLink className="h-4 w-4" />
+                        </span>
+                      ) : (
+                        <>
+                          {isStart ? 'Start Course' : isCompleted ? 'View Course' : 'Continue Learning'}
+                          <Play className="h-4 w-4 fill-current" />
+                        </>
+                      )}
+                    </Button>
+
+                    <div className="flex gap-2">
+                      {isRankVisible && (
+                        <div onClick={(e) => e.stopPropagation()} className="flex-1">
+                          <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" className="w-full rounded-lg border-2 h-10 text-[10px] lg:text-xs font-bold px-1" size="sm">
+                                <Trophy className="h-3 w-3 lg:h-3.5 lg:w-3.5 mr-1 text-yellow-500 flex-shrink-0" />
+                                <span className="truncate">Rank</span>
+                              </Button>
+                            </DialogTrigger>
+                            <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} />
+                          </Dialog>
+                        </div>
+                      )}
+                      {variant !== 'available' && isHpSystem && (
+                        <div onClick={(e) => e.stopPropagation()} className="flex-1">
+                          <Button
+                            variant="outline"
+                            className="w-full rounded-lg border-2 h-10 text-[10px] lg:text-xs font-bold px-1"
+                            size="sm"
+                            onClick={() => navigate({ to: `/student/hp-system/${versionId}/${enrollment.cohortName || 'default'}/activities` })}
+                          >
+                            <Activity className="h-3 w-3 lg:h-3.5 lg:w-3.5 mr-1 text-blue-500 flex-shrink-0" />
+                            <span className="truncate">HP</span>
+                          </Button>
+                        </div>
+                      )}
+                      {isTimeslotActive && (
+                        <div onClick={(e) => e.stopPropagation()} className="flex-1">
+                          <Button
+                            variant="outline"
+                            className="w-full rounded-lg border-2 h-10 text-[10px] lg:text-xs font-bold px-1"
+                            size="sm"
+                            onClick={() => setIsTimeslotModalOpen(true)}
+                          >
+                            <Clock className="h-3 w-3 lg:h-3.5 lg:w-3.5 mr-1 text-green-500 flex-shrink-0" />
+                            <span className="truncate">{hasAssignedTimeslot ? 'Slot' : 'Pick Slot'}</span>
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
+                    {variant !== 'available' && isNotGuruSetu && (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 h-9 text-[10px] lg:text-xs font-bold rounded-lg border-2"
+                          onClick={(e) => { e.stopPropagation(); setShowPolicies(true); }}
+                        >
+                          <LucideShield className="h-3.5 w-3.5 mr-1 text-indigo-500" />
+                          Policies
+                        </Button>
+                        {supportLink && (
+                          <div onClick={(e) => e.stopPropagation()} className="flex-1">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="outline" size="sm" className="w-full h-9 text-[10px] lg:text-xs font-bold rounded-lg border-2">
+                                  <MessageCircle className="h-3.5 w-3.5 mr-1 text-blue-500" />
+                                  Forum
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="w-full max-w-lg">
+                                <DialogHeader>
+                                  <DialogTitle>Forum Details</DialogTitle>
+                                </DialogHeader>
+                                <Separator className="my-4" />
+                                <div className="space-y-4">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                                      <MessageCircle className="w-4 h-4 text-primary-foreground" />
+                                    </div>
+                                    <h3 className="text-lg font-semibold">Discord Community</h3>
+                                    <Sparkles className="w-4 h-4 text-primary" />
+                                  </div>
+                                  <div className="rounded-xl border bg-primary/5 p-6 space-y-5">
+                                    <div className="flex items-start justify-between gap-4">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-14 h-14 rounded-xl bg-[#5865F2] flex items-center justify-center shadow-md">
+                                          <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z" />
+                                          </svg>
+                                        </div>
+                                        <div>
+                                          <p className="font-semibold text-base">Join Our Community</p>
+                                          <p className="text-sm text-muted-foreground">Connect with fellow students</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground leading-relaxed">
+                                      Get help, share resources, and connect with your coursemates in our exclusive Discord server.
+                                    </p>
+                                    <div className="flex items-center gap-2.5 pt-1">
+                                      <Button asChild className="flex-1">
+                                        <a href={supportLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
+                                          <ExternalLink className="w-4 h-4" />
+                                          Join Discord
+                                        </a>
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={async () => {
+                                          try {
+                                            await navigator.clipboard.writeText(supportLink);
+                                            setCopied(true);
+                                            setTimeout(() => setCopied(false), 2000);
+                                          } catch {
+                                            setCopyError(true);
+                                            setTimeout(() => setCopyError(false), 2000);
+                                          }
+                                        }}
+                                        disabled={copied}
+                                      >
+                                        {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
+                                      </Button>
+                                    </div>
+                                    {(copied || copyError) && (
+                                      <div className={cn("text-xs px-3 py-2 rounded-lg border flex items-center gap-2", copied ? "text-primary bg-primary/10 border-primary/20" : "text-red-500 bg-red-50 border-red-100")}>
+                                        {copied ? <Check className="w-3 h-3" /> : <Info className="w-3 h-3" />}
+                                        {copied ? "Link copied to clipboard" : "Failed to copy link"}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Back Side - Stretches to match front height */}
+          <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] bg-white dark:bg-slate-900 rounded-[24px] p-6 border-2 border-primary/20 shadow-xl flex flex-col cursor-pointer" onClick={() => setIsFlipped(false)}>
+            <div className="flex-1 overflow-y-auto scrollbar-hide pr-1">
+              <div className="flex items-center justify-between mb-4">
+                <Badge className={cn("font-bold px-3 py-1", theme.bg, theme.icon.replace('text-', 'bg-').replace('[', '').replace(']', '/10'))}>
+                  Course Details
+                </Badge>
+                <div className="p-2 rounded-full bg-slate-100 dark:bg-slate-800">
+                  <Play className={cn("h-5 w-5", theme.icon)} />
+                </div>
+              </div>
+
+              <h3 className="font-bold text-lg text-foreground mb-4">{enrollment?.course?.name || `Course ${index + 1}`}</h3>
+
+              <div className="space-y-4 mb-6">
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1.5">
+                    <Info className="h-3 w-3" /> Description
+                  </h4>
+                  <p className="text-xs text-foreground/80 leading-relaxed line-clamp-4">
+                    {enrollment?.course?.description || "No description available for this course. Explore our structured curriculum designed to accelerate your learning journey."}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 py-3 border-y border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground font-medium">Version</span>
+                    <span className="text-foreground font-bold">{courseVersionData?.version || courseVersionData?.name || versionId.substring(0, 8)}</span>
+                  </div>
+                  {enrollment.cohortName && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground font-medium">Cohort</span>
+                      <span className="text-foreground font-bold truncate max-w-[120px]">{enrollment.cohortName}</span>
+                    </div>
+                  )}
+                  {/* Detailed Counts */}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-1">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">Total Items</span>
+                      <span className="text-foreground font-bold">{totalLessons}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">Modules</span>
+                      <span className="text-foreground font-bold">{moduleCount}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">Sections</span>
+                      <span className="text-foreground font-bold">{sectionCount}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">Videos</span>
+                      <span className="text-foreground font-bold">{videoCount}</span>
+                    </div>
+                    {quizCount > 0 && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-muted-foreground">Quizzes</span>
+                        <span className="text-foreground font-bold">{quizCount}</span>
+                      </div>
+                    )}
+                    {articleCount > 0 && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-muted-foreground">Articles</span>
+                        <span className="text-foreground font-bold">{articleCount}</span>
+                      </div>
+                    )}
+                    {projectCount > 0 && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-muted-foreground">Projects</span>
+                        <span className="text-foreground font-bold">{projectCount}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Timeslot Info */}
+                  <div className="flex items-center justify-between text-xs pt-2 mt-1 border-t border-slate-50 dark:border-slate-800/50">
+                    <span className="text-muted-foreground font-medium flex items-center gap-1">
+                      <Clock className="h-3 w-3" /> Timeslot
+                    </span>
+                    <span className={cn(
+                      "font-bold truncate max-w-[140px]",
+                      timeSlot ? "text-green-600 dark:text-green-400" : "text-muted-foreground"
+                    )}>
+                      {timeslotStr}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-auto space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className={cn("grid gap-3", isTimeslotActive ? "grid-cols-2" : "grid-cols-1")} onClick={(e) => e.stopPropagation()}>
+                {variant !== 'available' && (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="w-full rounded-lg h-9 text-[10px] font-bold border-2"
+                      onClick={() => setIsDetailsOpen(true)}
+                    >
+                      <Info className="h-3.5 w-3.5 mr-1 text-blue-500" />
+                      Full Details
+                    </Button>
+                    {isTimeslotActive && (
+                      <Button
+                        variant="outline"
+                        className="w-full rounded-lg h-9 text-[10px] font-bold border-2"
+                        onClick={() => setIsTimeslotModalOpen(true)}
+                        disabled={hasAssignedTimeslot}
+                      >
+                        <Clock className="h-3.5 w-3.5 mr-1 text-green-500" />
+                        {hasAssignedTimeslot ? 'Timeslot' : 'Pick Slot'}
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <Button
+                onClick={(e) => { e.stopPropagation(); handleContinue(); }}
+                disabled={!isCurrentTimeInTimeSlot(enrollment.assignedTimeSlot)}
+                className={cn(
+                  "w-full h-10 rounded-xl text-xs font-bold transition-all duration-300 shadow-md active:scale-95 flex items-center justify-center gap-2",
+                  variant === 'available' ? "bg-primary text-primary-foreground" : isStart ? "bg-[#22C55E] text-white" : "bg-[#FACC15] text-black"
+                )}
+              >
+                {variant === 'available' ? 'Register Now' : isStart ? 'Start Course' : isCompleted ? 'View Course' : 'Continue Learning'}
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <EnrollmentDetailsDialog
+          isOpen={isDetailsOpen}
+          onOpenChange={setIsDetailsOpen}
+          enrollment={enrollment}
+        />
+        <div onClick={(e) => e.stopPropagation()}>
+          <StudentTimeslotModal
+            isOpen={isTimeslotModalOpen}
+            onClose={() => setIsTimeslotModalOpen(false)}
+            courseId={courseId}
+            courseVersionId={versionId}
+            currentUserId={""}
+            hasAssignedTimeslot={!!hasAssignedTimeslot}
+>>>>>>> Stashed changes
           />
         </div>
         <CardContent className="p-3 sm:pl-0 flex flex-col flex-1">

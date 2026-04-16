@@ -564,6 +564,51 @@ export interface paths {
         patch: operations["ProgressController.resetProgress"];
         trace?: never;
     };
+    "/users/progress/recalculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recalculate student progress
+         * @description Recalculates and updates the progress of a student for a given course and course version.
+         */
+        post: {
+            requestBody: {
+                content: {
+                    "application/json": {
+                        courseId: string;
+                        courseVersionId: string;
+                        userId?: string;
+                        cohortId?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Progress recalculated successfully */
+                200: {
+                    content: {
+                        "application/json": string;
+                    };
+                };
+                /** @description Failed to recalculate student progress */
+                500: {
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/firebase/{firebaseUID}": {
         parameters: {
             query?: never;
