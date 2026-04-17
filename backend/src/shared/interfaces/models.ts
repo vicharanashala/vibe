@@ -458,6 +458,10 @@ export interface IWatchTime {
   startTime: Date;
   endTime?: Date;
   cohortId?: ID;
+  /** Actual seconds the video was playing (set at stop time, capped to video duration) */
+  duration?: number;
+  /** True when the session was closed due to idle timeout rather than normal completion */
+  isExpired?: boolean;
 }
 
 export interface ICohort {
