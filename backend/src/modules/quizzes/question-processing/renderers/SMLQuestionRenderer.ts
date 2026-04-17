@@ -9,8 +9,13 @@ import {
 } from './interfaces/RenderViews.js';
 
 function toLotItemRenderView(item: ILotItem): ILotItemRenderView {
-  const {explaination, ...rest} = item;
-  return rest;
+  // const {explaination, ...rest} = item;
+  // return rest;
+  return {
+    _id: item._id,
+    text: item.text,
+    explaination: item.explaination  
+  };
 }
 
 class SMLQuestionRenderer extends BaseQuestionRenderer {
@@ -51,6 +56,7 @@ class SMLQuestionRenderer extends BaseQuestionRenderer {
       timeLimitSeconds: renderedQuestion.timeLimitSeconds,
       lotItems: shuffledLotItems,
       parameterMap: parameterMap,
+      priority: renderedQuestion.priority,
     };
 
     return renderedQuestionWithLotItems;

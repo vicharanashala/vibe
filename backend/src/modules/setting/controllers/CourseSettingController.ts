@@ -1,10 +1,38 @@
-import { JsonController, Post, HttpCode, Body, Authorized, Get, Params, Put } from 'routing-controllers';
-import { inject, injectable } from 'inversify';
-import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
-import { SETTING_TYPES } from '../types.js';
-import { CourseSettingService } from '../services/CourseSettingService.js';
-import { AddCourseProctoringBody, AddCourseProctoringParams, CourseSetting, CreateCourseSettingBody, ReadCourseSettingParams, SettingNotFoundErrorResponse, UpdateCourseSettingResponse } from '../classes/index.js';
-import { BadRequestErrorResponse } from '#root/shared/index.js';
+import {
+  JsonController,
+  Post,
+  HttpCode,
+  Body,
+  Authorized,
+  Get,
+  Params,
+  Put,
+  CurrentUser,
+  UseInterceptor,
+  Req,
+} from 'routing-controllers';
+import {inject, injectable} from 'inversify';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {SETTING_TYPES} from '../types.js';
+import {CourseSettingService} from '../services/CourseSettingService.js';
+import {
+  AddCourseProctoringBody,
+  AddCourseProctoringParams,
+  CourseSetting,
+  CreateCourseSettingBody,
+  ReadCourseSettingParams,
+  SettingNotFoundErrorResponse,
+  UpdateCourseSettingResponse,
+} from '../classes/index.js';
+import {BadRequestErrorResponse, IUser} from '#root/shared/index.js';
+import {AuditTrailsHandler} from '#root/shared/middleware/auditTrails.js';
+import {setAuditTrail} from '#root/utils/setAuditTrail.js';
+import {
+  AuditAction,
+  AuditCategory,
+  OutComeStatus,
+} from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
+import {ObjectId} from 'mongodb';
 
 @OpenAPI({
   tags: ['Course Setting'],
@@ -15,21 +43,19 @@ export class CourseSettingController {
   constructor(
     @inject(SETTING_TYPES.CourseSettingService)
     private readonly courseSettingService: CourseSettingService,
-  ) { }
+  ) {}
 
   @Authorized()
   @Post('/')
   @HttpCode(201)
   @ResponseSchema(CourseSetting, {
-    description: 'Course settings created successfully'
+    description: 'Course settings created successfully',
   })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-  async create(
-    @Body() body: CreateCourseSettingBody,
-  ): Promise<CourseSetting> {
+  async create(@Body() body: CreateCourseSettingBody): Promise<CourseSetting> {
     // This method creates course settings for a course.
     // It expects the body to contain the courseId and versionId.
     const courseSettings = new CourseSetting(body);
@@ -44,7 +70,7 @@ export class CourseSettingController {
   @Get('/:courseId/:versionId')
   @HttpCode(200)
   @ResponseSchema(CourseSetting, {
-    description: 'Course settings fetched successfully'
+    description: 'Course settings fetched successfully',
   })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -58,7 +84,7 @@ export class CourseSettingController {
     @Params() params: ReadCourseSettingParams,
   ): Promise<CourseSetting | null> {
     // This method retrives course settings for a specific course and version.
-    const { courseId, versionId } = params;
+    const {courseId, versionId} = params;
 
     const courseSettings = await this.courseSettingService.readCourseSettings(
       courseId,
@@ -72,9 +98,10 @@ export class CourseSettingController {
 
   @Authorized()
   @Put('/:courseId/:versionId/proctoring')
+  @UseInterceptor(AuditTrailsHandler)
   @HttpCode(200)
   @ResponseSchema(UpdateCourseSettingResponse, {
-    description: 'Course settings Updated successfully'
+    description: 'Course settings Updated successfully',
   })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -87,18 +114,61 @@ export class CourseSettingController {
   async updateCourseSettings(
     @Params() params: AddCourseProctoringParams,
     @Body() body: AddCourseProctoringBody,
-  ): Promise<{ success: boolean }> {
+    @CurrentUser() user: IUser,
+    @Req() req: Request,
+  ): Promise<{success: boolean}> {
     // This method updates proctoring settings for a course version.
-    const { courseId, versionId } = params;
-    const { detectors } = body;
+    const {courseId, versionId} = params;
+    const {
+      detectors,
+      linearProgressionEnabled,
+      seekForwardEnabled,
+      isPublic,
+      hpSystem,
+      baseHp,
+      randomizeItems,
+    } = body;
+    const userId = user._id.toString();
 
     const result = await this.courseSettingService.updateCourseSettings(
       courseId,
       versionId,
       detectors,
+      linearProgressionEnabled,
+      seekForwardEnabled,
+      hpSystem,
+      isPublic ?? false,
+      baseHp,
+      randomizeItems,
+      userId,
     );
 
-    return { success: result };
+    setAuditTrail(req, {
+      category: AuditCategory.COURSE_SETTINGS,
+      action: AuditAction.COURSE_SETTINGS_UPDATE,
+      actor: {
+        id: new ObjectId(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(versionId),
+      },
+      changes: {
+        after: {
+          dectors: detectors,
+          linearProgressionEnabled: linearProgressionEnabled,
+          seekForwardEnabled: seekForwardEnabled,
+        },
+      },
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    });
+
+    return {success: result};
   }
 
   // This method removes proctoring settings for a course version.

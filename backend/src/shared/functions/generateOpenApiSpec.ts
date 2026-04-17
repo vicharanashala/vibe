@@ -9,11 +9,15 @@ import {
 } from 'class-validator';
 import { routingControllersToSpec } from 'routing-controllers-openapi';
 
+import fs from 'fs';
+
 import { appConfig } from '../../config/app.js'; // adjust path as needed
 import { metadata } from 'reflect-metadata/no-conflict';
 import { ValidationMetadata } from 'class-validator/types/metadata/ValidationMetadata.js';
-import {defaultMetadataStorage} from 'class-transformer'
-
+// import { defaultMetadataStorage } from 'class-transformer'
+import classTransformer from 'class-transformer';
+const defaultMetadataStorageTyped: MetadataStorage =
+  (classTransformer as any).defaultMetadataStorage;
 const getOpenApiServers = () => {
   const servers = [];
 
@@ -69,6 +73,24 @@ const getOpenApiServers = () => {
   return servers;
 };
 
+function removeInvalidRefs(obj) {
+  if (Array.isArray(obj)) {
+    return obj.map(removeInvalidRefs);
+  } else if (typeof obj === 'object' && obj !== null ) {
+    const newObj = {};
+    for (const [key, value] of Object.entries(obj)) {
+      // 🚫 Skip key-value if it matches your condition
+      if (key === '$ref' && (value === '#/components/schemas/Object' || value === '#/components/schemas/Array')) {
+        continue;
+      }
+      // 🔁 Recursively process children
+      newObj[key] = removeInvalidRefs(value);
+    }
+    return newObj;
+  }
+  return obj;
+}
+
 export function filterMetadataByModulePrefix(modulePrefix: string) {
   const storage = getMetadataArgsStorage();
   const normalizedPrefix = `/${modulePrefix.toLowerCase()}`;
@@ -117,6 +139,8 @@ function getSchemasForValidators(validators: Function[]) {
 }
 
 
+
+
 export function generateOpenAPISpec(
   routingControllersOptions: RoutingControllersOptions,
   validators: Function[] = [],
@@ -133,9 +157,9 @@ export function generateOpenAPISpec(
   if (validators.length === 0 || appConfig.module === 'all') {
     // If no specific validators are provided, use all class-validator schemas
     schemas = validationMetadatasToSchemas({
-      refPointerPrefix: '#/components/schemas/',
-      classTransformerMetadataStorage: defaultMetadataStorage
-    });
+  refPointerPrefix: '#/components/schemas/',
+  classTransformerMetadataStorage: defaultMetadataStorageTyped as any
+});
   } else {
     // If specific validators are provided, filter schemas based on them
     schemas = getSchemasForValidators(validators);
@@ -226,62 +250,63 @@ export function generateOpenAPISpec(
     //     },
     //   ],
     //   // Use Scalar's preferred grouping approach
-      tags:[
-        {
-          name: 'Courses',
-          description: 'Operations related to courses management',
-        },
-        {
-          name: 'Anomalies',
-          description: 'Operations for managing anomaly detection and monitoring',
-        }
-      ],
-      'x-tagGroups': [
-        {
-          name: 'Authentication',
-          tags: ['Authentication'],
-        },
-        {
-          name: 'Course Management',
-          tags: [
-            'Courses',
-            'Course Versions',
-            'Course Modules',
-            'Course Sections',
-            'Course Items',
-          ],
-        },
-        {
-          name: 'Quizzes',
-          tags: ['Quiz', 'Questions', 'Quiz Attempts', 'Question Banks'],
-        },
-        {
-          name: 'GenAI',
-          tags: ['GenAI', 'Webhook'],
-        },
-        {
-          name: 'Notifications',
-          tags: ['Invites'],
-        },
-        {
-          name: 'Users',
-          tags: ['Enrollments','Progress','Users']
-        },
+    tags: [
+      {
+        name: 'Courses',
+        description: 'Operations related to courses management',
+      },
+      {
+        name: 'Anomalies',
+        description: 'Operations for managing anomaly detection and monitoring',
+      }
+    ],
+    'x-tagGroups': [
+      {
+        name: 'Authentication',
+        tags: ['Authentication'],
+      },
+      {
+        name: 'Course Management',
+        tags: [
+          'Courses',
+          'Course Versions',
+          'Course Modules',
+          'Course Sections',
+          'Course Items',
+          'CourseRegistration'
+        ],
+      },
+      {
+        name: 'Quizzes',
+        tags: ['Quiz', 'Questions', 'Quiz Attempts', 'Question Banks'],
+      },
+      {
+        name: 'GenAI',
+        tags: ['GenAI', 'Webhook'],
+      },
+      {
+        name: 'Notifications',
+        tags: ['Invites'],
+      },
+      {
+        name: 'Users',
+        tags: ['Enrollments', 'Progress', 'Users']
+      },
 
-        {
-          name: 'Monitoring & Security',
-          tags: ['Anomalies'],
-        },
+      {
+        name: 'Monitoring & Metrics',
+        tags: ['Anomalies', 'Reports'],
+      },
 
-        {
-          name: 'Settings',
-          tags: ['Course Settings', 'User Settings', 'Course Setting'],
-        },
-        {
-          name: 'Data Models',
-          tags: ['Models'],
-        },
-      ],
+      {
+        name: 'Settings',
+        tags: ['Course Settings', 'User Settings', 'Course Setting'],
+      },
+      {
+        name: 'Data Models',
+        tags: ['Models'],
+      },
+    ],
     components: {
       schemas,
       securitySchemes: {
@@ -300,5 +325,15 @@ export function generateOpenAPISpec(
     ],
   });
 
-  return spec;
+
+  const cleanedSpec=removeInvalidRefs(spec);
+// For Debugging Purpose
+  // const specLog = JSON.stringify(cleanedSpec, null, 2);
+  // const logFile = fs.createWriteStream('openapi-spec.json');
+  // logFile.write(specLog);
+  // logFile.end();
+
+  
+
+  return cleanedSpec;
 }

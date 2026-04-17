@@ -20,7 +20,7 @@ const QuizWizardModal: React.FC<QuizWizardProps> = ({ quizWizardOpen, setQuizWiz
         name: '',
         description: '',
         passThreshold: 0.7,
-        maxAttempts: 3,
+        maxAttempts: -1,
         quizType: 'NO_DEADLINE',
         approximateTimeToComplete: '00:30:00',
         allowPartialGrading: true,
@@ -30,7 +30,8 @@ const QuizWizardModal: React.FC<QuizWizardProps> = ({ quizWizardOpen, setQuizWiz
         showScoreAfterSubmission: true,
         questionVisibility: 5,
         releaseTime: new Date().toISOString().slice(0, 16),
-        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
+        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+        allowSkip: false
     });
 
     const handleCreateQuiz = async () => {
@@ -55,7 +56,9 @@ const QuizWizardModal: React.FC<QuizWizardProps> = ({ quizWizardOpen, setQuizWiz
                 releaseTime: new Date(quizSettingsForm.releaseTime).toISOString(),
                 deadline: quizSettingsForm.quizType === 'DEADLINE' && quizSettingsForm.deadline 
                     ? new Date(quizSettingsForm.deadline).toISOString() 
-                    : undefined
+                    : undefined, 
+                questionBankRefs: [],
+                allowSkip: quizSettingsForm.allowSkip
             };
 
             await createItem({

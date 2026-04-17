@@ -12,6 +12,7 @@ import {
   Circle,
   Plus,
   X,
+  Sparkles,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -255,58 +256,67 @@ export default function Page() {
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-      <div className="flex flex-col space-y-6">
-        
+    <div className="flex flex-1 flex-col gap-4 p-4 pt-0 bg-gradient-to-br from-background via-background to-muted/20">
+      <div className="flex flex-col space-y-8 max-w-7xl mx-auto w-full">
         {/* Greeting Section */}
-        <section className="flex flex-col space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">{greeting}, {user?.name}!</h1>
-          <p className="text-muted-foreground">Here's what's happening with your courses today.</p>
+        <section className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 rounded-2xl blur-3xl"></div>
+          <div className="relative bg-card/90 backdrop-blur-sm border border-border/50 rounded-2xl p-8 flex flex-col gap-2 shadow-lg">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-lg blur-sm"></div>
+                <div className="relative bg-gradient-to-r from-primary to-accent p-2 rounded-lg">
+                  <Trophy className="h-7 w-7 text-primary-foreground" />
+                </div>
+              </div>
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold text-foreground drop-shadow-sm">
+                  {greeting}, {user?.name}!
+                </h1>
+                <div className="mt-1 flex items-center" style={{ minHeight: '1.5rem' }}>
+                  <span className="inline-flex items-center justify-center" style={{ width: '1.5rem' }}>
+                    <Sparkles className="h-4 w-4 text-primary" />
+                  </span>
+                  <span className="text-muted-foreground">Here's what's happening with your courses today.</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* Quick Actions */}
-        <section className="bg-muted/30 p-4 rounded-lg">
-          <div className="flex flex-wrap justify-between items-center mb-3">
-            <h2 className="text-lg font-medium">Quick Actions</h2>
-            <Button variant="outline" size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              More Actions
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Button variant="outline" className="flex flex-col h-24 px-4 py-3 justify-center items-center gap-2 hover:bg-primary/5 hover:border-primary">
-              <BookOpen className="h-5 w-5" />
-              <span>Add Course</span>
-            </Button>
-            <Button variant="outline" className="flex flex-col h-24 px-4 py-3 justify-center items-center gap-2 hover:bg-primary/5 hover:border-primary">
-              <FileText className="h-5 w-5" />
-              <span>Create Article</span>
-            </Button>
-            <Button variant="outline" className="flex flex-col h-24 px-4 py-3 justify-center items-center gap-2 hover:bg-primary/5 hover:border-primary">
-              <ClipboardCheck className="h-5 w-5" />
-              <span>New Assignment</span>
-            </Button>
-            <Button variant="outline" className="flex flex-col h-24 px-4 py-3 justify-center items-center gap-2 hover:bg-primary/5 hover:border-primary">
-              <FileQuestion className="h-5 w-5" />
-              <span>Create Quiz</span>
-            </Button>
+        <section className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm"></div>
+          <div className="relative bg-card/95 backdrop-blur-sm border border-border/50 rounded-xl p-6 shadow-md">
+            <div className="flex flex-wrap justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-foreground">Quick Actions</h2>
+              <Button variant="outline" size="sm" className="rounded-lg border-primary/30 bg-background/70 hover:bg-primary/10 transition-all duration-300">
+                <Plus className="h-4 w-4 mr-2" />
+                More Actions
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <AnimatedActionCard icon={<BookOpen className="h-6 w-6" />} label="Add Course" />
+              <AnimatedActionCard icon={<FileText className="h-6 w-6" />} label="Create Article" />
+              <AnimatedActionCard icon={<ClipboardCheck className="h-6 w-6" />} label="New Assignment" />
+              <AnimatedActionCard icon={<FileQuestion className="h-6 w-6" />} label="Create Quiz" />
+            </div>
           </div>
         </section>
 
         {/* Dashboard Widgets */}
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="mb-4">
+          <TabsList className="mb-4 bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-2 flex gap-2">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="students">Students</TabsTrigger>
           </TabsList>
-          
           <TabsContent value="overview" className="space-y-4">
             <div className="grid md:grid-cols-3 gap-4">
               {/* Course Engagement */}
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden bg-card/95 border border-border/50 shadow-md rounded-xl">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Course Engagement</CardTitle>
+                  <CardTitle className="text-sm font-semibold">Course Engagement</CardTitle>
                   <CardDescription>Top performing courses by student engagement</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -314,12 +324,7 @@ export default function Page() {
                     <BarChart
                       data={courseEngagementData}
                       layout="vertical"
-                      margin={{
-                        top: 5,
-                        right: 30,
-                        left: 20,
-                        bottom: 5,
-                      }}
+                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                       <XAxis type="number" domain={[0, 100]} />
@@ -334,7 +339,7 @@ export default function Page() {
                   </ResponsiveContainer>
                 </CardContent>
                 <CardFooter>
-                  <Button variant="ghost" size="sm" className="w-full">
+                  <Button variant="ghost" size="sm" className="w-full hover:bg-primary/10 transition-all duration-300">
                     <BarChart3 className="mr-2 h-4 w-4" />
                     View detailed analytics
                   </Button>
@@ -342,9 +347,9 @@ export default function Page() {
               </Card>
 
               {/* Learning Content */}
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden bg-card/95 border border-border/50 shadow-md rounded-xl">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Learning Content</CardTitle>
+                  <CardTitle className="text-sm font-semibold">Learning Content</CardTitle>
                   <CardDescription>Content distribution by type</CardDescription>
                 </CardHeader>
                 <CardContent className="flex justify-center py-4">
@@ -404,14 +409,13 @@ export default function Page() {
               </Card>
 
               {/* To-Do List */}
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden bg-card/95 border border-border/50 shadow-md rounded-xl">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">To-Do List</CardTitle>
+                  <CardTitle className="text-sm font-semibold">To-Do List</CardTitle>
                   <CardDescription>
                     {todos.filter(t => !t.completed).length} tasks remaining
                   </CardDescription>
                 </CardHeader>
-                
                 <CardContent>
                   {isLoading ? (
                     <div className="flex justify-center py-4">
@@ -426,7 +430,7 @@ export default function Page() {
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-5 w-5 rounded-full p-0 mt-0.5"
+                            className="h-5 w-5 rounded-full p-0 mt-0.5 hover:bg-primary/10 transition-all duration-300"
                             onClick={() => toggleTodo(todo.id)}
                           >
                             {todo.completed ? 
@@ -437,7 +441,7 @@ export default function Page() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-5 w-5 rounded-full p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="h-5 w-5 rounded-full p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10"
                             onClick={() => deleteTask(todo.id)}
                           >
                             <X className="h-3 w-3" />
@@ -455,7 +459,7 @@ export default function Page() {
                             value={newTaskText}
                             onChange={(e) => setNewTaskText(e.target.value)}
                             placeholder="What needs to be done?"
-                            className="h-7 py-1 text-sm border-0 border-b focus-visible:ring-0 rounded-none px-0"
+                            className="h-7 py-1 text-sm border-0 border-b focus-visible:ring-0 rounded-none px-0 bg-background"
                             autoFocus
                             onBlur={() => {
                               if (!newTaskText.trim()) setIsAddingTask(false);
@@ -466,7 +470,7 @@ export default function Page() {
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="w-full mt-2 text-muted-foreground hover:text-foreground"
+                          className="w-full mt-2 text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-all duration-300"
                           onClick={() => setIsAddingTask(true)}
                         >
                           <PlusCircle className="mr-2 h-4 w-4" />
@@ -476,7 +480,6 @@ export default function Page() {
                     </div>
                   )}
                 </CardContent>
-                
                 <CardFooter>
                   {todos.length > 0 && (
                     <div className="w-full flex justify-between text-xs text-muted-foreground">
@@ -485,7 +488,7 @@ export default function Page() {
                         <Button 
                           variant="link" 
                           size="sm" 
-                          className="h-auto p-0 text-xs"
+                          className="h-auto p-0 text-xs text-primary hover:underline"
                           onClick={() => setTodos(todos.filter(t => !t.completed))}
                         >
                           Clear completed
@@ -496,12 +499,12 @@ export default function Page() {
                 </CardFooter>
               </Card>
             </div>
-            
+
             {/* Bottom Section - Weekly Activity & Top Students */}
             <div className="grid md:grid-cols-3 gap-4">
-              <Card className="md:col-span-2 overflow-hidden">
+              <Card className="md:col-span-2 overflow-hidden bg-card/95 border border-border/50 shadow-md rounded-xl">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Weekly Activity</CardTitle>
+                  <CardTitle className="text-sm font-semibold">Weekly Activity</CardTitle>
                   <CardDescription>Student engagement over the past 7 days</CardDescription>
                 </CardHeader>
                 <CardContent className="px-2">
@@ -523,17 +526,17 @@ export default function Page() {
                   </ResponsiveContainer>
                 </CardContent>
                 <CardFooter>
-                  <Button variant="ghost" size="sm" className="w-full">
+                  <Button variant="ghost" size="sm" className="w-full hover:bg-primary/10 transition-all duration-300">
                     <LineChartIcon className="mr-2 h-4 w-4" />
                     View detailed activity
                   </Button>
                 </CardFooter>
               </Card>
-              
+
               {/* Top Students Card */}
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden bg-card/95 border border-border/50 shadow-md rounded-xl">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Top Performers</CardTitle>
+                  <CardTitle className="text-sm font-semibold">Top Performers</CardTitle>
                   <CardDescription>Your highest achieving students</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -543,11 +546,11 @@ export default function Page() {
                         <div className="flex-shrink-0">
                           {i === 0 ? (
                             <div className="relative">
-                              <Avatar className="h-10 w-10 border-2 border-primary ring-2 ring-primary/20">
+                              <Avatar className="h-10 w-10 border-2 border-primary ring-2 ring-primary/20 shadow-lg">
                                 <AvatarImage src={student.avatar} alt={student.name} />
                                 <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
                               </Avatar>
-                              <Trophy className="absolute -top-2 -right-2 h-4 w-4 text-yellow-500 drop-shadow-md" />
+                              <Trophy className="absolute -top-2 -right-2 h-4 w-4 text-yellow-500 drop-shadow-md animate-bounce" />
                             </div>
                           ) : (
                             <Avatar className="h-8 w-8">
@@ -570,14 +573,15 @@ export default function Page() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button variant="ghost" size="sm" className="w-full">View all students</Button>
+                  <Button variant="ghost" size="sm" className="w-full hover:bg-primary/10 transition-all duration-300">View all students</Button>
                 </CardFooter>
               </Card>
             </div>
           </TabsContent>
 
+          {/* Analytics Tab */}
           <TabsContent value="analytics">
-            <Card>
+            <Card className="bg-card/95 border border-border/50 shadow-md rounded-xl">
               <CardHeader>
                 <CardTitle>Analytics Dashboard</CardTitle>
                 <CardDescription>View detailed analytics for all your courses and students.</CardDescription>
@@ -588,8 +592,9 @@ export default function Page() {
             </Card>
           </TabsContent>
 
+          {/* Students Tab */}
           <TabsContent value="students">
-            <Card>
+            <Card className="bg-card/95 border border-border/50 shadow-md rounded-xl">
               <CardHeader>
                 <CardTitle>Student Overview</CardTitle>
                 <CardDescription>View and manage all enrolled students.</CardDescription>
@@ -602,5 +607,26 @@ export default function Page() {
         </Tabs>
       </div>
     </div>
+  );
+}
+
+// AnimatedActionCard: beautiful animated quick action card
+function AnimatedActionCard({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <button
+      type="button"
+      className="group relative flex flex-col items-center justify-center h-24 px-4 py-3 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 shadow-md hover:shadow-xl transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/40"
+      tabIndex={0}
+    >
+      <span className="relative flex items-center justify-center mb-2">
+        <span className="absolute inset-0 rounded-full bg-primary/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+        <span className="relative text-primary group-hover:scale-110 transition-transform duration-300">
+          {icon}
+        </span>
+      </span>
+      <span className="font-semibold text-foreground text-sm group-hover:text-primary transition-colors duration-300">
+        {label}
+      </span>
+    </button>
   );
 }

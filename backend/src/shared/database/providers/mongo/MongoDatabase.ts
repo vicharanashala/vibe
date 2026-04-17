@@ -1,7 +1,7 @@
-import {GLOBAL_TYPES} from '#root/types.js';
-import {IDatabase} from '#shared/database/interfaces/IDatabase.js';
-import {injectable, inject} from 'inversify';
-import {Db, MongoClient, Document, Collection} from 'mongodb';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { IDatabase } from '#shared/database/interfaces/IDatabase.js';
+import { injectable, inject } from 'inversify';
+import { Db, MongoClient, Document, Collection } from 'mongodb';
 
 /**
  * @class MongoDatabase
@@ -17,6 +17,7 @@ import {Db, MongoClient, Document, Collection} from 'mongodb';
 export class MongoDatabase implements IDatabase<Db> {
   private client: MongoClient | null;
   public database: Db | null;
+  private connectingPromise: Promise<Db> | null = null;
 
   /**
    * Creates an instance of MongoDatabase.
@@ -40,25 +41,72 @@ export class MongoDatabase implements IDatabase<Db> {
     }
 
     this.client = new MongoClient(uri, {
-      ssl: true,
-      tls: true,
-      tlsAllowInvalidCertificates: false,
-      tlsAllowInvalidHostnames: false,
-      retryWrites: true,
-      connectTimeoutMS: 30000,
-      socketTimeoutMS: 30000
+      // ssl: true,
+      // tls: true,
+      // tlsAllowInvalidCertificates: false,
+      // tlsAllowInvalidHostnames: false,
+
+      // retryWrites: true,
+
+      // // 🔹 CONNECTION POOL
+      // maxPoolSize: 50,
+      // minPoolSize: 10,
+      // maxIdleTimeMS: 60000,
+
+      // // 🔹 TIMEOUTS
+      // connectTimeoutMS: 20000,
+      // socketTimeoutMS: 30000,
+
+
     });
+
   }
+
+  private async ensureIndexes(): Promise<void> {
+  if (!this.database) return;
+
+  const auditCollection = this.database.collection("auditTrails");
+
+  await auditCollection.createIndex({
+    actor: 1,
+    "context.courseId": 1,
+    "context.courseVersionId": 1,
+    createdAt: -1,
+  });
+
+  console.log("AuditTrails indexes ensured");
+}
 
   /**
    * Connects to the MongoDB database.
    * @returns {Promise<Db>} The connected database instance.
    */
-  private async connect(): Promise<Db> {
-    await this.client?.connect();
-    this.database = this.client?.db(this.dbName) || null;
+  // public async connect(): Promise<Db> {
+  //   await this.client?.connect();
+  //   this.database = this.client?.db(this.dbName) || null;
+
+  //   return this.database;
+  // }
+
+public async connect(): Promise<Db> {
+  if (this.database) {
     return this.database;
   }
+
+  if (!this.connectingPromise) {
+    this.connectingPromise = (async () => {
+      await this.client?.connect();
+      this.database = this.client?.db(this.dbName);
+
+      // 🔥 Ensure indexes after connection
+      await this.ensureIndexes();
+
+      return this.database;
+    })();
+  }
+
+  return this.connectingPromise;
+}
 
   /**
    * Disconnects from the MongoDB database.
@@ -98,9 +146,9 @@ export class MongoDatabase implements IDatabase<Db> {
   public async getCollection<T extends Document>(
     name: string,
   ): Promise<Collection<T>> {
-    if (!this.database) {
-      await this.connect();
-    }
+    // if (!this.database) {
+    //   await this.connect();
+    // }
     if (!this.database) {
       throw new Error('Database is not connected');
     }

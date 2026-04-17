@@ -9,13 +9,19 @@ export const useCourseStore = create<CourseState>()(
     (set) => ({
       currentCourse: null,
       setCurrentCourse: (courseInfo) => {
-        console.log("Setting course in store:", courseInfo);
         set({ currentCourse: courseInfo });
       },
       setWatchItemId: (watchItemId) => {
         set((state) => ({
           currentCourse: state.currentCourse
             ? { ...state.currentCourse, watchItemId }
+            : null,
+        }));
+      },
+      setQuestionId: (questionId) => {
+        set((state) => ({
+          currentCourse: state.currentCourse
+            ? { ...state.currentCourse, questionId }
             : null,
         }));
       },

@@ -7,6 +7,7 @@ interface IGrader {
     answer: Answer,
     quiz: QuizItem,
     parameterMap?: ParameterMap,
+    selectedAnswerTexts?: string []
   ): Promise<IQuestionAnswerFeedback>;
 }
 

@@ -8,30 +8,32 @@ import {
   ID,
   IEnrollment,
 } from '#root/shared/interfaces/models.js';
-import {Expose, Transform, Type} from 'class-transformer';
-import {ObjectId} from 'mongodb';
-import {Progress} from './Progress.js';
+import { Expose, Transform, Type } from 'class-transformer';
+import { ObjectId } from 'mongodb';
+import { Progress } from './Progress.js';
+import { IsArray, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { JSONSchema } from 'class-validator-jsonschema';
 
 @Expose()
 export class Enrollment implements IEnrollment {
-  @Expose({toClassOnly: true})
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Expose({ toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   _id?: ID;
 
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   userId: ID;
 
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   courseId: ID;
 
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   courseVersionId: ID;
 
   @Expose()
@@ -44,20 +46,42 @@ export class Enrollment implements IEnrollment {
   @Type(() => Date)
   enrollmentDate: Date;
 
-  constructor(userId?: string, courseId?: string, courseVersionId?: string) {
+  @IsString()
+  @Expose()
+  percentCompleted: number;
+
+  @IsString()
+  @Expose()
+  @IsOptional()
+  completedItemsCount?: number;
+
+  @IsOptional()
+  cohortId?: ID;
+
+  constructor(userId?: string, courseId?: string, courseVersionId?: string, cohortId?: ID) {
     if (userId && courseId && courseVersionId) {
       this.userId = new ObjectId(userId);
       this.courseId = new ObjectId(courseId);
       this.courseVersionId = new ObjectId(courseVersionId);
       this.status = 'ACTIVE';
       this.enrollmentDate = new Date();
+      this.percentCompleted = 0;
+      this.completedItemsCount = 0;
+    }
+    if(cohortId){
+      this.cohortId = cohortId;
     }
   }
 }
 
-@Expose({toPlainOnly: true})
+@Expose({ toPlainOnly: true })
 export class EnrollUserResponse {
+  @ValidateNested()
   @Expose()
+  @JSONSchema({
+    type: 'object',
+    $ref: '#/components/schemas/Enrollment'
+  })
   @Type(() => Enrollment)
   enrollment: Enrollment;
 
@@ -80,10 +104,12 @@ export class EnrollUserResponse {
   }
 }
 export class EnrolledUserResponse {
+  @ValidateNested()
   @Expose()
   @Type(() => String)
   role: EnrollmentRole;
 
+  @ValidateNested()
   @Expose()
   @Type(() => String)
   status: EnrollmentStatus;

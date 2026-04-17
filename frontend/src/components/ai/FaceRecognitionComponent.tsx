@@ -1,364 +1,371 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as faceapi from '@vladmandic/face-api';
 
-import type { FaceRecognition, TrackedFace, FaceRecognitionDebugInfo, FaceRecognitionComponentProps } from '@/types/ai.types';
+import { useReportAnomalyImage } from '@/hooks/hooks';
+import { useCourseStore } from '@/store/course-store';
+import type {
+  FaceRecognition,
+  FaceRecognitionComponentProps,
+  FaceRecognitionDebugInfo,
+} from '@/types/ai.types';
 
-// Optimized validation with caching
-const URL_VALIDATION_CACHE = new Map<string, boolean>();
+const EMBEDDING_LENGTH = 128;
+const VERIFY_INTERVAL_MS = 1000;
+const MATCH_THRESHOLD = 0.6;
+const REQUIRED_MATCHES = 3;
+const REQUIRED_MISMATCHES = 2;
 
-function isValidImageUrl(url: string): boolean {
-  if (!url || typeof url !== 'string') return false;
-  
-  // Check cache first
-  if (URL_VALIDATION_CACHE.has(url)) {
-    return URL_VALIDATION_CACHE.get(url)!;
+type FaceReferenceResponse = {
+  label: string;
+  faceEmbedding?: number[] | null;
+};
+
+const normalizeEmbedding = (embedding: unknown): number[] | null => {
+  if (!embedding) {
+    return null;
   }
-  
-  try {
-    new URL(url);
-  } catch {
-    URL_VALIDATION_CACHE.set(url, false);
-    return false;
+
+  if (Array.isArray(embedding)) {
+    return embedding.map(Number);
   }
-  
-  const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
-  const isDataUrl = url.startsWith('data:image/');
-  const hasValidExtension = validExtensions.some(ext => 
-    url.toLowerCase().includes(ext)
-  );
-  
-  const isValid = isDataUrl || hasValidExtension;
-  URL_VALIDATION_CACHE.set(url, isValid);
-  return isValid;
-}
+
+  if (ArrayBuffer.isView(embedding)) {
+    return Array.from(embedding, Number);
+  }
+
+  if (typeof embedding === 'object') {
+    const values = Object.keys(embedding as Record<string, unknown>)
+      .sort((a, b) => Number(a) - Number(b))
+      .map((key) => Number((embedding as Record<string, unknown>)[key]));
+
+    return values.length ? values : null;
+  }
+
+  return null;
+};
 
 const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
   videoRef,
   onRecognitionResult,
-  onDebugInfoUpdate
+  onDebugInfoUpdate,
+  onMismatchChange,
 }) => {
   const [isReady, setIsReady] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<FaceRecognitionDebugInfo>({
-    knownFacesCount: 0,
-    knownFaceLabels: [],
-    detectedPhotoFaces: 0,
-    currentFrameFaces: 0,
-    recognizedFaces: 0,
-    lastUpdateTime: Date.now(),
-    backendStatus: 'loading',
-    trackedFaces: 0,
-    reusedTracks: 0,
-    newRecognitions: 0
-  });
-  const [recognitions, setRecognitions] = useState<FaceRecognition[]>([]);
-  const lastProcessTime = useRef<number>(0);
-  const processingInterval = 100; // Process every 10 seconds
-  const labeledDescriptorsRef = useRef<faceapi.LabeledFaceDescriptors[]>([]);
-  const faceMatcherRef = useRef<faceapi.FaceMatcher | null>(null);
 
-  // Update debug info and notify parent
+  const reportImage = useReportAnomalyImage();
+  const courseStore = useCourseStore();
+  const referenceEmbeddingRef = useRef<number[] | null>(null);
+  const referenceLabelRef = useRef('registered-user');
+  const matchCountRef = useRef(0);
+  const mismatchCountRef = useRef(0);
+  const mismatchReportedRef = useRef(false);
+  const isProcessingRef = useRef(false);
+
   const updateDebugInfo = useCallback((updates: Partial<FaceRecognitionDebugInfo>) => {
-    setDebugInfo(prev => {
-      const newDebugInfo = {
-        ...prev,
-        ...updates,
-        lastUpdateTime: Date.now()
-      };
-      onDebugInfoUpdate?.(newDebugInfo);
-      return newDebugInfo;
-    });
-  }, [onDebugInfoUpdate]);
-
-  // Initialize face-api models
-  useEffect(() => {
-    let isMounted = true;
-
-    const initializeModels = async () => {
-      try {
-        updateDebugInfo({ backendStatus: 'loading' });
-        
-        const modelUrl = '/models/face-api/model';
-        
-        await Promise.all([
-          faceapi.nets.ssdMobilenetv1.loadFromUri(modelUrl),
-          faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
-          faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl)
-        ]);
-        
-        if (isMounted) {
-          await loadKnownFaces();
-        }
-      } catch (error) {
-        console.error('[FaceRecognitionComponent] Error loading face-api models:', error);
-        if (isMounted) {
-          updateDebugInfo({
-            backendStatus: 'error',
-            errorMessage: `Failed to load models: ${error}`
-          });
-        }
-      }
+    const next: FaceRecognitionDebugInfo = {
+      knownFacesCount: 0,
+      knownFaceLabels: [],
+      detectedPhotoFaces: 0,
+      currentFrameFaces: 0,
+      recognizedFaces: 0,
+      trackedFaces: 0,
+      reusedTracks: 0,
+      newRecognitions: 0,
+      lastUpdateTime: Date.now(),
+      backendStatus: 'loading',
+      ...updates,
+     
     };
 
-    const loadKnownFaces = async () => {
-      try {
-        const response = await fetch(`${import.meta.env.VITE_BASE_URL}/activity/known-faces`);
+    onDebugInfoUpdate?.(next);
+  }, [onDebugInfoUpdate]);
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        const peopleData = data.faces || [];
-        
-        if (!Array.isArray(peopleData)) {
-          console.error('[FaceRecognitionComponent] API response is not an array:', peopleData);
-          updateDebugInfo({ backendStatus: 'error', errorMessage: 'Invalid API response format' });
+  const fetchFaceReference = useCallback(async (): Promise<FaceReferenceResponse> => {
+    const authToken = localStorage.getItem('firebase-auth-token');
+    if (!authToken) {
+      throw new Error('No auth token available for face reference lookup.');
+    }
+
+    const response = await fetch(`${import.meta.env.VITE_BASE_URL}/users/me/face-reference`, {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch face reference: ${response.status}`);
+    }
+
+    return response.json();
+  }, []);
+
+  const createMismatchSnapshot = useCallback(async () => {
+    const video = videoRef.current;
+    if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+      return null;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      return null;
+    }
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    return new Promise<File | null>((resolve) => {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          resolve(null);
           return;
         }
 
-        const labeledDescriptors = await Promise.all(
-          peopleData.map(async (person) => {
-            const descriptions: Float32Array[] = [];
-            const validImageUrls = person.imagePaths.filter(isValidImageUrl);
+        resolve(new File([blob], `face-mismatch-${Date.now()}.jpg`, { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.92);
+    });
+  }, [videoRef]);
 
-            if (validImageUrls.length === 0) {
-              return null;
-            }
+  const reportMismatch = useCallback(async () => {
+    const course = courseStore.currentCourse;
+    if (!course?.courseId || !course?.versionId || !course?.itemId) {
+      return;
+    }
 
-            for (const imgUrl of validImageUrls) {
-              try {
-                const img = await faceapi.fetchImage(imgUrl);
-                
-                const detectionResult = await faceapi
-                  .detectSingleFace(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 }))
-                  .withFaceLandmarks()
-                  .withFaceDescriptor();
+    const file = await createMismatchSnapshot();
+    if (!file) {
+      return;
+    }
 
-                if (detectionResult && detectionResult.descriptor) {
-                  descriptions.push(detectionResult.descriptor);
-                }
-              } catch (imgError: unknown) {
-                console.error(`[FaceRecognitionComponent] Error processing ${imgUrl}:`, imgError);
-                const errorMessage = imgError instanceof Error ? imgError.message : String(imgError);
-                if (errorMessage.includes('CORS') || errorMessage.includes('fetch')) {
-                  try {
-                    const imgElement = new Image();
-                    imgElement.crossOrigin = 'anonymous';
-                    
-                    await new Promise((resolve, reject) => {
-                      imgElement.onload = resolve;
-                      imgElement.onerror = reject;
-                      imgElement.src = imgUrl;
-                    });
-                    
-                    const detectionResult = await faceapi
-                      .detectSingleFace(imgElement, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 }))
-                      .withFaceLandmarks()
-                      .withFaceDescriptor();
+    await reportImage.mutateAsync({
+      body: {
+        type: 'FACE_RECOGNITION' as any,
+        courseId: course.courseId,
+        versionId: course.versionId,
+        itemId: course.itemId,
+      },
+      file,
+    });
+  }, [courseStore.currentCourse, createMismatchSnapshot, reportImage]);
 
-                    if (detectionResult && detectionResult.descriptor) {
-                      descriptions.push(detectionResult.descriptor);
-                    }
-                  } catch (altError: unknown) {
-                    console.error(`[FaceRecognitionComponent] Alternative method also failed for ${imgUrl}:`, altError);
-                  }
-                }
-              }
-            }
+  const resetVerificationState = useCallback(() => {
+    matchCountRef.current = 0;
+    mismatchCountRef.current = 0;
+  }, []);
 
-            return descriptions.length > 0 
-              ? new faceapi.LabeledFaceDescriptors(person.label, descriptions)
-              : null;
-          })
-        );
+  useEffect(() => {
+    let isMounted = true;
 
-        const validDescriptors = labeledDescriptors.filter((desc): desc is faceapi.LabeledFaceDescriptors => 
-          desc !== null && desc.descriptors.length > 0
-        );
-        
-        labeledDescriptorsRef.current = validDescriptors;
-        faceMatcherRef.current = new faceapi.FaceMatcher(validDescriptors, 0.6);
-        
-        const labels = validDescriptors.map(desc => desc.label);
-        const totalPhotoFaces = validDescriptors.reduce((sum, desc) => sum + desc.descriptors.length, 0);
-        
-        if (isMounted) {
-          updateDebugInfo({
-            knownFacesCount: validDescriptors.length,
-            knownFaceLabels: labels,
-            detectedPhotoFaces: totalPhotoFaces,
-            backendStatus: 'success'
-          });
-          setIsReady(true);
+    const initialize = async () => {
+      try {
+        updateDebugInfo({ backendStatus: 'loading', errorMessage: undefined });
+
+        const modelPaths = ['/models', 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'];
+        let loaded = false;
+
+        for (const modelPath of modelPaths) {
+          try {
+            await Promise.all([
+              faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
+              faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
+              faceapi.nets.faceRecognitionNet.loadFromUri(modelPath),
+            ]);
+            loaded = true;
+            break;
+          } catch (error) {
+            console.warn('[FaceRecognitionDebug] model path failed', { modelPath, error });
+          }
         }
+
+        if (!loaded) {
+          throw new Error('Failed to load face recognition models.');
+        }
+
+        const reference = await fetchFaceReference();
+        const normalizedEmbedding = normalizeEmbedding(reference.faceEmbedding);
+
+        if (!normalizedEmbedding || normalizedEmbedding.length !== EMBEDDING_LENGTH) {
+          throw new Error('Stored face embedding is invalid. Please register again.');
+        }
+
+        referenceEmbeddingRef.current = normalizedEmbedding;
+        referenceLabelRef.current = reference.label || 'registered-user';
+
+        if (!isMounted) {
+          return;
+        }
+
+        setIsReady(true);
+        updateDebugInfo({
+          knownFacesCount: 1,
+          knownFaceLabels: [referenceLabelRef.current],
+          detectedPhotoFaces: 1,
+          backendStatus: 'success',
+        });
       } catch (error) {
-        console.error('[FaceRecognitionComponent] Error loading known faces:', error);
-        if (isMounted) {
-          updateDebugInfo({
-            backendStatus: 'error',
-            errorMessage: `Failed to load known faces: ${error}`
-          });
+        console.error('[FaceRecognitionComponent] Initialization failed:', error);
+        if (!isMounted) {
+          return;
         }
+
+        updateDebugInfo({
+          backendStatus: 'error',
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
       }
     };
 
-    initializeModels();
+    void initialize();
 
     return () => {
       isMounted = false;
     };
-  }, [updateDebugInfo]);
+  }, [fetchFaceReference, updateDebugInfo]);
 
   const processRecognition = useCallback(async () => {
-    if (!isReady || !videoRef.current || !faceMatcherRef.current) {
+    const referenceEmbedding = referenceEmbeddingRef.current;
+    const video = videoRef.current;
+
+    if (!isReady || !referenceEmbedding || !video || isProcessingRef.current) {
       return;
     }
 
-    const now = Date.now();
-    if (now - lastProcessTime.current < processingInterval) {
+    if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || video.videoWidth === 0 || video.videoHeight === 0) {
       return;
     }
-    lastProcessTime.current = now;
 
+    isProcessingRef.current = true;
     const startTime = performance.now();
 
     try {
-      const video = videoRef.current;
-      
-      if (video.videoWidth === 0 || video.videoHeight === 0) {
-        return;
-      }
-
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      
-      if (!ctx) {
-        console.error('[FaceRecognitionComponent] No canvas context');
-        return;
-      }
-
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0);
-
-      const detections = await faceapi
-        .detectAllFaces(canvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 }))
+      // Keep verification focused on the single student face, just like the simpler working sample.
+      const detection = await faceapi
+        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
         .withFaceLandmarks()
-        .withFaceDescriptors();
+        .withFaceDescriptor();
 
-      if (detections.length === 0) {
-        const processingTime = performance.now() - startTime;
-        
+      if (!detection?.descriptor) {
         updateDebugInfo({
           currentFrameFaces: 0,
           recognizedFaces: 0,
-          processingTime
+          newRecognitions: 0,
+          processingTime: performance.now() - startTime,
+          errorMessage: 'No face detected in sampled frame.',
+          backendStatus: 'success',
         });
-        setRecognitions([]);
-        onRecognitionResult?.([]);
         return;
       }
 
-      const faceMatcher = faceMatcherRef.current;
-      if (!faceMatcher) return;
-
-      const newRecognitions: FaceRecognition[] = [];
-
-      for (const detection of detections) {
-        const match = faceMatcher.findBestMatch(detection.descriptor);
-        const isMatch = match.label !== 'unknown' && match.distance < 0.6;
-        
-        newRecognitions.push({
-          box: detection.detection.box,
-          label: isMatch ? match.label : 'unknown',
-          distance: match.distance,
-          isMatch: isMatch
+      const liveEmbedding = normalizeEmbedding(Array.from(detection.descriptor));
+      if (!liveEmbedding || liveEmbedding.length !== EMBEDDING_LENGTH) {
+        updateDebugInfo({
+          currentFrameFaces: 1,
+          recognizedFaces: 0,
+          newRecognitions: 0,
+          processingTime: performance.now() - startTime,
+          errorMessage: 'Live face data is invalid. Try again.',
+          backendStatus: 'success',
         });
+        return;
       }
 
-      const processingTime = performance.now() - startTime;
-      const recognizedCount = newRecognitions.filter(r => r.isMatch).length;
+      const distance = faceapi.euclideanDistance(referenceEmbedding, liveEmbedding);
+      const rawMatch = distance < MATCH_THRESHOLD;
+
+      let recognition: FaceRecognition = {
+        box: detection.detection.box,
+        label: 'unknown',
+        distance,
+        isMatch: false,
+      };
+      let hasConfirmedMismatch = mismatchReportedRef.current;
+
+      if (rawMatch) {
+        matchCountRef.current += 1;
+        mismatchCountRef.current = 0;
+
+        if (matchCountRef.current >= REQUIRED_MATCHES) {
+          recognition = {
+            box: detection.detection.box,
+            label: referenceLabelRef.current,
+            distance,
+            isMatch: true,
+          };
+          hasConfirmedMismatch = false;
+          mismatchReportedRef.current = false;
+        }
+      } else {
+        mismatchCountRef.current += 1;
+        matchCountRef.current = 0;
+
+        if (mismatchCountRef.current >= REQUIRED_MISMATCHES) {
+          hasConfirmedMismatch = true;
+
+          if (!mismatchReportedRef.current) {
+            await reportMismatch();
+            mismatchReportedRef.current = true;
+            console.log('[FaceRecognitionDebug] anomaly sent', { distance });
+          }
+        }
+      }
+
+      // We always publish the current frame result so the overlay can say Unknown early,
+      // but only the consecutive mismatch rule turns it into a real anomaly.
+      onRecognitionResult?.([recognition]);
+      onMismatchChange?.(hasConfirmedMismatch);
+
+      console.log('[FaceRecognitionDebug] comparison', {
+        distance,
+        rawMatch,
+        matchCount: matchCountRef.current,
+        mismatchCount: mismatchCountRef.current,
+        confirmedMismatch: hasConfirmedMismatch,
+      });
 
       updateDebugInfo({
-        currentFrameFaces: detections.length,
-        recognizedFaces: recognizedCount,
-        processingTime
+        currentFrameFaces: 1,
+        recognizedFaces: recognition.isMatch ? 1 : 0,
+        newRecognitions: 1,
+        processingTime: performance.now() - startTime,
+        backendStatus: 'success',
+        errorMessage: hasConfirmedMismatch ? 'Face mismatch detected and reported.' : undefined,
       });
-      
-      setRecognitions(newRecognitions);
-      onRecognitionResult?.(newRecognitions);
-
     } catch (error) {
-      console.error('[FaceRecognitionComponent] Error processing recognition:', error);
-      const processingTime = performance.now() - startTime;
+      console.error('[FaceRecognitionComponent] Recognition failed:', error);
+      onMismatchChange?.(false);
       updateDebugInfo({
-        processingTime,
-        errorMessage: `Recognition failed: ${error}`
+        processingTime: performance.now() - startTime,
+        backendStatus: 'error',
+        errorMessage: error instanceof Error ? error.message : String(error),
       });
+    } finally {
+      isProcessingRef.current = false;
     }
-  }, [isReady, videoRef, onRecognitionResult, updateDebugInfo]);
+  }, [
+    isReady,
+    onMismatchChange,
+    onRecognitionResult,
+    reportMismatch,
+    resetVerificationState,
+    updateDebugInfo,
+    videoRef,
+  ]);
 
-  // Main recognition loop with 10-second interval
   useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-
-    if (isReady) {
-      intervalId = setInterval(() => {
-        processRecognition();
-      }, processingInterval);
+    if (!isReady) {
+      return;
     }
 
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
+    const intervalId = setInterval(() => {
+      void processRecognition();
+    }, VERIFY_INTERVAL_MS);
+
+    return () => clearInterval(intervalId);
   }, [isReady, processRecognition]);
 
-  // Return overlay component
-  return (
-    <div className="face-recognition-status">
-      {!isReady && (
-        <div className="text-sm text-yellow-600 mb-2">
-          Loading face recognition models...
-        </div>
-      )}
-
-      {isReady && (
-        <div className="text-sm text-green-600 mb-2">
-          Ready! {debugInfo.knownFacesCount} known faces loaded
-          <div className="text-xs text-gray-600 mt-1">
-            Current faces: {debugInfo.currentFrameFaces} | 
-            Recognized: {debugInfo.recognizedFaces}
-          </div>
-        </div>
-      )}
-
-      {recognitions.length > 0 && (
-        <div className="space-y-1">
-          {recognitions.map((recognition, index) => (
-            <div 
-              key={index}
-              className={`text-sm p-2 rounded ${
-                recognition.isMatch 
-                  ? 'bg-green-100 text-green-800 border border-green-200' 
-                  : 'bg-gray-100 text-gray-600 border border-gray-200'
-              }`}
-            >
-              <div className="font-semibold">
-                {recognition.isMatch ? recognition.label : 'Unknown Person'}
-              </div>
-              {recognition.isMatch && (
-                <div className="text-xs opacity-75">
-                  Confidence: {(1 - recognition.distance).toFixed(2)}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  return null;
 };
 
 export default FaceRecognitionComponent;

@@ -31,26 +31,22 @@ const isLookingAway = (face: Face): boolean => {
     earVisibilityRatio = Math.min(rightEarDist, leftEarDist) / Math.max(rightEarDist, leftEarDist) * Math.pow(faceHeight, 0.3)/Math.pow(200, 0.3);
   }
   // const mouthEyeDistance = Math.abs(rightEye.y / 2 + leftEye.y / 2 - mouth.y) / faceHeight;
-  console.log("[param] height:", faceHeight);
   // console.log("[trigger] eye dist", eyeDistance, "nose ratio", noseRatio, "ear visibility ratio", earVisibilityRatio, "face width", faceWidth);
 
   if (eyeDistance < 0.35) {
-    console.log('[Trigger] Eye distance is too small:', eyeDistance);
     return true;
   }
   if (noseRatio < 0.47) {
-    console.log('[Trigger] Nose ratio is out of bounds:', noseRatio);
     return true;
   }
   if (earVisibilityRatio < 0.47){
-    console.log('[Trigger] Ear visibility ratio is out of bounds:', earVisibilityRatio);
     return true;
   }
 
   return false;
 };
 
-const FaceDetectors: React.FC<FaceDetectorsProps> = ({ setIsFocused, faces, videoRef, onRecognitionResult, onDebugInfoUpdate }) => {
+const FaceDetectors: React.FC<FaceDetectorsProps> = ({ setIsFocused, faces, videoRef, onRecognitionResult, onDebugInfoUpdate, onMismatchChange }) => {
 
   useEffect(() => {
     const isFocused = true;
@@ -76,6 +72,7 @@ const FaceDetectors: React.FC<FaceDetectorsProps> = ({ setIsFocused, faces, vide
         videoRef={videoRef}
         onRecognitionResult={onRecognitionResult}
         onDebugInfoUpdate={onDebugInfoUpdate}
+        onMismatchChange={onMismatchChange}
       />
     </>
   );

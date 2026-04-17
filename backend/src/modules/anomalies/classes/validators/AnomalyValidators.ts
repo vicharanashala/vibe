@@ -1,7 +1,18 @@
-import { IsEnum, IsMongoId, IsNotEmpty, IsOptional, IsString } from "class-validator";
-import { JSONSchema } from "class-validator-jsonschema";
-import { AnomalyType, FileType, IAnomalyData } from "../../index.js";
-import { ObjectId } from "mongodb";
+import {
+  IsEmail,
+  IsEnum,
+  IsMongoId,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+import {JSONSchema} from 'class-validator-jsonschema';
+import {AnomalyType, FileType, IAnomalyData} from '../../index.js';
+import {ObjectId} from 'mongodb';
+import {
+  SortOrder,
+  PaginationWithSortQuery,
+} from '#root/shared/interfaces/models.js';
 
 export class NewAnomalyData {
   @JSONSchema({
@@ -19,7 +30,7 @@ export class NewAnomalyData {
   @IsNotEmpty()
   @IsMongoId()
   @IsString()
-  courseId: string;
+  courseId: string | ObjectId;
 
   @JSONSchema({
     description: 'Version ID associated with the anomaly',
@@ -28,7 +39,7 @@ export class NewAnomalyData {
   @IsNotEmpty()
   @IsMongoId()
   @IsString()
-  versionId: string;
+  versionId: string | ObjectId;
 
   @JSONSchema({
     description: 'Item ID associated with the anomaly',
@@ -37,7 +48,16 @@ export class NewAnomalyData {
   @IsNotEmpty()
   @IsMongoId()
   @IsString()
-  itemId: string;
+  itemId: string | ObjectId;
+
+  @JSONSchema({
+    description: 'Cohort ID associated with the anomaly (optional)',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsMongoId()
+  @IsString()
+  cohortId?: string | ObjectId;
 }
 
 export class AnomalyData extends NewAnomalyData implements IAnomalyData {
@@ -57,7 +77,27 @@ export class AnomalyData extends NewAnomalyData implements IAnomalyData {
   })
   @IsMongoId()
   @IsString()
-  userId: string;
+  userId: string | ObjectId;
+
+  @JSONSchema({
+    description: 'Full name of the student who triggered the anomaly',
+    type: 'string',
+    readOnly: true,
+    example: 'John Doe',
+  })
+  @IsOptional()
+  @IsString()
+  studentName?: string;
+
+  @JSONSchema({
+    description: 'Email of the student who triggered the anomaly',
+    type: 'string',
+    readOnly: true,
+    example: 'john.doe@example.com',
+  })
+  @IsOptional()
+  @IsEmail()
+  studentEmail?: string;
 
   @JSONSchema({
     description: 'URL of the anomaly image stored in cloud storage',
@@ -87,6 +127,15 @@ export class AnomalyData extends NewAnomalyData implements IAnomalyData {
   })
   @IsNotEmpty()
   createdAt: Date;
+
+  @JSONSchema({
+    description: 'Cohort name associated with the anomaly (optional)',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsOptional()
+  @IsString()
+  cohortName?: string;
 }
 
 export class GetCourseAnomalyParams {
@@ -192,3 +241,34 @@ export class StatsQueryParams {
   @IsString()
   userId?: string;
 }
+
+export class CourseAnomaliesQuery extends PaginationWithSortQuery {
+  @JSONSchema({
+    description: 'Search term to filter anomalies by student name or email',
+    type: 'string',
+    example: 'john',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @JSONSchema({
+    description: 'Filter anomalies by type',
+    enum: Object.values(AnomalyType),
+    example: AnomalyType.VOICE_DETECTION,
+  })
+  @IsOptional()
+  @IsEnum(AnomalyType)
+  type?: AnomalyType;
+
+  @JSONSchema({
+    description: 'Filter anomalies by cohort ID',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsMongoId()
+  @IsString()
+  cohort?: string;
+}
+
+export {SortOrder, PaginationWithSortQuery};

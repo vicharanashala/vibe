@@ -1,30 +1,24 @@
-import rateLimit from 'express-rate-limit';
-import {Request, Response, NextFunction} from 'express';
+import rateLimit, { RateLimitRequestHandler } from 'express-rate-limit';
 
-export const rateLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  limit: 5, // Limit each IP to 5 requests per window
-  standardHeaders: true, // Use `RateLimit-*` headers
-  legacyHeaders: false, // Disable `X-RateLimit-*` headers
-  message: {error: 'Too many requests, please try again later.'},
-});
-
-export const authRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 5, // Max 5 requests per 15 minutes per IP
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many authentication attempts. Please try again later.' },
-});
-
-export function AuthRateLimiter(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) {
-  if (process.env.NODE_ENV === 'production') {
-    return authRateLimiter(req, res, next); // delegate to express-rate-limit
-  } else {
-    next();
-  }
+interface LimiterOptions {
+  windowMs?: number;        // Time window in milliseconds
+  max?: number;             // Max requests per window per IP
+  message?: object | string;
 }
+
+/**
+ * Returns a configured rate limiter middleware
+ * @param options Limiter options
+ */
+export const createRateLimiter = (options?: LimiterOptions): RateLimitRequestHandler => {
+  return rateLimit({
+    windowMs: options?.windowMs ?? 1 * 60 * 1000, // default 15 minutes
+    max: options?.max ?? 300,                      // default 100 requests per IP
+    standardHeaders: true,                          // Send RateLimit-* headers
+    legacyHeaders: false,                           // Disable X-RateLimit-* headers
+    message: options?.message ?? {
+      status: 429,
+      error: 'Too many requests, please try again later.',
+    },
+  });
+};

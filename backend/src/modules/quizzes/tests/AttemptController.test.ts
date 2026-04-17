@@ -134,6 +134,7 @@ describe('AttemptController', async () => {
         quizDetails: {
           questionVisibility: 3,
           allowPartialGrading: true,
+          allowSkip: true,
           deadline: faker.date.future(),
           allowHint: true,
           maxAttempts: 5,
@@ -232,6 +233,7 @@ describe('AttemptController', async () => {
           questionBankIds: [questionBankId],
           questionVisibility: 3,
           allowPartialGrading: true,
+          allowSkip: true,
           deadline: faker.date.future(),
           allowHint: true,
           maxAttempts: 5,
@@ -370,6 +372,7 @@ describe('AttemptController', async () => {
           allowPartialGrading: true,
           deadline: faker.date.future(),
           allowHint: true,
+          allowSkip: true,
           maxAttempts: 5,
           releaseTime: faker.date.future(),
           quizType: 'DEADLINE',
@@ -418,7 +421,6 @@ describe('AttemptController', async () => {
           ],
         });
       expect(submitRes.status).toBe(200);
-      console.log(submitRes.body);
       expect(submitRes.body).toHaveProperty('totalScore');
       expect(submitRes.body.totalScore).toBeGreaterThanOrEqual(0);
     });
@@ -531,6 +533,7 @@ describe('AttemptController', async () => {
           allowPartialGrading: true,
           deadline: faker.date.future(),
           allowHint: true,
+          allowSkip: true,
           maxAttempts: 5,
           releaseTime: faker.date.future(),
           quizType: 'DEADLINE',
@@ -665,7 +668,6 @@ describe('AttemptController', async () => {
       expect(submitRes.status).toBe(200);
       expect(submitRes.body).toHaveProperty('totalScore');
       expect(submitRes.body.totalScore).toBeGreaterThanOrEqual(0);
-      console.log('Submit response:', submitRes.body);
     });
   });
 });

@@ -3,14 +3,20 @@ import { CourseSettingController } from './controllers/CourseSettingController.j
 import { CourseSettingService } from './services/CourseSettingService.js';
 import { UserSettingController } from './controllers/UserSettingController.js';
 import { UserSettingService } from './services/UserSettingService.js';
+import { TimeSlotController } from './controllers/TimeSlotController.js';
+import { TimeSlotService } from './services/TimeSlotService.js';
 import { SettingRepository } from '#root/shared/index.js';
 
 export const settingContainerModule = new ContainerModule(options => {
   // Services
+  options.bind(CourseSettingService).toSelf().inSingletonScope();
   options.bind(SETTING_TYPES.CourseSettingService).to(CourseSettingService);
+  
   options.bind(SETTING_TYPES.UserSettingService).to(UserSettingService);
+  options.bind(SETTING_TYPES.TimeSlotService).to(TimeSlotService);
 
   // Controllers
   options.bind(CourseSettingController).toSelf().inSingletonScope();
   options.bind(UserSettingController).toSelf().inSingletonScope();
+  options.bind(TimeSlotController).toSelf().inSingletonScope();
 });

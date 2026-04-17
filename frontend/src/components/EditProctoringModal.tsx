@@ -6,8 +6,14 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useEditProctoringSettings, useGetProcotoringSettings } from "@/hooks/hooks"
+import { useCourseVersionById, useEditProctoringSettings, useGetProcotoringSettings } from "@/hooks/hooks"
 import { useEffect, useState } from "react"
+import { Label } from "./ui/label"
+import { Separator } from "./ui/separator"
+import { Switch } from "./ui/switch"
+import { toast } from "sonner"
+import { ChevronDown, Loader2 } from "lucide-react"
+import { Input } from "./ui/input"
 
 enum ProctoringComponent {
   CAMERAMICRO = 'cameraMic',
@@ -37,12 +43,14 @@ export function ProctoringModal({
   courseId,
   courseVersionId,
   isNew,
+  onSuccess,
 }: {
   open: boolean
   onClose: () => void
   courseId: string
   courseVersionId: string
   isNew: boolean
+  onSuccess?: ()=> void
 }) {
   const { editSettings, loading, error } = useEditProctoringSettings()
   const { getSettings, settingLoading, settingError } = useGetProcotoringSettings();
@@ -51,13 +59,28 @@ export function ProctoringModal({
   const [detectors, setDetectors] = useState(
     allComponents.map((name) => ({ name, enabled: false }))
   )
+  const [linearProgressionEnabled, setLinearProgressionEnabled] = useState(true);
+  const [seekForwardEnabled, setSeekForwardEnabled] = useState(false);
+  const [hpSystemEnabled, setHpSystemEnabled] = useState(false);
+  const [baseHp, setbaseHp] = useState<number>(0);
+  const [isPublic, setIsPublic] = useState(false);
+  const [isAdditionalSettingsExpanded, setIsAdditionalSettingsExpanded] = useState(false);
+  const [enableRandomize, setEnableRandomize] = useState<boolean>(false);
+  const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(courseVersionId || "")
 
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const settings = await getSettings(courseId, courseVersionId);
-        console.log(settings);
-        setDetectors(settings?.settings.proctors.detectors.map((d: any) => ({ name: d.detectorName, enabled: d.settings.enabled })))
+        const result = await getSettings(courseId, courseVersionId);
+        if (result) {
+          setDetectors(result.settings?.proctors?.detectors?.map((d: any) => ({ name: d.detectorName, enabled: d.settings.enabled })))
+          setLinearProgressionEnabled(result.settings?.linearProgressionEnabled)
+          setSeekForwardEnabled(result.settings?.seekForwardEnabled ?? false)
+          setIsPublic(result.settings?.isPublic ?? false)
+          setHpSystemEnabled(result.settings?.hpSystem ?? false)
+          setbaseHp(result.settings?.baseHp ?? 0)
+          setEnableRandomize(result.settings?.randomizeItems ?? false)
+        }
       } catch (err) {
         console.error("Failed to fetch proctoring settings:", err)
       }
@@ -77,24 +100,42 @@ export function ProctoringModal({
   }
 
   const handleSubmit = async () => {
-    const result = await editSettings(courseId, courseVersionId, detectors, isNew)
-    console.log("Proctoring settings updated:", result)
-    if(result != undefined) {
-      onClose()
+    try {
+      const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled, seekForwardEnabled, isPublic, hpSystemEnabled, baseHp, enableRandomize)
+      if (result != undefined) {
+        onSuccess?.();
+        onClose();
+      }
+      toast.success("Settings updated!")
+    } catch(error) {
+      toast.error("Failed to update settings!")
     }
   }
+
+  useEffect(() => {
+    if (linearProgressionEnabled) {
+      setEnableRandomize(false);
+    }
+  }, [linearProgressionEnabled]);
 
   if (settingLoading) {
     return <div>Loading...</div>
   }
 
+  if ( versionLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    )
+  }
+
   return (
+    
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-background text-foreground max-w-md">
+      <DialogContent className="bg-background text-foreground md:max-w-md max-w-sm max-[425px]:w-[90vw] max-h-[95vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-center">
-            Proctoring Settings
-          </DialogTitle>
+          <DialogTitle className="text-xl font-semibold text-center">Proctoring Settings</DialogTitle>
         </DialogHeader>
 
         <form
@@ -104,22 +145,139 @@ export function ProctoringModal({
           }}
           className="space-y-6 pt-4"
         >
-          <div className="space-y-4">
-            {detectors.map((detector) => (
-              <div key={detector.name} className="flex items-center space-x-2">
-                <Checkbox
-                  id={detector.name}
-                  checked={detector.enabled}
-                  onCheckedChange={() => toggle(detector.name)}
-                />
-                <label
-                  htmlFor={detector.name}
-                  className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  {labelMap[detector.name] || detector.name}
-                </label>
+          <div className="space-y-6">
+
+            {/* Proctoring Controls Section */}
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <h3 className="text-sm font-medium text-foreground">Proctoring Controls</h3>
+                <p className="text-xs text-muted-foreground">Configure monitoring and detection features</p>
               </div>
-            ))}
+
+<div className="space-y-3">
+  {detectors.map((detector) => (
+    detector.name === ProctoringComponent.BLURDETECTION ? (
+      <div key={detector.name} className="flex items-center space-x-2">
+        <Checkbox
+          id={detector.name}
+          checked={detector.enabled}
+          disabled
+        />
+        <label
+          htmlFor={detector.name}
+          className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          {labelMap[detector.name] || detector.name}
+        </label>
+      </div>
+    ) : (
+      <div key={detector.name} className="flex items-center space-x-2">
+        <Checkbox
+          id={detector.name}
+          checked={detector.enabled}
+          onCheckedChange={() => toggle(detector.name)}
+        />
+        <label
+          htmlFor={detector.name}
+          className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          {labelMap[detector.name] || detector.name}
+        </label>
+      </div>
+    )
+  ))}
+</div>
+            </div>
+
+            <Separator className="my-6" />
+
+            {/* Additional Settings Section */}
+            <div className="space-y-4">
+              {/* Expandable Header */}
+              <div 
+                className="flex items-center justify-between cursor-pointer hover:bg-muted/50 rounded-lg p-2 -mx-2 transition-colors"
+                onClick={() => setIsAdditionalSettingsExpanded(!isAdditionalSettingsExpanded)}
+              >
+                <div className="space-y-1">
+                  <h3 className="text-sm font-medium text-foreground">Additional Settings</h3>
+                  <p className="text-xs text-muted-foreground">Configure course behavior and progression</p>
+                </div>
+                <ChevronDown 
+                  className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                    isAdditionalSettingsExpanded ? 'rotate-180' : ''
+                  }`}
+                />
+              </div>
+
+              {/* Collapsible Content */}
+              {isAdditionalSettingsExpanded && (
+                <div className="space-y-4 pl-2 border-l-2 border-border">
+                  <div className="flex items-center justify-between space-x-3">
+                    <div className="space-y-1">
+                      <Label className="text-sm font-medium">Linear Course Progression</Label>
+                      <p className="text-xs text-muted-foreground">Students must follow lessons sequentially</p>
+                    </div>
+                    <Switch checked={linearProgressionEnabled}
+                     onCheckedChange={()=>setLinearProgressionEnabled(prev=>!prev)}
+                    //  disabled 
+                     />
+                  </div>
+
+                  <div className="flex items-center justify-between space-x-3">
+                    <div className="space-y-1">
+                      <Label className="text-sm font-medium">Seek Forward</Label>
+                      <p className="text-xs text-muted-foreground">Allow students to seek forward in all videos</p>
+                    </div>
+                    <Switch checked={seekForwardEnabled} onCheckedChange={()=>setSeekForwardEnabled(prev=>!prev)} />
+                  </div>
+
+                  {!(courseVersion?.cohortDetails?.length > 0) && (
+                    <div className="flex items-center justify-between space-x-3">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">Make Public</Label>
+                        <p className="text-xs text-muted-foreground">Make this course available to all students</p>
+                      </div>
+                      <Switch checked={isPublic} onCheckedChange={() => setIsPublic(prev => !prev)} />
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="flex items-center justify-between space-x-3">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">Hp System</Label>
+                        <p className="text-xs text-muted-foreground">Enable HP system for this course</p>
+                      </div>
+                      <Switch checked={hpSystemEnabled} onCheckedChange={() => setHpSystemEnabled(prev => !prev)} />
+                    </div>
+                  </div>
+                  {hpSystemEnabled && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Base HP</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Set the base HP value for students
+                      </p>
+                      <Input
+                        type="number"
+                        value={baseHp}
+                        min={0}
+                        max={100}
+                        onChange={(e) => setbaseHp(Number(e.target.value))}
+                        placeholder="Enter base HP"
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <div className="flex items-center justify-between space-x-3">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">Randomize Content</Label>
+                        <p className="text-xs text-muted-foreground">Shuffle content order for a unique student experience.</p>
+                      </div>
+                      <Switch checked={enableRandomize} disabled={linearProgressionEnabled} onCheckedChange={() => setEnableRandomize(prev => !prev)} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}

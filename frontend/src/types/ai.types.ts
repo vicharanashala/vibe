@@ -11,6 +11,7 @@ export interface FaceDetectorsProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   onRecognitionResult?: (recognitions: FaceRecognition[]) => void;
   onDebugInfoUpdate?: (debugInfo: FaceRecognitionDebugInfo) => void;
+  onMismatchChange?: (hasMismatch: boolean) => void;
   settings:{
     isFaceCountDetectionEnabled:boolean, 
     isFaceRecognitionEnabled:boolean, 
@@ -66,6 +67,7 @@ export interface FaceRecognitionComponentProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   onRecognitionResult?: (recognitions: FaceRecognition[]) => void;
   onDebugInfoUpdate?: (debugInfo: FaceRecognitionDebugInfo) => void;
+  onMismatchChange?: (hasMismatch: boolean) => void;
 }
 
 export interface FaceRecognitionOverlayProps {
@@ -85,3 +87,33 @@ export interface GestureDetectorProps {
 }
 
 export type MLProcessor = (image: ImageBitmap) => void;
+
+
+export interface TranscriptResponse {
+  segmentNumber: number;
+  timestamp: string;
+  questions: TranscriptQuestion[];
+}
+
+export interface TranscriptQuestion {
+  sno: number;
+  question: string;
+  hint: string;
+  options: TranscriptOptions;
+  explanations: TranscriptExplanations;
+  correctAnswer: string;
+}
+
+export interface TranscriptOptions {
+  A: string;
+  B: string;
+  C: string;
+  D: string;
+}
+
+export interface TranscriptExplanations {
+  A: string;
+  B: string;
+  C: string;
+  D: string;
+}

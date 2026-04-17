@@ -13,6 +13,7 @@ interface ConfirmationModalProps {
   cancelText?: string;
   isDestructive?: boolean;
   isLoading?: boolean;
+  loadingText?: string;
 }
 
 const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
@@ -24,15 +25,17 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   isDestructive = false,
-  isLoading = false
+  isLoading = false,
+  loadingText
 }) => {
   const handleConfirm = () => {
     onConfirm();
   };
+  const actualLoadingText = loadingText ?? (isDestructive ? 'Deleting...' : 'Processing...');
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="md:max-w-md max-w-sm max-[425px]:w-[90vw]">
         <DialogHeader>
           <div className="flex items-center gap-3">
             {isDestructive && (
@@ -68,7 +71,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             {isLoading ? (
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                Deleting...
+                {actualLoadingText}
               </div>
             ) : (
               <div className="flex items-center gap-2">

@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+
 export interface MessageEventHandler {
     (event: MessageEvent): void;
 }
@@ -11,12 +12,11 @@ export function useWorker(messageEventHandler: MessageEventHandler): Worker {
 }
 
 function createWorker(messageEventHandler: MessageEventHandler): Worker {
-    const workerUrl = new URL("../../public/workers/whisperWorker.js", import.meta.url);
-    const worker = new Worker(workerUrl, {
+    const worker = new Worker(new URL("../workers/whisperWorker.js", import.meta.url), {
         type: "module",
-        name: "whisper-worker"
+        name: "whisper-worker",
     });
-    
+
     // Listen for messages from the Web Worker
     worker.addEventListener("message", messageEventHandler);
     return worker;

@@ -7,20 +7,35 @@ import GetCourse from "@/app/pages/teacher/get-course";
 import TeacherCoursesPage from "@/app/pages/teacher/course-page";
 import TeacherProfile from "@/app/pages/teacher/profile";
 import TeacherCoursePage from "@/app/pages/teacher/teacher-course-page";
-import { LiveQuiz } from "@/app/pages/teacher/live-quiz" // Uncomment if you want to use AudioManager
-import CourseEnrollments from "../pages/teacher/course-enrollments";
+import { LiveQuiz } from "@/app/pages/teacher/AudioTranscripter" // Uncomment if you want to use AudioManager
+// import CourseEnrollments from "../pages/teacher/course-enrollments";
+import CourseEnrollmentsContainer from "../pages/teacher/course-enrollments";
+import CourseEmotionAnalyticsPage from "../pages/teacher/course-emotion-analytics";
+import FlaggedList from "../pages/teacher/FlaggedList";
 import AddCoursePage from "@/app/pages/teacher/AddCoursePage";
 import InvitePage from "../pages/teacher/invite";
 import AISectionPage from "@/app/pages/teacher/AISectionPage";
-
+import AnomaliesList from "../pages/teacher/AnomaliesList";
+import RegisteredUsers from "../pages/teacher/CourseRegistrationRequests";
+import FeedbackFormEditor from "../pages/teacher/FeedbackFormEditor";
+import TeacherAnnouncements from "../pages/teacher/announcements";
+import AuditPage from "../pages/teacher/AuditPage";
+import EjectionPoliciesPage from "../pages/teacher/ejection-policies";
+import HpSystemVersions from "../pages/teacher/hp-system/HpSystemPage";
+import HpSystemCohorts from "../pages/teacher/hp-system/CohortsList";
+import HpSystemDashboard from "../pages/teacher/hp-system/CohortDetails";
+import StudentLedgerPage from "../pages/teacher/hp-system/student-ledger";
+import StudentSubmissionsPage from "../pages/teacher/hp-system/student-submissions";
+import SubmissionDetailsPage from "../pages/teacher/hp-system/submission-details";
 const teacherRoutes: RouteObject = {
   path: "/teacher",
   element: <TeacherLayout />,
   children: [
-    {
-      path: "dashboard",
-      element: <Dashboard />,
-    },
+    // {
+    //   path: "dashboard",
+    //   element: <Dashboard />,
+    // },
+    {path:"ejection-policies",element: <EjectionPoliciesPage />,},
     {
       path: "profile",
       element: <TeacherProfile />,
@@ -33,7 +48,7 @@ const teacherRoutes: RouteObject = {
     //   path: "courses/create",
     //   element: <CreateCourse />,
     // },
-    
+
     {
       path: "courses/articles/create",
       element: <Editor />,
@@ -44,11 +59,23 @@ const teacherRoutes: RouteObject = {
     },
     {
       path: "courses/enrollments",
-      element: <CourseEnrollments />,
+      element: <CourseEnrollmentsContainer />,
+    },
+    {
+      path: "courses/emotion-analytics",
+      element: <CourseEmotionAnalyticsPage />,
+    },
+    {
+      path: "courses/flags",
+      element: <FlaggedList />,
+    },
+    {
+      path: "courses/anomalies",
+      element: <AnomaliesList />,
     },
     {
       index: true,
-      element: <Dashboard />, // Default to Dashboard
+      element: <TeacherCoursesPage />, // Default to Dashboard
     },
     {
       path: "testing",
@@ -73,6 +100,36 @@ const teacherRoutes: RouteObject = {
     {
       path: "ai-section",
       element: <AISectionPage />, // Page for generating sections using AI
+    }, {
+      path: "requests",
+      element: <RegisteredUsers />
+    }, {
+      path: "editor/feedback",
+      element: <FeedbackFormEditor />
+    }, {
+      path: "announcements",
+      element: <TeacherAnnouncements />
+    }, {
+      path: "audit",
+      element: <AuditPage />
+    }, {
+      path: "hp-system",
+      element: <HpSystemVersions />
+    }, {
+      path: "hp-system/:courseVersionId/cohorts",
+      element: <HpSystemCohorts />
+    }, {
+      path: "hp-system/:courseVersionId/cohort/:cohortId/activities",
+      element: <HpSystemDashboard />
+    }, {
+      path: "hp-system/:courseVersionId/cohort/:cohortId/student/:studentId/ledger",
+      element: <StudentLedgerPage />
+    }, {
+      path: "hp-system/:courseVersionId/cohort/:cohortId/student/:studentId/submissions",
+      element: <StudentSubmissionsPage />
+    }, {
+      path: "hp-system/:courseVersionId/cohort/:cohortId/student/:studentId/submission/:submissionId",
+      element: <SubmissionDetailsPage />
     }
   ],
 };

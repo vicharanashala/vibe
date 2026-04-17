@@ -102,6 +102,8 @@ class UserSetting implements IUserSetting {
           },
         },
       },
+      linearProgressionEnabled: { type: 'boolean' },
+      seekForwardEnabled: { type: 'boolean' },
     },
   })
   @IsNotEmpty()
@@ -109,6 +111,8 @@ class UserSetting implements IUserSetting {
     proctors: {
       detectors: IDetectorSettings[];
     };
+    linearProgressionEnabled: boolean;
+    seekForwardEnabled: boolean;
   };
 
   constructor(userSettingsBody?: CreateUserSettingBody) {
@@ -133,6 +137,8 @@ class UserSetting implements IUserSetting {
       proctors: {
         detectors: existingDetectors,
       },
+      linearProgressionEnabled: true,
+      seekForwardEnabled: false
     };
   }
 }

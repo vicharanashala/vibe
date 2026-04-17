@@ -1,8 +1,13 @@
 import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
-import {UpdateResult} from 'mongodb';
-import {NotFoundError, InternalServerError} from 'routing-controllers';
+import {ObjectId, UpdateResult} from 'mongodb';
+import {
+  NotFoundError,
+  InternalServerError,
+  BadRequestError,
+  ForbiddenError,
+} from 'routing-controllers';
 import {COURSES_TYPES} from '#courses/types.js';
 import {ItemsGroup} from '#courses/classes/transformers/Item.js';
 import {Section} from '#courses/classes/transformers/Section.js';
@@ -12,6 +17,10 @@ import {ICourseRepository} from '#root/shared/database/interfaces/ICourseReposit
 import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {ICourseVersion} from '#root/shared/interfaces/models.js';
+import {EnrollmentRepository, ProgressRepository} from '#root/shared/index.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import { CourseSettingService } from '#root/modules/setting/index.js';
 @injectable()
 export class SectionService extends BaseService {
   constructor(
@@ -19,6 +28,12 @@ export class SectionService extends BaseService {
     private readonly itemRepo: IItemRepository,
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
+    @inject(GLOBAL_TYPES.EnrollmentRepo)
+    private readonly enrollmentRepo: EnrollmentRepository,
+    @inject(USERS_TYPES.ProgressRepo)
+    private readonly progressRepo: ProgressRepository,
+    @inject(SETTING_TYPES.CourseSettingService)
+    private readonly courseSettingService: CourseSettingService,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -31,12 +46,36 @@ export class SectionService extends BaseService {
     body: CreateSectionBody,
   ): Promise<ICourseVersion> {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+      
+      if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is archived and cannot create sections.");
+        }
       const version = await this.courseRepo.readVersion(versionId, session);
 
       //Find Module
-      const module = version.modules.find(m => m.moduleId === moduleId);
+      const module = version.modules.find(
+        m => m.moduleId?.toString() === moduleId,
+      );
       if (!module) {
         throw new NotFoundError('Module not found');
+      }
+
+      // Prevent creation if the previous section is empty
+      const sections = module.sections.filter(s => !s.isDeleted);
+      if (sections.length > 0) {
+        const lastSection = sections[sections.length - 1];
+        //fetch items group
+        const itemsGroup = await this.itemRepo.readItemsGroup(
+          lastSection.itemsGroupId.toString(),
+          session,
+        );
+        // if no items in the items group, prevent creation
+        if (itemsGroup.items.length === 0) {
+          throw new BadRequestError(
+            'cannot create a new section. The previous section has no items.',
+          );
+        }
       }
 
       //Create Section
@@ -47,7 +86,7 @@ export class SectionService extends BaseService {
       itemsGroup = await this.itemRepo.createItemsGroup(itemsGroup, session);
 
       //Assign ItemsGroup to Section
-      section.itemsGroupId = itemsGroup._id;
+      section.itemsGroupId = new ObjectId(itemsGroup._id);
 
       //Add Section to Module
       module.sections.push(section);
@@ -79,14 +118,23 @@ export class SectionService extends BaseService {
     body: CreateSectionBody,
   ): Promise<ICourseVersion> {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+      
+      if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is archived and cannot be modified.");
+        }
       const version = await this.courseRepo.readVersion(versionId, session);
 
       //Find Module
-      const module = version.modules.find(m => m.moduleId === moduleId);
+      const module = version.modules.find(
+        m => m.moduleId?.toString() === moduleId,
+      );
       if (!module) throw new InternalServerError('Module not found');
 
       //Find Section
-      const section = module.sections.find(s => s.sectionId === sectionId);
+      const section = module.sections.find(
+        s => s.sectionId?.toString() === sectionId,
+      );
       if (!section) throw new InternalServerError('Section not found');
 
       //Update Section
@@ -124,13 +172,29 @@ export class SectionService extends BaseService {
     beforeSectionId: string,
   ): Promise<ICourseVersion> {
     return this._withTransaction(async session => {
+      const [versionStatus,isLinearProgressionEnabled]=await Promise.all(
+        [this.courseRepo.getCourseVersionStatus(versionId,session),
+        this.courseSettingService.isLinearProgressionEnabledByVersionId(versionId,session)]
+      );
+      
+      if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is archived and cannot be modified.");
+        }
+      
+      if(isLinearProgressionEnabled){
+        throw new ForbiddenError("Cannot re-order sections, because Linear progression is enabled")
+      }
       const version = await this.courseRepo.readVersion(versionId, session);
 
       //Find Module
-      const module = version.modules.find(m => m.moduleId === moduleId);
+      const module = version.modules.find(
+        m => m.moduleId?.toString() === moduleId,
+      );
 
       //Find Section
-      const section = module.sections.find(s => s.sectionId === sectionId);
+      const section = module.sections.find(
+        s => s.sectionId?.toString() === sectionId,
+      );
 
       //Sort Sections based on order
       const sortedSections = module.sections.sort((a, b) =>
@@ -179,6 +243,11 @@ export class SectionService extends BaseService {
     sectionId: string,
   ): Promise<UpdateResult | null> {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+      
+      if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is archived and sections cannot be deleted");
+        }
       const readCourseVersion = await this.courseRepo.readVersion(
         versionId,
         session,
@@ -193,6 +262,40 @@ export class SectionService extends BaseService {
         throw new NotFoundError('../../../modules not found');
       }
 
+    
+      const activeModules = modules.filter((m: any) => !m.isDeleted);
+      const moduleIndex = activeModules.findIndex((m: any) =>
+        (m.sections || []).some((s: any) => s.sectionId?.toString() === sectionId)
+      );
+
+      if (moduleIndex !== -1) {
+        const isLastModule = moduleIndex === activeModules.length - 1;
+
+        if (!isLastModule) {
+          const sections = (activeModules[moduleIndex].sections || []).filter((s: any) => !s.isDeleted);
+          const isOnlySection = sections.length === 1;
+          const isLastSection = sections[sections.length - 1]?.sectionId?.toString() === sectionId;
+
+          if (isOnlySection) {
+            throw new BadRequestError(
+              'Cannot delete this section. It is the only section in its module, and a subsequent module exists.',
+            );
+          }
+
+          if (isLastSection) {
+            const newLastSection = sections[sections.length - 2];
+            const newLastItemsGroup = newLastSection?.itemsGroupId
+              ? await this.itemRepo.readItemsGroup(newLastSection.itemsGroupId.toString(), session)
+              : null;
+            if (!newLastItemsGroup?.items?.length) {
+              throw new BadRequestError(
+                'Cannot delete this section. The section that would become the last in this module has no items.',
+              );
+            }
+          }
+        }
+      }
+
       const deleteResult = await this.courseRepo.deleteSection(
         versionId,
         moduleId,
@@ -205,32 +308,148 @@ export class SectionService extends BaseService {
         throw new NotFoundError('Section not found');
       }
 
-      // Update total item count
       const updatedVersion = await this.courseRepo.readVersion(
         versionId,
         session,
       );
+
       if (!updatedVersion) {
         throw new NotFoundError('Updated version not found');
       }
-      updatedVersion.totalItems = await this.itemRepo.CalculateTotalItemsCount(
-        updatedVersion.courseId.toString(),
-        updatedVersion._id.toString(),
-        session,
-      );
 
-      const updatedVersionResult = await this.courseRepo.updateVersion(
-        versionId,
+      const {totalItems, itemCounts} =
+        await this.itemRepo.calculateItemCountsForVersion(
+          updatedVersion._id.toString(),
+          session,
+        );
+
+      updatedVersion.totalItems = totalItems;
+      updatedVersion.itemCounts = itemCounts;
+      updatedVersion.updatedAt = new Date();
+
+      await this.courseRepo.updateVersion(
+        updatedVersion._id.toString(),
         updatedVersion,
         session,
       );
-      if (!updatedVersionResult) {
-        throw new InternalServerError(
-          `Failed to update version ${versionId} after section deletion`,
-        );
-      }
 
       return deleteResult;
+    });
+  }
+
+  async toggleSectionVisibility(
+    versionId: string,
+    moduleId: string,
+    sectionId: string,
+    hide: boolean,
+  ): Promise<ICourseVersion> {
+    return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+      
+      if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is archived and cannot be modified.");
+        }
+      const version = await this.courseRepo.readVersion(versionId, session);
+
+      // Find Module
+      const module = version.modules.find(
+        m => m.moduleId.toString() === moduleId,
+      );
+      if (!module) throw new InternalServerError('Module not found');
+
+      // Find Section
+      const section = module.sections.find(
+        s => s.sectionId.toString() === sectionId,
+      );
+      if (!section) throw new InternalServerError('Section not found');
+
+      section.isHidden = hide;
+      section.updatedAt = new Date();
+
+      // Update Module Update Date
+      module.updatedAt = new Date();
+
+      // Hide all items in the section
+      const itemsGroupId = section.itemsGroupId.toString();
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        itemsGroupId,
+        session,
+      );
+      if (itemsGroup) {
+        itemsGroup.isHidden = hide;
+        itemsGroup.items.forEach(item => {
+          item.isHidden = hide;
+        });
+        await this.itemRepo.updateItemsGroup(itemsGroupId, itemsGroup, session);
+      }
+
+      await this.enrollmentRepo.setWatchTimeVisibility(
+        itemsGroup.items.map(item => item._id.toString()),
+        hide,
+        session,
+      );
+
+      if (hide == true) {
+        // Update currentSection for progress to next non-hidden section.
+        const sections = module.sections;
+        const currentIndex = sections.findIndex(s => s.sectionId === sectionId);
+        let nextSection = null;
+        for (let i = currentIndex + 1; i < sections.length; i++) {
+          if (!sections[i].isHidden) {
+            nextSection = sections[i];
+            break;
+          }
+        }
+
+        // fallback backward
+        if (!nextSection) {
+          for (let i = currentIndex - 1; i >= 0; i--) {
+            if (!sections[i].isHidden) {
+              nextSection = sections[i];
+              break;
+            }
+          }
+        }
+
+        if (nextSection) {
+          // first item of the next section
+          const nextItemsGroup = await this.itemRepo.readItemsGroup(
+            nextSection.itemsGroupId.toString(),
+            session,
+          );
+          if (nextItemsGroup && nextItemsGroup.items.length > 0) {
+            const nextItemId = nextItemsGroup.items[0]._id.toString();
+            await this.progressRepo.updateProgressBySectionId(
+              section.sectionId.toString(),
+              {currentSection: nextSection.sectionId, currentItem: nextItemId},
+              session,
+            );
+          }
+        }
+      }
+
+      // Update Version Update Date
+      const {totalItems, itemCounts} =
+        await this.itemRepo.calculateItemCountsForVersion(
+          version._id.toString(),
+          session,
+        );
+
+      version.totalItems = totalItems;
+      version.itemCounts = {...itemCounts};
+
+      version.updatedAt = new Date();
+      // Update Version
+      const updatedVersion = await this.courseRepo.updateVersion(
+        versionId,
+        version,
+        session,
+      );
+      if (!updatedVersion) {
+        throw new InternalServerError('Failed to update Section');
+      }
+
+      return updatedVersion;
     });
   }
 }

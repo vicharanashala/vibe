@@ -31,6 +31,7 @@ class DESQuestionRenderer extends BaseQuestionRenderer {
       points: renderedQuestion.points,
       timeLimitSeconds: renderedQuestion.timeLimitSeconds,
       parameterMap: parameterMap,
+      priority: renderedQuestion.priority,
     };
 
     return renderedQuestionView;

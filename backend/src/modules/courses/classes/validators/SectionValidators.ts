@@ -40,8 +40,7 @@ class CreateSectionBody implements Partial<ISection> {
     title: 'After Section ID',
     description: 'Optional: Place the new section after this section ID',
     example: '60d5ec49b3f1c8e4a8f8b8c3',
-    type: 'string',
-    format: 'Mongo Object ID',
+    type: 'string',  
   })
   @IsOptional()
   @IsMongoId()
@@ -57,7 +56,6 @@ class CreateSectionBody implements Partial<ISection> {
     description: 'Optional: Place the new section before this section ID',
     example: '60d5ec49b3f1c8e4a8f8b8c4',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsMongoId()
@@ -98,7 +96,6 @@ class MoveSectionBody {
     description: 'Move the section after this section ID',
     example: '60d5ec49b3f1c8e4a8f8b8c3',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsMongoId()
@@ -114,7 +111,6 @@ class MoveSectionBody {
     description: 'Move the section before this section ID',
     example: '60d5ec49b3f1c8e4a8f8b8c4',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsMongoId()
@@ -127,7 +123,6 @@ class VersionModuleSectionParams {
     title: 'Version ID',
     description: 'ID of the course version containing the module',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -137,8 +132,7 @@ class VersionModuleSectionParams {
   @JSONSchema({
     title: 'Module ID',
     description: 'ID of the module containing the section',
-    type: 'string',
-    format: 'Mongo Object ID',
+    type: 'string', 
   })
   @IsMongoId()
   @IsString()
@@ -149,7 +143,6 @@ class VersionModuleSectionParams {
     title: 'Section ID',
     description: 'ID of the section',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -162,6 +155,41 @@ class SectionDataResponse {
     description: 'The updated course version data containing the section',
     type: 'object',
     readOnly: true,
+    example:{
+      versionId: '68ee228f76e2f6346d54de1a',
+      moduleId: '68ee263f7f26e0acc3dff1b',
+      sectionId: '68ee26447f26e0acc3dff1c',
+    "version": {
+        "_id": "68ee228f76e2f63vbo9bf54de1e",
+        "courseId": "68d0f72fb90d23755949e01b5",
+        "version": "version title",
+        "description": " version description",
+        "modules": [
+            {
+                "moduleId": "68ee263f7ff94rg0acc3dff108",
+                "name": "Untitled Module",
+                "description": "Module description",
+                "order": "0|hzzzzz:",
+                "sections": [
+                    {
+                        "sectionId": "68ee26447f2bg02cc3dff109",
+                        "name": "New Section",
+                        "description": "Section description",
+                        "order": "0|hzzzzz:",
+                        "itemsGroupId": "68ee26447f23343acc3dff10a",
+                        "createdAt": "2025-10-14T10:30:28.496Z",
+                        "updatedAt": "2025-10-14T10:30:28.496Z"
+                    },
+                ],
+                "createdAt": "2025-10-14T10:30:23.780Z",
+                "updatedAt": "2025-10-14T10:30:45.000Z"
+            }
+        ],
+        "totalItems": null,
+        "createdAt": "2025-10-14T10:14:39.363Z",
+        "updatedAt": "2025-10-14T10:30:45.000Z"
+    }
+}
   })
   @IsNotEmpty()
   version: ICourseVersion;

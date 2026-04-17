@@ -21,11 +21,18 @@ import {
   HttpCode,
   ForbiddenError,
   Authorized,
+  UseInterceptor,
+  Req,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import { QuestionBankActions, getQuestionBankAbility } from '../abilities/questionBankAbilities.js';
 import { subject } from '@casl/ability';
+import { BadRequestErrorResponse } from '#root/shared/index.js';
+import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
+import { setAuditTrail } from '#root/utils/setAuditTrail.js';
+import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
+import { ObjectId } from 'mongodb';
 
 @OpenAPI({
   tags: ['Question Banks'],
@@ -44,6 +51,7 @@ class QuestionBankController {
   })
   @Authorized()
   @Post('/')
+  @UseInterceptor(AuditTrailsHandler)
   @HttpCode(200)
   @ResponseSchema(CreateQuestionBankResponse, {
     description: 'Question bank created successfully',
@@ -55,7 +63,8 @@ class QuestionBankController {
   })
   async create(
     @Body() body: CreateQuestionBankBody,
-    @Ability(getQuestionBankAbility) {ability}
+    @Ability(getQuestionBankAbility) {ability, user},
+    @Req() req: Request
   ): Promise<CreateQuestionBankResponse> {
     // Build subject context first
     const questionBankContext = { courseId: body.courseId, versionId: body.courseVersionId };
@@ -67,7 +76,33 @@ class QuestionBankController {
 
     const questionBank = new QuestionBank(body);
     const questionBankId = await this.questionBankService.create(questionBank);
-    return {questionBankId};
+
+    setAuditTrail(req, {
+      category: AuditCategory.QUESTION_BANK,
+      action: AuditAction.QUESTION_BANK_CREATE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context:{
+        courseId: ObjectId.createFromHexString(body.courseId.toString()),
+        courseVersionId: ObjectId.createFromHexString(body.courseVersionId.toString()),
+      },
+      changes:{
+        after:{
+          questionBankId: ObjectId.createFromHexString(questionBankId.toString()),
+          title: body.title,
+          description: body.description,
+          questionCount: body.questions ? body.questions.length : 0,
+        }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS,
+      } // Assuming user.id is a string representation of ObjectId
+    })
+    return {questionBankId}; 
   }
 
   @OpenAPI({
@@ -108,6 +143,7 @@ class QuestionBankController {
   })
   @Authorized()
   @Patch('/:questionBankId/questions/:questionId/add')
+  @UseInterceptor(AuditTrailsHandler)
   @HttpCode(200)
   @ResponseSchema(QuestionBankResponse, {
     description: 'Question added to question bank successfully',
@@ -116,9 +152,14 @@ class QuestionBankController {
     description: 'Question bank or question not found',
     statusCode: 404,
   })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid input data',
+    statusCode: 400,
+  })
   async addQuestion(
     @Params() params: QuestionBankAndQuestionParams,
-    @Ability(getQuestionBankAbility) {ability}
+    @Ability(getQuestionBankAbility) {ability, user},
+    @Req() req: Request
   ): Promise<QuestionBankResponse> {
     const {questionBankId, questionId} = params;
 
@@ -135,6 +176,35 @@ class QuestionBankController {
       questionBankId,
       questionId,
     );
+
+    const quesId = updatedQuestionBank.questions[updatedQuestionBank.questions.length - 1];
+
+    setAuditTrail(req, {
+      category: AuditCategory.QUESTION_BANK,
+      action: AuditAction.QUESTION_ADD,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context:{
+        courseId: ObjectId.createFromHexString(questionBank.courseId.toString()),
+        courseVersionId: ObjectId.createFromHexString(questionBank.courseVersionId.toString()),
+        questionBankId: ObjectId.createFromHexString(questionBankId.toString()),
+      },
+      changes:{
+        after:{
+          questionId: ObjectId.createFromHexString(quesId.toString()),
+          title: updatedQuestionBank.title,
+          description: updatedQuestionBank.description,
+          questionCount: updatedQuestionBank.questions.length,
+        }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS,
+      }
+    })
     return updatedQuestionBank;
   }
 
@@ -144,6 +214,7 @@ class QuestionBankController {
   })
   @Authorized()
   @Patch('/:questionBankId/questions/:questionId/remove')
+  @UseInterceptor(AuditTrailsHandler)
   @HttpCode(200)
   @ResponseSchema(QuestionBankResponse, {
     description: 'Question removed from question bank successfully',
@@ -154,7 +225,8 @@ class QuestionBankController {
   })
   async removeQuestion(
     @Params() params: QuestionBankAndQuestionParams,
-    @Ability(getQuestionBankAbility) {ability}
+    @Ability(getQuestionBankAbility) {ability, user},
+    @Req() req: Request
   ): Promise<QuestionBankResponse> {
     const {questionBankId, questionId} = params;
 
@@ -171,6 +243,29 @@ class QuestionBankController {
       questionBankId,
       questionId,
     );
+    setAuditTrail(req, {
+      category: AuditCategory.QUESTION_BANK,
+      action: AuditAction.QUESTION_DELETE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context:{
+        courseId: ObjectId.createFromHexString(questionBank.courseId.toString()),
+        courseVersionId: ObjectId.createFromHexString(questionBank.courseVersionId.toString()),
+        questionBankId: ObjectId.createFromHexString(questionBankId.toString()),
+      },
+      changes:{
+        before: {
+          questionId: ObjectId.createFromHexString(questionId.toString()),
+        }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS,
+      }
+    })
     return updatedQuestionBank;
   }
 

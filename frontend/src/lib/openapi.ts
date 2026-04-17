@@ -15,8 +15,21 @@ export const setTokenRefreshFunction = (refreshFn: () => Promise<void>) => {
   refreshTokenFunction = refreshFn;
 };
 
-const fetchClient = createFetchClient<paths>({
-  baseUrl: `${import.meta.env.VITE_BASE_URL}`
+export const fetchClient = createFetchClient<paths>({
+  baseUrl: `${import.meta.env.VITE_BASE_URL}`,
+  fetch: (url, options) => {
+    // openapi-fetch passes a Request object for some requests (like DELETE without body)
+    // If we just pass `url` down, it drops the headers added by middleware.
+    // Instead, clone it applying options.
+    if (url instanceof Request) {
+      const newReq = new Request(url, { ...options, credentials: "include" });
+      return fetch(newReq);
+    }
+    return fetch(url, {
+      ...options,
+      credentials: "include",
+    });
+  },
 });
 
 // Add middleware to automatically include Authorization header
@@ -28,31 +41,36 @@ fetchClient.use({
     }
     return request;
   },
-  
+
   async onResponse({ response, request }) {
-    // Handle 401 errors by attempting token refresh
-    if (response.status === 401 && refreshTokenFunction) {
+    if (response.status === 401) {
       try {
-        // Attempt to refresh the token
-        await refreshTokenFunction();
-        
-        // Get the new token and retry the request
+        if (refreshTokenFunction) {
+          await refreshTokenFunction();
+        }
         const newToken = getAuthToken();
         if (newToken) {
-          // Clone the original request with new token
           const newRequest = request.clone();
           newRequest.headers.set('Authorization', `Bearer ${newToken}`);
-          
-          // Return the retried request
           return fetch(newRequest);
         }
       } catch (error) {
         console.error('Token refresh failed during API call:', error);
-        // If refresh fails, redirect to login or handle as needed
-        // This could trigger a logout in your auth context
+      }
+      try {
+        const { auth: firebaseAuth } = await import('@/lib/firebase');
+        const firebaseUser = firebaseAuth.currentUser;
+        if (firebaseUser) {
+          const freshToken = await firebaseUser.getIdToken(true);
+          localStorage.setItem('firebase-auth-token', freshToken);
+          const retryRequest = request.clone();
+          retryRequest.headers.set('Authorization', `Bearer ${freshToken}`);
+          return fetch(retryRequest);
+        }
+      } catch (retryError) {
+        console.error('API interceptor: Final token refresh attempt failed:', retryError);
       }
     }
-    
     return response;
   },
 });

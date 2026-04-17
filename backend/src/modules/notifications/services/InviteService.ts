@@ -1,60 +1,101 @@
 import 'reflect-metadata';
-import { BadRequestError, InternalServerError, NotFoundError } from 'routing-controllers';
-import { injectable, inject } from 'inversify';
-import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import { CourseRepository } from '#shared/database/providers/mongo/repositories/CourseRepository.js';
-import { UserRepository } from '#shared/database/providers/mongo/repositories/UserRepository.js';
-import { InviteRepository } from '#shared/database/providers/mongo/repositories/InviteRepository.js';
-import { MailService } from './MailService.js';
-import { Invite } from '../classes/transformers/Invite.js';
-import { EnrollmentRole, ICourseVersion, ICourse } from '#shared/interfaces/models.js';
-import { NOTIFICATIONS_TYPES } from '../types.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { USERS_TYPES } from '#root/modules/users/types.js';
-import { appConfig } from '#root/config/app.js';
+import {
+  BadRequestError,
+  ForbiddenError,
+  InternalServerError,
+  NotFoundError,
+} from 'routing-controllers';
+import {injectable, inject} from 'inversify';
+import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import type {ICourseRepository} from '#shared/database/interfaces/ICourseRepository.js';
+import {UserRepository} from '#shared/database/providers/mongo/repositories/UserRepository.js';
+import {InviteRepository} from '#shared/database/providers/mongo/repositories/InviteRepository.js';
+import {MailService} from './MailService.js';
+import {Invite} from '../classes/transformers/Invite.js';
+import {
+  EnrollmentRole,
+  ICourseVersion,
+  ICourse,
+  InviteType,
+  InviteStatusType,
+} from '#shared/interfaces/models.js';
+import {NOTIFICATIONS_TYPES} from '../types.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
+import {appConfig} from '#root/config/app.js';
 import nodemailer from 'nodemailer';
-import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
-import { InviteResult } from '../classes/index.js';
-import { BaseService, MongoDatabase } from '#root/shared/index.js';
-
+import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
+import {InviteResult} from '../classes/index.js';
+import {
+  BaseService,
+  IItemRepository,
+  MongoDatabase,
+  SettingRepository,
+} from '#root/shared/index.js';
+import {ClientSession, ObjectId} from 'mongodb';
+import {COURSES_TYPES} from '#root/modules/courses/types.js';
+import crypto from 'crypto';
+import {chunkArray} from '#root/utils/chunkArray.js';
+import {startInviteEmailProcessing} from '#root/workers/invite-email.pool.js';
+import {SETTING_TYPES} from '#root/modules/setting/types.js';
+import {getContainer} from '#root/bootstrap/loadModules.js';
 
 @injectable()
 export class InviteService extends BaseService {
+  private getCourseSettingsRepo(): SettingRepository {
+    return getContainer().get<SettingRepository>(SETTING_TYPES.SettingRepo);
+  }
   constructor(
-    @inject(NOTIFICATIONS_TYPES.InviteRepo) private readonly inviteRepo: InviteRepository,
-    @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: UserRepository,
-    @inject(GLOBAL_TYPES.CourseRepo) private readonly courseRepo: CourseRepository,
+    @inject(NOTIFICATIONS_TYPES.InviteRepo)
+    private readonly inviteRepo: InviteRepository,
+    @inject(GLOBAL_TYPES.UserRepo)
+    private readonly userRepo: UserRepository,
+    @inject(GLOBAL_TYPES.CourseRepo)
+    private readonly courseRepo: ICourseRepository,
     @inject(USERS_TYPES.EnrollmentRepo)
     private readonly enrollmentRepo: EnrollmentRepository,
     @inject(NOTIFICATIONS_TYPES.MailService)
     private readonly mailService: MailService,
-
+    @inject(COURSES_TYPES.ItemRepo)
+    private readonly itemRepo: IItemRepository,
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
     @inject(GLOBAL_TYPES.Database)
-    private readonly database: MongoDatabase
+    private readonly database: MongoDatabase,
   ) {
     super(database);
   }
 
-  private createInviteEmailMessage(invite: Invite, course: ICourse, courseVersion: ICourseVersion): Omit<nodemailer.SendMailOptions, 'from'> {
+  public createInviteEmailMessage(
+    invite: Invite,
+    course: ICourse,
+    courseVersion: ICourseVersion,
+    allProctorsDisabled: boolean,
+  ): Omit<nodemailer.SendMailOptions, 'from'> {
     return {
       to: invite.email,
       subject: `Invitation to join course: ${course.name}`,
-      text:
-        `Dear Participant,\n\n` +
-        `We are pleased to invite you to participate in your upcoming online course - ${course.name}, delivered via our Continuous Active Learning Platform, ViBe.\n\n` +
-        `Before you begin, please carefully read and follow the instructions below to ensure a smooth and compliant experience:\n` +
-        `- Speaking is strictly prohibited. If the system detects speaking, there is zero tolerance, and the video will immediately roll back to the start, pausing with an alert dialog.\n` +
-        `- Ensure your camera remains uninterrupted. Any camera interruptions will be detected and may result in penalty score increases and video rollback.\n` +
-        `- Do not use a blurred background. The AI proctoring system tracks background clarity. A blurred background may trigger penalties and video rollback.\n` +
-        `- No other person should appear near you during the session. The system monitors for additional individuals in the camera’s view. Detection of more than one person leads to immediate video rollback and a pause until the area is clear.\n` +
-        `- Allow microphone access. The system needs mic access to detect speaking, which is strictly prohibited and may result in penalties and video rollback.\n\n` +
-        `By following these rules, you help maintain the integrity and fairness of the course environment.\n\n` +
-        `To confirm your participation, please click the link below:\n${appConfig.url}${appConfig.routePrefix}/notifications/invite/${invite._id.toString()}\n\n` +
-        `We wish you a successful learning experience!\nBest regards,\nTechnical Team, CBPAI, IIT Ropar`,
-      html:
-        `<!DOCTYPE html>
+      text: allProctorsDisabled
+        ? `Dear Participant,\n\n` +
+          `We are pleased to invite you to participate in your upcoming online course - ${course.name}, delivered via our Continuous Active Learning Platform, ViBe.\n\n` +
+          `To confirm your participation, please click the link below:\n${appConfig.url}${appConfig.routePrefix}/notifications/invite/${invite._id.toString()}\n\n` +
+          `We wish you a successful learning experience!\nBest regards,\nTechnical Team, CBPAI, IIT Ropar`
+        : `Dear Participant,\n\n` +
+          `We are pleased to invite you to participate in your upcoming online course - ${course.name}, delivered via our Continuous Active Learning Platform, ViBe.\n\n` +
+          `Before you begin, please carefully read and follow the instructions below to ensure a smooth and compliant experience:\n` +
+          `- Speaking is strictly prohibited. If the system detects speaking, there is zero tolerance, and the video will immediately roll back to the start, pausing with an alert dialog.\n` +
+          `- Ensure your camera remains uninterrupted. Any camera interruptions will be detected and may result in penalty score increases and video rollback.\n` +
+          `- Do not use a blurred background. The AI proctoring system tracks background clarity. A blurred background may trigger penalties and video rollback.\n` +
+          `- No other person should appear near you during the session. The system monitors for additional individuals in the camera’s view. Detection of more than one person leads to immediate video rollback and a pause until the area is clear.\n` +
+          `- Allow microphone access. The system needs mic access to detect speaking, which is strictly prohibited and may result in penalties and video rollback.\n\n` +
+          `By following these rules, you help maintain the integrity and fairness of the course environment.\n\n` +
+          `To confirm your participation, please click the link below:\n${
+            appConfig.url
+          }${
+            appConfig.routePrefix
+          }/notifications/invite/${invite._id.toString()}\n\n` +
+          `We wish you a successful learning experience!\nBest regards,\nTechnical Team, CBPAI, IIT Ropar`,
+      html: `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="UTF-8">
@@ -94,12 +135,16 @@ export class InviteService extends BaseService {
                 delivered via our Continuous Active Learning Platform, ViBe.
               </p>
               <p style="margin:0 0 16px;">
-                Before you begin, please carefully read and follow the instructions below to ensure a smooth and compliant experience:
+          ${allProctorsDisabled ? 'To confirm your participation, please click the link below.' : 'Before you begin, please carefully read and follow the instructions below to ensure a smooth and compliant experience:'}
               </p>
             </td>
           </tr>
 
           <!-- Instruction list -->
+          ${
+            allProctorsDisabled
+              ? ''
+              : `
           <tr>
             <td style="padding:0 24px 24px;">
               <ul style="font-family:Arial, sans-serif; font-size:14px; line-height:1.6; margin:0; padding-left:16px;">
@@ -110,21 +155,28 @@ export class InviteService extends BaseService {
                 <li><strong style="color:#ff9800;">Allow microphone access.</strong> The system needs mic access to detect speaking, which is strictly prohibited and may result in penalties and video rollback.</li>
               </ul>
             </td>
-          </tr>
+          </tr>`
+          }
 
           <!-- Integrity & CTA -->
           <tr>
             <td style="padding:0 24px;">
-              <p style="margin:0 0 24px; font-family:Arial, sans-serif; font-size:14px; line-height:1.6;">
+            ${
+              allProctorsDisabled
+                ? ''
+                : `<p style="margin:0 0 24px; font-family:Arial, sans-serif; font-size:14px; line-height:1.6;">
                 By following these rules, you help maintain the integrity and fairness of the course environment.&nbsp;
-              </p>
+              </p>`
+            }
               <!--[if gte mso 9]><br><![endif]-->
                 <tr>
                   <td align="center" style="padding-bottom:24px;">
                     <table cellpadding="0" cellspacing="0" border="0">
                       <tr>
                         <td bgcolor="#ff9800" style="border-radius:6px; padding:16px 40px; text-align:center;">
-                          <a href="${appConfig.url}${appConfig.routePrefix}/notifications/invite/${invite._id.toString()}"
+                          <a href="${appConfig.url}${
+                            appConfig.routePrefix
+                          }/notifications/invite/${invite._id.toString()}"
                              style="font-family:Arial, sans-serif; font-size:20px; font-weight:bold; color:#ffffff; text-decoration:none; display:inline-block;">
                             Accept Invite
                           </a>
@@ -149,99 +201,428 @@ export class InviteService extends BaseService {
   </table>
 </body>
 </html>
-`
+`,
     };
   }
 
-  async inviteUserToCourse(
-    inviteData: { email: string; role: EnrollmentRole }[],
+  // async inviteUserToCourse(
+  //   inviteData: { email: string; role: EnrollmentRole }[],
+  //   courseId: string,
+  //   courseVersionId: string,
+  // ): Promise<InviteResult[]> {
+  //   return this._withTransaction(async session => {
+  //     // Get Course Details
+  //     const course = await this.courseRepo.read(courseId.toString());
+  //     if (!course) {
+  //       throw new NotFoundError('Course not found');
+  //     }
+  //     // Get Course Version Details
+  //     const courseVersion = await this.courseRepo.readVersion(
+  //       courseVersionId.toString(),
+  //     );
+  //     if (!courseVersion) {
+  //       throw new NotFoundError('Course version not found');
+  //     }
+  //     if (!courseVersion.modules || courseVersion.modules.length === 0) {
+  //       throw new BadRequestError(
+  //         'Course version has no modules. Please add modules before proceeding.',
+  //       );
+  //     }
+
+  //     const firstModule = [...courseVersion.modules].sort((a, b) =>
+  //       a.order.localeCompare(b.order),
+  //     )[0];
+
+  //     if ((!firstModule.sections || firstModule.sections.length === 0)) {
+  //       throw new BadRequestError(
+  //         `Module "${firstModule.name}" has no sections. Add sections to continue.`,
+  //       );
+  //     }
+
+  //     const firstSection = [...firstModule.sections].sort((a, b) =>
+  //       a.order.localeCompare(b.order),
+  //     )[0];
+
+  //     const itemsGroup = await this.itemRepo.readItemsGroup(
+  //       firstSection.itemsGroupId.toString(),
+  //     );
+
+  //     if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+  //       throw new BadRequestError(
+  //         `Section "${firstSection.name}" has no items. Add content before sending invites.`,
+  //       );
+  //     }
+
+  //     const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  //     // Create Invites
+  //     const inviteIds = await Promise.all(
+  //       inviteData.map(async ({ email, role }) => {
+  //         // Check if already invited
+  //         const user = await this.userRepo.findByEmail(email);
+  //         const isNewUser = !user;
+
+  //         const isAlreadyEnrolled = user
+  //           ? !!(await this.enrollmentRepo.findEnrollment(
+  //             user._id.toString(),
+  //             courseId,
+  //             courseVersionId,
+  //           ))
+  //           : false;
+
+  //         const invite = new Invite(
+  //           email,
+  //           new ObjectId(courseId),
+  //           new ObjectId(courseVersionId),
+  //           role,
+  //           isAlreadyEnrolled,
+  //           isNewUser,
+  //           oneWeekFromNow,
+  //         );
+
+  //         return this.inviteRepo.create(invite, session);
+  //       }),
+  //     );
+  //     // Get Invite Details
+  //     const invites = await this.inviteRepo.findInvitesByIds(
+  //       inviteIds,
+  //       session,
+  //     );
+  //     // Prepare and send emails
+  //     await Promise.all(
+  //       invites.map(async invite => {
+  //         const emailMessage = await this.createInviteEmailMessage(
+  //           invite,
+  //           course,
+  //           courseVersion,
+  //         );
+  //         try {
+  //           await this.mailService.sendMail(emailMessage);
+  //         } catch (error) {
+  //           // Update Status to EMAIL_FAILED
+  //           invite.inviteStatus = 'EMAIL_FAILED';
+  //           const updatePayload = {
+  //             ...invite,
+  //             courseId: new ObjectId(invite.courseId),
+  //             courseVersionId: new ObjectId(invite.courseVersionId),
+  //           };
+  //           await this.inviteRepo.updateInvite(
+  //             invite._id.toString(),
+  //             updatePayload,
+  //           );
+  //           return;
+  //         }
+  //       }),
+  //     );
+
+  //     // Return invite details
+  //     const inviteDetails = invites.map(invite => {
+  //       return new InviteResult(
+  //         invite._id,
+  //         invite.email,
+  //         invite.inviteStatus,
+  //         invite.role,
+  //       );
+  //     });
+  //     return inviteDetails;
+  //   });
+  // }
+
+  async courseContentLength(
     courseId: string,
-    courseVersionId: string
-  ): Promise<InviteResult[]> {
+    courseVersionId: string,
+    session?: ClientSession,
+  ) {
+    const course = await this.courseRepo.read(courseId, session);
+    if (!course) {
+      throw new NotFoundError('Course not found');
+    }
 
-    return this._withTransaction(async (session) => {
-      // Get Course Details
-      const course = await this.courseRepo.read(courseId.toString());
-      if (!course) {
-        throw new NotFoundError('Course not found');
-      }
-      // Get Course Version Details
-      const courseVersion = await this.courseRepo.readVersion(
-        courseVersionId.toString()
+    // Get Course Version Details
+    const courseVersion = await this.courseRepo.readVersion(
+      courseVersionId,
+      session,
+    );
+    if (!courseVersion) {
+      throw new NotFoundError('Course version not found');
+    }
+
+    if (!courseVersion.modules || courseVersion.modules.length === 0) {
+      throw new BadRequestError(
+        'Course version has no modules. Please add modules before proceeding.',
       );
-      if (!courseVersion) {
-        throw new NotFoundError('Course version not found');
-      }
+    }
 
-      const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      // Create Invites
-      const inviteIds = await Promise.all(
-        inviteData.map(async ({ email, role }) => {
+    const firstModule = [...courseVersion.modules].sort((a, b) =>
+      a.order.localeCompare(b.order),
+    )[0];
 
-          // Check if already invited
-          const user = await this.userRepo.findByEmail(email);
-          const isNewUser = !user;
-
-          const isAlreadyEnrolled = user
-            ? !!(await this.enrollmentRepo.findEnrollment(
-              user._id.toString(),
-              courseId,
-              courseVersionId
-            ))
-            : false;
-
-          const invite = new Invite(
-            email,
-            courseId,
-            courseVersionId,
-            role,
-            isAlreadyEnrolled,
-            isNewUser,
-            oneWeekFromNow
-          );
-          return this.inviteRepo.create(invite, session);
-        })
+    if (!firstModule.sections || firstModule.sections.length === 0) {
+      throw new BadRequestError(
+        `Module "${firstModule.name}" has no sections. Add sections to continue.`,
       );
-      // Get Invite Details
-      const invites = await this.inviteRepo.findInvitesByIds(inviteIds, session);
-      // Prepare and send emails
-      await Promise.all(invites.map(async (invite) => {
-        const emailMessage = await this.createInviteEmailMessage(invite, course, courseVersion);
-        try {
-          await this.mailService.sendMail(emailMessage);
-        } catch (error) {
-          // Update Status to EMAIL_FAILED
-          invite.inviteStatus = 'EMAIL_FAILED';
-          await this.inviteRepo.updateInvite(invite._id.toString(), invite);
-          return;
-        }
-      }));
+    }
 
-      // Return invite details
-      const inviteDetails = invites.map((invite) => {
-        return new InviteResult(invite._id, invite.email, invite.inviteStatus, invite.role);
-      });
-      return inviteDetails;
-    });
+    const firstSection = [...firstModule.sections].sort((a, b) =>
+      a.order.localeCompare(b.order),
+    )[0];
 
+    const itemsGroup = await this.itemRepo.readItemsGroup(
+      firstSection.itemsGroupId.toString(),
+      session,
+    );
+
+    if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+      throw new BadRequestError(
+        `Section "${firstSection.name}" has no items. Add content before sending invites.`,
+      );
+    }
   }
 
-  async processInvite(inviteId: string): Promise<{ message: string }> {
+  async inviteUserToCourse(
+    inviteData: {email: string; role: EnrollmentRole}[],
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+  ): Promise<InviteResult[]> {
+    // Get Course Details (outside transaction)
+    const course = await this.courseRepo.read(courseId.toString());
+    if (!course) {
+      throw new NotFoundError('Course not found');
+    }
 
+    // Get Course Version Details (outside transaction)
+    const courseVersion = await this.courseRepo.readVersion(
+      courseVersionId.toString(),
+    );
+    if (!courseVersion) {
+      throw new NotFoundError('Course version not found');
+    }
+
+    const versionStatus =
+      await this.courseRepo.getCourseVersionStatus(courseVersionId);
+
+    if (versionStatus === 'archived') {
+      throw new ForbiddenError("Can't invite users to archived course version");
+    }
+
+    // Validate course content only if any user is a STUDENT
+    const hasStudent = inviteData.some(invite => invite.role === 'STUDENT');
+    if (hasStudent) {
+      if (!courseVersion.modules || courseVersion.modules.length === 0) {
+        throw new BadRequestError(
+          'Course version has no modules. Please add modules before proceeding.',
+        );
+      }
+
+      const firstModule = [...courseVersion.modules].sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[0];
+
+      if (!firstModule.sections || firstModule.sections.length === 0) {
+        throw new BadRequestError(
+          `Module "${firstModule.name}" has no sections. Add sections to continue.`,
+        );
+      }
+
+      const firstSection = [...firstModule.sections].sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[0];
+
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        firstSection.itemsGroupId.toString(),
+      );
+
+      if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+        throw new BadRequestError(
+          `Section "${firstSection.name}" has no items. Add content before sending invites.`,
+        );
+      }
+
+      if (courseVersion.cohorts && courseVersion.cohorts.length > 0) {
+        if (!cohortId) {
+          throw new BadRequestError(
+            'Course version contains cohorts, student must choose a cohort',
+          );
+        }
+        const validCohort = courseVersion.cohorts.find(
+          c => c.toString() === cohortId,
+        );
+        if (!validCohort) {
+          throw new BadRequestError(
+            'Invalid cohort. Cohort does not exist in course version.',
+          );
+        }
+      }
+    }
+
+    /* ---------------------------------
+     * 2. Deduplicate + safety limit
+     * --------------------------------- */
+    const seen = new Set<string>();
+    const uniqueInviteData = inviteData.filter(({email}) => {
+      const normalized = email.toLowerCase().trim();
+      if (seen.has(normalized)) return false;
+      seen.add(normalized);
+      return true;
+    });
+
+    const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    /* ---------------------------------
+     * 3. Create invites (chunked transaction)
+     * --------------------------------- */
+    const invites = await this._withTransaction(async session => {
+      const inviteIds: string[] = [];
+
+      for (const {email, role} of uniqueInviteData) {
+        const normalizedEmail = email.toLowerCase().trim();
+
+        const existingInvite =
+          await this.inviteRepo.findPendingInviteByEmailAndCourse(
+            normalizedEmail,
+            courseId,
+            courseVersionId,
+            cohortId,
+            session,
+          );
+        if (existingInvite) {
+          inviteIds.push(existingInvite._id.toString());
+          continue;
+        }
+        const user = await this.userRepo.findByEmail(normalizedEmail);
+
+        const isAlreadyEnrolled = user
+          ? !!(await this.enrollmentRepo.findActiveEnrollment(
+              user._id.toString(),
+              courseId,
+              courseVersionId,
+              cohortId,
+            ))
+          : false;
+
+        const invite = new Invite({
+          email: normalizedEmail,
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+          role,
+          isAlreadyEnrolled,
+          isNewUser: !user,
+          expiresAt: oneWeekFromNow,
+          type: InviteType.SINGLE,
+          cohortId: role === "STUDENT" && ObjectId.isValid(cohortId) ? new ObjectId(cohortId) : undefined,
+        });
+
+        const id = await this.inviteRepo.create(invite, session);
+        inviteIds.push(id);
+      }
+
+      return await this.inviteRepo.findInvitesByIds(inviteIds, session);
+    });
+
+    const inviteIds = invites.map(i => i._id.toString());
+
+    // split across workers in parallel batches
+    const BATCH_SIZE = 20;
+    const inviteBatches = chunkArray(inviteIds, BATCH_SIZE);
+
+    // for (const batch of inviteBatches) {
+    //   inviteEmailWorkerPool.enqueue({
+    //     inviteIds: batch,
+    //     courseId,
+    //     courseVersionId,
+    //   });
+    // }
+    // setImmediate(() => startInviteEmailProcessing(inviteIds, courseId, courseVersionId))
+    console.log(
+      `🚀 Queued ${inviteIds.length} invite emails across worker pool`,
+    );
+
+    // return response IMMEDIATELY
+    return invites.map(
+      invite =>
+        new InviteResult(
+          invite._id,
+          invite.email,
+          invite.inviteStatus,
+          invite.role,
+        ),
+    );
+  }
+
+  // New function for Link creation
+  async generateLink(
+    courseId: string,
+    courseVersionId: string,
+    role: EnrollmentRole,
+    cohortId?: string,
+  ): Promise<string> {
+    const versionStatus =
+      await this.courseRepo.getCourseVersionStatus(courseVersionId);
+
+    if (versionStatus === 'archived') {
+      throw new ForbiddenError(
+        'This enrollment is invalid. Because course version is archived.',
+      );
+    }
+    const token = crypto.randomBytes(24).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const invite = new Invite({
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      role,
+      expiresAt,
+      type: InviteType.BULK,
+      ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
+    });
+    const InviteId = await this.inviteRepo.create(invite);
+    return `${appConfig.url}/api/notifications/invite/${InviteId}`;
+  }
+
+  async processInvite(
+    inviteId: string,
+    action: 'ACCEPT' | 'REJECTED' = 'ACCEPT',
+    policyAcknowledged: boolean = false,
+  ): Promise<{message: string; isBulk?: boolean}> {
     const invite = await this.inviteRepo.findInviteById(inviteId);
     if (!invite) {
       throw new NotFoundError('Invite not found');
+    }
+    const versionStatus = await this.courseRepo.getCourseVersionStatus(
+      invite.courseVersionId.toString(),
+    );
+
+    if (versionStatus === 'archived') {
+      await this.inviteRepo.updateInvite(inviteId, {
+        inviteStatus: 'CANCELLED',
+      });
+
+      throw new ForbiddenError(
+        "Can'not process invite. Because course version is archived.",
+      );
+    }
+    console.log('====invite----', invite);
+    if (invite.type === InviteType.BULK) {
+      return {
+        message: 'Processing Your Invite...',
+        isBulk: true,
+      };
     }
 
     if (invite.inviteStatus === 'CANCELLED') {
       return {
         message: 'This invite has been cancelled.',
-      }
+      };
     }
 
     if (invite.inviteStatus === 'ACCEPTED') {
       return {
         message: 'You have already accepted this invite.',
+      };
+    }
+
+    if (invite.inviteStatus === 'REJECTED') {
+      return {
+        message: 'You have already rejected this invite.',
       };
     }
     const date = new Date();
@@ -256,10 +637,28 @@ export class InviteService extends BaseService {
       };
     }
 
+    // HANDLE REJECTION
+
+    if (action === 'REJECTED') {
+      invite.inviteStatus = 'REJECTED';
+
+      await this.inviteRepo.updateInvite(inviteId, {
+        inviteStatus: 'REJECTED',
+      });
+
+      return {message: 'Invite rejected successfully.'};
+    }
+
     // Update invite status to ACCEPTED
     invite.inviteStatus = 'ACCEPTED';
     invite.acceptedAt = date;
-    await this.inviteRepo.updateInvite(inviteId, invite);
+
+    const updatedPayload = {
+      inviteStatus: 'ACCEPTED' as const,
+      acceptedAt: date,
+    };
+
+    await this.inviteRepo.updateInvite(inviteId, updatedPayload);
 
     // If existing user, enroll them
     if (!invite.isNewUser && !invite.isAlreadyEnrolled) {
@@ -268,11 +667,18 @@ export class InviteService extends BaseService {
         throw new NotFoundError('User not found');
       }
       // Enroll user in course
-      const result = await this.enrollmentService.enrollUser(user._id.toString(), invite.courseId, invite.courseVersionId, invite.role, true);
+      const result = await this.enrollmentService.enrollUser(
+        user._id.toString(),
+        invite.courseId.toString(),
+        invite.courseVersionId.toString(),
+        invite.role,
+        true,
+        invite.cohortId?.toString(),
+      );
       if (!result) {
         throw new InternalServerError('Failed to enroll user in course');
       }
-      if (result == 'ALREADY_ENROLLED') {
+      if (result.status === 'ALREADY_ENROLLED') {
         return {
           message: 'You are already enrolled in this course.',
         };
@@ -285,25 +691,54 @@ export class InviteService extends BaseService {
     // If new user, message that their invite acceptance as has been acknowledged please sign up
     if (invite.isNewUser) {
       return {
-        message: 'Your invite acceptance has been acknowledged. Please sign up to access the course.',
+        message:
+          'Your invite acceptance has been acknowledged. Please sign up to access the course.',
       };
     }
   }
+  async cancelPendingInvites(
+    filter: {courseId?: string; courseVersionId?: string},
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.inviteRepo.cancelPendingInvites(filter, session);
+  }
 
-  async cancelInvite(inviteId: string): Promise<{ message: string }> {
+  async cancelInvite(inviteId: string): Promise<{message: string}> {
     const invite = await this.inviteRepo.findInviteById(inviteId);
     if (!invite) {
       throw new NotFoundError('Invite not found');
     }
+    const course = await this.courseRepo.read(invite.courseId.toString());
+    if (!course || course.isDeleted) {
+      await this.inviteRepo.updateInvite(inviteId, {inviteStatus: 'CANCELLED'});
+      return {
+        message: 'This course has been deleted. The invite is no longer valid.',
+      };
+    }
+    const versionStatus = await this.courseRepo.getCourseVersionStatus(
+      invite.courseVersionId.toString(),
+    );
 
+    if (versionStatus === 'archived') {
+      throw new ForbiddenError(
+        'Cannot cancel invite. Because course version is archived.',
+      );
+    }
+
+    if (invite.inviteStatus == 'ACCEPTED') {
+      throw new BadRequestError('Student already accpeted this invite!');
+    }
     // Update invite status to CANCELLED
     invite.inviteStatus = 'CANCELLED';
-    await this.inviteRepo.updateInvite(inviteId, invite);
+    const updatePayload = {
+      inviteStatus: 'CANCELLED' as const,
+    };
+    await this.inviteRepo.updateInvite(inviteId, updatePayload);
 
-    return { message: 'Invite has been cancelled successfully.' };
+    return {message: 'Invite has been cancelled successfully.'};
   }
 
-  async resendInvite(inviteId: string): Promise<{ message: string }> {
+  async resendInvite(inviteId: string): Promise<{message: string}> {
     const invite = await this.inviteRepo.findInviteById(inviteId);
     if (!invite) {
       throw new NotFoundError('Invite not found');
@@ -313,28 +748,76 @@ export class InviteService extends BaseService {
     if (invite.expiresAt < new Date()) {
       throw new BadRequestError('Invite has expired');
     }
+    const versionStatus = await this.courseRepo.getCourseVersionStatus(
+      invite.courseVersionId.toString(),
+    );
+
+    if (versionStatus === 'archived') {
+      throw new ForbiddenError(
+        'Cannot resend invite. Because course version is archived.',
+      );
+    }
 
     // Prepare and send email
     const course = await this.courseRepo.read(invite.courseId.toString());
-    const courseVersion = await this.courseRepo.readVersion(invite.courseVersionId.toString());
+    const courseVersion = await this.courseRepo.readVersion(
+      invite.courseVersionId.toString(),
+    );
     if (!course || !courseVersion) {
       throw new NotFoundError('Course or Course Version not found');
     }
 
-    const emailMessage = this.createInviteEmailMessage(invite, course, courseVersion);
+    const courseSettings =
+      await this.getCourseSettingsRepo().readCourseSettings(
+        invite.courseId.toString(),
+        invite.courseVersionId.toString(),
+      );
+
+    const allProctorsDisabled =
+      courseSettings.settings.proctors.detectors.every(
+        (detector: any) => detector.settings.enabled === false,
+      );
+
+    const emailMessage = this.createInviteEmailMessage(
+      invite,
+      course,
+      courseVersion,
+      allProctorsDisabled,
+    );
 
     try {
       await this.mailService.sendMail(emailMessage);
-      return { message: 'Invite resent successfully.' };
+
+      // Update status to PENDING after successful resend
+      await this.inviteRepo.updateInvite(inviteId, {
+        inviteStatus: 'PENDING',
+      });
+
+      return {message: 'Invite resent successfully.'};
     } catch (error) {
+      // Update status to EMAIL_FAILED if resend fails
+      await this.inviteRepo.updateInvite(inviteId, {
+        inviteStatus: 'EMAIL_FAILED',
+      });
       throw new InternalServerError('Failed to resend invite email');
     }
   }
 
   async findInvitesForCourse(
     courseId: string,
-    courseVersionId: string
-  ): Promise<InviteResult[]> {
+    courseVersionId: string,
+    inviteStatus: string,
+    currentPage: number,
+    limit: number,
+    search: string,
+    sort: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<{
+    invites: InviteResult[];
+    totalDocuments: number;
+    totalPages: number;
+  }> {
     const course = await this.courseRepo.read(courseId);
     if (!course) {
       throw new NotFoundError('Course not found');
@@ -345,16 +828,32 @@ export class InviteService extends BaseService {
       throw new NotFoundError('Course version not found');
     }
 
-    const invites = await this.inviteRepo.findInvitesByCourse(courseId, courseVersionId);
-    return invites.map(invite => {
-      return new InviteResult(
-        invite._id,
-        invite.email,
-        invite.inviteStatus,
-        invite.role,
-        invite.acceptedAt
+    const {invites, totalDocuments, totalPages} =
+      await this.inviteRepo.findInvitesByCourse(
+        courseId,
+        courseVersionId,
+        inviteStatus,
+        currentPage,
+        limit,
+        search,
+        sort,
+        startDate,
+        endDate,
       );
-    });
+    return {
+      invites: invites.map(
+        invite =>
+          new InviteResult(
+            invite._id,
+            invite.email,
+            invite.inviteStatus,
+            invite.role,
+            invite.acceptedAt,
+          ),
+      ),
+      totalDocuments,
+      totalPages,
+    };
   }
 
   async findInvitesByEmail(email: string): Promise<InviteResult[]> {
@@ -365,7 +864,7 @@ export class InviteService extends BaseService {
         invite.email,
         invite.inviteStatus,
         invite.role,
-        invite.acceptedAt
+        invite.acceptedAt,
       );
     });
   }
@@ -378,20 +877,52 @@ export class InviteService extends BaseService {
 
     const invites = await this.inviteRepo.findInvitesByEmail(user.email);
 
-    const invitesWithCourse = await Promise.all(invites.map(async (invite) => {
-      const course = await this.courseRepo.read(invite.courseId);
+    const invitesWithCourse = await Promise.all(
+      invites.map(async invite => {
+        const course = await this.courseRepo.read(invite.courseId.toString());
 
-      return new InviteResult(
-        invite._id,
-        invite.email,
-        invite.inviteStatus,
-        invite.role,
-        invite.acceptedAt,
-        invite.courseId,
-        invite.courseVersionId,
-        course
-      );
-    }));
+        return new InviteResult(
+          invite._id,
+          invite.email,
+          invite.inviteStatus,
+          invite.role,
+          invite.acceptedAt,
+          invite.courseId,
+          invite.courseVersionId,
+          invite.cohortId,
+          course,
+        );
+      }),
+    );
+
+    return invitesWithCourse;
+  }
+
+  async findPendingInvitesByUserId(userId: string): Promise<InviteResult[]> {
+    const user = await this.userRepo.findById(userId);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    const invites = await this.inviteRepo.findPendingInvitesByEmail(user.email);
+
+    const invitesWithCourse = await Promise.all(
+      invites.map(async invite => {
+        const course = await this.courseRepo.read(invite.courseId.toString());
+
+        return new InviteResult(
+          invite._id,
+          invite.email,
+          invite.inviteStatus,
+          invite.role,
+          invite.acceptedAt,
+          invite.courseId,
+          invite.courseVersionId,
+          invite.cohortId,
+          course,
+        );
+      }),
+    );
 
     return invitesWithCourse;
   }
@@ -408,7 +939,7 @@ export class InviteService extends BaseService {
       invite.role,
       invite.acceptedAt,
       invite.courseId,
-      invite.courseVersionId
+      invite.courseVersionId,
     );
   }
 }

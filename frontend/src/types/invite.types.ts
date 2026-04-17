@@ -1,7 +1,7 @@
 
 // Invite types (since they're not in the schema yet)
 export type EnrollmentRole = 'INSTRUCTOR' | 'STUDENT' | 'MANAGER' | 'TA' | 'STAFF';
-export type InviteStatus = 'ACCEPTED' | 'PENDING' | 'CANCELLED' | 'EMAIL_FAILED' | 'ALREADY_ENROLLED';
+export type InviteStatus = 'ACCEPTED' | 'PENDING' | 'CANCELLED' |'REJECTED' | 'EMAIL_FAILED' | 'ALREADY_ENROLLED';
 
 export interface EmailInvite {
   email: string;
@@ -10,6 +10,7 @@ export interface EmailInvite {
 
 export interface InviteBody {
   inviteData: EmailInvite[];
+  cohortId?: string;
 }
 export interface InviteResult {
   inviteId: string;
@@ -23,6 +24,8 @@ export interface InviteResult {
 
 export interface InviteResponse {
   invites: InviteResult[];
+  totalDocuments: number;
+  totalPages: number;
 }
 
 export interface MessageResponse {

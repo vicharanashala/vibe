@@ -1,7 +1,17 @@
-import {ObjectId} from 'mongodb';
-import {ProctoringComponent} from '../database/index.js';
+import { ObjectId } from 'mongodb';
+import { ProctoringComponent } from '../database/index.js';
 import { Type } from 'class-transformer';
-import { IsOptional, IsInt, Min } from 'class-validator';
+import {
+  IsOptional,
+  IsInt,
+  Min,
+  IsString,
+  IsIn,
+  isString,
+  IsEnum,
+} from 'class-validator';
+import { Priority } from './quiz.js';
+import { Cohort } from '#root/modules/courses/classes/index.js';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -9,6 +19,13 @@ export interface IUser {
   email: string;
   firstName: string;
   lastName?: string;
+  avatar?: string;
+  gender?: string;
+  country?: string;
+  state?: string;
+  city?: string;
+  profileImage?: string;
+  faceEmbedding?: number[];
   roles: 'admin' | 'user';
 }
 
@@ -25,16 +42,30 @@ export interface ICourse {
   instructors: ID[];
   createdAt?: Date;
   updatedAt?: Date;
+  isDeleted?: boolean;
 }
 
 export type ID = string | ObjectId | null;
+export type courseVersionStatus = 'active' | 'archived';
 export interface ICourseVersion {
   _id?: ID;
   courseId: ID;
   version: string;
   description: string;
+  versionStatus?: courseVersionStatus;
+  supportLink?: string;
+  cohorts?: ID[];
   modules: IModule[];
   totalItems?: number;
+  itemCounts?: {
+    VIDEO?: number;
+    QUIZ?: number;
+    BLOG?: number;
+    PROJECT?: number;
+    FEEDBACK?: number;
+  };
+  isDeleted?: boolean;
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,7 +75,10 @@ export interface IModule {
   name: string;
   description: string;
   order: string;
+  isHidden: boolean;
   sections: ISection[];
+  isDeleted?: boolean;
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,9 +88,20 @@ export interface ISection {
   name: string;
   description: string;
   order: string;
+  isHidden: boolean;
   itemsGroupId?: ID;
+  isDeleted?: boolean;
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface IItemGroupInfo {
+  courseVersionId: ID;
+  moduleId: ID;
+  moduleName: string;
+  sectionId: ID;
+  sectionName: string;
 }
 
 export interface IItemId {
@@ -72,6 +117,8 @@ export interface IItem {
   createdAt: Date;
   type: 'VIDEO' | 'QUIZ' | 'BLOG';
   itemId: string;
+  isDeleted?: boolean;
+  deletedAt?: Date;
 }
 
 export interface IVideoItem {
@@ -108,6 +155,7 @@ interface IQuestion {
   hintText: string;
   timeLimit: number;
   points: number;
+  priority: Priority;
   metaDetails: IQuestionMetaDetails;
   createdAt: Date;
   updatedAt: Date;
@@ -134,6 +182,7 @@ export interface IQuestionOptionsLot {
 export interface IQuesionOptionsLotItem {
   _id: string;
   itemText: string;
+  explaination: string;
 }
 
 export interface ISOLQuestionSolution {
@@ -259,6 +308,8 @@ export enum ItemType {
   VIDEO = 'VIDEO',
   QUIZ = 'QUIZ',
   BLOG = 'BLOG',
+  PROJECT = 'PROJECT',
+  FEEDBACK = 'FEEDBACK',
 }
 
 export interface IBaseItem {
@@ -267,7 +318,12 @@ export interface IBaseItem {
   description: string;
   type: ItemType;
   order: string;
-  itemDetails: IVideoDetails | IQuizDetails | IBlogDetails;
+  itemDetails: IVideoDetails | IQuizDetails | IBlogDetails | IProjectDetails;
+}
+
+// Add minimal IProjectItemDetails interface for PROJECT type
+export interface IProjectDetails {
+  // Add fields as needed for project items, or leave empty if none
 }
 
 export interface IVideoDetails {
@@ -278,7 +334,7 @@ export interface IVideoDetails {
 }
 
 export interface IQuestionBankRef {
-  bankId: string; // ObjectId as string
+  bankId: ID; // ObjectId as string
   count: number; // How many questions to pick
   difficulty?: string[]; // Optional filter
   tags?: string[]; // Optional filter
@@ -299,6 +355,7 @@ export interface IQuizDetails {
   showCorrectAnswersAfterSubmission: boolean; // If true, shows correct answers after submission
   showExplanationAfterSubmission: boolean; // If true, shows explanation after submission
   showScoreAfterSubmission: boolean; // If true, shows score after submission
+  allowSkip: boolean; // If true, allows users to skip quiz questions
 }
 
 export interface IQuizSettings {
@@ -316,6 +373,7 @@ export interface IQuizSettings {
   showCorrectAnswersAfterSubmission: boolean; // If true, shows correct answers after submission
   showExplanationAfterSubmission: boolean; // If true, shows explanation after submission
   showScoreAfterSubmission: boolean; // If true, shows score after submission
+  allowSkip: boolean; // If true, allows users to skip quiz questions
 }
 
 export interface IBlogDetails {
@@ -325,9 +383,18 @@ export interface IBlogDetails {
   estimatedReadTimeInMinutes: number;
 }
 
-export type EnrollmentRole = 'INSTRUCTOR' | 'STUDENT' | 'MANAGER' | 'TA' | 'STAFF';
+export interface IFeedBackFormDetails {
+  jsonSchema: Record<string, any>;
+  uiSchema: Record<string, any>;
+}
+
+export type EnrollmentRole =
+  | 'INSTRUCTOR'
+  | 'STUDENT'
+  | 'MANAGER'
+  | 'TA'
+  | 'STAFF';
 export type EnrollmentStatus = 'ACTIVE' | 'INACTIVE';
-// New interfaces for user enrollment and progress tracking
 export interface IEnrollment {
   _id?: string | ObjectId | null;
   userId: string | ObjectId;
@@ -335,7 +402,31 @@ export interface IEnrollment {
   courseVersionId: string | ObjectId;
   role: EnrollmentRole;
   status: EnrollmentStatus;
+  cohort?: string;
   enrollmentDate: Date;
+  percentCompleted: number;
+  completedItemsCount?: number;
+  assignedTimeSlots?: Array<{
+    from: string; // HH:MM format in IST
+    to: string; // HH:MM format in IST
+  }>;
+  isDeleted?: boolean;
+  deletedAt?: Date;
+  unenrolledAt?: Date;
+  hpPoints?: number;
+  hasNewItemsAfterCompletion?: boolean;
+  cohortId?: ID;
+  policyAcknowledgedAt?: Date;
+  policyReacknowledgementRequired?: boolean;
+  isEjected?: boolean;
+  ejectionHistory?: Array<{
+    ejectedAt: Date;
+    ejectionReason: string;
+    ejectedBy: string | ObjectId;
+    policyId?: string | ObjectId;
+    reinstatedAt?: Date;
+    reinstatedBy?: string | ObjectId;
+  }>;
 }
 
 export interface IProgress {
@@ -347,6 +438,15 @@ export interface IProgress {
   currentSection: string | ObjectId;
   currentItem: string | ObjectId;
   completed: boolean;
+  completedAt?: Date;
+  cohort?: string;
+}
+
+export interface ICurrentProgressPath {
+  module: { id: string; name: string } | null;
+  section: { id: string; name: string } | null;
+  item: { id: string; name: string; type: string } | null;
+  message?: string;
 }
 
 export interface IWatchTime {
@@ -357,6 +457,56 @@ export interface IWatchTime {
   itemId: string | ObjectId;
   startTime: Date;
   endTime?: Date;
+  cohortId?: ID;
+}
+
+export interface ICohort {
+  _id?: string | ObjectId | null;
+  courseId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  name: string;
+  description?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  isPublic: boolean;
+  isActive?: boolean;
+  baseHp?: number;
+  safeHp?: number;
+  isDeleted?: boolean;
+  isLegacy?: boolean;
+}
+
+export interface ICohortSettings {
+  _id?: string | ObjectId | null;
+  courseVersionId: string | ObjectId;
+  cohortId: string | ObjectId;
+  registrationsAutoApproved: boolean;
+  autoapproval_emails: string[];
+}
+
+export interface IUserActivityEvent {
+  _id?: string | ObjectId | null;
+  userId: string | ObjectId;
+  courseId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  videoId: ObjectId; // itemId from the system, stored as ObjectId
+  cohortId?: string | ObjectId; // Optional cohortId from enrollment
+  rewinds: number;
+  fastForwards: number;
+  rewindData: Array<{
+    from: string; // HH:MM:SS format
+    to: string; // HH:MM:SS format
+    createdAt: Date;
+  }>;
+  fastForwardData: Array<{
+    from: string; // HH:MM:SS format
+    to: string; // HH:MM:SS format
+    createdAt: Date;
+  }>;
+  createdAt: Date;
+  updatedAt: Date;
+  isDeleted?: boolean;
+  deletedAt?: Date;
 }
 
 export enum InviteActionType {
@@ -369,15 +519,21 @@ export enum InviteStatusType {
   ACCEPTED = 'ACCEPTED',
   EXPIRED = 'EXPIRED',
 }
+export enum InviteType {
+  SINGLE = 'SINGLE',
+  BULK = 'BULK',
+}
 // Interface for Invite
 export interface IInvite {
   _id?: string | ObjectId | null;
-  email: String;
-  courseId: String | ObjectId;
+  email?: string;
+  courseId: string | ObjectId;
   courseVersionId: string | ObjectId;
-  token: String;
+  token: string;
+  type: InviteType;
+  usedount?: number;
   action: InviteActionType;
-  status: InviteStatusType;
+  Invitestatus: InviteStatusType;
   createdAt: Date;
   expiresAt: Date;
 }
@@ -401,8 +557,54 @@ export interface IProctoringSettings {
 }
 
 // Common settings interface for both user and course settings.
+export interface IRegistrationSettings {
+  _id?: ID;
+  label: string;
+  type:
+  | 'TEXT'
+  | 'TEXTAREA'
+  | 'EMAIL'
+  | 'TEL'
+  | 'DATE'
+  | 'NUMBER'
+  | 'URL'
+  | 'SELECT';
+  isDefault: boolean;
+  required: boolean;
+  options?: string[];
+}
+
+export interface ITimeSlot {
+  from: string; // HH:MM format in IST
+  to: string; // HH:MM format in IST
+  studentIds: string[]; // Array of student user IDs
+  maxStudents?: number; // Maximum number of students allowed in this timeslot
+}
+
 export interface ISettings {
   proctors: IProctoringSettings;
+  linearProgressionEnabled: boolean;
+  seekForwardEnabled: boolean;
+  hpSystem?: boolean;
+  isPublic?: boolean;
+  baseHp?: number;
+  randomizeItems?: boolean;
+  // registration_settings?: IRegistrationSettings[];
+  registration?: {
+    jsonSchema?: any;
+    uiSchema?: any;
+    isActive?: boolean;
+    registrationsAutoApproved?: boolean;
+    autoapproval_emails?: string[];
+    cohortSettings?: ObjectId[];
+  };
+  timeslots?: {
+    isActive: boolean;
+    slots: ITimeSlot[];
+  };
+  crowdsourcedQuestionSubmissionEnabled?: boolean;
+  // jsonSchema?: any;
+  // uiSchema?: any;
 }
 
 // Interface for user-specific settings.
@@ -421,6 +623,16 @@ export interface ICourseSetting {
   settings: ISettings;
 }
 
+export enum SortOrder {
+  ASC = 'asc',
+  DESC = 'desc',
+}
+
+export interface SortOptions {
+  field: string;
+  order: SortOrder;
+}
+
 export class PaginationQuery {
   @IsOptional()
   @Type(() => Number)
@@ -435,6 +647,103 @@ export class PaginationQuery {
   limit: number = 10;
 }
 
+export class PaginationWithSortQuery extends PaginationQuery {
+  @IsOptional()
+  @IsString()
+  sortField?: string;
+
+  @IsOptional()
+  @IsEnum(SortOrder)
+  sortOrder?: SortOrder = SortOrder.DESC;
+}
+
+export class EnrollmentFilterQuery {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit: number = 10;
+
+  @IsOptional()
+  @IsString()
+  search: string = '';
+
+  @IsString()
+  @IsIn(['STUDENT', 'INSTRUCTOR', 'MANAGER', 'TA', 'STAFF'])
+  role: EnrollmentRole;
+
+  @IsOptional()
+  @IsString()
+  courseVersionId?: string;
+
+  @IsOptional()
+  @IsIn(['active', 'archived'])
+  tab?: courseVersionStatus = 'active';
+
+  @IsOptional()
+  @IsString()
+  cohortId?: string;
+}
+
+export class EnrollmentsQuery {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit: number = 10;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @IsIn(['name', 'enrollmentDate', 'progress', 'unenrolledAt'])
+  sortBy: 'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt' =
+    'enrollmentDate';
+
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  sortOrder: 'asc' | 'desc' = 'desc';
+
+  @IsOptional()
+  @IsIn(['STUDENT', 'OTHER'])
+  filter?: 'STUDENT' | 'OTHER';
+
+  @IsOptional()
+  @IsIn(['ACTIVE', 'INACTIVE'])
+  statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE';
+
+  @IsOptional()
+  @IsString()
+  cohort?: string;
+}
+
+export class BulkEnrollmentsQuery {
+  @IsOptional()
+  @IsString()
+  courseId?: string;
+
+  @IsOptional()
+  @IsString()
+  versionId?: string;
+
+  @IsOptional()
+  @IsString()
+  userId?: string;
+}
+
 export interface IUserAnomaly {
   _id?: string | ObjectId | null;
   userId: string | ObjectId;
@@ -447,13 +756,252 @@ export interface IUserAnomaly {
 }
 
 export interface AuthenticatedUserEnrollements {
-    courseId: string,
-    versionId: string,
-    role: "STUDENT" | "INSTRUCTOR" | "MANAGER" | "TA" | "STAFF",
+  courseId: string;
+  versionId: string;
+  role: 'STUDENT' | 'INSTRUCTOR' | 'MANAGER' | 'TA' | 'STAFF';
 }
 
 export interface AuthenticatedUser {
-    userId: string,
-    globalRole: 'admin' | 'user',
-    enrollments: AuthenticatedUserEnrollements[],
+  userId: string;
+  globalRole: 'admin' | 'user';
+  enrollments: AuthenticatedUserEnrollements[];
 }
+
+// export interface ICourseRegistration {
+//   _id?: string | ObjectId;
+//   courseId: string;
+//   versionId: string;
+//   userId: string;
+//   detail: {
+//     name: string;
+//     email: string;
+//     mobile: string;
+//     gender: 'MALE' | 'FEMALE' | 'OTHERS';
+//     city: string;
+//     state: string;
+//     category: 'GENERAL' | 'OBC' | 'SE' | 'ST' | 'OTHERS';
+//     university: string;
+//   };
+//   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+//   createdAt?: Date;
+//   updatedAt?: Date;
+// }
+
+export interface ICohortResponse {
+  _id: ID;
+  name: string;
+}
+export interface ICourseRegistration {
+  _id?: string | ObjectId;
+  courseId: ID;
+  versionId: ID;
+  userId: ID;
+  detail: Record<string, any>;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  cohortId?: ID;
+  cohort?: ICohort;
+  cohortName?: string;
+  read?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface TranscriptResponse {
+  segmentNumber: number;
+  timestamp: string;
+  questions: TranscriptQuestion[];
+}
+
+export interface TranscriptQuestion {
+  sno: number;
+  question: string;
+  hint: string;
+  options: TranscriptOptions;
+  explanations: TranscriptExplanations;
+  correctAnswer: string;
+}
+
+export interface TranscriptOptions {
+  A: string;
+  B: string;
+  C: string;
+  D: string;
+}
+
+export interface TranscriptExplanations {
+  A: string;
+  B: string;
+  C: string;
+  D: string;
+}
+
+export enum AnnouncementType {
+  GENERAL = 'GENERAL',
+  VERSION_SPECIFIC = 'VERSION_SPECIFIC',
+  COURSE_SPECIFIC = 'COURSE_SPECIFIC',
+  COHORT_SPECIFIC = 'COHORT_SPECIFIC',
+}
+
+export interface IAnnouncementAttachment {
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+}
+
+export interface IAnnouncement {
+  _id?: ID;
+  title: string;
+  content: string;
+  type: AnnouncementType;
+  courseId?: ID;
+  courseVersionId?: ID;
+  courseName?: string;
+  courseVersionName?: string;
+  instructorId: ID;
+  instructorName: string;
+  instructorFirebaseUid?: string;
+  attachments?: IAnnouncementAttachment[];
+  isHidden: boolean;
+  isDeleted?: boolean;
+  deletedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  cohortId?: ID;
+  cohortName?: string;
+}
+
+// export type AuditCategory =
+//   | "COURSE"
+//   | "COURSE_VERSION"
+//   | "MODULE"
+//   | "SECTION"
+//   | "ITEM"
+//   | "QUIZ"
+//   | "QUESTION"
+//   | "QUESTION_BANK"
+//   | "FLAGS"
+//   | "ENROLLMENT"
+//   | "REGISTRATION"
+//   | "INVITE"
+//   | "COURSE_SETTINGS"
+//   | "REPORT"
+//   | "PROGRESS";
+
+// export type AuditAction =
+//   // course
+//   | "COURSE_CREATE"
+//   | "COURSE_UPDATE"
+//   | "COURSE_DELETE"
+
+//   // course version
+//   | "COURSE_VERSION_CREATE"
+//   | "COURSE_VERSION_UPDATE"
+//   | "COURSE_VERSION_DELETE"
+//   | "COURSE_VERSION_CLONE"
+
+//   // structure changes
+//   | "MODULE_ADD"
+//   | "MODULE_UPDATE"
+//   | "MODULE_DELETE"
+//   | "MODULE_HIDE"
+//   | "MODULE_REORDER"
+
+//   | "SECTION_ADD"
+//   | "SECTION_UPDATE"
+//   | "SECTION_DELETE"
+//   | "SECTION_HIDE"
+//   | "SECTION_REORDER"
+
+//   | "ITEM_ADD"
+//   | "ITEM_UPDATE"
+//   | "ITEM_DELETE"
+//   | "ITEM_HIDE"
+//   | "ITEM_REORDER"
+//   | "ITEM_MAKE_OPTIONAL"
+
+//   // quiz/question/bank
+//   | "QUESTION_ADD"
+//   | "QUESTION_UPDATE"
+//   | "QUESTION_DELETE"
+//   | "QUESTION_BANK_CREATE"
+//   | "QUESTION_BANK_UPDATE"
+//   | "QUESTION_BANK_DELETE"
+
+//   // flags
+//   | "FLAG_STATUS_UPDATE"
+
+//   // enrollment/progress
+//   | "ENROLLMENT_REMOVE"
+//   | "ENROLLMENT_REMOVE_INSTRUCTOR"
+//   | "ENROLLMENT_REMOVE_STUDENT"
+//   | "PROGRESS_RESET"
+//   | "PROGRESS_RECALCULATE"
+
+//   // registration
+//   | "REGISTRATION_APPROVE"
+//   | "REGISTRATION_REJECT"
+//   | "REGISTRATION_FORM_UPDATE"
+
+//   // invites
+//   | "INVITE_SEND_SINGLE"
+//   | "INVITE_SEND_BULK"
+//   | "INVITE_RESEND"
+//   | "INVITE_REMOVE"
+
+//   // settings
+//   | "COURSE_SETTINGS_UPDATE"
+
+//   // exports/reports/downloads
+//   | "DOWNLOAD_PROJECT_SUBMISSIONS"
+//   | "DOWNLOAD_QUIZ_SUBMISSIONS"
+//   | "DOWNLOAD_QUIZ_REPORT";
+
+// export interface InstructorAuditTrail {
+
+//   category: AuditCategory;
+//   action: AuditAction;
+//   actor: ObjectId;
+//   context: {
+//     courseId?: ObjectId;
+//     courseVersionId?: ObjectId;
+
+//     moduleId?: ObjectId;
+//     sectionId?: ObjectId;
+//     itemId?: ObjectId;
+
+//     // for quiz/question changes
+//     quizId?: ObjectId;
+//     questionId?: ObjectId;
+//     questionBankId?: ObjectId;
+
+//     // for flags/enrollment/invite/registration
+//     flagId?: ObjectId;
+//     enrollmentId?: ObjectId;
+//     registrationId?: ObjectId;
+//     inviteId?: ObjectId;
+
+//     // any additional identifiers
+//     relatedIds?: Record<string, ObjectId | string>;
+//   };
+
+//     changes: {
+//     // "before" and "after" should be partial snapshots, not entire documents (avoid huge payloads)
+//     before?: Record<string, any>;
+//     after?: Record<string, any>;
+//      },
+
+//     outcome: {
+//     status: "SUCCESS" | "FAILED" | "PARTIAL";
+//     errorCode?: string;
+//     errorMessage?: string;      // keep short- avoid stack traces
+//   };
+
+//     source?: "DASHBOARD" | "COURSE"
+//   createdAt: Date;
+
+// }
+
+// export interface IAuditTrail {
+//  itemId: string | ObjectId | null;
+//  action: string;
+// }

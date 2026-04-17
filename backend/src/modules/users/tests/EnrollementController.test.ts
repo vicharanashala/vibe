@@ -40,10 +40,10 @@ import {coursesContainerModule} from '#root/modules/courses/container.js';
 import {InversifyAdapter} from '#root/inversify-adapter.js';
 import {coursesModuleControllers} from '#root/modules/courses/index.js';
 import {authModuleControllers} from '#root/modules/auth/index.js';
-import { quizzesContainerModule } from '#root/modules/quizzes/container.js';
-import { notificationsContainerModule } from '#root/modules/notifications/container.js';
-import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
-import { authorizationChecker } from '#root/shared/index.js';
+import {quizzesContainerModule} from '#root/modules/quizzes/container.js';
+import {notificationsContainerModule} from '#root/modules/notifications/container.js';
+import {FirebaseAuthService} from '#root/modules/auth/services/FirebaseAuthService.js';
+import {authorizationChecker} from '#root/shared/index.js';
 import * as current from '#root/shared/functions/currentUserChecker.js';
 
 describe('Enrollment Controller Integration Tests', () => {
@@ -69,23 +69,23 @@ describe('Enrollment Controller Integration Tests', () => {
       usersContainerModule,
       coursesContainerModule,
       quizzesContainerModule,
-      notificationsContainerModule
+      notificationsContainerModule,
     );
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
     vi.spyOn(current, 'currentUserChecker').mockImplementation(
-          async (action: Action) => {
-            if (action.request.headers.authorization) {
-              const token = action.request.headers.authorization.split(' ')[1];
-              if (token === 'user1') {
-                return user1;
-              } else if (token === 'student') {
-                return user2;
-              }
-            }
+      async (action: Action) => {
+        if (action.request.headers.authorization) {
+          const token = action.request.headers.authorization.split(' ')[1];
+          if (token === 'user1') {
             return user1;
+          } else if (token === 'student') {
+            return user2;
           }
-        );
+        }
+        return user1;
+      },
+    );
     app = useExpressServer(appInstance, {
       controllers: [
         ...(usersModuleOptions.controllers as Function[]),
@@ -110,6 +110,7 @@ describe('Enrollment Controller Integration Tests', () => {
         password: faker.internet.password(),
         firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
+        recaptchaToken: 'mock-token',
       };
 
       const signUpResponse = await request(app)
@@ -236,7 +237,7 @@ describe('Enrollment Controller Integration Tests', () => {
         .post(
           `/courses/versions/${itemParams.versionId}/modules/${itemParams.moduleId}/sections/${itemParams.sectionId}/items`,
         )
-        .send(itemPayload)
+        .send(itemPayload);
       expect(createItemResponse.status).toBe(201);
       // Expect the response to contain the item ID
       expect(createItemResponse.body).toHaveProperty('itemsGroup');
@@ -314,6 +315,7 @@ describe('Enrollment Controller Integration Tests', () => {
         password: faker.internet.password(),
         firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
+        recaptchaToken: 'mock-token',
       };
 
       const signUpResponse = await request(app)
@@ -380,6 +382,7 @@ describe('Enrollment Controller Integration Tests', () => {
         type: ItemType.QUIZ,
         quizDetails: {
           questionVisibility: 3,
+          allowSkip: true,
           allowPartialGrading: true,
           deadline: faker.date.future(),
           allowHint: true,
@@ -450,6 +453,7 @@ describe('Enrollment Controller Integration Tests', () => {
         password: faker.internet.password(),
         firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
+        recaptchaToken: 'mock-token',
       };
 
       const signUpResponse = await request(app)
@@ -457,12 +461,12 @@ describe('Enrollment Controller Integration Tests', () => {
         .send(signUpBody)
         .expect(201);
       const userId = signUpResponse.body.userId;
-      const userInfo = await request(app)
-        .get(`/users/${userId}`)
-        .expect(200);
+      const userInfo = await request(app).get(`/users/${userId}`).expect(200);
       user2 = userInfo.body;
-      console.log('User created:', user2);
-      vi.spyOn(FirebaseAuthService.prototype, 'getUserIdFromReq').mockResolvedValue(userId);
+      vi.spyOn(
+        FirebaseAuthService.prototype,
+        'getUserIdFromReq',
+      ).mockResolvedValue(userId);
       // 2. Create two courses and enroll user in both
       const enrollments: any[] = [];
       for (let i = 0; i < 2; i++) {
@@ -521,6 +525,7 @@ describe('Enrollment Controller Integration Tests', () => {
           quizDetails: {
             questionVisibility: 3,
             allowPartialGrading: true,
+            allowSkip: true,
             deadline: faker.date.future(),
             allowHint: true,
             maxAttempts: 5,

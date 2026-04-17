@@ -5,6 +5,7 @@ import {
   StringArrayToObjectIdArray,
 } from '#root/shared/constants/transformerConstants.js';
 import {ICourse, ID} from '#root/shared/interfaces/models.js';
+import { IsString } from 'class-validator';
 import {CourseBody} from '../validators/CourseValidators.js';
 import {Expose, Type, Transform} from 'class-transformer';
 import {JSONSchema} from 'class-validator-jsonschema';
@@ -15,6 +16,7 @@ import {JSONSchema} from 'class-validator-jsonschema';
  * @category Courses/Transformers
  */
 class Course implements ICourse {
+  
   @Expose()
   @JSONSchema({
     title: 'Course ID',
@@ -26,6 +28,7 @@ class Course implements ICourse {
   @Transform(StringToObjectId.transformer, {toClassOnly: true}) // Convert string -> ObjectId when deserializing
   _id?: ID;
 
+  @IsString()
   @Expose()
   @JSONSchema({
     title: 'Course Name',

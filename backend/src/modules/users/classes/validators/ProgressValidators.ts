@@ -1,5 +1,5 @@
 import {ID, IProgress, ItemType} from '#root/shared/interfaces/models.js';
-import {Expose} from 'class-transformer';
+import {Expose, Type} from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -9,16 +9,20 @@ import {
   IsBoolean,
   IsNumber,
   IsEnum,
+  ValidateNested,
+  IsEmail,
+  Min,
+  Max,
+  IsArray,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
-import { WatchTime } from '../transformers/WatchTime.js';
-import { UserQuizMetrics } from '#root/modules/quizzes/classes/index.js';
+import {WatchTime} from '../transformers/WatchTime.js';
+import {UserQuizMetrics} from '#root/modules/quizzes/classes/index.js';
 
 export class GetUserProgressParams {
   @JSONSchema({
     description: 'Course ID to retrieve progress for',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -28,7 +32,6 @@ export class GetUserProgressParams {
   @JSONSchema({
     description: 'Course version ID to retrieve progress for',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -36,12 +39,116 @@ export class GetUserProgressParams {
   versionId: string;
 }
 
+export class GetLeaderboardQuery {
+  @JSONSchema({
+    description: 'Page number (starts from 1)',
+    default: 1,
+    minimum: 1,
+    type: 'number',
+  })
+  @IsOptional()
+  page?: number = 1;
+
+  @JSONSchema({
+    description: 'Number of records per page',
+    default: 10,
+    minimum: 1,
+    type: 'number',
+  })
+  @IsOptional()
+  limit?: number = 10;
+
+  @JSONSchema({
+    description: 'Cohort ID to filter leaderboard by',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  cohortId?: string;
+}
+
+export class LeaderboardNoAuthResponse {
+  @JSONSchema({
+    description: 'User ID',
+    type: 'string',
+  })
+  @IsString()
+  userId!: string;
+
+  @JSONSchema({
+    description: 'User full name',
+    type: 'string',
+  })
+  @IsString()
+  userName!: string;
+
+  @JSONSchema({
+    description: 'User email address',
+    type: 'string',
+    format: 'email',
+  })
+  @IsEmail()
+  email!: string;
+
+  @JSONSchema({
+    description: 'Completion percentage of the course',
+    type: 'number',
+    minimum: 0,
+    maximum: 100,
+  })
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  completionPercentage!: number;
+
+  @JSONSchema({
+    description: 'Completion timestamp (null if not completed)',
+    oneOf: [{type: 'string', format: 'date-time'}, {type: 'null'}],
+  })
+  @IsOptional()
+  completedAt!: Date | string | null;
+
+  @JSONSchema({
+    description: 'Rank in leaderboard',
+    type: 'number',
+    minimum: 1,
+  })
+  @IsNumber()
+  @Min(1)
+  rank!: number;
+}
+
+export class GetLeaderboardResponse {
+  @JSONSchema({
+    description: 'Course name',
+    type: 'string',
+  })
+  @IsString()
+  course!: string;
+
+  @JSONSchema({
+    description: 'Course version',
+    type: 'string',
+  })
+  @IsString()
+  version!: string;
+
+  @JSONSchema({
+    description: 'Leaderboard data',
+    type: 'array',
+    items: {$ref: '#/components/schemas/LeaderboardNoAuthResponse'},
+  })
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => LeaderboardNoAuthResponse)
+  data!: LeaderboardNoAuthResponse[];
+}
+
 export class StartItemBody {
   @JSONSchema({
     description: 'ID of the course item to start',
     example: '60d5ec49b3f1c8e4a8f8b8c4',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -52,7 +159,6 @@ export class StartItemBody {
     description: 'ID of the module containing the item',
     example: '60d5ec49b3f1c8e4a8f8b8c5',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -63,19 +169,21 @@ export class StartItemBody {
     description: 'ID of the section containing the item',
     example: '60d5ec49b3f1c8e4a8f8b8c6',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
   sectionId: string;
+  
+  @IsOptional()
+  @IsString()
+  cohortId?: string;
 }
 
 export class StartItemParams {
   @JSONSchema({
     description: 'Course ID to track progress for',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -85,7 +193,6 @@ export class StartItemParams {
   @JSONSchema({
     description: 'Course version ID to track progress for',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -99,7 +206,6 @@ export class StartItemResponse {
     description: 'Watch item ID for tracking progress',
     example: '60d5ec49b3f1c8e4a8f8b8c7',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -115,7 +221,6 @@ export class StopItemParams {
   @JSONSchema({
     description: 'Course ID to stop tracking progress for',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -125,7 +230,6 @@ export class StopItemParams {
   @JSONSchema({
     description: 'Course version ID to stop tracking progress for',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -138,7 +242,6 @@ export class StopItemBody {
     description: 'Watch item ID used for tracking progress',
     example: '60d5ec49b3f1c8e4a8f8b8c7',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -149,7 +252,6 @@ export class StopItemBody {
     description: 'ID of the course item to stop tracking',
     example: '60d5ec49b3f1c8e4a8f8b8c4',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -160,7 +262,6 @@ export class StopItemBody {
     description: 'ID of the section containing the item',
     example: '60d5ec49b3f1c8e4a8f8b8c6',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -171,7 +272,6 @@ export class StopItemBody {
     description: 'ID of the module containing the item',
     example: '60d5ec49b3f1c8e4a8f8b8c5',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -182,12 +282,54 @@ export class StopItemBody {
     description: 'Attempt ID for quiz tracking',
     example: '60d5ec49b3f1c8e4a8f8b8c7',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsString()
   @IsMongoId()
   attemptId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Whether this attempt is skipped',
+    type: 'boolean',
+    example: true,
+  })
+  isSkipped?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Whether seek forward is allowed',
+    type: 'boolean',
+    example: true,
+  })
+  seekForwardEnabled?: boolean;
+
+  @IsOptional()
+  @JSONSchema({
+    description: 'Next item ID to proceed to after stopping',
+    type: 'string',
+    example: "60d5ec49b3f1c8e4a8f8b8c8",
+  })
+  nextItemId?: string;
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Cohort to which the user belongs',
+    example: 'Cohort A',
+    type: 'string',
+  })
+  cohortId?: string;
+}
+
+export class ItemIdparams {
+  @JSONSchema({
+    description: 'Gives as ItemId',
+  })
+  @IsString()
+  itemId: string;
 }
 
 export class UpdateProgressBody {
@@ -195,7 +337,6 @@ export class UpdateProgressBody {
     description: 'ID of the module to update progress for',
     example: '60d5ec49b3f1c8e4a8f8b8c5',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -206,7 +347,6 @@ export class UpdateProgressBody {
     description: 'ID of the section to update progress for',
     example: '60d5ec49b3f1c8e4a8f8b8c6',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -217,7 +357,6 @@ export class UpdateProgressBody {
     description: 'ID of the item to update progress for',
     example: '60d5ec49b3f1c8e4a8f8b8c4',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -228,7 +367,6 @@ export class UpdateProgressBody {
     description: 'Watch item ID used for tracking progress',
     example: '60d5ec49b3f1c8e4a8f8b8c7',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsString()
@@ -239,7 +377,6 @@ export class UpdateProgressBody {
     description: 'ID of the attempt for quiz',
     example: '60d5ec49b3f1c8e4a8f8b8c6',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsString()
@@ -251,7 +388,6 @@ export class UpdateProgressParams {
   @JSONSchema({
     description: 'Course ID to update progress for',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -261,7 +397,6 @@ export class UpdateProgressParams {
   @JSONSchema({
     description: 'Course version ID to update progress for',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -273,7 +408,6 @@ export class ResetCourseProgressParams {
   @JSONSchema({
     description: 'User ID to reset progress for',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -283,7 +417,6 @@ export class ResetCourseProgressParams {
   @JSONSchema({
     description: 'Course ID to reset progress for',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -293,7 +426,6 @@ export class ResetCourseProgressParams {
   @JSONSchema({
     description: 'Course version ID to reset progress for',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -306,7 +438,6 @@ export class ResetCourseProgressBody {
     description: 'Optional module ID to reset progress to',
     example: '60d5ec49b3f1c8e4a8f8b8c5',
     type: 'string',
-    format: 'Mongo Object ID',
     nullable: true,
   })
   @IsOptional()
@@ -318,7 +449,6 @@ export class ResetCourseProgressBody {
     description: 'Optional section ID to reset progress to',
     example: '60d5ec49b3f1c8e4a8f8b8c6',
     type: 'string',
-    format: 'Mongo Object ID',
     nullable: true,
   })
   @IsOptional()
@@ -330,7 +460,7 @@ export class ResetCourseProgressBody {
     description: 'Optional item ID to reset progress to',
     example: '60d5ec49b3f1c8e4a8f8b8c4',
     type: 'string',
-    format: 'Mongo Object ID',
+
     nullable: true,
   })
   @IsOptional()
@@ -340,7 +470,8 @@ export class ResetCourseProgressBody {
 
   @Expose()
   @JSONSchema({
-    description: 'field to trigger validation error if moduleId is not provided',
+    description:
+      'field to trigger validation error if moduleId is not provided',
     readOnly: true,
   })
   @IsOptional()
@@ -354,7 +485,8 @@ export class ResetCourseProgressBody {
 
   @Expose()
   @JSONSchema({
-    description: 'field to trigger validation error if sectionId is not provided',
+    description:
+      'field to trigger validation error if sectionId is not provided',
     readOnly: true,
   })
   @IsOptional()
@@ -364,14 +496,23 @@ export class ResetCourseProgressBody {
     message: 'sectionId is required if itemId is provided',
   })
   invalidFieldsCheck2?: any; // dummy field to trigger validation error
+
+  @Expose()
+  @JSONSchema({
+    description: 'Cohort to which the user belongs',
+    example: 'Cohort A',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  cohortId?: string;
 }
 
-export class ProgressDataResponse implements IProgress{
+export class ProgressDataResponse implements IProgress {
   @JSONSchema({
     description: 'Unique identifier for the progress record',
     example: '60d5ec49b3f1c8e4a8f8b8d1',
     type: 'string',
-    format: 'Mongo Object ID',
     readOnly: true,
   })
   @IsString()
@@ -382,7 +523,6 @@ export class ProgressDataResponse implements IProgress{
     description: 'User ID associated with this progress',
     example: '60d5ec49b3f1c8e4a8f8b8c1',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -393,7 +533,6 @@ export class ProgressDataResponse implements IProgress{
     description: 'Course ID associated with this progress',
     example: '60d5ec49b3f1c8e4a8f8b8c2',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -404,7 +543,6 @@ export class ProgressDataResponse implements IProgress{
     description: 'Course version ID associated with this progress',
     example: '60d5ec49b3f1c8e4a8f8b8c3',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -415,7 +553,6 @@ export class ProgressDataResponse implements IProgress{
     description: 'ID of the current module in progress',
     example: '60d5ec49b3f1c8e4a8f8b8c5',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -426,7 +563,6 @@ export class ProgressDataResponse implements IProgress{
     description: 'ID of the current section in progress',
     example: '60d5ec49b3f1c8e4a8f8b8c6',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -437,7 +573,6 @@ export class ProgressDataResponse implements IProgress{
     description: 'ID of the current item in progress',
     example: '60d5ec49b3f1c8e4a8f8b8c4',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -511,7 +646,6 @@ export class WatchTimeParams {
   @JSONSchema({
     description: 'user ID to get watch time for',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -521,7 +655,6 @@ export class WatchTimeParams {
   @JSONSchema({
     description: 'Course ID to get watch time for',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -531,7 +664,6 @@ export class WatchTimeParams {
   @JSONSchema({
     description: 'Course version ID to get watch time for',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -541,7 +673,6 @@ export class WatchTimeParams {
   @JSONSchema({
     description: 'Item ID to get watch time for',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -562,9 +693,11 @@ export class WatchTimeParams {
 export class WatchTimeResponse {
   @JSONSchema({
     description: 'Array of watch time records',
-    type: 'array'
+    type: 'array',
   })
   @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => WatchTime)
   watchTime: WatchTime[];
 
   @JSONSchema({
@@ -574,6 +707,16 @@ export class WatchTimeResponse {
   })
   @IsOptional()
   quizMetrics?: UserQuizMetrics;
+}
+
+export class TotalWatchTimeResponse {
+  @JSONSchema({
+    description: 'Total watch time of the user',
+    example: 120,
+    type: 'number',
+  })
+  @IsNumber()
+  totalWatchTime: number;
 }
 
 export const PROGRESS_VALIDATORS = [
@@ -591,5 +734,5 @@ export const PROGRESS_VALIDATORS = [
   CompletedProgressResponse,
   ProgressNotFoundErrorResponse,
   WatchTimeParams,
-  WatchTimeResponse
-]
+  WatchTimeResponse,
+];

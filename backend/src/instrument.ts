@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { nodeProfilingIntegration } from "@sentry/profiling-node";
+//import { nodeProfilingIntegration } from "@sentry/profiling-node";
 import { appConfig } from "./config/app.js";
 
 
@@ -14,7 +14,7 @@ if ((NODE_ENV === 'production' || NODE_ENV === 'staging' || NODE_ENV === 'develo
     dsn: dsn,
     environment: environment,
     integrations: [
-      nodeProfilingIntegration(),
+   //   nodeProfilingIntegration(),
     ],
     tracesSampleRate: 1.0,
     profilesSampleRate: 1.0,

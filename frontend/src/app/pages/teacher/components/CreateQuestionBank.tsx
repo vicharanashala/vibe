@@ -13,18 +13,21 @@ interface CreateQuestionBankDialogProps {
     showCreateBankDialog: boolean;
     setShowCreateBankDialog: (value: boolean) => void;
     quizId?: string;
+    questionBanks?: any[];
+    onRequestEditBank?: (bankId: string) => void;
 }
 
 interface QuestionBankForm {
     title: string;
     description: string;
     tags: string[];
+    points: number;
 }
 
 const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
     showCreateBankDialog,
     setShowCreateBankDialog,
-    quizId
+    quizId,
 }) => {
     const course = useCourseStore().currentCourse;
     const createQuestionBank = useCreateQuestionBank();
@@ -34,7 +37,8 @@ const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
     const [bankForm, setBankForm] = useState<QuestionBankForm>({
         title: '',
         description: '',
-        tags: []
+        tags: [],
+        points: 5
     });
     const [count, setCount] = useState(3);
     const [currentTag, setCurrentTag] = useState('');
@@ -43,7 +47,7 @@ const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
     const handleDialogChange = (open: boolean) => {
         setShowCreateBankDialog(open);
         if (!open) {
-            setBankForm({ title: '', description: '', tags: [] });
+            setBankForm({ title: '', description: '', tags: [], points: 5 });
             setCurrentTag('');
         }
     };
@@ -91,6 +95,7 @@ const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
                 title: bankForm.title.trim(),
                 description: bankForm.description.trim(),
                 tags: bankForm.tags,
+                points: bankForm.points,
                 questions: [] // Empty array as requested
             };
 
@@ -110,8 +115,8 @@ const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
     };
 
     return (
-        <div className="p-4 border-b">
-            <div className="flex items-center justify-between">
+        <div className="p-4 border-b rounded ">
+            <div className="flex items-center justify-between ">
                 <div>
                     <h3 className="font-bold text-lg">Question Banks</h3>
                 </div>
@@ -121,14 +126,14 @@ const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
                             <Plus className="h-4 w-4" />
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
-                        <DialogHeader>
+                    <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-[500px] mx-auto px-4 max-h-[90vh] sm:max-h-[85vh] flex flex-col overflow-hidden">
+                        <DialogHeader className="mb-3 text-left flex-shrink-0">
                             <DialogTitle>Create Question Bank</DialogTitle>
                         </DialogHeader>
-                        <div className="space-y-6">
+                        <div className="space-y-6 mt-5 flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                             {/* Title Field */}
                             <div className="space-y-2">
-                                <Label htmlFor="bankTitle">Title *</Label>
+                                <Label htmlFor="bankTitle mb-3">Title *</Label>
                                 <Input
                                     id="bankTitle"
                                     value={bankForm.title}
@@ -140,7 +145,7 @@ const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
 
                             {/* Description Field */}
                             <div className="space-y-2">
-                                <Label htmlFor="bankDescription">Description</Label>
+                                <Label htmlFor="bankDescription">Description *</Label>
                                 <Textarea
                                     id="bankDescription"
                                     value={bankForm.description}
@@ -196,6 +201,20 @@ const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
                                 </div>
                             </div>
 
+                            {/* Points Field */}
+                            <div className="space-y-2">
+                                <Label htmlFor="bankPoints">Points per Question *</Label>
+                                <Input
+                                    id="bankPoints"
+                                    type="number"
+                                    value={bankForm.points}
+                                    onChange={(e) => setBankForm({ ...bankForm, points: parseInt(e.target.value) || 1 })}
+                                    min={1}
+                                    className="w-full"
+                                    placeholder="Enter points for each question"
+                                />
+                            </div>
+
                             {/* Count Field */}
                             <div className="space-y-2">
                                 <Label htmlFor="questionCount">Number of Questions from this bank to select randomly for this quiz</Label>
@@ -219,7 +238,7 @@ const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
                         </div>
 
                         {/* Dialog Actions */}
-                        <div className="flex justify-end gap-2 mt-6">
+                        <div className="flex justify-end gap-2 mt-6 flex-shrink-0 pt-4">
                             <Button
                                 variant="outline"
                                 onClick={() => handleDialogChange(false)}

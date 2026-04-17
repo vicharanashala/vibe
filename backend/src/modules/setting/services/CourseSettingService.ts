@@ -1,6 +1,7 @@
-import { injectable, inject } from 'inversify';
-import { GLOBAL_TYPES } from '#root/types.js';
+import {injectable, inject} from 'inversify';
+import {GLOBAL_TYPES} from '#root/types.js';
 import {
+  AuditingDto,
   CourseSetting,
   DetectorOptionsDto,
   DetectorSettingsDto,
@@ -9,6 +10,7 @@ import {
 } from '#root/modules/setting/classes/index.js';
 import {
   BadRequestError,
+  ForbiddenError,
   InternalServerError,
   NotFoundError,
 } from 'routing-controllers';
@@ -18,7 +20,8 @@ import {
   ISettingRepository,
   ICourseRepository,
 } from '#shared/index.js';
-
+import {getISTFormattedTimestamp} from '#root/utils/toISOFormat.js';
+import {ClientSession, ObjectId} from 'mongodb';
 
 /**
  * Service responsible for course settings operations.
@@ -110,16 +113,40 @@ class CourseSettingService extends BaseService {
     courseVersionId: string,
   ): Promise<CourseSetting | null> {
     return this._withTransaction(async session => {
-      const courseSettings = await this.settingsRepo.readCourseSettings(
+      let courseSettings = await this.settingsRepo.readCourseSettings(
         courseId,
         courseVersionId,
         session,
       );
 
       if (!courseSettings) {
-        throw new NotFoundError(
-          `Course settings for course ID ${courseId} and version ID ${courseVersionId} not found.`,
+        // Create new settings as in updateCourseSettings
+        const settings = new SettingsDto();
+        settings.proctors = new ProctoringSettingsDto();
+        settings.proctors.detectors = [];
+        settings.linearProgressionEnabled = true;
+        settings.seekForwardEnabled = false;
+        settings.isPublic = false;
+        settings.hpSystem = false;
+        settings.registration = {isActive: true};
+        settings.timeslots = {isActive: false, slots: []};
+        settings.baseHp = 0;
+        settings.randomizeItems = false;
+
+        const created = await this.createCourseSettings(
+          new CourseSetting({
+            courseVersionId,
+            courseId,
+            settings,
+          }),
         );
+
+        if (!created) {
+          throw new InternalServerError(
+            'Failed to create course settings. Please try again later.',
+          );
+        }
+        return created;
       }
 
       return Object.assign(new CourseSetting(), courseSettings);
@@ -130,8 +157,23 @@ class CourseSettingService extends BaseService {
     courseId: string,
     courseVersionId: string,
     detectors: DetectorSettingsDto[],
+    linearProgressionEnabled: boolean,
+    seekForwardEnabled: boolean,
+    hpSystem: boolean,
+    isPublic: boolean,
+    baseHp: number,
+    randomizeItems: boolean,
+    userId: string,
   ): Promise<boolean> {
     return this._withTransaction(async session => {
+      const versionStatus =
+        await this.courseRepo.getCourseVersionStatus(courseVersionId);
+
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          "This course version is inactive, you can't update settings",
+        );
+      }
       // Check if the course settings exist
       const courseSettings = await this.settingsRepo.readCourseSettings(
         courseId,
@@ -143,12 +185,42 @@ class CourseSettingService extends BaseService {
         const settings = new SettingsDto();
         settings.proctors = new ProctoringSettingsDto();
         settings.proctors.detectors = detectors;
+        settings.linearProgressionEnabled = linearProgressionEnabled;
+        settings.seekForwardEnabled = seekForwardEnabled;
+        settings.isPublic = isPublic;
+        settings.hpSystem = hpSystem;
+        settings.baseHp = baseHp;
+        settings.randomizeItems = randomizeItems;
 
-        const result = await this.createCourseSettings(new CourseSetting({
-          courseVersionId,
-          courseId,
-          settings: settings
-        }))
+        settings.audit = [
+          {
+            userId: new ObjectId(userId),
+            modifiedAt: new Date(),
+            timestamp: getISTFormattedTimestamp(),
+            changes: {
+              before: null,
+              after: {
+                detectors,
+                linearProgressionEnabled,
+                seekForwardEnabled,
+                isPublic,
+                hpSystem,
+                baseHp,
+                randomizeItems,
+              },
+            },
+          },
+        ];
+        // for linear progression
+        settings.linearProgressionEnabled = linearProgressionEnabled;
+
+        const result = await this.createCourseSettings(
+          new CourseSetting({
+            courseVersionId,
+            courseId,
+            settings,
+          }),
+        );
 
         if (!result) {
           throw new InternalServerError(
@@ -157,11 +229,51 @@ class CourseSettingService extends BaseService {
         }
         return result._id ? true : false;
       }
+      if(linearProgressionEnabled === true)
+        randomizeItems=false;
+
+      const beforeState = {
+        detectors: courseSettings.settings?.proctors?.detectors,
+        linearProgressionEnabled:
+          courseSettings.settings?.linearProgressionEnabled,
+        seekForwardEnabled: courseSettings.settings?.seekForwardEnabled,
+        isPublic: courseSettings.settings?.isPublic,
+        hpSystem: courseSettings.settings?.hpSystem,
+        baseHp: courseSettings.settings?.baseHp,
+        randomizeItems: courseSettings.settings?.randomizeItems,
+      };
+
+      const afterState = {
+        detectors,
+        linearProgressionEnabled,
+        seekForwardEnabled,
+        isPublic,
+        hpSystem,
+        baseHp,
+        randomizeItems,
+      };
+
+      const audit: AuditingDto = {
+        userId: new ObjectId(userId),
+        changes: {
+          before: beforeState,
+          after: afterState,
+        },
+        timestamp: getISTFormattedTimestamp(),
+        modifiedAt: new Date(),
+      };
 
       const result = await this.settingsRepo.updateCourseSettings(
         courseId,
         courseVersionId,
         detectors,
+        linearProgressionEnabled,
+        seekForwardEnabled,
+        hpSystem,
+        isPublic,
+        baseHp,
+        randomizeItems,
+        audit,
         session,
       );
 
@@ -213,6 +325,49 @@ class CourseSettingService extends BaseService {
     });
   }
     */
+
+  /**
+   * Checks if linear progression is enabled for a specific course and version.
+   * @param courseId - The ID of the course
+   * @param courseVersionId - The ID of the course version
+   * @returns False if linear progression field is false, true otherwise
+   */
+  async isLinearProgressionEnabled(
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<boolean> {
+    return this._withTransaction(async session => {
+      const isCourseEnabled =
+        await this.settingsRepo.isLinearProgressionEnabled(
+          courseId,
+          courseVersionId,
+          session,
+        );
+      return isCourseEnabled;
+    });
+  }
+
+  async getSettingsByVersionIds(
+    courseVersionIds: ObjectId[],
+  ): Promise<CourseSetting[] | null> {
+    return this._withTransaction(async session => {
+      return await this.settingsRepo.getSettingsByVersionIds(
+        courseVersionIds,
+        session,
+      );
+    });
+  }
+
+  async isLinearProgressionEnabledByVersionId(
+      courseVersionId: string,
+      session?: ClientSession,
+    ): Promise<boolean> {
+      return this.settingsRepo.isLinearProgressionEnabledByVersionId(courseVersionId,session);
+    }
+
+    async shouldRandomize(versionId:string): Promise<boolean> {
+      return this.settingsRepo.shouldRandomize(versionId);
+    }
 }
 
-export { CourseSettingService };
+export {CourseSettingService};

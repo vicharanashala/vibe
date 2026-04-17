@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useImperativeHandle, forwardRef, useRef }
 import MathRenderer from "./math-renderer";
 
 // Import Yoopta Editor Core
-import YooptaEditor, { createYooptaEditor, YooptaContentValue} from '@yoopta/editor';
+import YooptaEditor, { createYooptaEditor, YooptaContentValue } from '@yoopta/editor';
 
 // Import Yoopta Plugins
 import Paragraph from '@yoopta/paragraph';
@@ -13,10 +13,31 @@ import { NumberedList, BulletedList, TodoList } from '@yoopta/lists';
 import Code from '@yoopta/code';
 import { HeadingOne, HeadingTwo, HeadingThree } from '@yoopta/headings';
 import Divider from '@yoopta/divider';
+import LinkTool, { DefaultLinkToolRender } from '@yoopta/link-tool';
+import ActionMenu, { DefaultActionMenuRender } from '@yoopta/action-menu-list';
+import Toolbar, { DefaultToolbarRender } from '@yoopta/toolbar';
+import { Bold, Italic, CodeMark, Underline, Strike, Highlight } from '@yoopta/marks';
 import 'katex/dist/katex.min.css';
 
 // Import Markdown Serialization
 import { markdown } from '@yoopta/exports';
+
+const MARKS = [Bold, Italic, CodeMark, Underline, Strike, Highlight];
+
+const TOOLS = {
+  Toolbar: {
+    tool: Toolbar,
+    render: DefaultToolbarRender,
+  },
+  ActionMenu: {
+    tool: ActionMenu,
+    render: DefaultActionMenuRender,
+  },
+  LinkTool: {
+    tool: LinkTool,
+    render: DefaultLinkToolRender,
+  },
+};
 
 // Import ShadCN UI Components
 import { Badge } from "@/components/ui/badge";
@@ -43,9 +64,11 @@ const plugins = [
     Code,
 ];
 import type { ArticleProps, ArticleRef } from "@/types/article.types";
+import { NavigatingOverlay } from "./video";
+import { toast } from "sonner";
 
 
-const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTimeInMinutes, points, tags, onNext, isProgressUpdating }, ref) => {
+const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTimeInMinutes, points, tags, onNext, isProgressUpdating, isAlreadyWatched, completedItemIdsRef }, ref) => {
     // ✅ Initialize Yoopta Editor
     const editor = useMemo(() => createYooptaEditor(), []);
     const [value, setValue] = useState<YooptaContentValue>();
@@ -54,59 +77,89 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     const { currentCourse, setWatchItemId } = useCourseStore();
     const startItem = useStartItem();
     const stopItem = useStopItem();
-    
+    const [isStopping, setIsStopping] = useState(false);
+
     // ✅ Track if item has been started and if start request has been sent
     const itemStartedRef = useRef(false);
     const startRequestSentRef = useRef(false);
 
     function handleSendStartItem() {
         if (!currentCourse?.itemId || startRequestSentRef.current) return;
-        
         // Mark that we've sent the start request to prevent multiple calls
         startRequestSentRef.current = true;
-        
-        startItem.mutate({
-            params: {
-                path: {
-                    courseId: currentCourse.courseId,
-                    courseVersionId: currentCourse.versionId ?? '',
+        if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
+            startItem.mutate({
+                params: {
+                    path: {
+                        courseId: currentCourse.courseId,
+                        courseVersionId: currentCourse.versionId ?? '',
+                    },
                 },
-            },
-            body: {
-                itemId: currentCourse.itemId,
-                moduleId: currentCourse.moduleId ?? '',
-                sectionId: currentCourse.sectionId ?? '',
-            }
-        });
+                body: {
+                    itemId: currentCourse.itemId,
+                    moduleId: currentCourse.moduleId ?? '',
+                    sectionId: currentCourse.sectionId ?? '',
+                    cohortId: currentCourse.cohortId ?? '',
+                }
+            });
+        }
     }
 
-    function handleStopItem() {
+   async function handleStopItem() {
         if (!currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
         
-        stopItem.mutate({
-            params: {
-                path: {
-                    courseId: currentCourse.courseId,
-                    courseVersionId: currentCourse.versionId ?? '',
-                },
-            },
-            body: {
-                watchItemId: currentCourse.watchItemId,
-                itemId: currentCourse.itemId,
-                moduleId: currentCourse.moduleId ?? '',
-                sectionId: currentCourse.sectionId ?? '',
+        try {
+            if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
+                await stopItem.mutateAsync({
+                    params: {
+                        path: {
+                            courseId: currentCourse.courseId,
+                            courseVersionId: currentCourse.versionId ?? '',
+                        },
+                    },
+                    body: {
+                        watchItemId: currentCourse.watchItemId,
+                        itemId: currentCourse.itemId,
+                        moduleId: currentCourse.moduleId ?? '',
+                        sectionId: currentCourse.sectionId ?? '',
+                        cohortId: currentCourse.cohortId ?? '',
+                    }
+                });
             }
-        });
-        itemStartedRef.current = false;
+            completedItemIdsRef.current.add(currentCourse!.itemId);
+            itemStartedRef.current = false;
+        } catch (error: any) {
+            console.error('❌ handleStopItem error:', error);
+            // Re-throw the error so it can be caught by the parent
+            throw error;
+        }
     }
 
-    // ✅ Handle Next button click - send stop request only when user clicks Next
-    const handleNextClick = () => {
-        if (itemStartedRef.current) {
-            handleStopItem();
-        }
-        if (onNext) {
-            onNext();
+    // // ✅ Handle Next button click - send stop request only when user clicks Next
+    // const handleNextClick = () => {
+    //     if (itemStartedRef.current) {
+    //         handleStopItem();
+    //     }
+    //     if (onNext) {
+    //         onNext();
+    //     }
+    // };
+
+    const handleNextClick = async () => {
+        if (isStopping || isProgressUpdating) return;
+        
+        try {
+            setIsStopping(true);
+            if (itemStartedRef.current) {
+            await handleStopItem(); //  wait until stop finishes
+            }
+
+            onNext?.(); //  only after stop succeeds
+        } catch (err) {
+            toast.error('Unable to save progress. Please try again.');
+            console.error('Stop item failed:', err);
+        } finally {
+            setIsStopping(false);
         }
     };
 
@@ -188,6 +241,11 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     return (
         <MathRenderer className="h-full w-full bg-background">
             <div className="h-full w-full flex flex-col">
+                <NavigatingOverlay
+                    visible={isStopping}
+                    title="Verifying answers"
+                    message="Please wait while we submit and validate your responses…"
+                />
                 {/* Article Metadata Topbar */}
                 {(estimatedReadTimeInMinutes || points || tags?.length) && (
                     <div className="border-b bg-muted/50 px-4 py-3">
@@ -227,9 +285,11 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                         value={value}
                         editor={editor}
                         plugins={plugins}
+                        marks={MARKS}
+                        tools={TOOLS}
                         readOnly={true}
                         autoFocus={false}
-                        className="prose prose-lg max-w-none w-full"
+                        className="prose prose-lg max-w-none w-full dark:prose-invert"
                     />
                 </div>
 
@@ -239,11 +299,11 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                         <div className="flex justify-end">
                             <Button
                                 onClick={handleNextClick}
-                                disabled={isProgressUpdating}
+                                disabled={isProgressUpdating || isStopping}
                                 className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
                                 size="lg"
                             >
-                                {isProgressUpdating ? (
+                                {isProgressUpdating || isStopping ? (
                                     <>
                                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
                                         Processing

@@ -5,13 +5,15 @@ import {ProgressRepository} from '#root/shared/database/providers/mongo/reposito
 import {EnrollmentController} from './controllers/EnrollmentController.js';
 import {ProgressController} from './controllers/ProgressController.js';
 import {UserController} from './controllers/UserController.js';
+import {UserActivityEventController} from './controllers/UserActivityEventController.js';
 import {EnrollmentService} from './services/EnrollmentService.js';
 import {ProgressService} from './services/ProgressService.js';
 import {UserService} from './services/UserService.js';
+import {UserActivityEventService} from './services/UserActivityEventService.js';
 
 export const usersContainerModule = new ContainerModule(options => {
   // Repositories
-  options
+  options 
     .bind(USERS_TYPES.ProgressRepo)
     .to(ProgressRepository)
     .inSingletonScope();
@@ -33,9 +35,14 @@ export const usersContainerModule = new ContainerModule(options => {
     .bind(USERS_TYPES.UserService)
     .to(UserService)
     .inSingletonScope();
+  options
+    .bind(USERS_TYPES.UserActivityEventService)
+    .to(UserActivityEventService)
+    .inSingletonScope();
 
   // Controllers
   options.bind(ProgressController).toSelf().inSingletonScope();
   options.bind(EnrollmentController).toSelf().inSingletonScope();
   options.bind(UserController).toSelf().inSingletonScope();
+  options.bind(UserActivityEventController).toSelf().inSingletonScope();
 });

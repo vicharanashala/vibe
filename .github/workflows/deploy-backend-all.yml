@@ -74,7 +74,7 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
-
+         
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v1
         with:
@@ -96,10 +96,16 @@ jobs:
             DB_URL=${{ secrets.DB_URL }}
             DB_NAME=${{ secrets.DB_NAME }}
             SENTRY_DSN=${{ secrets.SENTRY_DSN }}
-            SMTP_USER=${{ secrets.SMTP_USER }}
-            SMTP_PASS=${{ secrets.SMTP_PASS }}
             TAILSCALE_AUTHKEY=${{ secrets.TAILSCALE_AUTHKEY }}
+            RECAPTCHA_SECRET_KEY=${{ secrets.RECAPTCHA_SECRET_KEY }}
+            IS_RECAPTCHA_ENABLED=${{ secrets.IS_RECAPTCHA_ENABLED }}
+            ENABLE_DB_BACKUP=${{ secrets.ENABLE_DB_BACKUP }}
+            GCP_BACKUP_BUCKET=${{ secrets.GCP_BACKUP_BUCKET }}
+            ENABLE_HP_JOB=${{ secrets.ENABLE_HP_JOB }}
+            GCP_BACKUP_ACTIVITY_BUCKET=${{ secrets.GCP_BACKUP_ACTIVITY_BUCKET }}
             AI_PROXY_ADDRESS=socks5h://localhost:1055
+            
+           
           flags: --allow-unauthenticated
 
   deploy_production:
@@ -114,6 +120,7 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
+          
 
       - name: Deploy to Cloud Run (Production)
         uses: google-github-actions/deploy-cloudrun@v1
@@ -136,8 +143,15 @@ jobs:
             DB_URL=${{ secrets.DB_URL }}
             DB_NAME=${{ secrets.DB_NAME }}
             SENTRY_DSN=${{ secrets.SENTRY_DSN }}
-            SMTP_USER=${{ secrets.SMTP_USER }}
-            SMTP_PASS=${{ secrets.SMTP_PASS }}
             TAILSCALE_AUTHKEY=${{ secrets.TAILSCALE_AUTHKEY }}
+            RECAPTCHA_SECRET_KEY=${{ secrets.RECAPTCHA_SECRET_KEY }}
+            IS_RECAPTCHA_ENABLED=${{ secrets.IS_RECAPTCHA_ENABLED }}
+            ENABLE_DB_BACKUP=${{ secrets.ENABLE_DB_BACKUP }}
+            GCP_BACKUP_BUCKET=${{ secrets.GCP_BACKUP_BUCKET }}
+            ENABLE_HP_JOB=${{ secrets.ENABLE_HP_JOB }}
+            GCP_BACKUP_ACTIVITY_BUCKET=${{ secrets.GCP_BACKUP_ACTIVITY_BUCKET }}
             AI_PROXY_ADDRESS=socks5h://localhost:1055
+         
+          
+            
           flags: --allow-unauthenticated

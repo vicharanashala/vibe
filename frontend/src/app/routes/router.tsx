@@ -9,31 +9,65 @@ import {
   useNavigate
 } from '@tanstack/react-router'
 import { useAuthStore } from '@/store/auth-store'
-import { useEffect } from 'react'
+import React, { useEffect } from 'react'
 
 // Import pages and layouts
 import AuthPage from '@/app/pages/auth-page'
 import TeacherLayout from '@/layouts/teacher-layout'
+import EjectionPoliciesPage from '../pages/teacher/ejection-policies'
 import StudentLayout from '@/layouts/student-layout'
 import StudentDashboard from "@/app/pages/student/dashboard";
 import StudentCourses from "@/app/pages/student/courses";
 import StudentProfile from "@/app/pages/student/profile";
+import StudentAnnouncements from "../pages/student/announcements/StudentAnnouncements";
 import AddCoursePage from '@/app/pages/teacher/AddCoursePage';
 import TeacherProfile from "@/app/pages/teacher/profile";
-import { LiveQuiz } from '@/app/pages/teacher/live-quiz'
+import { AudioTranscripter } from '@/app/pages/teacher/AudioTranscripter'
 import CoursePage from '@/app/pages/student/course-page'
-import Dashboard from '@/app/pages/teacher/dashboard'
 import TeacherCoursePage from "@/app/pages/teacher/teacher-course-page";
 import TeacherCoursesPage from '@/app/pages/teacher/course-page'
 import Editor from '@/app/pages/teacher/create-article'
 import { NotFoundComponent } from '@/components/not-found'
 import { useCourseStore } from '@/store/course-store'
-import CourseEnrollments from '../pages/teacher/course-enrollments'
+// import CourseEnrollments from '../pages/teacher/course-enrollments'
+import CourseEnrollmentsContainer from '../pages/teacher/course-enrollments'
+import CourseEmotionAnalyticsPage from '../pages/teacher/course-emotion-analytics'
 import InvitePage from '../pages/teacher/invite'
 import GenerateSectionPage from '@/app/pages/teacher/create-job'
 import AISectionPage from '@/app/pages/teacher/AISectionPage';
-import AISectionModal from '@/app/pages/teacher/components/AISectionModal';
+import FlaggedList from '../pages/teacher/FlaggedList'
+import StudentRouteGuard from '@/components/StudentRouteGuard'
+import AiWorkflow from '../pages/teacher/AiWorkflow'
+import AnomaliesList from '../pages/teacher/AnomaliesList'
+// import CourseInstructors from '../pages/teacher/course-instructors'
+import RegisteredUsers from '../pages/teacher/CourseRegistrationRequests'
+import CourseRegistration from '../pages/student/CourseRegistration'
+import CourseIssueReports from '../pages/student/FlagResponse'
+// import LoginPage from '../pages/LoginPage'
+import FeedbackFormEditor from '../pages/teacher/FeedbackFormEditor'
+import TeacherAnnouncements from '../pages/teacher/announcements'
+import Leaderboard from '../pages/student/leaderboard'
+import ForgotPasswordPage from '../pages/ForgotPasswordPage'
+import ResetPasswordPage from '../pages/ResetPasswordPage'
+import StudentLogin from '../pages/student/StudentLogin'
+import TeacherLogin from '../pages/teacher/TeacherLogin'
+import SelectRolePage from '../pages/SelectRolePage'
+import AuditPage from '../pages/teacher/AuditPage'
+import ConfigureCohorts from '../pages/teacher/configure-cohorts'
 
+import HpSystemVersions from '../pages/teacher/hp-system/HpSystemPage'
+import HpSystemCohorts from '../pages/teacher/hp-system/CohortsList'
+import HpSystemDashboard from '../pages/teacher/hp-system/CohortDetails'
+import CreateHpActivityPage from '../pages/teacher/hp-system/create-activity'
+import StudentLedgerPage from '../pages/teacher/hp-system/student-ledger'
+import StudentSubmissionsPage from '../pages/teacher/hp-system/student-submissions'
+import SubmissionDetailsPage from '../pages/teacher/hp-system/submission-details'
+import StudentCohorts from '@/app/pages/student/hp-system/cohorts'
+import StudentActivities from '@/app/pages/student/hp-system/activities'
+import StudentSubmissions from '@/app/pages/student/hp-system/submissions'
+import StudentMyLedgerPage from '@/app/pages/student/hp-system/student-ledger'
+import StudentActivityDetail from '@/app/pages/student/hp-system/activity-detail'
+import NotificationsPage from '@/app/pages/shared/NotificationsPage'
 
 // Root route with error and notFound handling
 const rootRoute = new RootRoute({
@@ -43,7 +77,7 @@ const rootRoute = new RootRoute({
     console.error('Router error:', error);
     // reload page on error
     setTimeout(() => {
-      window.location.reload();
+      // window.location.reload();
     }, 1000);
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -67,6 +101,48 @@ const authRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/auth',
   component: AuthPage,
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    // Redirect to appropriate dashboard if already authenticated
+    if (isAuthenticated && user?.role) {
+      if (user.role === 'teacher') {
+        throw redirect({ to: '/teacher' });
+      } else if (user.role === 'student') {
+        throw redirect({ to: '/student' });
+      }
+    }
+  },
+});
+// Teacher Ejection Policies route
+const teacherEjectionPoliciesRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/ejection-policies',
+  component: EjectionPoliciesPage,
+});
+
+// Forgot Password route - accessible only when NOT authenticated
+const forgotPasswordRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/forgot-password',
+  component: ForgotPasswordPage,
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    // Redirect to appropriate dashboard if already authenticated
+    if (isAuthenticated && user?.role) {
+      if (user.role === 'teacher') {
+        throw redirect({ to: '/teacher' });
+      } else if (user.role === 'student') {
+        throw redirect({ to: '/student' });
+      }
+    }
+  },
+});
+
+// Reset Password route - accessible only when NOT authenticated
+const resetPasswordRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/reset-password',
+  component: ResetPasswordPage,
   beforeLoad: () => {
     const { isAuthenticated, user } = useAuthStore.getState();
     // Redirect to appropriate dashboard if already authenticated
@@ -105,19 +181,37 @@ const teacherLayoutRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/teacher',
   notFoundComponent: NotFoundComponent,
-  beforeLoad: () => {
-    // Auth and role check
-    const { isAuthenticated, user } = useAuthStore.getState();
-    if (!isAuthenticated) {
+  beforeLoad: async () => {
+    const { isAuthReady } = useAuthStore.getState();
+
+    // If auth isn't ready, wait for it (max 5 seconds)
+    if (!isAuthReady) {
+      await new Promise<void>((resolve) => {
+        const unsubscribe = useAuthStore.subscribe((state) => {
+          if (state.isAuthReady) {
+            unsubscribe();
+            resolve();
+          }
+        });
+        setTimeout(() => {
+          unsubscribe();
+          resolve();
+        }, 5000);
+      });
+    }
+
+    // Re-check auth state after waiting
+    const currentState = useAuthStore.getState();
+    if (!currentState.isAuthenticated) {
       throw redirect({ to: '/auth' });
     }
 
     // Role check - must be a teacher
-    if (user?.role !== 'teacher') {
-      if (user?.role === 'student') {
-        throw redirect({ to: '/student' }); // Redirect students to their dashboard
+    if (currentState.user?.role !== 'teacher') {
+      if (currentState.user?.role === 'student') {
+        throw redirect({ to: '/student' });
       } else {
-        throw redirect({ to: '/auth' }); // Redirect others to auth
+        throw redirect({ to: '/auth' });
       }
     }
   },
@@ -129,31 +223,49 @@ const studentLayoutRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/student',
   notFoundComponent: NotFoundComponent,
-  beforeLoad: () => {
-    // Auth and role check
-    const { isAuthenticated, user } = useAuthStore.getState();
-    if (!isAuthenticated) {
-      throw redirect({ to: '/auth' });
+  beforeLoad: async () => {
+    const { isAuthReady } = useAuthStore.getState();
+
+    // If auth isn't ready, wait for it (max 5 seconds)
+    if (!isAuthReady) {
+      await new Promise<void>((resolve) => {
+        const unsubscribe = useAuthStore.subscribe((state) => {
+          if (state.isAuthReady) {
+            unsubscribe();
+            resolve();
+          }
+        });
+        setTimeout(() => {
+          unsubscribe();
+          resolve();
+        }, 5000);
+      });
     }
 
+    // Re-check auth state after waiting
+    const currentState = useAuthStore.getState();
+    if (!currentState.isAuthenticated) {
+      throw redirect({ to: '/auth' });
+    }
     // Role check - must be a student
-    if (user?.role !== 'student') {
-      if (user?.role === 'teacher') {
+    if (currentState.user?.role !== 'student') {
+      if (currentState.user?.role === 'teacher') {
         throw redirect({ to: '/teacher' }); // Redirect teachers to their dashboard
       } else {
         throw redirect({ to: '/auth' }); // Redirect others to auth
       }
     }
   },
-  component: StudentLayout,
+  component: StudentLayout
+  ,
 });
 
 // Teacher dashboard route
-const teacherDashboardRoute = new Route({
-  getParentRoute: () => teacherLayoutRoute,
-  path: '/',
-  component: Dashboard,
-});
+// const teacherDashboardRoute = new Route({
+//   getParentRoute: () => teacherLayoutRoute,
+//   path: '/',
+//   component: Dashboard,
+// });
 
 // Teacher profile route
 const teacherProfileRoute = new Route({
@@ -165,7 +277,7 @@ const teacherProfileRoute = new Route({
 const teacherAudioManagerRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/transcribe',
-  component: LiveQuiz,
+  component: AudioTranscripter,
 });
 
 const teacherViewCourseRoute = new Route({
@@ -186,14 +298,22 @@ const teacherViewCourseRoute = new Route({
     // Ensure courseId and versionId are in zustand store
     const { currentCourse } = useCourseStore.getState();
     if (!currentCourse || !currentCourse.courseId || !currentCourse.versionId) {
-      throw redirect({ to: '/teacher/courses/list' });
+      throw redirect({ to: '/teacher' });
     }
   },
 });
+
+// Teacher notifications route
+const teacherNotificationsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/notifications',
+  component: NotificationsPage,
+});
+
 // Teacher courses page route
 const teacherCoursesPageRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
-  path: '/courses/list',
+  path: '/',
   component: TeacherCoursesPage,
 });
 
@@ -208,7 +328,50 @@ const teacherCreateArticleRoute = new Route({
 const teacherCourseEnrollmentsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/courses/enrollments',
-  component: CourseEnrollments,
+  component: CourseEnrollmentsContainer,
+});
+
+const teacherCourseEmotionAnalyticsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/emotion-analytics',
+  component: CourseEmotionAnalyticsPage,
+});
+
+// Teacher Course Instructors route
+// const teacherCourseInstructorsRoute = new Route({
+//   getParentRoute: () => teacherLayoutRoute,
+//   path: '/courses/instructors',
+//   component: CourseInstructors,
+// });
+
+// Teacher Course Instructors route
+const teacherConfigureCohortsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/cohorts',
+  component: ConfigureCohorts,
+});
+
+// Teacher Course Regstration requests
+const teacherCourseRegistrationRequests = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/registration-requests',
+  component: RegisteredUsers
+})
+
+
+
+// Teacher Course Flags route
+const teacherCourseFlagsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/flags',
+  component: FlaggedList,
+});
+
+// Teacher Course Anomalies route
+const teacherCourseAnomaliesRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/anomalies',
+  component: AnomaliesList,
 });
 
 // Teacher Course Invites route
@@ -225,6 +388,20 @@ const teacherAddCourseRoute = new Route({
   component: AddCoursePage,
 });
 
+//Teacher feedback form route 
+const teacherFeedBackEditorRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: 'editor/feedback',
+  component: FeedbackFormEditor
+})
+
+// Teacher Announcements route
+const teacherAnnouncementsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/announcements',
+  component: TeacherAnnouncements,
+})
+
 // Teacher generate section route
 const teacherGenerateSectionRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -238,6 +415,61 @@ const teacherAISectionRoute = new Route({
   path: '/ai-section',
   component: AISectionPage,
 });
+
+// Teacher AI Section route
+const teacherAIWorkflowSectionRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/ai-workflow',
+  component: AiWorkflow,
+});
+
+const teacherAuditRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/audit',
+  component: AuditPage,
+})
+
+const teacherHpSystemVersionsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system',
+  component: HpSystemVersions,
+})
+
+const teacherHpSystemCohortsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system/$courseVersionId/cohorts',
+  component: HpSystemCohorts,
+})
+
+const teacherHpSystemDashboardRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system/$courseVersionId/cohort/$cohortId/activities',
+  component: HpSystemDashboard,
+})
+
+const teacherCreateHpActivityRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system/$courseVersionId/cohort/$cohortId/activities/create',
+  component: CreateHpActivityPage,
+})
+
+const teacherStudentLedgerRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system/$courseVersionId/cohort/$cohortId/student/$studentId/ledger',
+  component: StudentLedgerPage,
+})
+
+const teacherStudentSubmissionsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system/$courseVersionId/cohort/$cohortId/student/$studentId/submissions',
+  component: StudentSubmissionsPage,
+})
+
+const teacherSubmissionDetailsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system/$courseVersionId/cohort/$cohortId/student/$studentId/submission/$submissionId',
+  component: SubmissionDetailsPage,
+})
 
 // Student dashboard route
 const studentDashboardRoute = new Route({
@@ -253,6 +485,28 @@ const studentCoursesRoute = new Route({
   component: StudentCourses,
 });
 
+// Student notifications route
+const studentNotificationsRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/notifications',
+  component: NotificationsPage,
+});
+
+// student issues routes 
+
+const studentIssuesRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/issues',
+  component: CourseIssueReports,
+})
+
+// Student leaderboard route
+const studentLeaderboardRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/leaderboard',
+  component: Leaderboard,
+});
+
 // Student profile route
 const studentProfileRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -260,10 +514,84 @@ const studentProfileRoute = new Route({
   component: StudentProfile,
 });
 
+// Student announcements route
+const studentAnnouncementsRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/announcements',
+  component: StudentAnnouncements,
+});
+
+// Student cohorts route
+const studentHpSystemCohortsRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/hp-system/cohorts',
+  component: StudentCohorts,
+});
+
+// Student activities route
+const studentHpSystemActivitiesRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/hp-system/$courseVersionId/$cohortId/activities',
+  component: StudentActivities,
+});
+
+const studentHpSystemSubmissionsRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/hp-system/$courseVersionId/$cohortId/submissions',
+  component: StudentSubmissions,
+});
+
+const studentHpSystemLedgerRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/hp-system/ledger',
+  component: StudentMyLedgerPage,
+});
+
+const studentHpSystemActivitiesDetailRoute = new Route({
+  getParentRoute: () =>studentLayoutRoute,
+  path: '/hp-system/$courseVersionId/$cohortId/activities/$activityId',
+  component: StudentActivityDetail,
+});
+// export const studentCourseInviteRegistration = new Route({
+//   getParentRoute: () => studentLayoutRoute,
+//   path: "/course-registration/$versionId",
+//   component: CourseRegistration,
+// })
+
+export const studentCourseInviteRegistration = new Route({
+  getParentRoute: () => rootRoute, // 👈 IMPORTANT: NOT studentLayoutRoute
+  // path: "/student/course-registration/$versionId",
+  path: "/student/course-registration/$versionId/{-$cohort}",
+  component: CourseRegistration,
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+
+    // ❌ Not logged in → go to student login
+    if (!isAuthenticated) {
+      throw redirect({
+        to: '/student/login',
+        search: {
+          redirect: window.location.pathname + window.location.search,
+        },
+      });
+    }
+
+    // ❌ Logged in but not a student
+    if (user?.role !== 'student') {
+      throw redirect({ to: '/auth' });
+    }
+  },
+});
+
+
 const coursePageRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/student/learn',
-  component: CoursePage,
+  component: () => (
+    <StudentRouteGuard>
+      <CoursePage />
+    </StudentRouteGuard>
+  ),
   beforeLoad: () => {
     const { isAuthenticated, user } = useAuthStore.getState();
     if (!isAuthenticated) {
@@ -295,29 +623,90 @@ const testAISectionModalRoute = new Route({
   path: '/test-ai-section-modal',
   component: AISectionPage,
 });
+// export const loginRoute = new Route({
+//   getParentRoute: () => rootRoute,
+//   path: '/login',
+//   component: LoginPage,
+// })
+
+//student login route
+export const studentLoginRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/student/login',
+  component: StudentLogin
+})
+
+//teacher login route
+export const teacherLoginRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/teacher/login',
+  component: TeacherLogin
+})
+
+//select role route
+export const selectRoleRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/select-role',
+  component: SelectRolePage
+})
 
 // Create the router with the route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute,
+  //   loginRoute,
+  forgotPasswordRoute,
+  resetPasswordRoute,
+  // loginRoute,
+  selectRoleRoute,
+  studentLoginRoute,
+  teacherLoginRoute,
   teacherLayoutRoute.addChildren([
-    teacherDashboardRoute,
+    // teacherDashboardRoute,
     teacherCreateArticleRoute,
     teacherCoursesPageRoute,
-    teacherViewCourseRoute,
+    teacherViewCourseRoute, teacherCourseFlagsRoute,
     teacherProfileRoute,
     teacherCourseEnrollmentsRoute,
+    teacherCourseEmotionAnalyticsRoute,
     teacherAudioManagerRoute,
     teacherAddCourseRoute,
     teacherCourseInviteRoute,
     teacherGenerateSectionRoute,
     teacherAISectionRoute,
+    teacherAIWorkflowSectionRoute,
     testAISectionModalRoute,
+    teacherCourseAnomaliesRoute,
+    // teacherCourseInstructorsRoute,
+    teacherCourseRegistrationRequests,
+    teacherFeedBackEditorRoute,
+    teacherAnnouncementsRoute,
+    teacherAuditRoute,
+    teacherConfigureCohortsRoute,
+      teacherEjectionPoliciesRoute, 
+    teacherHpSystemVersionsRoute,
+    teacherHpSystemCohortsRoute,
+    teacherHpSystemDashboardRoute,
+    teacherCreateHpActivityRoute,
+    teacherStudentLedgerRoute,
+    teacherStudentSubmissionsRoute,
+    teacherSubmissionDetailsRoute,
+    teacherNotificationsRoute,
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
     studentCoursesRoute,
     studentProfileRoute,
+    studentCourseInviteRegistration,
+    studentIssuesRoute,
+    studentLeaderboardRoute,
+    studentAnnouncementsRoute,
+    studentHpSystemCohortsRoute,
+    studentHpSystemActivitiesRoute,
+    studentHpSystemActivitiesDetailRoute,
+    studentHpSystemSubmissionsRoute,
+    studentHpSystemLedgerRoute,
+    studentNotificationsRoute,
   ]),
   coursePageRoute,
 ]);

@@ -1,0 +1,65 @@
+import { ICourseRegistration, ICourseVersion } from '#root/shared/interfaces/models.js';
+import { ClientSession } from 'mongodb';
+
+export interface ICourseRegistrationRepository {
+  findByUserId(
+    userId: string,
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<ICourseRegistration>;
+  findPendingRequestsByUserId(
+    userId: string,
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<ICourseRegistration>;
+  create(data: ICourseRegistration, session?: ClientSession): Promise<string>;
+  getRegistration(
+    registrationId: string,
+    session?: ClientSession,
+  ): Promise<ICourseRegistration | null>;
+  findAllregistrations(
+    version: ICourseVersion,
+    filter: { status?: string; search?: string },
+    skip: number,
+    limit: number,
+    sort: 'older' | 'latest',
+    session?: ClientSession,
+  ): Promise<{ registrations: ICourseRegistration[]; totalDocuments: number }>;
+  updateStatus(
+    registrationId: string,
+    status: 'PENDING' | 'APPROVED' | 'REJECTED',
+    session?: ClientSession,
+  ): Promise<ICourseRegistration>;
+  updateBulkStatus(
+    registrationIds: string[],
+    session?: ClientSession,
+  ): Promise<number>;
+  remove(userId: string, courseId: string, versionId: string, session?: ClientSession)
+  deleteRegistrationByVersionId(versionId: string, session?: ClientSession)
+  getPendingRegistrations(
+    instructorId: string,
+    session?: ClientSession,
+  ): Promise<any[]>;
+  getPendingRegistrationsByStudent(
+    studentId: string,
+    session?: ClientSession,
+  ): Promise<any[]>;
+  getRejectedRegistrationsByStudent(
+    studentId: string,
+    session?: ClientSession,
+  ): Promise<any[]>;
+  getUnreadApprovedRegistrations(
+    studentId: string,
+    session?: ClientSession,
+  ): Promise<any[]>;
+  markNotificationAsRead(
+    registrationId: string,
+    session?: ClientSession,
+  ): Promise<boolean>;
+  findPendingRequestsByUserIdAndCohort(
+    userId: string,
+    versionId: string,
+    cohort?:string,
+    session?: ClientSession,
+  ): Promise<ICourseRegistration>;
+}

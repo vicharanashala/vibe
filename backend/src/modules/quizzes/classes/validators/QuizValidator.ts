@@ -8,9 +8,16 @@ import {
   IAttempt,
   ISubmission,
 } from '#quizzes/interfaces/grading.js';
-import {IQuestionRenderView, ParameterMap} from '#quizzes/question-processing/index.js';
-import {ItemType, IQuizDetails, IQuestionBankRef} from '#shared/interfaces/models.js';
-import {Type} from 'class-transformer';
+import {
+  IQuestionRenderView,
+  ParameterMap,
+} from '#quizzes/question-processing/index.js';
+import {
+  ItemType,
+  IQuizDetails,
+  IQuestionBankRef,
+} from '#shared/interfaces/models.js';
+import {Expose, Type} from 'class-transformer';
 import {
   IsMongoId,
   IsNotEmpty,
@@ -23,12 +30,15 @@ import {
   IsDateString,
   IsDate,
   IsBoolean,
+  IsIn,
+  IsEmpty,
+  IsObject,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
 import {QuestionBankRef} from '../transformers/QuestionBank.js';
 import {QuestionType} from '#root/shared/interfaces/quiz.js';
-import { Question } from './QuestionValidator.js';
+import {Question} from './QuestionValidator.js';
 
 class QuestionAnswerFeedback implements IQuestionAnswerFeedback {
   @IsMongoId()
@@ -121,6 +131,28 @@ class SubmitAttemptParams {
   attemptId: string;
 }
 
+class ExportQuizAttemptsParams {
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the quiz',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c85',
+  })
+  quizId: string;
+}
+
+class SubmitFeedbackParams {
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the feedback form',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c85',
+  })
+  itemId: string;
+}
+
 class GetAttemptResponse implements IAttempt {
   @IsMongoId()
   @JSONSchema({
@@ -154,8 +186,8 @@ class GetAttemptResponse implements IAttempt {
   @JSONSchema({
     description: 'List of question details in the quiz',
     type: 'array',
-    items: { $ref: '#/components/schemas/QuestionDetails' },
-    example: [{ questionId: '60d21b4667d0d8992e610c02' }],
+    items: {$ref: '#/components/schemas/QuestionDetails'},
+    example: [{questionId: '60d21b4667d0d8992e610c02'}],
   })
   questionDetails: IQuestionDetails[];
 
@@ -165,7 +197,7 @@ class GetAttemptResponse implements IAttempt {
   @JSONSchema({
     description: 'Answers for the attempt',
     type: 'array',
-    items: { $ref: '#/components/schemas/QuestionAnswer' },
+    items: {$ref: '#/components/schemas/QuestionAnswer'},
   })
   answers?: IQuestionAnswer[];
 
@@ -208,7 +240,7 @@ class SMLAnswer {
   @JSONSchema({
     description: 'IDs of the selected lot items',
     type: 'array',
-    items: { type: 'string', example: '60d21b4667d0d8992e610c10' },
+    items: {type: 'string', example: '60d21b4667d0d8992e610c10'},
     example: ['60d21b4667d0d8992e610c10', '60d21b4667d0d8992e610c11'],
   })
   lotItemIds: string[];
@@ -242,8 +274,8 @@ class OTLAnswer {
   @JSONSchema({
     description: 'Orderings of lot items',
     type: 'array',
-    items: { $ref: '#/components/schemas/Order' },
-    example: [{ order: 1, lotItemId: '60d21b4667d0d8992e610c10' }],
+    items: {$ref: '#/components/schemas/Order'},
+    example: [{order: 1, lotItemId: '60d21b4667d0d8992e610c10'}],
   })
   orders: Order[];
 }
@@ -306,33 +338,32 @@ class QuestionAnswer implements IQuestionAnswer {
   @JSONSchema({
     description: 'Answer for the question',
     oneOf: [
-      { 
+      {
         $ref: '#/components/schemas/SOLAnswer',
         title: 'Select One in Lot Answer',
         description: 'Commonly reffered as MCQ (Multiple Choice Question)',
       },
-      { 
+      {
         $ref: '#/components/schemas/SMLAnswer',
         title: 'Select Many in Lot Answer',
         description: 'Commonly reffered as MSQ (Multiple Select Question)',
       },
-      { 
+      {
         $ref: '#/components/schemas/OTLAnswer',
         title: 'Order the Lots Answer',
       },
-      { 
+      {
         $ref: '#/components/schemas/NATAnswer',
         title: 'Numeric Answer Type',
       },
-      { 
+      {
         $ref: '#/components/schemas/DESAnswer',
-        title: 'Descriptive Answer', 
+        title: 'Descriptive Answer',
       },
     ],
   })
   @ValidateNested()
-  @Type((type) => {
-
+  @Type(type => {
     if (!type) {
       return Object;
     }
@@ -349,7 +380,9 @@ class QuestionAnswer implements IQuestionAnswer {
       case 'DESCRIPTIVE':
         return DESAnswer;
       default:
-        throw new Error(`Unsupported question type: ${type.object.questionType}`);
+        throw new Error(
+          `Unsupported question type: ${type.object.questionType}`,
+        );
     }
   })
   @IsNotEmpty()
@@ -370,22 +403,86 @@ class QuestionDetails implements IQuestionDetails {
   @JSONSchema({
     description: 'Parameter map for the question',
     type: 'object',
-    additionalProperties: { oneOf: [{ type: 'string' }, { type: 'number' }] },
-    example: { difficulty: 'easy', maxScore: 10 }
+    additionalProperties: {oneOf: [{type: 'string'}, {type: 'number'}]},
+    example: {difficulty: 'easy', maxScore: 10},
   })
   parameterMap?: ParameterMap;
 }
 
 class QuestionAnswersBody {
+  @IsOptional()
   @IsArray()
   @ValidateNested({each: true})
   @Type(() => QuestionAnswer)
   @JSONSchema({
     description: 'Array of answers for the quiz',
     type: 'array',
-    items: { $ref: '#/components/schemas/QuestionAnswer' },
+    items: {$ref: '#/components/schemas/QuestionAnswer'},
   })
   answers: QuestionAnswer[];
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Whether this attempt is skipped',
+    type: 'boolean',
+    example: true,
+  })
+  isSkipped?: boolean;
+}
+class SubmitFeedbackBody {
+  @IsObject()
+  @JSONSchema({
+    description:
+      'Dynamic key-value pairs submitted by the student as feedback.',
+    type: 'object',
+  })
+  details: Record<string, any>;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the course',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c99',
+  })
+  courseId: string;
+
+  @IsMongoId()
+  @IsOptional()
+  @JSONSchema({
+    description: 'ID of the second which feedback form belongs to',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c99',
+  })
+  sectionId?: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the course version',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c99',
+  })
+  courseVersionId: string;
+
+  // @IsOptional()
+  // @IsBoolean()
+  // @JSONSchema({
+  //   description: 'Whether the student skipped the feedback form',
+  //   type: 'boolean',
+  //   example: false,
+  // })
+  // isSkipped?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Cohort of the student',
+    type: 'string',
+    example: 'cohort-1',
+  })
+  cohortId?:string;
 }
 
 class QuestionRenderView extends Question implements IQuestionRenderView {
@@ -394,8 +491,8 @@ class QuestionRenderView extends Question implements IQuestionRenderView {
   @JSONSchema({
     description: 'Parameter map for the question',
     type: 'object',
-    additionalProperties: { oneOf: [{ type: 'string' }, { type: 'number' }] },
-    example: { difficulty: 'easy', maxScore: 10 }
+    additionalProperties: {oneOf: [{type: 'string'}, {type: 'number'}]},
+    example: {difficulty: 'easy', maxScore: 10},
   })
   parameterMap?: ParameterMap;
 }
@@ -418,7 +515,7 @@ class CreateAttemptResponse {
   @JSONSchema({
     description: 'Question render views for the attempt',
     type: 'array',
-    items: { $ref: '#/components/schemas/QuestionRenderView' },
+    items: {$ref: '#/components/schemas/QuestionRenderView'},
   })
   questionRenderViews: IQuestionRenderView[];
 }
@@ -449,7 +546,7 @@ class SubmitAttemptResponse implements Partial<IGradingResult> {
   @JSONSchema({
     description: 'Overall feedback for the attempt',
     type: 'array',
-    items: { $ref: '#/components/schemas/QuestionAnswerFeedback' },
+    items: {$ref: '#/components/schemas/QuestionAnswerFeedback'},
   })
   overallFeedback?: IQuestionAnswerFeedback[];
 
@@ -480,7 +577,51 @@ class SubmitAttemptResponse implements Partial<IGradingResult> {
   })
   gradedBy?: string;
 }
+export class GetQuizSubmissionsQuery {
+  @IsOptional()
+  @IsString()
+  @IsIn(['PENDING', 'PASSED', 'FAILED'])
+  @JSONSchema({
+    description: 'Filter by grading status (e.g., PASSED, FAILED)',
+    example: 'PASSED',
+  })
+  gradeStatus?: string;
 
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Search term (name, email, etc.)',
+    example: 'john',
+  })
+  search?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['date_desc', 'date_asc', 'score_desc', 'score_asc'])
+  @JSONSchema({
+    description: 'Sort option (e.g., RECENT, SCORE_ASC, SCORE_DESC)',
+    example: 'RECENT',
+  })
+  sort?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @JSONSchema({
+    description: 'Current page number for pagination',
+    example: 1,
+    minimum: 1,
+  })
+  currentPage?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @JSONSchema({
+    description: 'Number of items per page',
+    example: 10,
+    minimum: 1,
+  })
+  limit?: number;
+}
 class QuizIdParam {
   @IsMongoId()
   @IsNotEmpty()
@@ -651,22 +792,22 @@ class AddQuestionBankBody implements QuestionBankRef {
 
   @IsArray()
   @IsOptional()
-  @IsString({ each: true })
+  @IsString({each: true})
   @JSONSchema({
     description: 'Difficulty filters',
     type: 'array',
-    items: { type: 'string', example: 'easy' },
+    items: {type: 'string', example: 'easy'},
     example: ['easy', 'medium'],
   })
   difficulty?: string[];
 
   @IsArray()
   @IsOptional()
-  @IsString({ each: true })
+  @IsString({each: true})
   @JSONSchema({
     description: 'Tags filters',
     type: 'array',
-    items: { type: 'string', example: 'math' },
+    items: {type: 'string', example: 'math'},
     example: ['math', 'science'],
   })
   tags?: string[];
@@ -693,25 +834,34 @@ class EditQuestionBankBody implements Partial<QuestionBankRef> {
 
   @IsArray()
   @IsOptional()
-  @IsString({ each: true })
+  @IsString({each: true})
   @JSONSchema({
     description: 'Difficulty filters',
     type: 'array',
-    items: { type: 'string', example: 'easy' },
+    items: {type: 'string', example: 'easy'},
     example: ['easy', 'medium'],
   })
   difficulty?: string[];
 
   @IsArray()
   @IsOptional()
-  @IsString({ each: true })
+  @IsString({each: true})
   @JSONSchema({
     description: 'Tags filters',
     type: 'array',
-    items: { type: 'string', example: 'math' },
+    items: {type: 'string', example: 'math'},
     example: ['math', 'science'],
   })
   tags?: string[];
+
+  @IsNumber()
+  @IsOptional()
+  @JSONSchema({
+    description: 'Points for each question in the bank',
+    type: 'number',
+    example: 5,
+  })
+  points?: number;
 }
 
 class RegradeSubmissionBody implements Partial<IGradingResult> {
@@ -819,7 +969,7 @@ class UserQuizMetricsResponse {
     enum: ['ATTEMPTED', 'SUBMITTED'],
     example: 'ATTEMPTED',
   })
-  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
+  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED' | 'SKIPPED';
 
   @IsMongoId()
   @IsOptional()
@@ -848,13 +998,22 @@ class UserQuizMetricsResponse {
   })
   remainingAttempts: number;
 
+  @IsNumber()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'Number of times the quiz was skipped',
+    type: 'number',
+    example: 0,
+  })
+  skipCount: number;
+
   @IsNotEmpty()
   @ValidateNested({each: true})
   @Type(() => AttemptDetails)
   @JSONSchema({
     description: 'List of attempts',
     type: 'array',
-    items: { $ref: '#/components/schemas/AttemptDetails' },
+    items: {$ref: '#/components/schemas/AttemptDetails'},
   })
   attempts: IAttemptDetails[];
 }
@@ -891,7 +1050,7 @@ class QuizAttemptResponse {
   @JSONSchema({
     description: 'List of question details in the quiz',
     type: 'array',
-    items: { type: 'object' },
+    items: {type: 'object'},
   })
   questionDetails: IQuestionDetails[];
 
@@ -899,7 +1058,7 @@ class QuizAttemptResponse {
   @JSONSchema({
     description: 'Answers for the attempt',
     type: 'array',
-    items: { type: 'object' },
+    items: {type: 'object'},
   })
   answers?: IQuestionAnswer[];
 
@@ -950,7 +1109,7 @@ class GradingResult implements IGradingResult {
   @JSONSchema({
     description: 'Overall feedback for the grading result',
     type: 'array',
-    items: { $ref: '#/components/schemas/QuestionAnswerFeedback' },
+    items: {$ref: '#/components/schemas/QuestionAnswerFeedback'},
   })
   overallFeedback?: IQuestionAnswerFeedback[];
   gradingStatus: 'PENDING' | 'PASSED' | 'FAILED' | any;
@@ -1022,7 +1181,7 @@ class QuizDetails implements IQuizDetails {
   @JSONSchema({
     description: 'List of question banks referenced in the quiz',
     type: 'array',
-    items: { $ref: '#/components/schemas/QuestionBankRef' },
+    items: {$ref: '#/components/schemas/QuestionBankRef'},
   })
   questionBankRefs: IQuestionBankRef[]; // question ids
 
@@ -1132,6 +1291,15 @@ class QuizDetails implements IQuizDetails {
     example: true,
   })
   showScoreAfterSubmission: boolean; // If true, shows score after submission
+
+  @IsBoolean()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'If true, allows skipping quiz',
+    type: 'boolean',
+    example: false,
+  })
+  allowSkip: boolean;
 }
 
 class QuizDetailsResponse {
@@ -1350,12 +1518,12 @@ class SubmissionResponse implements ISubmission {
 
 class GetAllSubmissionsResponse {
   @IsArray()
-  @ValidateNested({ each: true })
+  @ValidateNested({each: true})
   @Type(() => SubmissionResponse)
   @JSONSchema({
     description: 'List of all submissions',
     type: 'array',
-    items: { type: 'object' },
+    items: {type: 'object'},
   })
   submissions: SubmissionResponse[];
 }
@@ -1381,22 +1549,22 @@ class QuestionBankRefResponse implements IQuestionBankRef {
 
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
+  @IsString({each: true})
   @JSONSchema({
     description: 'Difficulty filters',
     type: 'array',
-    items: { type: 'string', example: 'easy' },
+    items: {type: 'string', example: 'easy'},
     example: ['easy', 'medium'],
   })
   difficulty?: string[];
 
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
+  @IsString({each: true})
   @JSONSchema({
     description: 'Tags filters',
     type: 'array',
-    items: { type: 'string', example: 'math' },
+    items: {type: 'string', example: 'math'},
     example: ['math', 'science'],
   })
   tags?: string[];
@@ -1414,8 +1582,7 @@ class QuestionBankRefResponse implements IQuestionBankRef {
 class AttemptNotFoundErrorResponse {
   @JSONSchema({
     description: 'The error message.',
-    example:
-      'No attempt found.',
+    example: 'No attempt found.',
     type: 'string',
     readOnly: true,
   })
@@ -1438,20 +1605,37 @@ class QuizNotFoundErrorResponse {
 
 class GetAllQuestionBanksResponse {
   @IsArray()
-  @ValidateNested({ each: true })
+  @ValidateNested({each: true})
   @Type(() => QuestionBankRefResponse)
   @JSONSchema({
     description: 'List of all question banks',
     type: 'array',
-    items: { $ref: '#/components/schemas/QuestionBankRef' },
+    items: {$ref: '#/components/schemas/QuestionBankRef'},
   })
   questionBanks: IQuestionBankRef[];
 }
+ interface QuestionAnswer {
+  questionId: string;
+  questionType: QuestionType;
+  answer: Answer;
+}
+
+export interface QuestionAnswersBodydto {
+  answers: QuestionAnswer[];
+  isSkipped?: boolean;
+  courseId?: string;
+  courseVersionId?: string;
+  watchItemId?: string;
+  cohortId?: string;
+}
+
 
 export {
   CreateAttemptParams,
   SaveAttemptParams,
   SubmitAttemptParams,
+  SubmitFeedbackParams,
+  SubmitFeedbackBody,
   CreateAttemptResponse,
   SubmitAttemptResponse,
   GetAttemptResponse,
@@ -1478,7 +1662,8 @@ export {
   AttemptNotFoundErrorResponse,
   GetAllSubmissionsResponse,
   QuizNotFoundErrorResponse,
-  GetAllQuestionBanksResponse
+  GetAllQuestionBanksResponse,
+  ExportQuizAttemptsParams,
 };
 
 export const QUIZ_VALIDATORS = [
@@ -1511,5 +1696,6 @@ export const QUIZ_VALIDATORS = [
   AttemptNotFoundErrorResponse,
   GetAllSubmissionsResponse,
   QuizNotFoundErrorResponse,
-  GetAllQuestionBanksResponse
-]
+  GetAllQuestionBanksResponse,
+  ExportQuizAttemptsParams,
+];

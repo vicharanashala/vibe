@@ -30,6 +30,8 @@ class Section implements ISection {
   order: string;
 
   @Expose()
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   itemsGroupId: ID;
 
   @Expose()
@@ -39,6 +41,14 @@ class Section implements ISection {
   @Expose()
   @Type(() => Date)
   updatedAt: Date;
+
+  @Expose()
+  isHidden: boolean = false;
+  isDeleted?: boolean;
+
+  @Expose()
+  @Type(() => Date)
+  deletedAt?: Date;
 
   constructor(sectionBody: CreateSectionBody, existingSections: ISection[]) {
     if (sectionBody) {
@@ -57,6 +67,8 @@ class Section implements ISection {
     );
     this.createdAt = new Date();
     this.updatedAt = new Date();
+    this.isDeleted = false;
+    this.deletedAt = undefined;
   }
 }
 

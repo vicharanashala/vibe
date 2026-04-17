@@ -18,10 +18,10 @@ import {authContainerModule} from '#root/modules/auth/container.js';
 import {authModuleOptions} from '#root/modules/auth/index.js';
 import {beforeAll, describe, it, expect, beforeEach, vi} from 'vitest';
 import {ItemType} from '#root/shared/interfaces/models.js';
-import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
-import { notificationsContainerModule } from '#root/modules/notifications/container.js';
+import {FirebaseAuthService} from '#root/modules/auth/services/FirebaseAuthService.js';
+import {notificationsContainerModule} from '#root/modules/notifications/container.js';
 
-describe('QuizController',{timeout: 30000}, () => {
+describe('QuizController', {timeout: 30000}, () => {
   const appInstance = Express();
   let app: any;
   let userId: string;
@@ -35,7 +35,7 @@ describe('QuizController',{timeout: 30000}, () => {
       coursesContainerModule,
       usersContainerModule,
       authContainerModule,
-      notificationsContainerModule
+      notificationsContainerModule,
     );
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
@@ -72,7 +72,10 @@ describe('QuizController',{timeout: 30000}, () => {
     expect(signupRes.status).toBe(201);
     userId = signupRes.body.userId;
     expect(userId).toBeTruthy();
-    vi.spyOn(FirebaseAuthService.prototype, 'getUserIdFromReq').mockResolvedValue(userId)
+    vi.spyOn(
+      FirebaseAuthService.prototype,
+      'getUserIdFromReq',
+    ).mockResolvedValue(userId);
   }, 900000);
 
   // Helper: create a quiz and question bank, return their IDs
@@ -159,6 +162,7 @@ describe('QuizController',{timeout: 30000}, () => {
       quizDetails: {
         questionVisibility: 3,
         allowPartialGrading: true,
+        allowSkip: true,
         deadline: faker.date.future(),
         allowHint: true,
         maxAttempts: 5,
@@ -285,7 +289,6 @@ describe('QuizController',{timeout: 30000}, () => {
         });
 
       const res = await request(app).get(`/quizzes/quiz/attempts/${attemptId}`);
-      console.log('Attempt response:', res.body);
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('quizId');
     });
@@ -322,7 +325,6 @@ describe('QuizController',{timeout: 30000}, () => {
       const res = await request(app).get(
         `/quizzes/quiz/submissions/${submissionId}`,
       );
-      console.log('Submission response:', res.body);
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('quizId');
     });
@@ -332,7 +334,6 @@ describe('QuizController',{timeout: 30000}, () => {
     it('should get quiz details', async () => {
       const {quizId} = await setupQuizWithBank();
       const res = await request(app).get(`/quizzes/quiz/${quizId}/details`);
-      console.log('Quiz details response:', res.body);
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('name');
     });
@@ -355,7 +356,6 @@ describe('QuizController',{timeout: 30000}, () => {
             },
           ],
         });
-      console.log('Submit response:', submitRes.body);
       expect(submitRes.status).toBe(200);
       const res = await request(app).get(`/quizzes/quiz/${quizId}/analytics`);
       console.dir(res.body, {depth: null});
@@ -383,7 +383,6 @@ describe('QuizController',{timeout: 30000}, () => {
         });
       expect(submitRes.status).toBe(200);
       const res = await request(app).get(`/quizzes/quiz/${quizId}/performance`);
-      console.log('Quiz performance response:', res.body);
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
     });
@@ -408,7 +407,6 @@ describe('QuizController',{timeout: 30000}, () => {
         });
       expect(submitRes.status).toBe(200);
       const res = await request(app).get(`/quizzes/quiz/${quizId}/results`);
-      console.log('Quiz results response:', res.body);
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
     });
@@ -502,7 +500,6 @@ describe('QuizController',{timeout: 30000}, () => {
       expect(gradingRes.status).toBe(200);
       expect(gradingRes.body.gradingResult).toBeDefined();
       expect(gradingRes.body.gradingResult.gradingStatus).toBe('FAILED');
-      console.log('Regrade response:', gradingRes.body);
     });
   });
 
@@ -548,7 +545,7 @@ describe('QuizController',{timeout: 30000}, () => {
       const submissionRes = await request(app).get(
         `/quizzes/quiz/submissions/${submissionId}`,
       );
-      expect(submissionRes.status).toBe(200); 
+      expect(submissionRes.status).toBe(200);
       expect(
         submissionRes.body.gradingResult.overallFeedback[0].answerFeedback,
       ).toBe('Good job!');

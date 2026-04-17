@@ -9,31 +9,41 @@ import {
   ILotOrder,
   INATSolution,
   IDESSolution,
+  Priority,
+  BloomLevel,
 } from '#shared/interfaces/quiz.js';
 import {ObjectId} from 'mongodb';
 import {QuestionBody} from '../validators/QuestionValidator.js';
 
 abstract class BaseQuestion implements IQuestion {
   _id?: string | ObjectId;
-  createdBy?: string;
+  createdBy?: string | ObjectId;
   text: string;
   type: QuestionType;
   isParameterized: boolean;
+  bloomLevel?: BloomLevel;
   parameters?: IQuestionParameter[];
   hint?: string;
   timeLimitSeconds: number;
-  points: number;
+  points?: number;
+  priority: Priority;
+  isDeleted?: boolean;
+  deletedAt?: Date;
 
   constructor(question: IQuestion, userId: string) {
     this._id = question._id;
-    this.createdBy = userId;
+    this.createdBy = new ObjectId(userId);
     this.text = question.text;
     this.type = question.type;
     this.isParameterized = question.isParameterized;
+    this.bloomLevel = question.bloomLevel;
     this.parameters = question.parameters;
     this.hint = question.hint;
     this.timeLimitSeconds = question.timeLimitSeconds;
     this.points = question.points;
+    this.priority = question.priority;
+    this.isDeleted = false;
+    this.deletedAt = undefined;
   }
 }
 
@@ -116,15 +126,35 @@ class QuestionFactory {
   ): SOLQuestion | SMLQuestion | OTLQuestion | NATQuestion | DESQuestion {
     switch (body.question.type) {
       case 'SELECT_ONE_IN_LOT':
-        return new SOLQuestion(userId, body.question, body.solution as ISOLSolution);
+        return new SOLQuestion(
+          userId,
+          body.question,
+          body.solution as ISOLSolution,
+        );
       case 'SELECT_MANY_IN_LOT':
-        return new SMLQuestion(userId, body.question, body.solution as ISMLSolution);
+        return new SMLQuestion(
+          userId,
+          body.question,
+          body.solution as ISMLSolution,
+        );
       case 'ORDER_THE_LOTS':
-        return new OTLQuestion(userId, body.question, body.solution as IOTLSolution);
+        return new OTLQuestion(
+          userId,
+          body.question,
+          body.solution as IOTLSolution,
+        );
       case 'NUMERIC_ANSWER_TYPE':
-        return new NATQuestion(userId, body.question, body.solution as INATSolution);
+        return new NATQuestion(
+          userId,
+          body.question,
+          body.solution as INATSolution,
+        );
       case 'DESCRIPTIVE':
-        return new DESQuestion(userId, body.question, body.solution as IDESSolution);
+        return new DESQuestion(
+          userId,
+          body.question,
+          body.solution as IDESSolution,
+        );
       default:
         throw new Error('Invalid question type');
     }
@@ -150,6 +180,7 @@ const question: IQuestion = {
   type: 'SELECT_ONE_IN_LOT',
   timeLimitSeconds: 60,
   hint: 'This is easy',
+  priority: 'LOW',
 };
 
 const solSolution: ISOLSolution = {
@@ -270,7 +301,7 @@ class FlaggedQuestion {
   status: 'PENDING' | 'RESOLVED' | 'REJECTED';
   resolvedBy?: string;
   resolvedAt?: Date;
-  
+
   constructor(
     questionId: string,
     userId: string,

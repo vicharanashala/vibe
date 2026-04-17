@@ -22,8 +22,8 @@ import {
   IOTLSolution,
 } from '#root/shared/interfaces/quiz.js';
 import {QuestionBody} from '../classes/index.js';
-import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
-import { faker } from '@faker-js/faker';
+import {FirebaseAuthService} from '#root/modules/auth/services/FirebaseAuthService.js';
+import {faker} from '@faker-js/faker';
 
 describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
   const appInstance = Express();
@@ -44,7 +44,10 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
       defaultErrorHandler: true,
       validation: true,
     };
-    vi.spyOn(FirebaseAuthService.prototype, "getUserIdFromReq").mockResolvedValue(faker.database.mongodbObjectId.toString())
+    vi.spyOn(
+      FirebaseAuthService.prototype,
+      'getUserIdFromReq',
+    ).mockResolvedValue(faker.database.mongodbObjectId.toString());
     app = useExpressServer(appInstance, options);
   }, 900000);
 
@@ -100,6 +103,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
         isParameterized: true,
         parameters: [{name: 'a', possibleValues: ['1', '2'], type: 'number'}],
         hint: 'No tags here either.',
+        priority: 'LOW',
       };
       const solution: ISOLSolution = {
         correctLotItem: {text: 'No tags here.', explaination: 'No tags.'},
@@ -119,6 +123,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
         isParameterized: false,
         parameters: [{name: 'a', possibleValues: ['1', '2'], type: 'number'}],
         hint: 'Should not have parameters.',
+        priority: 'LOW',
       };
       const solution: ISOLSolution = {
         correctLotItem: {
@@ -143,6 +148,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
         isParameterized: true,
         parameters: [],
         hint: 'Missing parameters.',
+        priority: 'LOW',
       };
       const solution: ISOLSolution = {
         correctLotItem: {
@@ -167,6 +173,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
         isParameterized: false,
         parameters: [],
         hint: 'Simple math.',
+        priority: 'LOW',
       };
       // Missing decimalPrecision, upperLimit, lowerLimit
       const solution = {};
@@ -187,6 +194,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
         isParameterized: true,
         parameters: [{name: 'a', possibleValues: ['1', '2'], type: 'number'}],
         hint: 'Tag does not match parameter.',
+        priority: 'LOW',
       };
       const solution: ISOLSolution = {
         correctLotItem: {text: 'Wrong tag.', explaination: 'Wrong tag.'},
@@ -208,6 +216,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
         isParameterized: false,
         parameters: [],
         hint: 'Simple math.',
+        priority: 'LOW',
       };
 
       const solution = {
@@ -237,6 +246,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
           {name: 'color', possibleValues: ['Red', 'Blue'], type: 'string'},
         ],
         hint: 'Pick all that apply to <QParam>animal</QParam> and <QParam>color</QParam>',
+        priority: 'LOW',
       };
 
       const solution: ISMLSolution = {
@@ -300,6 +310,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
           },
         ],
         hint: 'Put all the steps in the correct order: <QParam>step1</QParam> to <QParam>step5</QParam>',
+        priority: 'LOW',
       };
 
       const solution: IOTLSolution = {
@@ -369,6 +380,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
           },
         ],
         hint: 'Focus on <QParam>process</QParam> and <QParam>subject</QParam>.',
+        priority: 'LOW',
       };
 
       const solution = {
@@ -394,6 +406,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
           // 'c' is missing
         ],
         hint: 'Add a, b, and c.',
+        priority: 'LOW',
       };
 
       const solution = {
@@ -422,6 +435,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
           {name: 'b', possibleValues: ['foo', 'bar'], type: 'string'}, // not a number
         ],
         hint: 'Add a and b.',
+        priority: 'LOW',
       };
 
       const solution = {
@@ -449,6 +463,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
           // 'c' is missing
         ],
         hint: 'Render a, b, and c.',
+        priority: 'LOW',
       };
 
       const solution = {
@@ -477,6 +492,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
           {name: 'b', possibleValues: ['foo', 'bar'], type: 'string'}, // not a number
         ],
         hint: 'Render a and b.',
+        priority: 'LOW',
       };
 
       const solution = {
@@ -509,7 +525,6 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
       const res = await request(app).get(`/quizzes/questions/${questionId}`);
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('text');
-      console.log(res.body);
     });
     // SOL
     it('should get a SOL question by ID', async () => {
@@ -526,7 +541,6 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
       const res = await request(app).get(`/quizzes/questions/${questionId}`);
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('text');
-      console.log(res.body);
     });
     // SML
     it('should get a SML question by ID', async () => {
@@ -543,7 +557,6 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
       const res = await request(app).get(`/quizzes/questions/${questionId}`);
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('text');
-      console.log(res.body);
     });
     // OTL
     it('should get an OTL question by ID', async () => {
@@ -560,7 +573,6 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
       const res = await request(app).get(`/quizzes/questions/${questionId}`);
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('text');
-      console.log(res.body);
     });
     // DES
     it('should get a DES question by ID', async () => {
@@ -577,7 +589,6 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
       const res = await request(app).get(`/quizzes/questions/${questionId}`);
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('text');
-      console.log(res.body);
     });
     it('should return 404 for non-existent question', async () => {
       const res = await request(app).get(
@@ -596,6 +607,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
       isParameterized: false,
       parameters: [],
       hint: 'Original hint',
+      priority: 'LOW',
     };
     const originalSolution = {
       decimalPrecision: 0,
@@ -659,6 +671,7 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
       isParameterized: false,
       parameters: [],
       hint: 'Delete hint',
+      priority: 'LOW',
     };
     const solution = {
       decimalPrecision: 0,

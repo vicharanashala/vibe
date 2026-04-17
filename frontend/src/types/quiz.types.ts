@@ -6,12 +6,13 @@ export interface QuizSubmissionResponse {
   submittedAt: string; // ISO date string
   gradingResult?: IGradingResult;
 }
+export type GradingSystemStatus = 'PENDING' | 'PASSED' | 'FAILED' | any
 
 export interface IGradingResult {
   totalScore?: number;
   totalMaxScore?: number;
   overallFeedback?: IQuestionAnswerFeedback[];
-  gradingStatus: 'PENDING' | 'PASSED' | 'FAILED' | any;
+  gradingStatus: GradingSystemStatus
   gradedAt?: string; // ISO date string
   gradedBy?: string;
 }
@@ -56,6 +57,7 @@ export interface QuizProps {
   approximateTimeToComplete: string;
   allowPartialGrading: boolean;
   allowHint: boolean;
+  allowSkip: boolean;
   showCorrectAnswersAfterSubmission: boolean;
   showExplanationAfterSubmission: boolean;
   showScoreAfterSubmission: boolean;
@@ -64,15 +66,22 @@ export interface QuizProps {
   onNext?: () => void;
   onPrevVideo?: () => void;
   isProgressUpdating?: boolean;
+  isNavigatingToPrev?: boolean;
   attemptId?: string;
   setAttemptId?: (attemptId: string) => void;
   displayNextLesson?: boolean;
   setQuizPassed?: (passed: number) => void; // Function to update quizPassed
-  rewindVid: boolean;
+  rewindVid?: boolean;
+  setIsQuizSkipped: React.Dispatch<React.SetStateAction<boolean>>;
+  linearProgressionEnabled: boolean;
+  isAlreadyWatched?: boolean;
+  completedItemIdsRef: React.RefObject<Set<string>>;
+  nextItemId?: string;
 }
 
 export interface QuizRef {
   stopItem: () => void;
+  getCurrentDetails?: () => { questionId?: string };
 }
 
 export interface BufferId {
@@ -83,8 +92,9 @@ export interface BufferId {
 }
 
 export interface LotItem {
-  text: string; 
+  text: string;
   _id: BufferId;
+  explaination: string
 }
 
 export interface BaseQuestionRenderView {
@@ -123,14 +133,14 @@ export interface SelectOneInLotQuestionRenderView extends BaseQuestionRenderView
   lotItems: LotItem[];
 }
 
-export type QuestionRenderView = 
+export type QuestionRenderView =
   | DescriptiveQuestionRenderView
   | SelectManyInLotQuestionRenderView
   | OrderTheLotsQuestionRenderView
   | NumericAnswerQuestionRenderView
   | SelectOneInLotQuestionRenderView;
 
- export type SaveQuestion = {
+export type SaveQuestion = {
   questionId: string;
   questionType: "DESCRIPTIVE" | "SELECT_MANY_IN_LOT" | "ORDER_THE_LOTS" | "NUMERIC_ANSWER_TYPE" | "SELECT_ONE_IN_LOT";
   answer: {
@@ -170,6 +180,7 @@ export interface QuestionBank {
   tags?: string[];
   title: string;
   description: string;
+  points?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -203,7 +214,7 @@ export interface QuestionAnswer {
   answer: any;
 }
 
-export type QuestionType = 
+export type QuestionType =
   | 'SELECT_ONE_IN_LOT'
   | 'SELECT_MANY_IN_LOT'
   | 'ORDER_THE_LOTS'
@@ -224,7 +235,8 @@ export interface UserQuizMetrics {
   quizId: string;
   remainingAttempts: number;
   latestAttemptId?: string;
-  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
+  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED' | 'SKIPPED';
+  skipCount: number;
   attempts: AttemptDetails[];
 }
 
@@ -244,6 +256,7 @@ export interface QuizDetails {
   approximateTimeToComplete: string;
   allowPartialGrading: boolean;
   allowHint: boolean;
+  allowSkip: boolean;
   showCorrectAnswersAfterSubmission: boolean;
   showExplanationAfterSubmission: boolean;
   showScoreAfterSubmission: boolean;

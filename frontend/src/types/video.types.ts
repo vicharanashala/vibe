@@ -7,11 +7,22 @@ export interface VideoProps {
   doGesture?: boolean;
   onNext?: () => void;
   isProgressUpdating?: boolean;
+  anomalies?: string[];
+  readyToDetect: boolean;
   rewindVid: boolean;
   pauseVid: boolean;
   onDurationChange?: (duration: number) => void;
-
+  keyboardLockEnabled?: boolean;
+  linearProgressionEnabled: boolean;
+  seekForwardEnabled: boolean;
+  isCompleted?: boolean;
+  isAlreadyWatched?: boolean;
+  completedItemIdsRef: React.RefObject<Set<string>>;
+  nextItemId: string;
+  cohortId?:string;
 }
+
+
 
 // Minimal YouTube Player instance interface
 export interface YTPlayerInstance {
@@ -43,7 +54,7 @@ declare global {
           };
         }
       ) => YTPlayerInstance;
-      PlayerState: { PLAYING: number };
+      PlayerState: { PLAYING: number; ENDED: number; PAUSED: number };
     };
     onYouTubeIframeAPIReady?: () => void;
   }
@@ -66,6 +77,8 @@ export interface StudentProctoringSettings {
     proctors: {
       detectors: IDetectorSettings[];
     };
+    linearProgressionEnabled: boolean;
+    seekForwardEnabled: boolean;
   };
 }
 
@@ -80,6 +93,8 @@ export interface FloatingVideoProps {
   pauseVid: boolean;
   setPauseVid: (value: boolean) => void;
   setAnomalies: (anomalies: string[]) => void;
+  readyToDetect: boolean;
+  setReadyToDetect: (value: boolean) => void;
   anomalies?: string[];
 }
 
@@ -97,10 +112,10 @@ export interface ProctoringSettings {
         }
       }[]
     }
-}
+  }
 }
 
-export interface Video{
+export interface Video {
   _id: string;
   name: string;
   description: string;
