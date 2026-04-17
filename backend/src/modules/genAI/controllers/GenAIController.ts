@@ -28,13 +28,11 @@ import {
   EditQuestionData,
   TaskStatusParams,
   EditTranscript,
-  TaskStatus,
-  TaskStatusdetailsResponse,
 } from '../classes/validators/GenAIValidators.js';
 import { GenAIService } from '../services/GenAIService.js';
 import { WebhookService } from '../services/WebhookService.js';
 import { GENAI_TYPES } from '../types.js';
-import { BadRequestErrorResponse, ForbiddenErrorResponse } from "#root/shared/index.js";
+import { BadRequestErrorResponse } from "#root/shared/index.js";
 import { Ability } from "#root/shared/functions/AbilityDecorator.js";
 import { getGenAIAbility } from "../abilities/genAIAbilities.js";
 import { subject } from "@casl/ability";
@@ -142,16 +140,9 @@ export class GenAIController {
   @Get("/:id/tasks/:type/status")
   @Authorized()
   @HttpCode(200)
-  @ResponseSchema(TaskStatusdetailsResponse, {
-    description: 'Task status retrieved successfully'
-  })
   @ResponseSchema(GenAINotFoundErrorResponse, {
     description: 'Job not found',
     statusCode: 404,
-  })
-  @ResponseSchema(BadRequestErrorResponse, {
-    description: 'Bad Request Error',
-    statusCode: 400,
   })
   async getTaskStatus(@Params() params: TaskStatusParams, @Ability(getGenAIAbility) {ability}) {
     const { id, type } = params;
@@ -169,8 +160,7 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Approve task to start',
-    description: `Approve the task to start running, optionally with given parameters.<br/>
-    It returns an empty body with a 200 status code.`,
+    description: 'Approve the task to start running, optionally with given parameters.',
   })
   @Post("/:id/tasks/approve/start")
   @Authorized()
@@ -178,10 +168,6 @@ export class GenAIController {
   @ResponseSchema(GenAINotFoundErrorResponse, {
     description: 'Job not found',
     statusCode: 404,
-  })
-  @ResponseSchema(BadRequestErrorResponse, {
-    description: 'Bad Request Error',
-    statusCode: 400,
   })
   async approveStart(@Params() params: GenAIIdParams, @Body() body: ApproveStartBody, @Ability(getGenAIAbility) {ability, user}) {
     const { id } = params;
@@ -198,8 +184,7 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Approve task and continue',
-    description: `Approve the task\'s output and continue to the next task.<br/>
-    It returns an empty body with a 200 status code.`,
+    description: 'Approve the task\'s output and continue to the next task.',
   })
   @Authorized()
   @OnUndefined(200)
@@ -222,8 +207,7 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Rerun current task',
-    description: `Reruns the current task in the job.<br/>
-    It returns an empty body with a 200 status code.`,
+    description: 'Reruns the current task in the job.',
   })
   @Post("/jobs/:id/tasks/rerun")
   @Authorized()
@@ -247,9 +231,7 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Abort current task',
-    description: `Aborts the current task in the job.<br/>
-    It returns an empty body with a 200 status code.`,
-    
+    description: 'Aborts the current task in the job.',
   })
   @Post("/jobs/:id/tasks/abort")
   @Authorized()
@@ -272,35 +254,8 @@ export class GenAIController {
   }
 
   @OpenAPI({
-    summary: 'Stop current task',
-    description: `Stops the current task in the job (alias of abort).<br/>
-    It returns an empty body with a 200 status code.`,
-    
-  })
-  @Post("/jobs/:id/tasks/stop")
-  @Authorized()
-  @OnUndefined(200)
-  @ResponseSchema(GenAINotFoundErrorResponse, {
-    description: 'GenAI not found',
-    statusCode: 404,
-  })
-  async stopTask(@Params() params: GenAIIdParams, @Ability(getGenAIAbility) {ability, user}) {
-    const { id } = params;
-    const userId = user._id.toString();
-    const job = await this.genAIService.getJobStatus(id);
-
-    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
-    if (!ability.can('modify', genaiRes)) {
-      //throw new ForbiddenError('You do not have permission to stop tasks in this job');
-    }
-
-    await this.genAIService.abortTask(id);
-  }
-
-  @OpenAPI({
     summary: 'Edit segment map',
-    description: `Edits the segment map of a job.<br/>
-    It returns an empty body with a 200 status code.`,
+    description: 'Edits the segment map of a job.',
   })
   @Patch("/jobs/:id/edit/segment-map")
   @Authorized()
@@ -313,7 +268,7 @@ export class GenAIController {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-  @ResponseSchema(ForbiddenErrorResponse, {
+  @ResponseSchema(ForbiddenError, {
     description: 'Forbidden Error',
     statusCode: 403,
   })
@@ -331,8 +286,7 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Edit question data',
-    description: `Edits the question data of a job.<br/>
-    It returns an empty body with a 200 status code.`,
+    description: 'Edits the question data of a job.',
   })
   @Patch("/jobs/:id/edit/question")
   @Authorized()
@@ -345,7 +299,7 @@ export class GenAIController {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-  @ResponseSchema(ForbiddenErrorResponse, {
+  @ResponseSchema(ForbiddenError, {
     description: 'Forbidden Error',
     statusCode: 403,
   })
@@ -364,8 +318,7 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Edit transcript',
-    description: `Edits the transcript of a job.<br/>
-    It returns an empty body with a 200 status code.`,
+    description: 'Edits the transcript of a job.',
   })
   @Patch("/jobs/:id/edit/transcript")
   @Authorized()
@@ -378,7 +331,7 @@ export class GenAIController {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-  @ResponseSchema(ForbiddenErrorResponse, {
+  @ResponseSchema(ForbiddenError, {
     description: 'Forbidden Error',
     statusCode: 403,
   })
@@ -397,10 +350,9 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Get live status updates',
-    description: 'Establishes a Server-Sent Events (SSE) connection to receive live status updates for a job.<br/> It returns an empty body with a 200 status code.',
+    description: 'Establishes a Server-Sent Events (SSE) connection to receive live status updates for a job.',
   })
   @Get("/:id/live")
-  @Authorized()
   @ResponseSchema(GenAINotFoundErrorResponse, {
     description: 'GenAI not found',
     statusCode: 404,
@@ -417,4 +369,4 @@ export class GenAIController {
       id
     );
   }
-} 
+}

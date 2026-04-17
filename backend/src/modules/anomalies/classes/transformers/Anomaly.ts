@@ -1,6 +1,4 @@
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
-import { JSONSchema } from 'class-validator-jsonschema';
-import {ObjectId} from 'mongodb';
+import { ObjectId } from "mongodb";
 
 export enum AnomalyType {
   VOICE_DETECTION = 'VOICE_DETECTION',
@@ -30,6 +28,7 @@ export interface IEncryptionResult {
   algorithm: string;
 }
 
+
 export interface IDecryptionResult {
   success: boolean;
   message?: string;
@@ -46,88 +45,40 @@ export interface IDecryptionResult {
 }
 
 export class IAnomalyData {
-  _id?: string | ObjectId;
-  userId: string | ObjectId;
-  type: AnomalyType;
-  courseId: string | ObjectId;
-  versionId: string | ObjectId;
-  itemId: string | ObjectId;
-  fileName?: string;
-  fileType?: FileType;
-  createdAt: Date;
-  cohortId?: string | ObjectId;
-  cohortName?: string;
+    _id?: string | ObjectId;
+    userId: string;
+    type: AnomalyType;
+    courseId: string;
+    versionId: string;
+    itemId: string;
+    fileName?: string;
+    fileType?: FileType;
+    createdAt: Date;
 
-  constructor(data: Partial<IAnomalyData>, userId: string) {
-    this.userId = new ObjectId(userId);
-    this.type = data.type;
-    this.courseId = new ObjectId(data.courseId);
-    this.versionId = new ObjectId(data.versionId);
-    this.itemId = new ObjectId(data.itemId);
-    this.createdAt = new Date();
-    if (data.cohortId) {
-      this.cohortId = new ObjectId(data.cohortId);
+    constructor(
+      data: Partial<IAnomalyData>, 
+      userId: string,
+    ) {
+        this.userId = userId;
+        this.type = data.type;
+        this.courseId = data.courseId;
+        this.versionId = data.versionId;
+        this.itemId = data.itemId;
+        this.createdAt = new Date();
     }
-  }
 }
 
 export class AnomalyDataResponse extends IAnomalyData {
-  @IsString()
-  @IsNotEmpty()
-  @JSONSchema({
-    description: 'URL of the file',
-  })
-  fileUrl: string;
+  fileUrl?: string
 }
 
 export class AnomalyStats {
-  @IsNumber()
-  @JSONSchema({
-    title: 'Number of voice detection anomalies',
-    description: 'Number of voice detection anomalies',
-  })
   VOICE_DETECTION: number;
-
-  @IsNumber()
-  @JSONSchema({
-    title: 'Number of no face anomalies',
-    description: 'Number of no face anomalies',
-  })
   NO_FACE: number;
-
-  @IsNumber()
-  @JSONSchema({
-    title: 'Number of multiple faces anomalies',
-    description: 'Number of multiple faces anomalies',
-  })
   MULTIPLE_FACES: number;
-
-  @IsNumber()
-  @JSONSchema({
-    title: 'Number of blur detection anomalies',
-    description: 'Number of blur detection anomalies',
-  })
   BLUR_DETECTION: number;
-
-  @IsNumber()
-  @JSONSchema({
-    title: 'Number of focus anomalies',
-    description: 'Number of focus anomalies',
-  })
   FOCUS: number;
-
-  @IsNumber()
-  @JSONSchema({
-    title: 'Number of hand gesture detection anomalies',
-    description: 'Number of hand gesture detection anomalies',
-  })
   HAND_GESTURE_DETECTION: number;
-
-  @IsNumber()
-  @JSONSchema({
-    title: 'Number of face recognition anomalies',
-    description: 'Number of face recognition anomalies',
-  })
   FACE_RECOGNITION: number;
 
   constructor() {
@@ -138,41 +89,5 @@ export class AnomalyStats {
     this.FOCUS = 0;
     this.HAND_GESTURE_DETECTION = 0;
     this.FACE_RECOGNITION = 0;
-  }
-}
-
-export class PaginatedResponse<T> {
-
-  data: T[];
-
- @IsNumber() 
-  @JSONSchema({
-    description: 'Current page number',
-  })
-  currentPage: number;
- @IsNumber() 
-  @JSONSchema({
-    description: 'Total number of documents',
-  })
-  totalDocuments: number;
- @IsNumber() 
-  @JSONSchema({
-    description: 'Total number of pages',
-  })
-  totalPages: number;
- @IsNumber() 
-  limit: number;
-
-  constructor(
-    data: T[],
-    currentPage: number,
-    totalDocuments: number,
-    limit: number,
-  ) {
-    this.data = data;
-    this.currentPage = currentPage;
-    this.totalDocuments = totalDocuments;
-    this.limit = limit;
-    this.totalPages = Math.ceil(totalDocuments / limit) || 1;
   }
 }

@@ -47,20 +47,7 @@ export interface QuestionGenerationParameters {
 	SML?: number;
 	NAT?: number;
 	DES?: number;
-	BIN?: number;
 	prompt?: string;
-	smartBloom?: {
-		enabled?: boolean;
-		segmentationStrategy?: 'DEFAULT' | 'CONCEPT_END';
-		distribution?: {
-			knowledge: number;
-			understanding: number;
-			application: number;
-			analysis?: number;
-			evaluation?: number;
-			creation?: number;
-		};
-	};
 }
 
 export interface UploadParameters {
@@ -71,8 +58,6 @@ export interface UploadParameters {
 	videoItemBaseName?: string;
 	quizItemBaseName?: string;
 	questionsPerQuiz?: number;
-	smartBloomEnabled?: boolean;
-	questions?: any[];
 }
 
 export interface audioData {
@@ -139,7 +124,7 @@ export class GenAI {
 
 export class GenAIBody extends GenAI {
 	_id?: ID;
-	userId: ID;
+	userId: string;
 	audioProvided?: boolean;
 	transcriptProvided?: boolean;
 	createdAt: Date;
@@ -148,7 +133,7 @@ export class GenAIBody extends GenAI {
 
 export class TaskData {
 	_id?: ID;
-	jobId: ID;
+	jobId: string;
 	audioExtraction?: audioData[];
 	transcriptGeneration?: trascriptGenerationData[]
 	segmentation?: segmentationData[];

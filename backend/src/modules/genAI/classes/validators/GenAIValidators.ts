@@ -11,7 +11,6 @@ import {
   IsNumber,
   IsArray,
   IsJSON,
-  IsBoolean,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 import { Type, Transform } from 'class-transformer';
@@ -61,7 +60,7 @@ class SegmentationParameters {
   @IsOptional()
   @IsNumber()
   runs?: number;
-
+  
   @JSONSchema({
     title: 'Noise ID',
     description: 'ID of the noise to be used for segmentation',
@@ -71,101 +70,6 @@ class SegmentationParameters {
   @IsOptional()
   @IsNumber()
   noiseId?: number;
-}
-
-@JSONSchema({ title: 'SmartBloomDistribution' })
-class SmartBloomDistribution {
-  @JSONSchema({
-    title: 'Knowledge Percentage',
-    description: 'Bloom knowledge-level percentage',
-    example: 40,
-    type: 'number',
-  })
-  @IsNotEmpty()
-  @IsNumber()
-  knowledge: number;
-
-  @JSONSchema({
-    title: 'Understanding Percentage',
-    description: 'Bloom understanding-level percentage',
-    example: 35,
-    type: 'number',
-  })
-  @IsNotEmpty()
-  @IsNumber()
-  understanding: number;
-
-  @JSONSchema({
-    title: 'Application Percentage',
-    description: 'Bloom application-level percentage',
-    example: 25,
-    type: 'number',
-  })
-  @IsNotEmpty()
-  @IsNumber()
-  application: number;
-
-  @JSONSchema({
-    title: 'Analysis Percentage',
-    description: 'Bloom analysis-level percentage',
-    example: 0,
-    type: 'number',
-  })
-  @IsOptional()
-  @IsNumber()
-  analysis?: number;
-
-  @JSONSchema({
-    title: 'Evaluation Percentage',
-    description: 'Bloom evaluation-level percentage',
-    example: 0,
-    type: 'number',
-  })
-  @IsOptional()
-  @IsNumber()
-  evaluation?: number;
-
-  @JSONSchema({
-    title: 'Creation Percentage',
-    description: 'Bloom creation-level percentage',
-    example: 0,
-    type: 'number',
-  })
-  @IsOptional()
-  @IsNumber()
-  creation?: number;
-}
-
-@JSONSchema({ title: 'SmartBloomParameters' })
-class SmartBloomParameters {
-  @JSONSchema({
-    title: 'Smart Bloom Enabled',
-    description: 'Enable Smart Bloom mode for question generation',
-    example: true,
-    type: 'boolean',
-  })
-  @IsOptional()
-  enabled?: boolean;
-
-  @JSONSchema({
-    title: 'Segmentation Strategy',
-    description: 'Segmentation strategy for Smart Bloom mode',
-    example: 'CONCEPT_END',
-    enum: ['DEFAULT', 'CONCEPT_END'],
-    type: 'string',
-  })
-  @IsOptional()
-  @IsString()
-  segmentationStrategy?: 'DEFAULT' | 'CONCEPT_END';
-
-  @JSONSchema({
-    title: 'Bloom Distribution',
-    description: 'Bloom level distribution for generated questions',
-  })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => SmartBloomDistribution)
-  distribution?: SmartBloomDistribution;
 }
 
 @JSONSchema({ title: 'QuestionGenerationParameters' })
@@ -221,16 +125,6 @@ class QuestionGenerationParameters {
   DES?: number;
 
   @JSONSchema({
-    title: 'BIN Number',
-    description: 'Number of binary questions to be generated',
-    example: 1,
-    type: 'number',
-  })
-  @IsOptional()
-  @IsNumber()
-  BIN?: number;
-
-  @JSONSchema({
     title: 'Prompt',
     description: 'Prompt to use for question generation',
     example: "Focus on conceptual understanding\n- Test comprehension of key ideas, principles, and relationships discussed in the content\n- Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content\n- The answer of questions should be present within the content, but not directly quoted\n- make all the options roughly the same length\n- Set isParameterized to false unless the question uses variables\n- Do not mention the word 'transcript' for giving references, use the word 'video' instead",
@@ -239,15 +133,6 @@ class QuestionGenerationParameters {
   @IsOptional()
   @IsString()
   prompt?: string
-
-  @JSONSchema({
-    title: 'Smart Bloom Parameters',
-    description: 'Smart Bloom mode configuration for question generation',
-  })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => SmartBloomParameters)
-  smartBloom?: SmartBloomParameters;
 }
 
 @JSONSchema({ title: 'UploadParameters' })
@@ -314,7 +199,7 @@ class UploadParameters {
   })
   @IsNotEmpty()
   @IsString()
-  quizItemBaseName?: string;
+	quizItemBaseName?: string;
 
   @JSONSchema({
     title: 'Questions Per Quiz',
@@ -324,27 +209,7 @@ class UploadParameters {
   })
   @IsOptional()
   @IsNumber()
-  questionsPerQuiz?: number;
-
-  @JSONSchema({
-    title: 'Smart Bloom Enabled',
-    description: 'Forces bloom-level question-bank split during upload',
-    example: true,
-    type: 'boolean',
-  })
-  @IsOptional()
-  @IsBoolean()
-  smartBloomEnabled?: boolean;
-
-  @JSONSchema({
-    title: 'Curated Questions',
-    description: 'Optional curated questions payload for upload content task',
-    type: 'array',
-  })
-  @IsOptional()
-  @IsArray()
-  @IsObject({ each: true })
-  questions?: any[];
+	questionsPerQuiz?: number;
 }
 
 @JSONSchema({ title: 'PartialUploadParameters' })
@@ -411,7 +276,7 @@ class PartialUploadParameters {
   })
   @IsOptional()
   @IsString()
-  quizItemBaseName?: string;
+	quizItemBaseName?: string;
 
   @JSONSchema({
     title: 'Questions Per Quiz',
@@ -421,27 +286,7 @@ class PartialUploadParameters {
   })
   @IsOptional()
   @IsNumber()
-  questionsPerQuiz?: number;
-
-  @JSONSchema({
-    title: 'Smart Bloom Enabled',
-    description: 'Forces bloom-level question-bank split during upload',
-    example: true,
-    type: 'boolean',
-  })
-  @IsOptional()
-  @IsBoolean()
-  smartBloomEnabled?: boolean;
-
-  @JSONSchema({
-    title: 'Curated Questions',
-    description: 'Optional curated questions payload for upload content task',
-    type: 'array',
-  })
-  @IsOptional()
-  @IsArray()
-  @IsObject({ each: true })
-  questions?: any[];
+	questionsPerQuiz?: number;
 }
 
 class Chunk {
@@ -475,7 +320,7 @@ class Transcript {
   chunks: Array<Chunk>;
 }
 
-class GenAIResponse {
+class GenAIResponse{
   @JSONSchema({
     description: 'Unique identifier for the genAI job',
     type: 'string',
@@ -758,7 +603,7 @@ class RerunTaskBody {
     }
   })
   parameters?: Partial<TranscriptParameters | SegmentationParameters | QuestionGenerationParameters | PartialUploadParameters>;
-
+  
   @JSONSchema({
     title: 'Use Previous',
     description: 'Which previous task output to use for this task',
@@ -906,8 +751,6 @@ class WebhookBody {
     description: 'Additional data related to the task status',
     type: 'object',
   })
-
-  //TODO: need to modified later
   @IsOptional()
   @IsObject()
   @ValidateNested()
@@ -931,11 +774,10 @@ class EditSegmentMapBody {
     type: 'number',
     example: 0,
   })
-  @IsOptional()
+  @IsNotEmpty()
   @IsNumber()
-  index?: number;
+  index: number;
 }
-
 
 class EditQuestionData {
   @JSONSchema({
@@ -948,15 +790,14 @@ class EditQuestionData {
 
   @JSONSchema({
     title: 'Index',
-    description: 'Index of the question to edit (optional, defaults to last)',
+    description: 'Index of the question to edit',
     type: 'number',
     example: 0,
   })
-  @IsOptional()
+  @IsNotEmpty()
   @IsNumber()
-  index?: number;
+  index: number;
 }
-
 
 class EditTranscript {
   @JSONSchema({
@@ -978,36 +819,6 @@ class EditTranscript {
   index: number;
 }
 
-// TODO : To be modified for later
-class TaskStatusdetailsResponse{
-  @JSONSchema({
-    title: 'Task Status Details',
-    description: 'Additional data related to the task status',
-    type: 'object',
-    oneOf: [
-      {
-        $ref: '#/components/schemas/audioData',
-      },
-      {
-        $ref: '#/components/schemas/trascriptGenerationData',
-      },
-      {
-        $ref: '#/components/schemas/segmentationData',
-      },
-      {
-        $ref: '#/components/schemas/questionGenerationData',
-      },
-      {
-        $ref: '#/components/schemas/contentUploadData',
-      },
-    ],
-  })
-  @IsObject()
-  @ValidateNested()
-  @Type(() => Object)
-  data: audioData | trascriptGenerationData | segmentationData | questionGenerationData | contentUploadData;
-}
-
 export {
   JobType,
   GenAIResponse,
@@ -1023,7 +834,6 @@ export {
   EditSegmentMapBody,
   EditQuestionData,
   EditTranscript,
-  TaskStatusdetailsResponse,
 };
 
 export const GENAI_VALIDATORS = [
@@ -1040,5 +850,4 @@ export const GENAI_VALIDATORS = [
   EditSegmentMapBody,
   EditQuestionData,
   EditTranscript,
-  TaskStatusdetailsResponse,
 ];
