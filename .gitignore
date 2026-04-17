@@ -57,11 +57,13 @@ frontend/openapi.json
 .sentryclirc
 .sentryclirc.local
 .vibe.json
+.mongo-uri
 
 .venv
 
 mcp
 frontend/public/models
+frontend/.npm-cache/
 dist/
 
 config.json

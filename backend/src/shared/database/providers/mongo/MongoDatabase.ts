@@ -15,9 +15,10 @@ import { Db, MongoClient, Document, Collection } from 'mongodb';
  */
 @injectable()
 export class MongoDatabase implements IDatabase<Db> {
-  private client: MongoClient | null;
-  public database: Db | null;
+  private client: MongoClient | null = null;
+  public database: Db | null = null;
   private connectingPromise: Promise<Db> | null = null;
+  private resolvedUri: string | null = null;
 
   /**
    * Creates an instance of MongoDatabase.
@@ -26,87 +27,78 @@ export class MongoDatabase implements IDatabase<Db> {
    */
   constructor(
     @inject(GLOBAL_TYPES.uri)
-    private readonly uri: string,
+    private readonly uri: string | null,
     @inject(GLOBAL_TYPES.dbName)
     private readonly dbName: string,
   ) {
     // Skip database connection if environment variable is set
     if (process.env.SKIP_DB_CONNECTION === 'true') {
-      this.client = null;
-      this.database = null;
       console.log(
         'Database connection skipped due to SKIP_DB_CONNECTION environment variable',
       );
       return;
     }
 
-    this.client = new MongoClient(uri, {
-      // ssl: true,
-      // tls: true,
-      // tlsAllowInvalidCertificates: false,
-      // tlsAllowInvalidHostnames: false,
+    this.resolvedUri = uri?.trim() || null;
 
-      // retryWrites: true,
+    if (this.resolvedUri) {
+      const useTls =
+        this.resolvedUri.startsWith('mongodb+srv://') ||
+        this.resolvedUri.includes('tls=true') ||
+        this.resolvedUri.includes('ssl=true');
 
-      // // 🔹 CONNECTION POOL
-      // maxPoolSize: 50,
-      // minPoolSize: 10,
-      // maxIdleTimeMS: 60000,
-
-      // // 🔹 TIMEOUTS
-      // connectTimeoutMS: 20000,
-      // socketTimeoutMS: 30000,
-
-
-    });
-
+      this.client = new MongoClient(this.resolvedUri, {
+        ssl: useTls,
+        tls: useTls,
+        tlsAllowInvalidCertificates: false,
+        tlsAllowInvalidHostnames: false,
+        retryWrites: true,
+        maxPoolSize: 50,
+        minPoolSize: 10,
+        maxIdleTimeMS: 60000,
+        connectTimeoutMS: 20000,
+        socketTimeoutMS: 30000,
+      });
+    } else {
+      console.warn(
+        'DB_URL not provided. Falling back to in-memory MongoDB for local development.',
+      );
+    }
   }
 
   private async ensureIndexes(): Promise<void> {
-  if (!this.database) return;
+    if (!this.database) return;
 
-  const auditCollection = this.database.collection("auditTrails");
+    const auditCollection = this.database.collection('auditTrails');
 
-  await auditCollection.createIndex({
-    actor: 1,
-    "context.courseId": 1,
-    "context.courseVersionId": 1,
-    createdAt: -1,
-  });
+    await auditCollection.createIndex({
+      actor: 1,
+      'context.courseId': 1,
+      'context.courseVersionId': 1,
+      createdAt: -1,
+    });
 
-  console.log("AuditTrails indexes ensured");
-}
-
-  /**
-   * Connects to the MongoDB database.
-   * @returns {Promise<Db>} The connected database instance.
-   */
-  // public async connect(): Promise<Db> {
-  //   await this.client?.connect();
-  //   this.database = this.client?.db(this.dbName) || null;
-
-  //   return this.database;
-  // }
-
-public async connect(): Promise<Db> {
-  if (this.database) {
-    return this.database;
+    console.log('AuditTrails indexes ensured');
   }
 
-  if (!this.connectingPromise) {
-    this.connectingPromise = (async () => {
-      await this.client?.connect();
-      this.database = this.client?.db(this.dbName);
-
-      // 🔥 Ensure indexes after connection
-      await this.ensureIndexes();
-
+  public async connect(): Promise<Db> {
+    if (this.database) {
       return this.database;
-    })();
-  }
+    }
 
-  return this.connectingPromise;
-}
+    if (!this.connectingPromise) {
+      this.connectingPromise = (async () => {
+        await this.client?.connect();
+        this.database = this.client?.db(this.dbName);
+
+        await this.ensureIndexes();
+
+        return this.database;
+      })();
+    }
+
+    return this.connectingPromise;
+  }
 
   /**
    * Disconnects from the MongoDB database.
@@ -146,9 +138,6 @@ public async connect(): Promise<Db> {
   public async getCollection<T extends Document>(
     name: string,
   ): Promise<Collection<T>> {
-    // if (!this.database) {
-    //   await this.connect();
-    // }
     if (!this.database) {
       throw new Error('Database is not connected');
     }

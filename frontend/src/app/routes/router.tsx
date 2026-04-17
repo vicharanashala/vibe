@@ -113,13 +113,6 @@ const authRoute = new Route({
     }
   },
 });
-// Teacher Ejection Policies route
-const teacherEjectionPoliciesRoute = new Route({
-  getParentRoute: () => teacherLayoutRoute,
-  path: '/ejection-policies',
-  component: EjectionPoliciesPage,
-});
-
 // Forgot Password route - accessible only when NOT authenticated
 const forgotPasswordRoute = new Route({
   getParentRoute: () => rootRoute,
@@ -216,6 +209,13 @@ const teacherLayoutRoute = new Route({
     }
   },
   component: TeacherLayout,
+});
+
+// Teacher Ejection Policies route
+const teacherEjectionPoliciesRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/ejection-policies',
+  component: EjectionPoliciesPage,
 });
 
 // Student layout route with auth check and role verification
@@ -693,11 +693,11 @@ const routeTree = rootRoute.addChildren([
     teacherSubmissionDetailsRoute,
     teacherNotificationsRoute,
   ]),
+  studentCourseInviteRegistration,
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
     studentCoursesRoute,
     studentProfileRoute,
-    studentCourseInviteRegistration,
     studentIssuesRoute,
     studentLeaderboardRoute,
     studentAnnouncementsRoute,

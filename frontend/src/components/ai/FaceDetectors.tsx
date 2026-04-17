@@ -3,10 +3,9 @@ import { Face, Keypoint } from "@tensorflow-models/face-detection";
 import FaceRecognitionComponent from "./FaceRecognitionComponent";
 
 import type { FaceDetectorsProps, FaceRecognition, FaceRecognitionDebugInfo } from "@/types/ai.types";
-import { eye } from "@tensorflow/tfjs-core";
 
 const isLookingAway = (face: Face): boolean => {
-  if (!face || face.keypoints.length < 6) return false;
+  if (!face || !face.keypoints || face.keypoints.length < 6 || !face.box) return false;
 
   const rightEye = face.keypoints.find((p: Keypoint) => p.name === "rightEye");
   const leftEye = face.keypoints.find((p: Keypoint) => p.name === "leftEye");
@@ -15,7 +14,7 @@ const isLookingAway = (face: Face): boolean => {
   const rightEar = face.keypoints.find((p: Keypoint) => p.name === "rightEarTragion");
   const leftEar = face.keypoints.find((p: Keypoint) => p.name === "leftEarTragion");
 
-  if (!rightEye || !leftEye || !noseTip || !face.box) return false;
+  if (!rightEye || !leftEye || !noseTip) return false;
 
   const faceWidth = face.box.width;
   const faceHeight = face.box.height;
@@ -46,12 +45,30 @@ const isLookingAway = (face: Face): boolean => {
   return false;
 };
 
-const FaceDetectors: React.FC<FaceDetectorsProps> = ({ setIsFocused, faces, videoRef, onRecognitionResult, onDebugInfoUpdate, onMismatchChange }) => {
+const FaceDetectors: React.FC<FaceDetectorsProps> = ({ setIsFocused, faces, videoRef, onRecognitionResult, onDebugInfoUpdate, onMismatchChange, onBehaviorResult, demoMode }) => {
 
   useEffect(() => {
-    const isFocused = true;
-    if (faces.length === 0) return setIsFocused(false);
-    setIsFocused(isFocused);
+    if (faces.length === 0) {
+      setIsFocused(false);
+      return;
+    }
+
+    const primaryFace = faces.reduce<Face | null>((largest, current) => {
+      if (!current.box) {
+        return largest;
+      }
+
+      const currentArea = current.box.width * current.box.height;
+      const largestArea = largest?.box ? largest.box.width * largest.box.height : -1;
+      return currentArea > largestArea ? current : largest;
+    }, null);
+
+    if (!primaryFace) {
+      setIsFocused(false);
+      return;
+    }
+
+    setIsFocused(!isLookingAway(primaryFace));
   }, [faces, setIsFocused]);
 
   // Debug log
@@ -60,9 +77,10 @@ const FaceDetectors: React.FC<FaceDetectorsProps> = ({ setIsFocused, faces, vide
     //   facesCount: faces.length,
     //   hasVideoRef: !!videoRef.current,
     //   hasCallback: !!onRecognitionResult,
-    //   hasDebugCallback: !!onDebugInfoUpdate
+    //   hasDebugCallback: !!onDebugInfoUpdate,
+    //   hasBehaviorCallback: !!onBehaviorResult
     // });
-  }, [faces.length, videoRef, onRecognitionResult, onDebugInfoUpdate]);
+  }, [faces.length, videoRef, onRecognitionResult, onDebugInfoUpdate, onBehaviorResult]);
 
   return (
     <>
@@ -73,6 +91,8 @@ const FaceDetectors: React.FC<FaceDetectorsProps> = ({ setIsFocused, faces, vide
         onRecognitionResult={onRecognitionResult}
         onDebugInfoUpdate={onDebugInfoUpdate}
         onMismatchChange={onMismatchChange}
+        onBehaviorResult={onBehaviorResult}
+        demoMode={demoMode}
       />
     </>
   );

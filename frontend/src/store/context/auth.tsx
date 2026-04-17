@@ -34,6 +34,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Firebase auth state listener and token management
   useEffect(() => {
+    if (!auth) {
+      setAuthReady(true);
+      return;
+    }
+
     // Register the token refresh function with the API client
     setTokenRefreshFunction(refreshFirebaseToken);
 

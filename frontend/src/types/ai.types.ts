@@ -12,6 +12,8 @@ export interface FaceDetectorsProps {
   onRecognitionResult?: (recognitions: FaceRecognition[]) => void;
   onDebugInfoUpdate?: (debugInfo: FaceRecognitionDebugInfo) => void;
   onMismatchChange?: (hasMismatch: boolean) => void;
+  onBehaviorResult?: (behavior: FaceBehaviorStatus) => void;
+  demoMode?: boolean;
   settings:{
     isFaceCountDetectionEnabled:boolean, 
     isFaceRecognitionEnabled:boolean, 
@@ -62,12 +64,26 @@ export interface FaceRecognitionDebugInfo {
   errorMessage?: string;
 }
 
+export interface FaceBehaviorStatus {
+  isSlouching: boolean;
+  isLookingDown: boolean;
+  isSleepy: boolean;
+  isYawning: boolean;
+  isFatigued?: boolean;
+  fatigueScore?: number;
+  eyeAspectRatio: number;
+  mouthAspectRatio: number;
+  headDownScore: number;
+}
+
 export interface FaceRecognitionComponentProps {
   faces: Face[];
   videoRef: React.RefObject<HTMLVideoElement | null>;
   onRecognitionResult?: (recognitions: FaceRecognition[]) => void;
   onDebugInfoUpdate?: (debugInfo: FaceRecognitionDebugInfo) => void;
   onMismatchChange?: (hasMismatch: boolean) => void;
+  onBehaviorResult?: (behavior: FaceBehaviorStatus) => void;
+  demoMode?: boolean;
 }
 
 export interface FaceRecognitionOverlayProps {
