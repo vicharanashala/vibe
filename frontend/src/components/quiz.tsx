@@ -747,9 +747,19 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
       setQuizCompleted(true);
       setFinshingQuiz(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to submit quiz:', err);
+      const errorMessage = err?.message || err?.error?.message || err?.response?.data?.message || '';
+      if (errorMessage.includes('already been submitted')) {
+        // Idempotent — treat as success
+        setQuizCompleted(true);
+      } else if (errorMessage.includes('inactive') || errorMessage.includes('archived')) {
+        toast.error('This course version is no longer active.');
         setQuizCompleted(false);
+      } else {
+        toast.error('Failed to submit quiz. Please try again.');
+        setQuizCompleted(false);
+      }
       setFinshingQuiz(false);
     }
   }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem, saveQuiz]);
