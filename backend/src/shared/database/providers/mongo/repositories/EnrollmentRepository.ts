@@ -3667,7 +3667,7 @@ export class EnrollmentRepository {
               quizId: { $in: quizObjectIds },
               ...(cohortObjectIds?.length
                 ? { cohortId: { $in: cohortObjectIds } }
-                : { cohortId: null }),
+                : {}),
               'gradingResult.totalScore': { $exists: true },
             },
           },
