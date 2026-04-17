@@ -1367,36 +1367,35 @@ class ProgressService extends BaseService {
       return false;
     }
 
-    const watchStartTime = new Date(watchTime.startTime);
-    const watchEndTime = new Date(watchTime.endTime);
+    // Expired sessions (idle timeout) should never mark items as complete
+    if (watchTime.isExpired) {
+      return false;
+    }
 
-    // Server-side measured duration in seconds
-    const serverDuration =
-      Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
-
-    // Buffer for latency/load (add 5 seconds to the server's measured time)
-    // This assumes the user actually watched longer, but the server started late or ended early
-    // Effectively, we are saying If the server saw 5s, maybe they actually watched 10s
-    const adjustedDuration = serverDuration + 5;
+    // Prefer the client-reported play duration; fall back to wall-clock difference
+    let adjustedDuration: number;
+    if (typeof watchTime.duration === 'number' && watchTime.duration >= 0) {
+      // Client-reported actual play seconds — add small buffer for latency
+      adjustedDuration = watchTime.duration + 5;
+    } else {
+      const watchStartTime = new Date(watchTime.startTime);
+      const watchEndTime = new Date(watchTime.endTime);
+      const serverDuration =
+        Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
+      adjustedDuration = serverDuration + 5;
+    }
 
     switch (item.type) {
       case 'VIDEO':
         const videoDetails = item.details as IVideoDetails;
         if (!videoDetails.startTime || !videoDetails.endTime) return false;
 
-        // parse it to seconds through liabrary
         const videoEndTimeInSeconds = this.parseTimeToSeconds(
           videoDetails.endTime,
         );
-        // parseInt(videoDetails.endTime.split(':')[0]) * 3600 +
-        // parseInt(videoDetails.endTime.split(':')[1]) * 60 +
-        // parseInt(videoDetails.endTime.split(':')[2]);
         const videoStartTimeInSeconds = this.parseTimeToSeconds(
           videoDetails.startTime,
         );
-        // parseInt(videoDetails.startTime.split(':')[0]) * 3600 +
-        // parseInt(videoDetails.startTime.split(':')[1]) * 60 +
-        // parseInt(videoDetails.startTime.split(':')[2]);
 
         const totalVideoDuration =
           videoEndTimeInSeconds - videoStartTimeInSeconds;
@@ -1683,36 +1682,23 @@ class ProgressService extends BaseService {
         session,
       );
 
-      if (isItemCompleted) {
-        // Item is already completed, skip watchTime creation and return existing watchTime or null
-        const existingWatchTime = await this.progressRepository.getWatchTime(
-          userId,
-          itemId,
-          courseId,
-          courseVersionId,
-          cohortId,
-          session,
-        );
-
-        console.log("Existing item found ->", existingWatchTime)
-        return '';
+      if (!isItemCompleted) {
+        // 🔥 Parallelize independent verifications (only needed for first completion)
+        await Promise.all([
+          this.verifyDetails(userId, courseId, courseVersionId),
+          this.verifyProgress(
+            userId,
+            courseId,
+            courseVersionId,
+            moduleId,
+            sectionId,
+            itemId,
+            cohortId,
+          ),
+        ]);
       }
 
-      // 🔥 Parallelize independent verifications
-      await Promise.all([
-        this.verifyDetails(userId, courseId, courseVersionId),
-        this.verifyProgress(
-          userId,
-          courseId,
-          courseVersionId,
-          moduleId,
-          sectionId,
-          itemId,
-          cohortId,
-        ),
-      ]);
-
-      // 🔒 Write happens AFTER validations
+      // 🔒 Always create a new watch time record so re-watches are tracked
       const result = await this.progressRepository.startItemTracking(
         userId,
         courseId,
@@ -1727,7 +1713,7 @@ class ProgressService extends BaseService {
           courseId,
           courseVersionId,
         );
-      if (!linearProgressionEnabled && (courseId?.toString() !== GURU_SETU_COURSE_ID || courseVersionId?.toString() !== GURU_SETU_VERSION_ID)) {
+      if (!isItemCompleted && !linearProgressionEnabled && (courseId?.toString() !== GURU_SETU_COURSE_ID || courseVersionId?.toString() !== GURU_SETU_VERSION_ID)) {
         const newProgress: Partial<IProgress> = {
           completed: isItemCompleted,
           currentModule: moduleId,
@@ -1743,7 +1729,7 @@ class ProgressService extends BaseService {
           newProgress,
           cohortId
         );
-      } else if (!linearProgressionEnabled) {
+      } else if (!isItemCompleted && !linearProgressionEnabled) {
         const newProgress: Partial<IProgress> = {
           completed: isItemCompleted,
           currentModule: moduleId,
@@ -2182,6 +2168,8 @@ class ProgressService extends BaseService {
     seekForwardEnabled?: boolean,
     nextItemId?: string,
     cohortId?: string,
+    watchedSeconds?: number,
+    isExpired?: boolean,
   ): Promise<void> {
     const [courseVersion, progress, item, linearProgressionEnabled] =
       await Promise.all([
@@ -2226,15 +2214,16 @@ class ProgressService extends BaseService {
      * Allow stopping if:
      * - current item matches progress.currentItem
      * OR
-     * - previous item in sequence is already completed
+     * - previous item in sequence is already completed (only when linear progression is enabled)
      *
      * This prevents frontend/backend desync from blocking users after refresh.
      *
      * Skip strict validation for:
      * - QUIZ reattempt flows
      * - skipped items
+     * - linear progression disabled (only current item completion is considered)
      */
-    if (item.type !== 'QUIZ' && !isSkipped) {
+    if (linearProgressionEnabled && item.type !== 'QUIZ' && !isSkipped) {
       await this.validateProgressPositionOrPreviousCompleted(
         progress,
         courseVersion,
@@ -2265,6 +2254,8 @@ class ProgressService extends BaseService {
           stoppedWatchTime = await this.progressRepository.stopItemTracking(
             watchItemId,
             session,
+            watchedSeconds,
+            isExpired,
           );
 
           if (!stoppedWatchTime) {
