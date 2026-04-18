@@ -1,3 +1,7 @@
+// Patch SlowBuffer for buffer-equal-constant-time compatibility (Node.js v10+)
+import { Buffer } from 'buffer';
+if (!(Buffer).SlowBuffer) { (Buffer).SlowBuffer = Buffer; }
+if (typeof globalThis.Buffer === 'undefined') { (globalThis).Buffer = Buffer; }
 import 'reflect-metadata';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 console.log(`Loading Sentry for ${NODE_ENV} environment`);

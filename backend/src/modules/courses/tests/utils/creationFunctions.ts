@@ -213,4 +213,5 @@ export {
   createSection,
   createQuizItem,
   createVideoItem,
+  createBlogItem,
 };
