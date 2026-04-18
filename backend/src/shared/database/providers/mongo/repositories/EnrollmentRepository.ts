@@ -1809,7 +1809,6 @@ export class EnrollmentRepository {
           },
         },
       },
-      },
       { $limit: 1 },
     ];
 

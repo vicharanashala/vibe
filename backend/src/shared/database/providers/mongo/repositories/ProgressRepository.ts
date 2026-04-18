@@ -1352,15 +1352,14 @@ class ProgressRepository {
               courseVersionId: { $in: [courseVersionId, versionIdObj] },
               endTime: { $ne: null, $exists: true },
               isDeleted: { $ne: true },
-             
             },
           },
           {
             $project: {
               duration: {
                 $divide: [{ $subtract: ['$endTime', '$startTime'] }, 3600000],
-             
-                },
+              },
+            },
           },
           {
             $group: {
@@ -1392,27 +1391,6 @@ class ProgressRepository {
 
     if (!courseIdObj || !versionIdObj) return 0;
 
-
-    return Math.round((result[0]?.totalHours ?? 0) * 100) / 100;
-  }
-
-  /**
-   * Computes the average watch hours per user across all students enrolled in a course version.
-   * Reuses the same ms-to-hours conversion as getStudentWatchHours.
-   */
-  async getAverageWatchHoursForVersion(
-    courseId: string,
-    courseVersionId: string,
-    session?: ClientSession,
-  ): Promise<number> {
-    await this.init();
-
-    const courseIdObj = ObjectId.isValid(courseId) ? new ObjectId(courseId) : null;
-    const versionIdObj = ObjectId.isValid(courseVersionId) ? new ObjectId(courseVersionId) : null;
-
-    if (!courseIdObj || !versionIdObj) return 0;
-
-
     const result = await this.watchTimeCollection
       .aggregate<{ averageWatchHoursPerUser: number }>(
         [
@@ -1422,7 +1400,6 @@ class ProgressRepository {
               courseVersionId: { $in: [courseVersionId, versionIdObj] },
               endTime: { $ne: null, $exists: true },
               isDeleted: { $ne: true },
-             
             },
           },
           {
@@ -1446,7 +1423,6 @@ class ProgressRepository {
             },
           },
           {
-
             $project: { _id: 0, averageWatchHoursPerUser: 1 },
           },
         ],
