@@ -1,3 +1,3 @@
 > `const` **coursesModuleValidators**: `Function`[]
 
-Defined in: [courses/index.ts:52](https://github.com/continuousactivelearning/vibe/blob/1b9d3e1101c04bda4a7e060f348b31b3e05aab7b/backend/src/modules/courses/index.ts#L52)
+Defined in: [courses/index.ts:52](https://github.com/AgamW017/vibe/blob/f011e99553eb05654c723a04e5f8a64502953f7a/backend/src/modules/courses/index.ts#L52)

@@ -34,12 +34,10 @@ ViBe is licensed under the [MIT License](LICENSE).
 ## Feedback and Contributions
 
 We welcome your feedback, contributions, and suggestions. Please:
-
 - **Report Issues:** Open an issue on the repository.
 - **Contribute:** Fork the repository, create a feature branch, and submit a pull request.
 - **Contact:** Reach out to us at [dled@iitrpr.ac.in](mailto:dled@iitrpr.ac.in).
 
 ---
 
-Explore our [Documentation](https://vicharanashala.github.io/vibe/) for further details on usage, setup, and development.
-
+Explore our [Documentation](https://continuousactivelearning.github.io/vibe/) for further details on usage, setup, and development.

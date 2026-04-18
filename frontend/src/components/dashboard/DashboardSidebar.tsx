@@ -3,30 +3,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TodoList } from "@/components/ui/TodoList";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { bufferToHex } from "@/utils/helpers";
 import type { DashboardSidebarProps } from '@/types/dashboard.types';
 
 export const DashboardSidebar = ({ enrollments, className }: DashboardSidebarProps) => {
   return (
-    <div className={`w-full space-y-6 bg-sidebar p-1 rounded-lg border border-sidebar-border dark:bg-[#d7ab5f18] ${className || ''}`}>
+    <div className={`w-full space-y-6 bg-sidebar p-4 rounded-lg border border-sidebar-border dark:bg-[#d7ab5f18] ${className || ''}`}>
       <TodoList />
 
-      {/*
       <Card className="border border-sidebar-border dark:bg-[#58442775]">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-sidebar-foreground">Goals</h3>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                  <Info className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Track your daily learning goals and maintain your study streak</p>
-              </TooltipContent>
-            </Tooltip>
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+              <Info className="h-4 w-4" />
+            </Button>
           </div>
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
@@ -52,23 +43,14 @@ export const DashboardSidebar = ({ enrollments, className }: DashboardSidebarPro
           </div>
         </CardContent>
       </Card>
-      */}
 
-      {/*
       <Card className="border border-sidebar-border dark:bg-[#58442775]">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold">Upcoming Deadlines</h3>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                  <Info className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>View your upcoming assignments and course deadlines</p>
-              </TooltipContent>
-            </Tooltip>
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+              <Info className="h-4 w-4" />
+            </Button>
           </div>
           <div className="space-y-3">
             {enrollments.length > 0 ? (
@@ -115,7 +97,6 @@ export const DashboardSidebar = ({ enrollments, className }: DashboardSidebarPro
           </div>
         </CardContent>
       </Card>
-      */}
     </div>
   );
 };

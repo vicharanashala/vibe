@@ -3,7 +3,7 @@ import {ILotItem} from '#root/shared/interfaces/quiz.js';
 
 import {ParameterMap} from '../../tag-parser/tags/Tag.js';
 
-export type ILotItemRenderView =ILotItem;
+export type ILotItemRenderView = Omit<ILotItem, 'explaination'>;
 
 interface IQuestionRenderView extends BaseQuestion {
   parameterMap?: ParameterMap;

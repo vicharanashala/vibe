@@ -1,18 +1,17 @@
 import {ParameterMap} from '#quizzes/question-processing/index.js';
-import {ID, ILotItem, IQuestion, IUser} from '#root/shared/index.js';
 import {ObjectId} from 'mongodb';
 
 interface ISOLAnswer {
-  lotItemId: string | ObjectId;
+  lotItemId: string;
 }
 
 interface ISMLAnswer {
-  lotItemIds: string[] | ObjectId[];
+  lotItemIds: string[];
 }
 
 interface IOrder {
   order: number;
-  lotItemId: string | ObjectId;
+  lotItemId: string;
 }
 
 interface IOTLAnswer {
@@ -35,8 +34,7 @@ export type Answer =
   | IDESAnswer;
 
 interface IQuestionAnswer {
-  questionId: string | ObjectId;
-  questionType: string;
+  questionId: string;
   answer: Answer;
 }
 
@@ -46,58 +44,8 @@ interface IAttempt {
   userId: string | ObjectId;
   questionDetails: IQuestionDetails[]; // List of question IDs in the quiz
   answers?: IQuestionAnswer[];
-  isSkipped?: boolean;
   createdAt: Date;
   updatedAt: Date;
-}
-
-interface IQuestionInfo {
-  _id?: string | ObjectId;
-  createdBy?: string | ObjectId;
-  text: string;
-  type: string;
-  isParameterized: boolean;
-  parameters?: ParameterMap;
-  hint?: string;
-  timeLimitSeconds: number;
-  points: number;
-  incorrectLotItems?: ILotItem[];
-  correctLotItems?: ILotItem[];
-  correctLotItem?: ILotItem;
-}
-
-interface IResponseAnswer {
-  questionId: string | ObjectId;
-  questionType: string;
-  answer: {
-    lotItemId?: string;
-    lotItemIds?: string[];
-    orders?: {
-      order: number;
-      lotItemId: string;
-    }[];
-    value?: number;
-    answerText?: string;
-  };
-  question: IQuestionInfo;
-}
-
-interface IAttemptExport {
-  _id?: string | ObjectId;
-  quizId: string | ObjectId;
-  userId: string | ObjectId;
-  user: IUser;
-  questionDetails: IQuestionInfo[];
-  answers: IResponseAnswer[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface IQuizSubmissionExport {
-  Name: string;
-  Question: string;
-  Response: string;
-  questionType: string;
 }
 
 interface IQuestionDetails {
@@ -111,12 +59,7 @@ interface IQuestionAnswerFeedback {
   score: number;
   answerFeedback?: string; // Optional feedback for the answer
 }
-interface IUserInfo {
-  _id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-}
+
 interface ISubmission {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
@@ -124,17 +67,6 @@ interface ISubmission {
   attemptId: string | ObjectId;
   submittedAt: Date;
   gradingResult?: IGradingResult; // Result of the grading process
-  cohortId?: ID;
-}
-interface ISubmissionWithUser extends Omit<ISubmission, 'userId'> {
-  userId: IUserInfo;
-}
-interface PaginatedSubmissions {
-  data: ISubmissionWithUser[];
-  totalCount: number;
-  currentPage: number;
-  totalPages: number;
-  message?: string;
 }
 
 interface IAttemptDetails {
@@ -146,13 +78,11 @@ interface IUserQuizMetrics {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
   userId: string | ObjectId;
-  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED' | 'SKIPPED';
+  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
   latestAttemptId?: string | ObjectId;
   latestSubmissionResultId?: string | ObjectId;
   remainingAttempts: number;
-  skipCount: number;
   attempts: IAttemptDetails[];
-  cohortId?: ID;
 }
 
 export interface IGradingResult {
@@ -257,10 +187,4 @@ export {
   IQuizSettings,
   IQuestionDetails,
   IQuestionAnswerFeedback,
-  ISubmissionWithUser,
-  PaginatedSubmissions,
-  IAttemptExport,
-  IQuizSubmissionExport,
-  IQuestionInfo,
-  IResponseAnswer,
 };

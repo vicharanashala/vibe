@@ -1,13 +1,7 @@
 import { injectable } from 'inversify';
 import { Request, Response } from 'express';
 
-interface Client {
-  jobId: string;
-  res: Response;
-  heartbeat: NodeJS.Timeout;
-}
-
-const SSE_HEARTBEAT_MS = 15000;
+interface Client { jobId: string; res: Response; }
 
 @injectable()
 export class SseService {
@@ -22,12 +16,7 @@ export class SseService {
     res.flushHeaders?.();
     res.write(': connected\n\n'); // optional initial comment
 
-    const heartbeat = setInterval(() => {
-      // Keep the SSE stream active so EventSource clients do not timeout.
-      res.write(': ping\n\n');
-    }, SSE_HEARTBEAT_MS);
-
-    this.clients.push({ jobId, res, heartbeat });
+    this.clients.push({ jobId, res });
 
     req.once('close', () => this.cleanup(res));
   }
@@ -42,10 +31,6 @@ export class SseService {
   }
 
   cleanup(res: Response) {
-    const client = this.clients.find(c => c.res === res);
-    if (client) {
-      clearInterval(client.heartbeat);
-    }
     this.clients = this.clients.filter(c => c.res !== res);
     res.end();
   }

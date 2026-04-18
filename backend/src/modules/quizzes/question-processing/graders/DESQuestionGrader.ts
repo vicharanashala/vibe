@@ -45,7 +45,7 @@ class DESQuestionGrader implements IGrader {
     // This is a dummy placeholder response
     return {
       status: 'PARTIAL',
-      score: Math.round(this.question.points), // temporary arbitrary logic
+      score: Math.round(this.question.points / 2), // temporary arbitrary logic
       feedback: 'Your answer was partially correct. LLM evaluation pending.',
     };
   }

@@ -4,32 +4,25 @@ import {ObjectId} from 'mongodb';
 
 class QuestionBank implements IQuestionBank {
   _id?: string | ObjectId;
-  courseId?: ID;
-  courseVersionId?: ID;
+  courseId?: string;
+  courseVersionId?: string;
   questions: ID[];
   tags?: string[];
   title: string;
   description: string;
-  points?: number;
   createdAt: Date;
   updatedAt: Date;
-  isDeleted?: boolean;
-  deletedAt?: Date;
 
   constructor(questionBank: Partial<IQuestionBank>) {
     this._id = questionBank._id ?? new ObjectId();
-    this.courseId = new ObjectId(questionBank.courseId) ?? undefined;
-    this.courseVersionId =
-      new ObjectId(questionBank.courseVersionId) ?? undefined;
+    this.courseId = questionBank.courseId ?? undefined;
+    this.courseVersionId = questionBank.courseVersionId ?? undefined;
     this.questions = questionBank.questions || [];
     this.tags = questionBank.tags || [];
     this.title = questionBank.title;
     this.description = questionBank.description;
-    this.points = questionBank.points;
     this.createdAt = questionBank.createdAt ?? new Date();
     this.updatedAt = questionBank.updatedAt ?? new Date();
-    this.isDeleted = false;
-    this.deletedAt = undefined;
   }
 }
 

@@ -62,8 +62,8 @@ async function createCourseWithModulesSectionsAndItems(
       name: allData.name,
       description: allData.description,
     })
-    .set('Authorization', 'userAdmin');
-  // .expect(201);
+    .set('Authorization', 'userAdmin')
+    // .expect(201);
   allData.courseId = courseRes.body._id;
 
   // Create Course Version
@@ -140,6 +140,7 @@ async function createCourseWithModulesSectionsAndItems(
           .send(itemData)
           .set('Authorization', 'userAdmin')
           .expect(201);
+        //   console.log(itemRes.body);
         //   .expect(201);
         expect(itemRes.statusCode).toBe(201);
         itemData.itemId = itemRes.body.itemsGroup.items[k]._id;

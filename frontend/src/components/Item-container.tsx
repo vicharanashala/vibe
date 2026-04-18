@@ -1,50 +1,26 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import Video from './video';
 import Quiz from './quiz';
+import { questionBankRef } from '@/types/quiz.types';
 import Article from './article';
-import ProjectItem from '../app/pages/teacher/components/ProjectItem';
 import type { ArticleRef } from "@/types/article.types";
-import type { QuizRef } from "@/types/quiz.types";
-import type { ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
-import FeedbackForm from '@/app/pages/student/components/FeedbackForm';
-import { useSubmitFeedback } from '@/hooks/hooks';
+import type { Item, ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
 
-export interface ISubmitFeedbackBody {
-  details: Record<string, any>;
-  courseId: string;
-  courseVersionId: string;
-  // isSkipped?: boolean;
-  cohortId?: string;
-}
-const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, nextItem, doGesture, onNext, onPrevVideo, isProgressUpdating, isNavigatingToPrev, readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson, keyboardLockEnabled, setIsQuizSkipped, linearProgressionEnabled, seekForwardEnabled, courseId, versionId, completedItemIdsRef, cohortId, cohortName, previousItem }, ref) => {
+const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson}, ref) => {
   const articleRef = useRef<ArticleRef>(null);
-  const quizRef = useRef<QuizRef>(null);
 
-  // ✅ Expose stop function to parent - handles both article and quiz
+  // ✅ Expose stop function to parent
   useImperativeHandle(ref, () => ({
-    stopCurrentItem: async () => {
+    stopCurrentItem: () => {
       if (articleRef.current) {
-        await articleRef.current.stopItem();
-      } else if (quizRef.current) {
-        await quizRef.current.stopItem();
+        articleRef.current.stopItem();
       }
-    },
-    getCurrentDetails: () => {
-      if (quizRef.current?.getCurrentDetails) {
-        return quizRef.current.getCurrentDetails();
-      }
-      return {};
     }
   }));
-  const submitFeedback = useSubmitFeedback(item._id.toString())
-
-  const handleFeedbackSubmit = async (formData: any) => {
-
-
-  };
 
   const renderContent = () => {
     const itemType = item.type.toLowerCase();
+
     switch (itemType) {
       case 'video':
         return <Video
@@ -54,25 +30,14 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           points={item.details?.points ? item.details.points : ''}
           doGesture={doGesture}
           onNext={onNext}
-          keyboardLockEnabled={keyboardLockEnabled}
           isProgressUpdating={isProgressUpdating}
           rewindVid={rewindVid || false}
           pauseVid={pauseVid || false}
-          readyToDetect={readyToDetect}
           anomalies={anomalies}
-          linearProgressionEnabled={linearProgressionEnabled}
-          seekForwardEnabled={seekForwardEnabled}
-          isCompleted={item.isCompleted || false}
-          isAlreadyWatched = {item.isAlreadyWatched || false}
-          completedItemIdsRef={completedItemIdsRef}
-          nextItemId={nextItem?.itemId?.toString()}
-          cohortId={cohortId}
-          cohortName={cohortName}
         />;
 
       case 'quiz':
         return <Quiz
-          ref={quizRef}
           questionBankRefs={item.details?.questionBankRefs || []}
           passThreshold={item.details?.passThreshold || 0}
           maxAttempts={item.details?.maxAttempts || 1}
@@ -83,7 +48,6 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           approximateTimeToComplete={item.details?.approximateTimeToComplete || ''}
           allowPartialGrading={item.details?.allowPartialGrading || false}
           allowHint={item.details?.allowHint || false}
-          allowSkip={item.details?.allowSkip || false}
           showCorrectAnswersAfterSubmission={item.details?.showCorrectAnswersAfterSubmission || false}
           showExplanationAfterSubmission={item.details?.showExplanationAfterSubmission || false}
           showScoreAfterSubmission={item.details?.showScoreAfterSubmission || false}
@@ -92,17 +56,11 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           onNext={onNext}
           onPrevVideo={onPrevVideo}
           isProgressUpdating={isProgressUpdating}
-          isNavigatingToPrev={isNavigatingToPrev}
           attemptId={attemptId}
           setAttemptId={setAttemptId}
           displayNextLesson={displayNextLesson}
           setQuizPassed={setQuizPassed}
           rewindVid={rewindVid}
-          setIsQuizSkipped={setIsQuizSkipped}
-          linearProgressionEnabled={linearProgressionEnabled}
-          isAlreadyWatched={item.isAlreadyWatched || false}
-          completedItemIdsRef={completedItemIdsRef}
-          nextItemId={nextItem?.itemId?.toString()}
         />;
 
       case 'article':
@@ -115,38 +73,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           points={item.details?.points || ''}
           onNext={onNext}
           isProgressUpdating={isProgressUpdating}
-          isAlreadyWatched={item.isAlreadyWatched || false}
-          completedItemIdsRef={completedItemIdsRef}
         />;
-
-      case 'project':
-        return <ProjectItem
-          item={{
-            _id: item._id,
-            name: item.name,
-            type: 'PROJECT',
-            description: item.details?.description || item.description || ''
-          }}
-          onSave={() => { }} // Not used in student view
-          onCancel={() => { }} // Not used in student view
-          isInstructor={false}
-          onNext={onNext}
-          isProgressUpdating={isProgressUpdating}
-        />;
-      case 'feedback':
-        return <FeedbackForm
-          title={item.name}
-          description={item.description}
-          isOptional={item.isOptional}
-          jsonSchema={item?.details?.jsonSchema}
-          uiSchema={item?.details?.uiSchema}
-          onSubmit={handleFeedbackSubmit}
-          isSubmitting={isProgressUpdating}
-          onNext={onNext}
-          isAlreadyWatched={item.isAlreadyWatched || false}
-          completedItemIdsRef={completedItemIdsRef}
-          previousItem = {previousItem}
-        />
 
       default:
         return (
@@ -158,7 +85,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
   };
 
   return (
-    <div className={`${item.type.toLowerCase()==="video" ? "h-[85vh]" : "h-full" } w-full overflow-auto`}>
+    <div className="h-full w-full overflow-auto">
       {renderContent()}
     </div>
   );

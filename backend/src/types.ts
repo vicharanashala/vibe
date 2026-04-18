@@ -12,13 +12,12 @@ const TYPES = {
 
   //Services
   MailService: Symbol.for('MailService'),
-  CourseVersionService: Symbol.for('CourseVersionService'),
   
   SettingRepo: Symbol.for('SettingRepo'),
 
   //Constants
   uri: Symbol.for('dbURI'),
-  dbName: Symbol.for('dbName'), 
+  dbName: Symbol.for('dbName'),
 };
 
 export {TYPES as GLOBAL_TYPES};

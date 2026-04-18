@@ -103,6 +103,7 @@ const Editor = () => {
     const serializeHTML = () => {
         const data = editor.getEditorValue();
         const htmlString = html.serialize(editor, data);
+        console.log('html string', htmlString);
         navigator.clipboard.writeText(htmlString)
     };
 
@@ -110,6 +111,7 @@ const Editor = () => {
     const serializeMarkdown = () => {
         const data = editor.getEditorValue();
         const markdownString = markdown.serialize(editor, data);
+        console.log('markdown string', markdownString);
         navigator.clipboard.writeText(markdownString)
     };
 
@@ -120,6 +122,7 @@ const Editor = () => {
   print(&quot;Hello World.&quot;)</code></pre><hr data-meta-theme="solid" data-meta-color="#EFEFEE" style="background-color: #8383e0; height: 1.2px" /><h2 data-meta-align="left" data-meta-depth="0" style="margin-left: 0px; text-align: left">This is new section</h2><blockquote data-meta-align="left" data-meta-depth="0" style="margin-left: 0px; text-align: left; border-left: 3px solid; color: #292929; padding: 2px 14px; margin-top: 8px;">This is a blockquote</blockquote><p data-meta-align="left" data-meta-depth="0" style="margin-left: 0px; text-align: left"></p></body>
         `;
         const content = html.deserialize(editor, htmlString);
+        console.log('content', content);
 
         editor.setEditorValue(content);
     };
@@ -136,6 +139,7 @@ const Editor = () => {
                 reader.onload = (e) => {
                     const markdownString = e.target?.result as string;
                     const content = markdown.deserialize(editor, markdownString);
+                    console.log('markdown content', content);
                     editor.setEditorValue(content);
                 };
                 reader.readAsText(file);
@@ -287,6 +291,7 @@ const Editor = () => {
 
     const toggleReadOnly = () => {
         setBIsReadOnly(!bIsReadOnly);
+        console.log('read only', bIsReadOnly);
     };
 
     return (

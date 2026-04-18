@@ -9,9 +9,8 @@ export const useAuthStore = create<AuthStore>()(
       user: null,
       token: localStorage.getItem('firebase-auth-token'),
       isAuthenticated: !!localStorage.getItem('firebase-auth-token'),
-      isAuthReady: false,
-
-      setUser: (user) => {
+      
+      setUser: (user) => {        
         set({ user, isAuthenticated: true });
       },
       setToken: (token) => {
@@ -20,6 +19,7 @@ export const useAuthStore = create<AuthStore>()(
       },
       clearUser: () => {
         localStorage.removeItem('firebase-auth-token');
+        // Clear backend user data from localStorage
         localStorage.removeItem('user-id');
         localStorage.removeItem('user-email');
         localStorage.removeItem('user-firstName');
@@ -29,23 +29,15 @@ export const useAuthStore = create<AuthStore>()(
       hasRole: (role) => {
         const user = get().user;
         if (!user || !user.role) return false;
-
+        
         if (Array.isArray(role)) {
           return role.includes(user.role);
         }
         return user.role === role;
-      },
-      setAuthReady: (ready) => {
-        set({ isAuthReady: ready });
       }
     }),
     {
       name: 'auth-store',
-      partialize: (state) => ({
-        user: state.user,
-        token: state.token,
-        isAuthenticated: state.isAuthenticated,
-      }),
     }
   )
 );
@@ -54,5 +46,6 @@ export const useAuthStore = create<AuthStore>()(
 useAuthStore.subscribe((state) => {
   if (state.token) {
     // Set token for API client (if needed beyond localStorage)
+    console.log('Auth token updated in store');
   }
 });

@@ -6,7 +6,6 @@ export interface Item {
   description?: string;
   type: string;
   order?: string;
-  isCompleted?: boolean;
   details?: {
     points?: string;
 
@@ -31,27 +30,19 @@ export interface Item {
     approximateTimeToComplete?: string;
     allowPartialGrading?: boolean;
     allowHint?: boolean;
-    allowSkip?: boolean;
     showCorrectAnswersAfterSubmission?: boolean;
     showExplanationAfterSubmission?: boolean;
     showScoreAfterSubmission?: boolean;
     quizId?: string;
-
-    // For Project
-    title?: string;
-    description?: string;
   };
-  isAlreadyWatched?: boolean;
 }
 
 export interface ItemContainerProps {
-
   item: Item;
   doGesture: boolean;
   onNext: () => void;
   onPrevVideo?: () => void;
   isProgressUpdating: boolean;
-  isNavigatingToPrev?: boolean;
   attemptId?: string;
   setAttemptId?: (attemptId: string) => void;
   rewindVid?: boolean;
@@ -59,27 +50,8 @@ export interface ItemContainerProps {
   displayNextLesson?: boolean;
   setQuizPassed?: (passed: number) => void; // Function to update quizPassed
   anomalies?: string[];
-  readyToDetect: boolean;
-  keyboardLockEnabled?: boolean;
-  setIsQuizSkipped: React.Dispatch<React.SetStateAction<boolean>>;
-  linearProgressionEnabled: boolean;
-  seekForwardEnabled: boolean;
-  courseId: string;
-  versionId: string;
-  completedItemIdsRef: React.RefObject<Set<string>>;
-  nextItem: {itemId:string};
-  cohortId?: string;
-  cohortname?: string;
-  previousItem?: object
 }
 
 export interface ItemContainerRef {
-  stopCurrentItem: () => Promise<void>;
-  getCurrentDetails?: () => { questionId?: string };
-}
-
-export type ItemMeta = {
-  itemId: string,
-  courseId: string,
-  courseVersionId: string,
+  stopCurrentItem: () => void;
 }

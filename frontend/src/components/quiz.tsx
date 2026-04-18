@@ -1,25 +1,21 @@
-import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useRef } from 'react';
+import { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion, ChevronDown } from "lucide-react";
-import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, CreateAttemptResponse, SaveQuizResponse, useSkipOptionalItem } from '@/hooks/hooks';
+import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye } from "lucide-react";
+import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem } from '@/hooks/hooks';
 import { useCourseStore } from "@/store/course-store";
 import MathRenderer from "./math-renderer";
 import { bufferToHex } from '@/utils/helpers';
 import type { QuizQuestion, QuizProps, QuizRef, questionBankRef, QuestionRenderView, SubmitQuizResponse } from "@/types/quiz.types";
 import { preprocessMathContent, preprocessRemoveFromOptions } from '@/utils/utils';
 import Loader from './Loader';
-import { Textarea } from './ui/textarea';
-import { error } from 'console';
-import { NavigatingOverlay } from './video';
 
 // Type for Order interface (if not defined elsewhere)
 interface Order {
@@ -36,7 +32,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   deadline,
   approximateTimeToComplete,
   allowHint,
-  allowSkip,
   showCorrectAnswersAfterSubmission,
   showExplanationAfterSubmission,
   showScoreAfterSubmission,
@@ -44,18 +39,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   doGesture = false,
   onNext,
   isProgressUpdating,
-  isNavigatingToPrev,
   attemptId,
   setAttemptId,
   displayNextLesson,
   onPrevVideo,
   setQuizPassed,
-  rewindVid,
-  setIsQuizSkipped,
-  linearProgressionEnabled,
-  isAlreadyWatched,
-  completedItemIdsRef,
-  nextItemId
+  rewindVid
 }, ref) => {
   // console.log('Quiz component rendered with props:', {});
   // ===== CORE STATE =====
@@ -69,20 +58,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [showHint, setShowHint] = useState(false);
   const [submissionResults, setSubmissionResults] = useState<SubmitQuizResponse | null>(null);
   const [dontStart, setDontStart] = useState(false);
-  const [isEmptyQuiz, setIsEmptyQuiz] = useState(false);
-  const [noAttemptsLeft, setNoAttemptsLeft] = useState(false);
-  //  const [explanationBox, setExplanationBox] = useState<{
-  //   open: boolean;
-  //   text: string;
-  //   result?: 'CORRECT' | 'INCORRECT' | 'PARTIALLY_CORRECT';
-  //   resolve?: () => void;
-  // }>({ open: false, text: "" });
-  // const [showExplanation, setShowExplanation] = useState(false)
-  const [failedRedirectCountdown, setFailedRedirectCountdown] = useState<number | null>(null);
-  const [openQuestionId, setOpenQuestionId] = useState<string | null>(null);
-  const [emptyQuizRedirectCountdown, setEmptyQuizRedirectCountdown] = useState<number | null>(null);
-  const emptyQuizNextTimerRef = useRef<ReturnType<typeof window.setTimeout> | undefined>(undefined);
-  const [finshingQuiz, setFinshingQuiz] = useState(false);
 
   // ===== REFS AND CONSTANTS =====
   const itemStartedRef = useRef(false);
@@ -91,60 +66,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   // ===== HOOKS =====
   const { currentCourse, setWatchItemId } = useCourseStore();
-  const { mutateAsync: attemptQuiz, isPending, error: attemptError, data: attemptData } = useAttemptQuiz();
-  const [attempts, setAttempts] = useState<number>(0);
+  const { mutateAsync: attemptQuiz, isPending, error: attemptError } = useAttemptQuiz();
   const { mutateAsync: submitQuiz, isPending: isSubmitting, error: submitError } = useSubmitQuiz();
   const { mutateAsync: saveQuiz, isPending: isSaving, error: saveError } = useSaveQuiz();
   const startItem = useStartItem();
   const stopItem = useStopItem();
-  const isStopping = stopItem.isPending;
-  const { mutateAsync: skipItemAsync } = useSkipOptionalItem();
-
-  const handleSkipItem = async () => {
-    if (!currentCourse?.itemId) return;
-    try {
-      await skipItemAsync({
-        params: {
-          path: { itemId: currentCourse.itemId },
-          query: { cohortId: currentCourse.cohortId ?? undefined },
-        },
-      });
-      completedItemIdsRef.current.add(currentCourse.itemId);
-      itemStartedRef.current = false;
-
-    } catch (error) {
-      console.error('Error skipping item:', error);
-      toast.error('Failed to skip item');
-    }
-  };
 
   // ===== UTILITY FUNCTIONS =====
-
-
-  //   function showExplanationBox(text: string, result?: 'CORRECT' | 'INCORRECT' | 'PARTIALLY_CORRECT') {
-  //   setShowExplanation(true)
-  //   return new Promise<void>((resolve) => {
-  //     setExplanationBox({
-  //       open: true,
-  //       text,
-  //       result,
-  //       resolve,
-  //     });
-  //     // AUTO-CLOSE after 3 seconds
-  //     setTimeout(() => {
-  //       setExplanationBox(prev => {
-  //         if (prev.open) {
-  //           prev.resolve?.();
-  //         }
-  //         setShowExplanation(false)
-  //         return { open: false, text: "" };
-  //       });
-  //     }, 3500);
-  //   });
-  // }
-
-
-
   const formatTime = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -154,7 +82,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const getTotalPoints = useCallback(() => {
     return quizQuestions.reduce((total, q) => total + q.points, 0);
   }, [quizQuestions]);
-  // console.log('converted questionssssssssssssssssssssssssss',converted)  
+
   const getQuestionTypeLabel = useCallback((type: string): string => {
     switch (type) {
       case 'SELECT_ONE_IN_LOT': return 'Single Select';
@@ -245,27 +173,11 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         case 'ORDER_THE_LOTS':
           if ('lotItems' in question) {
             // Map the backend lotItems to frontend format
-            // baseQuestion.lotItems = question.lotItems.map(item => ({
-
-            //   text: item.text,
-            //   explaination: item.explaination ||'', // This field doesn't exist in LotItem from API
-            //   _id: typeof item._id === 'string' ? item._id : item._id
-            // }));
-            baseQuestion.lotItems = question.lotItems.map(item => {
-              let optionId: string;
-
-              if (item._id && typeof item._id === 'object' && 'buffer' in item._id) {
-                optionId = bufferToHex(item._id);  // ✅ convert buffer to string
-              } else {
-                optionId = String(item._id);
-              }
-
-              return {
-                text: item.text,
-                explaination: item.explaination || '',
-                _id: optionId,
-              };
-            });
+            baseQuestion.lotItems = question.lotItems.map(item => ({
+              text: item.text,
+              explaination: '', // This field doesn't exist in LotItem from API
+              _id: typeof item._id === 'string' ? item._id : item._id
+            }));
             baseQuestion.options = question.lotItems.map(item => item.text);
           }
           break;
@@ -309,20 +221,20 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           value?: number;
           orders?: Order[];
         } = {};
-
-        /*if (!userAnswer&& typeof userAnswer !== 'number') {
+        
+        if (!userAnswer) {
           // Default values for empty answers
           saveAnswer.lotItemId = '111111111111111111111111';
-          //saveAnswer.lotItemIds = ['111111111111111111111111'];
-         // saveAnswer.answerText = 'a';
-         // saveAnswer.value = -1e40;
-         // saveAnswer.orders = [];
+          saveAnswer.lotItemIds = ['111111111111111111111111'];
+          saveAnswer.answerText = 'a';
+          saveAnswer.value = -1e40;
+          saveAnswer.orders = [];
           return {
             questionId: question.id,
             questionType: question.type,
             answer: saveAnswer
           };
-        }*/
+        }
 
         switch (question.type) {
           case 'SELECT_ONE_IN_LOT':
@@ -404,41 +316,35 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, [quizQuestions, answers]);
 
   // ===== COURSE ITEM TRACKING FUNCTIONS =====
-  const handleSendStartItem = useCallback(async (forceStart = false) => {
-    if (!currentCourse?.itemId) return currentCourse?.watchItemId;
-
-    let resolvedWatchItemId = currentCourse.watchItemId;
+  const handleSendStartItem = useCallback(async () => {
+    if (!currentCourse?.itemId) return;
     try {
-      if ((forceStart || !isAlreadyWatched) && currentCourse.itemId && !completedItemIdsRef.current.has(currentCourse.itemId)) {
-        const response = await startItem.mutateAsync({
-          params: {
-            path: {
-              courseId: currentCourse.courseId,
-              courseVersionId: currentCourse.versionId ?? '',
-            },
+      const response = await startItem.mutateAsync({
+        params: {
+          path: {
+            courseId: currentCourse.courseId,
+            courseVersionId: currentCourse.versionId ?? '',
           },
-          body: {
-            itemId: currentCourse.itemId,
-            moduleId: currentCourse.moduleId ?? '',
-            sectionId: currentCourse.sectionId ?? '',
-            cohortId: currentCourse.cohortId ?? '',
-          }
-        });
-
-        if (response?.watchItemId) {
-          setWatchItemId(response.watchItemId);
-          resolvedWatchItemId = response.watchItemId;
+        },
+        body: {
+          itemId: currentCourse.itemId,
+          moduleId: currentCourse.moduleId ?? '',
+          sectionId: currentCourse.sectionId ?? '',
         }
+      });
+
+      if (!response?.watchItemId) {
+        console.error('No watchItemId returned from startItem');
+        return;
       }
+      if (response?.watchItemId) setWatchItemId(response.watchItemId);
       itemStartedRef.current = true;
-      return resolvedWatchItemId;
     } catch (error) {
       console.error('Failed to start item:', error);
-      return resolvedWatchItemId;
     }
-  }, [currentCourse, startItem, setWatchItemId, isAlreadyWatched, completedItemIdsRef]);
+  }, [currentCourse, startItem, setWatchItemId]);
 
-  const handleStopItem = useCallback(async (isSkipped?: boolean) => {
+  const handleStopItem = useCallback(() => {
     if (!currentCourse?.itemId || !currentCourse.watchItemId) {
       itemStartedRef.current = false;
       return;
@@ -448,11 +354,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       return;
     }
 
-    if((isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId)) ){
-      return;
-    }
-
-    await stopItem.mutateAsync({
+    stopItem.mutate({
       params: {
         path: {
           courseId: currentCourse.courseId,
@@ -464,100 +366,11 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         itemId: currentCourse.itemId,
         moduleId: currentCourse.moduleId ?? '',
         sectionId: currentCourse.sectionId ?? '',
-        attemptId,
-        isSkipped,
-        nextItemId,
-        cohortId: currentCourse.cohortId ?? '',
+        attemptId: attemptId
       }
     });
-    completedItemIdsRef.current.add(currentCourse.itemId);
     itemStartedRef.current = false;
-  }, [currentCourse, stopItem, attemptId, isAlreadyWatched, completedItemIdsRef]);
-
-
-  const stopItemAsync = useCallback(
-    async (isSkipped?: boolean) => {
-      if (!currentCourse?.itemId || !currentCourse.watchItemId) {
-        itemStartedRef.current = false;
-        return;
-      }
-
-      if (!itemStartedRef.current) {
-        return;
-      }
-
-      await stopItem.mutateAsync({
-        params: {
-          path: {
-            courseId: currentCourse.courseId,
-            courseVersionId: currentCourse.versionId ?? '',
-          },
-        },
-        body: {
-          watchItemId: currentCourse.watchItemId,
-          itemId: currentCourse.itemId,
-          moduleId: currentCourse.moduleId ?? '',
-          sectionId: currentCourse.sectionId ?? '',
-          attemptId,
-          isSkipped,
-          nextItemId,
-          cohortId: currentCourse.cohortId ?? '',
-        },
-      });
-
-      itemStartedRef.current = false;
-    },
-    [currentCourse, stopItem, attemptId]
-  );
-
-  useEffect(() => {
-    return () => {
-      if (emptyQuizNextTimerRef.current) {
-        clearTimeout(emptyQuizNextTimerRef.current);
-      }
-    };
-  }, []);
-
-  // Handle empty quiz without attempting to start it
-  const handleEmptyQuiz = useCallback(async () => {
-    try {
-      // Set empty quiz states
-      setIsEmptyQuiz(true);
-      setQuizStarted(true);
-      setQuizCompleted(true);
-    } catch (error) {
-      console.error('Error handling empty quiz:', error);
-      toast.error('Error processing empty quiz. Please try refreshing.');
-    }
-  }, []);
-
-  useEffect(() => {
-    if (emptyQuizRedirectCountdown === null) return;
-    if (emptyQuizRedirectCountdown <= 0) {
-      setEmptyQuizRedirectCountdown(null);
-      return;
-    }
-    const timer = setTimeout(() => {
-      setEmptyQuizRedirectCountdown(prev => prev !== null ? prev - 1 : null);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [emptyQuizRedirectCountdown]);
-
-  // Handle empty quiz after quiz attempt was already made
-  const handleEmptyQuizAfterAttempt = useCallback(async () => {
-    try {
-      // Set empty quiz states
-      setIsEmptyQuiz(true);
-      setQuizStarted(true);
-      setQuizCompleted(true);
-      setQuizPassed?.(1);
-
-      toast.info('No questions available in this quiz.');
-    } catch (error) {
-      console.error('Error handling empty quiz after attempt:', error);
-      toast.error('Error processing empty quiz. Please try refreshing.');
-    }
-  }, [setQuizPassed]);
+  }, [currentCourse, stopItem, attemptId]);
 
   // ===== QUIZ LIFECYCLE FUNCTIONS =====
   const startQuiz = useCallback(async () => {
@@ -565,159 +378,61 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     if (quizAttemptedRef.current || quizStarted || isPending) {
       return;
     }
-
+    
     quizAttemptedRef.current = true;
-
+    
     try {
       // Remove previous stop call
       // if (itemStartedRef.current) {
       //   handleStopItem();
       // }
+
       // Create new quiz attempt
       const response = await attemptQuiz({
-        params: { path: { quizId: processedQuizId } },
-        body: { cohortId: currentCourse?.cohortId ?? '' }
-      }) as CreateAttemptResponse | { message: string };
-
-      // Check if we got a message about no attempts left
-      if ('message' in response) {
-        toast.error(response.message);
-
-        setQuizCompleted(true);
-        setQuizPassed?.(3);
-
-        const watchItemIdForStop = await handleSendStartItem(true);
-        if (currentCourse?.itemId && watchItemIdForStop) {
-          await stopItem.mutateAsync({
-            params: {
-              path: {
-                courseId: currentCourse.courseId,
-                courseVersionId: currentCourse.versionId ?? '',
-              },
-            },
-            body: {
-              watchItemId: watchItemIdForStop,
-              itemId: currentCourse.itemId,
-              moduleId: currentCourse.moduleId ?? '',
-              sectionId: currentCourse.sectionId ?? '',
-              attemptId,
-              isSkipped: true,
-              nextItemId,
-              cohortId: currentCourse.cohortId ?? '',
-            },
-          });
-          completedItemIdsRef.current.add(currentCourse.itemId);
-          itemStartedRef.current = false;
-        }
-
-        setNoAttemptsLeft(true);
-        return;
-      }
-
+        params: { path: { quizId: processedQuizId } }
+      });
+      
       const currentAttemptId = response.attemptId;
       setAttemptId?.(currentAttemptId);
-
+      
       // Convert backend questions to frontend format
       const convertedQuestions = convertBackendQuestions(response.questionRenderViews);
       setQuizQuestions(convertedQuestions);
-
-      // Check if quiz is empty (no questions available)
-      if (convertedQuestions.length === 0) {
-        console.log('Empty quiz detected after attempt - no questions returned');
-        // Handle empty quiz with completion and navigation
-        await handleEmptyQuizAfterAttempt();
-        return;
-      }
-
-      // Reset quiz state for non-empty quizzes
+      
+      // Reset quiz state
       setAnswers({});
       setQuizStarted(true);
       setCurrentQuestionIndex(0);
-      setIsEmptyQuiz(false);
-
+      
       // Set timer for first question if available
       if (convertedQuestions.length > 0 && convertedQuestions[0]?.timeLimit) {
         setTimeLeft(convertedQuestions[0].timeLimit);
       }
+      console.log('Quiz started successfully:', response);
 
       // Start tracking item
       await handleSendStartItem();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to start quiz:', err);
-
-      let errorMessage = 'Unknown error';
-      try {
-        errorMessage = err?.message || err?.error?.message || err?.response?.data?.message ||
-          (typeof err === 'string' ? err : JSON.stringify(err));
-      } catch {
-        errorMessage = 'Failed to start quiz';
-      }
-      if (errorMessage && (errorMessage.includes('No available attempts left') || errorMessage.includes('no available attempts'))) {
-        toast.info('You have used all available attempts for this quiz.');
-
-        try {
-          await handleSkipItem();
-        } catch (progressErr) {
-          console.error('Failed to update progress for exhausted quiz attempts:', progressErr);
-        }
-
-        setQuizStarted(true);
-        setNoAttemptsLeft(true);
-
-        return;
-      }
-
+      // Reset the flag on error so user can try again
       quizAttemptedRef.current = false;
-      toast.error('Failed to start quiz: ' + errorMessage);
     }
-  }, [attemptQuiz, processedQuizId, setAttemptId, convertBackendQuestions, handleSendStartItem, stopItem, currentCourse, attemptId, nextItemId, quizStarted, isPending]);
+  }, [attemptQuiz, processedQuizId, setAttemptId, convertBackendQuestions, handleSendStartItem, quizStarted, isPending]);
 
-  const completeQuiz = useCallback(async (isSkipped?: boolean) => {
+  const completeQuiz = useCallback(async () => {
     if (!attemptId) {
       console.error('No attempt ID available for submission');
       return;
     }
-    setFinshingQuiz(true);
-    try {
-      // For non-skipped quizzes, save all answers first, then submit
-      if (!isSkipped) {
-        try {
-          const answersForSaving = convertAnswersToSaveFormat();
-          await saveQuiz({
-            params: { path: { quizId: processedQuizId, attemptId: attemptId } },
-            body: { answers: answersForSaving, cohortId: currentCourse?.cohortId??'' }
-          });
-        } catch (saveErr) {
-          console.warn('Failed to save answers before submission:', saveErr);
-          toast.error('Failed to save answers before submission');
-          // Continue with submission even if save fails
-        }
-      }
 
+    try {
       const answersForSubmission = convertAnswersToSaveFormat();
       const response = await submitQuiz({
         params: { path: { quizId: processedQuizId, attemptId: attemptId } },
-        body: {
-          answers: answersForSubmission, isSkipped, courseId: currentCourse?.courseId,
-          courseVersionId: currentCourse?.versionId,
-          watchItemId: currentCourse?.watchItemId ?? undefined,
-          cohortId: currentCourse?.cohortId??''
-        }
+        body: { answers: answersForSubmission }
       });
 
-      // No response for skipped quiz!
-      if (!response) {
-        // ✅ Stop will be called by course-page.tsx via ref
-        setQuizCompleted(true);
-        setFinshingQuiz(false);
-        return;
-      }
-      // Convert the response to match the expected type
-      const formattedResponse: SubmitQuizResponse = {
-        ...response,
-        gradedAt: response.gradedAt ? new Date(response.gradedAt).toISOString() : undefined,
-      };
-      setSubmissionResults(formattedResponse);
+      setSubmissionResults(response);
 
       // Update score from server response if available
       if (showScoreAfterSubmission && response.totalScore !== undefined) {
@@ -734,84 +449,39 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         setScore(totalScore);
       }
 
-      // Only call stopItem for PASSED quizzes to mark them as completed
-      if (response.gradingStatus === 'PASSED') {
-        // console.log('Quiz passed - marking as completed');
-        try {
-          await handleStopItem(false);
-        } catch (stopError) {
-          console.error('Failed to update progress after quiz pass:', stopError);
-        }
-      }
-      completedItemIdsRef.current.add(processedQuizId);
-
       setQuizCompleted(true);
-      setFinshingQuiz(false);
+      handleStopItem();
     } catch (err) {
       console.error('Failed to submit quiz:', err);
-        setQuizCompleted(false);
-      setFinshingQuiz(false);
+      setQuizCompleted(true);
+      handleStopItem();
     }
-  }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem, saveQuiz]);
+  }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem]);
 
   const handleNextQuestion = useCallback(async () => {
     setTimeLeft(0);
 
-    //   if (attemptId && quizQuestions.length > 0) {
-    //   try {
-    //     const answersForSaving = convertAnswersToSaveFormat();
-    //     const response = await saveQuiz({
-    //       params: { path: { quizId: processedQuizId, attemptId: attemptId } },
-    //       body: { answers: answersForSaving }
-    //     });
-
-    //     // Use response explanation and result if available
-    //     if (response && response.explanation && response.explanation.trim() && response.explanation !== 'Nil') {
-    //       await showExplanationBox(response.explanation, response.result);
-    //     }
-    //   } catch (err: any) {
-    //     const errorMessage =
-    //       err?.message || (typeof err === 'string' ? err : null) ||
-    //       "Failed to save, try again!";
-    //     toast.error(errorMessage);
-    //     console.error('Failed to auto-save progress:', err);
-    //   }
-    // }
+    // Auto-save progress before moving to next question
+    if (attemptId && quizQuestions.length > 0) {
+      try {
+        const answersForSaving = convertAnswersToSaveFormat();
+        await saveQuiz({
+          params: { path: { quizId: processedQuizId, attemptId: attemptId } },
+          body: { answers: answersForSaving }
+        });
+      } catch (err) {
+        console.error('Failed to auto-save progress:', err);
+      }
+    }
 
     if (currentQuestionIndex < quizQuestions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
     } else {
       completeQuiz();
     }
-  }, [currentQuestionIndex, quizQuestions.length, completeQuiz, timeLeft, quizStarted]);
+  }, [currentQuestionIndex, quizQuestions.length, completeQuiz, attemptId, processedQuizId, saveQuiz, convertAnswersToSaveFormat]);
 
-  // Track attempts using the attempt data from the hook
-  useEffect(() => {
-    if (attemptData) {
-
-      // Update the attempt count when a new attempt is created
-      setAttempts(attemptData.userAttempts);
-    }
-  }, [attemptData]);
-
-  const handleSkipQuiz = useCallback(async () => {
-
-    // 1. if no attempt id return
-    if (!attemptId) return;
-    setIsQuizSkipped(true);
-    try {
-      // flag for skipping
-      const isSkipped = true;
-      // submit the quiz with isSkipped payload
-      completeQuiz(isSkipped);
-    } catch (error) {
-      setIsQuizSkipped(false);
-      console.error('Error during quiz skip:', error);
-    }
-  }, [attempts, processedQuizId, handleStopItem, onNext]);
-
-
-  const saveProgress = useCallback(async () => {     //one here
+  const saveProgress = useCallback(async () => {
     if (!attemptId || quizQuestions.length === 0) {
       console.error('No attempt ID or questions available for saving');
       return;
@@ -850,11 +520,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     setSubmissionResults(null);
     setShowHint(false);
     setTimeLeft(0);
-    setIsEmptyQuiz(false);
-    setNoAttemptsLeft(false);
     // Reset the attempt flag so quiz can be started again
     quizAttemptedRef.current = false;
-    setDontStart(false);
   }, [setAttemptId]);
 
   // ===== DRAG AND DROP HANDLERS =====
@@ -886,14 +553,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, [answers, currentQuestion, handleAnswer]);
 
   // ===== EFFECTS =====
-
   // Reset state when quiz ID changes
   useEffect(() => {
     resetQuiz();
   }, [processedQuizId, resetQuiz]);
 
   useEffect(() => {
-    if (rewindVid) {
+    if (rewindVid){
       onPrevVideo?.();
       resetQuiz();
       setQuizStarted(false);
@@ -906,14 +572,11 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       setSubmissionResults(null);
       setShowHint(false);
       setTimeLeft(0);
-      setIsEmptyQuiz(false);
-      setNoAttemptsLeft(false);
       quizAttemptedRef.current = false;
-    }
-  }, [rewindVid]);
+    }}, [rewindVid]);
 
   // Timer effect
-  useEffect(() => {
+   useEffect(() => {
     if (!quizStarted || quizCompleted || doGesture || timeLeft <= 0) return;
 
     const timer = setInterval(() => {
@@ -941,19 +604,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     setShowHint(false);
   }, [currentQuestionIndex]);
 
-  // Auto-start quiz for NO_DEADLINE type, but first check if quiz is empty
+  // Auto-start quiz for NO_DEADLINE type
   useEffect(() => {
-    if (!quizStarted && !quizCompleted && !isEmptyQuiz && !noAttemptsLeft && quizType === 'NO_DEADLINE' && quizQuestions.length === 0 && !isPending && !quizAttemptedRef.current && !dontStart) {
-      // Check if quiz has any question banks first to detect empty quizzes early
-      if (!questionBankRefs || questionBankRefs.length === 0) {
-        handleEmptyQuiz();
-      } else {
-        startQuiz();
-      }
+    if (!quizStarted && !quizCompleted && quizType === 'NO_DEADLINE' && quizQuestions.length === 0 && !isPending && !quizAttemptedRef.current && !dontStart) {
+      startQuiz();
       setDontStart(true);
     }
-  }, [quizType, quizStarted, quizCompleted, isEmptyQuiz, noAttemptsLeft, quizQuestions.length, isPending, dontStart, startQuiz, questionBankRefs]);
-
+  }, [quizType, quizStarted, quizCompleted, quizQuestions.length, isPending, dontStart]);
 
   useEffect(() => {
     if (quizCompleted) {
@@ -961,60 +618,19 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }
   }, [quizCompleted, dontStart]);
 
-  // Handle quiz completion for all quiz types
+  // Handle quiz completion for NO_DEADLINE type
   useEffect(() => {
-    if (quizCompleted && !isEmptyQuiz) {
-      console.log('Quiz completed, processing results...', {
-        gradingStatus: submissionResults?.gradingStatus,
-        quizType,
-        noAttemptsLeft,
-        passThreshold
-      });
-
-      // For no attempts left, proceed to next without showing pass/fail UI.
-      if (noAttemptsLeft) {
-        setQuizPassed?.(3);
-        setTimeout(() => {
-          setQuizCompleted(false);
-          onNext?.();
-        }, 1000);
-        return;
-      }
-
-      // For regular completion, check grading status to determine pass/fail
-      if (submissionResults?.gradingStatus === "PASSED") {
-        setQuizPassed?.(1);
-        setFailedRedirectCountdown(null); // Clear any countdown
-      } else if (submissionResults?.gradingStatus === "FAILED") {
-        setQuizPassed?.(0);
-        setFailedRedirectCountdown(10);
-      } else {
-        // Handle edge case where grading status is not available
-        // Default to failed if we can't determine the status
-        setQuizPassed?.(0);
-        setFailedRedirectCountdown(10);
-      }
-    }
-  }, [quizCompleted, quizType, submissionResults?.gradingStatus, setQuizPassed, onNext, onPrevVideo, noAttemptsLeft, isEmptyQuiz, passThreshold]);
-
-  useEffect(() => {
-    if (failedRedirectCountdown === null) return;
-
-    if (failedRedirectCountdown <= 0) {
+    if (quizCompleted && quizType === 'NO_DEADLINE') {
       setQuizCompleted(false);
-      setFailedRedirectCountdown(null);
-      onPrevVideo?.();
-      return;
+      if (submissionResults?.gradingStatus !== "FAILED") {
+        setQuizPassed?.(1);
+        onNext?.();
+      } else {
+        setQuizPassed?.(0);
+        onPrevVideo?.();
+      }
     }
-
-    const timer = setTimeout(() => {
-      setFailedRedirectCountdown(prev => prev !== null ? prev - 1 : null);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [failedRedirectCountdown, onPrevVideo]);
-
-
+  }, [quizCompleted, quizType, submissionResults?.gradingStatus, setQuizPassed, onNext, onPrevVideo]);
 
   // Cleanup effect
   useEffect(() => {
@@ -1026,66 +642,23 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     };
   }, [handleStopItem]);
 
-  // Early detection for empty quizzes (all types)
-  // useEffect(() => {
-  //   if (!quizStarted && !quizAttemptedRef.current && !isEmptyQuiz && !noAttemptsLeft && !isPending) {
-  //     if (!questionBankRefs || questionBankRefs.length === 0) {
-  //       quizAttemptedRef.current = true; // Prevent other start attempts
-  //       handleEmptyQuiz();
-  //     }
-  //   }
-  // }, [questionBankRefs, quizStarted, isEmptyQuiz, noAttemptsLeft, isPending, handleEmptyQuiz]);
-
   // ===== IMPERATIVE HANDLE =====
   useImperativeHandle(ref, () => ({
-    stopItem: async () => {
-      if (!currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
-      if( isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId) ){
-        return;
-      }
-      try {
-        await stopItem.mutateAsync({
-          params: {
-            path: {
-              courseId: currentCourse.courseId,
-              courseVersionId: currentCourse.versionId ?? '',
-            },
-          },
-          body: {
-            watchItemId: currentCourse.watchItemId,
-            itemId: currentCourse.itemId,
-            moduleId: currentCourse.moduleId ?? '',
-            sectionId: currentCourse.sectionId ?? '',
-            attemptId,
-            isSkipped: false,
-            nextItemId,
-            cohortId: currentCourse.cohortId ?? '',
-          }
-        });
-        itemStartedRef.current = false;
-        completedItemIdsRef.current.add(currentCourse.itemId);
-      } catch (error: any) {
-        console.error('❌ Quiz stopItem error:', error);
-        throw error; // Re-throw for parent to catch
-      }
-    },
+    stopItem: handleStopItem,
     cleanup: () => {
+      // Remove the stop call here too
+      // if (itemStartedRef.current) {
+      //   handleStopItem();
+      // }
       resetQuiz();
-    },
-    getCurrentDetails: () => {
-      return {
-        questionId: currentQuestion?.id
-      };
     }
-  }), [stopItem, currentCourse, attemptId, resetQuiz, currentQuestion]);
+  }), [handleStopItem, resetQuiz]);
 
   // ===== RENDER LOGIC =====
-
-
   // Quiz not started
-
   if (!quizStarted) {
-    if (quizType === 'DEADLINE') {
+    // console.log("QUIZTYPE:", quizType);
+    if (quizType === 'DEADLINE'){
       return (
         <div className="mx-auto space-y-8">
           <Card className="border-2 border-primary/20 bg-gradient-to-br from-background to-muted/50">
@@ -1234,120 +807,16 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader />
           <span
-            className='text-lg text-muted-foreground ml-4'
+          className='text-lg text-muted-foreground ml-4'
           > Loading quiz...</span>
         </div>
       );
     }
 
   }
+
   // Quiz completed
   if (quizCompleted) {
-    // Special handling for empty quiz
-    if (isEmptyQuiz) {
-      return (
-        <Card className="mx-auto">
-          <CardContent className="p-8 text-center space-y-6">
-            <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center mx-auto">
-              <FileQuestion className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-            </div>
-            <h3 className="text-2xl font-semibold text-foreground">
-              No questions available in this quiz.
-            </h3>
-            {/* Live countdown timer for empty quizzes */}
-            {emptyQuizRedirectCountdown !== null && (
-              <p className="mt-2 text-md text-primary font-medium animate-pulse">
-                Moving to next item in {emptyQuizRedirectCountdown} second{emptyQuizRedirectCountdown !== 1 ? 's' : ''}...
-              </p>
-            )}
-            {/* Action Buttons - side by side */}
-            <div className="pt-4 flex flex-col items-center gap-3">
-              <div className="flex flex-wrap justify-center gap-3">
-                {/* Rewatch Video Button - always available */}
-                {onPrevVideo && (
-                  <Button
-                    onClick={() => {
-                      // setQuizCompleted(false);
-                      clearTimeout(emptyQuizNextTimerRef.current);
-                      setEmptyQuizRedirectCountdown(null);
-                      onPrevVideo();
-                    }}
-                    disabled={isProgressUpdating}
-                    variant="outline"
-                    className="min-w-[180px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
-                    size="lg"
-                  >
-                    {isNavigatingToPrev ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2" />
-                        Processing
-                      </>
-                    ) : (
-                      <>
-                        <ChevronLeft className="h-4 w-4 mr-2" />
-                        Rewatch Video
-                      </>
-                    )}
-                  </Button>
-                )}
-                {/* Next Lesson Button-If user doesn't want to wait*/}
-                {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
-                  <Button
-                    onClick={async ()=>{
-                        if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
-                          await handleSkipItem();
-                        }
-                        if(onNext){
-                        onNext();
-                        }
-                      }
-                    }
-                    disabled={isProgressUpdating}
-                    className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
-                    size="lg"
-                  >
-                    {isProgressUpdating ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
-                        Processing
-                      </>
-                    ) : (
-                      <>
-                        Next Lesson
-                        <ChevronRight className="h-4 w-4 ml-2" />
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    // Special handling for no attempts left
-    if (noAttemptsLeft) {
-      return (
-        <Card className="mx-auto">
-          <CardContent className="p-8 text-center space-y-6">
-            <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center mx-auto">
-              <AlertCircle className="w-8 h-8 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div className="space-y-3">
-              <h3 className="text-2xl font-semibold text-foreground">Quiz Completed</h3>
-              <p className="text-muted-foreground text-lg">
-                No attempts remaining for this quiz. Moving to next item...
-              </p>
-            </div>
-            <div className="flex justify-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
-            </div>
-          </CardContent>
-        </Card>
-      );
-    }
-
     return (
       <Card className="mx-auto">
         <CardHeader className="text-center">
@@ -1375,102 +844,35 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               {submissionResults?.gradingStatus && (
                 <Badge
                   variant={
-                    submissionResults.gradingStatus === 'PASSED' ? 'success' :
+                    submissionResults.gradingStatus === 'PASSED' ? 'default' :
                       submissionResults.gradingStatus === 'FAILED' ? 'destructive' :
                         'secondary'
                   }
-                  className="text-lg px-4 py-2 mx-2"
+                  className="text-lg px-4 py-2"
                 >
                   {submissionResults.gradingStatus === 'PASSED' && '🎉 Passed!'}
-                  {submissionResults.gradingStatus === 'FAILED' && 'Attempt Unsuccessful'}
+                  {submissionResults.gradingStatus === 'FAILED' && 'Failed - Try Again'}
                   {submissionResults.gradingStatus === 'PENDING' && '⏳ Pending Review'}
                 </Badge>
               )}
               {(submissionResults?.totalScore === submissionResults?.totalMaxScore) && (
-                <Badge variant="success" className="text-lg px-4 py-2 from-primary to-chart-2 mx-2">
+                <Badge variant="default" className="text-lg px-4 py-2 bg-gradient-to-r from-primary to-chart-2 text-primary-foreground">
                   Perfect Score! 🎉
                 </Badge>
               )}
-
-              {/* Action Buttons - side by side */}
-              <div className="pt-4 flex flex-col items-center gap-3">
-                <div className="flex flex-wrap justify-center gap-3">
-                  {/* Rewatch Video Button - always available */}
-                  {onPrevVideo && (
-                    <Button
-                      onClick={() => {
-                        setQuizCompleted(false);
-                        setFailedRedirectCountdown(null);
-                        onPrevVideo();
-                      }}
-                      disabled={isProgressUpdating}
-                      variant="outline"
-                      className="min-w-[180px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
-                      size="lg"
-                    >
-                      {isNavigatingToPrev ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2" />
-                          Processing
-                        </>
-                      ) : (
-                        <>
-                          <ChevronLeft className="h-4 w-4 mr-2" />
-                          Rewatch Video
-                        </>
-                      )}
-                    </Button>
-                  )}
-
-                  {/* Next Lesson Button - only for passed quizzes */}
-                  {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
-                    <Button
-                      onClick={onNext}
-                      disabled={isProgressUpdating}
-                      className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
-                      size="lg"
-                    >
-                      {isProgressUpdating ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
-                          Processing
-                        </>
-                      ) : (
-                        <>
-                          Next Lesson
-                          <ChevronRight className="h-4 w-4 ml-2" />
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-
-                {/* Live countdown timer for failed quizzes */}
-                {failedRedirectCountdown !== null && (
-                  <p className="text-sm text-destructive font-medium animate-pulse">
-                    Auto-redirecting in {failedRedirectCountdown} second{failedRedirectCountdown !== 1 ? 's' : ''}...
-                  </p>
-                )}
-              </div>
             </div>
           )}
 
           <Separator />
 
-          {/* Question Details with scrollable container */}
           <div>
             <h3 className="text-xl font-semibold mb-4">Question Details</h3>
-            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+            <div className="space-y-3">
               {quizQuestions.map((question, index) => {
                 const userAnswer = answers[question.id];
                 const hasAnswer = userAnswer !== undefined && userAnswer !== null && userAnswer !== '';
                 const questionFeedback = submissionResults?.overallFeedback?.find(
-                  feedback => {
-                    const fbId = typeof feedback.questionId === 'object' && feedback.questionId !== null && 'buffer' in feedback.questionId
-                      ? bufferToHex(feedback.questionId as any)
-                      : String(feedback.questionId);
-                    return fbId === question.id;
-                  }
+                  feedback => feedback.questionId === question.id
                 );
 
                 return (
@@ -1484,192 +886,103 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                             ? 'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/20'
                             : 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/20'
                         : hasAnswer
-                          ? 'border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-950/20'
+                          ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20'
                           : 'border-gray-200'
                     }
                   >
-                    <CardContent className="px-4 py-2">
-                      <div
-                        className="flex items-center justify-between cursor-pointer select-none"
-                        onClick={() =>
-                          setOpenQuestionId(openQuestionId === question.id ? null : question.id)
-                        }
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <Badge variant="outline">
-                              Q{index + 1}: {getQuestionTypeLabel(question.type)}
-                            </Badge>
-                            {questionFeedback && (
-                              <Badge variant={
-                                questionFeedback.status === 'CORRECT' ? 'default' :
-                                  questionFeedback.status === 'PARTIAL' ? 'secondary' :
-                                    'destructive'
-                              }>
-                                {questionFeedback.status === 'CORRECT' ? '✓ Correct' :
-                                  questionFeedback.status === 'PARTIAL' ? '◐ Partial' :
-                                    '✗ Incorrect'}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <div className='flex justify-center items-center'>
-                          <Badge variant={
-                            questionFeedback
-                              ? questionFeedback.status === 'CORRECT' ? 'default' : 'destructive'
-                              : hasAnswer ? 'secondary' : 'destructive'
-                          }>
-                            {showScoreAfterSubmission && questionFeedback
-                              ? `${questionFeedback.score}/${question.points} Points`
-                              : hasAnswer ? `+${question.points}` : '0'
-                            }
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <Badge variant="outline">
+                            Q{index + 1}: {getQuestionTypeLabel(question.type)}
                           </Badge>
-                          <ChevronDown className={`w-5 h-5 ml-5 transition-transform ${openQuestionId === question.id ? 'rotate-180' : ''}`} />
+                          {questionFeedback && (
+                            <Badge variant={
+                              questionFeedback.status === 'CORRECT' ? 'default' :
+                                questionFeedback.status === 'PARTIAL' ? 'secondary' :
+                                  'destructive'
+                            }>
+                              {questionFeedback.status === 'CORRECT' ? '✓ Correct' :
+                                questionFeedback.status === 'PARTIAL' ? '◐ Partial' :
+                                  '✗ Incorrect'}
+                            </Badge>
+                          )}
                         </div>
+                        <Badge variant={
+                          questionFeedback
+                            ? questionFeedback.status === 'CORRECT' ? 'default' : 'destructive'
+                            : hasAnswer ? 'default' : 'destructive'
+                        }>
+                          {showScoreAfterSubmission && questionFeedback
+                            ? `${questionFeedback.score}/${question.points} Points`
+                            : hasAnswer ? `+${question.points}` : '0'
+                          }
+                        </Badge>
                       </div>
-                      {openQuestionId === question.id && (<>
-                        <p className="text-sm text-muted-foreground my-3 ml-2">
-                          <MathRenderer>
-                            {preprocessMathContent(question.question)}
-                          </MathRenderer>
-                        </p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        <MathRenderer>
+                          {preprocessMathContent(question.question)}
+                        </MathRenderer>
+                      </p>
 
-                        {/* Show user's answer if any */}
-                        {hasAnswer && (
-                          <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
-                            <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                              Your Answer: {formatUserAnswer(question, userAnswer)}
-                            </p>
-                          </div>
-                        )}
-                        {/* Show correct answers if enabled and available */}
-                        {showCorrectAnswersAfterSubmission && questionFeedback && (
-                          <div className="mt-3 p-2 bg-green-50 dark:bg-green-950/20 rounded">
-                            <p className="text-sm font-medium text-green-700 dark:text-green-300">
-                              Status: {questionFeedback.status}
-                            </p>
-                          </div>
-                        )}
-                        {/* Show explanation if enabled and available */}
-                        {showExplanationAfterSubmission && questionFeedback?.answerFeedback && (
-                          <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-950/20 rounded">
-                            <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                              <strong>Explanation:</strong> {questionFeedback.answerFeedback}
-                            </p>
-                          </div>
-                        )}
-                      </>)}
+                      {/* Show user's answer if any */}
+                      {hasAnswer && (
+                        <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                          <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                            Your Answer: {formatUserAnswer(question, userAnswer)}
+                          </p>
+                        </div>
+                      )}
+                      {/* Show correct answers if enabled and available */}
+                      {showCorrectAnswersAfterSubmission && questionFeedback && (
+                        <div className="mt-3 p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                          <p className="text-sm font-medium text-green-700 dark:text-green-300">
+                            Status: {questionFeedback.status}
+                          </p>
+                        </div>
+                      )}
+                      {/* Show explanation if enabled and available */}
+                      {showExplanationAfterSubmission && questionFeedback?.answerFeedback && (
+                        <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-950/20 rounded">
+                          <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                            <strong>Explanation:</strong> {questionFeedback.answerFeedback}
+                          </p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 );
               })}
             </div>
           </div>
-        </CardContent>
-      </Card>
-    );
-  }
 
-  if(quizStarted && noAttemptsLeft){
-    return (
-      <Card className="mx-auto">
-        <CardContent className="p-8 text-center space-y-6">
-          <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center mx-auto">
-            <FileQuestion className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-          </div>
-          <h3 className="text-2xl font-semibold text-foreground">
-            No attempts remaining for this quiz.
-          </h3>
-          {/* Action Buttons - side by side */}
-          <div className="pt-4 flex flex-col items-center gap-3">
-            <div className="flex flex-wrap justify-center gap-3">
-              {/* Rewatch Video Button - always available */}
-              {onPrevVideo && (
-                <Button
-                  onClick={() => {
-                    setNoAttemptsLeft(false);
-                    setQuizStarted(false);
-                    onPrevVideo();
-                  }}
-                  disabled={isProgressUpdating}
-                  variant="outline"
-                  className="min-w-[180px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
-                  size="lg"
-                >
-                  {isNavigatingToPrev ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2" />
-                      Processing
-                    </>
-                  ) : (
-                    <>
-                      <ChevronLeft className="h-4 w-4 mr-2" />
-                      Rewatch Video
-                    </>
-                  )}
-                </Button>
-              )}
-              {/* Next Lesson Button-If user doesn't want to wait*/}
-              {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
-                <Button
-                  onClick={async ()=>{
-                      if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
-                        await handleSkipItem();
-                      }
-                      setQuizStarted(false);
-                      setNoAttemptsLeft(false);
-                      if(onNext){
-                        onNext();
-                      }
-                    }
-                  }
-                  disabled={isProgressUpdating}
-                  className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
-                  size="lg"
-                >
-                  {isProgressUpdating ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
-                      Processing
-                    </>
-                  ) : (
-                    <>
-                      Next Lesson
-                      <ChevronRight className="h-4 w-4 ml-2" />
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Empty quiz detected
-  if (isEmptyQuiz && quizStarted) {
-    return (
-      <Card className="mx-auto">
-        <CardContent className="p-8 text-center space-y-6">
-          <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center mx-auto">
-            <AlertCircle className="w-8 h-8 text-amber-600 dark:text-amber-400" />
-          </div>
-          <div className="space-y-3">
-            <h3 className="text-2xl font-semibold text-foreground">No Questions Found</h3>
-            <p className="text-muted-foreground text-lg">
-              This quiz doesn't contain any questions at the moment.
-            </p>
-          </div>
-          {onNext && (
-            <div className="pt-4">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-4 pt-4">
+            {onPrevVideo && (
               <Button
-                onClick={() => {
-                  handleSkipItem();
-                  onNext();
-                }}
+                onClick={onPrevVideo}
                 disabled={isProgressUpdating}
-                className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
+                variant="outline"
+                size="lg"
+                className="min-w-[220px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
+              >
+                <ChevronLeft className="h-5 w-5 mr-3" />
+                Rewatch Previous Video
+              </Button>
+            )}
+            <Button
+              onClick={resetQuiz}
+              variant="outline"
+              size="lg"
+              className="min-w-[220px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Retake Quiz
+            </Button>
+            {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
+              <Button
+                onClick={onNext}
+                disabled={isProgressUpdating}
+                className="min-w-[220px] h-12 text-lg font-semibold ml-0 md:ml-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
                 size="lg"
               >
                 {isProgressUpdating ? (
@@ -1684,8 +997,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   </>
                 )}
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
     );
@@ -1704,42 +1017,20 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   return (
     <Card className="mx-auto">
-      {isStopping && (
-        <div
-          className="absolute inset-0 z-40 cursor-not-allowed"
-          style={{ pointerEvents: 'all' }}
-        />
-      )}
-      <NavigatingOverlay
-        visible={isStopping}
-        title="Verifying answers"
-        message="Please wait while we submit and validate your responses…"
-      />
       <CardHeader>
         <div className="flex justify-between items-center">
           <Badge variant="outline">
             Question {currentQuestionIndex + 1} of {quizQuestions.length}
           </Badge>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-sm">
-              {maxAttempts === -1 ? `Attempt ${attempts || 0 + 1}` :
-                `Attempt ${attempts || 0 + 1} of ${maxAttempts}`}
+          {timeLeft > 0 && (
+            <Badge
+              variant="secondary"
+              className={`font-mono text-lg px-3 py-2 ${timeLeft <= 10 ? 'bg-destructive/20 text-destructive animate-pulse border-destructive/50' : ''}`}
+            >
+              <Clock className="mr-2 h-4 w-4" />
+              {formatTime(timeLeft)}
             </Badge>
-            {timeLeft > 0 && (
-              <Badge
-                variant="secondary"
-                className={`font-mono text-lg font-semibold px-3 py-2 border
-                  ${timeLeft <= 10
-                    ? 'bg-destructive text-destructive-foreground border-destructive ring-2 ring-destructive/60 animate-pulse'
-                    : 'bg-muted text-foreground border-border'
-                  }
-                `}
-              >
-                <Clock className="mr-2 h-4 w-4" />
-                {formatTime(timeLeft)}
-              </Badge>
-            )}
-          </div>
+          )}
         </div>
         <Progress
           value={((currentQuestionIndex + 1) / quizQuestions.length) * 100}
@@ -1763,14 +1054,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             </Badge>
           </div>
           <h2 className="text-2xl font-semibold leading-tight">
-            {/* <MathRenderer>
-              {preprocessMathContent(currentQuestion.question.replace(/\\n/g, '\n'))}
-            </MathRenderer> */}
-            <div className="whitespace-pre-wrap">
-              <MathRenderer>
-                {preprocessMathContent(currentQuestion.question.replace(/\\n/g, '\n'))}
-              </MathRenderer>
-            </div>
+            <MathRenderer>
+              {preprocessMathContent(currentQuestion.question)}
+            </MathRenderer>
           </h2>
           {/* Hint section with reveal button */}
           {allowHint && currentQuestion.hint && (
@@ -1793,26 +1079,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               )}
             </div>
           )}
-          {/* 
-          {explanationBox.open && (
-            <div className={`mb-4 p-3 rounded-lg animate-in fade-in ${explanationBox.result === 'CORRECT'
-              ? 'bg-green-100 dark:bg-green-950/20 text-green-900 dark:text-green-100 border border-green-300 dark:border-green-800'
-              : 'bg-red-100 dark:bg-red-950/20 text-red-900 dark:text-red-100 border border-red-300 dark:border-red-800'
-              }`}>
-              <p className="text-sm leading-relaxed">{explanationBox.text}</p>
 
-              {/* OPTIONAL Next Button */}
-          {/* <button
-      className="mt-2 px-3 py-1 rounded bg-green-600 text-white text-sm"
-      onClick={() => {
-        explanationBox.resolve?.();
-        setExplanationBox({ open: false, text: "" });
-      }}
-    >
-      Next →
-    </button> */}
-          {/* </div>
-          )} */}
           {/* Single Select (SELECT_ONE_IN_LOT) */}
           {currentQuestion.type === 'SELECT_ONE_IN_LOT' && currentQuestion.options && (
             <RadioGroup
@@ -1875,8 +1142,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           {currentQuestion.type === 'DESCRIPTIVE' && (
             <div className="space-y-2">
               <Label htmlFor={`descriptive-answer-${currentQuestion.id}`}>Your Answer</Label>
-              <Textarea
+              <Input
                 id={`descriptive-answer-${currentQuestion.id}`}
+                type="text"
                 value={(answers[currentQuestion.id] as string) || ''}
                 onChange={(e) => handleAnswer(e.target.value)}
                 placeholder="Type your answer here"
@@ -1893,17 +1161,16 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 id={`numerical-answer-${currentQuestion.id}`}
                 type="number"
                 step={currentQuestion.decimalPrecision ? `0.${'0'.repeat(currentQuestion.decimalPrecision - 1)}1` : 'any'}
-                value={(answers[currentQuestion.id] as number) || 0}
+                value={(answers[currentQuestion.id] as number) || ''}
                 onChange={(e) => handleAnswer(parseFloat(e.target.value) || 0)}
                 placeholder="Enter a number"
                 className="text-lg"
               />
-              {currentQuestion.decimalPrecision !== undefined &&
-                currentQuestion.decimalPrecision > 0 && (
-                  <p className="text-xs">
-                    Decimal precision: {currentQuestion.decimalPrecision} places
-                  </p>
-                )}
+              {currentQuestion.decimalPrecision && (
+                <p className="text-xs">
+                  Decimal precision: {currentQuestion.decimalPrecision} places
+                </p>
+              )}
             </div>
           )}
 
@@ -1940,19 +1207,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         <Separator />
 
         {/* Navigation */}
-        <div className="flex justify-between items-center">
-          {/* Skip button (shown after 5 attempts) */}
-          {(attempts >= 5 && allowSkip == true) && (
-            <Button
-              // variant="outline"
-              onClick={handleSkipQuiz}
-              // className="text-white hover:text-background/90 hover:bg-foreground/10"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Skipping...' : 'Skip Quiz'}
-            </Button>
-          )}
-
+        <div className="flex justify-end">
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -1971,7 +1226,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
             <Button
               onClick={handleNextQuestion}
-              disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id]) || isSubmitting || finshingQuiz}
+              disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id]) || isSubmitting}
             >
               {isSubmitting ? (
                 <>
@@ -1988,47 +1243,25 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           </div>
         </div>
 
-
-
-
-
         {/* Show save error if any */}
-        {/* {saveError && !submitError && (
+        {saveError && (
           <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
             <p className="text-sm text-yellow-700 dark:text-yellow-300">
               <strong>Save Error:</strong> {saveError}
             </p>
           </div>
-        )} */}
+        )}
 
         {/* Show submission error if any */}
-        {/* {submitError && currentQuestionIndex === quizQuestions.length - 1 && (
+        {submitError && currentQuestionIndex === quizQuestions.length - 1 && (
           <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
             <p className="text-sm text-red-700 dark:text-red-300">
               <strong>Submission Error:</strong> {submitError}
             </p>
           </div>
-        )} */}
-
-        {((submitError && currentQuestionIndex === quizQuestions.length - 1) || saveError) && (
-          <div className="mt-4 p-3 rounded-lg border bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
-            <p className="text-sm text-red-700 dark:text-red-300">
-              {saveError ? (
-                <>
-                  <strong>Save Error:</strong> {saveError}
-                </>
-              ) : submitError ? (
-                submitError
-              ) : (
-                'An error occurred.'
-              )}
-            </p>
-          </div>
         )}
       </CardContent>
     </Card>
-
-
   );
 });
 

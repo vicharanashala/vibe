@@ -1,17 +1,16 @@
 import {QuestionBank} from '#quizzes/classes/transformers/QuestionBank.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
-import {ForbiddenError, NotFoundError} from 'routing-controllers';
+import {NotFoundError} from 'routing-controllers';
 import {QUIZZES_TYPES} from '../types.js';
 import {COURSES_TYPES} from '#courses/types.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository.js';
 import {QuestionRepository} from '../repositories/providers/mongodb/QuestionRepository.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {CourseRepository} from '#root/shared/database/providers/mongo/repositories/CourseRepository.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {IQuestionBank} from '#root/shared/interfaces/quiz.js';
 import {IQuestionBankRef} from '#root/shared/interfaces/models.js';
-import {ClientSession, ObjectId} from 'mongodb';
 
 @injectable()
 class QuestionBankService extends BaseService {
@@ -23,7 +22,7 @@ class QuestionBankService extends BaseService {
     private readonly questionRepository: QuestionRepository,
 
     @inject(GLOBAL_TYPES.CourseRepo)
-    private readonly courseRepository: ICourseRepository,
+    private readonly courseRepository: CourseRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
@@ -31,36 +30,27 @@ class QuestionBankService extends BaseService {
     super(database);
   }
 
-  async create(questionBank: QuestionBank): Promise<string> {
+  public async create(questionBank: QuestionBank): Promise<string> {
     return this._withTransaction(async session => {
       if (questionBank.courseId) {
         const course = await this.courseRepository.read(
-          questionBank.courseId.toString(),
+          questionBank.courseId,
           session,
         );
         if (!course) {
           throw new NotFoundError(
-            `Course with ID ${questionBank.courseId.toString()} not found`,
+            `Course with ID ${questionBank.courseId} not found`,
           );
         }
       }
       if (questionBank.courseVersionId) {
         const courseVersion = await this.courseRepository.readVersion(
-          questionBank.courseVersionId.toString(),
+          questionBank.courseVersionId,
           session,
         );
         if (!courseVersion) {
           throw new NotFoundError(
-            `Course version with ID ${questionBank.courseVersionId.toString()} not found`,
-          );
-        }
-        const versionStatus =
-          await this.courseRepository.getCourseVersionStatus(
-            questionBank.courseVersionId.toString(),
-          );
-        if (versionStatus === 'archived') {
-          throw new ForbiddenError(
-            'Course version is archived. You can not create question bank',
+            `Course version with ID ${questionBank.courseVersionId} not found`,
           );
         }
       }
@@ -73,22 +63,10 @@ class QuestionBankService extends BaseService {
           throw new NotFoundError('Some questions not found');
         }
       }
-      const questionBankId = await this.questionBankRepository.create(questionBank, session);
-      
-      // If points is set, cascade to all questions in the bank
-      const pointsToUse = questionBank.points !== undefined ? questionBank.points : 5;
-      if (pointsToUse !== undefined && questionBank.questions && questionBank.questions.length > 0) {
-        await this.questionBankRepository.updateQuestionsPoints(
-          questionBankId,
-          pointsToUse,
-          session,
-        );
-      }
-      
-      return questionBankId;
+      return await this.questionBankRepository.create(questionBank, session);
     });
   }
-  async getById(questionBankId: string): Promise<IQuestionBank | null> {
+  public async getById(questionBankId: string): Promise<IQuestionBank | null> {
     return this._withTransaction(async session => {
       const questionBank = await this.questionBankRepository.getById(
         questionBankId,
@@ -100,43 +78,28 @@ class QuestionBankService extends BaseService {
         );
       }
       questionBank._id = questionBank._id.toString();
-
       return questionBank;
     });
   }
-  async delete(
-    questionBankId: string,
-    session?: ClientSession,
-  ): Promise<boolean> {
-    const run = async (txnSession?: ClientSession) => {
+  public async delete(questionBankId: string): Promise<boolean> {
+    return this._withTransaction(async session => {
       const questionBank = await this.questionBankRepository.getById(
         questionBankId,
-        txnSession,
+        session,
       );
       if (!questionBank) {
         throw new NotFoundError(
           `Question bank with ID ${questionBankId} not found`,
         );
       }
-      const versionStatus = await this.courseRepository.getCourseVersionStatus(
-        questionBank.courseVersionId.toString(),
-      );
-      if (versionStatus === 'archived') {
-        throw new ForbiddenError(
-          'Course version is archived. You can not delete question bank',
-        );
-      }
-
       const result = await this.questionBankRepository.delete(
         questionBankId,
-        txnSession,
+        session,
       );
       return result;
-    };
-
-    return session ? run(session) : this._withTransaction(run);
+    });
   }
-  async addQuestion(
+  public async addQuestion(
     questionBankId: string,
     questionId: string,
   ): Promise<IQuestionBank | null> {
@@ -148,14 +111,6 @@ class QuestionBankService extends BaseService {
       if (!questionBank) {
         throw new NotFoundError(
           `Question bank with ID ${questionBankId} not found`,
-        );
-      }
-      const versionStatus = await this.courseRepository.getCourseVersionStatus(
-        questionBank.courseVersionId.toString(),
-      );
-      if (versionStatus === 'archived') {
-        throw new ForbiddenError(
-          'Course version is archived. You can not add questions',
         );
       }
       const question = await this.questionRepository.getById(
@@ -165,16 +120,7 @@ class QuestionBankService extends BaseService {
       if (!question) {
         throw new NotFoundError(`Question with ID ${questionId} not found`);
       }
-      const questionObjectId = new ObjectId(questionId);
-      questionBank.questions.push(questionObjectId);
-      questionBank.courseVersionId = new ObjectId(questionBank.courseVersionId);
-      questionBank.courseId = new ObjectId(questionBank.courseId.toString());
-
-      // If question bank has points set, update the new question's points
-      if (questionBank.points !== undefined) {
-        await this.questionRepository.updatePoints(questionId, questionBank.points, session);
-      }
-
+      questionBank.questions.push(questionId);
       return this.questionBankRepository.update(
         questionBankId,
         questionBank,
@@ -182,7 +128,7 @@ class QuestionBankService extends BaseService {
       );
     });
   }
-  async removeQuestion(
+  public async removeQuestion(
     questionBankId: string,
     questionId: string,
   ): Promise<IQuestionBank | null> {
@@ -196,45 +142,25 @@ class QuestionBankService extends BaseService {
           `Question bank with ID ${questionBankId} not found`,
         );
       }
-      const versionStatus = await this.courseRepository.getCourseVersionStatus(
-        questionBank.courseVersionId.toString(),
-      );
-      if (versionStatus === 'archived') {
-        throw new ForbiddenError(
-          'Course version is archived. You can not remove questions',
-        );
-      }
       const questionIndex = questionBank.questions.indexOf(questionId);
       if (questionIndex === -1) {
         throw new NotFoundError(
           `Question with ID ${questionId} not found in question bank`,
         );
       }
-      /*
-      Maintain the reference to perform a soft delete in question repository
       questionBank.questions.splice(questionIndex, 1);
-      questionBank.courseVersionId = new ObjectId(questionBank.courseVersionId);
-      questionBank.courseId = new ObjectId(questionBank.courseId.toString());
-
-      const updatedQuestionBank = await this.questionBankRepository.update(
+      return this.questionBankRepository.update(
         questionBankId,
         questionBank,
         session,
-      );*/
-
-      // soft delete question from questionRepository.
-
-      const deleteResult = await this.questionRepository.delete(
-        questionId,
-        session,
       );
-
-      return questionBank;
     });
   }
 
   //Assumes IQuestionBankRef is valid and do not require validation
-  async getQuestions(questionBankRef: IQuestionBankRef): Promise<string[]> {
+  public async getQuestions(
+    questionBankRef: IQuestionBankRef,
+  ): Promise<string[]> {
     return this._withTransaction(async session => {
       const {
         bankId: questionBankId,
@@ -244,7 +170,7 @@ class QuestionBankService extends BaseService {
         type,
       } = questionBankRef;
       const questionBank = await this.questionBankRepository.getById(
-        questionBankId.toString(),
+        questionBankId,
         session,
       );
       //Return random question ids
@@ -258,7 +184,7 @@ class QuestionBankService extends BaseService {
       return shuffledQuestionsAsString.slice(0, count);
     });
   }
-  async replaceQuestionWithDuplicate(
+  public async replaceQuestionWithDuplicate(
     bankId: string,
     questionId: string,
   ): Promise<string> {
@@ -269,14 +195,6 @@ class QuestionBankService extends BaseService {
       );
       if (!questionBank) {
         throw new NotFoundError(`Question bank with ID ${bankId} not found`);
-      }
-      const versionStatus = await this.courseRepository.getCourseVersionStatus(
-        questionBank.courseVersionId.toString(),
-      );
-      if (versionStatus === 'archived') {
-        throw new ForbiddenError(
-          'Course version is archived. You can not replace questions',
-        );
       }
 
       const originalQuestion = await this.questionRepository.getById(
@@ -299,74 +217,18 @@ class QuestionBankService extends BaseService {
         questionId,
         session,
       );
-      
-      // Set the duplicated question's points to match the question bank's points
-      if (questionBank.points !== undefined) {
-        await this.questionRepository.updatePoints(
-          duplicatedQuestion._id.toString(),
-          questionBank.points,
-          session,
-        );
-      }
-      
-      // Push the duplicated question into the question bank.
-      questionBank.questions.push(duplicatedQuestion._id.toString());
-      questionBank.courseVersionId = new ObjectId(questionBank.courseVersionId);
-      questionBank.courseId = new ObjectId(questionBank.courseId.toString());
+
+      questionBank.questions[index] = duplicatedQuestion._id.toString();
       await this.questionBankRepository.update(bankId, questionBank, session);
       return duplicatedQuestion._id.toString();
     });
   }
-  async updatePoints(
-    questionBankId: string,
-    points: number,
-  ): Promise<IQuestionBank | null> {
-    return this._withTransaction(async session => {
-      const questionBank = await this.questionBankRepository.getById(
-        questionBankId,
-        session,
-      );
-      if (!questionBank) {
-        throw new NotFoundError(
-          `Question bank with ID ${questionBankId} not found`,
-        );
-      }
-      const versionStatus = await this.courseRepository.getCourseVersionStatus(
-        questionBank.courseVersionId.toString(),
-      );
-      if (versionStatus === 'archived') {
-        throw new ForbiddenError(
-          'Course version is archived. You can not update question bank points',
-        );
-      }
-      
-      // Update the question bank's points
-      questionBank.points = points;
-      questionBank.courseVersionId = new ObjectId(questionBank.courseVersionId);
-      questionBank.courseId = new ObjectId(questionBank.courseId.toString());
-      
-      const updatedBank = await this.questionBankRepository.update(
-        questionBankId,
-        questionBank,
-        session,
-      );
-      
-      // Cascade points to all questions in the bank
-      if (questionBank.questions && questionBank.questions.length > 0) {
-        await this.questionBankRepository.updateQuestionsPoints(
-          questionBankId,
-          points,
-          session,
-        );
-      }
-      
-      return updatedBank;
-    });
-  }
-  async getBanksUsingQuestion(questionId): Promise<IQuestionBank[]> {
+  public async getBanksUsingQuestion(questionId): Promise<IQuestionBank[]> {
     throw new Error('Method not implemented.');
   }
-  async getBanksForCourseVersion(courseVersionId): Promise<IQuestionBank[]> {
+  public async getBanksForCourseVersion(
+    courseVersionId,
+  ): Promise<IQuestionBank[]> {
     throw new Error('Method not implemented.');
   }
 }

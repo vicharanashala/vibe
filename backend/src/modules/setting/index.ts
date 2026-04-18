@@ -5,7 +5,6 @@ import { useContainer, RoutingControllersOptions } from 'routing-controllers';
 import { settingContainerModule } from './container.js';
 import { authContainerModule } from '../auth/container.js';
 import { UserSettingController } from './controllers/UserSettingController.js';
-import { TimeSlotController } from './controllers/TimeSlotController.js';
 
 export const settingContainerModules: ContainerModule[] = [
   settingContainerModule,
@@ -15,8 +14,7 @@ export const settingContainerModules: ContainerModule[] = [
 
 export const settingModuleControllers: Function[] = [
   CourseSettingController,
-  UserSettingController,
-  TimeSlotController
+  UserSettingController
 ];
 
 export async function setupSettingContainer(): Promise<void> {

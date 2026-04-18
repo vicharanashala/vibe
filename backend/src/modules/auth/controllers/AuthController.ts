@@ -3,17 +3,14 @@ import {
   ChangePasswordBody,
   LoginBody,
   GoogleSignUpBody,
-  SignUpResponse,
-  ChangePasswordResponse,
-  AuthErrorResponse,
-  LoginResponse,
 } from '#auth/classes/validators/AuthValidators.js';
 import {
   IAuthService,
   AuthenticatedRequest,
 } from '#auth/interfaces/IAuthService.js';
-import {ChangePasswordError} from '#auth/services/FirebaseAuthService.js';
-import {injectable, inject} from 'inversify';
+import { ChangePasswordError } from '#auth/services/FirebaseAuthService.js';
+import { AuthRateLimiter } from '#shared/middleware/rateLimiter.js';
+import { injectable, inject } from 'inversify';
 import {
   JsonController,
   Post,
@@ -26,10 +23,9 @@ import {
   HttpError,
   OnUndefined,
 } from 'routing-controllers';
-import {AUTH_TYPES} from '#auth/types.js';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {appConfig} from '#root/config/app.js';
-import {BadRequestErrorResponse} from '#root/shared/index.js';
+import { AUTH_TYPES } from '#auth/types.js';
+import { OpenAPI } from 'routing-controllers-openapi';
+import { appConfig } from '#root/config/app.js';
 
 @OpenAPI({
   tags: ['Authentication'],
@@ -40,7 +36,7 @@ export class AuthController {
   constructor(
     @inject(AUTH_TYPES.AuthService)
     private readonly authService: IAuthService,
-  ) {}
+  ) { }
 
   @OpenAPI({
     summary: 'Register a new user account',
@@ -49,42 +45,9 @@ export class AuthController {
   })
   @Post('/signup')
   @HttpCode(201)
-  @ResponseSchema(SignUpResponse, {
-    description: 'User registered successfully',
-    statusCode: 201,
-  })
-  @ResponseSchema(BadRequestErrorResponse, {
-    description: 'Bad Request Error',
-    statusCode: 400,
-  })
-  @ResponseSchema(AuthErrorResponse, {
-    description: 'Auth Error',
-    statusCode: 401,
-  })
-  async signup(@Body() body: SignUpBody, @Req() req: any) {
-    const { recaptchaToken, ...signUpData } = body;
-
-    // Verify reCAPTCHA token
-    if (!recaptchaToken) {
-      throw new HttpError(400, 'reCAPTCHA verification is required');
-    }
-
-    const { verifyRecaptcha } = await import('#root/shared/functions/verifyRecaptcha.js');
-
-    try {
-      const isValidRecaptcha = await verifyRecaptcha(recaptchaToken);
-      if (!isValidRecaptcha) {
-        throw new HttpError(400, 'reCAPTCHA verification failed. Please try again.');
-      }
-    } catch (error) {
-      if (error instanceof HttpError) {
-        throw error;
-      }
-      throw new HttpError(500, 'Failed to verify reCAPTCHA. Please try again.');
-    }
-
-    const acknowledgedInvites = await this.authService.signup(signUpData as any);
-    // req.session.userId = acknowledgedInvites;
+  @OnUndefined(201)
+  async signup(@Body() body: SignUpBody) {
+    const acknowledgedInvites = await this.authService.signup(body);
     if (acknowledgedInvites) {
       return acknowledgedInvites;
     }
@@ -97,23 +60,8 @@ export class AuthController {
   })
   @Post('/signup/google')
   @HttpCode(201)
-  @ResponseSchema(SignUpResponse, {
-    description: 'User registered successfully',
-    statusCode: 201,
-  })
-  @ResponseSchema(BadRequestErrorResponse, {
-    description: 'Bad Request Error',
-    statusCode: 400,
-  })
-  @ResponseSchema(AuthErrorResponse, {
-    description: 'Auth Error',
-    statusCode: 401,
-  })
   async googleSignup(@Body() body: GoogleSignUpBody, @Req() req: any) {
-    const acknowledgedInvites = await this.authService.googleSignup(
-      body,
-      req.headers.authorization?.split(' ')[1],
-    );
+    const acknowledgedInvites = await this.authService.googleSignup(body, req.headers.authorization?.split(' ')[1]);
     if (acknowledgedInvites) {
       return acknowledgedInvites;
     }
@@ -126,25 +74,13 @@ export class AuthController {
   })
   @Authorized()
   @Patch('/change-password')
-  @ResponseSchema(ChangePasswordResponse, {
-    description: 'Password changed successfully',
-    statusCode: 200,
-  })
-  @ResponseSchema(BadRequestErrorResponse, {
-    description: 'Bad Request Error',
-    statusCode: 400,
-  })
-  @ResponseSchema(AuthErrorResponse, {
-    description: 'Auth Error',
-    statusCode: 401,
-  })
   async changePassword(
     @Body() body: ChangePasswordBody,
     @Req() request: AuthenticatedRequest,
   ) {
     try {
       const result = await this.authService.changePassword(body, request.user);
-      return {success: true, message: result.message};
+      return { success: true, message: result.message };
     } catch (error) {
       if (error instanceof ChangePasswordError) {
         throw new HttpError(400, error.message);
@@ -157,54 +93,20 @@ export class AuthController {
   }
 
   @Post('/login')
-  @ResponseSchema(LoginResponse, {
-    description: 'User logged in successfully',
-    statusCode: 200,
-  })
-  @ResponseSchema(BadRequestErrorResponse, {
-    description: 'Bad Request Error',
-    statusCode: 400,
-  })
-  @ResponseSchema(AuthErrorResponse, {
-    description: 'Auth Error',
-    statusCode: 401,
-  })
   async login(@Body() body: LoginBody) {
-    const {email, password, recaptchaToken} = body;
+    const { email, password } = body;
+    const data = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${appConfig.firebase.apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        password,
+        returnSecureToken: true
+      })
+    });
 
-    // Import verifyRecaptcha dynamically to avoid circular dependency
-    const { verifyRecaptcha } = await import('#root/shared/functions/verifyRecaptcha.js');
-
-    // Verify reCAPTCHA token
-    try {
-      const isValidRecaptcha = await verifyRecaptcha(recaptchaToken);
-      if (!isValidRecaptcha) {
-        throw new HttpError(400, 'reCAPTCHA verification failed. Please try again.');
-      }
-    } catch (error) {
-      if (error instanceof HttpError) {
-        throw error;
-      }
-      throw new HttpError(500, 'Failed to verify reCAPTCHA. Please try again.');
-    }
-
-    // Proceed with Firebase authentication
-    const data = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${appConfig.firebase.apiKey}`,
-      {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          email,
-          password,
-          returnSecureToken: true,
-        }),
-      },
-    );
     const result = await data.json();
 
-    // ✅ fetch your app user from DB
-    // const user = await this.authService.getCurrentUserFromToken(result.idToken);
     return result;
   }
 }

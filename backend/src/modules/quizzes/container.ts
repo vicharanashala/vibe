@@ -20,17 +20,12 @@ import {
 } from './services/index.js';
 import {QUIZZES_TYPES} from './types.js';
 import {QuestionService} from './services/QuestionService.js';
-import {FeedbackRepository} from './repositories/providers/mongodb/FeedbackRepository.js';
 
 export const quizzesContainerModule = new ContainerModule(options => {
   // Repositories
   options
     .bind(QUIZZES_TYPES.AttemptRepo)
     .to(AttemptRepository)
-    .inSingletonScope();
-  options
-    .bind(QUIZZES_TYPES.FeedbackRepo)
-    .to(FeedbackRepository)
     .inSingletonScope();
   options
     .bind(QUIZZES_TYPES.QuestionRepo)

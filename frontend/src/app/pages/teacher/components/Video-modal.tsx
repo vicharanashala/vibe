@@ -2,8 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Video } from "@/types/video.types";
-import Loader from "@/components/Loader";
-import ConfirmationModal from "./confirmation-modal";
 
 function getYouTubeId(url: string): string | null {
     const match = url.match(/(?:v=|youtu\.be\/?)([\w-]{11})/);
@@ -16,69 +14,12 @@ interface VideoModalProps {
     onClose: () => void;
     onSave: (video: Video) => void;
     onDelete?: () => void;
-    onEdit?: () => void;
+    onEdit?: () => void; // Add this prop
     item?: Video | null;
     action: "add" | "edit" | "view";
-    selectedItemName: string;
-    isLoading: boolean;
-}
-
-function formatTime(seconds: number): string {
-    if (isNaN(seconds) || seconds < 0) {
-        return "00:00";
-    }
-
-    const totalSeconds = Math.floor(seconds);
-    const mins = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-
-    const formattedMins = mins.toString().padStart(2, "0");
-    const formattedSecs = secs.toString().padStart(2, "0");
-
-    return `${formattedMins}:${formattedSecs}`;
-}
-
-function parseTimeToSeconds(time: string | undefined): number {
-    if (!time || time.trim() === "") {
-        return 0;
-    }
-
-    const normalizedTime = time.trim();
-
-    const timeParts = normalizedTime.split(":");
-
-    if (timeParts.length === 3) {
-        const [hours, minutes, seconds] = timeParts;
-
-        const h = Math.max(0, parseInt(hours, 10) || 0);
-        const m = Math.min(59, Math.max(0, parseInt(minutes, 10) || 0));
-        const s = Math.min(59, Math.max(0, parseInt(seconds, 10) || 0));
-
-        return (h * 60 + m) * 60 + s;
-    }
-
-    if (timeParts.length === 2) {
-        // Format: MM:SS
-        const [minutes, seconds] = timeParts;
-
-        const m = Math.max(0, parseInt(minutes, 10) || 0);
-        const s = Math.min(59, Math.max(0, parseInt(seconds, 10) || 0));
-
-        return m * 60 + s;
-    }
-
-    // Handle plain number (assume it's seconds)
-    if (!normalizedTime.includes(":")) {
-        const seconds = parseInt(normalizedTime, 10);
-        return isNaN(seconds) ? 0 : Math.max(0, seconds);
-    }
-
-    return 0;
 }
 
 const VideoModal: React.FC<VideoModalProps> = ({
-    selectedItemName,
-    isLoading,
     onClose,
     onSave,
     onDelete,
@@ -89,31 +30,42 @@ const VideoModal: React.FC<VideoModalProps> = ({
     // State for fields
     const [name, setName] = useState(item?.name || "");
     const [description, setDescription] = useState(item?.description || "");
-    const [url, setUrl] = useState(item?.details?.URL || "");
+    const [url, setUrl] = useState(item?.details.URL || "");
     const [duration, setDuration] = useState(0);
     const [playerReady, setPlayerReady] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [showOverlay, setShowOverlay] = useState(false);
-    const [showDeleteVideoModal, setShowDeleteVideoModal] = useState(false)
-    const [errors, setErrors] = useState({
-        startTime: "",
-        endTime: ""
-    });
+    // Helper to convert "mm:ss.ms" or "hh:mm:ss.ms" to seconds
+    function parseTimeToSeconds(time: string | undefined): number {
+        if (!time) return 0;
+        // Match hh:mm:ss.ms or mm:ss.ms or ss.ms
+        const parts = time.split(":").map(Number);
+        if (parts.some(isNaN)) return 0;
+        if (parts.length === 3) {
+            // hh:mm:ss.ms
+            return parts[0] * 3600 + parts[1] * 60 + parts[2];
+        } else if (parts.length === 2) {
+            // mm:ss.ms
+            return parts[0] * 60 + parts[1];
+        } else if (parts.length === 1) {
+            // ss.ms
+            return parts[0];
+        }
+        return 0;
+    }
 
     const [range, setRange] = useState<[number, number]>([
-        item?.details?.startTime ? parseTimeToSeconds(String(item.details?.startTime)) : 0,
-        item?.details?.endTime ? parseTimeToSeconds(String(item.details?.endTime)) : 0,
+        item?.details.startTime ? parseTimeToSeconds(item.details.startTime) : 0,
+        item?.details.endTime ? parseTimeToSeconds(item.details.endTime) : 0,
     ]);
-    const [videoId, setVideoId] = useState<string | null>(getYouTubeId(item?.details?.URL + "?rel=0" || ""));
-    const [points, setPoints] = useState<number>(item?.details?.points ?? 0);
-    const [timeInputs, setTimeInputs] = useState({
-        start: formatTime(item?.details?.startTime ? parseTimeToSeconds(String(item.details?.startTime)) : 0),
-        end: formatTime(item?.details?.endTime ? parseTimeToSeconds(String(item.details?.endTime)) : 0),
-    });
+    console.log("VideoModal item:", item);
+    const [videoId, setVideoId] = useState<string | null>(getYouTubeId(item?.details.URL+"?rel=0" || ""));
+    const [points, setPoints] = useState<number>(item?.details.points ?? 0);
 
     const playerRef = useRef<any>(null);
     const iframeRef = useRef<HTMLDivElement>(null);
 
+    // Load YouTube IFrame API
     useEffect(() => {
         if (window.YT && window.YT.Player) return;
         const tag = document.createElement("script");
@@ -121,6 +73,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
         document.body.appendChild(tag);
     }, []);
 
+    // Reset state on URL change
     useEffect(() => {
         setPlayerReady(false);
         setDuration(0);
@@ -129,42 +82,27 @@ const VideoModal: React.FC<VideoModalProps> = ({
         setVideoId(id);
         if (!id) {
             setRange([0, 0]);
-            setTimeInputs({ start: "0:00", end: "0:00" });
         }
     }, [url]);
 
+    // Refresh state when item changes
     useEffect(() => {
         setName(item?.name || "");
         setDescription(item?.description || "");
-        setUrl(item?.details?.URL || "");
-        setPoints(item?.details?.points ?? 0);
-
-        const startTime = item?.details?.startTime || "0:00";
-        const endTime = item?.details?.endTime || "0:00";
-
+        setUrl(item?.details.URL || "");
+        setPoints(item?.details.points ?? 0);
         setRange([
-            parseTimeToSeconds(startTime),
-            parseTimeToSeconds(endTime),
+            item?.details.startTime ? parseTimeToSeconds(item.details.startTime) : 0,
+            item?.details.endTime ? parseTimeToSeconds(item.details.endTime) : 0,
         ]);
-
-        setTimeInputs({
-            start: formatTime(parseTimeToSeconds(startTime)),
-            end: formatTime(parseTimeToSeconds(endTime)),
-        });
-
         setVideoId(getYouTubeId((item?.details.URL ?? "") + "?rel=0"));
         setPlayerReady(false);
         setDuration(0);
         setCurrentTime(0);
     }, [item]);
 
-
-    // useEffect(() => {
-    //   setPlayerReady(false);   // move it here
-    // }, [videoId]);
     // Create/destroy player on videoId change
     useEffect(() => {
-        setPlayerReady(false)
         if (!videoId || !iframeRef.current || !(window.YT && window.YT.Player)) return;
 
         playerRef.current = new window.YT.Player(iframeRef.current, {
@@ -180,27 +118,9 @@ const VideoModal: React.FC<VideoModalProps> = ({
                 onReady: (event: any) => {
                     const dur = event.target.getDuration();
                     setDuration(dur);
-
-                    const currentEnd = parseTimeToSeconds(timeInputs.end);
-                    const newEnd = currentEnd > 0 ? Math.min(currentEnd, dur) : dur;
-
-                    const startSeconds = parseTimeToSeconds(timeInputs.start);
-
-                    setRange([startSeconds, newEnd]);
-
-                    const formattedEnd = formatTime(newEnd);
-
-                    setTimeInputs(prev => {
-                        const updated = {
-                            ...prev,
-                            end: formattedEnd
-                        };
-                        return updated;
-                    });
-
-                    validateTimeAgainstDuration(timeInputs.start, 'startTime', dur);
-                    validateTimeAgainstDuration(timeInputs.end, 'endTime', dur);
-
+                    setRange(prev =>
+                        prev[1] > 0 ? prev : [0, dur]
+                    );
                     setPlayerReady(true);
                     setShowOverlay(false);
                 },
@@ -234,158 +154,27 @@ const VideoModal: React.FC<VideoModalProps> = ({
         return () => clearInterval(interval);
     }, [playerReady]);
 
-    const validateTimeAgainstDuration = (timeValue: string, field: 'startTime' | 'endTime', maxDuration: number) => {
-        const seconds = parseTimeToSeconds(timeValue);
-
-        if (seconds > maxDuration) {
-            setErrors(prev => ({
-                ...prev,
-                [field]: `Time exceeds video duration (${formatTime(maxDuration)})`
-            }));
-            return false;
-        } else {
-            setErrors(prev => ({
-                ...prev,
-                [field]: ""
-            }));
-            return true;
-        }
-    };
-
-    const validateTimeRange = (startTime: string, endTime: string) => {
-        const startSeconds = parseTimeToSeconds(startTime);
-        const endSeconds = parseTimeToSeconds(endTime);
-
-        if (endSeconds <= startSeconds) {
-            setErrors(prev => ({
-                ...prev,
-                endTime: "End time must be greater than start time"
-            }));
-            return false;
-        } else {
-            setErrors(prev => ({
-                ...prev,
-                endTime: ""
-            }));
-            return true;
-        }
-    };
-
-    const formatTimeInput = (value: string): string => {
-        const digits = value.replace(/\D/g, '');
-
-        if (digits.length > 4) return value;
-
-        if (digits.length <= 2) {
-            return digits;
-        } else {
-            const minutes = digits.slice(0, -2);
-            const seconds = digits.slice(-2);
-            return `${minutes}:${seconds}`;
-        }
-    };
-
-    const validateTimeInput = (value: string, maxSeconds: number): number => {
-        if (!value) return 0;
-        const formattedValue = formatTimeInput(value);
-        let seconds = parseTimeToSeconds(formattedValue);
-        seconds = Math.min(seconds, maxSeconds);
-        return seconds;
-    };
-
-    const handleTimeInputChange = (type: 'start' | 'end', value: string) => {
-        const numericOnly = value.replace(/\D/g, '');
-
-        // Limit to 6 digits total (HHMMSS)
-        if (numericOnly.length > 6) return;
-
-
-
-        setTimeInputs(prev => ({
-            ...prev,
-            [type]: value
-        }));
-    };
-
-    const handleTimeInputBlur = (type: 'start' | 'end') => {
-        const rawValue = timeInputs[type];
-
-        // Only format if the value is not empty
-        if (rawValue.trim() === "") {
-            setTimeInputs(prev => ({
-                ...prev,
-                [type]: "0:00"
-            }));
-            // Validate after setting to 0:00
-            const otherType = type === 'start' ? 'end' : 'start';
-            validateTimeRange(
-                type === 'start' ? "0:00" : timeInputs[otherType],
-                type === 'start' ? timeInputs[otherType] : "0:00"
-            );
-            return;
-        }
-
-        const formattedValue = formatTimeInput(rawValue);
-        const seconds = validateTimeInput(formattedValue, duration);
-        const field = type === 'start' ? 'startTime' : 'endTime';
-
-        // Update state with clean formatted value
-        setTimeInputs(prev => ({
-            ...prev,
-            [type]: formattedValue
-        }));
-
-        // Only validate against duration if video has loaded properly
-        if (duration > 0) {
-            validateTimeAgainstDuration(formattedValue, field, duration);
-        }
-
-        // Validate time range (end > start) - use updated state
-        setTimeout(() => {
-            const otherType = type === 'start' ? 'end' : 'start';
-            const currentStart = type === 'start' ? formattedValue : timeInputs[otherType];
-            const currentEnd = type === 'start' ? timeInputs[otherType] : formattedValue;
-            validateTimeRange(currentStart, currentEnd);
-        }, 0);
-
-        // Update player range
-        if (type === 'start') {
-            setRange(prev => {
-                const newStart = Math.min(seconds, prev[1] - 1);
-                if (playerRef.current && playerReady) {
-                    playerRef.current.seekTo(newStart, true);
-                }
-                return [newStart, prev[1]];
-            });
-        } else {
-            setRange(prev => {
-                const newEnd = Math.max(seconds, prev[0] + 1);
-                return [prev[0], newEnd];
-            });
-        }
-    };
-
-    // Store original values for cancel functionality
-    const [originalValues, setOriginalValues] = useState({
-        name: item?.name || "",
-        description: item?.description || "",
-        url: item?.details?.URL || "",
-        startTime: item?.details?.startTime || "0:00",
-        endTime: item?.details?.endTime || "0:00",
-        points: item?.details?.points ?? 0
-    });
-
-    // Update original values when item changes
-    useEffect(() => {
-        setOriginalValues({
-            name: item?.name || "",
-            description: item?.description || "",
-            url: item?.details?.URL || "",
-            startTime: item?.details?.startTime || "0:00",
-            endTime: item?.details?.endTime || "0:00",
-            points: item?.details?.points ?? 0
+    // Seek video when start/end time is changed
+    const handleStartTimeChange = (value: string) => {
+        const start = parseFloat(value) || 0;
+        setRange(([_, end]) => {
+            // Ensure start < end
+            const newStart = Math.min(start, end - 0.1);
+            if (playerRef.current && playerReady) {
+                playerRef.current.seekTo(newStart, true);
+            }
+            return [newStart, end];
         });
-    }, [item]);
+    };
+
+    const handleEndTimeChange = (value: string) => {
+        const end = parseFloat(value) || 0;
+        setRange(([start, _]) => {
+            // Ensure end > start
+            const newEnd = Math.max(end, start + 0.1);
+            return [start, newEnd];
+        });
+    };
 
     // Only constrain playback to [start, end]
     useEffect(() => {
@@ -402,77 +191,8 @@ const VideoModal: React.FC<VideoModalProps> = ({
         }
     }, [currentTime, range, playerReady]);
 
-    const hasErrors = () => {
-        return errors.startTime !== "" || errors.endTime !== "";
-    };
-    const [errorList, setErrorList] = useState({ name: "", description: "", url: "" })
-    const errorMessages = {
-        name: "Video name is required",
-        description: "Video description is required",
-        url: "Video url is reqired"
-    }
-    const [skipIntialRender, setSkipIntialRender] = useState(true)
-    useEffect(() => {
-        if (!skipIntialRender) {
-            setErrorList({
-                name: name ? "" : errorMessages.name,
-                description: description ? "" : errorMessages.description,
-                url: url ? "" : errorMessages.url,
-
-            })
-        }
-    }, [name, description, url])
-    // Handle Cancel with restore functionality
-    const handleCancel = () => {
-        // Restore original values
-        setName(originalValues.name);
-        setDescription(originalValues.description);
-        setUrl(originalValues.url);
-        setPoints(originalValues.points);
-        setTimeInputs({
-            start: originalValues.startTime,
-            end: originalValues.endTime
-        });
-        setRange([
-            parseTimeToSeconds(originalValues.startTime),
-            parseTimeToSeconds(originalValues.endTime)
-        ]);
-        setErrors({ startTime: "", endTime: "" });
-        setErrorList({ name: "", description: "", url: "" });
-
-        onClose();
-    };
+    // Handle Save
     const handleSave = () => {
-        setSkipIntialRender(false);
-
-        const newErrors = {
-            name: name ? "" : errorMessages.name,
-            description: description ? "" : errorMessages.description,
-            url: url ? "" : errorMessages.url,
-        };
-
-        setErrorList(newErrors);
-        const isValid = Object.values(newErrors).every((err) => err === "");
-        if (!isValid) return;
-        let finalStartTime = timeInputs.start;
-        let finalEndTime = timeInputs.end;
-
-        if (action === "add" && duration === 0) {
-            finalStartTime = "0:00";
-            finalEndTime = "0:00";
-        }
-
-
-        const startSeconds = validateTimeInput(timeInputs.start, duration);
-        const endSeconds = validateTimeInput(timeInputs.end, duration);
-
-        if (duration > 0) {
-            const startValid = validateTimeAgainstDuration(finalStartTime, "startTime", duration);
-            const endValid = validateTimeAgainstDuration(finalEndTime, "endTime", duration);
-            const rangeValid = validateTimeRange(finalStartTime, finalEndTime);
-            if (!startValid || !endValid || !rangeValid) return;
-        }
-
         const video: Video = {
             _id: item?._id || "",
             name,
@@ -480,15 +200,13 @@ const VideoModal: React.FC<VideoModalProps> = ({
             type: "VIDEO",
             details: {
                 URL: url,
-                startTime: formatTime(startSeconds),
-                endTime: formatTime(endSeconds),
-                points,
+                startTime: range[0].toString(),
+                endTime: range[1].toString(),
+                points: points,
             },
         };
-
         onSave(video);
     };
-
 
     // Overlay click handler
     const handleOverlayClick = () => {
@@ -499,318 +217,220 @@ const VideoModal: React.FC<VideoModalProps> = ({
         }
     };
 
-    const modalRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (videoId) {
-            modalRef.current?.scrollTo({
-                top: 0,
-                behavior: "smooth",
-            });
-        }
-    }, [videoId]);
-
-
     return (
-        <>
-            {isLoading ? <Loader /> :
-                <div
-                    ref={modalRef}
-                    className="bg-card text-foreground rounded-lg p-6 
-                    overflow-y-auto
-                    min-w-4xl shadow-lg"
-                >
-
-
-                    <div className="mb-4 flex justify-between items-center">
-                        <h2 className="text-lg font-semibold">
-                            {action === "add" && "Add Video"}
-                            {action === "edit" && "Edit Video"}
-                            {action === "view" && `${selectedItemName || "View Video"}`}
-                        </h2>
-                        {action === "view" ? (<span className="flex items-center">
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-xs mr-4"
-                                onClick={onEdit}
-                            >
-                                Edit
-                            </Button>
-                        </span>
-                        ) : null}
-                    </div>
-                    <div className="space-y-4">
-                        <Input
-                            placeholder="Video Name *"
-                            value={name}
-                            onChange={e => setName(e.target.value)}
-                            disabled={action === "view"}
-                            className="bg-background border-border"
-                        />
-                        {errorList.name && (
-                            <p className="text-xs text-red-500 mt-1">{errorList.name}</p>
-                        )}
-                        <Input
-                            placeholder="Paste YouTube video URL *"
-                            value={url}
-                            onChange={e => setUrl(e.target.value)}
-                            disabled={action === "view"}
-                            className="bg-background border-border"
-                        />
-                        {errorList.url && (
-                            <p className="text-xs text-red-500 mt-1">{errorList.url}</p>
-                        )}
-                        <textarea
-                            placeholder="Description *"
-                            value={description}
-                            onChange={e => setDescription(e.target.value)}
-                            disabled={action === "view"}
-                            rows={3}
-                            className="w-full rounded-lg border border-border px-3 py-2 text-sm
-                                bg-card text-foreground focus:border-primary focus:ring-1 focus:ring-primary"
-                        />
-                        {errorList.description && (
-                            <p className="text-xs text-red-500 mt-1">{errorList.description}</p>
-                        )}
-                        {videoId && (
+        <div className="bg-background rounded-lg border p-6 min-w-[700px] backdrop-blur-md bg-background/80">
+            <div className="mb-4 flex justify-between items-center">
+                <h2 className="text-lg font-semibold">
+                    {action === "add" && "Add Video"}
+                    {action === "edit" && "Edit Video"}
+                    {action === "view" && "View Video"}
+                </h2>
+                {action === "view" ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs flex items-center gap-1"
+                        onClick={onEdit}
+                    >
+                        Edit
+                    </Button>
+                ) : null}
+                {/* Remove Close button from here */}
+            </div>
+            <div className="space-y-4">
+                <Input
+                    placeholder="Video Name"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    disabled={action === "view"}
+                />
+                <Input
+                    placeholder="Paste YouTube video URL"
+                    value={url}
+                    onChange={e => setUrl(e.target.value)}
+                    disabled={action === "view"}
+                />
+                <textarea
+                    placeholder="Description"
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    disabled={action === "view"}
+                    rows={3}
+                    className="w-full rounded border px-3 py-2 text-sm"
+                />
+                {videoId && (
+                    <div
+                        style={{
+                            width: "100%",
+                            maxWidth: 720,
+                            margin: "0 auto",
+                            borderRadius: 12,
+                            overflow: "hidden",
+                            background: "hsl(var(--background))",
+                            boxShadow: "0 2px 16px rgba(30,41,59,0.10)",
+                            display: "flex",
+                            flexDirection: "column",
+                        }}
+                    >
+                        {/* Video Container */}
+                        <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", background: "#000" }}>
                             <div
+                                ref={iframeRef}
                                 style={{
                                     width: "100%",
-                                    maxWidth: 720,
-                                    margin: "0 auto",
-                                    borderRadius: 12,
+                                    height: "100%",
+                                    background: "#000",
+                                    borderRadius: "12px 12px 0 0",
                                     overflow: "hidden",
-                                    background: "var(--card)",
-                                    border: "1px solid #e5e7eb",
-                                    display: "flex",
-                                    flexDirection: "column",
+                                    position: "relative",
                                 }}
-                            >
-                                {/* Video Container */}
-                                <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", background: "#000" }}>
-                                    <div
-                                        ref={iframeRef}
-                                        style={{
-                                            width: "100%",
-                                            height: "100%",
-                                            background: "#000",
-                                            borderRadius: "12px 12px 0 0",
-                                            overflow: "hidden",
-                                            position: "relative",
-                                        }}
-                                    />
-                                    {/* Overlay */}
-                                    {showOverlay && (
-                                        <div
-                                            onClick={handleOverlayClick}
-                                            style={{
-                                                position: "absolute",
-                                                top: 0,
-                                                left: 0,
-                                                right: 0,
-                                                bottom: 0,
-                                                background: "rgba(0,0,0,0.7)",
-                                                cursor: "pointer",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                zIndex: 20,
-                                            }}
-                                        >
-                                            {/* SVG Play Icon */}
-                                            <svg width="64" height="64" viewBox="0 0 128 128" fill="none">
-                                                <circle cx="64" cy="64" r="64" fill="#FFF" fillOpacity="0.2" />
-                                                <polygon points="52,40 96,64 52,88" fill="#FFF" />
-                                            </svg>
-                                        </div>
-                                    )}
-                                    {/* Time display */}
-                                    <div style={{
-                                        position: "absolute",
-                                        left: 16,
-                                        bottom: 48,
-                                        color: "#fff",
-                                        textShadow: "0 1px 4px #000",
-                                        fontWeight: 600,
-                                        fontSize: 15,
-                                        zIndex: 11,
-                                    }}>
-                                        Start: {timeInputs.start} &nbsp; End: {timeInputs.end} &nbsp; Current: {formatTime(currentTime)}
-                                    </div>
-                                </div>
-                                {/* Start/End Time Inputs Below Video */}
+                            />
+                            {/* Overlay */}
+                            {showOverlay && (
                                 <div
+                                    onClick={handleOverlayClick}
                                     style={{
-                                        borderRadius: '0 0 12px 12px',
-                                        userSelect: 'none',
-                                        WebkitUserSelect: 'none',
-                                        MozUserSelect: 'none',
-                                        msUserSelect: 'none',
-                                        flexShrink: 0,
+                                        position: "absolute",
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        background: "rgba(0,0,0,0.7)",
+                                        cursor: "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        zIndex: 20,
                                     }}
-                                    className="bg-muted border-t border-border p-4 xl:flex items-center justify-start relative gap-2"
                                 >
-                                    <div className="flex flex-col gap-2">
-                                        <div className="flex items-center lg:gap-2 gap-6 lg:flex-row flex-col">
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <label className="font-medium mr-2">Start Time (mm:ss):</label>
-                                                    <div className="flex flex-col">
-                                                        <Input
-                                                            type="text"
-                                                            value={timeInputs.start}
-                                                            onChange={e => handleTimeInputChange('start', e.target.value)}
-                                                            onBlur={() => handleTimeInputBlur('start')}
-                                                            disabled={action === "view"}
-                                                            style={{ width: 100 }}
-                                                            placeholder="0:00"
-                                                            maxLength={5}
-                                                            className={errors.startTime ? "border-red-500" : "bg-white border-gray-200"}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                {errors.startTime && (
-                                                    <span className="text-red-500 text-xs mt-1 absolute">{errors.startTime}</span>
-                                                )}
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <label className="font-medium ml-4 mr-2">End Time (mm:ss):</label>
-                                                    <div className="flex flex-col">
-                                                        <Input
-                                                            type="text"
-                                                            value={timeInputs.end}
-                                                            onChange={e => handleTimeInputChange('end', e.target.value)}
-                                                            onBlur={() => handleTimeInputBlur('end')}
-                                                            disabled={action === "view"}
-                                                            style={{ width: 100 }}
-                                                            placeholder="0:00"
-                                                            maxLength={5}
-                                                            className={errors.endTime ? "border-red-500" : "bg-white border-gray-200"}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                {errors.endTime && (
-                                                    <span className="text-red-500 text-xs mt-1">{errors.endTime}</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {/* Go to Start/End Buttons */}
-                                    <div className="mt-4 xl:mt-0 justify-center" style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-                                        <Button
-                                            variant="secondary"
-                                            size="sm"
-                                            onClick={() => {
-                                                if (playerRef.current && playerReady) {
-                                                    playerRef.current.seekTo(range[0], true);
-                                                }
-                                            }}
-                                            disabled={!playerReady}
-                                        >
-                                            Go to Start
-                                        </Button>
-                                        <Button
-                                            variant="secondary"
-                                            size="sm"
-                                            onClick={() => {
-                                                if (playerRef.current && playerReady) {
-                                                    playerRef.current.seekTo(range[1], true);
-                                                }
-                                            }}
-                                            disabled={!playerReady}
-                                        >
-                                            Go to End
-                                        </Button>
-                                    </div>
+                                    {/* SVG Play Icon */}
+                                    <svg width="64" height="64" viewBox="0 0 128 128" fill="none">
+                                        <circle cx="64" cy="64" r="64" fill="#FFF" fillOpacity="0.2"/>
+                                        <polygon points="52,40 96,64 52,88" fill="#FFF"/>
+                                    </svg>
                                 </div>
+                            )}
+                            {/* Time display */}
+                            <div style={{
+                                position: "absolute",
+                                left: 16,
+                                bottom: 48,
+                                color: "#fff",
+                                textShadow: "0 1px 4px #000",
+                                fontWeight: 600,
+                                fontSize: 15,
+                                zIndex: 11,
+                            }}>
+                                Start: {range[0].toFixed(1)}s &nbsp; End: {range[1].toFixed(1)}s &nbsp; Current: {currentTime.toFixed(1)}s
                             </div>
-                        )}
-                        <div className="mt-4 p-4 bg-card border border-border rounded-lg">
-                            <label className="block mb-2 font-medium text-sm text-gray-700">Points</label>
+                        </div>
+                        {/* Start/End Time Inputs Below Video */}
+                        <div
+                            style={{
+                                background: 'hsl(var(--card))',
+                                padding: '16px',
+                                borderTop: '1px solid hsl(var(--primary) / 0.2)',
+                                borderRadius: '0 0 12px 12px',
+                                userSelect: 'none',
+                                WebkitUserSelect: 'none',
+                                MozUserSelect: 'none',
+                                msUserSelect: 'none',
+                                flexShrink: 0,
+                                display: 'flex',
+                                gap: '16px',
+                                alignItems: 'center',
+                                justifyContent: 'flex-start',
+                                position: 'relative',
+                            }}
+                        >
+                            <label className="font-medium mr-2">Start Time (s):</label>
                             <Input
                                 type="number"
                                 min={0}
-                                value={points}
-                                onChange={e => setPoints(Number(e.target.value))}
-                                disabled={action === "view"}
-                                style={{ width: 120 }}
-                                className="bg-background border-border"
+                                max={range[1] - 0.1}
+                                step={0.1}
+                                value={range[0]}
+                                onChange={e => handleStartTimeChange(e.target.value)}
+                                disabled={!playerReady || action === "view"}
+                                style={{ width: 100 }}
                             />
-                        </div>
-                        {(action === "add" || action === "edit") && (
-                            <div className="flex justify-end gap-2 mt-6">
-                                <Button variant="outline" onClick={handleCancel} className="border-border">
-                                    Cancel
+                            <label className="font-medium ml-4 mr-2">End Time (s):</label>
+                            <Input
+                                type="number"
+                                min={range[0] + 0.1}
+                                max={duration}
+                                step={0.1}
+                                value={range[1]}
+                                onChange={e => handleEndTimeChange(e.target.value)}
+                                disabled={!playerReady || action === "view"}
+                                style={{ width: 100 }}
+                            />
+                            {/* Go to Start/End Buttons */}
+                            <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => {
+                                        if (playerRef.current && playerReady) {
+                                            playerRef.current.seekTo(range[0], true);
+                                        }
+                                    }}
+                                    disabled={!playerReady}
+                                >
+                                    Go to Start
                                 </Button>
-                                {action === "edit" && (
-                                    <Button
-                                        variant="destructive"
-                                        onClick={() => {
-                                            if (typeof onDelete === "function") {
-                                                setShowDeleteVideoModal(true)
-                                            }
-                                        }}
-                                    >
-                                        Delete Video
-                                    </Button>
-                                )}
-                                {(() => {
-                                    const hasTimeRangeError = () => {
-                                        if (duration === 0) {
-                                            return false;
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => {
+                                        if (playerRef.current && playerReady) {
+                                            playerRef.current.seekTo(range[1], true);
                                         }
-                                        const startSeconds = parseTimeToSeconds(timeInputs.start);
-                                        const endSeconds = parseTimeToSeconds(timeInputs.end);
-                                        if (startSeconds === 0 && endSeconds === 0) {
-                                            return false;
-                                        }
-                                        return endSeconds <= startSeconds;
-                                    };
-                                    const isDisabled = 
-                                    (action !== "add" && !playerReady) || 
-                                    !url || 
-                                    !name || 
-                                    !description || 
-                                    hasErrors() || 
-                                    hasTimeRangeError();
-
-                                    return (
-                                        <Button
-                                            onClick={handleSave}
-                                            disabled={isDisabled}
-                                            
-                                            className="bg-primary hover:bg-primary/90"
-                                        >
-                                            {action === "add" ? "Add Item " : "Update Video"}
-                                        </Button>
-                                    );
-                                })()}
-
+                                    }}
+                                    disabled={!playerReady}
+                                >
+                                    Go to End
+                                </Button>
                             </div>
-
-                        )}
-                        <div className="relative group">
-                            <ConfirmationModal
-                                isOpen={showDeleteVideoModal}
-                                onClose={() => setShowDeleteVideoModal(false)}
-                                onConfirm={onDelete}
-                                title="Delete Video"
-                                description="This will delete this video. Are you sure you want to delete it?"
-                                confirmText="Delete"
-                                cancelText="Cancel"
-                                isDestructive={true}
-                                // isLoading={}
-                                loadingText="Deleting..."
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         </div>
-
                     </div>
+                )}
+                <div>
+                    <label className="block mb-1 font-medium">Points</label>
+                    <Input
+                        type="number"
+                        min={0}
+                        value={points}
+                        onChange={e => setPoints(Number(e.target.value))}
+                        disabled={action === "view"}
+                        style={{ width: 120 }}
+                    />
                 </div>
-            }
-        </>
+                {(action === "add" || action === "edit") && (
+                    <div className="flex justify-end gap-2 mt-6">
+                        <Button variant="outline" onClick={onClose}>
+                            Cancel
+                        </Button>
+                        {action === "edit" && (
+                            <Button
+                                variant="destructive"
+                                onClick={() => {
+                                    if (typeof onDelete === "function") onDelete();
+                                }}
+                            >
+                                Delete
+                            </Button>
+                        )}
+                        <Button
+                            onClick={handleSave}
+                            disabled={!playerReady || !url}
+                        >
+                            {action === "add" ? "Add Item" : "Update Item"}
+                        </Button>
+                    </div>
+                )}
+            </div>
+        </div>
     );
 };
 

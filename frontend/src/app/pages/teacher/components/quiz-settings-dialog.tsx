@@ -6,7 +6,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { QuestionBankRef } from '@/types/quiz.types';
 
 interface QuizSettingsForm {
   name: string;
@@ -23,8 +22,6 @@ interface QuizSettingsForm {
   questionVisibility: number;
   releaseTime: string;
   deadline: string;
-  allowSkip:boolean;
-  questionBankRefs?: QuestionBankRef []
 }
 
 interface ValidationErrors {
@@ -132,17 +129,17 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm xl:max-w-4xl lg:max-w-3xl sm:max-w-2xl mx-auto px-4 max-h-[90vh] sm:max-h-[85vh] flex flex-col overflow-hidden">
-        <DialogHeader className="mb-3 text-left flex-shrink-0">
-          <DialogTitle className='text-2xl'>Edit Quiz Settings</DialogTitle>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit Quiz Settings</DialogTitle>
         </DialogHeader>
-        <div className="space-y-6 mt-5 flex-1 overflow-y-auto px-4">
+        <div className="space-y-6">
           {/* Basic Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Basic Information</h3>
             <div className="grid grid-cols-1 gap-4">
               <div>
-                <Label htmlFor="quizName" className='mb-2'>Quiz Name *</Label>
+                <Label htmlFor="quizName">Quiz Name</Label>
                 <Input
                   id="quizName"
                   value={quizSettingsForm.name}
@@ -155,7 +152,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                 )}
               </div>
               <div>
-                <Label htmlFor="quizDescription" className='mb-2'>Description *</Label>
+                <Label htmlFor="quizDescription">Description</Label>
                 <Textarea
                   id="quizDescription"
                   value={quizSettingsForm.description}
@@ -176,7 +173,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
             <h3 className="text-lg font-semibold">Quiz Configuration</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="passThreshold" className='mb-2'>Pass Threshold (%)</Label>
+                <Label htmlFor="passThreshold">Pass Threshold (%)</Label>
                 <Input
                   id="passThreshold"
                   type="number"
@@ -194,7 +191,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                 )}
               </div>
               <div>
-                <Label htmlFor="maxAttempts" className='mb-2'>Max Attempts</Label>
+                <Label htmlFor="maxAttempts">Max Attempts</Label>
                 <Input
                   id="maxAttempts"
                   type="number"
@@ -211,7 +208,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                 )}
               </div>
               <div>
-                <Label htmlFor="quizType" className='mb-2'>Quiz Type</Label>
+                <Label htmlFor="quizType">Quiz Type</Label>
                 <Select
                   value={quizSettingsForm.quizType}
                   onValueChange={(value: 'DEADLINE' | 'NO_DEADLINE') =>
@@ -228,7 +225,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                 </Select>
               </div>
               <div>
-                <Label htmlFor="approximateTime" className='mb-2'>Approximate Time (HH:MM:SS)</Label>
+                <Label htmlFor="approximateTime">Approximate Time (HH:MM:SS)</Label>
                 <Input
                   id="approximateTime"
                   value={quizSettingsForm.approximateTimeToComplete}
@@ -241,7 +238,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                 )}
               </div>
               <div>
-               {/* <Label htmlFor="questionVisibility" className='mb-2'>Questions Visible to Students</Label>
+                <Label htmlFor="questionVisibility">Questions Visible to Students</Label>
                 <Input
                   id="questionVisibility"
                   type="number"
@@ -249,7 +246,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                   value={quizSettingsForm.questionVisibility}
                   onChange={(e) => handleFieldChange('questionVisibility', parseInt(e.target.value))}
                   className={validationErrors.questionVisibility ? 'border-red-500' : ''}
-                />*/} 
+                />
                 {validationErrors.questionVisibility && (
                   <p className="text-xs text-red-500 mt-1">{validationErrors.questionVisibility}</p>
                 )}
@@ -262,7 +259,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
             <h3 className="text-lg font-semibold">Time Settings</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="releaseTime" className='mb-2'>Release Time</Label>
+                <Label htmlFor="releaseTime">Release Time</Label>
                 <Input
                   id="releaseTime"
                   type="datetime-local"
@@ -276,7 +273,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
               </div>
               {quizSettingsForm.quizType === 'DEADLINE' && (
                 <div>
-                  <Label htmlFor="deadline" className='mb-2'>Deadline</Label>
+                  <Label htmlFor="deadline">Deadline</Label>
                   <Input
                     id="deadline"
                     type="datetime-local"
@@ -298,7 +295,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label htmlFor="allowPartialGrading" className='mb-2'>Allow Partial Grading</Label>
+                  <Label htmlFor="allowPartialGrading">Allow Partial Grading</Label>
                   <p className="text-xs text-muted-foreground">
                     Enable partial credit for multi-select questions
                   </p>
@@ -311,7 +308,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <Label htmlFor="allowHint" className='mb-2'>Allow Hints</Label>
+                  <Label htmlFor="allowHint">Allow Hints</Label>
                   <p className="text-xs text-muted-foreground">
                     Let students see hints for questions
                   </p>
@@ -324,21 +321,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <Label htmlFor="allowSkip" className='mb-2'>Allow Skips</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Allow students to skip quiz after 5 attempts
-                  </p>
-                </div>
-                <Switch
-                  id="allowSkip"
-                  checked={quizSettingsForm.allowSkip}
-                  onCheckedChange={(checked) => handleFieldChange('allowSkip', checked)}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="showCorrectAnswers" className='mb-2'>Show Correct Answers</Label>
+                  <Label htmlFor="showCorrectAnswers">Show Correct Answers</Label>
                   <p className="text-xs text-muted-foreground">
                     Display correct answers after submission
                   </p>
@@ -364,7 +347,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <Label htmlFor="showScore" className='mb-2'>Show Score</Label>
+                  <Label htmlFor="showScore">Show Score</Label>
                   <p className="text-xs text-muted-foreground">
                     Display score immediately after submission
                   </p>
@@ -378,7 +361,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
             </div>
           </div>
         </div>
-        <div className="flex justify-end gap-2 mt-6 pt-4 border-t flex-shrink-0 px-2 sm:px-0">
+        <div className="flex justify-end gap-2 mt-6">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

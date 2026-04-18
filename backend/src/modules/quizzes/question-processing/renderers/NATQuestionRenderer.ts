@@ -28,7 +28,6 @@ class NATQuestionRenderer extends BaseQuestionRenderer {
       timeLimitSeconds: renderedQuestion.timeLimitSeconds,
       decimalPrecision: renderedQuestion.decimalPrecision,
       parameterMap: parameterMap,
-      priority: renderedQuestion.priority,
     };
 
     return renderedQuestionView;

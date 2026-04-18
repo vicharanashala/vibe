@@ -2,7 +2,6 @@ import {
   IUserQuizMetrics,
   IAttemptDetails,
 } from '#quizzes/interfaces/grading.js';
-import { ID } from '#root/shared/index.js';
 import {ObjectId} from 'mongodb';
 
 class UserQuizMetrics implements IUserQuizMetrics {
@@ -10,21 +9,15 @@ class UserQuizMetrics implements IUserQuizMetrics {
   quizId: string | ObjectId;
   remainingAttempts: number;
   latestAttemptId?: string | ObjectId;
-  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED' | 'SKIPPED';
+  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
   attempts: IAttemptDetails[];
-  skipCount: number;
-  cohortId?: ID;
 
-  constructor(userId: string | ObjectId, quizId: string | ObjectId, maxAttempts: number, cohortId?: ID) {
+  constructor(userId: string | ObjectId, quizId: string, maxAttempts: number) {
     this.userId = userId;
     this.quizId = quizId;
     this.remainingAttempts = maxAttempts;
     this.latestAttemptStatus = 'ATTEMPTED';
-    this.skipCount = 0;
     this.attempts = [];
-    if (cohortId) {
-      this.cohortId = cohortId;
-    }
   }
 }
 

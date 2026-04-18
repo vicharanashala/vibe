@@ -13,27 +13,15 @@ interface IQuestionParameter {
   type: 'number' | 'string';
 }
 
-export type Priority = 'LOW' | 'MEDIUM' | 'HIGH';
-export type BloomLevel =
-  | 'knowledge'
-  | 'understanding'
-  | 'application'
-  | 'analysis'
-  | 'evaluation'
-  | 'creation'
-  | 'unclassified';
-
 interface IQuestion {
   _id?: string | ObjectId;
   text: string;
   type: QuestionType;
   isParameterized: boolean;
-  bloomLevel?: BloomLevel;
   parameters?: IQuestionParameter[];
   hint?: string;
   timeLimitSeconds: number;
-  points?: number;
-  priority: Priority;
+  points: number;
 }
 
 interface INATSolution {
@@ -42,10 +30,6 @@ interface INATSolution {
   lowerLimit: number;
   value?: number;
   expression?: string;
-}
-
-interface IDESSolution {
-  solutionText: string;
 }
 
 interface ILotItem {
@@ -73,17 +57,20 @@ interface ISMLSolution {
   correctLotItems: ILotItem[];
 }
 
+interface IDESSolution {
+  solutionText: string;
+}
+
 type ID = string | ObjectId;
 
 interface IQuestionBank {
   _id?: string | ObjectId;
-  courseId?: ID;
-  courseVersionId?: ID;
+  courseId?: string;
+  courseVersionId?: string;
   questions: ID[];
   tags?: string[];
   title: string;
   description: string;
-  points?: number;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -150,9 +150,7 @@ export interface paths {
     };
     "/courses/versions/{id}": {
         parameters: {
-            query?: {
-                cohortId?: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -566,51 +564,6 @@ export interface paths {
         patch: operations["ProgressController.resetProgress"];
         trace?: never;
     };
-    "/users/progress/recalculate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Recalculate student progress
-         * @description Recalculates and updates the progress of a student for a given course and course version.
-         */
-        post: {
-            requestBody: {
-                content: {
-                    "application/json": {
-                        courseId: string;
-                        courseVersionId: string;
-                        userId?: string;
-                        cohortId?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Progress recalculated successfully */
-                200: {
-                    content: {
-                        "application/json": string;
-                    };
-                };
-                /** @description Failed to recalculate student progress */
-                500: {
-                    content: {
-                        "application/json": unknown;
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/users/firebase/{firebaseUID}": {
         parameters: {
             query?: never;
@@ -923,7 +876,6 @@ export interface components {
             courseId: string;
         };
         CourseVersionDataResponse: {
-            readonly version: string;
             /**
              * Format: Mongo Object ID
              * @description ID of the course version
@@ -952,40 +904,13 @@ export interface components {
              * @example 2023-10-01T12:00:00Z
              */
             readonly createdAt: string;
-
-            /**
-             * @description version status
-             * @example active
-             */
-            readonly versionStatus: 'active' | 'archived';
-
-            /**
-             * @description Hp system is enabled or not
-             * @example true
-             */
-            readonly hpSystem: boolean;
-
-            /**
-             * @description Can we randomize the items
-             * @example true
-             */
-            readonly shouldRandomize?: boolean;
-
             /**
              * Format: date-time
              * @description Last update timestamp
              * @example 2023-10-01T12:00:00Z
              */
             readonly updatedAt: string;
-
         };
-        UpdateCourseVersionStatusBody:{
-            /**
-             * @description version status
-             * @example open
-             */
-            versionStatus: 'active' | 'archived';
-        }
         CourseVersionNotFoundErrorResponse: {
             /**
              * @description HTTP status code
@@ -1462,7 +1387,7 @@ export interface components {
              * @description Points assigned to the blog submission
              * @example 20
              */
-            points: string;
+            points: number;
             /**
              * Estimated Read Time
              * @description Estimated time to complete reading the blog in minutes
@@ -1499,11 +1424,11 @@ export interface components {
             beforeItemId?: string;
             /**
              * Item Type
-             * @description Type of the item: VIDEO, BLOG, QUIZ, or PROJECT
+             * @description Type of the item: VIDEO, BLOG, or QUIZ
              * @example VIDEO
              * @enum {string}
              */
-            type: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT";
+            type: "VIDEO" | "QUIZ" | "BLOG";
             /**
              * Video Details
              * @description Details specific to video items
@@ -1564,7 +1489,7 @@ export interface components {
              * @example BLOG
              * @enum {string}
              */
-            type?: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT";
+            type?: "VIDEO" | "QUIZ" | "BLOG";
             /**
              * After Item ID
              * Format: Mongo Object ID
@@ -2119,8 +2044,6 @@ export interface components {
             totalPages: number;
             currentPage: number;
             enrollments: Record<string, never>[];
-            activeCount?: number;
-            archivedCount?: number;
         };
         EnrollmentNotFoundErrorResponse: {
             /**

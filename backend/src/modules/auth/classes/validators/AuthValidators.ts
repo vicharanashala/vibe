@@ -2,11 +2,10 @@ import {
   IsEmail,
   IsNotEmpty,
   MinLength,
+  IsAlpha,
   IsString,
   Matches,
   IsOptional,
-  IsArray,
-  IsNumber,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 
@@ -18,9 +17,7 @@ class SignUpBody {
     type: 'string',
     format: 'email',
   })
-  @IsEmail(undefined, {
-    message: 'Invalid email address',
-  })
+  @IsEmail()
   email: string;
 
   @JSONSchema({
@@ -34,6 +31,7 @@ class SignUpBody {
     example: 'SecureP@ssw0rd',
     type: 'string',
     minLength: 8,
+    format: 'password',
     writeOnly: true,
   })
   @IsNotEmpty()
@@ -46,9 +44,7 @@ class SignUpBody {
     example: 'John',
     type: 'string',
   })
-  @Matches(/^[A-Za-z ]+$/, {
-    message: 'name can only contain alphabetic characters and spaces',
-  })
+  @Matches(/^[A-Za-z ]+$/)
   firstName: string;
 
   @JSONSchema({
@@ -57,44 +53,9 @@ class SignUpBody {
     example: 'Smith',
     type: 'string',
   })
-  @Matches(/^[A-Za-z ]+$/, {
-    message: 'name can only contain alphabetic characters and spaces',
-  })
+  @Matches(/^[A-Za-z ]+$/)
   @IsOptional()
   lastName?: string;
-
-  @JSONSchema({
-    title: 'reCAPTCHA Token',
-    description: 'reCAPTCHA verification token obtained from the frontend widget',
-    example: '03AGdBq27...',
-    type: 'string',
-  })
-  @IsString()
-  @IsNotEmpty()
-  recaptchaToken: string;
-
-  @JSONSchema({
-    title: 'Profile Image',
-    description: 'Optional student profile image as a data URL or remote URL',
-    example: 'data:image/jpeg;base64,/9j/4AAQSk...',
-    type: 'string',
-  })
-  @IsOptional()
-  @IsString()
-  profileImage?: string;
-
-  @JSONSchema({
-    title: 'Face Embedding',
-    description: 'Optional 128-length face embedding generated from the registration image',
-    type: 'array',
-    items: {
-      type: 'number',
-    },
-  })
-  @IsOptional()
-  @IsArray()
-  @IsNumber({}, {each: true})
-  faceEmbedding?: number[];
 }
 
 class GoogleSignUpBody {
@@ -105,9 +66,7 @@ class GoogleSignUpBody {
     type: 'string',
     format: 'email',
   })
-  @IsEmail(undefined, {
-    message: 'Invalid email address',
-  })
+  @IsEmail()
   email: string;
 
   @JSONSchema({
@@ -116,9 +75,7 @@ class GoogleSignUpBody {
     example: 'John',
     type: 'string',
   })
-  @Matches(/^[A-Za-z ]+$/, {
-    message: 'name can only contain alphabetic characters and spaces',
-  })
+  @Matches(/^[A-Za-z ]+$/)
   firstName: string;
 
   @JSONSchema({
@@ -127,9 +84,7 @@ class GoogleSignUpBody {
     example: 'Smith',
     type: 'string',
   })
-  @Matches(/^[A-Za-z ]+$/, {
-    message: 'name can only contain alphabetic characters and spaces',
-  })
+  @Matches(/^[A-Za-z ]+$/)
   @IsOptional()
   lastName?: string;
 }
@@ -146,12 +101,6 @@ class VerifySignUpProviderBody {
 }
 
 class ChangePasswordBody {
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(8)
-  @Matches(/^[A-Za-z ]+$/, {
-    message: 'Password Invalid',
-  })
   @JSONSchema({
     title: 'New Password',
     description:
@@ -162,17 +111,12 @@ class ChangePasswordBody {
 4. **Special symbols** (`! @ # $ % ^ & * ( ) – _ = + [ ] { } | ; : , . ? /`) ',
     example: 'SecureP@ssw0rd',
     type: 'string',
+    format: 'password',
     minLength: 8,
     writeOnly: true,
   })
   newPassword: string;
 
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(8)
-  @Matches(/^[A-Za-z ]+$/, {
-    message: 'Password Invalid',
-  })
   @JSONSchema({
     title: 'Confirm New Password',
     description:
@@ -183,6 +127,7 @@ class ChangePasswordBody {
 4. **Special symbols** (`! @ # $ % ^ & * ( ) – _ = + [ ] { } | ; : , . ? /`) ',
     example: 'SecureP@ssw0rd',
     type: 'string',
+    format: 'password',
     minLength: 8,
     writeOnly: true,
   })
@@ -272,85 +217,25 @@ class AuthErrorResponse {
   message: string;
 }
 
+
 class LoginBody {
   @JSONSchema({
     title: 'Email Address',
-    description: 'Email address of the user',
-    format: 'email',
+    description: 'Email address of the user'
   })
   @IsEmail()
-  email: string;
+  email: string;  
 
   @JSONSchema({
     title: 'Password',
     description: 'Password for account authentication',
-    example: 'SecureP@ssw0rd',
+    example:'SecureP@ssw0rd',
     minLength: 8,
-    writeOnly: true,
+    writeOnly: true
   })
   @IsNotEmpty()
   @MinLength(8)
   password: string;
-
-  @JSONSchema({
-    title: 'reCAPTCHA Token',
-    description: 'reCAPTCHA verification token obtained from the frontend widget',
-    example: '03AGdBq27...',
-    type: 'string',
-  })
-  @IsString()
-  @IsNotEmpty()
-  recaptchaToken: string;
-}
-
-class LoginResponse {
-  @JSONSchema({
-    description: 'Local ID of the user',
-    example: 'cKy6H2O04PgTh8O3DpUXjgJYUr53',
-    type: 'string',
-  })
-  @IsString()
-  localId: string;
-
-  @JSONSchema({
-    description: 'Email address of the user',
-    example: 'user@example.com',
-    type: 'string',
-    format: 'email',
-  })
-  @IsString()
-  email: string;
-
-  @JSONSchema({
-    description: 'Display name of the user',
-    example: 'John Doe',
-    type: 'string',
-  })
-  @IsString()
-  displayName: string;
-
-  @JSONSchema({
-    description: 'ID token of the user',
-    example: 'cKy6H2O04PgTh8O3DpUXjgJYUr53',
-    type: 'string',
-  })
-  @IsString()
-  idToken: string;
-
-  @JSONSchema({
-    description: 'Refresh token of the user',
-    example: 'cKy6H2O04PgTh8O3DpUXjgJYUr53',
-    type: 'string',
-  })
-  @IsString()
-  refreshToken: string;
-
-  @JSONSchema({
-    description: 'Expiry time of the ID token',
-    example: '3600',
-    type: 'number',
-  })
-  expiresIn: Number;
 }
 
 export const AUTH_VALIDATORS = [
@@ -363,7 +248,6 @@ export const AUTH_VALIDATORS = [
   TokenVerificationResponse,
   AuthErrorResponse,
   LoginBody,
-  LoginResponse,
 ];
 
 export {
@@ -376,5 +260,4 @@ export {
   TokenVerificationResponse,
   AuthErrorResponse,
   LoginBody,
-  LoginResponse,
 };
