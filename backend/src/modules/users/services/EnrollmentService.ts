@@ -898,16 +898,14 @@ export class EnrollmentService extends BaseService {
           const completedCount = watchedItemsMap.get(watchedKey) || 0;
 
           const ratio = completedCount / (enr.totalItems || 1);
-          let calculatedPercent = Number((ratio * 100).toFixed(2));
+          let calculatedPercent = Math.min(Number((ratio * 100).toFixed(2)), 100);
           let totalCompletedItemsCount = completedCount;
 
           // Guru Setu Override
-          // console.log(`Checking Guru Setu for course ${enr.courseId?.toString()} and version ${versionIdStr}`);
           if (
             enr.courseId?.toString() === GURU_SETU_COURSE_ID &&
             versionIdStr === GURU_SETU_VERSION_ID
           ) {
-            // console.log(`Guru Setu Match Found for user ${userId}`);
             const guruProgress =
               await this.progressService.calculateGuruSetuProgress(
                 userId,
@@ -917,58 +915,43 @@ export class EnrollmentService extends BaseService {
             totalCompletedItemsCount = guruProgress.completedItemsCount;
           }
 
-          // if (enr.percentCompleted !== calculatedPercent) {
-          //   void this.enrollmentRepo.updateProgressPercentById(
-          //     enr._id.toString(),
-          //     calculatedPercent,
-          //     totalCompletedItemsCount,
-          //     enr.cohortId?.toString(),
-          //   );
+          if (enr.percentCompleted !== calculatedPercent) {
+            void this.enrollmentRepo.updateProgressPercentById(
+              enr._id.toString(),
+              calculatedPercent,
+              totalCompletedItemsCount,
+              enr.cohortId?.toString(),
+            );
+          }
 
-        const ratio = completedCount / (enr.totalItems || 1);
-        const calculatedPercent = Math.min(Number((ratio * 100).toFixed(2)), 100);
+          let itemCounts = enr.itemCounts || {};
+          let totalItems = Number(enr.totalItems ?? 0);
 
-        if (enr.percentCompleted !== calculatedPercent) {
-          void this.enrollmentRepo.updateProgressPercentById(
-            enr._id.toString(),
-            calculatedPercent,
-            completedCount,
-            enr.cohort,
+          const hasItemCounts = Object.values(itemCounts).some(
+            (count: any) => Number(count) > 0,
           );
 
-          if (enr.percentCompleted >= 0) {
-            let itemCounts = enr.itemCounts || {};
-            let totalItems = Number(enr.totalItems ?? 0);
-
-            const hasItemCounts = Object.values(itemCounts).some(
-              (count: any) => Number(count) > 0,
-            );
-
-            if (totalItems <= 0 || !hasItemCounts) {
-              if (!itemCountsFallbackCache.has(versionIdStr)) {
-                const fallback =
-                  await this.itemRepo.calculateItemCountsForVersion(
-                    versionIdStr,
-                  );
-                itemCountsFallbackCache.set(versionIdStr, {
-                  totalItems: Number(fallback.totalItems ?? 0),
-                  itemCounts: fallback.itemCounts ?? {},
-                });
-              }
-
-              const fallback = itemCountsFallbackCache.get(versionIdStr)!;
-              if (totalItems <= 0) {
-                totalItems = fallback.totalItems;
-              }
-              if (!hasItemCounts) {
-                itemCounts = fallback.itemCounts;
-              }
+          if (totalItems <= 0 || !hasItemCounts) {
+            if (!itemCountsFallbackCache.has(versionIdStr)) {
+              const fallback =
+                await this.itemRepo.calculateItemCountsForVersion(
+                  versionIdStr,
+                );
+              itemCountsFallbackCache.set(versionIdStr, {
+                totalItems: Number(fallback.totalItems ?? 0),
+                itemCounts: fallback.itemCounts ?? {},
+              });
             }
 
-            completedItems: watchedItemsMap.get(watchedKey) || 0,
-          };
-        }
-      });
+            const fallback = itemCountsFallbackCache.get(versionIdStr)!;
+            if (totalItems <= 0) {
+              totalItems = fallback.totalItems;
+            }
+            if (!hasItemCounts) {
+              itemCounts = fallback.itemCounts;
+            }
+          }
+
             const completedByType = watchedItemsByTypeMap.get(watchedKey) || {
               videos: 0,
               quizzes: 0,

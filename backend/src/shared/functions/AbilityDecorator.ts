@@ -30,8 +30,13 @@ export function Ability(
 
       // Get user's enrollments
       const enrollmentService = getFromContainer(EnrollmentService);
-      const enrollments = await enrollmentService.getAllEnrollments(
-        user._id.toString(),
+      // Provide all required arguments: userId, skip, limit, role, search
+      const enrollments = await enrollmentService.getEnrollments(
+        user._id.toString(), // userId
+        0,                   // skip
+        100,                 // limit (arbitrary default)
+        undefined,           // role (if needed, otherwise undefined)
+        ''                   // search (empty string for no filter)
       );
 
       // Create authenticated user object
