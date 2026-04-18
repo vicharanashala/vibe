@@ -753,7 +753,7 @@ export class EnrollmentService extends BaseService {
             hasNewItemsAfterCompletion: enr.hasNewItemsAfterCompletion || false,
             policyReacknowledgementRequired:
               enr.policyReacknowledgementRequired ?? false,
-            hpSystem,
+            hpSystem: hpSystemMap.get(versionIdStr) ?? false,
           };
         }
       });
@@ -996,7 +996,6 @@ export class EnrollmentService extends BaseService {
 
               completedItems: watchedItemsMap.get(watchedKey) || 0,
             };
-          }
         }),
       );
 

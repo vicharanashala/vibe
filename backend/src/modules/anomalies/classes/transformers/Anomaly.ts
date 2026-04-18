@@ -46,11 +46,11 @@ export interface IDecryptionResult {
 
 export class IAnomalyData {
     _id?: string | ObjectId;
-    userId: string;
+    userId: string | ObjectId;
     type: AnomalyType;
-    courseId: string;
-    versionId: string;
-    itemId: string;
+    courseId: string | ObjectId;
+    versionId: string | ObjectId;
+    itemId: string | ObjectId;
     fileName?: string;
     fileType?: FileType;
     createdAt: Date;

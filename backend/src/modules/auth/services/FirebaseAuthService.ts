@@ -174,7 +174,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     const invites = await this.inviteRepository.findInvitesByEmail(body.email);
     for (const invite of invites) {
       if(invite.inviteStatus === 'ACCEPTED') {
-        const result = await this.enrollmentService.enrollUser(createdUserId.toString(), invite.courseId, invite.courseVersionId, invite.role, true);
+        const result = await this.enrollmentService.enrollUser(createdUserId.toString(), invite.courseId?.toString(), invite.courseVersionId?.toString(), invite.role, true);
         if(result && (result as any).enrollment) {
           enrolledInvites.push(new InviteResult(
             invite._id,
@@ -228,7 +228,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     const invites = await this.inviteRepository.findInvitesByEmail(body.email);
     for (const invite of invites) {
       if(invite.inviteStatus === 'ACCEPTED') {
-        const result = await this.enrollmentService.enrollUser(createdUserId.toString(), invite.courseId, invite.courseVersionId, invite.role, true);
+        const result = await this.enrollmentService.enrollUser(createdUserId.toString(), invite.courseId?.toString(), invite.courseVersionId?.toString(), invite.role, true);
         if(result && (result as any).enrollment) {
           enrolledInvites.push(new InviteResult(
             invite._id,

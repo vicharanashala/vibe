@@ -1797,12 +1797,11 @@ export class EnrollmentRepository {
           },
         },
       },
-      },
       { $limit: 1 },
     ];
 
     const result = await this.enrollmentCollection
-      .aggregate(pipeline, { session })
+      .aggregate<any>(pipeline, { session })
       .toArray();
 
     if (!result[0]) return null;
