@@ -78,8 +78,8 @@ jobs:
         uses: davelosert/vitest-coverage-report-action@v2
         with:
           working-directory: backend
-          json-summary-path: backend/coverage/coverage-summary.json
-          json-final-path: backend/coverage/coverage-final.json
+          json-summary-path: coverage/coverage-summary.json
+          json-final-path: coverage/coverage-final.json
 
       - name: Remove IP from MongoDB Atlas Access List
         if: always()
