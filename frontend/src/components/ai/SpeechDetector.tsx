@@ -2,14 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { AudioClassifier, FilesetResolver } from "@mediapipe/tasks-audio";
 
 import type { SpeechDetectorProps } from "@/types/ai.types";
-import {registerStream, unRegisterStream } from "@/lib/MediaRegistry";
 
 const SpeechDetector: React.FC<SpeechDetectorProps> = ({ setIsSpeaking }) => {
-  useEffect(() => {
-    return () => {
-       unRegisterStream("SpeechDetector-audio-stream");
-    };
-  }, []);
   const [modelReady, setModelReady] = useState(false);
   const classifierRef = useRef<AudioClassifier | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -49,8 +43,7 @@ const SpeechDetector: React.FC<SpeechDetectorProps> = ({ setIsSpeaking }) => {
   const startMicrophone = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      unRegisterStream("SpeechDetector-audio-stream");
-      registerStream("SpeechDetector-audio-stream", stream);
+
       audioCtxRef.current = new AudioContext({ sampleRate: 16000 });
       sourceRef.current = audioCtxRef.current.createMediaStreamSource(stream);
       scriptNodeRef.current = audioCtxRef.current.createScriptProcessor(4096, 1, 1); // Reduced buffer size
@@ -68,6 +61,7 @@ const SpeechDetector: React.FC<SpeechDetectorProps> = ({ setIsSpeaking }) => {
 
       sourceRef.current.connect(scriptNodeRef.current);
       scriptNodeRef.current.connect(audioCtxRef.current.destination);
+      console.log("[SpeechDetector] 🎙️ Microphone Started!");
     } catch (error) {
       console.error("[SpeechDetector] ❌ Error accessing microphone:", error);
     }

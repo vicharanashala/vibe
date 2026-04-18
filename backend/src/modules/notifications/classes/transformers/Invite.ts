@@ -4,7 +4,7 @@ import {
   ObjectIdToString,
   StringToObjectId,
 } from '#shared/constants/transformerConstants.js';
-import {EnrollmentRole, ID, InviteType} from '#shared/interfaces/models.js';
+import {EnrollmentRole, ID} from '#shared/interfaces/models.js';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {
   IsNotEmpty,
@@ -39,9 +39,9 @@ class Invite {
     description: 'The email address of the person being invited.',
     example: 'invitee@example.com',
     type: 'string',
+    format: 'email', // Use 'format: "email"' for better OpenAPI documentation
   })
-  // @IsNotEmpty()
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
   @IsEmail()
   email: string;
@@ -54,7 +54,7 @@ class Invite {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseId: ID;
+  courseId: string;
 
   @JSONSchema({
     title: 'Course Version ID',
@@ -65,11 +65,10 @@ class Invite {
   @IsNotEmpty()
   @IsString()
   @IsMongoId()
-  courseVersionId: ID; 
+  courseVersionId: string; 
 
 
-  inviteStatus: 'ACCEPTED' | 'PENDING' | 'EXPIRED' |'CANCELLED' |'REJECTED'| 'EMAIL_FAILED' | 'ALREADY_ENROLLED' = 'PENDING';
-  
+  inviteStatus: 'ACCEPTED' | 'PENDING' | 'CANCELLED' | 'EMAIL_FAILED' | 'ALREADY_ENROLLED' = 'PENDING';
 
 
   @IsBoolean()
@@ -101,65 +100,26 @@ class Invite {
   })
   acceptedAt?: Date;
 
-  type:InviteType = InviteType.SINGLE
-  usedCount:number
-  
-  @IsOptional()
-  @JSONSchema({
-    description: 'Cohort of the invite',
-  })
-  cohortId?: ID;
-  // inviteStatus:InviteStatusType
-  // constructor(
-  //   email: string,
-  //   courseId: ID,
-  //   courseVersionId: ID,
-  //   role: EnrollmentRole = 'STUDENT',
-  //   isAlreadyEnrolled: boolean = false,
-  //   isNewUser: boolean = false,
-  //   expiresAt: Date,
-  // ) {
-  //   this.email = email;
-  //   this.courseId = courseId;
-  //   this.courseVersionId = courseVersionId;
-  //   this.expiresAt = expiresAt;
-  //   this.role = role;
-  //   this.isAlreadyEnrolled = isAlreadyEnrolled;
-  //   this.isNewUser = isNewUser;
-  //   this.createdAt = new Date();
-  //   if(this.isAlreadyEnrolled) {
-  //     this.inviteStatus = 'ALREADY_ENROLLED';
-  //   }
-  // }
 
   constructor(
-    opts: {
-      email?: string;
-      courseId: ID;
-      courseVersionId: ID;
-      role?: EnrollmentRole;
-      isAlreadyEnrolled?: boolean;
-      isNewUser?: boolean;
-      expiresAt: Date;
-      type?: InviteType;
-      cohortId?: ID;
-    }
+    email: string,
+    courseId: string,
+    courseVersionId: string,
+    role: EnrollmentRole = 'STUDENT',
+    isAlreadyEnrolled: boolean = false,
+    isNewUser: boolean = false,
+    expiresAt: Date,
   ) {
-    this.email = opts.email;
-    this.courseId = opts.courseId;
-    this.courseVersionId = opts.courseVersionId;
-    this.expiresAt = opts.expiresAt;
-    this.role = opts.role ?? 'STUDENT';
-    this.isAlreadyEnrolled = opts.isAlreadyEnrolled ?? false;
-    this.isNewUser = opts.isNewUser ?? false;
+    this.email = email;
+    this.courseId = courseId;
+    this.courseVersionId = courseVersionId;
+    this.expiresAt = expiresAt;
+    this.role = role;
+    this.isAlreadyEnrolled = isAlreadyEnrolled;
+    this.isNewUser = isNewUser;
     this.createdAt = new Date();
-    this.type = opts.type ?? InviteType.SINGLE;
-
-    if (this.isAlreadyEnrolled) {
+    if(this.isAlreadyEnrolled) {
       this.inviteStatus = 'ALREADY_ENROLLED';
-    }
-    if(opts.cohortId) {
-      this.cohortId = opts.cohortId;
     }
   }
 }
@@ -167,42 +127,9 @@ class Invite {
 
 @Expose()
 export class MessageResponse {
-  
-  @IsString()
   @Expose()
-  @JSONSchema({
-    title: 'Message',
-    description: 'The message to be displayed',
-    example: 'It return Dynamic html Template',
-    type: 'string',
-  })
   message: string
 }
 
-@Expose()
-export class ResendInviteResponse {
-  
-  @IsString()
-  @Expose()
-  @JSONSchema({
-    title: 'Message',
-    description: 'The message to be displayed',
-    example: 'Invite resent successfully',
-    type: 'string',
-  })
-  message: string
-}
 
-export class CancelInviteResponse{
-
-  @IsString()
-  @Expose()
-  @JSONSchema({
-    title: 'Message',
-    description: 'The message to be displayed',
-    example: 'Invite has been cancelled successfully.',
-    type: 'string',
-  })
-  message: string
-}
 export {Invite};

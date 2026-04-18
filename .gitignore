@@ -66,15 +66,6 @@ dist/
 
 config.json
 google_credentials.json
-gcp-service-account.json
 backend/tsconfig.tsbuildinfo
 frontend/tsconfig.tsbuildinfo
-.firebase/
 frontend/.firebase
-
-
-# Playwright artifacts
-e2e/test-results/
-e2e/screenshots/
-e2e/playwright-report/
-e2e/*.txt

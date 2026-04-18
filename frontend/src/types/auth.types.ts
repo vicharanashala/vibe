@@ -20,12 +20,6 @@ export type User = {
   uid: string;
   email: string;
   name?: string;
-  firstName?: string;
-  lastName?: string;
-  gender?: string;
-  country?: string;
-  state?: string;
-  city?: string;
   role: 'teacher' | 'student' | 'admin' | null;
   avatar?: string;
 };
@@ -34,12 +28,10 @@ export type AuthStore = {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
-  isAuthReady: boolean;
-
+  
   // Actions
   setUser: (user: User) => void;
   setToken: (token: string) => void;
   clearUser: () => void;
   hasRole: (role: string | string[]) => boolean;
-  setAuthReady: (ready: boolean) => void;
 };

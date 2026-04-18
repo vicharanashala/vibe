@@ -75,16 +75,6 @@ export class GetUserResponse implements IUser {
   lastName?: string;
 
   @JSONSchema({
-    description: "User's avatar image URL or data URI",
-    example: 'https://example.com/avatar.png',
-    type: 'string',
-    readOnly: true,
-  })
-  @IsString()
-  @IsOptional()
-  avatar?: string;
-
-  @JSONSchema({
     description: "User's roles",
     example: 'admin',
     type: 'string',
@@ -101,8 +91,8 @@ export class EditUserBody{
     readOnly: true,
   })
   @IsString()
-  @IsOptional()
-  firstName?: string;
+  @IsNotEmpty()
+  firstName: string;
 
   @JSONSchema({
     description: "User's last name",
@@ -111,58 +101,8 @@ export class EditUserBody{
     readOnly: true,
   })
   @IsString()
-  @IsOptional()
-  lastName?: string;
-
-  @JSONSchema({
-    description: "User's avatar image URL or data URI",
-    example: 'https://example.com/avatar.png',
-    type: 'string',
-    readOnly: true,
-  })
-  @IsString()
-  @IsOptional()
-  avatar?: string;
-
-  @JSONSchema({
-    description: "User's gender",
-    example: 'Male',
-    type: 'string',
-    readOnly: true,
-  })
-  @IsString()
-  @IsOptional()
-  gender?: string;
-
-  @JSONSchema({
-    description: "User's country",
-    example: 'India',
-    type: 'string',
-    readOnly: true,
-  })
-  @IsString()
-  @IsOptional()
-  country?: string;
-
-  @JSONSchema({
-    description: "User's state",
-    example: 'Maharashtra',
-    type: 'string',
-    readOnly: true,
-  })
-  @IsString()
-  @IsOptional()
-  state?: string;
-
-  @JSONSchema({
-    description: "User's city",
-    example: 'Pune',
-    type: 'string',
-    readOnly: true,
-  })
-  @IsString()
-  @IsOptional()
-  city?: string;
+  @IsNotEmpty()
+  lastName: string;
 }
 
 /**

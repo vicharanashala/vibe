@@ -23,7 +23,7 @@ interface UserQuizMetricsResponse {
   _id?: string;
   quizId: string;
   userId: string;
-  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED' | 'SKIPPED';
+  latestAttemptStatus: 'ATTEMPTED' | 'SUBMITTED';
   latestAttemptId?: string;
   latestSubmissionResultId?: string;
   remainingAttempts: number;
@@ -59,15 +59,14 @@ interface QuizSubmissionDisplayProps {
   userId: string;
   quizId: string;
   itemName?: string;
-  cohortId?: string;
 }
 
-export function QuizSubmissionDisplay({ userId, quizId, itemName, cohortId }: QuizSubmissionDisplayProps) {
+export function QuizSubmissionDisplay({ userId, quizId, itemName }: QuizSubmissionDisplayProps) {
   // State to track selected submission result id
   const [selectedSubmissionResultId, setSelectedSubmissionResultId] = useState<string | undefined>(undefined)
 
   // First, get quiz metrics to find the latest submission result ID
-  const { data: quizMetrics, isLoading: metricsLoading, error: metricsError } = useUserQuizMetrics(quizId, userId, cohortId)
+  const { data: quizMetrics, isLoading: metricsLoading, error: metricsError } = useUserQuizMetrics(quizId, userId)
   // Set default selected submission result id to latest on load
   const latestSubmissionResultId = quizMetrics?.latestSubmissionResultId
 
@@ -108,11 +107,6 @@ export function QuizSubmissionDisplay({ userId, quizId, itemName, cohortId }: Qu
       </div>
     )
   }
-
-  const attemptsArray = Array.isArray(quizMetrics.attempts) 
-    ? quizMetrics.attempts 
-    : (quizMetrics.attempts ? [quizMetrics.attempts] : []);
-
 
   const displayName = itemName && itemName.trim() !== "" ? itemName : "Quiz 1"
 
@@ -170,7 +164,7 @@ export function QuizSubmissionDisplay({ userId, quizId, itemName, cohortId }: Qu
           <div className="flex-1">
             <h5 className="font-semibold text-foreground">{displayName}</h5>
             <p className="text-sm text-muted-foreground">
-              {attemptsArray.length} {attemptsArray.length === 1 ? "attempt" : "attempts"} • {quizMetrics.remainingAttempts} remaining
+              {quizMetrics.attempts.length} {quizMetrics.attempts.length === 1 ? "attempt" : "attempts"} • {quizMetrics.remainingAttempts} remaining
             </p>
           </div>
           {getStatusBadge(quizMetrics.latestAttemptStatus)}
@@ -184,7 +178,7 @@ export function QuizSubmissionDisplay({ userId, quizId, itemName, cohortId }: Qu
             <Target className="h-4 w-4 text-blue-600" />
             <span className="text-sm font-medium">Total Attempts</span>
           </div>
-          <p className="text-2xl font-bold mt-1">{attemptsArray.length}</p>
+          <p className="text-2xl font-bold mt-1">{quizMetrics.attempts.length}</p>
         </Card>
 
         <Card className="p-4">
@@ -213,7 +207,7 @@ export function QuizSubmissionDisplay({ userId, quizId, itemName, cohortId }: Qu
           <h6 className="font-medium text-foreground flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Submission Details
-            {attemptsArray.length > 1 && (
+            {quizMetrics?.attempts && quizMetrics.attempts.length > 1 && (
               <span className="ml-2 text-xs text-muted-foreground">(Click an attempt below to view its stats)</span>
             )}
           </h6>
@@ -329,12 +323,12 @@ export function QuizSubmissionDisplay({ userId, quizId, itemName, cohortId }: Qu
       )}
 
       {/* All Attempts History - Clickable for submitted attempts */}
-      {attemptsArray.length > 0 && (
+      {quizMetrics.attempts.length > 0 && (
         <div className="space-y-3">
           <Separator />
           <h6 className="font-medium text-foreground">All Attempts</h6>
           <div className="space-y-2 max-h-60 overflow-y-auto">
-            {attemptsArray.map((attempt, index) => {
+            {quizMetrics.attempts.map((attempt, index) => {
               const isSelected = submissionData && submissionData.attemptId === attempt.attemptId
               const isSubmitted = Boolean(attempt.submissionResultId)
               return (
@@ -342,7 +336,7 @@ export function QuizSubmissionDisplay({ userId, quizId, itemName, cohortId }: Qu
                   key={attempt.attemptId}
                   className={`p-3 bg-card border border-border rounded-lg transition cursor-pointer relative ${
                     isSubmitted ? 'hover:bg-primary/10' : 'opacity-60 cursor-not-allowed'
-                    } ${isSelected ? 'bg-primary/10 border-primary shadow-md' : ''}`}
+                  } ${isSelected ? 'bg-primary/10 border-primary shadow-md' : ''}`}
                   onClick={() => {
                     if (isSubmitted && attempt.submissionResultId) {
                       setSelectedSubmissionResultId(attempt.submissionResultId.toString())

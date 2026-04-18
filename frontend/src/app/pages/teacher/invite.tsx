@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { toast } from "sonner"
 import {
   UserPlus,
@@ -13,14 +13,6 @@ import {
   AlertTriangle,
   Loader2,
   Plus,
-  Search,
-  Download,
-  Upload,
-  Check,
-  Pencil,
-  Trash2,
-  Layers,
-  RefreshCw,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -38,24 +30,10 @@ import {
   useResendInvite,
   useCancelInvite,
   useCourseById,
-  useCourseVersionById,
 } from "@/hooks/hooks"
 import { useCourseStore } from "@/store/course-store"
 import type { EmailInvite, EnrollmentRole, InviteStatus, InviteResult } from "@/types/invite.types"
 import { useNavigate, redirect } from "@tanstack/react-router"
-import { Pagination } from "@/components/ui/Pagination"
-import CourseBackButton from "./CourseBackButton";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-} from "@/components/ui/dropdown-menu";
-
-const isValidEmail = (email: string) => {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-}
 
 export default function InvitePage() {
   const navigate = useNavigate()
@@ -66,82 +44,19 @@ export default function InvitePage() {
   const versionId = currentCourse?.versionId
 
   if (!currentCourse || !courseId || !versionId) {
-    navigate({ to: '/teacher' });
+    navigate({ to: '/teacher/courses/list' });
     return null
   }
 
+  // State for new invites
+  const [inviteEmails, setInviteEmails] = useState<EmailInvite[]>([
+    { email: "", role: "STUDENT" as EnrollmentRole }
+  ])
+
   // State to track which invite operations are in progress
-  const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
-  const [cancelingInviteId, setCancelingInviteId] = useState<string | null>(null);
+  const [resendingInviteId, setResendingInviteId] = useState<string | null>(null)
+  const [cancelingInviteId, setCancelingInviteId] = useState<string | null>(null)
 
-  // CSV parsed emails state
-  const [parsedEmails, setParsedEmails] = useState<{ id: string, email: string }[]>([]);
-
-  // handle CSV parsed emails states
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [draftEmail, setDraftEmail] = useState<string>("");
-  const [error, setError] = useState<string>("")
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-  const [isMessageBulk, setIsMessageBulk] = useState(false);
-  const [cohort, setCohort] = useState<string | null>(null);
-
-  // handle edit or remove csv parsed emails starts
-  const startEdit = (item: { id: string, email: string }) => {
-    setEditingId(item.id);
-    setDraftEmail(item.email);
-    setError("")
-  }
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setDraftEmail("");
-  }
-
-  const saveEdit = (id: string) => {
-    const trimmed = draftEmail.trim().toLowerCase();
-    const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-    if (!emailRegex.test(trimmed)) {
-      setError("Please enter a valid email address")
-      return;
-    }
-    if (parsedEmails.some((item) => item.email === trimmed && item.id !== id)) {
-
-      setError(" This email already exits in the list")
-      return;
-    }
-    setParsedEmails((prev) =>
-      prev.map((item) =>
-        item.id === id ?
-          { ...item, email: trimmed }
-          : item)
-    )
-    setError("");
-    cancelEdit();
-  }
-
-  const removeEmail = (id: string) => {
-    setParsedEmails((prev) =>
-      prev.filter((item) =>
-        item.id !== id))
-  }
-
-  // edit or remove csv parsed emails ends 
-
-  // filters
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [sort, setSort] = useState("");
-  const [inviteStatus, setInviteStatus] = useState("");
-  const [itemsPerPage, setItemsPerPage] = useState(15);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const inviteStatusOptions = ['All', 'ACCEPTED', 'PENDING', 'CANCELLED', 'EMAIL_FAILED', 'ALREADY_ENROLLED'];
-  const sortOptions = [
-    { label: "All Invites", value: "All" },
-    { label: "Recently Accepted", value: "accept_date_desc" },
-    { label: "Earliest Accepted", value: "accept_date_asc" },
-  ];
   // Hooks
   const { data: course, isLoading: courseLoading } = useCourseById(courseId || "")
   const {
@@ -149,153 +64,16 @@ export default function InvitePage() {
     isLoading: invitesLoading,
     error: invitesError,
     refetch: refetchInvites,
-    isRefetching: isRefetchingInvites,
-  } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId), debouncedSearchQuery,
-    currentPage, itemsPerPage, inviteStatus, sort, startDate, endDate);
-
-  // Add course version data hook to check structure
-  const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(versionId || "")
+  } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId))
 
   const inviteUsers = useInviteUsers()
   const resendInvite = useResendInvite()
   const cancelInvite = useCancelInvite()
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
-  // Function to check if course has required structure for progress initialization
-  const hasRequiredStructure = () => {
-    if (!courseVersion || !courseVersion.modules || courseVersion.modules.length === 0) {
-      return false
-    }
-
-    const firstModule = courseVersion.modules.sort((a, b) =>
-      a.order.localeCompare(b.order)
-    )[0]
-
-    if (!firstModule.sections || firstModule.sections.length === 0) {
-      return false
-    }
-
-    const firstSection = firstModule.sections.sort((a, b) =>
-      a.order.localeCompare(b.order)
-    )[0]
-
-    // Note: We can't check if items exist in the itemsGroup without making additional API calls
-    // The backend will handle this check when trying to initialize progress
-    // For now, we'll assume that if a section exists, it should have an itemsGroup
-    return true
+  // Handle adding new invite row
+  const addInviteRow = () => {
+    setInviteEmails([...inviteEmails, { email: "", role: "STUDENT" }])
   }
-
-  const handlePageChange = (newPage: number) => {
-    if (invitesData && newPage >= 1 && newPage <= invitesData.totalPages) {
-      setCurrentPage(newPage)
-    }
-  }
-
-  const handleItemsPerPageChange = (newItemsPerPage: number) => {
-    setItemsPerPage(newItemsPerPage)
-    setCurrentPage(1)
-  }
-
-  // Function to get the reason why invites can't be sent
-  const getInviteBlockReason = () => {
-    if (!courseVersion) {
-      return "Course version data is not available"
-    }
-
-    if (courseVersion.versionStatus !== "active") {
-      return "Invites cannot be sent because this course version is archived. Please activate the course version first."
-    }
-
-    if (!courseVersion.modules || courseVersion.modules.length === 0) {
-      return "Course must have at least one module to send invites to students"
-    }
-
-    const firstModule = courseVersion.modules.sort((a, b) =>
-      a.order.localeCompare(b.order)
-    )[0]
-
-    if (!firstModule.sections || firstModule.sections.length === 0) {
-      return "Course must have at least one section in the first module to send invites to students"
-    }
-
-    return "Course must have at least one item in the first section to send invites to students"
-  }
-
-  // Check if course has required structure
-  const isVersionActive = courseVersion?.versionStatus === "active"
-
-  const canSendInvites = hasRequiredStructure() && isVersionActive
-
-  // Default role based on course structure
-  const defaultRole: EnrollmentRole = canSendInvites ? "STUDENT" : "INSTRUCTOR";
-
-  // State for new invites
-  const [inviteEmails, setInviteEmails] = useState<EmailInvite[]>([
-    { email: "", role: defaultRole }
-  ]);
-
-// Handle adding new invite row
-const addInviteRow = () => {
-  const lastInvite = inviteEmails[inviteEmails.length - 1];
-
-  if (
-    lastInvite.email.trim() === "" ||
-    !isValidEmail(lastInvite.email)
-  ) {
-    toast.error("Please enter a valid email before adding another.");
-    return;
-  }
-
-  setInviteEmails([
-    ...inviteEmails,
-    { email: "", role: defaultRole },
-  ]);
-};
-
-
-
-  const roles = [
-    {
-      label: "Student",
-      value: "STUDENT",
-      color: "bg-blue-500",
-      disabled: !canSendInvites,
-    },
-    // {
-    //   label: "Teaching Assistant",
-    //   value: "TA",
-    //   color: "bg-green-500",
-    //   disabled: false,
-    // },
-    {
-      label: "Instructor",
-      value: "INSTRUCTOR",
-      color: "bg-purple-500",
-      disabled: false,
-    },
-    // {
-    //   label: "Manager",
-    //   value: "MANAGER",
-    //   color: "bg-red-500",
-    //   disabled: false,
-    // },
-    // {
-    //   label: "Staff",
-    //   value: "STAFF",
-    //   color: "bg-yellow-500",
-    //   disabled: false,
-    // },
-  ];
-
-
-
 
   // Handle removing invite row
   const removeInviteRow = (index: number) => {
@@ -337,11 +115,11 @@ const addInviteRow = () => {
 
   // Handle updating invite role
   const updateInviteRole = (index: number, role: EnrollmentRole) => {
-
     const newInvites = [...inviteEmails]
     newInvites[index].role = role
     setInviteEmails(newInvites)
   }
+
   // Handle sending invites
   const handleSendInvites = async () => {
     if (!courseId || !versionId) {
@@ -356,12 +134,6 @@ const addInviteRow = () => {
       return
     }
 
-    const hasStudentInvite = validInvites.some(i => i.role === "STUDENT");
-    if (hasStudentInvite && courseVersion?.cohortDetails?.length > 0 && !cohort) {
-      toast.error("Please select a cohort before sending invites for students");
-      return;
-    }
-
     try {
       await inviteUsers.mutateAsync({
         params: {
@@ -372,7 +144,6 @@ const addInviteRow = () => {
         },
         body: {
           inviteData: validInvites,
-          cohortId: cohort
         },
       })
 
@@ -383,7 +154,6 @@ const addInviteRow = () => {
 
       // Refetch invites to show updated list
       refetchInvites()
-      setShowConfirmationModal(false);
     } catch {
       toast.error(inviteUsers.error || "Failed to send invites")
     }
@@ -397,14 +167,11 @@ const addInviteRow = () => {
         params: { path: { inviteId } },
       })
 
-      await refetchInvites()
+      toast.success("Invite resent successfully")
 
-      // Show success message after confirming status update
-      toast.success("Invitation sent successfully")
+      refetchInvites()
     } catch {
-      // Refetch to show EMAIL_FAILED status
-      await refetchInvites()
-      toast.error("Failed to send email")
+      toast.error(resendInvite.error || "Failed to resend invite")
     } finally {
       setResendingInviteId(null)
     }
@@ -426,144 +193,6 @@ const addInviteRow = () => {
     } finally {
       setCancelingInviteId(null)
     }
-  }
-
-  // Handle CSV file selection and parsing
-  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    const validExtensions = ['.csv']
-    const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'))
-
-    if (!validExtensions.includes(fileExtension)) {
-      toast.error("Please upload a CSV file")
-      e.target.value = ''
-      return
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("File size must be less than 5MB")
-      e.target.value = ''
-      return
-    }
-
-    try {
-      // Read and parse CSV file
-      const text = await file.text()
-      const lines = text.split(/\r?\n/).filter(line => line.trim())
-
-      if (lines.length === 0) {
-        toast.error("CSV file is empty")
-        e.target.value = ''
-        return
-      }
-
-      const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g
-      const emails: string[] = []
-
-      for (const line of lines) {
-        const matches = line.match(emailRegex)
-        if (matches) {
-          matches.forEach(email => {
-            const cleanedEmail = email.trim().toLowerCase()
-            if (/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(cleanedEmail)) {
-              emails.push(cleanedEmail)
-            }
-          })
-        }
-      }
-
-      if (emails.length === 0) {
-        toast.error("No valid email addresses found in the file")
-        e.target.value = ''
-        return
-      }
-
-      const uniqueEmails = [...new Set(emails)]
-
-      if (uniqueEmails.length > 500) {
-        toast.error(`CSV contains ${uniqueEmails.length} emails. Maximum allowed is 500 emails per upload.`)
-        e.target.value = ''
-        return
-      }
-
-      //adding temp ids to emails
-      const emailsWithIds = uniqueEmails.map((email, indx) => ({
-        id: `email-${Date.now()}-${indx}`,
-        email,
-      }))
-
-      setParsedEmails(emailsWithIds)
-
-      toast.success(`Found ${uniqueEmails.length} email(s) from CSV file`)
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to process CSV file")
-      e.target.value = ''
-    }
-  }
-
-  // Handle sending bulk invites from parsed CSV
-  const handleSendBulkInvites = async () => {
-    if (!courseId || !versionId || parsedEmails.length === 0) {
-      toast.error("No emails to send")
-      return
-    }
-    if(courseVersion?.cohortDetails?.length > 0 && !cohort){  
-      toast.error("Please select a cohort before sending invites");
-      return;
-    }
-
-    try {
-      const inviteData = parsedEmails.map(item => ({
-        email: item.email,
-        role: 'STUDENT' as EnrollmentRole
-      }))
-
-      const response = await inviteUsers.mutateAsync({
-        params: {
-          path: {
-            courseId,
-            courseVersionId: versionId,
-          },
-        },
-        body: {
-          inviteData,
-          cohortId: cohort
-        },
-      })
-
-      const results = response.invites || []
-      const succeeded = results.filter(r => r.inviteStatus === 'PENDING' || r.inviteStatus === 'ALREADY_ENROLLED')
-      const failed = results.filter(r => r.inviteStatus === 'EMAIL_FAILED')
-      const total = results.length
-
-      if (failed.length === 0) {
-        toast.success(`Successfully sent all ${total} invitations`)
-      } else {
-        toast.warning(`${succeeded.length} out of ${total} invitations sent successfully. ${failed.length} failed to send.`)
-      }
-
-      setParsedEmails([])
-      const input = document.getElementById('csv-upload') as HTMLInputElement
-      if (input) input.value = ''
-
-      refetchInvites()
-      setShowConfirmationModal(false);
-      setIsMessageBulk(false);
-    } catch (error) {
-      toast.error(inviteUsers.error || "Failed to send invites")
-    }
-  }
-
-  const handleBulkClick = () => {
-    setShowConfirmationModal(true);
-    setIsMessageBulk(true);
-  }
-
-  const removeBulkClick = ()=>{
-    setShowConfirmationModal(false);
-    setIsMessageBulk(false);
   }
 
   // Status badge variants
@@ -600,22 +229,8 @@ const addInviteRow = () => {
       </Badge>
     )
   }
-  // ---------------- EMAIL COUNT LOGIC ----------------
 
-// count only valid emails
-const validEmailCount = inviteEmails.filter(
-  (invite) =>
-    invite.email.trim() !== "" &&
-    isValidEmail(invite.email)
-).length
-
-// check if any invalid email exists
-const hasInvalidEmail = inviteEmails.some(
-  (invite) =>
-    invite.email.trim() !== "" &&
-    !isValidEmail(invite.email)
-)
-  if (courseLoading || versionLoading) {
+  if (courseLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">
         <Loader2 className="w-8 h-8 animate-spin" />
@@ -625,73 +240,16 @@ const hasInvalidEmail = inviteEmails.some(
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <CourseBackButton />
       {/* Header */}
       <div className="flex items-center space-x-2">
         <UserPlus className="w-6 h-6" />
-        <h1 className="text-xl md:text-2xl font-bold">Invite Users</h1>
+        <h1 className="text-2xl font-bold">Invite Users</h1>
         {course && (
           <Badge variant="outline" className="ml-2">
             {course.name}
           </Badge>
         )}
-        {courseVersion?.cohortDetails?.length > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                className="ml-2 px-3 py-2 text-sm"
-              >
-                                <Layers className="h-4 w-4 text-muted-foreground" />
-        {cohort ? courseVersion?.cohortDetails?.find(c => c.id === cohort)?.name : "Select Cohort"}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuRadioGroup
-                value={cohort ?? ""}
-                onValueChange={(value) => {
-                  setCohort(value);
-                }}
-              >
-                {courseVersion?.cohortDetails?.map((cohort) => (
-                  <DropdownMenuRadioItem
-                      key={cohort.id}
-                      value={cohort.id}
-                    >
-                      {cohort.name}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
       </div>
-
-      {/* Course Structure Warning */}
-      {courseVersion && !canSendInvites && (
-        <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20">
-          <CardContent className="pt-6">
-            <div className="flex items-center space-x-2 text-orange-800 dark:text-orange-200">
-              <AlertTriangle className="w-5 h-5" />
-              <span className="font-medium">
-                {courseVersion.versionStatus !== "active"
-                  ? "Archived Course Version"
-                  : "Course Structure Required"}
-              </span>
-            </div>
-
-            <p className="mt-2 text-sm text-orange-700 dark:text-orange-300">
-              {getInviteBlockReason()}
-            </p>
-
-            {courseVersion.versionStatus !== "active" && (
-              <p className="mt-2 text-sm font-medium text-red-600 dark:text-red-400">
-                You cannot send invites to archived courses.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       {/* Send New Invites Section */}
       <Card>
@@ -702,42 +260,30 @@ const hasInvalidEmail = inviteEmails.some(
               <span>Send New Invites</span>
             </div>
             <Badge variant="secondary" className="text-xs">
-              {validEmailCount} recipient(s)
+              {inviteEmails.filter(invite => invite.email.trim() !== "").length} recipient(s)
             </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-
           <div className="space-y-3">
             {inviteEmails.map((invite, index) => (
               <div key={index} className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50">
-                <div className="flex items-center text-sm font-medium text-muted-foreground lg:min-w-[70px]">
+                <div className="flex items-center text-sm font-medium text-muted-foreground min-w-[70px]">
                   #{index + 1}
                 </div>
 
-                <div className="flex-1 space-y-1">
-  <Input
-    id={`email-${index}`}
-    type="email"
-    placeholder="Enter email (space-separated)"
-    value={invite.email}
-    onChange={(e) => updateInviteEmail(index, e.target.value)}
-    className={`h-9 ${
-      invite.email && !isValidEmail(invite.email)
-        ? "border-destructive focus-visible:ring-destructive/30"
-        : ""
-    }`}
-  />
+                <div className="flex-1">
+                  <Input
+                    id={`email-${index}`}
+                    type="email"
+                    placeholder="Enter email address (space-separated for multiple)"
+                    value={invite.email}
+                    onChange={(e) => updateInviteEmail(index, e.target.value)}
+                    className="h-9"
+                  />
+                </div>
 
-  {/* Show only when invalid */}
-  {invite.email && !isValidEmail(invite.email) && (
-    <p className="text-xs text-destructive">
-      Enter a valid email address
-    </p>
-  )}
-</div>
-
-                <div className="lg:w-40">
+                <div className="w-40">
                   <Select
                     value={invite.role}
                     onValueChange={(value: EnrollmentRole) => updateInviteRole(index, value)}
@@ -746,17 +292,38 @@ const hasInvalidEmail = inviteEmails.some(
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {roles.map(role => (
-                        <SelectItem key={role.value} value={role.value} disabled={role.disabled}>
-                          <div className="flex items-center">
-                            <div className={`w-2 h-2 rounded-full mr-2 ${role.color}`}></div>
-                            {role.label}
-                          </div>
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="STUDENT">
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 rounded-full bg-blue-500 mr-2"></div>
+                          Student
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="TA">
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                          Teaching Assistant
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="INSTRUCTOR">
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 rounded-full bg-purple-500 mr-2"></div>
+                          Instructor
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="MANAGER">
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
+                          Manager
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="STAFF">
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 rounded-full bg-yellow-500 mr-2"></div>
+                          Staff
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
-
                 </div>
 
                 {inviteEmails.length > 1 && (
@@ -789,7 +356,7 @@ const hasInvalidEmail = inviteEmails.some(
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0">
             <div className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">
-                {hasInvalidEmail ? 0 : validEmailCount}
+                {inviteEmails.filter(invite => invite.email.trim() !== "").length}
               </span>
               {" "}valid email(s) ready to send
             </div>
@@ -798,19 +365,13 @@ const hasInvalidEmail = inviteEmails.some(
               <Button
                 variant="outline"
                 onClick={() => setInviteEmails([{ email: "", role: "STUDENT" }])}
-                disabled={inviteUsers.isPending || !canSendInvites  || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0}
+                disabled={inviteUsers.isPending}
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Reset
               </Button>
-
-              {/* <Button
+              <Button
                 onClick={handleSendInvites}
-                 disabled={
-    inviteUsers.isPending ||
-    hasInvalidEmail ||
-    validEmailCount === 0
-  }
                 disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0}
                 className="min-w-[120px]"
               >
@@ -825,208 +386,9 @@ const hasInvalidEmail = inviteEmails.some(
                     Send Invites
                   </>
                 )}
-              </Button> */}
-
-              <Button className="min-w-[120px]" onClick={() => setShowConfirmationModal(true)} disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0 || !isVersionActive} title={!isVersionActive ? "Cannot send invites to archived courses" : undefined}>Send Invites</Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Bulk CSV Upload Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <UserPlus className="w-5 h-5" />
-            <span>Bulk Invite via CSV</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!canSendInvites && (
-            <div className="p-4 border border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20 rounded-lg">
-              <div className="flex items-center space-x-2 text-orange-800 dark:text-orange-200">
-                <AlertTriangle className="w-5 h-5" />
-                <span className="font-medium">Course Structure Required</span>
-              </div>
-              <p className="mt-2 text-sm text-orange-700 dark:text-orange-300">
-                {getInviteBlockReason()}.
-              </p>
-            </div>
-          )}
-
-          <div className="relative">
-            <input
-              id="csv-upload"
-              type="file"
-              accept=".csv"
-              onChange={handleCsvUpload}
-              disabled={inviteUsers.isPending || !canSendInvites}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
-            />
-            <div className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${!canSendInvites
-              ? 'border-muted-foreground/10 bg-muted/20 opacity-50 cursor-not-allowed'
-              : 'border-muted-foreground/25 hover:border-muted-foreground/50 cursor-pointer'
-              }`}>
-              <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-base font-medium mb-1">Click to upload or drag and drop</p>
-              <p className="text-sm text-muted-foreground">CSV file with student emails (max 5MB)</p>
-            </div>
-          </div>
-
-          <Button
-            variant="outline"
-            className="w-full"
-            disabled={!canSendInvites}
-            onClick={() => {
-              const link = document.createElement('a')
-              link.href = '/templates/Bulk registration - Template_Sheet1.csv'
-              link.download = 'Bulk registration - Template_Sheet1.csv'
-              document.body.appendChild(link)
-              link.click()
-              document.body.removeChild(link)
-            }}
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Download Sample CSV Template
-          </Button>
-
-          <div className="text-sm space-y-2">
-            <p className="font-medium">CSV Format:</p>
-            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-              <li>First row should be the header with column names</li>
-              <li>Required column: Email</li>
-              <li>Optional columns: SNo, Name</li>
-              <li>Example: SNo, Name, Email</li>
-            </ul>
-          </div>
-
-          {parsedEmails.length > 0 && (
-            <>
-              <div className="p-4 border rounded-lg bg-muted/50 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">
-                    {parsedEmails.length} email(s) found
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setParsedEmails([])
-                      const input = document.getElementById('csv-upload') as HTMLInputElement
-                      if (input) input.value = ''
-                    }}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-                <div className="max-h-32 overflow-y-auto text-xs text-muted-foreground space-y-1">
-                  {parsedEmails.map(({ id, email }, _idx) => {
-                    const isEditing = editingId === id;
-                    return (
-
-                      <div key={id} className="flex items-start gap-2 justify-between group">
-                        {
-                          isEditing ? (
-
-                            <div className="flex-1">
-                              <input
-                                value={draftEmail}
-                                onChange={(e) => {
-                                  setDraftEmail(e.target.value);
-                                  if (error) setError("");
-                                }}
-                                className={`w-full flex-1 px-1 py-0.5 text-xs border rounded ${error ? "border-red-500" : ""}`}
-                                autoFocus
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") saveEdit(id)
-                                  if (e.key === "Escape") cancelEdit()
-                                }}
-                              />
-                              {
-                                error && (
-                                  <p className="mt-0.5 text-[10px] text-red-500">
-                                    {error}
-                                  </p>
-                                )
-                              }
-                            </div>
-                          ) : (
-                            <span className="truncate">{email}</span>
-                          )
-                        }
-
-                        <div className="flex items-start gap-1 opacity-0 group-hover:opacity-100 transition mr-2">
-                          {
-                            isEditing ? (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-auto w-auto p-1"
-                                  onClick={() => saveEdit(id)}
-                                >
-                                  <Check className="w-4 h-4 text-green-500 cursor-pointer" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-auto w-auto p-1"
-                                  onClick={cancelEdit}
-                                >
-                                  <X className="w-4 h-4 text-gray-500 cursor-pointer" />
-                                </Button>
-                              </>
-                            )
-                              :
-                              (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-auto w-auto p-1"
-                                    onClick={() => startEdit({ id, email })}
-                                  >
-                                    <Pencil className="w-4 h-4 text-gray-500 cursor-pointer" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-auto w-auto p-1"
-                                    onClick={() => removeEmail(id)}
-                                  >
-                                    <Trash2 className="w-4 h-4 text-red-500 cursor-pointer" />
-                                  </Button>
-                                </>
-                              )
-                          }
-                        </div>
-                      </div>
-
-                    )
-                  })}
-                </div>
-              </div>
-
-              <Button
-                onClick={handleBulkClick}
-                disabled={inviteUsers.isPending}
-                className="w-full"
-              >
-                {/* {inviteUsers.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 mr-2" />
-                    Send {parsedEmails.length} Invite(s)
-                  </>
-                )} */}
-                Send Invites
               </Button>
-            </>
-          )}
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -1042,121 +404,15 @@ const hasInvalidEmail = inviteEmails.some(
               variant="outline"
               size="sm"
               onClick={refetchInvites}
-              disabled={isRefetchingInvites || invitesLoading}
+              disabled={invitesLoading}
             >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isRefetchingInvites ? "animate-spin" : ""}`} />
-              {isRefetchingInvites ? "Refreshing..." : "Refresh"}
+              {invitesLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RotateCcw className="w-4 h-4" />
+              )}
             </Button>
           </CardTitle>
-          <div className="w-full flex flex-col gap-4 mt-5 px-4">
-            <div className="relative w-full max-w-md">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by student name, email ... "
-                  value={searchQuery}
-                  onChange={(e) => { setSearchQuery(e.target.value) }}
-                  className="pl-10 pr-10 w-full bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
-                />
-                <X className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setSearchQuery("");
-                  }} />
-              </div>
-            </div>
-            <div className="flex items-center flex-wrap gap-3">
-              <div className="flex items-center gap-2 w-auto">
-                <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-                  Status:
-                </label>
-                <Select
-                  value={inviteStatus}
-                  onValueChange={(value) => {
-                    setInviteStatus(value === "All" ? "" : value);
-                    setCurrentPage(1);
-                  }}
-                >
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="All" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {inviteStatusOptions.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {status === "All" ? "All" : status}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-2 w-auto">
-                <label htmlFor="sortFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-                  Sort:
-                </label>
-                <Select
-                  value={sort}
-                  onValueChange={(value) => {
-                    setSort(value === "All" ? "" : value);
-                  }}
-                >
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Recent" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label === "All Invites" ? "All" : option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-2 w-auto">
-                <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-                  From:
-                </label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => {
-                    setStartDate(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-[140px]"
-                />
-              </div>
-              <div className="flex items-center gap-2 w-auto">
-                <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-                  To:
-                </label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => {
-                    setEndDate(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-[140px]"
-                />
-              </div>
-              <div className="flex items-center gap-2 w-auto">
-                <span className="text-sm text-muted-foreground whitespace-nowrap">Show</span>
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                  className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm w-[70px]"
-                >
-                  <option value={10}>10</option>
-                  <option value={15}>15</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                </select>
-                <span className="text-sm text-muted-foreground whitespace-nowrap">per page</span>
-              </div>
-            </div>
-          </div>
         </CardHeader>
         <CardContent>
           {invitesError && (
@@ -1167,64 +423,35 @@ const hasInvalidEmail = inviteEmails.some(
 
           {invitesLoading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin" /><span className="text-gray-800 dark:text-gray-200 text-sm ms-2">Loading invites ...</span>
+              <Loader2 className="w-6 h-6 animate-spin" />
             </div>
           ) : invitesData?.invites?.length ? (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Accepted At</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-
-                  {/* Display invites in reverse order */}
-                  {invitesData.invites.slice().reverse().map((invite: InviteResult) => (
-                    <TableRow key={invite.inviteId}>
-                      <TableCell className="font-medium">{invite.email}</TableCell>
-                      <TableCell>{getRoleBadge(invite.role)}</TableCell>
-                      <TableCell>{getStatusBadge(invite.inviteStatus)}</TableCell>
-                      <TableCell>
-                        {invite.acceptedAt
-                          ? new Date(invite.acceptedAt).toLocaleDateString()
-                          : "-"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          {invite.inviteStatus === "PENDING" && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleResendInvite(invite.inviteId)}
-                                disabled={resendingInviteId === invite.inviteId}
-                              >
-                                {resendingInviteId === invite.inviteId ? (
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                ) : (
-                                  <RotateCcw className="w-3 h-3" />
-                                )}
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleCancelInvite(invite.inviteId)}
-                                disabled={cancelingInviteId === invite.inviteId}
-                              >
-                                {cancelingInviteId === invite.inviteId ? (
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                ) : (
-                                  <X className="w-3 h-3" />
-                                )}
-                              </Button>
-                            </>
-                          )}
-                          {invite.inviteStatus === "EMAIL_FAILED" && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Accepted At</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {/* Display invites in reverse order */}
+                {invitesData.invites.slice().reverse().map((invite: InviteResult) => (
+                  <TableRow key={invite.inviteId}>
+                    <TableCell className="font-medium">{invite.email}</TableCell>
+                    <TableCell>{getRoleBadge(invite.role)}</TableCell>
+                    <TableCell>{getStatusBadge(invite.inviteStatus)}</TableCell>
+                    <TableCell>
+                      {invite.acceptedAt
+                        ? new Date(invite.acceptedAt).toLocaleDateString()
+                        : "-"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        {invite.inviteStatus === "PENDING" && (
+                          <>
                             <Button
                               variant="outline"
                               size="sm"
@@ -1237,22 +464,40 @@ const hasInvalidEmail = inviteEmails.some(
                                 <RotateCcw className="w-3 h-3" />
                               )}
                             </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {invitesData && invitesData?.totalPages > 1 && (
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={invitesData.totalPages}
-                  totalDocuments={invitesData.totalDocuments}
-                  onPageChange={handlePageChange}
-                />
-              )}
-            </>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleCancelInvite(invite.inviteId)}
+                              disabled={cancelingInviteId === invite.inviteId}
+                            >
+                              {cancelingInviteId === invite.inviteId ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <X className="w-3 h-3" />
+                              )}
+                            </Button>
+                          </>
+                        )}
+                        {invite.inviteStatus === "EMAIL_FAILED" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleResendInvite(invite.inviteId)}
+                            disabled={resendingInviteId === invite.inviteId}
+                          >
+                            {resendingInviteId === invite.inviteId ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <RotateCcw className="w-3 h-3" />
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               No invites found for this course version.
@@ -1260,72 +505,6 @@ const hasInvalidEmail = inviteEmails.some(
           )}
         </CardContent>
       </Card>
-
-
-      {showConfirmationModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
-            onClick={removeBulkClick}
-          />
-          <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
-
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Sure to Send Invites</h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={removeBulkClick}
-                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="space-y-8">
-              <p className="text-lg text-card-foreground">Recipents can get your mail at delay. This can take few minutes to hours!!</p>
-            </div>
-            <div className="flex justify-between pt-4">
-              <Button onClick={removeBulkClick}>No Cancel</Button>
-              {isMessageBulk ? (<Button
-                onClick={handleSendBulkInvites}
-                disabled={inviteUsers.isPending}
-                className=""
-              >
-                {inviteUsers.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 mr-2" />
-                    Send {parsedEmails.length} Invite(s)
-                  </>
-                )}
-              </Button>) : (
-                <Button
-                  onClick={handleSendInvites}
-                  disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0}
-                  className="min-w-[120px]"
-                >
-                  {inviteUsers.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="w-4 h-4 mr-2" />
-                      Send Invites
-                    </>
-                  )}
-                </Button>)}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
-
-

@@ -92,7 +92,7 @@ export default function QuizModal({ isOpen, onClose, courseId, onQuizCreated }: 
   const [quizDescription, setQuizDescription] = useState("");
   const [metadata, setMetadata] = useState<QuizMetadata>({
     passThreshold: 50,
-    maxAttempts: -1,
+    maxAttempts: 3,
     quizType: 'NO_DEADLINE',
     questionVisibility: 1,
     approximateTimeToComplete: "30",
@@ -239,7 +239,7 @@ export default function QuizModal({ isOpen, onClose, courseId, onQuizCreated }: 
     setSelectedQuiz(null);
     setMetadata({
       passThreshold: 50,
-      maxAttempts: -1,
+      maxAttempts: 3,
       quizType: 'NO_DEADLINE',
       questionVisibility: 1,
       approximateTimeToComplete: "30",

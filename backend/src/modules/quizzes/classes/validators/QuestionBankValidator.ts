@@ -8,7 +8,7 @@ import {
   IsNotEmpty,
   IsNumber,
 } from 'class-validator';
-import {JSONSchema} from 'class-validator-jsonschema';
+import { JSONSchema } from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
 
 class CreateQuestionBankBody implements Partial<IQuestionBank> {
@@ -37,7 +37,7 @@ class CreateQuestionBankBody implements Partial<IQuestionBank> {
   @JSONSchema({
     description: 'Array of question IDs',
     type: 'array',
-    items: {type: 'string', example: '60d21b4667d0d8992e610c87'},
+    items: { type: 'string', example: '60d21b4667d0d8992e610c87' },
     example: ['60d21b4667d0d8992e610c87'],
   })
   questions?: ID[];
@@ -48,19 +48,10 @@ class CreateQuestionBankBody implements Partial<IQuestionBank> {
   @JSONSchema({
     description: 'Tags for the question bank',
     type: 'array',
-    items: {type: 'string', example: 'math'},
+    items: { type: 'string', example: 'math' },
     example: ['math', 'science'],
   })
   tags?: string[];
-
-  @IsNumber()
-  @IsOptional()
-  @JSONSchema({
-    description: 'Points for each question in the bank',
-    type: 'number',
-    example: 5,
-  })
-  points?: number;
 
   @IsString()
   @IsNotEmpty()
@@ -139,7 +130,7 @@ class QuestionBankResponse implements Partial<IQuestionBank> {
     type: 'string',
     example: '60d21b4667d0d8992e610c85',
   })
-  courseId?: ID;
+  courseId?: string;
 
   @IsMongoId()
   @IsOptional()
@@ -148,14 +139,14 @@ class QuestionBankResponse implements Partial<IQuestionBank> {
     type: 'string',
     example: '60d21b4667d0d8992e610c86',
   })
-  courseVersionId?: ID;
+  courseVersionId?: string;
 
   @IsArray()
   @IsOptional()
   @JSONSchema({
     description: 'Array of question IDs',
     type: 'array',
-    items: {type: 'string', example: '60d21b4667d0d8992e610c87'},
+    items: { type: 'string', example: '60d21b4667d0d8992e610c87' },
     example: ['60d21b4667d0d8992e610c87'],
   })
   questions?: ID[];
@@ -165,19 +156,10 @@ class QuestionBankResponse implements Partial<IQuestionBank> {
   @JSONSchema({
     description: 'Tags for the question bank',
     type: 'array',
-    items: {type: 'string', example: 'math'},
+    items: { type: 'string', example: 'math' },
     example: ['math', 'science'],
   })
   tags?: string[];
-
-  @IsNumber()
-  @IsOptional()
-  @JSONSchema({
-    description: 'Points for each question in the bank',
-    type: 'number',
-    example: 5,
-  })
-  points?: number;
 
   @IsString()
   @JSONSchema({
@@ -209,11 +191,12 @@ class ReplaceQuestionResponse {
 
 class QuestionBankNotFoundErrorResponse {
   @JSONSchema({
-    description: 'The error message.',
-    example: 'Question bank not found.',
-    type: 'string',
-    readOnly: true,
-  })
+      description: 'The error message.',
+      example:
+        'Question bank not found.',
+      type: 'string',
+      readOnly: true,
+    })
   @IsNotEmpty()
   message: string;
 }
@@ -226,7 +209,7 @@ class QuestionBankRef implements IQuestionBankRef {
     type: 'string',
     example: '60d21b4667d0d8992e610c85',
   })
-  bankId: ID; 
+  bankId: string; // ObjectId as string
 
   @IsNotEmpty()
   @IsNumber()
@@ -243,7 +226,7 @@ class QuestionBankRef implements IQuestionBankRef {
   @JSONSchema({
     description: 'Optional filter for question difficulty',
     type: 'array',
-    items: {type: 'string', example: 'easy'},
+    items: { type: 'string', example: 'easy' },
     example: ['easy', 'medium'],
   })
   difficulty?: string[]; // Optional filter
@@ -254,7 +237,7 @@ class QuestionBankRef implements IQuestionBankRef {
   @JSONSchema({
     description: 'Optional filter for question tags',
     type: 'array',
-    items: {type: 'string', example: 'math'},
+    items: { type: 'string', example: 'math' },
     example: ['math', 'science'],
   })
   tags?: string[]; // Optional filter
@@ -289,4 +272,4 @@ export const QUESTIONBANK_VALIDATORS = [
   ReplaceQuestionResponse,
   QuestionBankNotFoundErrorResponse,
   QuestionBankRef,
-];
+]

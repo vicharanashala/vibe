@@ -2,10 +2,7 @@ import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CourseCard, CourseCardSkeleton } from "@/components/course/CourseCard";
-import { CourseListCard } from "@/components/course/CourseListCard";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/utils/utils";
 import type { CourseSectionProps } from '@/types/course.types';
 
 export const CourseSection = ({
@@ -22,19 +19,12 @@ export const CourseSection = ({
   emptyStateConfig,
   className,
   completion,
-  setCompletion,
-  cardVariant,
-  viewMode = 'grid'
+  setCompletion
 }: CourseSectionProps) => {
   const renderContent = () => {
     if (isLoading) {
       return (
-        <div className={cn(
-          "grid gap-6",
-          viewMode === 'grid' 
-            ? (variant === 'dashboard' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1 md:grid-cols-2") 
-            : "grid-cols-1"
-        )}>
+        <div className={variant === 'dashboard' ? "space-y-2" : "grid gap-4 md:grid-cols-2"}>
           {Array.from({ length: skeletonCount }, (_, i) => (
             <CourseCardSkeleton key={i} variant={variant} />
           ))}
@@ -43,7 +33,7 @@ export const CourseSection = ({
     }
 
     if (error) {
-      if (error === "Authorization is required for request on GET /api/users/enrollments?page=1&limit=5") {
+      if (error === "Authorization is required for request on GET /api/users/enrollments?page=1&limit=5"){
         onRetry?.()
       }
       return (
@@ -80,44 +70,26 @@ export const CourseSection = ({
 
     return (
       <>
-        <div className={cn(
-          "grid gap-6",
-          viewMode === 'grid' 
-            ? (variant === 'dashboard' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1 md:grid-cols-2") 
-            : "grid-cols-1"
-        )}>
-          {enrollments
-            .filter((enrollment: any) => enrollment && enrollment.courseVersionId)
-            .map((enrollment: any, index) => {
-              const courseId = enrollment.courseVersionId as string;
-              const cohortId = enrollment?.cohortId as string;
-              return viewMode === 'grid' ? (
-                <CourseCard
-                  key={courseId + cohortId}
-                  enrollment={enrollment}
-                  index={index}
-                  variant={cardVariant || variant}
-                  completion={completion}
-                  isLoading={isLoading}
-                  setCompletion={setCompletion}
-                />
-              ) : (
-                <CourseListCard
-                  key={courseId + cohortId}
-                  enrollment={enrollment}
-                  index={index}
-                  variant={cardVariant || variant}
-                  completion={completion}
-                  isLoading={isLoading}
-                  setCompletion={setCompletion}
-                />
-              );
-            })}
-        </div>
+        <div className={variant === 'dashboard' ? "space-y-2" : "grid gap-4 md:grid-cols-2"}>
+          {enrollments.map((enrollment, index) => {
+            const courseId = enrollment.courseVersionId as string;
 
+            return (
+              <CourseCard 
+                key={courseId} 
+                enrollment={enrollment} 
+                index={index} 
+                variant={variant}
+                completion={completion}
+                setCompletion={setCompletion}
+              />
+            );
+          })}
+        </div>
+        
         {/* Show pagination info for dashboard variant */}
         {variant === 'dashboard' && totalEnrollments > enrollments.length && (
-          <Card className="border border-border p-4 mt-2">
+          <Card className="border border-border p-4">
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
                 Showing {enrollments.length} of {totalEnrollments} enrolled courses
@@ -139,23 +111,9 @@ export const CourseSection = ({
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-2">
           <h2 className="text-xl font-semibold">{title}</h2>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                <Info className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>
-                {title === "In progress learning content"
-                  ? "Courses you're currently enrolled in and actively learning"
-                  : title === "Recommended for you"
-                    ? "Personalized course recommendations based on your learning history and interests"
-                    : "View detailed information about this section"
-                }
-              </p>
-            </TooltipContent>
-          </Tooltip>
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+            <Info className="h-4 w-4" />
+          </Button>
         </div>
         {showViewAll && onViewAll && (
           <Button
@@ -167,7 +125,7 @@ export const CourseSection = ({
           </Button>
         )}
       </div>
-
+      
       {renderContent()}
     </div>
   );

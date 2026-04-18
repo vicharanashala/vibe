@@ -34,7 +34,7 @@ export function setupEnrollmentAbilities(
         return;
     }
     if (!user.enrollments || user.enrollments.length === 0) {
-        return 'User has no enrollments';
+        throw new Error('User has no enrollments');
     }
     user.enrollments.forEach((enrollment: AuthenticatedUserEnrollements) => {
         const courseBounded = { courseId: enrollment.courseId };

@@ -1,5 +1,4 @@
 import {ICourse, ID} from '#root/shared/interfaces/models.js';
-import {Transform, Type} from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -8,42 +7,9 @@ import {
   IsOptional,
   ValidateIf,
   IsMongoId,
-  IsEmpty,
-  IsArray,
-  ValidateNested,
-  ArrayUnique,
-  IsBoolean,
-  IsNumber,
-  Min,
-  Max,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
-import {ObjectId} from 'mongodb';
 
-class EditCourseBody implements Partial<ICourse> {
-  @JSONSchema({
-    title: 'Course Name',
-    description: 'Name of the course',
-    example: 'Introduction to Programming',
-    type: 'string',
-  })
-  @IsNotEmpty()
-  @IsString()
-  @MaxLength(255)
-  @MinLength(3)
-  name: string;
-
-  @JSONSchema({
-    title: 'Course Description',
-    description: 'Description of the course',
-    example: 'This course covers the basics of programming.',
-    type: 'string',
-  })
-  @IsNotEmpty()
-  @IsString()
-  @MaxLength(1000)
-  description: string;
-}
 class CourseBody implements Partial<ICourse> {
   @JSONSchema({
     title: 'Course Name',
@@ -67,71 +33,6 @@ class CourseBody implements Partial<ICourse> {
   @IsString()
   @MaxLength(1000)
   description: string;
-
-  @JSONSchema({
-    title: 'Course Version Name',
-    description: 'Name of the course Version',
-    example: 'Introduction to Programming V1.0',
-    type: 'string',
-  })
-  @IsString()
-  @MaxLength(255)
-  @MinLength(3)
-  versionName?: string;
-
-  @JSONSchema({
-    title: 'Course Version Description',
-    description: 'Description of the course version',
-    example: 'This is an intial version.',
-    type: 'string',
-  })
-  @IsString()
-  @MaxLength(1000)
-  versionDescription?: string;
-
-  @IsArray()
-  @ArrayUnique()
-  @IsString({each: true})
-  @IsOptional() // allow the array to be empty
-  @JSONSchema({
-    description: 'Array of cohort names in a version',
-    example: ['cohort1', 'cohort2'],
-  })
-  cohorts?: string[];
-
-  @IsOptional()
-  @IsBoolean()
-  @JSONSchema({
-    description: 'Indicates whether HP System is enabled',
-    examples: [true, false],
-    default: false,
-  })
-  hpSystem?: boolean;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(100)
-  @Transform(({ value }) => (value === undefined ? 0 : value))
-  @JSONSchema({
-    description: 'Indicates base Hp for each cohort',
-    examples: [0, 100],
-    default: false,
-  })
-  baseHp?: number;
-
-  // @JSONSchema({
-  //   title: 'Course Versions',
-  //   description: 'Array of course version IDs to associate with this course',
-  //   example: ['64b7f1f9e4d2f91b7c9a1e23', '64b7f201e4d2f91b7c9a1e24'],
-  //   type: 'array',
-  //   items: {type: 'string', format: 'objectId'},
-  // })
-  // @IsArray()
-  // @Transform(({value}) =>
-  //   Array.isArray(value) ? value.map(v => new ObjectId(v)) : value,
-  // )
-  // versions?: ID[];
 }
 
 class CourseIdParams {
@@ -144,87 +45,6 @@ class CourseIdParams {
   courseId: string;
 }
 
-export class CourseVersionQuery {
-  @IsOptional()
-  @IsString()
-  courseId?: string;
-
-  @IsOptional()
-  @IsString()
-  courseVersionId?: string;
-}
-
-export class ActiveUserDto {
-  @IsString()
-  firstName: string;
-
-  @IsString()
-  email: string;
-
-  @IsString()
-  lastActiveTime: string;
-}
-
-export class ActiveUsersResponseDto {
-  @ValidateNested({each: true})
-  @Type(() => ActiveUserDto)
-  activeUsers: ActiveUserDto[];
-}
-
-export class CourseVersionQueryWithTime extends CourseVersionQuery {
-  @IsOptional()
-  @IsString()
-  startTimeStamp: string;
-
-  @IsOptional()
-  @IsString()
-  endTimeStamp: string;
-}
-
-export class PublicCoursesQuery {
-  @JSONSchema({
-    description: 'Page number for pagination',
-    example: 1,
-    type: 'number',
-  })
-  @IsOptional()
-  @Type(() => Number)
-  page?: number;
-
-  @JSONSchema({
-    description: 'Number of items per page',
-    example: 10,
-    type: 'number',
-  })
-  @IsOptional()
-  @Type(() => Number)
-  limit?: number;
-
-  @JSONSchema({
-    description: 'Search term for course name or description',
-    example: 'programming',
-    type: 'string',
-  })
-  @IsOptional()
-  @IsString()
-  search?: string;
-}
-
-export class CourseVersionParams {
-  @IsMongoId()
-  @JSONSchema({
-    title: 'Course ID',
-    description: 'Object ID of the course',
-  })
-  courseId: string;
-
-  @IsMongoId()
-  @JSONSchema({
-    description: 'Object ID of the course version',
-    type: 'string',
-  })
-  courseVersionId: string;
-}
 class CourseDataResponse implements ICourse {
   @JSONSchema({
     description: 'Unique identifier for the course',
@@ -311,7 +131,6 @@ class CourseNotFoundErrorResponse {
 
 export {
   CourseBody,
-  EditCourseBody,
   CourseIdParams,
   CourseDataResponse,
   CourseNotFoundErrorResponse,
@@ -322,4 +141,4 @@ export const COURSE_VALIDATORS = [
   CourseIdParams,
   CourseDataResponse,
   CourseNotFoundErrorResponse,
-];
+]

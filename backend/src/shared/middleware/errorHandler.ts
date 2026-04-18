@@ -1,8 +1,7 @@
-import { createLogger, format, transports } from 'winston';
+import {createLogger, format, transports} from 'winston';
 import {
   IsArray,
   IsDefined,
-  IsNotEmpty,
   IsObject,
   IsOptional,
   IsString,
@@ -15,8 +14,8 @@ import {
   HttpError,
   UnauthorizedError,
 } from 'routing-controllers';
-import { Request, Response } from 'express';
-import { JSONSchema } from 'class-validator-jsonschema';
+import {Request, Response} from 'express';
+import {JSONSchema} from 'class-validator-jsonschema';
 import { Type } from 'class-transformer';
 import * as Sentry from '@sentry/node';
 
@@ -28,7 +27,7 @@ const logger = createLogger({
     // - Write all logs with importance level of `error` or higher to `error.log`
     //   (i.e., error, fatal, but not other levels)
     //
-    new transports.File({ filename: 'error.log', level: 'error' }),
+    new transports.File({filename: 'error.log', level: 'error'}),
     //
     // - Write all logs with importance level of `info` or higher to `combined.log`
     //   (i.e., fatal, error, warn, and info, but not trace)
@@ -80,7 +79,7 @@ class ValidationErrorResponse {
     readOnly: true,
   })
   @IsObject() // Ensures 'constraints' is an object
-  constraints!: { [type: string]: string };
+  constraints!: {[type: string]: string};
 
   @JSONSchema({
     type: 'array',
@@ -89,8 +88,8 @@ class ValidationErrorResponse {
     readOnly: true,
   })
   @IsArray() // Ensures 'children' is an array
-  @ValidateNested({ each: true })
-  @Type(() => ValidationErrorResponse) // Ensures each element inside 'children' is validated
+  @ValidateNested({each: true})
+  @Type(()=>ValidationErrorResponse) // Ensures each element inside 'children' is validated
   children!: ValidationErrorResponse[];
 
   @JSONSchema({
@@ -100,7 +99,7 @@ class ValidationErrorResponse {
   })
   @IsObject() // Ensures 'contexts' is an object
   @IsOptional() // Makes 'contexts' optional
-  contexts!: { [type: string]: any };
+  contexts!: {[type: string]: any};
 }
 
 class DefaultErrorResponse {
@@ -132,50 +131,7 @@ class BadRequestErrorResponse {
   errors?: ValidationErrorResponse;
 }
 
-
-class InternalServerErrorResponse {
-  @IsString()
-  @IsNotEmpty()
-  @JSONSchema({
-    type: 'string',
-    description: 'Information of the error.',
-    readOnly: true,
-  })
-  message: string
-
-
-  @IsString()
-  @IsNotEmpty()
-  @JSONSchema({
-    type: 'string',
-    description: 'Name of the error.',
-    readOnly: true,
-  })
-  name: string
-}
-class ForbiddenErrorResponse {
-  @IsString()
-  @IsNotEmpty()
-  @JSONSchema({
-    type: 'string',
-    description: 'Information of the error.',
-    readOnly: true,
-  })
-  message: string
-
-
-  @IsString()
-  @IsNotEmpty()
-  @JSONSchema({
-    type: 'string',
-    description: 'Name of the error.',
-    readOnly: true,
-    example: 'ForbiddenError'
-  })
-  name: string
-}
-
-@Middleware({ type: 'after' })
+@Middleware({type: 'after'})
 export class HttpErrorHandler implements ExpressErrorMiddlewareInterface {
   error(error: any, request: Request, response: Response): void {
     let eventId;
@@ -193,13 +149,7 @@ export class HttpErrorHandler implements ExpressErrorMiddlewareInterface {
       status: error.httpCode || 500,
       sentryEventId: eventId || 'unknown',
     });
-
-    // Debug: Print the actual error to console
-    console.error('=== ERROR DETAILS ===');
-    console.error('Message:', error.message);
-    console.error('Stack:', error.stack);
-    console.error('====================');
-
+    
     if (response.headersSent) {
       // If the response is already sent, don't try to send again
       return;
@@ -298,4 +248,4 @@ export class HttpErrorHandler implements ExpressErrorMiddlewareInterface {
   }
 }
 
-export { DefaultErrorResponse, ValidationErrorResponse, BadRequestErrorResponse, InternalServerErrorResponse, ForbiddenErrorResponse };
+export {DefaultErrorResponse, ValidationErrorResponse, BadRequestErrorResponse};

@@ -5,7 +5,6 @@ import {
   HttpErrorHandler,
   SettingRepository,
 } from '#shared/index.js';
-import { AuditTrailsHandler } from './shared/middleware/auditTrails.js';
 import {GLOBAL_TYPES} from './types.js';
 import {dbConfig} from './config/db.js';
 import {CourseRepository} from '#shared/database/providers/mongo/repositories/CourseRepository.js';
@@ -39,6 +38,5 @@ export const sharedContainerModule = new ContainerModule(options => {
 
   // Other
   options.bind(HttpErrorHandler).toSelf().inSingletonScope();
-  options.bind(AuditTrailsHandler).toSelf().inSingletonScope();
 }); 
 

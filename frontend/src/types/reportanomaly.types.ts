@@ -4,12 +4,10 @@ export enum AnomalyType {
   VOICE_DETECTION = 'voiceDetection',
   NO_FACE = 'no_face',
   MULTIPLE_FACES = 'multiple_faces',
-  BLUR_DETECTION = 'BLUR_DETECTION',
+  BLUR_DETECTION = 'blurDetection',
   FOCUS = 'focus',
   HAND_GESTURE_DETECTION = 'handGestureDetection',
   FACE_RECOGNITION = 'faceRecognition',
-
-  VIRTUAL_CAMERA = 'VIRTUAL_CAMERA',
 }
 
 export enum FileType {
@@ -22,7 +20,6 @@ export interface NewAnomalyData {
   courseId: string;
   versionId: string;
   itemId: string;
-  cohortId?: string;
 }
 
 export interface AnomalyData extends NewAnomalyData {
@@ -31,7 +28,6 @@ export interface AnomalyData extends NewAnomalyData {
   fileName?: string;
   fileType?: FileType;
   createdAt: string;
-  cohortName?: string;
 }
 
 export interface GetCourseAnomalyParams {

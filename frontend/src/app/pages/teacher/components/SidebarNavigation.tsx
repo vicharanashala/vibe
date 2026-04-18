@@ -16,7 +16,6 @@ interface ContentItem {
   id: string;
   type: string;
   title?: string;
-  name?: string;
 }
 
 interface Section {
@@ -180,7 +179,7 @@ export function SidebarNavigation({ modules, selected, onSelect }: Props) {
                           ) : (
                             <FileText className="h-3 w-3" />
                           )}
-                          {(item.title || item.name)?.trim() || item.type?.toUpperCase() || "Untitled"}
+                          {item.title?.trim() || item.type?.toUpperCase() || "Untitled"}
                         </button>
                       );
                     })}

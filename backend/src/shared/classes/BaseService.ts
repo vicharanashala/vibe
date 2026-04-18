@@ -13,34 +13,23 @@ export abstract class BaseService {
     operation: (session: ClientSession) => Promise<T>,
   ): Promise<T> {
     const client = await this.db.getClient();
-    const MAX_RETRIES = 3;
+    const session = client.startSession();
     const txOptions = {
       readPreference: ReadPreference.primary,
       readConcern: new ReadConcern('snapshot'),
       writeConcern: new WriteConcern('majority'),
     };
 
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-      const session = client.startSession();
-      try {
-        session.startTransaction(txOptions);
-        const result = await operation(session);
-        await session.commitTransaction();
-        await session.endSession();
-        return result;
-      } catch (error: any) {
-        if (session.inTransaction()) await session.abortTransaction();
-        await session.endSession();
-        const isTransient =
-          Array.isArray(error?.errorLabels) &&
-          error.errorLabels.includes('TransientTransactionError');
-        if (isTransient && attempt < MAX_RETRIES - 1) {
-          continue;
-        }
-        throw error;
-      }
+    try {
+      session.startTransaction(txOptions);
+      const result = await operation(session);
+      await session.commitTransaction();
+      return result;
+    } catch (error) {
+      if (session.inTransaction()) await session.abortTransaction();
+      throw error;
+    } finally {
+      await session.endSession();
     }
-
-    throw new Error('Transaction failed after max retries');
   }
 }

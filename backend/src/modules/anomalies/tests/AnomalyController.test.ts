@@ -68,7 +68,6 @@ describe('Anomaly Controller Integration Tests', () => {
       quizDetails: {
         questionVisibility: 3,
         allowPartialGrading: true,
-        allowSkip: true,
         deadline: faker.date.future(),
         allowHint: true,
         maxAttempts: 5,
@@ -140,7 +139,7 @@ describe('Anomaly Controller Integration Tests', () => {
           .field('data', JSON.stringify(anomalyData))
           .attach('image', Buffer.from('fake-image-data'), 'test-image.jpg')
           .expect(500);
-
+  
         // Assert
         expect(response.body.message).toContain('Input buffer contains unsupported image format');
       });

@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Switch } from "@/components/ui/switch";
 import {
   Plus,
   Edit2,
@@ -21,16 +20,10 @@ import {
   Save,
   X
 } from "lucide-react";
-import { toast } from "sonner";
 import {
   useQuestionById,
   useUpdateQuestion,
 } from '@/hooks/hooks';
-import { render } from 'katex';
-
-type Priority = 'LOW' | 'MEDIUM' | 'HIGH';
-const toPriority = (value: any): Priority =>
-  value === 'LOW' || value === 'MEDIUM' || value === 'HIGH' ? value : 'LOW';
 
 interface QuestionFormData {
   question: {
@@ -40,12 +33,11 @@ interface QuestionFormData {
     parameters?: Array<{
       name: string;
       possibleValues: string[];
-      type: 'number' | 'string' | '';
+      type: 'number' | 'string';
     }>;
     hint?: string;
     timeLimitSeconds: number;
     points: number;
-    priority: 'LOW' | 'MEDIUM' | 'HIGH';
   };
   solution: any; // This would be the appropriate solution type based on question type
 }
@@ -61,53 +53,33 @@ const QUESTION_TYPES = [
 
 
 // Expandable Question Card Component
-interface EditableOption {
-  _id: string;
-  text: string;
-  explaination?: string;
-  isCorrect: boolean;
-}
-
 interface ExpandableQuestionCardProps {
   questionId: string;
   onDelete: () => void;
   onDuplicate: () => void;
-  isFlagged?: boolean;
-  refreshTrigger?: number;
 }
 
 const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
   questionId,
   onDelete,
-  onDuplicate,
-  isFlagged = false,
-  refreshTrigger
+  onDuplicate
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editableOptions, setEditableOptions] = useState<EditableOption[]>([]);
-
   const [editForm, setEditForm] = useState<QuestionFormData>({
     question: {
       text: '',
       type: 'SELECT_ONE_IN_LOT',
       isParameterized: false,
       timeLimitSeconds: 60,
-      points: 1,
-      priority: 'LOW'
+      points: 1
     },
     solution: {}
   });
 
   const { data: question, refetch: refetchQuestion } = useQuestionById(questionId);
   const updateQuestion = useUpdateQuestion();
-
-  // Refetch when refreshTrigger changes (called from parent after bank update)
-  useEffect(() => {
-    if (refreshTrigger && refreshTrigger > 0) {
-      refetchQuestion();
-    }
-  }, [refreshTrigger, refetchQuestion]);
+  console.log('Question data:', question);
 
   // Initialize edit form when question data is loaded
   useEffect(() => {
@@ -120,8 +92,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
           parameters: question.parameters || [],
           hint: question.hint || '',
           timeLimitSeconds: question.timeLimitSeconds || 60,
-          points: question.points || 1,
-          priority: toPriority((question as any).priority)
+          points: question.points || 1
         },
         solution: {
           // Map backend solution fields to frontend format
@@ -141,31 +112,8 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
   }, [question, isEditing]);
 
   const handleStartEdit = () => {
+    setIsEditing(true);
     if (question) {
-      const initialOptions = [];
-
-      // For single choice questions
-      if (question.correctLotItem) {
-        initialOptions.push({ ...question.correctLotItem, isCorrect: true });
-      }
-
-      // For multiple choice questions
-      if (question.correctLotItems && question.correctLotItems.length > 0) {
-        initialOptions.push(...question.correctLotItems.map(item => ({ ...item, isCorrect: true })));
-      }
-
-      // Add incorrect options
-      if (question.incorrectLotItems && question.incorrectLotItems.length > 0) {
-        initialOptions.push(...question.incorrectLotItems.map(item => ({ ...item, isCorrect: false })));
-      }
-
-      // Ensure all options have unique IDs
-      setEditableOptions(initialOptions.map((opt, index) => ({
-        ...opt,
-        _id: opt._id || `option-${index}-${Date.now()}`
-      })));
-
-      setIsEditing(true);
       setEditForm({
         question: {
           text: question.text || '',
@@ -174,10 +122,10 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
           parameters: question.parameters || [],
           hint: question.hint || '',
           timeLimitSeconds: question.timeLimitSeconds || 60,
-          points: question.points || 1,
-          priority: toPriority((question as any).priority)
+          points: question.points || 1
         },
         solution: {
+          // Map backend solution fields to frontend format
           correctLotItem: question.correctLotItem,
           incorrectLotItems: question.incorrectLotItems,
           correctLotItems: question.correctLotItems,
@@ -195,7 +143,6 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
 
   const handleCancelEdit = () => {
     setIsEditing(false);
-    setEditableOptions([]);
     if (question) {
       // Reset form to original question data from details
       const details = question as any || {};
@@ -207,8 +154,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
           parameters: details.parameters || [],
           hint: details.hint || '',
           timeLimitSeconds: details.timeLimitSeconds || 60,
-          points: details.points || 1,
-          priority: toPriority((details as any).priority)
+          points: details.points || 1
         },
         solution: {
           // Map backend solution fields to frontend format
@@ -229,37 +175,25 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
 
   const handleSaveEdit = async () => {
     try {
-      const cleanLotItem = (item: any, isCorrect: boolean) => {
+      const cleanLotItem = (item: any) => {
         if (!item) return item;
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { _id, isCorrect: _, ...rest } = item;
-
-        const explanation = rest.explaination?.trim() || (isCorrect
-          ? "Nil"
-          : "Nil");
-
-        return { ...rest, explaination: explanation };
+        const { _id, ...rest } = item;
+        return rest;
       };
 
-      const correctOptions = editableOptions.filter(opt => opt.isCorrect);
-      const incorrectOptions = editableOptions.filter(opt => !opt.isCorrect);
-      let solutionForBackend: any = {};
-
-      if (editForm.question.type === 'SELECT_ONE_IN_LOT') {
-        solutionForBackend.correctLotItem = correctOptions.length > 0 ? cleanLotItem(correctOptions[0], true) : undefined;
-        solutionForBackend.incorrectLotItems = incorrectOptions.map(item => cleanLotItem(item, false));
-      } else if (editForm.question.type === 'SELECT_MANY_IN_LOT') {
-        solutionForBackend.correctLotItems = correctOptions.map(item => cleanLotItem(item, true));
-        solutionForBackend.incorrectLotItems = incorrectOptions.map(item => cleanLotItem(item, false));
-      } else {
-        solutionForBackend = { ...editForm.solution };
-      }
-
-
-      if (editForm.question.type === "NUMERIC_ANSWER_TYPE" && solutionForBackend?.lowerLimit >= solutionForBackend?.upperLimit) {
-        toast.error("Lower limit cannot be greater than or equal to upper limit.");
-        return;
-      }
+      const solutionForBackend = {
+        correctLotItem: editForm.solution.correctLotItem ? cleanLotItem(editForm.solution.correctLotItem) : undefined,
+        incorrectLotItems: editForm.solution.incorrectLotItems?.map(cleanLotItem),
+        correctLotItems: editForm.solution.correctLotItems?.map(cleanLotItem),
+        ordering: editForm.solution.ordering,
+        solutionText: editForm.solution.solutionText,
+        decimalPrecision: editForm.solution.decimalPrecision,
+        upperLimit: editForm.solution.upperLimit,
+        lowerLimit: editForm.solution.lowerLimit,
+        value: editForm.solution.value,
+        expression: editForm.solution.expression
+      };
 
       await updateQuestion.mutateAsync({
         params: { path: { questionId } },
@@ -271,216 +205,217 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
             parameters: editForm.question.parameters,
             hint: editForm.question.hint,
             timeLimitSeconds: editForm.question.timeLimitSeconds,
-            points: editForm.question.points,
-            priority: editForm.question.priority
+            points: editForm.question.points
           },
           solution: solutionForBackend
         }
       });
 
+      console.log('Successfully updated question:', questionId);
       setIsEditing(false);
-      setEditableOptions([]);
+
+      // Refetch the question data to get the latest updates
       await refetchQuestion();
-      toast.success("Question has been updated successfully.");
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to update question:', error);
-
-      if (error?.name === 'ForbiddenError') {
-        toast.error("You don't have permission to edit this question. Only admins or the question creator can edit it.");
-      } else {
-        toast.error("Failed to update the question. Please try again.");
-      }
+      // TODO: Add proper error notification/toast here
     }
   };
 
   // Helper functions for managing options
   const updateOption = (optionId: string, updates: { text?: string; explaination?: string }) => {
-    setEditableOptions(
-      editableOptions.map(opt =>
-        opt._id === optionId ? { ...opt, ...updates } : opt
-      )
-    );
+    const newSolution = { ...editForm.solution };
+
+    // Find and update the option in the appropriate array
+    if (editForm.question.type === 'SELECT_ONE_IN_LOT') {
+      if (newSolution.correctLotItem && (newSolution.correctLotItem._id === optionId || newSolution.correctLotItem._id === undefined)) {
+        newSolution.correctLotItem = {
+          ...newSolution.correctLotItem,
+          ...updates,
+          _id: optionId
+        };
+      } else if (newSolution.incorrectLotItems) {
+        newSolution.incorrectLotItems = newSolution.incorrectLotItems.map((item: any) =>
+          item._id === optionId || (!item._id && optionId.startsWith('incorrect'))
+            ? { ...item, ...updates, _id: optionId }
+            : item
+        );
+      }
+    } else if (editForm.question.type === 'SELECT_MANY_IN_LOT') {
+      if (newSolution.correctLotItems) {
+        newSolution.correctLotItems = newSolution.correctLotItems.map((item: any) =>
+          item._id === optionId || (!item._id && optionId.startsWith('correct'))
+            ? { ...item, ...updates, _id: optionId }
+            : item
+        );
+      }
+      if (newSolution.incorrectLotItems) {
+        newSolution.incorrectLotItems = newSolution.incorrectLotItems.map((item: any) =>
+          item._id === optionId || (!item._id && optionId.startsWith('incorrect'))
+            ? { ...item, ...updates, _id: optionId }
+            : item
+        );
+      }
+    }
+
+    setEditForm({ ...editForm, solution: newSolution });
   };
 
   const setSingleCorrectOption = (selectedOptionId: string) => {
-    setEditableOptions(
-      editableOptions.map(opt => ({
-        ...opt,
-        isCorrect: opt._id === selectedOptionId
-      }))
-    );
+    const newSolution = { ...editForm.solution };
+
+    // Get all options
+    const allOptions: Array<{
+      id: string;
+      text: string;
+      isCorrect: boolean;
+      explaination?: string;
+    }> = [];
+
+    // Add correct option
+    if (newSolution.correctLotItem) {
+      allOptions.push({
+        id: newSolution.correctLotItem._id || `correct-${Date.now()}`,
+        text: newSolution.correctLotItem.text || '',
+        isCorrect: true,
+        explaination: newSolution.correctLotItem.explaination || ''
+      });
+    }
+
+    // Add incorrect options
+    if (newSolution.incorrectLotItems) {
+      newSolution.incorrectLotItems.forEach((item: any, index: number) => {
+        allOptions.push({
+          id: item._id || `incorrect-${index}-${Date.now()}`,
+          text: item.text || '',
+          isCorrect: false,
+          explaination: item.explaination || ''
+        });
+      });
+    }
+
+    // Find the selected option
+    const selectedOption = allOptions.find(opt => opt.id === selectedOptionId);
+    if (!selectedOption) return;
+
+    // Reset the solution
+    newSolution.correctLotItem = null;
+    newSolution.incorrectLotItems = [];
+
+    // Set the selected option as correct and all others as incorrect
+    allOptions.forEach(option => {
+      const optionData = {
+        _id: option.id,
+        text: option.text,
+        explaination: option.explaination
+      };
+
+      if (option.id === selectedOptionId) {
+        newSolution.correctLotItem = optionData;
+      } else {
+        newSolution.incorrectLotItems.push(optionData);
+      }
+    });
+
+    setEditForm({ ...editForm, solution: newSolution });
   };
 
   const toggleCorrectOption = (optionId: string, isCorrect: boolean) => {
-    setEditableOptions(
-      editableOptions.map(opt =>
-        opt._id === optionId ? { ...opt, isCorrect: isCorrect } : opt
-      )
-    );
+    const newSolution = { ...editForm.solution };
+
+    if (editForm.question.type === 'SELECT_ONE_IN_LOT') {
+      // For single choice questions, use the dedicated function instead
+      if (isCorrect) {
+        setSingleCorrectOption(optionId);
+        return;
+      }
+
+      // For unsetting (making incorrect), just use the regular logic
+      let targetOption: any = null;
+
+      // Find the option to move
+      if (newSolution.correctLotItem && newSolution.correctLotItem._id === optionId) {
+        targetOption = newSolution.correctLotItem;
+        newSolution.correctLotItem = null;
+      }
+
+      if (targetOption) {
+        newSolution.incorrectLotItems = newSolution.incorrectLotItems || [];
+        newSolution.incorrectLotItems.push(targetOption);
+      }
+    } else if (editForm.question.type === 'SELECT_MANY_IN_LOT') {
+      // For multiple choice, move between correct and incorrect arrays
+      let targetOption: any = null;
+
+      // Find and remove from current array
+      if (newSolution.correctLotItems) {
+        const index = newSolution.correctLotItems.findIndex((item: any) => item._id === optionId);
+        if (index !== -1) {
+          targetOption = newSolution.correctLotItems[index];
+          newSolution.correctLotItems.splice(index, 1);
+        }
+      }
+
+      if (!targetOption && newSolution.incorrectLotItems) {
+        const index = newSolution.incorrectLotItems.findIndex((item: any) => item._id === optionId);
+        if (index !== -1) {
+          targetOption = newSolution.incorrectLotItems[index];
+          newSolution.incorrectLotItems.splice(index, 1);
+        }
+      }
+
+      // Add to target array
+      if (targetOption) {
+        if (isCorrect) {
+          newSolution.correctLotItems = newSolution.correctLotItems || [];
+          newSolution.correctLotItems.push(targetOption);
+        } else {
+          newSolution.incorrectLotItems = newSolution.incorrectLotItems || [];
+          newSolution.incorrectLotItems.push(targetOption);
+        }
+      }
+    }
+
+    setEditForm({ ...editForm, solution: newSolution });
   };
 
   const removeOption = (optionId: string) => {
-    setEditableOptions(editableOptions.filter(opt => opt._id !== optionId));
+    const newSolution = { ...editForm.solution };
+
+    if (editForm.question.type === 'SELECT_ONE_IN_LOT') {
+      if (newSolution.correctLotItem && newSolution.correctLotItem._id === optionId) {
+        newSolution.correctLotItem = null;
+      } else if (newSolution.incorrectLotItems) {
+        newSolution.incorrectLotItems = newSolution.incorrectLotItems.filter((item: any) => item._id !== optionId);
+      }
+    } else if (editForm.question.type === 'SELECT_MANY_IN_LOT') {
+      if (newSolution.correctLotItems) {
+        newSolution.correctLotItems = newSolution.correctLotItems.filter((item: any) => item._id !== optionId);
+      }
+      if (newSolution.incorrectLotItems) {
+        newSolution.incorrectLotItems = newSolution.incorrectLotItems.filter((item: any) => item._id !== optionId);
+      }
+    }
+
+    setEditForm({ ...editForm, solution: newSolution });
   };
 
   const addNewOption = () => {
     const newOption = {
       _id: `option-${Date.now()}`,
       text: '',
-      explaination: '',
-      isCorrect: false
+      explaination: ''
     };
-    setEditableOptions([...editableOptions, newOption]);
+
+    const newSolution = { ...editForm.solution };
+
+    // Add as incorrect option by default
+    newSolution.incorrectLotItems = newSolution.incorrectLotItems || [];
+    newSolution.incorrectLotItems.push(newOption);
+
+    setEditForm({ ...editForm, solution: newSolution });
   };
-
-  const addNewParameter = () => {
-    setEditForm(prev => ({
-      ...prev,
-      question: {
-        ...prev.question,
-        parameters: [
-          ...(prev.question.parameters || []),
-          {
-            name: '',
-            possibleValues: [],
-            type: ''
-          }
-        ]
-      }
-    }))
-  }
-
-  const deleteParameter = (index: number) => {
-    setEditForm(prev => {
-      const newParams = prev.question.parameters ? [...prev.question.parameters] : [];
-      newParams.splice(index, 1);
-      return {
-        ...prev,
-        question: {
-          ...prev.question,
-          parameters: newParams
-        }
-      }
-    });
-  }
-
-  const updateParameter = (index: number, updates: QuestionFormData['question']['parameters'][0]) => {
-    setEditForm(prev => {
-      const newParams = prev.question.parameters ? [...prev.question.parameters] : [];
-      newParams[index] = { ...newParams[index], ...updates };
-      return {
-        ...prev,
-        question: {
-          ...prev.question,
-          parameters: newParams
-        }
-      };
-    });
-  }
-
-  const insertTagAtCursor = (fieldId: string, tag: string) => {
-    const element = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
-    if (!element) return;
-
-    const start = element.selectionStart ?? 0;
-    const end = element.selectionEnd ?? 0;
-
-    // If the tag has a closing part like <X></X>, place caret inside it.
-    // Otherwise place caret after the inserted text.
-    const caretOffsetInsideTag = (() => {
-      const closingIdx = tag.indexOf("</");
-      return closingIdx !== -1 ? closingIdx : tag.length;
-    })();
-
-    // 1) options array: id format "option-<optionId>"
-    if (fieldId.startsWith("option-")) {
-      const optionId = fieldId.replace("option-", "");
-      setEditableOptions((prev: EditableOption[]) => {
-        const updatedOptions = prev.map((opt: EditableOption, index: number) => {
-          if (index.toString() === optionId) {
-            const cur = opt.text ?? "";
-            const newText = cur.slice(0, start) + tag + cur.slice(end);
-            return { ...opt, text: newText };
-          }
-          return opt;
-        });
-        return updatedOptions;
-      });
-
-      requestAnimationFrame(() => {
-        const el = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
-        if (el) {
-          const pos = start + caretOffsetInsideTag;
-          el.selectionStart = el.selectionEnd = pos;
-          el.focus();
-        }
-      });
-
-      return;
-    }
-
-    // 2) Handle different field types with proper nested state updates
-    if (fieldId === "questionText") {
-      setEditForm((prev: QuestionFormData) => {
-        const currentValue = prev.question.text ?? "";
-        const newValue = currentValue.slice(0, start) + tag + currentValue.slice(end);
-        return {
-          ...prev,
-          question: {
-            ...prev.question,
-            text: newValue
-          }
-        };
-      });
-    } else if (fieldId === "hint") {
-      setEditForm((prev: QuestionFormData) => {
-        const currentValue = prev.question.hint ?? "";
-        const newValue = currentValue.slice(0, start) + tag + currentValue.slice(end);
-        return {
-          ...prev,
-          question: {
-            ...prev.question,
-            hint: newValue
-          }
-        };
-      });
-    } else {
-      // Fallback for other fields that might be at the root level
-      setEditForm((prev: QuestionFormData) => {
-        const currentValue = (prev as Record<string, any>)[fieldId] ?? "";
-        const newValue = currentValue.slice(0, start) + tag + currentValue.slice(end);
-        return { ...prev, [fieldId]: newValue };
-      });
-    }
-
-    // restore caret inside tag after render
-    requestAnimationFrame(() => {
-      const el = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
-      if (el) {
-        const pos = start + caretOffsetInsideTag;
-        el.selectionStart = el.selectionEnd = pos;
-        el.focus();
-      }
-    });
-  };
-
-  const renderParameterInputs = (title: string) => {
-    if (!editForm.question.isParameterized) return null;
-    return (
-      <div className="flex md:flex-row flex-col gap-2 mb-2 pt-1">
-        <Button variant="outline" size="sm" onClick={() => insertTagAtCursor(title, "<NumExprTex></NumExprTex>")}>
-          Add NumExprTex
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => insertTagAtCursor(title, "<NumExpr></NumExpr>")}>
-          Add Num Expr
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => insertTagAtCursor(title, "<QParam></QParam>")}>
-          Add Question param
-        </Button>
-      </div>
-    )
-  }
 
   const renderEditForm = () => (
     <div className="space-y-6 mt-6 p-6 border rounded-lg bg-muted/30">
@@ -491,45 +426,45 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
           <Select
             value={editForm.question.type}
             onValueChange={(value: QuestionFormData['question']['type']) => {
-              setEditForm({ ...editForm, question: { ...editForm.question, type: value } });
+              const newForm = { ...editForm, question: { ...editForm.question, type: value } };
+              if (editForm.question.type === 'SELECT_ONE_IN_LOT' && value === 'SELECT_MANY_IN_LOT') {
+                if (newForm.solution.correctLotItem) {
+                  newForm.solution.correctLotItems = [
+                    ...(newForm.solution.correctLotItems || []),
+                    newForm.solution.correctLotItem
+                  ];
+                  newForm.solution.correctLotItem = null;
+                }
+              } else if (editForm.question.type === 'SELECT_MANY_IN_LOT' && value === 'SELECT_ONE_IN_LOT') {
+                if (newForm.solution.correctLotItems && newForm.solution.correctLotItems.length > 0) {
+                  const [firstCorrect, ...restCorrect] = newForm.solution.correctLotItems;
+                  newForm.solution.correctLotItem = firstCorrect;
+                  newForm.solution.incorrectLotItems = [
+                    ...(newForm.solution.incorrectLotItems || []),
+                    ...restCorrect
+                  ];
+                  newForm.solution.correctLotItems = [];
+                }
+              }
+              setEditForm(newForm);
             }}
           >
             <SelectTrigger className="mt-1">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {
-                ["SELECT_ONE_IN_LOT", "SELECT_MANY_IN_LOT"].includes(editForm.question.type) ?
-                  QUESTION_TYPES.filter(type => type.value === "SELECT_ONE_IN_LOT" || type.value === "SELECT_MANY_IN_LOT").map(type => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))
-                  :
-                  QUESTION_TYPES.find(type => type.value === editForm.question.type) && (
-                    <SelectItem key={editForm.question.type} value={editForm.question.type}>
-                      {QUESTION_TYPES.find(type => type.value === editForm.question.type)?.label}
-                    </SelectItem>
-                  )
-              }
+              {QUESTION_TYPES.map(type => (
+                <SelectItem key={type.value} value={type.value}>
+                  {type.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
 
         {/* Question Text */}
-        <div className="flex items-center gap-3 mb-2">
-          <Label htmlFor="isParameterizedEdit" className="mb-0">Is Parameterized?</Label>
-          <Switch
-            id="isParameterizedEdit"
-            checked={editForm.question.isParameterized}
-            onCheckedChange={(checked) =>
-              setEditForm(prev => ({ ...prev, question: { ...prev.question, isParameterized: !!checked } }))
-            }
-          />
-        </div>
         <div>
           <Label htmlFor="questionText" className="text-sm font-medium">Question Text</Label>
-          {renderParameterInputs("questionText")}
           <Textarea
             id="questionText"
             placeholder="Enter your question here..."
@@ -546,7 +481,6 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
         {/* Hint field */}
         <div>
           <Label htmlFor="hint" className="text-sm font-medium">Hint (Optional)</Label>
-          {renderParameterInputs("hint")}
           <Textarea
             id="hint"
             placeholder="Enter a hint for this question..."
@@ -560,195 +494,172 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
           />
         </div>
 
-        {/* Parameters */}
-        {
-          editForm.question.isParameterized && (
-            <>
-              <div className='py-2'>
-                <Label className='text-sm font-medium'>Parameters</Label>
-              </div>
-              <div className="space-y-4">
-                {
-                  editForm.question.parameters?.map((param, index) => (
-                    <div key={index} className="p-4 border rounded-lg bg-background space-y-3">
-                      <div className='flex justify-between items-start'>
-                        <div className='w-full'>
-                          <div className="flex-1 space-y-2 w-full">
-                            <Label className='text-sm text-gray-600'>Name:</Label>
-                            <Input
-                              placeholder='Name'
-                              className="mt-1"
-                              onChange={(e) => updateParameter(index, { name: e.target.value })}
-                              value={param.name} />
-                          </div>
-                          <div className="flex-1 space-y-2 w-full">
-                            <Label className='text-sm text-gray-600'>Value:</Label>
-                            <Textarea
-                              placeholder='Enter comma separated values...'
-                              className="mt-1"
-                              onChange={(e) => updateParameter(index, { possibleValues: e.target.value })}
-                              value={param.possibleValues} />
-                          </div>
-                          <div className="flex-1 space-y-2 w-full">
-                            <Label className='text-sm text-gray-600'>Type:</Label>
-                            <Select
-                              value={param.type || ''}
-                              onValueChange={(value) => updateParameter(index, { type: value })}
-                            >
-                              <SelectTrigger className="mt-1">
-                                <SelectValue placeholder="Select type..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="number">number</SelectItem>
-                                <SelectItem value="string">string</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => deleteParameter(index)}
-                            disabled={editableOptions.length <= 1}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                }
-                {
-                  editForm.question.parameters?.length === 0 && (
-                    <div className="text-sm text-muted-foreground">
-                      No parameters added yet.
-                    </div>
-                  )
-                }
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={addNewParameter}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Parameter
-                </Button>
-              </div>
-            </>
-          )
-        }
-
         {/* Answer Options for Multiple Choice */}
         {(editForm.question.type === 'SELECT_ONE_IN_LOT' || editForm.question.type === 'SELECT_MANY_IN_LOT') && (
           <div className="space-y-4">
             <Label className="text-sm font-medium">Answer Options</Label>
             <div className="space-y-3">
-              {editForm.question.type === 'SELECT_ONE_IN_LOT' ? (
-                <RadioGroup
-                  value={editableOptions.find(opt => opt.isCorrect)?._id || ''}
-                  onValueChange={setSingleCorrectOption}
-                  className="space-y-3"
-                >
-                  {editableOptions.map((option, index) => (
-                    <div key={option._id} className="space-y-2 p-4 border rounded-lg bg-background">
-                      {renderParameterInputs(`option-${index}`)}
-                      <div className="flex gap-3 items-start">
-                        <span className="text-sm text-muted-foreground font-medium min-w-[20px] mt-2">
-                          {index + 1}.
-                        </span>
-                        <div className="flex-1 space-y-2">
-                          <Input
-                            placeholder={`Option ${index + 1}`}
-                            id={`option-${index}`}
-                            value={option.text}
-                            onChange={(e) => updateOption(option._id, { text: e.target.value })}
-                            className="flex-1"
-                          />
-                          <Input
-                            placeholder="explanation (optional)"
-                            value={option.explaination}
-                            onChange={(e) => updateOption(option._id, { explaination: e.target.value })}
-                            className="flex-1 text-sm"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem
-                              value={option._id}
-                              id={`correct-${option._id}`}
-                            />
-                            <Label htmlFor={`correct-${option._id}`} className="text-sm text-green-700 dark:text-green-400">
-                              Correct
-                            </Label>
+              {/* Render all options with correct/incorrect toggle */}
+              {(() => {
+                // Combine all options into a single array with metadata
+                const allOptions: Array<{
+                  id: string;
+                  text: string;
+                  isCorrect: boolean;
+                  explaination?: string;
+                }> = [];
+
+                // Add correct options
+                if (editForm.question.type === 'SELECT_ONE_IN_LOT' && editForm.solution?.correctLotItem) {
+                  allOptions.push({
+                    id: editForm.solution.correctLotItem._id || `correct-${Date.now()}`,
+                    text: editForm.solution.correctLotItem.text || '',
+                    isCorrect: true,
+                    explaination: editForm.solution.correctLotItem.explaination || ''
+                  });
+                }
+
+                if (editForm.question.type === 'SELECT_MANY_IN_LOT' && editForm.solution?.correctLotItems) {
+                  editForm.solution.correctLotItems.forEach((item: any, index: number) => {
+                    allOptions.push({
+                      id: item._id || `correct-${index}-${Date.now()}`,
+                      text: item.text || '',
+                      isCorrect: true,
+                      explaination: item.explaination || ''
+                    });
+                  });
+                }
+
+                // Add incorrect options
+                if (editForm.solution?.incorrectLotItems) {
+                  editForm.solution.incorrectLotItems.forEach((item: any, index: number) => {
+                    allOptions.push({
+                      id: item._id || `incorrect-${index}-${Date.now()}`,
+                      text: item.text || '',
+                      isCorrect: false,
+                      explaination: item.explaination || ''
+                    });
+                  });
+                }
+
+                // If no options exist, create a default correct option
+                if (allOptions.length === 0) {
+                  allOptions.push({
+                    id: `option-${Date.now()}`,
+                    text: '',
+                    isCorrect: true,
+                    explaination: ''
+                  });
+                }
+
+                return (
+                  <div className="space-y-3">
+                    {editForm.question.type === 'SELECT_ONE_IN_LOT' ? (
+                      <RadioGroup
+                        value={allOptions.find(opt => opt.isCorrect)?.id || ''}
+                        onValueChange={(value) => {
+                          // Use the dedicated function for single choice selection
+                          setSingleCorrectOption(value);
+                        }}
+                        className="space-y-3"
+                      >
+                        {allOptions.map((option, index) => (
+                          <div key={option.id} className="space-y-2 p-4 border rounded-lg bg-background">
+                            <div className="flex gap-3 items-start">
+                              <span className="text-sm text-muted-foreground font-medium min-w-[20px] mt-2">
+                                {index + 1}.
+                              </span>
+                              <div className="flex-1 space-y-2">
+                                <Input
+                                  placeholder={`Option ${index + 1}`}
+                                  value={option.text}
+                                  onChange={(e) => updateOption(option.id, { text: e.target.value })}
+                                  className="flex-1"
+                                />
+                                <Input
+                                  placeholder="explaination (optional)"
+                                  value={option.explaination}
+                                  onChange={(e) => updateOption(option.id, { explaination: e.target.value })}
+                                  className="flex-1 text-sm"
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem
+                                    value={option.id}
+                                    id={`correct-${option.id}`}
+                                  />
+                                  <Label htmlFor={`correct-${option.id}`} className="text-sm text-green-700 dark:text-green-400">
+                                    Correct
+                                  </Label>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => removeOption(option.id)}
+                                  className="text-destructive hover:text-destructive"
+                                  disabled={allOptions.length <= 1}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
                           </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => removeOption(option._id)}
-                            className="text-destructive hover:text-destructive"
-                            disabled={editableOptions.length <= 1}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </RadioGroup>
-              ) : (
-                <div className="space-y-3">
-                  {editableOptions.map((option, index) => (
-                    <div key={option._id} className="space-y-2 p-4 border rounded-lg bg-background">
-                      <div className="flex gap-3 items-start">
-                        <span className="text-sm text-muted-foreground font-medium min-w-[20px] mt-2">
-                          {index + 1}.
-                        </span>
-                        <div className="flex-1 space-y-2">
-                          <Input
-                            placeholder={`Option ${index + 1}`}
-                            value={option.text}
-                            onChange={(e) => updateOption(option._id, { text: e.target.value })}
-                            className="flex-1"
-                          />
-                          <Input
-                            placeholder="explanation (optional)"
-                            value={option.explaination}
-                            onChange={(e) => updateOption(option._id, { explaination: e.target.value })}
-                            className="flex-1 text-sm"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`correct-${option._id}`}
-                              checked={option.isCorrect}
-                              onCheckedChange={(checked) => toggleCorrectOption(option._id, checked as boolean)}
-                            />
-                            <Label htmlFor={`correct-${option._id}`} className="text-sm text-green-700 dark:text-green-400">
-                              Correct
-                            </Label>
+                        ))}
+                      </RadioGroup>
+                    ) : (
+                      <div className="space-y-3">
+                        {allOptions.map((option, index) => (
+                          <div key={option.id} className="space-y-2 p-4 border rounded-lg bg-background">
+                            <div className="flex gap-3 items-start">
+                              <span className="text-sm text-muted-foreground font-medium min-w-[20px] mt-2">
+                                {index + 1}.
+                              </span>
+                              <div className="flex-1 space-y-2">
+                                <Input
+                                  placeholder={`Option ${index + 1}`}
+                                  value={option.text}
+                                  onChange={(e) => updateOption(option.id, { text: e.target.value })}
+                                  className="flex-1"
+                                />
+                                <Input
+                                  placeholder="explaination (optional)"
+                                  value={option.explaination}
+                                  onChange={(e) => updateOption(option.id, { explaination: e.target.value })}
+                                  className="flex-1 text-sm"
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`correct-${option.id}`}
+                                    checked={option.isCorrect}
+                                    onCheckedChange={(checked) => toggleCorrectOption(option.id, checked as boolean)}
+                                  />
+                                  <Label htmlFor={`correct-${option.id}`} className="text-sm text-green-700 dark:text-green-400">
+                                    Correct
+                                  </Label>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => removeOption(option.id)}
+                                  className="text-destructive hover:text-destructive"
+                                  disabled={allOptions.length <= 1}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
                           </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => removeOption(option._id)}
-                            className="text-destructive hover:text-destructive"
-                            disabled={editableOptions.length <= 1}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        ))}
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    )}
+                  </div>
+                );
+              })()}
 
               <Button
                 type="button"
@@ -808,20 +719,6 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
                 className="mt-1"
               />
             </div>
-            <div>
-              <Label htmlFor="value" className="text-sm font-medium">Value</Label>
-              <Input
-                id="value"
-                type="number"
-                min="0"
-                value={editForm?.solution?.value || ''}
-                onChange={(e) => setEditForm({
-                  ...editForm,
-                  solution: { ...editForm.solution, value: parseInt(e.target.value) }
-                })}
-                className="mt-1"
-              />
-            </div>
           </div>
         )}
 
@@ -844,9 +741,9 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
         )}
 
         {/* Points and Time Limit */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="points" className="text-sm font-medium">Points *</Label>
+            <Label htmlFor="points" className="text-sm font-medium">Points</Label>
             <Input
               id="points"
               type="number"
@@ -860,7 +757,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
             />
           </div>
           <div>
-            <Label htmlFor="timeLimit" className="text-sm font-medium">Time Limit (seconds) *</Label>
+            <Label htmlFor="timeLimit" className="text-sm font-medium">Time Limit (seconds)</Label>
             <Input
               id="timeLimit"
               type="number"
@@ -873,31 +770,10 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
               className="mt-1"
             />
           </div>
-          <div>
-            <Label htmlFor="priority" className='text-sm font-medium mb-1'>Priority *</Label>
-            <Select
-              value={editForm.question.priority}
-              onValueChange={(value) =>
-                setEditForm(prev => ({
-                  ...prev,
-                  question: { ...prev.question, priority: toPriority(value) },
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="LOW">Low</SelectItem>
-                <SelectItem value="MEDIUM">Medium</SelectItem>
-                <SelectItem value="HIGH">High</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </div>
 
         {/* Parameterized Question */}
-        {/* <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3">
           <input
             type="checkbox"
             id="isParameterized"
@@ -911,7 +787,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
           <Label htmlFor="isParameterized" className="text-sm cursor-pointer">
             Is Parameterized Question
           </Label>
-        </div> */}
+        </div>
       </div>
     </div>
   );
@@ -1062,91 +938,89 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
   };
 
   return (
-    <Card className={`transition-all duration-200 hover:shadow-md border-l-4 ${isFlagged ? 'border-amber-400 border-2 bg-amber-50/50 dark:bg-amber-950/20' : 'border-l-transparent hover:border-l-primary'} w-full max-w-full overflow-hidden`}>
+    <Card className="transition-all duration-200 hover:shadow-md border-l-4 border-l-transparent hover:border-l-primary">
       <CardContent className="p-0">
         <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
           <CollapsibleTrigger asChild>
-            <div className="p-4 xl:p-6 cursor-pointer hover:bg-muted/30 transition-colors">
-              <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-3 max-w-full">
-                <div className="flex-1 min-w-0 max-w-full">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3">
-                    <div className="flex items-center gap-2 min-w-0">
+            <div className="p-6 cursor-pointer hover:bg-muted/30 transition-colors">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex items-center gap-2">
                       {isExpanded ? (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
                       ) : (
-                        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       )}
-                      <Badge variant="outline" className="font-medium text-xs sm:text-sm flex-shrink-0">
+                      <Badge variant="outline" className="font-medium">
                         {question?.type?.replace(/_/g, ' ') || 'Unknown'}
                       </Badge>
                     </div>
-                    <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded self-start flex-shrink-0">
-                      ID: {questionId.slice(-6)}
+                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                      ID: {questionId.slice(-8)}
                     </span>
                   </div>
-                  <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed break-words pr-1 max-w-full overflow-hidden">
+                  <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
                     {(question as any)?.text || 'Question text not available'}
                   </p>
-
+                  
                   {/* Quick info */}
-                  <div className="flex flex-wrap gap-2 sm:gap-3 mt-3 text-xs text-muted-foreground">
+                  <div className="flex gap-4 mt-3 text-xs text-muted-foreground">
                     {(question as any)?.points && (
-                      <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded whitespace-nowrap">
+                      <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded">
                         {(question as any).points} pts
                       </span>
                     )}
                     {(question as any)?.timeLimitSeconds && (
-                      <span className="bg-orange-50 text-orange-700 px-2 py-1 rounded whitespace-nowrap">
+                      <span className="bg-orange-50 text-orange-700 px-2 py-1 rounded">
                         {(question as any).timeLimitSeconds}s
                       </span>
                     )}
                     {(question as any)?.lotItems && (
-                      <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded whitespace-nowrap">
+                      <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded">
                         {(question as any).lotItems.length} options
                       </span>
                     )}
                   </div>
                 </div>
-                <div className="flex gap-1 xl:ml-4 flex-shrink-0 self-start min-w-0" onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="sm" onClick={onDuplicate} title="Duplicate" className="h-7 w-7 p-0 flex-shrink-0">
-                    <Copy className="h-3.5 w-3.5" />
+                <div className="flex gap-1 ml-6" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="sm" onClick={onDuplicate} title="Duplicate" className="h-8 w-8 p-0">
+                    <Copy className="h-4 w-4" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onDelete}
-                    className="text-destructive hover:text-destructive h-7 w-7 p-0 flex-shrink-0"
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={onDelete} 
+                    className="text-destructive hover:text-destructive h-8 w-8 p-0"
                     title="Delete"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
             </div>
           </CollapsibleTrigger>
-
+          
           <CollapsibleContent>
             <div className="border-t bg-muted/20">
               {isEditing ? renderEditForm() : renderQuestionContent()}
-
-              <div className="flex flex-col xl:flex-row justify-end gap-2 xl:gap-3 p-4 xl:p-6 bg-background border-t">
+              
+              <div className="flex justify-end gap-3 p-6 bg-background border-t">
                 {isEditing ? (
                   <>
-                    <Button
-                      variant="outline"
-                      size="sm"
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
                       onClick={handleCancelEdit}
                       disabled={updateQuestion.isPending}
-                      className="w-full xl:w-auto"
                     >
                       <X className="h-4 w-4 mr-2" />
                       Cancel
                     </Button>
-                    <Button
-                      size="sm"
+                    <Button 
+                      size="sm" 
                       onClick={handleSaveEdit}
                       disabled={updateQuestion.isPending}
-                      className="w-full xl:w-auto"
                     >
                       {updateQuestion.isPending ? (
                         <>
@@ -1162,7 +1036,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
                     </Button>
                   </>
                 ) : (
-                  <Button variant="outline" size="sm" onClick={handleStartEdit} className="w-full sm:w-auto">
+                  <Button variant="outline" size="sm" onClick={handleStartEdit}>
                     <Edit2 className="h-4 w-4 mr-2" />
                     Edit Question
                   </Button>

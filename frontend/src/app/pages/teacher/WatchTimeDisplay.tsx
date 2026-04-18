@@ -16,7 +16,6 @@ export function WatchTimeDisplay({
   courseVersionId,
   itemName,
   itemType,
-  cohortId,
 }: {
   userId: string
   itemId: string
@@ -24,10 +23,10 @@ export function WatchTimeDisplay({
   courseVersionId: string
   itemName?: string
   itemType?: string
-  cohortId?: string
 }) {
   console.log(`Fetching watch time for User: ${userId}, Item: ${itemId}, Course: ${courseId}, Version: ${courseVersionId}, Type: ${itemType}`)
-  const { data: watchTimeData, isLoading, error} = useWatchTimeByItemId(userId, courseId, courseVersionId, itemId, itemType?.toUpperCase() || "", cohortId);
+  const { data: watchTimeData, isLoading, error} = useWatchTimeByItemId(userId, courseId, courseVersionId, itemId, itemType?.toUpperCase() || "");
+  console.log("Watch Time Data:", watchTimeData)
 
   if (isLoading) {
     return (
@@ -53,13 +52,15 @@ export function WatchTimeDisplay({
       </div>
     )
   }
+  // if (!watchTimeData.watchTime || watchTimeData.watchTime.length === 0) {
+  //   return (
+  //     <div className="p-4 bg-muted/20 rounded-lg">
+  //       <p className="text-sm text-muted-foreground">The user has not attempted this item yet.</p>
+  //     </div>
+  //   )
+  // }
 
-  const watchTimeArray = Array.isArray(watchTimeData.watchTime) 
-    ? watchTimeData.watchTime 
-    : (watchTimeData.watchTime ? [watchTimeData.watchTime] : []);
-
-
-  const totalAttempts = watchTimeArray.length
+  const totalAttempts = watchTimeData.watchTime.length
 
   const getItemIcon = (type: string) => {
     switch (type?.toUpperCase()) {
@@ -123,8 +124,8 @@ export function WatchTimeDisplay({
       {/* Attempts List */}
       <div className="space-y-3">
         <h6 className="font-medium text-foreground">Attempt History</h6>
-        {watchTimeArray.length > 0 && (<div className="space-y-2 max-h-60 overflow-y-auto">
-          {watchTimeArray.map((attempt: any, index: number) => {
+        {watchTimeData && (<div className="space-y-2 max-h-60 overflow-y-auto">
+          {watchTimeData.watchTime.map((attempt: any, index: number) => {
             const { date, time } = formatDateTime(attempt.startTime)
             return (
               <div key={attempt._id} className="p-3 bg-card border border-border rounded-lg">
