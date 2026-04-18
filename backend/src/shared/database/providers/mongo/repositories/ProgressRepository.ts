@@ -1414,7 +1414,6 @@ class ProgressRepository {
     const versionIdObj = ObjectId.isValid(courseVersionId) ? new ObjectId(courseVersionId) : null;
 
     if (!courseIdObj || !versionIdObj) return 0;
-
     const result = await this.watchTimeCollection
       .aggregate<{ averageWatchHoursPerUser: number }>(
         [
