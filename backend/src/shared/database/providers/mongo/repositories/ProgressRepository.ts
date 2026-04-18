@@ -1350,14 +1350,28 @@ class ProgressRepository {
               userId: { $in: [userId, userIdObj] },
               courseId: { $in: [courseId, courseIdObj] },
               courseVersionId: { $in: [courseVersionId, versionIdObj] },
-              endTime: { $ne: null, $exists: true },
               isDeleted: { $ne: true },
+              isExpired: { $ne: true },
             },
           },
           {
             $project: {
+              // Prefer client-reported duration (seconds→hours); fall back to wall-clock diff
               duration: {
-                $divide: [{ $subtract: ['$endTime', '$startTime'] }, 3600000],
+                $divide: [
+                  {
+                    $cond: [
+                      { $and: [{ $ne: ['$duration', null] }, { $gte: ['$duration', 0] }] },
+                      { $multiply: ['$duration', 1000] },
+                      { $cond: [
+                        { $ne: ['$endTime', null] },
+                        { $subtract: ['$endTime', '$startTime'] },
+                        0,
+                      ]},
+                    ],
+                  },
+                  3600000,
+                ],
               },
             },
           },
@@ -1390,7 +1404,6 @@ class ProgressRepository {
     const versionIdObj = ObjectId.isValid(courseVersionId) ? new ObjectId(courseVersionId) : null;
 
     if (!courseIdObj || !versionIdObj) return 0;
-
     const result = await this.watchTimeCollection
       .aggregate<{ averageWatchHoursPerUser: number }>(
         [
@@ -1398,15 +1411,28 @@ class ProgressRepository {
             $match: {
               courseId: { $in: [courseId, courseIdObj] },
               courseVersionId: { $in: [courseVersionId, versionIdObj] },
-              endTime: { $ne: null, $exists: true },
               isDeleted: { $ne: true },
+              isExpired: { $ne: true },
             },
           },
           {
             $project: {
               userId: 1,
               duration: {
-                $divide: [{ $subtract: ['$endTime', '$startTime'] }, 3600000],
+                $divide: [
+                  {
+                    $cond: [
+                      { $and: [{ $ne: ['$duration', null] }, { $gte: ['$duration', 0] }] },
+                      { $multiply: ['$duration', 1000] },
+                      { $cond: [
+                        { $ne: ['$endTime', null] },
+                        { $subtract: ['$endTime', '$startTime'] },
+                        0,
+                      ]},
+                    ],
+                  },
+                  3600000,
+                ],
               },
             },
           },
