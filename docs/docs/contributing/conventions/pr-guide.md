@@ -2,6 +2,10 @@
 title: Pull Request Convention
 ---
 
+## Why Pull Requests
+
+Pull requests make collaboration safer and faster by creating a clear review point before code is merged. They help contributors explain **what** changed and **why**, allow reviewers to catch issues early, and keep project history traceable for future maintenance.
+
 ## Convention
 
 We follow a structured format for writing pull request titles and descriptions to keep our change history consistent and clear. Use the following format when creating a PR.
