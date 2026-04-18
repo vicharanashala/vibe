@@ -1350,40 +1350,17 @@ class ProgressRepository {
               userId: { $in: [userId, userIdObj] },
               courseId: { $in: [courseId, courseIdObj] },
               courseVersionId: { $in: [courseVersionId, versionIdObj] },
-<<<<<<< fix/quiz-submit-error
               endTime: { $ne: null, $exists: true },
               isDeleted: { $ne: true },
-=======
-              isDeleted: { $ne: true },
-              isExpired: { $ne: true },
->>>>>>> combined-updates
+             
             },
           },
           {
             $project: {
-<<<<<<< fix/quiz-submit-error
               duration: {
                 $divide: [{ $subtract: ['$endTime', '$startTime'] }, 3600000],
-=======
-              // Prefer client-reported duration (seconds→hours); fall back to wall-clock diff
-              duration: {
-                $divide: [
-                  {
-                    $cond: [
-                      { $and: [{ $ne: ['$duration', null] }, { $gte: ['$duration', 0] }] },
-                      { $multiply: ['$duration', 1000] },
-                      { $cond: [
-                        { $ne: ['$endTime', null] },
-                        { $subtract: ['$endTime', '$startTime'] },
-                        0,
-                      ]},
-                    ],
-                  },
-                  3600000,
-                ],
->>>>>>> combined-updates
-              },
-            },
+             
+                },
           },
           {
             $group: {
@@ -1395,7 +1372,6 @@ class ProgressRepository {
         { session },
       )
       .toArray();
-<<<<<<< fix/quiz-submit-error
 
     return Math.round((result[0]?.totalHours ?? 0) * 100) / 100;
   }
@@ -1416,7 +1392,6 @@ class ProgressRepository {
 
     if (!courseIdObj || !versionIdObj) return 0;
 
-=======
 
     return Math.round((result[0]?.totalHours ?? 0) * 100) / 100;
   }
@@ -1437,7 +1412,7 @@ class ProgressRepository {
 
     if (!courseIdObj || !versionIdObj) return 0;
 
->>>>>>> combined-updates
+
     const result = await this.watchTimeCollection
       .aggregate<{ averageWatchHoursPerUser: number }>(
         [
@@ -1445,20 +1420,15 @@ class ProgressRepository {
             $match: {
               courseId: { $in: [courseId, courseIdObj] },
               courseVersionId: { $in: [courseVersionId, versionIdObj] },
-<<<<<<< fix/quiz-submit-error
               endTime: { $ne: null, $exists: true },
               isDeleted: { $ne: true },
-=======
-              isDeleted: { $ne: true },
-              isExpired: { $ne: true },
->>>>>>> combined-updates
+             
             },
           },
           {
             $project: {
               userId: 1,
               duration: {
-<<<<<<< fix/quiz-submit-error
                 $divide: [{ $subtract: ['$endTime', '$startTime'] }, 3600000],
               },
             },
@@ -1476,38 +1446,7 @@ class ProgressRepository {
             },
           },
           {
-=======
-                $divide: [
-                  {
-                    $cond: [
-                      { $and: [{ $ne: ['$duration', null] }, { $gte: ['$duration', 0] }] },
-                      { $multiply: ['$duration', 1000] },
-                      { $cond: [
-                        { $ne: ['$endTime', null] },
-                        { $subtract: ['$endTime', '$startTime'] },
-                        0,
-                      ]},
-                    ],
-                  },
-                  3600000,
-                ],
-              },
-            },
-          },
-          {
-            $group: {
-              _id: '$userId',
-              totalHours: { $sum: '$duration' },
-            },
-          },
-          {
-            $group: {
-              _id: null,
-              averageWatchHoursPerUser: { $avg: '$totalHours' },
-            },
-          },
-          {
->>>>>>> combined-updates
+
             $project: { _id: 0, averageWatchHoursPerUser: 1 },
           },
         ],
