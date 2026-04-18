@@ -1677,12 +1677,18 @@ export function useUserEnrollments(page?: number, limit?: number, enabled: boole
   refetch: () => void,
   isRefetching: boolean
 } {
-  const result = api.useQuery("get", "/users/enrollments", {
-    params: {
-      query: { page, limit, search, role, tab }
+  const result = api.useQuery(
+    "get",
+    "/users/enrollments",
+    {
+      params: {
+        query: { page, limit, search, role, tab }
+      }
     },
-    enabled: enabled
-  });
+    {
+      enabled
+    }
+  );
 
   return {
     data: result.data,
