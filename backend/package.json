@@ -54,6 +54,7 @@
     "@types/jsonwebtoken": "^9.0.9",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.7.5",
+    "@types/node-cron": "^3.0.11",
     "@types/pdf-parse": "^1.1.4",
     "@types/supertest": "^6.0.2",
     "@vitest/coverage-v8": "^3.2.3",
@@ -83,6 +84,7 @@
     "vitest": "^3.2.3"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.90.0",
     "@casl/ability": "^6.7.3",
     "@google-cloud/storage": "^7.16.0",
     "@microsoft/kiota-bundle": "1.0.0-preview.96",
@@ -103,6 +105,7 @@
     "console-table-printer": "^2.14.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "csv-writer": "^1.6.0",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "express-rate-limit": "^7.5.0",
@@ -114,6 +117,7 @@
     "mathjs": "^14.5.2",
     "mongodb": "^6.17.0",
     "multer": "^2.0.2",
+    "node-cron": "^4.2.1",
     "nodemailer": "^7.0.3",
     "reflect-metadata": "^0.2.2",
     "routing-controllers": "^0.11.2",

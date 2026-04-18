@@ -1,22 +1,10 @@
-import {
-  EnrollmentRole,
-  EnrollmentStatus,
-  IEnrollment,
-  IProgress,
-  ICourseVersion,
-  IWatchTime,
-  IUser,
-  ID,
-  courseVersionStatus,
-  IUserActivityEvent,
-} from '#shared/interfaces/models.js';
+import { EnrollmentRole, EnrollmentStatus, IEnrollment, IProgress, ICourseVersion, IWatchTime, IUser, ID, courseVersionStatus, IUserActivityEvent } from '#shared/interfaces/models.js';
+import { IReport } from '#shared/interfaces/reports.js';
+import { UserEnrollmentStatisticsResponse } from '#root/modules/users/classes/validators/EnrollmentValidators.js';
 import { injectable, inject } from 'inversify';
 import { ClientSession, Collection, ObjectId, OptionalId } from 'mongodb';
-import {
-  BadRequestError,
-  InternalServerError,
-  NotFoundError,
-} from 'routing-controllers';
+import { BadRequestError, InternalServerError, NotFoundError } from 'routing-controllers';
+import { IProjectSubmission } from '#root/modules/projects/repositories/model.js';
 import { MongoDatabase } from '../MongoDatabase.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { EnrollmentStats } from '#root/modules/users/types.js';
@@ -1813,7 +1801,7 @@ export class EnrollmentRepository {
     ];
 
     const result = await this.enrollmentCollection
-      .aggregate(pipeline, { session })
+      .aggregate<any>(pipeline, { session })
       .toArray();
 
     if (!result[0]) return null;

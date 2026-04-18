@@ -30,7 +30,7 @@ export class AnomalyService extends BaseService {
     return this._withTransaction(async (session) => {
       const { courseId, versionId } = anomalyData;
 
-      const courseVersion = await this.courseRepo.readVersion(versionId, session);
+      const courseVersion = await this.courseRepo.readVersion(versionId.toString(), session);
       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
         throw new NotFoundError('Course version not found or does not belong to this course');
       }
@@ -92,12 +92,12 @@ export class AnomalyService extends BaseService {
           throw new NotFoundError('Course version not found');
       }
 
-      const anomalies = await this.anomalyRepository.getAnomaliesByCourse(courseId, versionId, limit, skip, session);
-      if (!anomalies || anomalies.length === 0) {
+      const result = await this.anomalyRepository.getAnomaliesByCourse(courseId, versionId, limit, skip, undefined, undefined, undefined, undefined, session);
+      if (!result || result.data.length === 0) {
           throw new NotFoundError('No anomalies found for this course version');
       }
 
-      return anomalies.map((a) => {
+      return result.data.map((a) => {
           a._id = a._id.toString();
           delete a.fileName;
           delete a.fileType;

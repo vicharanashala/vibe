@@ -14,6 +14,16 @@ type CurrentProgress = Pick<
 
 @injectable()
 class ProgressRepository {
+      // Stub for findWatchTimeById. Replace with actual logic if needed.
+      async findWatchTimeById(id: string, session?: ClientSession): Promise<any> {
+        // TODO: Implement actual logic
+        return null;
+      }
+    // Returns an empty array for now. Replace with actual logic if needed.
+    async getHiddenOrDeletedItems(courseVersionId: string, session?: ClientSession): Promise<{ itemId: ObjectId }[]> {
+      // TODO: Implement actual logic to fetch hidden or deleted items
+      return [];
+    }
   private progressCollection!: Collection<IProgress>;
   private watchTimeCollection!: Collection<IWatchTime>;
   private attemptCollection: Collection<IAttempt>;

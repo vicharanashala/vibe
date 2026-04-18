@@ -644,6 +644,7 @@ export class GenAIService extends BaseService {
                 approximateTimeToComplete: '00:05:00',
                 allowPartialGrading: true,
                 allowHint: true,
+                allowSkip: true,
                 showCorrectAnswersAfterSubmission: true,
                 showExplanationAfterSubmission: true,
                 showScoreAfterSubmission: true,
