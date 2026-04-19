@@ -23,9 +23,9 @@ export default function AuthPage({ role }: AuthPageProps) {
   const { isAuthenticated, user } = useAuthStore();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
+  const [Passwordshow, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [activeRole, setActiveRole] = useState<"teacher" | "student">(role || "student");
 
   // New state variables
@@ -678,9 +678,11 @@ export default function AuthPage({ role }: AuthPageProps) {
                         </Label>
                         <div className="relative">
                           <Input
+                            type={Passwordshow ? "text" : "password"}
                             id="password"
                             name="new-password"
-                            type={showPassword ? "text" : "password"}
+
+                          
                             placeholder="Enter your password"
                             autoComplete="new-password"
                             value={password}
@@ -691,7 +693,8 @@ export default function AuthPage({ role }: AuthPageProps) {
                             )}
                           />
                           <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
-                            {showPassword ? <EyeOff /> : <Eye />}
+  
+                            {Passwordshow ? <EyeOff /> : <Eye />}
                           </Button>
                         </div>
                         {formErrors.password && (
@@ -844,9 +847,10 @@ export default function AuthPage({ role }: AuthPageProps) {
                           Password
                         </Label>
                         <Input
+                          type={Passwordshow ? "text" : "password"}
                           id="signup-password"
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Create a strong password"
+                          
+                          placeholder="At least 8 characters with letters and numbers"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           className={cn(
@@ -921,8 +925,9 @@ export default function AuthPage({ role }: AuthPageProps) {
                         </Label>
                         <div className="relative">
                           <Input
+                            type={Passwordshow ? "text" : "password"}
                             id="confirmPassword"
-                            type={showPassword ? "text" : "password"}
+                          
 
                             placeholder="Confirm your password"
                             value={confirmPassword}
@@ -933,7 +938,7 @@ export default function AuthPage({ role }: AuthPageProps) {
                             )}
                           />
                           <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
-                            {showPassword ? <EyeOff /> : <Eye />}
+                            {Passwordshow ? <EyeOff /> : <Eye />}
                           </Button>
                         </div>
                         {!passwordsMatch && confirmPassword && (

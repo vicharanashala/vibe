@@ -585,7 +585,7 @@ export default function AuthPage() {
                                     placeholder="Enter your password"
                                     autoComplete="new-password"
                                     value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    onChange={(event) => setPassword(event.target.value)}
                                     className={cn(
                                       "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16",
                                       formErrors.password && "border-destructive focus-visible:ring-destructive"
@@ -682,7 +682,7 @@ export default function AuthPage() {
                                     type="email"
                                     placeholder="Enter your email"
                                     value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    onChange={(event) => setEmail(event.target.value)}
                                     className={cn(
                                       "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16",
                                       formErrors.email && "border-destructive focus-visible:ring-destructive"
@@ -769,9 +769,9 @@ export default function AuthPage() {
                                   <Input
                                     id="confirmPassword"
                                     type="password"
-                                    placeholder="Confirm"
+                                    placeholder="Confirm your password"
                                     value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    onChange={(event) => setConfirmPassword(event.target.value)}
                                     className={cn(
                                       "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16",
                                       !passwordsMatch && confirmPassword && "border-destructive focus-visible:ring-destructive"
