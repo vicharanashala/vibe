@@ -126,6 +126,9 @@ importers:
       inversify:
         specifier: ^7.5.2
         version: 7.5.4(reflect-metadata@0.2.2)
+      json5:
+        specifier: ^2.2.3
+        version: 2.2.3
       lexorank:
         specifier: ^1.0.5
         version: 1.0.5
