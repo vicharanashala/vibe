@@ -27,6 +27,7 @@ import { ItemRepository } from "#root/shared/database/providers/mongo/repositori
 import { EnrollmentService } from "#root/modules/users/services/EnrollmentService.js";
 import { ProgressService } from "#root/modules/users/services/ProgressService.js";
 import { FeedbackRepository } from "#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js";
+import { LedgerRepository } from "#root/modules/hpSystem/repositories/index.js";
 
 interface WorkerData {
   inviteIds: string[];
@@ -61,10 +62,11 @@ container
 
 const database = container.get<MongoDatabase>(GLOBAL_TYPES.Database);
 await database.connect();
+const ledgerRepo = new LedgerRepository(database);
 const inviteRepo = new InviteRepository(database)
 const progressRepo = new ProgressRepository(database)
 const attemptRepo = new AttemptRepository(database)
-const enrollmentRepo = new EnrollmentRepository(attemptRepo, database)
+const enrollmentRepo = new EnrollmentRepository(attemptRepo, database, progressRepo)
 const anomalyRepo = new AnomalyRepository(database)
 const settingsRepo = new SettingRepository(database)
 const courseRegistrationRepo = new CourseRegistrationRepository(database)
@@ -80,7 +82,7 @@ const userQuizMetricsRepo = new UserQuizMetricsRepository(database)
 const quizRepo = new QuizRepository(database)
 const feedbackRepo = new FeedbackRepository(database)
 const progressService = new ProgressService(progressRepo, submissionRepo, courseRepo, settingsRepo, userRepo, itemRepo, enrollmentRepo, userQuizMetricsRepo, quizRepo, projectSubmissionRepo, feedbackRepo, database)
-const enrollmentService = new EnrollmentService(enrollmentRepo, courseRepo, userRepo, itemRepo, courseRegistrationRepo, progressService, settingsRepo, inviteRepo, progressRepo, database)
+const enrollmentService = new EnrollmentService(enrollmentRepo, courseRepo, userRepo, itemRepo, courseRegistrationRepo, progressService, settingsRepo, inviteRepo, progressRepo, ledgerRepo, database)
 const inviteService = new InviteService(inviteRepo, userRepo, courseRepo, enrollmentRepo, mailService, itemRepo, enrollmentService, database);
 
 (async () => {

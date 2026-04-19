@@ -1,5 +1,11 @@
 import { expect, Locator, Page } from '@playwright/test';
 
+// Shared E2E helpers for learner-course completion scenarios.
+// Public API: loginAsStudent, getCourseCard, runCourseVideoAndQuiz.
+// Internal helpers prioritize deterministic execution in CI where UI timing varies.
+
+// Logs in a learner and waits until authenticated state is visible in the UI.
+// Required env vars: TEST_STUDENT_EMAIL and TEST_STUDENT_PASSWORD.
 export async function loginAsStudent(page: Page) {
   // --- Safety check ---
   if (!process.env.TEST_STUDENT_EMAIL || !process.env.TEST_STUDENT_PASSWORD) {
@@ -23,7 +29,7 @@ export async function loginAsStudent(page: Page) {
 }
 
 // ---------------------------------------------
-// Helpers functions
+// Internal helper functions
 // ---------------------------------------------
 async function verifyWebcamStream_ifpresent(page: Page) {
   // 🔎 Check if Declaration is visible (short timeout so it doesn’t wait 60s)
@@ -285,6 +291,8 @@ async function waitForItemlist(section: Locator) {
   let stableIterations = 0;
   const MAX_STABLE_ITERATIONS = 3;
 
+  // Wait for the item count to stabilize across multiple checks so we do not
+  // iterate while lazy-rendered lesson items are still being attached.
   while (stableIterations < MAX_STABLE_ITERATIONS) {
     const currentCount = await items.count();
 
@@ -456,6 +464,8 @@ async function submitProject(page: Page) {
 }
 
 export async function getCourseCard(page: Page, courseName: string): Promise<Locator> {
+  // Resolve a specific course card by the level-3 heading text.
+  // The returned locator scopes all downstream assertions/actions to one course.
   const courseCard = page.locator('[data-slot="card"]').filter({
     has: page.getByRole('heading', {
       name: new RegExp(courseName, 'i'),
@@ -469,6 +479,9 @@ export async function getCourseCard(page: Page, courseName: string): Promise<Loc
 }
 
 export async function runCourseVideoAndQuiz(page: Page, courseName: string) {
+  // Executes full learner traversal for the target course.
+  // Supported item types: video, quiz, project.
+  // This intentionally runs sequentially for deterministic state transitions.
   const courseCard = await getCourseCard(page, courseName);
 
   // 6. Find Start or Continue button
@@ -541,6 +554,7 @@ export async function runCourseVideoAndQuiz(page: Page, courseName: string) {
 
       console.log(` ▶ Found ${itemCount} items`);
 
+      // Process lesson items in order to match learner progression semantics.
       for (let j = 0; j < itemCount; j++) {
         const item = items.nth(j);
 

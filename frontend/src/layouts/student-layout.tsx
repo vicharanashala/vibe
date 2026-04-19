@@ -52,7 +52,7 @@ export default function StudentLayout() {
   const { token } = useAuthStore();
 const { data: enrollmentsData } = useUserEnrollments(1, 100, !!token && !!user?.uid);
 const enrollments = enrollmentsData?.enrollments ?? [];
-console.log("Enrollments from student layout -> ", enrollments)
+
 let hasHpSystem = false;
 enrollments.forEach(obj => {
   if(obj.hpSystem === true && obj.status === "ACTIVE" && obj. 
@@ -66,12 +66,12 @@ percentCompleted !== 100){
     return pathname === path || pathname.startsWith(path + "/");
   };
 
-  // Sync local state with hook data
+  // Sync local state with hook data whenever the server response changes
   useEffect(() => {
-    if (approvedNotifications && approvedNotifications.length !== approvedNotificationsList.length) {
+    if (approvedNotifications) {
       setApprovedNotificationsList(approvedNotifications);
     }
-  }, [approvedNotifications, setApprovedNotificationsList,approvedNotificationsList]);
+  }, [approvedNotifications]);
 
   useEffect(() => {
     if (rejectedStudentRegistrations) {

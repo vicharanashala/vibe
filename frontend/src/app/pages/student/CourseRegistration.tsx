@@ -216,6 +216,10 @@ const CourseRegistration: React.FC = () => {
         body = formDataObj;
       }
 
+      // Show "Checking registration status…" immediately while the API call is in progress
+      setIsRegistering(false);
+      setIsRegistered(true);
+
       const response = await submitRegistration({
         params: {
           path: {
@@ -225,21 +229,26 @@ const CourseRegistration: React.FC = () => {
         body,
       });
 
-      setIsRegistering(false);
-      setIsRegistered(true);
       setFormData(buildEmptyFormData(jsonSchema!));
 
       const submissionStatus = getStatusValue(response);
 
       if (submissionStatus === 'APPROVED') {
         setRegistrationStatus('APPROVED');
+        toast.success('You have been successfully registered! Redirecting to dashboard…');
+        setTimeout(() => {
+          router.navigate({ to: '/student' });
+        }, 2000);
       } else {
         setRegistrationStatus('PENDING');
       }
 
     } catch (err: any) {
+      // Reset to form on error so the student can retry
+      setIsRegistered(false);
+      setRegistrationStatus('IDLE');
       toast.error(err?.message || 'Something went wrong, please try again.');
-      if(err?.message.includes("You are already enrolled")){
+      if(err?.message?.includes("You are already enrolled")){
         setTimeout(() => {
           router.navigate({ to: '/student' });
         }, 1000);

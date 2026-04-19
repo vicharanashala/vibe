@@ -183,7 +183,12 @@ export class RuleConfigService extends BaseService {
     async createActivityWithRule(teacherId: string, body: CreateActivityWithRuleBody): Promise<HpRuleConfigTransformer> {
         return this._withTransaction(async (session) => {
             const activity = await this.activiService.create(teacherId, body.activity);
-            const ruleConfig = { ...body.ruleConfig, activityId: activity._id.toString()};
+            const ruleConfig = { 
+                ...body.ruleConfig, 
+                activityId: activity._id.toString(),
+                courseId: activity.courseId.toString(),
+                courseVersionId: activity.courseVersionId.toString()
+            };
             return this.create(ruleConfig);
         });
     }
@@ -198,6 +203,7 @@ export class RuleConfigService extends BaseService {
             console.log("patch.deadlineAt: ", patch.deadlineAt)
             const existing = await this.ruleConfigRepository.findById(ruleConfigId);
 
+
             if (!existing) {
                 throw new NotFoundError("Rule config not found");
             }
@@ -206,7 +212,6 @@ export class RuleConfigService extends BaseService {
 
             // Enforce VIBE_MILESTONE constraints on update
             const activity = await this.activityRepository.findById(existing.activityId.toString());
-
             if (!activity) {
                 throw new BadRequestError("The selected activity could not be found.");
             }
@@ -297,11 +302,13 @@ export class RuleConfigService extends BaseService {
             if (patch.penalty !== undefined) updatePatch.penalty = patch.penalty as any;
             if (patch.limits !== undefined) updatePatch.limits = patch.limits as any;
 
-            if (patch.submissionValidation !== undefined) {
-                if (!Array.isArray(patch.submissionValidation) || patch.submissionValidation.length === 0) {
-                    throw new BadRequestError("At least one submission field must be required");
-                }
-            }
+            // commenting this because this is unnecesarry check. This same check is below with proper distiction...
+            // if (patch.submissionValidation !== undefined) {
+            //     console.log("first if condition triggred...")
+            //     if (!Array.isArray(patch.submissionValidation) || patch.submissionValidation.length === 0) {
+            //         throw new BadRequestError("At least one submission field must be required");
+            //     }
+            // }
 
             const finalSubmissionValidation =
                 patch.submissionValidation !== undefined
@@ -309,6 +316,7 @@ export class RuleConfigService extends BaseService {
                     : existing.submissionValidation;
 
             if (!isVibeMilestone && (!finalSubmissionValidation || finalSubmissionValidation.length === 0)) {
+                console.log("second if condition triggred....")
                 throw new BadRequestError("At least one submission field must be required");
             }
             

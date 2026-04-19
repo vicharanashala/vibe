@@ -21,7 +21,7 @@ import { hpApi } from "@/lib/api/hp-system";
 
 interface OverviewTabProps {
     courseVersionId: string;
-    cohortName: string;
+    cohortId: string;
 }
 
 // StudentMetricCard Component
@@ -483,7 +483,7 @@ function RecentActivity({ recentSubmissions, upcomingDeadlines, className }: {
 }
 
 // Main OverviewTab Component
-export function OverviewTab({ courseVersionId, cohortName }: OverviewTabProps) {
+export function OverviewTab({ courseVersionId, cohortId }: OverviewTabProps) {
     const [stats, setStats] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -492,7 +492,7 @@ export function OverviewTab({ courseVersionId, cohortName }: OverviewTabProps) {
         const fetchDashboardData = async () => {
             try {
                 setIsLoading(true);
-                const response = await hpApi.getStudentDashboardStats(courseVersionId, cohortName);
+                const response = await hpApi.getStudentDashboardStats(courseVersionId, cohortId);
                 if (response.success) {
                     setStats(response.data);
                 } else {
@@ -506,7 +506,7 @@ export function OverviewTab({ courseVersionId, cohortName }: OverviewTabProps) {
         };
 
         fetchDashboardData();
-    }, [courseVersionId, cohortName]);
+    }, [courseVersionId, cohortId]);
 
     if (isLoading) {
         return (

@@ -30,7 +30,7 @@ interface RuleSettingsDialogProps {
     onOpenChange: (open: boolean) => void;
     courseId: string;
     courseVersionId: string;
-    cohortName: string;
+    cohortId: string;
     activityId: string;
 }
 
@@ -39,7 +39,7 @@ export function RuleSettingsDialog({
     onOpenChange,
     courseId,
     courseVersionId,
-    cohortName,
+    cohortId,
     activityId,
 }: RuleSettingsDialogProps) {
     const [config, setConfig] = useState<Partial<HpRuleConfig> | null>(null);
@@ -52,7 +52,7 @@ export function RuleSettingsDialog({
 
     // Hooks
     const { data: existingConfig, isLoading: fetchLoading, refetch } = useHpRuleConfig(isOpen ? activityId : undefined);
-    const { data: activities = [] } = useHpActivities(courseVersionId, cohortName, "", "");
+    const { data: activities = [] } = useHpActivities(courseVersionId, cohortId, "", "");
     const activity = activities.find((a: HpActivity) => a._id === activityId);
     const { mutateAsync: createRuleConfig, isPending: isCreating } = useCreateHpRuleConfig();
     const { mutateAsync: updateRuleConfig, isPending: isUpdating } = useUpdateHpRuleConfig();

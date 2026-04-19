@@ -64,7 +64,7 @@ await database.connect();
 // Initialize repositories
 const progressRepo = new ProgressRepository(database);
 const attemptRepo = new AttemptRepository(database);
-const enrollmentRepo = new EnrollmentRepository(attemptRepo, database);
+const enrollmentRepo = new EnrollmentRepository(attemptRepo, database, progressRepo);
 const anomalyRepo = new AnomalyRepository(database);
 const settingsRepo = new SettingRepository(database);
 const courseRegistrationRepo = new CourseRegistrationRepository(database);

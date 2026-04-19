@@ -35,7 +35,7 @@ export class LedgerRepository implements ILedgerRepository {
     async listByStudentId(
         studentId: string,
         filter: FilterQueryDto,
-        cohortName: string,
+        cohortId: string,
         role: EnrollmentRole,
     ): Promise<{
         data: HpLedgerTransformer[];
@@ -74,7 +74,7 @@ export class LedgerRepository implements ILedgerRepository {
         const matchQuery: any = { ...query };
 
         if (role !== "STUDENT") {
-            matchQuery.cohort = cohortName;
+            matchQuery.cohortId = new ObjectId(cohortId);
         }
 
         const [docs, total] = await Promise.all([
@@ -237,6 +237,32 @@ export class LedgerRepository implements ILedgerRepository {
             }
         );
     }
+    
+    async findRestoreBySubmissionId(submissionId: string): Promise<HpLedger | null> {
+    await this.init();
+    return await this.hpLedgerCollection.findOne(
+        {
+            submissionId: new ObjectId(submissionId),
+            eventType: "RESTORE",
+        },
+        {
+            sort: { createdAt: -1 },
+        }
+    );
+}
+
+async findDebitBySubmissionId(submissionId: string): Promise<HpLedger | null> {
+    await this.init();
+    return await this.hpLedgerCollection.findOne(
+        {
+            submissionId: new ObjectId(submissionId),
+            direction: "DEBIT",
+        },
+        {
+            sort: { createdAt: -1 },
+        }
+    );
+}
     async findByStudentAndActivityId(
         activityId: string,
         studentId: string
@@ -282,17 +308,15 @@ export class LedgerRepository implements ILedgerRepository {
     }
 
     async findBySubmissionIds(submissionIds: string[]): Promise<HpLedger[]> {
-        await this.init();
-        
-        const objectIds = submissionIds.map(id => new ObjectId(id));
-        
-        return await this.hpLedgerCollection.find({
-            activityId: { $in: objectIds }
-        }).toArray();
-    }
+    await this.init();
+    const objectIds = submissionIds.map(id => new ObjectId(id));
+    return await this.hpLedgerCollection.find({
+        submissionId: { $in: objectIds }
+    }).toArray();
+}
 
     async getHpDistributionForCohort(
-        cohortName: string,
+        cohortId: string,
         courseVersionId: string,
         session?: ClientSession
     ): Promise<{
@@ -306,7 +330,7 @@ export class LedgerRepository implements ILedgerRepository {
         const pipeline = [
             {
                 $match: {
-                    cohort: cohortName,
+                    cohortId: new ObjectId(cohortId),
                     courseVersionId: new ObjectId(courseVersionId)
                 }
             },
@@ -363,7 +387,7 @@ export class LedgerRepository implements ILedgerRepository {
 
     async getStudentHpTimeline(
         studentId: string,
-        cohortName: string,
+        cohortId: string,
         courseVersionId: string,
         days: number = 7,
         session?: ClientSession
@@ -384,7 +408,7 @@ export class LedgerRepository implements ILedgerRepository {
             {
                 $match: {
                     studentId: new ObjectId(studentId),
-                    cohort: cohortName,
+                    cohortId: new ObjectId(cohortId),
                     courseVersionId: new ObjectId(courseVersionId),
                     createdAt: { $gte: startDate }
                 }

@@ -107,7 +107,7 @@ const DeadlineCountdown = ({ deadline, allowLate }: { deadline: string; allowLat
 };
 
 export default function StudentActivities() {
-    const { courseVersionId, cohortName } = useParams({ strict: false });
+    const { courseVersionId, cohortId } = useParams({ strict: false });
     const navigate = useNavigate();
 
     const router = useRouterState();
@@ -124,7 +124,7 @@ export default function StudentActivities() {
 
     const { data: activities, isLoading, error, refetch, isRefetching } = useHpStudentActivities(
         courseVersionId as string,
-        cohortName as string
+        cohortId as string
     );
     const { mutateAsync: submitActivity, isPending: isSubmitting } = useSubmitActivity();
 
@@ -194,7 +194,7 @@ export default function StudentActivities() {
             await submitActivity({
                 courseId: selectedActivity.courseId,
                 courseVersionId: selectedActivity.courseVersionId,
-                cohort: selectedActivity.cohort,
+                cohortId: selectedActivity.cohortId,
                 activityId: selectedActivity._id!,
                 payload: {
                     textResponse: textResponse.trim() || undefined,
@@ -311,8 +311,7 @@ export default function StudentActivities() {
                     <div className="flex-1">
                         <h1 className="text-3xl font-bold tracking-tight">Activities</h1>
                         <p className="text-muted-foreground">
-                            {decodeURIComponent(cohortName as string)}
-                        </p>
+                            Dashboard</p>
                     </div>
                     <Button
                         variant="outline"
@@ -345,7 +344,7 @@ export default function StudentActivities() {
                                 className="flex items-center gap-2"
                                 onClick={() =>
                                     navigate({
-                                        to: `/student/hp-system/${courseVersionId}/${cohortName}/submissions`,
+                                        to: `/student/hp-system/${courseVersionId}/${cohortId}/submissions`,
                                         state: { from }
                                     })
                                 }
@@ -363,7 +362,7 @@ export default function StudentActivities() {
                 {showOverview ? (
                     <OverviewTab
                         courseVersionId={courseVersionId as string}
-                        cohortName={cohortName as string}
+                        cohortId={cohortId as string}
                     />
                 ) : (!activities || activities.length === 0) ? (
                     <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
@@ -572,7 +571,7 @@ export default function StudentActivities() {
                                                             className="w-full"
                                                             onClick={() =>
                                                                 navigate({
-                                                                    to: `/student/hp-system/${courseVersionId}/${cohortName}/activities/${activity._id}`,
+                                                                    to: `/student/hp-system/${courseVersionId}/${cohortId}/activities/${activity._id}`,
                                                                     state: { from }
                                                                 })
                                                             }
@@ -645,7 +644,7 @@ export default function StudentActivities() {
                                                                 variant="outline"
                                                                 onClick={() =>
                                                                     navigate({
-                                                                        to: `/student/hp-system/${courseVersionId}/${cohortName}/activities/${activity._id}`,
+                                                                        to: `/student/hp-system/${courseVersionId}/${cohortId}/activities/${activity._id}`,
                                                                         state: { from }
                                                                     })
                                                                 }

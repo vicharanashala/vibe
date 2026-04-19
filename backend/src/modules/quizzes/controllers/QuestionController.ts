@@ -43,7 +43,6 @@ import {
   TranscriptResponse,
 } from '#root/shared/index.js';
 import {AuditTrailsHandler} from '#root/shared/middleware/auditTrails.js';
-import {textUploadOptions} from '#root/modules/anomalies/classes/validators/fileUploadOptions.js';
 import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 import { ObjectId } from 'mongodb';
 import { setAuditTrail } from '#root/utils/setAuditTrail.js';

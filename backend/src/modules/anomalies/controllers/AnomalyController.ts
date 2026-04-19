@@ -15,17 +15,15 @@ import {
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { AnomalyService } from '../services/AnomalyService.js';
-import { BadRequestErrorResponse, InternalServerErrorResponse } from '#shared/middleware/errorHandler.js';
+import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
 import { ANOMALIES_TYPES } from '../types.js';
-import { audioUploadOptions, imageUploadOptions } from '../classes/validators/fileUploadOptions.js';
-import { AnomalyData, AnomalyIdParams, CourseAnomaliesQuery, DeleteAnomalyBody, GetAnomalyParams, GetCourseAnomalyParams, GetItemAnomalyParams, GetUserAnomalyParams, NewAnomalyData, StatsQueryParams } from '../classes/validators/AnomalyValidators.js';
+import { mediaUploadOptions } from '../classes/validators/fileUploadOptions.js';
+import { AnomalyData, AnomalyIdParams, DeleteAnomalyBody, GetAnomalyParams, GetCourseAnomalyParams, GetItemAnomalyParams, GetUserAnomalyParams, NewAnomalyData, StatsQueryParams } from '../classes/validators/AnomalyValidators.js';
 import { AnomalyDataResponse, AnomalyStats, FileType } from '../classes/transformers/Anomaly.js';
 import { PaginationQuery } from '#root/shared/index.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { getAnomalyAbility } from '../abilities/anomalyAbilities.js';
 import { subject } from '@casl/ability';
-import { PaginatedResponse } from '../classes/transformers/Anomaly.js';
-import { UserNotFoundErrorResponse } from '#root/modules/users/classes/index.js';
 
 @OpenAPI({
   tags: ['Anomalies'],
@@ -39,10 +37,10 @@ export class AnomalyController {
   ) {}
 
   @OpenAPI({
-    summary: 'Record anomaly image',
-    description: 'Records an anomaly image stored in cloud storage.',
+    summary: 'Record anomaly',
+    description: 'Records anomaly with optional image/audio.',
   })
-  @Post('/record/image')
+  @Post('/record')
   @HttpCode(201)
   @Authorized()
   @ResponseSchema(AnomalyData, {
@@ -53,54 +51,21 @@ export class AnomalyController {
     statusCode: 400,
   })
   async recordImageAnomaly(
-    // @UploadedFile("image", {required:true, options: imageUploadOptions })
-    @UploadedFile("image", {options: imageUploadOptions })
-      file: Express.Multer.File,
-    @Body() body: NewAnomalyData,
-    // @Ability(getAnomalyAbility) {ability,user} as it not giving permisson to post it
-    @Ability(getAnomalyAbility) {user}
-  ): Promise<AnomalyData> {
-    const { courseId, versionId } = body;
-    const userId = user._id.toString();
-    const anomalyRes = subject('Anomaly', { courseId, versionId });
-
-    // commented below as it is not allowing to post "anomalies/record/image" endpoint
-    // if (!ability.can('create', anomalyRes)) {
-    //   throw new ForbiddenError('You do not have permission to create an anomaly');
-    // }
-    
-    return this.anomalyService.recordAnomaly(userId, body, file, FileType.IMAGE);
-  }
-
-  @OpenAPI({
-    summary: 'Record anomaly with audio',
-    description: 'Records an anomaly udio stored in cloud storage.',
-  })
-  @Post('/record/audio')
-  @HttpCode(201)
-  @Authorized()
-  @ResponseSchema(AnomalyData, {
-    description: 'Anomaly recorded successfully',
-  })
-  @ResponseSchema(BadRequestErrorResponse, {
-    description: 'Bad Request Error',
-    statusCode: 400,
-  })
-  async recordAudioAnomaly(
-    @UploadedFile("audio", { required: true, options: audioUploadOptions })
+    @UploadedFile("file", {options: mediaUploadOptions})
       file: Express.Multer.File,
     @Body() body: NewAnomalyData,
     @Ability(getAnomalyAbility) {ability, user}
   ): Promise<AnomalyData> {
     const { courseId, versionId } = body;
     const userId = user._id.toString();
-
     const anomalyRes = subject('Anomaly', { courseId, versionId });
+
     if (!ability.can('create', anomalyRes)) {
       throw new ForbiddenError('You do not have permission to create an anomaly');
     }
+    const fileType = file?.mimetype.startsWith("image/") ? FileType.IMAGE : FileType.AUDIO;
 
-    return this.anomalyService.recordAnomaly(userId, body, file, FileType.AUDIO);
+    return this.anomalyService.recordAnomaly(userId, body, file, fileType);
   }
 
   @OpenAPI({
@@ -109,18 +74,7 @@ export class AnomalyController {
   })
   @Get('/:anomalyId/course/:courseId/version/:versionId')
   @Authorized()
-  @ResponseSchema(AnomalyDataResponse,{
-    description: 'Anomaly retrieved successfully',
-    statusCode: 200,
-  })
-  @ResponseSchema(UserNotFoundErrorResponse, {
-    description: 'User not found',
-    statusCode: 404,
-  })
-  @ResponseSchema(InternalServerErrorResponse, {
-    description: 'Could not Fetch the Anomaly',
-    statusCode: 500,
-  })
+  @ResponseSchema(AnomalyDataResponse)
   async getAnomaly(
     @Params() params: GetAnomalyParams,
     @Ability(getAnomalyAbility) {ability}
@@ -141,18 +95,7 @@ export class AnomalyController {
   })
   @Get('/course/:courseId/version/:versionId/user/:userId')
   @Authorized()
-  @ResponseSchema(AnomalyData,{
-    description: 'Anomalies retrieved successfully',
-    statusCode: 200,
-  })
-  @ResponseSchema(UserNotFoundErrorResponse, {
-    description: 'User not found',
-    statusCode: 404,
-  })
-  @ResponseSchema(InternalServerErrorResponse, {
-    description: 'Could not Fetch the Anomalies',
-    statusCode: 500,
-  })
+  @ResponseSchema(AnomalyData)
   async getUserAnomalies(
     @Params() params: GetUserAnomalyParams,
     @QueryParams() query: PaginationQuery,
@@ -173,24 +116,18 @@ export class AnomalyController {
 
   @OpenAPI({
     summary: 'Get course anomalies',
-    description: 'Retrieves all anomalies for a specific course with optional sorting and pagination',
+    description: 'Retrieves all anomalies for a specific course',
   })
   @Get('/course/:courseId/version/:versionId')
   @Authorized()
-  @ResponseSchema(PaginatedResponse, { isArray: false ,
-    description: 'Anomalies retrieved successfully',
-    statusCode: 200,})
-  @ResponseSchema(InternalServerErrorResponse, {
-    description: 'Could not Fetch the Anomalies',
-    statusCode: 500,
-  })
+  @ResponseSchema(AnomalyData)
   async getCourseAnomalies(
     @Params() params: GetCourseAnomalyParams,
-    @QueryParams() query: CourseAnomaliesQuery,
+    @QueryParams() query: PaginationQuery,
     @Ability(getAnomalyAbility) {ability}
-  ): Promise<PaginatedResponse<AnomalyData>> {
+  ): Promise<AnomalyData[]> {
     const { courseId, versionId } = params;
-    const { page = 1, limit = 10, sortField, sortOrder, search, type , cohort } = query;
+    const { page, limit } =  query
     const skip = (page - 1) * limit;
 
     const anomalyRes = subject('Anomaly', { courseId, versionId });
@@ -198,18 +135,9 @@ export class AnomalyController {
       throw new ForbiddenError('You do not have permission to view anomalies for this course');
     }
 
-    const sortOptions = sortField ? { field: sortField, order: sortOrder } : undefined;
-    return this.anomalyService.getCourseAnomalies(
-      courseId, 
-      versionId, 
-      limit, 
-      skip, 
-      sortOptions, 
-      search,
-      type,
-      page,
-      cohort
-    );
+    const anomalies = await this.anomalyService.getCourseAnomalies(courseId, versionId, limit, skip);
+
+    return anomalies;
   }
 
   @OpenAPI({
@@ -218,14 +146,7 @@ export class AnomalyController {
   })
   @Get('/course/:courseId/version/:versionId/item/:itemId')
   @Authorized()
-  @ResponseSchema(AnomalyData,{
-    description: 'Anomalies retrieved successfully',
-    statusCode: 200,
-  })
-  @ResponseSchema(InternalServerErrorResponse, {
-    description: 'Could not Fetch the Anomalies',
-    statusCode: 500,
-  })
+  @ResponseSchema(AnomalyData)
   async getItemAnomalies(
     @Params() params: GetItemAnomalyParams,
     @QueryParams() query: PaginationQuery,
@@ -251,10 +172,7 @@ export class AnomalyController {
   })
   @Get('/course/:courseId/version/:versionId/stats')
   @Authorized()
-  @ResponseSchema(AnomalyStats,{
-    description:'Anomaly statistics retrieved successfully',
-    statusCode:200
-  })
+  @ResponseSchema(AnomalyStats)
   async getAnomalyStats(
     @Params() params: GetCourseAnomalyParams,
     @QueryParams() query: StatsQueryParams,
@@ -273,17 +191,11 @@ export class AnomalyController {
 
   @OpenAPI({
     summary: 'Delete anomaly',
-    description: `Deletes an anomaly record and its encrypted image<br/>
-    It returns an empty body with a 200 status code.`,
-    
+    description: 'Deletes an anomaly record and its encrypted image',
   })
   @Delete('/:id')
   @Authorized()
   @OnUndefined(200)
-  @ResponseSchema(BadRequestErrorResponse, {
-    description: 'Bad Request Error',
-    statusCode: 400,
-  })
   async deleteAnomaly(
     @Params() params: AnomalyIdParams,
     @Body() body: DeleteAnomalyBody,

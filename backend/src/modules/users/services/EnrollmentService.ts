@@ -9,6 +9,7 @@ import {
   courseVersionStatus,
   EnrollmentRole,
   EnrollmentStatus,
+  ICohort,
   ICourseVersion,
   IEnrollment,
 } from '#root/shared/interfaces/models.js';
@@ -44,6 +45,8 @@ import {
 } from '#root/modules/quizzes/interfaces/index.js';
 import { Cohort } from '#root/modules/courses/classes/index.js';
 import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import { HP_SYSTEM_TYPES } from '#root/modules/hpSystem/types.js';
+import { LedgerRepository } from '#root/modules/hpSystem/repositories/index.js';
 
 const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
 const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
@@ -67,6 +70,8 @@ export class EnrollmentService extends BaseService {
     private readonly inviteRepo: InviteRepository,
     @inject(USERS_TYPES.ProgressRepo)
     private readonly progressRepo: ProgressRepository,
+    @inject(HP_SYSTEM_TYPES.ledgerRepository)
+    private readonly ledgerRepo: LedgerRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -140,6 +145,7 @@ export class EnrollmentService extends BaseService {
         ]);
 
       let baseHpValue = 0;
+       let sourceText='';
 
       if (versionSetting?.[0]?.settings?.hpSystem === true) {
         let cohortBaseHp;
@@ -149,13 +155,19 @@ export class EnrollmentService extends BaseService {
           ]);
           if (cohortTobeEnrolled?.[0]?.baseHp) {
             cohortBaseHp = cohortTobeEnrolled[0].baseHp;
-          }
+            sourceText='COHORT'
+          } 
         }
         if (cohortBaseHp != null) {
           baseHpValue = cohortBaseHp;
         } else {
           baseHpValue = versionSetting?.[0]?.settings?.baseHp ?? 0;
+          sourceText="VERSION"
         }
+      }
+      const sourceTextMap = {
+        COHORT: 'cohort-level base HP',
+        VERSION: 'course version base HP'
       }
       const enrollmentData = {
         userId: new ObjectId(userId),
@@ -183,6 +195,54 @@ export class EnrollmentService extends BaseService {
           courseVersion,
           cohort,
         );
+
+        if (versionSetting?.[0]?.settings?.hpSystem === true && baseHpValue>0) {
+          const now = new Date();
+          
+          let cohortDetails:ICohort[]|null=null;
+          if(cohort)
+              cohortDetails=await this.courseRepo.getCohortsByIds([cohort]);
+          await this.ledgerRepo.create(
+            {
+              courseId: new ObjectId(courseId),
+              courseVersionId: new ObjectId(courseVersionId),
+              cohortId: cohort ? new ObjectId(cohort) : null as any,
+              cohort: cohortDetails?.[0].name,
+
+              studentId: new ObjectId(userId),
+              studentEmail: user.email,
+
+              activityId: null,
+              submissionId: null,
+
+              eventType: 'BASE_INIT',
+              direction: 'CREDIT',
+              amount: baseHpValue,
+
+              calc: {
+                ruleType: 'ABSOLUTE',
+                absolutePoints: baseHpValue,
+                baseHpAtTime: 0, 
+                computedAmount: baseHpValue,
+
+                percentage: undefined,
+                deadlineAt: undefined,
+                withinDeadline: undefined,
+
+                reasonCode: 'BASE_INIT',
+              },
+
+              links: null,
+
+              meta: {
+                triggeredBy: 'SYSTEM',
+                triggeredByUserId: new ObjectId(userId),
+                note:`An initial HP of ${baseHpValue} was assigned at enrollment (source: ${sourceText}).`,
+              },
+            },
+            session
+          );
+        }
 
         if (progressData) {
           initialProgress = await this.progressRepo.createProgress(
@@ -657,19 +717,18 @@ export class EnrollmentService extends BaseService {
         // };
         // const itemCounts = enr.courseVersion?.itemCounts || {};
         const ratio = completedCount / (enr.totalItems || 1);
-        // const calculatedPercent = Number((ratio * 100).toFixed(2));
-        const hpSystem = hpSystemMap.get(versionIdStr) ?? false;
+        const calculatedPercent = Math.min(Number((ratio * 100).toFixed(2)), 100);
 
-        // if (enr.percentCompleted !== calculatedPercent) {
-        //   void this.enrollmentRepo.updateProgressPercentById(
-        //     enr._id.toString(),
-        //     calculatedPercent,
-        //     completedCount,
-        //     enr.cohortId?.toString(),
-        //   );
-        //   enr.percentCompleted = calculatedPercent;
-        //   enr.completedItemsCount = completedCount;
-        // }
+        if (enr.percentCompleted !== calculatedPercent) {
+          void this.enrollmentRepo.updateProgressPercentById(
+            enr._id.toString(),
+            calculatedPercent,
+            completedCount,
+            enr.cohortId?.toString(),
+          );
+          enr.percentCompleted = calculatedPercent;
+          enr.completedItemsCount = completedCount;
+        }
 
         if (enr.percentCompleted >= 0) {
           return {
@@ -694,7 +753,7 @@ export class EnrollmentService extends BaseService {
             hasNewItemsAfterCompletion: enr.hasNewItemsAfterCompletion || false,
             policyReacknowledgementRequired:
               enr.policyReacknowledgementRequired ?? false,
-            hpSystem,
+            hpSystem: hpSystemMap.get(versionIdStr) ?? false,
           };
         }
       });
@@ -839,16 +898,14 @@ export class EnrollmentService extends BaseService {
           const completedCount = watchedItemsMap.get(watchedKey) || 0;
 
           const ratio = completedCount / (enr.totalItems || 1);
-          let calculatedPercent = Number((ratio * 100).toFixed(2));
+          let calculatedPercent = Math.min(Number((ratio * 100).toFixed(2)), 100);
           let totalCompletedItemsCount = completedCount;
 
           // Guru Setu Override
-          // console.log(`Checking Guru Setu for course ${enr.courseId?.toString()} and version ${versionIdStr}`);
           if (
             enr.courseId?.toString() === GURU_SETU_COURSE_ID &&
             versionIdStr === GURU_SETU_VERSION_ID
           ) {
-            // console.log(`Guru Setu Match Found for user ${userId}`);
             const guruProgress =
               await this.progressService.calculateGuruSetuProgress(
                 userId,
@@ -858,46 +915,42 @@ export class EnrollmentService extends BaseService {
             totalCompletedItemsCount = guruProgress.completedItemsCount;
           }
 
-          // if (enr.percentCompleted !== calculatedPercent) {
-          //   void this.enrollmentRepo.updateProgressPercentById(
-          //     enr._id.toString(),
-          //     calculatedPercent,
-          //     totalCompletedItemsCount,
-          //     enr.cohortId?.toString(),
-          //   );
-
-          //   enr.percentCompleted = calculatedPercent;
-          //   enr.completedItemsCount = totalCompletedItemsCount;
-          // }
-
-          if (enr.percentCompleted >= 0) {
-            let itemCounts = enr.itemCounts || {};
-            let totalItems = Number(enr.totalItems ?? 0);
-
-            const hasItemCounts = Object.values(itemCounts).some(
-              (count: any) => Number(count) > 0,
+          if (enr.percentCompleted !== calculatedPercent) {
+            void this.enrollmentRepo.updateProgressPercentById(
+              enr._id.toString(),
+              calculatedPercent,
+              totalCompletedItemsCount,
+              enr.cohortId?.toString(),
             );
+          }
 
-            if (totalItems <= 0 || !hasItemCounts) {
-              if (!itemCountsFallbackCache.has(versionIdStr)) {
-                const fallback =
-                  await this.itemRepo.calculateItemCountsForVersion(
-                    versionIdStr,
-                  );
-                itemCountsFallbackCache.set(versionIdStr, {
-                  totalItems: Number(fallback.totalItems ?? 0),
-                  itemCounts: fallback.itemCounts ?? {},
-                });
-              }
+          let itemCounts = enr.itemCounts || {};
+          let totalItems = Number(enr.totalItems ?? 0);
 
-              const fallback = itemCountsFallbackCache.get(versionIdStr)!;
-              if (totalItems <= 0) {
-                totalItems = fallback.totalItems;
-              }
-              if (!hasItemCounts) {
-                itemCounts = fallback.itemCounts;
-              }
+          const hasItemCounts = Object.values(itemCounts).some(
+            (count: any) => Number(count) > 0,
+          );
+
+          if (totalItems <= 0 || !hasItemCounts) {
+            if (!itemCountsFallbackCache.has(versionIdStr)) {
+              const fallback =
+                await this.itemRepo.calculateItemCountsForVersion(
+                  versionIdStr,
+                );
+              itemCountsFallbackCache.set(versionIdStr, {
+                totalItems: Number(fallback.totalItems ?? 0),
+                itemCounts: fallback.itemCounts ?? {},
+              });
             }
+
+            const fallback = itemCountsFallbackCache.get(versionIdStr)!;
+            if (totalItems <= 0) {
+              totalItems = fallback.totalItems;
+            }
+            if (!hasItemCounts) {
+              itemCounts = fallback.itemCounts;
+            }
+          }
 
             const completedByType = watchedItemsByTypeMap.get(watchedKey) || {
               videos: 0,
@@ -915,7 +968,7 @@ export class EnrollmentService extends BaseService {
               enrollmentDate: new Date(enr.enrollmentDate),
               course: this.filterCourseVersions(enr.course, enrolledVersionIds),
               // courseVersion: enr.courseVersion,
-              percentCompleted: enr.percentCompleted || 0,
+              percentCompleted: calculatedPercent,
               assignedTimeSlot: enr.assignedTimeSlots,
               moduleNumber: enr.moduleNumber,
               sectionNumber: enr.sectionNumber,
@@ -943,7 +996,6 @@ export class EnrollmentService extends BaseService {
 
               completedItems: watchedItemsMap.get(watchedKey) || 0,
             };
-          }
         }),
       );
 
@@ -1134,19 +1186,29 @@ export class EnrollmentService extends BaseService {
           });
         });
 
+        console.log('[QuizScore Debug] courseVersionId:', courseVersionId);
+        console.log('[QuizScore Debug] itemGroupIds:', itemGroupIds);
+
         if (itemGroupIds.length > 0) {
           const quizInfo = await this.itemRepo.getQuizInfo(itemGroupIds);
+          console.log('[QuizScore Debug] quizInfo:', JSON.stringify(quizInfo));
           const allQuizIds = quizInfo
             .filter((quiz: any) => quiz.items?._id)
             .map((quiz: any) => quiz.items._id.toString());
+
+          console.log('[QuizScore Debug] allQuizIds:', allQuizIds);
+          console.log('[QuizScore Debug] userId:', userId);
 
           if (allQuizIds.length > 0) {
             const quizSubmissions =
               await this.enrollmentRepo.getBatchQuizSubmissionGrades(
                 [userId],
                 allQuizIds,
-                cohortId ? [cohortId] : undefined,
+                undefined // don't filter by cohort — fetch all submissions for this student
               );
+
+            console.log('[QuizScore Debug] quizSubmissions count:', quizSubmissions.length);
+            console.log('[QuizScore Debug] quizSubmissions:', JSON.stringify(quizSubmissions));
 
             quizSubmissions.forEach((submission: any) => {
               const gradingResult = submission.gradingResult;
