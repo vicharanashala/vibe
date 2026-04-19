@@ -1,3 +1,5 @@
+import { AttemptsOverDialog } from "./AttemptsOverDialog";
+import { AttemptInfoDialog } from "./AttemptInfoDialog";
 import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -83,6 +85,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [emptyQuizRedirectCountdown, setEmptyQuizRedirectCountdown] = useState<number | null>(null);
   const emptyQuizNextTimerRef = useRef<ReturnType<typeof window.setTimeout> | undefined>(undefined);
   const [finshingQuiz, setFinshingQuiz] = useState(false);
+  // Dialog state for attempt info and attempts over
+  const [showAttemptInfo, setShowAttemptInfo] = useState(false);
+  const [attemptInfoNum, setAttemptInfoNum] = useState<number>(1);
+  const [showAttemptsOver, setShowAttemptsOver] = useState(false);
 
   // ===== REFS AND CONSTANTS =====
   const itemStartedRef = useRef(false);
@@ -670,17 +676,14 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         errorMessage = 'Failed to start quiz';
       }
       if (errorMessage && (errorMessage.includes('No available attempts left') || errorMessage.includes('no available attempts'))) {
-        toast.info('You have used all available attempts for this quiz.');
-
+        setShowAttemptsOver(true);
         try {
           await handleSkipItem();
         } catch (progressErr) {
           console.error('Failed to update progress for exhausted quiz attempts:', progressErr);
         }
-
         setQuizStarted(true);
         setNoAttemptsLeft(true);
-
         return;
       }
 
@@ -764,11 +767,27 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
       setQuizCompleted(true);
       setFinshingQuiz(false);
+      // Show attempt info dialog if not skipped and not out of attempts
+      if (!isSkipped && typeof attempts === 'number' && typeof maxAttempts === 'number' && maxAttempts > 0) {
+        const attemptNum = attempts + 1; // attempts is zero-based before increment
+        if (attemptNum <= maxAttempts) {
+          setAttemptInfoNum(attemptNum);
+          setShowAttemptInfo(true);
+          setTimeout(() => setShowAttemptInfo(false), 1500);
+        }
+      }
+      {/* Attempt Info Dialog */}
+      <AttemptInfoDialog
+        open={showAttemptInfo}
+        attemptNum={attemptInfoNum}
+        maxAttempts={maxAttempts}
+        onClose={() => setShowAttemptInfo(false)}
+      />
     } catch (err: any) {
       console.error('Failed to submit quiz:', err);
       const errorMessage = err?.message || err?.error?.message || err?.response?.data?.message || '';
       if (errorMessage.includes('already been submitted')) {
-        // Idempotent — treat as success
+        // Idempotent — treat as success, just mark as completed
         setQuizCompleted(true);
       } else if (errorMessage.includes('inactive') || errorMessage.includes('archived')) {
         toast.error('This course version is no longer active.');
@@ -1362,22 +1381,25 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     // Special handling for no attempts left
     if (noAttemptsLeft) {
       return (
-        <Card className="mx-auto">
-          <CardContent className="p-8 text-center space-y-6">
-            <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center mx-auto">
-              <AlertCircle className="w-8 h-8 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div className="space-y-3">
-              <h3 className="text-2xl font-semibold text-foreground">Quiz Completed</h3>
-              <p className="text-muted-foreground text-lg">
-                No attempts remaining for this quiz. Moving to next item...
-              </p>
-            </div>
-            <div className="flex justify-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
-            </div>
-          </CardContent>
-        </Card>
+        <>
+          <AttemptsOverDialog open={showAttemptsOver} onClose={() => setShowAttemptsOver(false)} />
+          <Card className="mx-auto">
+            <CardContent className="p-8 text-center space-y-6">
+              <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center mx-auto">
+                <AlertCircle className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="space-y-3">
+                <h3 className="text-2xl font-semibold text-foreground">Quiz Completed</h3>
+                <p className="text-muted-foreground text-lg">
+                  No attempts remaining for this quiz. Moving to next item...
+                </p>
+              </div>
+              <div className="flex justify-center">
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
+              </div>
+            </CardContent>
+          </Card>
+        </>
       );
     }
 
