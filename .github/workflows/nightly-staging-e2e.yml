@@ -27,7 +27,7 @@ jobs:
           version: 8
 
       - name: Install Dependencies
-        run: pnpm install
+        run: pnpm install --dir e2e
 
       - name: Install Playwright Browsers
         run: pnpm --dir e2e exec playwright install --with-deps
