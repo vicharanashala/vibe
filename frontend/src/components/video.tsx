@@ -3,12 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, Loader2, XCircle, Maximize, Minimize, FastForward } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, Loader2, XCircle, Maximize, Minimize, FastForward, Bookmark } from 'lucide-react';
 import { useSkipOptionalItem, useStartItem, useStopItem, useStoreWatchTimeTrack, } from '../hooks/hooks';
 
 
 import { useCourseStore } from '../store/course-store';
 import { usePlayerStore } from '../store/player-store'; // Import the new store
+import { useReviewStore } from '@/store/review-store';
 import type { VideoProps, YTPlayerInstance } from '@/types/video.types';
 
 import { toast } from 'sonner';
@@ -44,6 +45,13 @@ function parseTimeToSeconds(timeStr: string): number {
 }
 
 export default function Video({ URL, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef }: VideoProps) {
+  const localVideoSrc = URL;
+
+  const isLocalVideo =
+    typeof localVideoSrc === 'string' &&
+    (localVideoSrc.startsWith('/') || localVideoSrc.startsWith('http')) &&
+    localVideoSrc.toLowerCase().includes('.mp4');
+
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -59,8 +67,9 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const [maxTime, setMaxTime] = useState(0);
   const [, setIsHovering] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
-  const videoId = getYouTubeId(URL);
+  const videoId = isLocalVideo ? null : getYouTubeId(localVideoSrc);
   const { currentCourse, setWatchItemId } = useCourseStore();
+  const { toggleMarkItem, isMarked } = useReviewStore();
   const startItem = useStartItem();
   const stopItem = useStopItem();
   const isStopping = stopItem.isPending;
@@ -78,6 +87,8 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(false);
   const [subtitlesAvailable, setSubtitlesAvailable] = useState(false);
+  const reviewItemId = currentCourse?.itemId ? `video-${currentCourse.itemId}` : `video-${videoId ?? "local-video"}`;
+  const isCurrentVideoMarked = isMarked(reviewItemId);
 
   // const [videoEnded, setVideoEnded] = useState(false);
 
@@ -625,6 +636,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
   // Load YouTube IFrame API
   useEffect(() => {
+    if (isLocalVideo) return;
     if (!readyToDetect) return;
 
     function createPlayer() {
@@ -761,7 +773,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         playerRef.current = null;
       }
     };
-  }, [videoId, startTimeSeconds, readyToDetect]);
+  }, [isLocalVideo, videoId, startTimeSeconds, readyToDetect]);
 
 
   // // Handle keyboard events including space for play/pause
@@ -1012,6 +1024,27 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   setMaxTime(startTimeSeconds);
 };
 
+  const getCurrentUrl = useCallback(() => {
+    if (typeof window === 'undefined') return '/student/demo-video';
+    return `${window.location.pathname}${window.location.search}`;
+  }, []);
+
+  const getVideoTitle = useCallback(() => {
+    const candidate = isLocalVideo ? 'Demo Video Lesson' : (videoId ? `Lesson Video (${videoId})` : 'Video Lesson');
+    return candidate;
+  }, [isLocalVideo, videoId]);
+
+  const handleToggleReviewMark = useCallback(() => {
+    toggleMarkItem({
+      id: reviewItemId,
+      title: getVideoTitle(),
+      type: 'video',
+      url: getCurrentUrl(),
+    });
+
+    toast.success(isCurrentVideoMarked ? 'Removed from Marked for Review' : 'Added to Marked for Review');
+  }, [getCurrentUrl, getVideoTitle, isCurrentVideoMarked, reviewItemId, toggleMarkItem]);
+
   return (
     <div
       style={{
@@ -1064,7 +1097,22 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         {/* Video Container */}
         <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
 
-          {!readyToDetect ? (  // Show preparing message before player is ready 
+          {isLocalVideo ? (
+            <video
+              src={localVideoSrc}
+              controls
+              autoPlay
+              playsInline
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                background: 'black',
+                borderRadius: '12px 12px 0 0',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : !readyToDetect ? (  // Show preparing message before player is ready 
             <div
               style={{
                 width: '100%',
@@ -1729,6 +1777,20 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
             {/* Right Controls */}
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleReviewMark();
+                }}
+                variant={isCurrentVideoMarked ? "default" : "outline"}
+                className={isCurrentVideoMarked
+                  ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-500"
+                  : "border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950/30"}
+                aria-label={isCurrentVideoMarked ? "Unmark this video for review" : "Mark this video for review"}
+              >
+                <Bookmark className={`mr-2 h-4 w-4 ${isCurrentVideoMarked ? "fill-current" : ""}`} />
+                {isCurrentVideoMarked ? "Marked for Review" : "Mark for Review"}
+              </Button>
 
               <TooltipProvider>
                 {/* Subtitles */}

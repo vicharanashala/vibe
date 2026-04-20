@@ -9,9 +9,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion, ChevronDown } from "lucide-react";
+import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion, ChevronDown, Bookmark } from "lucide-react";
 import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, CreateAttemptResponse, SaveQuizResponse, useSkipOptionalItem } from '@/hooks/hooks';
 import { useCourseStore } from "@/store/course-store";
+import { useReviewStore } from "@/store/review-store";
 import MathRenderer from "./math-renderer";
 import { bufferToHex } from '@/utils/helpers';
 import type { QuizQuestion, QuizProps, QuizRef, questionBankRef, QuestionRenderView, SubmitQuizResponse } from "@/types/quiz.types";
@@ -41,11 +42,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   showExplanationAfterSubmission,
   showScoreAfterSubmission,
   quizId,
+  demoMode = false,
   doGesture = false,
   onNext,
   isProgressUpdating,
   isNavigatingToPrev,
-  attemptId,
+  attemptId = 'dummy-attempt-123',
   setAttemptId,
   displayNextLesson,
   onPrevVideo,
@@ -90,6 +92,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   // ===== HOOKS =====
   const { currentCourse, setWatchItemId } = useCourseStore();
+  const { toggleMarkItem, isMarked } = useReviewStore();
   const { mutateAsync: attemptQuiz, isPending, error: attemptError, data: attemptData } = useAttemptQuiz();
   const [attempts, setAttempts] = useState<number>(0);
   const { mutateAsync: submitQuiz, isPending: isSubmitting, error: submitError } = useSubmitQuiz();
@@ -846,6 +849,28 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, [attemptId, quizQuestions, processedQuizId, saveQuiz, convertAnswersToSaveFormat]);
 
   const currentQuestion = quizQuestions[currentQuestionIndex];
+  const reviewItemId = currentCourse?.itemId ? `quiz-${currentCourse.itemId}` : `quiz-${processedQuizId}`;
+  const isCurrentQuizMarked = isMarked(reviewItemId);
+
+  const getCurrentUrl = useCallback(() => {
+    if (typeof window === "undefined") return "/student/demo-quiz";
+    return `${window.location.pathname}${window.location.search}`;
+  }, []);
+
+  const handleToggleReviewMark = useCallback(() => {
+    const rawQuestionTitle = currentQuestion?.question?.trim() || "Quiz";
+    const compactTitle = rawQuestionTitle.replace(/\s+/g, " ");
+    const shortTitle = compactTitle.length > 80 ? `${compactTitle.slice(0, 80)}...` : compactTitle;
+
+    toggleMarkItem({
+      id: reviewItemId,
+      title: `Quiz: ${shortTitle}`,
+      type: "quiz",
+      url: getCurrentUrl(),
+    });
+
+    toast.success(isCurrentQuizMarked ? "Removed from Marked for Review" : "Added to Marked for Review");
+  }, [currentQuestion?.question, getCurrentUrl, isCurrentQuizMarked, reviewItemId, toggleMarkItem]);
 
   const handleAnswer = useCallback((answer: string | number | number[] | string[] | undefined) => {
     if (answer === undefined) return;
@@ -907,7 +932,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   // Reset state when quiz ID changes
   useEffect(() => {
     resetQuiz();
-  }, [processedQuizId, resetQuiz]);
+    // resetQuiz depends on props/callbacks and can get recreated by parents.
+    // We only want a hard reset when the quiz identity changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [processedQuizId]);
 
   useEffect(() => {
     if (rewindVid) {
@@ -969,7 +997,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       }
       setDontStart(true);
     }
-  }, [quizType, quizStarted, quizCompleted, isEmptyQuiz, noAttemptsLeft, quizQuestions.length, isPending, dontStart, startQuiz, questionBankRefs]);
+  }, [quizType, quizStarted, quizCompleted, isEmptyQuiz, noAttemptsLeft, quizQuestions.length, isPending, dontStart, startQuiz, questionBankRefs, handleEmptyQuiz]);
 
 
   useEffect(() => {
@@ -1777,6 +1805,16 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               <Trophy className="mr-1 h-3 w-3" />
               {currentQuestion.points} points
             </Badge>
+            <Button
+              variant={isCurrentQuizMarked ? "default" : "outline"}
+              size="sm"
+              onClick={handleToggleReviewMark}
+              className={`${isCurrentQuizMarked ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-500" : "border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950/30"}`}
+              aria-label={isCurrentQuizMarked ? "Unmark this quiz for review" : "Mark this quiz for review"}
+            >
+              <Bookmark className={`mr-2 h-4 w-4 ${isCurrentQuizMarked ? "fill-current" : ""}`} />
+              {isCurrentQuizMarked ? "Marked for Review" : "Mark for Review"}
+            </Button>
           </div>
           <h2 className="text-2xl font-semibold leading-tight">
             {/* <MathRenderer>
@@ -1963,7 +2001,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             {onPrevVideo && (
               <Button
                 variant="outline"
-                onClick={() => onPrevVideo()}
+                onClick={() => {
+                  toast.success("Navigating back to previous video...");
+                  onPrevVideo();
+                }}
                 disabled={isProgressUpdating || isSubmitting || isSaving || finshingQuiz}
                 aria-label="Return to previous video"
                 className="border-blue-300 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/30 transition-colors"

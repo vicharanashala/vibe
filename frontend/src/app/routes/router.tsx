@@ -20,10 +20,13 @@ import StudentDashboard from "@/app/pages/student/dashboard";
 import StudentCourses from "@/app/pages/student/courses";
 import StudentProfile from "@/app/pages/student/profile";
 import StudentAnnouncements from "../pages/student/announcements/StudentAnnouncements";
+import MarkedReviewPage from "../pages/student/marked-review";
 import AddCoursePage from '@/app/pages/teacher/AddCoursePage';
 import TeacherProfile from "@/app/pages/teacher/profile";
 import { AudioTranscripter } from '@/app/pages/teacher/AudioTranscripter'
 import CoursePage from '@/app/pages/student/course-page'
+import DemoQuizPage from '@/app/pages/student/demo-quiz'
+import DemoVideoPage from '@/app/pages/student/demo-video'
 import TeacherCoursePage from "@/app/pages/teacher/teacher-course-page";
 import TeacherCoursesPage from '@/app/pages/teacher/course-page'
 import Editor from '@/app/pages/teacher/create-article'
@@ -485,6 +488,18 @@ const studentCoursesRoute = new Route({
   component: StudentCourses,
 });
 
+// Student demo quiz route (presentation/offline fallback)
+const studentDemoQuizRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/demo-quiz',
+  component: DemoQuizPage,
+});
+
+const studentDemoVideoRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/demo-video',
+  component: DemoVideoPage,
+});
 // Student notifications route
 const studentNotificationsRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -519,6 +534,12 @@ const studentAnnouncementsRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/announcements',
   component: StudentAnnouncements,
+});
+
+const studentMarkedReviewRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/marked-review',
+  component: MarkedReviewPage,
 });
 
 // Student cohorts route
@@ -696,11 +717,14 @@ const routeTree = rootRoute.addChildren([
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
     studentCoursesRoute,
+    studentDemoQuizRoute,
+    studentDemoVideoRoute,
     studentProfileRoute,
     studentCourseInviteRegistration,
     studentIssuesRoute,
     studentLeaderboardRoute,
     studentAnnouncementsRoute,
+    studentMarkedReviewRoute,
     studentHpSystemCohortsRoute,
     studentHpSystemActivitiesRoute,
     studentHpSystemActivitiesDetailRoute,
