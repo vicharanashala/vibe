@@ -20,10 +20,13 @@ import StudentDashboard from "@/app/pages/student/dashboard";
 import StudentCourses from "@/app/pages/student/courses";
 import StudentProfile from "@/app/pages/student/profile";
 import StudentAnnouncements from "../pages/student/announcements/StudentAnnouncements";
+import MarkedReviewPage from "../pages/student/marked-review";
 import AddCoursePage from '@/app/pages/teacher/AddCoursePage';
 import TeacherProfile from "@/app/pages/teacher/profile";
 import { AudioTranscripter } from '@/app/pages/teacher/AudioTranscripter'
 import CoursePage from '@/app/pages/student/course-page'
+import DemoQuizPage from '@/app/pages/student/demo-quiz'
+import DemoVideoPage from '@/app/pages/student/demo-video'
 import TeacherCoursePage from "@/app/pages/teacher/teacher-course-page";
 import TeacherCoursesPage from '@/app/pages/teacher/course-page'
 import Editor from '@/app/pages/teacher/create-article'
@@ -443,31 +446,31 @@ const teacherHpSystemCohortsRoute = new Route({
 
 const teacherHpSystemDashboardRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
-  path: '/hp-system/$courseVersionId/cohort/$cohortId/activities',
+  path: '/hp-system/$courseVersionId/cohort/$cohortName/activities',
   component: HpSystemDashboard,
 })
 
 const teacherCreateHpActivityRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
-  path: '/hp-system/$courseVersionId/cohort/$cohortId/activities/create',
+  path: '/hp-system/$courseVersionId/cohort/$cohortName/activities/create',
   component: CreateHpActivityPage,
 })
 
 const teacherStudentLedgerRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
-  path: '/hp-system/$courseVersionId/cohort/$cohortId/student/$studentId/ledger',
+  path: '/hp-system/$courseVersionId/cohort/$cohortName/student/$studentId/ledger',
   component: StudentLedgerPage,
 })
 
 const teacherStudentSubmissionsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
-  path: '/hp-system/$courseVersionId/cohort/$cohortId/student/$studentId/submissions',
+  path: '/hp-system/$courseVersionId/cohort/$cohortName/student/$studentId/submissions',
   component: StudentSubmissionsPage,
 })
 
 const teacherSubmissionDetailsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
-  path: '/hp-system/$courseVersionId/cohort/$cohortId/student/$studentId/submission/$submissionId',
+  path: '/hp-system/$courseVersionId/cohort/$cohortName/student/$studentId/submission/$submissionId',
   component: SubmissionDetailsPage,
 })
 
@@ -485,6 +488,18 @@ const studentCoursesRoute = new Route({
   component: StudentCourses,
 });
 
+// Student demo quiz route (presentation/offline fallback)
+const studentDemoQuizRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/demo-quiz',
+  component: DemoQuizPage,
+});
+
+const studentDemoVideoRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/demo-video',
+  component: DemoVideoPage,
+});
 // Student notifications route
 const studentNotificationsRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -521,6 +536,12 @@ const studentAnnouncementsRoute = new Route({
   component: StudentAnnouncements,
 });
 
+const studentMarkedReviewRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/marked-review',
+  component: MarkedReviewPage,
+});
+
 // Student cohorts route
 const studentHpSystemCohortsRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -531,13 +552,13 @@ const studentHpSystemCohortsRoute = new Route({
 // Student activities route
 const studentHpSystemActivitiesRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
-  path: '/hp-system/$courseVersionId/$cohortId/activities',
+  path: '/hp-system/$courseVersionId/$cohortName/activities',
   component: StudentActivities,
 });
 
 const studentHpSystemSubmissionsRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
-  path: '/hp-system/$courseVersionId/$cohortId/submissions',
+  path: '/hp-system/$courseVersionId/$cohortName/submissions',
   component: StudentSubmissions,
 });
 
@@ -549,7 +570,7 @@ const studentHpSystemLedgerRoute = new Route({
 
 const studentHpSystemActivitiesDetailRoute = new Route({
   getParentRoute: () =>studentLayoutRoute,
-  path: '/hp-system/$courseVersionId/$cohortId/activities/$activityId',
+  path: '/hp-system/$courseVersionId/$cohortName/activities/$activityId',
   component: StudentActivityDetail,
 });
 // export const studentCourseInviteRegistration = new Route({
@@ -696,11 +717,14 @@ const routeTree = rootRoute.addChildren([
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
     studentCoursesRoute,
+    studentDemoQuizRoute,
+    studentDemoVideoRoute,
     studentProfileRoute,
     studentCourseInviteRegistration,
     studentIssuesRoute,
     studentLeaderboardRoute,
     studentAnnouncementsRoute,
+    studentMarkedReviewRoute,
     studentHpSystemCohortsRoute,
     studentHpSystemActivitiesRoute,
     studentHpSystemActivitiesDetailRoute,

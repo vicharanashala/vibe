@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { logout } from "@/utils/auth"
 import { useNavigate, useLocation } from "@tanstack/react-router"
-import { LogOut, Menu, X, Bell } from "lucide-react"
+import { LogOut, Menu, X, Bell, Bookmark } from "lucide-react"
 import { AuroraText } from "@/components/magicui/aurora-text"
 import { useState, useRef, useEffect } from "react"
 import InviteDropdown from "@/components/inviteDropDown"
@@ -52,7 +52,7 @@ export default function StudentLayout() {
   const { token } = useAuthStore();
 const { data: enrollmentsData } = useUserEnrollments(1, 100, !!token && !!user?.uid);
 const enrollments = enrollmentsData?.enrollments ?? [];
-
+console.log("Enrollments from student layout -> ", enrollments)
 let hasHpSystem = false;
 enrollments.forEach(obj => {
   if(obj.hpSystem === true && obj.status === "ACTIVE" && obj. 
@@ -66,12 +66,12 @@ percentCompleted !== 100){
     return pathname === path || pathname.startsWith(path + "/");
   };
 
-  // Sync local state with hook data whenever the server response changes
+  // Sync local state with hook data
   useEffect(() => {
-    if (approvedNotifications) {
+    if (approvedNotifications && approvedNotifications.length !== approvedNotificationsList.length) {
       setApprovedNotificationsList(approvedNotifications);
     }
-  }, [approvedNotifications]);
+  }, [approvedNotifications, setApprovedNotificationsList,approvedNotificationsList]);
 
   useEffect(() => {
     if (rejectedStudentRegistrations) {
@@ -243,6 +243,23 @@ percentCompleted !== 100){
                 </Link>
               </Button>
 
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary Phillips-before:absolute Phillips-before:inset-0 Phillips-before:rounded-md Phillips-before:bg-gradient-to-r Phillips-before:from-primary/5 Phillips-before:to-transparent Phillips-before:opacity-0 hover:before:opacity-100 Phillips-before:transition-opacity Phillips-before:duration-300 ${isActive("/student/marked-review")
+                  ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-md Phillips-before:opacity-100"
+                  : ""
+                  }`}
+                asChild
+              >
+                <Link to="/student/marked-review">
+                  <span className="relative z-10 inline-flex items-center gap-2">
+                    <Bookmark className="h-4 w-4" />
+                    MARKED FOR REVIEW
+                  </span>
+                </Link>
+              </Button>
+
               {hasHpSystem && <Button
                 variant="ghost"
                 size="sm"
@@ -395,6 +412,21 @@ percentCompleted !== 100){
               >
                 <Link to="/student/courses">
                   <span>Courses</span>
+                </Link>
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground"
+                asChild
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <Link to="/student/marked-review">
+                  <span className="inline-flex items-center gap-2">
+                    <Bookmark className="h-4 w-4" />
+                    MARKED FOR REVIEW
+                  </span>
                 </Link>
               </Button>
 
