@@ -481,7 +481,6 @@ class AttemptService extends BaseService {
       }
 
       if (metrics.attempts.length === 0) {
-        console.log("Metrices lenght is: ", metrics.attempts.length);
         isFirst = true
       } else {
         isFirst = false

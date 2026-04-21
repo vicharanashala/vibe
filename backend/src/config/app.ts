@@ -40,4 +40,6 @@ export const appConfig = {
     sendDefaultPii: true,
   },
 };
-console.log(appConfig.url)
+if (process.env.NODE_ENV !== 'test' && process.env.PIPELINE_TEST_MODE !== 'true') {
+  console.log(appConfig.url);
+}

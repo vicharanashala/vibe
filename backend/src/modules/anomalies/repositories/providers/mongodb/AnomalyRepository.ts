@@ -261,12 +261,15 @@ export class AnomalyRepository {
       });
     }
 
+    const safeLimit = Number.isFinite(Number(limit)) ? Math.max(0, Math.trunc(Number(limit))) : 20;
+    const safeSkip = Number.isFinite(Number(skip)) ? Math.max(0, Math.trunc(Number(skip))) : 0;
+
     const [data, total] = await Promise.all([
       this.anomalyCollection
         .find(filter, {session})
         .sort(sort)
-        .limit(limit)
-        .skip(skip)
+        .limit(safeLimit)
+        .skip(safeSkip)
         .toArray(),
       this.anomalyCollection.countDocuments(filter, {session}),
     ]);

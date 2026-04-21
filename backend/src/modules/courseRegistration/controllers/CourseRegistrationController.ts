@@ -23,7 +23,7 @@ import { COURSE_REGISTRATION_TYPES } from '../types.js';
 import { CourseRegistrationService } from '../services/CourseRegistrationService.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { BadRequestErrorResponse, IUserRepository } from '#root/shared/index.js';
-import { CourseVersionIdParams } from '#root/modules/notifications/index.js';
+import { CourseVersionIdParams } from '#root/modules/notifications/classes/validators/InviteValidators.js';
 import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 import {
   AllRegistrationsResponse,

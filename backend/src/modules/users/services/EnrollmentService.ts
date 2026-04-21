@@ -1,5 +1,5 @@
 import { COURSES_TYPES } from '#courses/types.js';
-import { InviteStatus } from '#root/modules/notifications/index.js';
+import { InviteStatus } from '#root/modules/notifications/classes/validators/InviteValidators.js';
 import { BaseService } from '#root/shared/classes/BaseService.js';
 import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
 import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';

@@ -14,6 +14,7 @@
     "test": "vitest --ui",
     "test:watch": "vitest run --watch",
     "test:ci": "vitest run --coverage --reporter=html",
+    "test:pipeline": "NODE_ENV=test vitest run --config vitest.pipeline.config.ts",
     "sentry:sourcemaps": "sentry-cli sourcemaps inject --org vicharana-shala --project vibe-server ./build && sentry-cli sourcemaps upload --org vicharana-shala --project vibe-server ./build"
   },
   "imports": {

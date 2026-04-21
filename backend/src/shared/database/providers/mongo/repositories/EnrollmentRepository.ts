@@ -2205,10 +2205,9 @@ export class EnrollmentRepository {
   ): Promise<void> {
     await this.init();
     try {
-      const result = await this.enrollmentCollection.bulkWrite(bulkOperations, {
+      await this.enrollmentCollection.bulkWrite(bulkOperations, {
         session,
       });
-      console.log(`Enrollment bulk update result: ${JSON.stringify(result)}`);
     } catch (error) {
       throw new InternalServerError(
         'Failed to bulk update enrollments.\n More Details: ' + error,
