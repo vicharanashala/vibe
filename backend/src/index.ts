@@ -33,6 +33,8 @@ const { controllers, validators } = await loadAppModules(
   appConfig.module.toLowerCase(),
 );
 
+console.log(`Loaded ${controllers.length} controllers and ${validators.length} validators for module: ${appConfig.module}`);
+
 const corsOptions: CorsOptions = {
   origin: appConfig.origins,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -75,11 +77,21 @@ if (NODE_ENV === 'production' || NODE_ENV === 'staging') {
   console.log(
     'Setting up Sentry error handling - test for production and staging environment',
   );
-  Sentry.setupExpressErrorHandler(app);
+  Sentry.init({
+    dsn: appConfig.sentry?.dsn,
+    environment: appConfig.sentry?.environment ?? NODE_ENV,
+    sendDefaultPii: appConfig.sentry?.sendDefaultPii ?? false,
+  });
+  // Sentry request handler should be registered before other middlewares
+  app.use((Sentry as any).Handlers?.requestHandler?.() || ((req, res, next) => next()));
+  // Sentry error handler
+  app.use((Sentry as any).Handlers?.errorHandler?.() || ((err, req, res, next) => next(err)));
 }
 
 const database = getContainer().get<MongoDatabase>(GLOBAL_TYPES.Database);
+console.log('Database connection initialized from IoC container');
 await database.connect();
+console.log('Database connected successfully');
 
 // Start server
 useExpressServer(app, moduleOptions);

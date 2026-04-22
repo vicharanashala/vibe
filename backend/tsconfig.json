@@ -1,10 +1,12 @@
 {
   "compilerOptions": {
+    "ignoreDeprecations": "5.0",
     "baseUrl": "src",
-    "target": "esnext",
+    "target": "ES6",
     "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "lib": ["ESNext"],
+    "moduleResolution": "Node16",
+    "jsx": "react-jsx",
+      "lib": ["ESNext"],
     "outDir": "build",
 
     // Changed back to "." to include scripts directory

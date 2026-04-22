@@ -1,18 +1,20 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-import { getAuth, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signInWithEmailAndPassword, 
-  signOut, 
-  createUserWithEmailAndPassword, 
-  updateProfile, 
+import { getAnalytics, isSupported } from "firebase/analytics";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  signOut,
+  createUserWithEmailAndPassword,
+  updateProfile,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   confirmPasswordReset,
-  verifyPasswordResetCode } from "firebase/auth";
+  verifyPasswordResetCode,
+  connectAuthEmulator,
+} from "firebase/auth";
 import { useAuthStore } from "../store/auth-store";
-import { useLoginWithGoogle } from "@/hooks/hooks";
 
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
@@ -20,13 +22,16 @@ import { useLoginWithGoogle } from "@/hooks/hooks";
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "demo-api-key",
+  authDomain:
+    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "demo-test.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "demo-test",
+  storageBucket:
+    import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "demo-test.appspot.com",
+  messagingSenderId:
+    import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "demo-test",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:demo-test:web:local",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
 
@@ -34,6 +39,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider();
+
+const authEmulatorUrl = import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_URL;
+if (authEmulatorUrl) {
+  connectAuthEmulator(auth, authEmulatorUrl, { disableWarnings: true });
+}
 
 // Firebase authentication functions
 export const loginWithGoogle = async () => {
@@ -168,4 +178,7 @@ export const logout = () => {
   useAuthStore.getState().clearUser();
 };
 
-export const analytics = getAnalytics(app);
+export const analyticsPromise =
+  typeof window !== "undefined" && firebaseConfig.measurementId
+    ? isSupported().then(supported => (supported ? getAnalytics(app) : null))
+    : Promise.resolve(null);

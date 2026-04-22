@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card} from "@/components/ui/card";
 import { ShineBorder } from "@/components/magicui/shine-border";
 import { AuroraText } from "@/components/magicui/aurora-text";
-import collabration from "../../../public/img/collabration.svg";
-import vledLogo from "../../../public/img/vled-logo-login.png";
-import iitClear from "../../../public/img/iit-clear.png";
+const collabration = "/img/collabration.svg";
+const vledLogo = "/img/vled-logo-login.png";
+const iitClear = "/img/iit-clear.png";
 
 export const LeftHeroSection =()=>{
     const navigate = useNavigate();

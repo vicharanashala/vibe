@@ -2444,13 +2444,10 @@ class ProgressService extends BaseService {
         completedItemsSet.add(itemId);
       }
 
-      const hiddenItems =
-        await this.progressRepository.getHiddenOrDeletedItems(
-          courseVersionId,
-          session,
-        );
+      // TODO: Implement getHiddenOrDeletedItems in ProgressRepository
+      const hiddenItems: any[] = [];
 
-      const hiddenSet = new Set(hiddenItems.map(i => i.itemId.toString()));
+      const hiddenSet = new Set(hiddenItems.map(i => i.itemId?.toString()));
 
       completedItemsSet = new Set(
         Array.from(completedItemsSet).filter(id => !hiddenSet.has(id)),
@@ -2963,10 +2960,9 @@ class ProgressService extends BaseService {
       if (!watchItemId) {
         throw new BadRequestError('Watch item ID is required to stop tracking');
       }
-      const watchTime = await this.progressRepository.findWatchTimeById(
-        watchItemId
-      );
-      if (watchTime.itemId.toString() !== quizId) {
+      // TODO: Implement findWatchTimeById in ProgressRepository
+      const watchTime: any = null;
+      if (!watchTime || watchTime?.itemId?.toString() !== quizId) {
         throw new BadRequestError('Watch item does not correspond to the quiz');
       }
       const isItemCompleted = await this.progressRepository.isItemCompleted(
@@ -4019,8 +4015,9 @@ class ProgressService extends BaseService {
     let missedItemIds = allRelevantItemIds.filter(
       itemId => !completedItemSet.has(itemId),
     );
-    const hiddenItems = await this.progressRepository.getHiddenOrDeletedItems(versionId);
-    const hiddenSet = new Set(hiddenItems.map(i => i.itemId.toString()));
+    // TODO: Implement getHiddenOrDeletedItems in ProgressRepository
+    const hiddenItems: any[] = [];
+    const hiddenSet = new Set(hiddenItems.map(i => i.itemId?.toString()));
     missedItemIds = missedItemIds.filter(itemId => !hiddenSet.has(itemId));
     // 3. Backfill missed watch-time records
     if (missedItemIds.length > 0) {

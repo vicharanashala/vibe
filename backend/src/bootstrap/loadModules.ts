@@ -42,15 +42,17 @@ export async function loadAppModules(moduleName: string): Promise<LoadedModuleRe
     } else if (file === moduleName) {
       controllers = moduleExports[controllerExportKey] ?? [];
       validators = moduleExports[validatorExportKey] ?? [];
+      const containerModules = moduleExports[containerModulesKey] ?? [];
       const setupContainer = moduleExports[setupFunctionKey];
       if (!setupContainer || !controllers.length) {
         throw new Error(`Missing setup or controller export in ${modulePath}`);
       }
       await setupContainer();
+      allContainerModules.push(...containerModules);
     }
   }
 
-  if (isAll) {
+  if (isAll || allContainerModules.length > 0) {
     const uniqueModules = Array.from(new Set(allContainerModules));
     container = new Container();
     await container.load(...uniqueModules);

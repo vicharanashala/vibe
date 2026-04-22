@@ -255,7 +255,7 @@ importers:
         version: 1.0.1
       eslint-plugin-require-extensions:
         specifier: ^0.1.3
-        version: 0.1.3(eslint@8.57.1)
+        version: 0.1.3(eslint@9.39.1(jiti@2.6.1))
       gts:
         specifier: ^6.0.2
         version: 6.0.2(@types/eslint@9.6.1)(typescript@5.9.3)
@@ -808,6 +808,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^4.3.4
         version: 4.7.0(vite@6.4.1(@types/node@22.19.1)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.94.2)(terser@5.44.1)(yaml@2.8.1))
+      baseline-browser-mapping:
+        specifier: ^2.10.19
+        version: 2.10.19
       eslint:
         specifier: ^9.20.0
         version: 9.39.1(jiti@2.6.1)
@@ -7487,6 +7490,11 @@ packages:
 
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
+
+  baseline-browser-mapping@2.10.19:
+    resolution: {integrity: sha512-qCkNLi2sfBOn8XhZQ0FXsT1Ki/Yo5P90hrkRamVFRS7/KV9hpfA4HkoWNU152+8w0zPjnxo5psx5NL3PSGgv5g==}
+    engines: {node: '>=6.0.0'}
+    hasBin: true
 
   baseline-browser-mapping@2.8.29:
     resolution: {integrity: sha512-sXdt2elaVnhpDNRDz+1BDx1JQoJRuNk7oVlAlbGiFkLikHCAQiccexF/9e91zVi6RCgqspl04aP+6Cnl9zRLrA==}
@@ -25838,6 +25846,8 @@ snapshots:
 
   base64-js@1.5.1: {}
 
+  baseline-browser-mapping@2.10.19: {}
+
   baseline-browser-mapping@2.8.29: {}
 
   batch@0.6.1: {}
@@ -27822,6 +27832,10 @@ snapshots:
     dependencies:
       eslint: 8.57.1
 
+  eslint-config-prettier@9.1.0(eslint@9.39.1(jiti@2.6.1)):
+    dependencies:
+      eslint: 9.39.1(jiti@2.6.1)
+
   eslint-plugin-es@4.1.0(eslint@8.57.1):
     dependencies:
       eslint: 8.57.1
@@ -27848,7 +27862,7 @@ snapshots:
       synckit: 0.9.3
     optionalDependencies:
       '@types/eslint': 9.6.1
-      eslint-config-prettier: 9.1.0(eslint@8.57.1)
+      eslint-config-prettier: 9.1.0(eslint@9.39.1(jiti@2.6.1))
 
   eslint-plugin-react-hooks@5.2.0(eslint@9.39.1(jiti@2.6.1)):
     dependencies:
@@ -27858,9 +27872,9 @@ snapshots:
     dependencies:
       eslint: 9.39.1(jiti@2.6.1)
 
-  eslint-plugin-require-extensions@0.1.3(eslint@8.57.1):
+  eslint-plugin-require-extensions@0.1.3(eslint@9.39.1(jiti@2.6.1)):
     dependencies:
-      eslint: 8.57.1
+      eslint: 9.39.1(jiti@2.6.1)
 
   eslint-scope@5.1.1:
     dependencies:
@@ -29051,7 +29065,7 @@ snapshots:
       '@typescript-eslint/parser': 5.62.0(eslint@8.57.1)(typescript@5.9.3)
       chalk: 4.1.2
       eslint: 8.57.1
-      eslint-config-prettier: 9.1.0(eslint@8.57.1)
+      eslint-config-prettier: 9.1.0(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-n: 15.7.0(eslint@8.57.1)
       eslint-plugin-prettier: 5.2.1(@types/eslint@9.6.1)(eslint-config-prettier@9.1.0(eslint@8.57.1))(eslint@8.57.1)(prettier@3.3.3)
       execa: 5.1.1

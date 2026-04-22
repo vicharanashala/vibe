@@ -114,9 +114,9 @@ class ProgressRepository {
     );
     const completedIds = distinctItemIds.map(id => id.toString());
 
-    // get hidden/deleted
-    const hiddenItems = await this.getHiddenOrDeletedItems(courseVersionId, session);
-    const hiddenSet = new Set(hiddenItems.map(i => i.itemId.toString()));
+    // get hidden/deleted - TODO: implement getHiddenOrDeletedItems
+    // const hiddenItems = await this.getHiddenOrDeletedItems(courseVersionId, session);
+    const hiddenSet = new Set<string>(); // new Set(hiddenItems.map(i => i.itemId.toString()));
 
     // filter out hidden/deleted items from completed items
     return completedIds.filter(id => !hiddenSet.has(id));

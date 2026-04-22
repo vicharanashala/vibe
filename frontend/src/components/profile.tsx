@@ -34,6 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Slider } from "@/components/ui/slider"
+import ProfileFlashcards from "@/components/profile-flashcards"
 
 const GENDER_OPTIONS = ["Male", "Female", "Non-binary", "Other", "Prefer not to say"]
 
@@ -645,6 +646,8 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
           </Card>
         )
         }
+
+        {role === "student" && <ProfileFlashcards />}
         {/* : (
           <Card>
             <CardHeader>

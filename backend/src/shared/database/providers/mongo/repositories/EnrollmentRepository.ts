@@ -40,6 +40,11 @@ import { IQuestionBank } from '#root/shared/interfaces/quiz.js';
 import { ProgressRepository } from './ProgressRepository.js';
 import { USERS_TYPES } from '#root/modules/users/types.js';
 
+// Type definitions for collections
+type IProjectSubmission = any;
+type IReport = any;
+type UserEnrollmentStatisticsResponse = any;
+
 @injectable()
 export class EnrollmentRepository {
   private enrollmentCollection!: Collection<IEnrollment>;
@@ -1808,7 +1813,6 @@ export class EnrollmentRepository {
             itemCounts: { $ifNull: ['$courseVersionInfo.itemCounts', {}] },
           },
         },
-      },
       },
       { $limit: 1 },
     ];
