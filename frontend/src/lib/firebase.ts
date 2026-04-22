@@ -10,7 +10,8 @@ import { getAuth,
   updateProfile, 
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   confirmPasswordReset,
-  verifyPasswordResetCode } from "firebase/auth";
+  verifyPasswordResetCode,
+  connectAuthEmulator } from "firebase/auth";
 import { useAuthStore } from "../store/auth-store";
 import { useLoginWithGoogle } from "@/hooks/hooks";
 
@@ -34,6 +35,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider();
+
+// Connect to Firebase Auth Emulator in development
+if (import.meta.env.VITE_USE_EMULATOR === 'true') {
+  connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+}
 
 // Firebase authentication functions
 export const loginWithGoogle = async () => {
