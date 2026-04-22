@@ -16,7 +16,7 @@ import {
 import {
   InviteService,
   MailService,
-} from "#root/modules/notifications/index.js";
+} from "#root/modules/notifications/services/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { AttemptRepository, QuestionBankRepository, QuizRepository, SubmissionRepository, UserQuizMetricsRepository } from "#root/modules/quizzes/repositories/index.js";
 import { AnomalyRepository } from "#root/modules/anomalies/index.js";

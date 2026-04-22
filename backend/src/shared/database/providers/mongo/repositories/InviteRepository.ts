@@ -4,7 +4,7 @@ import {ClientSession, Collection, MongoClient, ObjectId} from 'mongodb';
 import {MongoDatabase} from '../MongoDatabase.js';
 import {InternalServerError} from 'routing-controllers';
 import {GLOBAL_TYPES} from '#root/types.js';
-import {Invite} from '#root/modules/notifications/index.js';
+import {Invite} from '#root/modules/notifications/classes/transformers/Invite.js';
 import {InviteType} from '#root/shared/interfaces/models.js';
 
 @injectable()

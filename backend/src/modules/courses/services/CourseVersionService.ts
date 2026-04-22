@@ -47,7 +47,7 @@ import {
   QuestionBankRepository,
   QuestionRepository,
 } from '#root/modules/quizzes/repositories/index.js';
-import { InviteService } from '#root/modules/notifications/index.js';
+import { InviteService } from '#root/modules/notifications/services/InviteService.js';
 import { NOTIFICATIONS_TYPES } from '#root/modules/notifications/types.js';
 import { HP_SYSTEM_TYPES } from '#root/modules/hpSystem/types.js';
 import { CohortRepository } from '#root/modules/hpSystem/repositories/providers/mongodb/cohortsRepository.js';

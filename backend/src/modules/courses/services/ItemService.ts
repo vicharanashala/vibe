@@ -207,12 +207,12 @@ export class ItemService extends BaseService {
           session,
         );
 
-        const allowed = [ItemType.VIDEO, ItemType.QUIZ, ItemType.BLOG];
+        const allowed = [ItemType.VIDEO, ItemType.QUIZ, ItemType.BLOG, ItemType.PROJECT];
 
         // Skip validation for copied items
         if (!body.name.includes("copy") && !allowed.includes(previousItem.type)) {
           throw new BadRequestError(
-            'Feedback can only be added after VIDEO, QUIZ, or BLOG items',
+            'Feedback can only be added after VIDEO, QUIZ, BLOG, or PROJECT items',
           );
         }
       }
