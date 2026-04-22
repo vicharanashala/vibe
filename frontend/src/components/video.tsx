@@ -3,12 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, Loader2, XCircle, Maximize, Minimize, FastForward } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, Loader2, XCircle, Maximize, Minimize, FastForward, Bookmark } from 'lucide-react';
 import { useSkipOptionalItem, useStartItem, useStopItem, useStoreWatchTimeTrack, } from '../hooks/hooks';
 
 
 import { useCourseStore } from '../store/course-store';
 import { usePlayerStore } from '../store/player-store'; // Import the new store
+import { useReviewStore } from '@/store/review-store';
 import type { VideoProps, YTPlayerInstance } from '@/types/video.types';
 
 import { toast } from 'sonner';
@@ -44,6 +45,13 @@ function parseTimeToSeconds(timeStr: string): number {
 }
 
 export default function Video({ URL, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef }: VideoProps) {
+  const localVideoSrc = URL;
+
+  const isLocalVideo =
+    typeof localVideoSrc === 'string' &&
+    (localVideoSrc.startsWith('/') || localVideoSrc.startsWith('http')) &&
+    localVideoSrc.toLowerCase().includes('.mp4');
+
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -59,8 +67,9 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const [maxTime, setMaxTime] = useState(0);
   const [, setIsHovering] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
-  const videoId = getYouTubeId(URL);
+  const videoId = isLocalVideo ? null : getYouTubeId(localVideoSrc);
   const { currentCourse, setWatchItemId } = useCourseStore();
+  const { toggleMarkItem, isMarked } = useReviewStore();
   const startItem = useStartItem();
   const stopItem = useStopItem();
   const isStopping = stopItem.isPending;
@@ -78,6 +87,8 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(false);
   const [subtitlesAvailable, setSubtitlesAvailable] = useState(false);
+  const reviewItemId = currentCourse?.itemId ? `video-${currentCourse.itemId}` : `video-${videoId ?? "local-video"}`;
+  const isCurrentVideoMarked = isMarked(reviewItemId);
 
   // const [videoEnded, setVideoEnded] = useState(false);
 
@@ -118,43 +129,6 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const watchTimeTrackRef = useRef<WatchTimeTrackData>(watchTimeTrack);
 
   const wasPlayingBeforeTabSwitch = useRef(false);
-
-  // Tracks actual seconds the video was playing in the current watch session
-  const playedSecondsRef = useRef(0);
-  // Timestamp (ms) when the video most recently started playing
-  const playStartTimestampRef = useRef<number | null>(null);
-  // Idle timer: fires after 5 minutes of being paused
-  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-
-  /** Call when video starts playing — resume accumulating play time */
-  const onPlayStart = () => {
-    playStartTimestampRef.current = Date.now();
-    // Cancel any pending idle expiry
-    if (idleTimerRef.current) {
-      clearTimeout(idleTimerRef.current);
-      idleTimerRef.current = null;
-    }
-  };
-
-  /** Call when video pauses — flush elapsed play time, start idle countdown */
-  const onPlayPause = () => {
-    if (playStartTimestampRef.current !== null) {
-      const elapsed = (Date.now() - playStartTimestampRef.current) / 1000;
-      playedSecondsRef.current += elapsed;
-      playStartTimestampRef.current = null;
-    }
-  };
-
-  /** Returns total play seconds in this session (including currently-playing segment) */
-  const getPlayedSeconds = () => {
-    let total = playedSecondsRef.current;
-    if (playStartTimestampRef.current !== null) {
-      total += (Date.now() - playStartTimestampRef.current) / 1000;
-    }
-    return Math.round(total);
-  };
 
 
   useEffect(() => {
@@ -395,7 +369,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   };
 
   //  function to handle stop with debouncing
-  const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs: number = 0, isExpired: boolean = false): Promise<boolean> => {
+  const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs: number = 0): Promise<boolean> => {
     // Clear any pending stop request
     if (stopTimeoutRef.current) {
       clearTimeout(stopTimeoutRef.current);
@@ -412,35 +386,24 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
       const executeStop = async () => {
         stopInFlightRef.current = true;
         try {
-          const currentItemId = currentCourse?.itemId;
-          const isAlreadyCompletedInSession = Boolean(currentItemId && completedItemIdsRef.current.has(currentItemId));
-          const shouldStopForCompletion = !isAlreadyWatched && !isAlreadyCompletedInSession && !isCompleted;
-          if (watchItemId && (isExpired || shouldStopForCompletion)) {
-            try {
-              await stopItem.mutateAsync({
-                params: {
-                  path: {
-                    courseId: currentCourse!.courseId,
-                    courseVersionId: currentCourse!.versionId ?? '',
-                  },
+          if (watchItemId && !isAlreadyWatched && !(currentCourse!.itemId && completedItemIdsRef.current.has(currentCourse!.itemId)) && !isCompleted) {
+            await stopItem.mutateAsync({
+              params: {
+                path: {
+                  courseId: currentCourse!.courseId,
+                  courseVersionId: currentCourse!.versionId ?? '',
                 },
-                body: {
-                  watchItemId,
-                  itemId: currentCourse!.itemId ?? '',
-                  moduleId: currentCourse!.moduleId ?? '',
-                  sectionId: currentCourse!.sectionId ?? '',
-                  seekForwardEnabled,
-                  nextItemId,
-                  cohortId: currentCourse!.cohortId ?? '',
-                  watchedSeconds: getPlayedSeconds(),
-                  isExpired,
-                },
-              });
-            } catch (err: any) {
-              // 404 = already stopped — treat as success, don't show warning toast
-              const status = err?.status ?? err?.response?.status;
-              if (status !== 404) throw err;
-            }
+              },
+              body: {
+                watchItemId,
+                itemId: currentCourse!.itemId ?? '',
+                moduleId: currentCourse!.moduleId ?? '',
+                sectionId: currentCourse!.sectionId ?? '',
+                seekForwardEnabled,
+                nextItemId,
+                cohortId: currentCourse!.cohortId ?? '',
+              },
+            });
           }
 
           if (!currentCourse?.itemId) return;
@@ -632,10 +595,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   function handleSendStartItem() {
 
     if (!currentCourse?.itemId) return;
-    // Reset play-time counter for the new session
-    playedSecondsRef.current = 0;
-    playStartTimestampRef.current = null;
-    {
+    if (!isAlreadyWatched && !completedItemIdsRef.current.has(currentCourse!.itemId) && !isCompleted) {
       startItem.mutate({
         params: {
           path: {
@@ -676,6 +636,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
   // Load YouTube IFrame API
   useEffect(() => {
+    if (isLocalVideo) return;
     if (!readyToDetect) return;
 
     function createPlayer() {
@@ -724,7 +685,6 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           onStateChange: async (event: { data: number; target: YTPlayerInstance }) => {
             if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
               setPlaying(true);
-              onPlayStart();
               if (!progressStartedRef.current) {
                 handleSendStartItem();
                 setVideoEnded(false);
@@ -735,9 +695,6 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
               }, 500);
             } else if (window.YT && event.data === window.YT.PlayerState.ENDED) {
               setPlaying(false);
-              onPlayPause();
-              // Cancel idle timer — session ends naturally
-              if (idleTimerRef.current) { clearTimeout(idleTimerRef.current); idleTimerRef.current = null; }
               setVideoEnded(true);
               if (!progressStoppedRef.current && currentCourse) {
                 const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
@@ -759,23 +716,6 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
               }
             } else {
               setPlaying(false);
-              onPlayPause();
-              // Start idle expiry countdown when video is paused
-              if (!progressStoppedRef.current) {
-                if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-                idleTimerRef.current = setTimeout(async () => {
-                  const watchItemId = watchItemIdRef.current || currentCourse?.watchItemId;
-                  if (watchItemId && !progressStoppedRef.current) {
-                    await handleStopItem(watchItemId, 0, true /* isExpired */);
-                    // Reset so the next play starts a fresh session
-                    progressStartedRef.current = false;
-                    progressStoppedRef.current = false;
-                    watchItemIdRef.current = null;
-                    playedSecondsRef.current = 0;
-                    playStartTimestampRef.current = null;
-                  }
-                }, IDLE_TIMEOUT_MS);
-              }
             }
           },
         },
@@ -796,11 +736,6 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   if (stopTimeoutRef.current) {
     clearTimeout(stopTimeoutRef.current);
     stopTimeoutRef.current = null;
-  }
-  // Clear idle expiry timer
-  if (idleTimerRef.current) {
-    clearTimeout(idleTimerRef.current);
-    idleTimerRef.current = null;
   }
     // Stop if started but not yet stopped (immediate on unmount, no debounce)
   // if (!progressStoppedRef.current && !stopInFlightRef.current && watchItemIdRef.current && currentCourse) {
@@ -838,7 +773,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         playerRef.current = null;
       }
     };
-  }, [videoId, startTimeSeconds, readyToDetect]);
+  }, [isLocalVideo, videoId, startTimeSeconds, readyToDetect]);
 
 
   // // Handle keyboard events including space for play/pause
@@ -1089,6 +1024,27 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   setMaxTime(startTimeSeconds);
 };
 
+  const getCurrentUrl = useCallback(() => {
+    if (typeof window === 'undefined') return '/student/demo-video';
+    return `${window.location.pathname}${window.location.search}`;
+  }, []);
+
+  const getVideoTitle = useCallback(() => {
+    const candidate = isLocalVideo ? 'Demo Video Lesson' : (videoId ? `Lesson Video (${videoId})` : 'Video Lesson');
+    return candidate;
+  }, [isLocalVideo, videoId]);
+
+  const handleToggleReviewMark = useCallback(() => {
+    toggleMarkItem({
+      id: reviewItemId,
+      title: getVideoTitle(),
+      type: 'video',
+      url: getCurrentUrl(),
+    });
+
+    toast.success(isCurrentVideoMarked ? 'Removed from Marked for Review' : 'Added to Marked for Review');
+  }, [getCurrentUrl, getVideoTitle, isCurrentVideoMarked, reviewItemId, toggleMarkItem]);
+
   return (
     <div
       style={{
@@ -1141,7 +1097,22 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         {/* Video Container */}
         <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
 
-          {!readyToDetect ? (  // Show preparing message before player is ready 
+          {isLocalVideo ? (
+            <video
+              src={localVideoSrc}
+              controls
+              autoPlay
+              playsInline
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                background: 'black',
+                borderRadius: '12px 12px 0 0',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : !readyToDetect ? (  // Show preparing message before player is ready 
             <div
               style={{
                 width: '100%',
@@ -1806,6 +1777,20 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
             {/* Right Controls */}
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleReviewMark();
+                }}
+                variant={isCurrentVideoMarked ? "default" : "outline"}
+                className={isCurrentVideoMarked
+                  ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-500"
+                  : "border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950/30"}
+                aria-label={isCurrentVideoMarked ? "Unmark this video for review" : "Mark this video for review"}
+              >
+                <Bookmark className={`mr-2 h-4 w-4 ${isCurrentVideoMarked ? "fill-current" : ""}`} />
+                {isCurrentVideoMarked ? "Marked for Review" : "Mark for Review"}
+              </Button>
 
               <TooltipProvider>
                 {/* Subtitles */}

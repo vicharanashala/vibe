@@ -1,5 +1,3 @@
-import { AttemptsOverDialog } from "./AttemptsOverDialog";
-import { AttemptInfoDialog } from "./AttemptInfoDialog";
 import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,9 +9,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion, ChevronDown } from "lucide-react";
+import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion, ChevronDown, Bookmark } from "lucide-react";
 import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, CreateAttemptResponse, SaveQuizResponse, useSkipOptionalItem } from '@/hooks/hooks';
 import { useCourseStore } from "@/store/course-store";
+import { useReviewStore } from "@/store/review-store";
 import MathRenderer from "./math-renderer";
 import { bufferToHex } from '@/utils/helpers';
 import type { QuizQuestion, QuizProps, QuizRef, questionBankRef, QuestionRenderView, SubmitQuizResponse } from "@/types/quiz.types";
@@ -43,11 +42,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   showExplanationAfterSubmission,
   showScoreAfterSubmission,
   quizId,
+  demoMode = false,
   doGesture = false,
   onNext,
   isProgressUpdating,
   isNavigatingToPrev,
-  attemptId,
+  attemptId = 'dummy-attempt-123',
   setAttemptId,
   displayNextLesson,
   onPrevVideo,
@@ -83,12 +83,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [failedRedirectCountdown, setFailedRedirectCountdown] = useState<number | null>(null);
   const [openQuestionId, setOpenQuestionId] = useState<string | null>(null);
   const [emptyQuizRedirectCountdown, setEmptyQuizRedirectCountdown] = useState<number | null>(null);
-  const emptyQuizNextTimerRef = useRef<ReturnType<typeof window.setTimeout> | undefined>(undefined);
   const [finshingQuiz, setFinshingQuiz] = useState(false);
-  // Dialog state for attempt info and attempts over
-  const [showAttemptInfo, setShowAttemptInfo] = useState(false);
-  const [attemptInfoNum, setAttemptInfoNum] = useState<number>(1);
-  const [showAttemptsOver, setShowAttemptsOver] = useState(false);
 
   // ===== REFS AND CONSTANTS =====
   const itemStartedRef = useRef(false);
@@ -97,6 +92,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   // ===== HOOKS =====
   const { currentCourse, setWatchItemId } = useCourseStore();
+  const { toggleMarkItem, isMarked } = useReviewStore();
   const { mutateAsync: attemptQuiz, isPending, error: attemptError, data: attemptData } = useAttemptQuiz();
   const [attempts, setAttempts] = useState<number>(0);
   const { mutateAsync: submitQuiz, isPending: isSubmitting, error: submitError } = useSubmitQuiz();
@@ -115,7 +111,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           query: { cohortId: currentCourse.cohortId ?? undefined },
         },
       });
-      completedItemIdsRef.current.add(currentCourse.itemId);
+      // ✅ RESTORED: Keeps progression state in sync
+      if (currentCourse.itemId) {
+        completedItemIdsRef.current.add(currentCourse.itemId);
+      }
       itemStartedRef.current = false;
 
     } catch (error) {
@@ -253,9 +252,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             // Map the backend lotItems to frontend format
             // baseQuestion.lotItems = question.lotItems.map(item => ({
 
-            //   text: item.text,
-            //   explaination: item.explaination ||'', // This field doesn't exist in LotItem from API
-            //   _id: typeof item._id === 'string' ? item._id : item._id
+            //    text: item.text,
+            //    explaination: item.explaination ||'', // This field doesn't exist in LotItem from API
+            //    _id: typeof item._id === 'string' ? item._id : item._id
             // }));
             baseQuestion.lotItems = question.lotItems.map(item => {
               let optionId: string;
@@ -458,7 +457,40 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       return;
     }
 
-    try {
+    await stopItem.mutateAsync({
+      params: {
+        path: {
+          courseId: currentCourse.courseId,
+          courseVersionId: currentCourse.versionId ?? '',
+        },
+      },
+      body: {
+        watchItemId: currentCourse.watchItemId,
+        itemId: currentCourse.itemId,
+        moduleId: currentCourse.moduleId ?? '',
+        sectionId: currentCourse.sectionId ?? '',
+        attemptId,
+        isSkipped,
+        nextItemId,
+        cohortId: currentCourse.cohortId ?? '',
+      }
+    });
+    completedItemIdsRef.current.add(currentCourse.itemId);
+    itemStartedRef.current = false;
+  }, [currentCourse, stopItem, attemptId, isAlreadyWatched, completedItemIdsRef]);
+
+
+  const stopItemAsync = useCallback(
+    async (isSkipped?: boolean) => {
+      if (!currentCourse?.itemId || !currentCourse.watchItemId) {
+        itemStartedRef.current = false;
+        return;
+      }
+
+      if (!itemStartedRef.current) {
+        return;
+      }
+
       await stopItem.mutateAsync({
         params: {
           path: {
@@ -477,64 +509,11 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           cohortId: currentCourse.cohortId ?? '',
         },
       });
-    } catch (err: any) {
-      // 404 means watch record was already stopped — safe to treat as completed
-      const status = err?.status ?? err?.response?.status;
-      if (status !== 404) throw err;
-    }
-    completedItemIdsRef.current.add(currentCourse.itemId);
-    itemStartedRef.current = false;
-  }, [currentCourse, stopItem, attemptId, isAlreadyWatched, completedItemIdsRef]);
-
-
-  const stopItemAsync = useCallback(
-    async (isSkipped?: boolean) => {
-      if (!currentCourse?.itemId || !currentCourse.watchItemId) {
-        itemStartedRef.current = false;
-        return;
-      }
-
-      if (!itemStartedRef.current) {
-        return;
-      }
-
-      try {
-        await stopItem.mutateAsync({
-          params: {
-            path: {
-              courseId: currentCourse.courseId,
-              courseVersionId: currentCourse.versionId ?? '',
-            },
-          },
-          body: {
-            watchItemId: currentCourse.watchItemId,
-            itemId: currentCourse.itemId,
-            moduleId: currentCourse.moduleId ?? '',
-            sectionId: currentCourse.sectionId ?? '',
-            attemptId,
-            isSkipped,
-            nextItemId,
-            cohortId: currentCourse.cohortId ?? '',
-          },
-        });
-      } catch (err: any) {
-        // 404 means watch record was already stopped — safe to treat as completed
-        const status = err?.status ?? err?.response?.status;
-        if (status !== 404) throw err;
-      }
 
       itemStartedRef.current = false;
     },
     [currentCourse, stopItem, attemptId]
   );
-
-  useEffect(() => {
-    return () => {
-      if (emptyQuizNextTimerRef.current) {
-        clearTimeout(emptyQuizNextTimerRef.current);
-      }
-    };
-  }, []);
 
   // Handle empty quiz without attempting to start it
   const handleEmptyQuiz = useCallback(async () => {
@@ -606,29 +585,24 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
         const watchItemIdForStop = await handleSendStartItem(true);
         if (currentCourse?.itemId && watchItemIdForStop) {
-          try {
-            await stopItem.mutateAsync({
-              params: {
-                path: {
-                  courseId: currentCourse.courseId,
-                  courseVersionId: currentCourse.versionId ?? '',
-                },
+          await stopItem.mutateAsync({
+            params: {
+              path: {
+                courseId: currentCourse.courseId,
+                courseVersionId: currentCourse.versionId ?? '',
               },
-              body: {
-                watchItemId: watchItemIdForStop,
-                itemId: currentCourse.itemId,
-                moduleId: currentCourse.moduleId ?? '',
-                sectionId: currentCourse.sectionId ?? '',
-                attemptId,
-                isSkipped: true,
-                nextItemId,
-                cohortId: currentCourse.cohortId ?? '',
-              },
-            });
-          } catch (err: any) {
-            const status = err?.status ?? err?.response?.status;
-            if (status !== 404) throw err;
-          }
+            },
+            body: {
+              watchItemId: watchItemIdForStop,
+              itemId: currentCourse.itemId,
+              moduleId: currentCourse.moduleId ?? '',
+              sectionId: currentCourse.sectionId ?? '',
+              attemptId,
+              isSkipped: true,
+              nextItemId,
+              cohortId: currentCourse.cohortId ?? '',
+            },
+          });
           completedItemIdsRef.current.add(currentCourse.itemId);
           itemStartedRef.current = false;
         }
@@ -676,14 +650,40 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         errorMessage = 'Failed to start quiz';
       }
       if (errorMessage && (errorMessage.includes('No available attempts left') || errorMessage.includes('no available attempts'))) {
-        setShowAttemptsOver(true);
+        toast.info('You have used all available attempts for this quiz.');
+
         try {
-          await handleSkipItem();
+          const watchItemIdForStop = await handleSendStartItem(true);
+
+          if (currentCourse?.itemId && watchItemIdForStop) {
+            await stopItem.mutateAsync({
+              params: {
+                path: {
+                  courseId: currentCourse.courseId,
+                  courseVersionId: currentCourse.versionId ?? '',
+                },
+              },
+              body: {
+                watchItemId: watchItemIdForStop,
+                itemId: currentCourse.itemId,
+                moduleId: currentCourse.moduleId ?? '',
+                sectionId: currentCourse.sectionId ?? '',
+                attemptId,
+                isSkipped: true,
+                nextItemId,
+                cohortId: currentCourse.cohortId ?? undefined,
+              },
+            });
+            completedItemIdsRef.current.add(currentCourse.itemId);
+            itemStartedRef.current = false;
+          }
         } catch (progressErr) {
           console.error('Failed to update progress for exhausted quiz attempts:', progressErr);
         }
+
         setQuizStarted(true);
         setNoAttemptsLeft(true);
+
         return;
       }
 
@@ -767,35 +767,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
       setQuizCompleted(true);
       setFinshingQuiz(false);
-      // Show attempt info dialog if not skipped and not out of attempts
-      if (!isSkipped && typeof attempts === 'number' && typeof maxAttempts === 'number' && maxAttempts > 0) {
-        const attemptNum = attempts + 1; // attempts is zero-based before increment
-        if (attemptNum <= maxAttempts) {
-          setAttemptInfoNum(attemptNum);
-          setShowAttemptInfo(true);
-          setTimeout(() => setShowAttemptInfo(false), 1500);
-        }
-      }
-      {/* Attempt Info Dialog */}
-      <AttemptInfoDialog
-        open={showAttemptInfo}
-        attemptNum={attemptInfoNum}
-        maxAttempts={maxAttempts}
-        onClose={() => setShowAttemptInfo(false)}
-      />
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to submit quiz:', err);
-      const errorMessage = err?.message || err?.error?.message || err?.response?.data?.message || '';
-      if (errorMessage.includes('already been submitted')) {
-        // Idempotent — treat as success, just mark as completed
-        setQuizCompleted(true);
-      } else if (errorMessage.includes('inactive') || errorMessage.includes('archived')) {
-        toast.error('This course version is no longer active.');
         setQuizCompleted(false);
-      } else {
-        toast.error('Failed to submit quiz. Please try again.');
-        setQuizCompleted(false);
-      }
       setFinshingQuiz(false);
     }
   }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem, saveQuiz]);
@@ -875,6 +849,28 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, [attemptId, quizQuestions, processedQuizId, saveQuiz, convertAnswersToSaveFormat]);
 
   const currentQuestion = quizQuestions[currentQuestionIndex];
+  const reviewItemId = currentCourse?.itemId ? `quiz-${currentCourse.itemId}` : `quiz-${processedQuizId}`;
+  const isCurrentQuizMarked = isMarked(reviewItemId);
+
+  const getCurrentUrl = useCallback(() => {
+    if (typeof window === "undefined") return "/student/demo-quiz";
+    return `${window.location.pathname}${window.location.search}`;
+  }, []);
+
+  const handleToggleReviewMark = useCallback(() => {
+    const rawQuestionTitle = currentQuestion?.question?.trim() || "Quiz";
+    const compactTitle = rawQuestionTitle.replace(/\s+/g, " ");
+    const shortTitle = compactTitle.length > 80 ? `${compactTitle.slice(0, 80)}...` : compactTitle;
+
+    toggleMarkItem({
+      id: reviewItemId,
+      title: `Quiz: ${shortTitle}`,
+      type: "quiz",
+      url: getCurrentUrl(),
+    });
+
+    toast.success(isCurrentQuizMarked ? "Removed from Marked for Review" : "Added to Marked for Review");
+  }, [currentQuestion?.question, getCurrentUrl, isCurrentQuizMarked, reviewItemId, toggleMarkItem]);
 
   const handleAnswer = useCallback((answer: string | number | number[] | string[] | undefined) => {
     if (answer === undefined) return;
@@ -936,7 +932,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   // Reset state when quiz ID changes
   useEffect(() => {
     resetQuiz();
-  }, [processedQuizId, resetQuiz]);
+    // resetQuiz depends on props/callbacks and can get recreated by parents.
+    // We only want a hard reset when the quiz identity changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [processedQuizId]);
 
   useEffect(() => {
     if (rewindVid) {
@@ -998,7 +997,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       }
       setDontStart(true);
     }
-  }, [quizType, quizStarted, quizCompleted, isEmptyQuiz, noAttemptsLeft, quizQuestions.length, isPending, dontStart, startQuiz, questionBankRefs]);
+  }, [quizType, quizStarted, quizCompleted, isEmptyQuiz, noAttemptsLeft, quizQuestions.length, isPending, dontStart, startQuiz, questionBankRefs, handleEmptyQuiz]);
 
 
   useEffect(() => {
@@ -1111,14 +1110,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         itemStartedRef.current = false;
         completedItemIdsRef.current.add(currentCourse.itemId);
       } catch (error: any) {
-        // 404 = already stopped — treat as success
-        const status = error?.status ?? error?.response?.status;
-        if (status !== 404) {
-          console.error('❌ Quiz stopItem error:', error);
-          throw error;
-        }
-        itemStartedRef.current = false;
-        completedItemIdsRef.current.add(currentCourse.itemId);
+        console.error('❌ Quiz stopItem error:', error);
+        throw error; // Re-throw for parent to catch
       }
     },
     cleanup: () => {
@@ -1320,7 +1313,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   <Button
                     onClick={() => {
                       // setQuizCompleted(false);
-                      clearTimeout(emptyQuizNextTimerRef.current);
                       setEmptyQuizRedirectCountdown(null);
                       onPrevVideo();
                     }}
@@ -1381,25 +1373,22 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     // Special handling for no attempts left
     if (noAttemptsLeft) {
       return (
-        <>
-          <AttemptsOverDialog open={showAttemptsOver} onClose={() => setShowAttemptsOver(false)} />
-          <Card className="mx-auto">
-            <CardContent className="p-8 text-center space-y-6">
-              <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center mx-auto">
-                <AlertCircle className="w-8 h-8 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div className="space-y-3">
-                <h3 className="text-2xl font-semibold text-foreground">Quiz Completed</h3>
-                <p className="text-muted-foreground text-lg">
-                  No attempts remaining for this quiz. Moving to next item...
-                </p>
-              </div>
-              <div className="flex justify-center">
-                <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
-              </div>
-            </CardContent>
-          </Card>
-        </>
+        <Card className="mx-auto">
+          <CardContent className="p-8 text-center space-y-6">
+            <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="space-y-3">
+              <h3 className="text-2xl font-semibold text-foreground">Quiz Completed</h3>
+              <p className="text-muted-foreground text-lg">
+                No attempts remaining for this quiz. Moving to next item...
+              </p>
+            </div>
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
+            </div>
+          </CardContent>
+        </Card>
       );
     }
 
@@ -1816,6 +1805,16 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               <Trophy className="mr-1 h-3 w-3" />
               {currentQuestion.points} points
             </Badge>
+            <Button
+              variant={isCurrentQuizMarked ? "default" : "outline"}
+              size="sm"
+              onClick={handleToggleReviewMark}
+              className={`${isCurrentQuizMarked ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-500" : "border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950/30"}`}
+              aria-label={isCurrentQuizMarked ? "Unmark this quiz for review" : "Mark this quiz for review"}
+            >
+              <Bookmark className={`mr-2 h-4 w-4 ${isCurrentQuizMarked ? "fill-current" : ""}`} />
+              {isCurrentQuizMarked ? "Marked for Review" : "Mark for Review"}
+            </Button>
           </div>
           <h2 className="text-2xl font-semibold leading-tight">
             {/* <MathRenderer>
@@ -1848,8 +1847,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               )}
             </div>
           )}
-          {/* 
-          {explanationBox.open && (
+          {/* {explanationBox.open && (
             <div className={`mb-4 p-3 rounded-lg animate-in fade-in ${explanationBox.result === 'CORRECT'
               ? 'bg-green-100 dark:bg-green-950/20 text-green-900 dark:text-green-100 border border-green-300 dark:border-green-800'
               : 'bg-red-100 dark:bg-red-950/20 text-red-900 dark:text-red-100 border border-red-300 dark:border-red-800'
@@ -1996,18 +1994,42 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
         {/* Navigation */}
         <div className="flex justify-between items-center">
-          {/* Skip button (shown after 5 attempts) */}
-          {(attempts >= 5 && allowSkip == true) && (
-            <Button
-              // variant="outline"
-              onClick={handleSkipQuiz}
-              // className="text-white hover:text-background/90 hover:bg-foreground/10"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Skipping...' : 'Skip Quiz'}
-            </Button>
-          )}
 
+          {/* LEFT SIDE: Navigation & Skipping */}
+          <div className="flex gap-2">
+            {/* Issue #561: Allow learner to rewatch the previous video from quiz */}
+            {onPrevVideo && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  toast.success("Navigating back to previous video...");
+                  onPrevVideo();
+                }}
+                disabled={isProgressUpdating || isSubmitting || isSaving || finshingQuiz}
+                aria-label="Return to previous video"
+                className="border-blue-300 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/30 transition-colors"
+              >
+                {isNavigatingToPrev ? (
+                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                ) : (
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                )}
+                Back to Video
+              </Button>
+            )}
+
+            {(attempts >= 5 && allowSkip == true) && (
+              <Button
+                onClick={handleSkipQuiz}
+                disabled={isSubmitting}
+                aria-label="Skip remaining quiz"
+              >
+                {isSubmitting ? 'Skipping...' : 'Skip Quiz'}
+              </Button>
+            )}
+          </div>
+
+          {/* RIGHT SIDE: Save + Next/Finish */}
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -2042,10 +2064,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             </Button>
           </div>
         </div>
-
-
-
-
 
         {/* Show save error if any */}
         {/* {saveError && !submitError && (
