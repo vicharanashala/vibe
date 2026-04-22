@@ -74,6 +74,9 @@ export interface FaceBehaviorStatus {
   eyeAspectRatio: number;
   mouthAspectRatio: number;
   headDownScore: number;
+  faceHeightShrink?: number;
+  eyeTiltAngle?: number;
+  eyeCenterYDelta?: number;
 }
 
 export interface FaceRecognitionComponentProps {

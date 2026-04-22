@@ -37,6 +37,9 @@ const defaultBehavior: FaceBehaviorStatus = {
   eyeAspectRatio: 0,
   mouthAspectRatio: 0,
   headDownScore: 0,
+  faceHeightShrink: 0,
+  eyeTiltAngle: 0,
+  eyeCenterYDelta: 0,
 };
 
 function DemoBanner() {
@@ -136,27 +139,33 @@ function ProctoringLab() {
   const [recognitions, setRecognitions] = useState<FaceRecognition[]>([]);
   const [behavior, setBehavior] = useState<FaceBehaviorStatus>(defaultBehavior);
   const [history, setHistory] = useState<FaceBehaviorStatus[]>([]);
+  const [analysisEnabled, setAnalysisEnabled] = useState(false);
 
   useEffect(() => {
-    setHistory((current) => [...current.slice(-11), behavior]);
+    setHistory((current) => [...current.slice(-4), behavior]);
   }, [behavior]);
 
   const fatigueSummary = useMemo(() => {
     const sampleCount = history.length || 1;
+    const slouchingRatio = history.filter((entry) => entry.isSlouching).length / sampleCount;
     const lookingDownRatio = history.filter((entry) => entry.isLookingDown).length / sampleCount;
     const sleepyRatio = history.filter((entry) => entry.isSleepy).length / sampleCount;
     const yawningRatio = history.filter((entry) => entry.isYawning).length / sampleCount;
     const score = Number(
       Math.min(
         1,
-        (behavior.fatigueScore || 0) + lookingDownRatio * 0.35 + sleepyRatio * 0.4 + yawningRatio * 0.25
+        (behavior.fatigueScore || 0) +
+          slouchingRatio * 0.15 +
+          lookingDownRatio * 0.2 +
+          sleepyRatio * 0.25 +
+          yawningRatio * 0.15
       ).toFixed(2)
     );
 
-    if (score >= 0.7) {
+    if (score >= 0.6) {
       return { label: "High fatigue", tone: "destructive", score };
     }
-    if (score >= 0.4) {
+    if (score >= 0.35) {
       return { label: "Moderate fatigue", tone: "secondary", score };
     }
     return { label: "Attentive", tone: "outline", score };
@@ -205,6 +214,19 @@ function ProctoringLab() {
                 {cameraError ? "Camera blocked" : "Preparing camera analysis..."}
               </div>
             )}
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Button
+              type="button"
+              variant={analysisEnabled ? "outline" : "default"}
+              onClick={() => setAnalysisEnabled((current) => !current)}
+            >
+              {analysisEnabled ? "Stop Proctoring Analysis" : "Start Proctoring Analysis"}
+            </Button>
+            <p className="self-center text-xs text-slate-500">
+              Start analysis only after the camera preview is visible.
+            </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -298,6 +320,18 @@ function ProctoringLab() {
                 <span className="font-mono">{behavior.headDownScore.toFixed(3)}</span>
               </div>
               <div className="flex items-center justify-between">
+                <span>Face height shrink</span>
+                <span className="font-mono">{(behavior.faceHeightShrink ?? 0).toFixed(3)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Eye tilt angle</span>
+                <span className="font-mono">{(behavior.eyeTiltAngle ?? 0).toFixed(1)}°</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Eye center delta</span>
+                <span className="font-mono">{(behavior.eyeCenterYDelta ?? 0).toFixed(3)}</span>
+              </div>
+              <div className="flex items-center justify-between">
                 <span>Fatigue score</span>
                 <span className="font-mono">{fatigueSummary.score.toFixed(2)}</span>
               </div>
@@ -309,23 +343,25 @@ function ProctoringLab() {
           </Card>
         </div>
 
-        <div className="hidden">
-          <BlurDetection videoRef={videoRef} setIsBlur={setIsBlur} />
-          <FaceDetectors
-            faces={faces}
-            setIsFocused={setIsFocused}
-            videoRef={videoRef}
-            onRecognitionResult={setRecognitions}
-            onBehaviorResult={setBehavior}
-            onMismatchChange={() => {}}
-            demoMode={true}
-            settings={{
-              isFaceCountDetectionEnabled: true,
-              isFaceRecognitionEnabled: true,
-              isFocusEnabled: true,
-            }}
-          />
-        </div>
+        {analysisEnabled && (
+          <div className="hidden">
+            <BlurDetection videoRef={videoRef} setIsBlur={setIsBlur} />
+            <FaceDetectors
+              faces={faces}
+              setIsFocused={setIsFocused}
+              videoRef={videoRef}
+              onRecognitionResult={setRecognitions}
+              onBehaviorResult={setBehavior}
+              onMismatchChange={() => {}}
+              demoMode={true}
+              settings={{
+                isFaceCountDetectionEnabled: true,
+                isFaceRecognitionEnabled: true,
+                isFocusEnabled: true,
+              }}
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );

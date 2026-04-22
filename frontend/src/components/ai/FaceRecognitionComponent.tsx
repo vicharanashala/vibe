@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as faceapi from '@vladmandic/face-api';
+import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import { useReportAnomalyImage } from '@/hooks/hooks';
 import { useCourseStore } from '@/store/course-store';
 import type {
@@ -10,14 +11,10 @@ import type {
 } from '@/types/ai.types';
 
 const EMBEDDING_LENGTH = 128;
-const VERIFY_INTERVAL_MS = 700;
+const VERIFY_INTERVAL_MS = 400;
 const MATCH_THRESHOLD = 0.6;
 const REQUIRED_MATCHES = 3;
 const REQUIRED_MISMATCHES = 2;
-const LOOKING_DOWN_HOLD_MS = 900;
-const SLOUCHING_HOLD_MS = 1200;
-const SLEEPY_HOLD_MS = 1500;
-const YAWN_HOLD_MS = 1000;
 const FACE_MISS_GRACE_MS = 1500;
 
 type FaceReferenceResponse = {
@@ -52,9 +49,34 @@ const normalizeEmbedding = (embedding: unknown): number[] | null => {
 const getDistance = (a: { x: number; y: number }, b: { x: number; y: number }) =>
   Math.hypot(a.x - b.x, a.y - b.y);
 
+const getTiltAngleDegrees = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+  Math.abs((Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI);
+
 const getAverageY = (points: faceapi.Point[]) => {
   if (!points.length) return 0;
   return points.reduce((sum, point) => sum + point.y, 0) / points.length;
+};
+
+const getNormalizedDistance = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+  Math.hypot(a.x - b.x, a.y - b.y);
+
+const getAverageNormalizedPoint = (points: Array<{ x: number; y: number }>) => {
+  if (!points.length) {
+    return { x: 0, y: 0 };
+  }
+
+  const totals = points.reduce(
+    (sum, point) => ({
+      x: sum.x + point.x,
+      y: sum.y + point.y,
+    }),
+    { x: 0, y: 0 }
+  );
+
+  return {
+    x: totals.x / points.length,
+    y: totals.y / points.length,
+  };
 };
 
 const getLargestDetectedFace = <T extends { detection: { box: { width: number; height: number } } }>(detections: T[]) =>
@@ -104,6 +126,75 @@ const getHeadDownScore = (landmarks: faceapi.FaceLandmarks68): number => {
   return verticalDelta / faceHeight;
 };
 
+type DemoLandmark = { x: number; y: number; z?: number; visibility?: number };
+type DemoLandmarkList = DemoLandmark[];
+
+const getMeshEyeAspectRatio = (landmarks: DemoLandmarkList, left: boolean) => {
+  const indices = left
+    ? { outer: 33, inner: 133, upper: 159, lower: 145 }
+    : { outer: 362, inner: 263, upper: 386, lower: 374 };
+
+  const outer = landmarks[indices.outer];
+  const inner = landmarks[indices.inner];
+  const upper = landmarks[indices.upper];
+  const lower = landmarks[indices.lower];
+
+  if (!outer || !inner || !upper || !lower) {
+    return 0;
+  }
+
+  return getNormalizedDistance(upper, lower) / Math.max(getNormalizedDistance(outer, inner), 1e-4);
+};
+
+const getMeshMetrics = (landmarks: DemoLandmarkList) => {
+  const mouthTop = landmarks[13];
+  const mouthBottom = landmarks[14];
+  const mouthLeft = landmarks[78];
+  const mouthRight = landmarks[308];
+  const noseTip = landmarks[1];
+  const chin = landmarks[152];
+  const leftEye = landmarks[33];
+  const rightEye = landmarks[263];
+  // Forehead approximation: midpoint between the two brow landmarks
+  const leftBrow = landmarks[10];
+  const rightBrow = landmarks[338];
+
+  if (!mouthTop || !mouthBottom || !mouthLeft || !mouthRight || !noseTip || !chin || !leftEye || !rightEye) {
+    return null;
+  }
+
+  const eyeAspectRatio =
+    (getMeshEyeAspectRatio(landmarks, true) + getMeshEyeAspectRatio(landmarks, false)) / 2;
+  const mouthAspectRatio =
+    getNormalizedDistance(mouthTop, mouthBottom) /
+    Math.max(getNormalizedDistance(mouthLeft, mouthRight), 1e-4);
+  const eyeCenter = getAverageNormalizedPoint([leftEye, rightEye]);
+  const eyeToChin = Math.max(chin.y - eyeCenter.y, 1e-4);
+
+  // faceHeight: distance from top of face (brow) to chin in normalized frame coords.
+  // Shrinks when the person moves away from the camera (slouches back).
+  const browCenter = leftBrow && rightBrow
+    ? getAverageNormalizedPoint([leftBrow, rightBrow])
+    : eyeCenter;
+  const faceHeight = chin.y - browCenter.y;
+
+  return {
+    eyeAspectRatio,
+    mouthAspectRatio,
+    // Ratio of nose-to-eye distance vs eye-to-chin — increases when head tilts down
+    headDownScore: (noseTip.y - eyeCenter.y) / eyeToChin,
+    postureDropScore: eyeToChin / Math.max(faceHeight, 1e-4),
+    eyeTiltAngle: getTiltAngleDegrees(leftEye, rightEye),
+    // Absolute Y position of eye center in the video frame (0=top, 1=bottom).
+    // Increases when the person slouches and their head drops in the frame.
+    eyeCenterY: eyeCenter.y,
+    // Absolute Y of face center (eye midpoint to chin midpoint)
+    faceCenterYRatio: (eyeCenter.y + chin.y) / 2,
+    // Face height in normalized frame coords — shrinks when person moves back
+    faceHeight,
+  };
+};
+
 const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
   faces,
   videoRef,
@@ -127,27 +218,37 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     eyeAspectRatio: number | null;
     mouthAspectRatio: number | null;
     headDownScore: number | null;
+    postureDropScore: number | null;
+    eyeTiltAngle: number | null;
     faceCenterYRatio: number | null;
+    // Positional baseline — locked after warm-up, not drifted
+    eyeCenterY: number | null;
+    faceHeight: number | null;
     samples: number;
   }>({
     eyeAspectRatio: null,
     mouthAspectRatio: null,
     headDownScore: null,
+    postureDropScore: null,
+    eyeTiltAngle: null,
     faceCenterYRatio: null,
+    eyeCenterY: null,
+    faceHeight: null,
     samples: 0,
   });
   const lastBehaviorRef = useRef<FaceBehaviorStatus | null>(null);
   const lastFaceSeenAtRef = useRef<number>(0);
-  const timersRef = useRef<{
-    lookingDownSince: number | null;
-    slouchingSince: number | null;
-    sleepySince: number | null;
-    yawningSince: number | null;
+  const demoFaceLandmarkerRef = useRef<FaceLandmarker | null>(null);
+  const behaviorStabilityRef = useRef<{
+    lookingDown: { active: boolean; positiveFrames: number; negativeFrames: number };
+    slouching: { active: boolean; positiveFrames: number; negativeFrames: number };
+    sleepy: { active: boolean; positiveFrames: number; negativeFrames: number };
+    yawning: { active: boolean; positiveFrames: number; negativeFrames: number };
   }>({
-    lookingDownSince: null,
-    slouchingSince: null,
-    sleepySince: null,
-    yawningSince: null,
+    lookingDown: { active: false, positiveFrames: 0, negativeFrames: 0 },
+    slouching: { active: false, positiveFrames: 0, negativeFrames: 0 },
+    sleepy: { active: false, positiveFrames: 0, negativeFrames: 0 },
+    yawning: { active: false, positiveFrames: 0, negativeFrames: 0 },
   });
 
   const publishNeutralBehavior = useCallback(() => {
@@ -161,35 +262,48 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
       eyeAspectRatio: 0,
       mouthAspectRatio: 0,
       headDownScore: 0,
+      faceHeightShrink: 0,
+      eyeTiltAngle: 0,
+      eyeCenterYDelta: 0,
     });
   }, [onBehaviorResult]);
 
-  const getHeldState = useCallback((
-    key: keyof typeof timersRef.current,
+  const getStableState = useCallback((
+    key: keyof typeof behaviorStabilityRef.current,
     detected: boolean,
-    holdMs: number,
-    now: number
+    activateFrames: number,
+    releaseFrames: number,
   ) => {
-    const timers = timersRef.current;
+    const state = behaviorStabilityRef.current[key];
 
-    if (!detected) {
-      timers[key] = null;
-      return false;
+    if (detected) {
+      state.positiveFrames += 1;
+      state.negativeFrames = 0;
+
+      if (!state.active && state.positiveFrames >= activateFrames) {
+        state.active = true;
+      }
+    } else {
+      state.negativeFrames += 1;
+      state.positiveFrames = 0;
+
+      if (state.active && state.negativeFrames >= releaseFrames) {
+        state.active = false;
+      }
     }
 
-    if (!timers[key]) {
-      timers[key] = now;
-      return false;
-    }
-
-    return now - timers[key]! >= holdMs;
+    return state.active;
   }, []);
 
   const updateBaseline = useCallback((
     eyeAspectRatio: number,
     mouthAspectRatio: number,
     headDownScore: number,
-    faceCenterYRatio: number
+    postureDropScore: number,
+    eyeTiltAngle: number,
+    faceCenterYRatio: number,
+    eyeCenterY?: number,
+    faceHeight?: number,
   ) => {
     const baseline = baselineRef.current;
     const alpha = baseline.samples < 8 ? 0.3 : 0.08;
@@ -206,10 +320,36 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
       baseline.headDownScore === null
         ? headDownScore
         : baseline.headDownScore * (1 - alpha) + headDownScore * alpha;
+    baseline.postureDropScore =
+      baseline.postureDropScore === null
+        ? postureDropScore
+        : baseline.postureDropScore * (1 - alpha) + postureDropScore * alpha;
+    baseline.eyeTiltAngle =
+      baseline.eyeTiltAngle === null
+        ? eyeTiltAngle
+        : baseline.eyeTiltAngle * (1 - alpha) + eyeTiltAngle * alpha;
     baseline.faceCenterYRatio =
       baseline.faceCenterYRatio === null
         ? faceCenterYRatio
         : baseline.faceCenterYRatio * (1 - alpha) + faceCenterYRatio * alpha;
+
+    // Positional signals: only update during warm-up (first 10 samples), then lock.
+    // This prevents the baseline from chasing a slouch.
+    if (baseline.samples < 10) {
+      if (eyeCenterY !== undefined) {
+        baseline.eyeCenterY =
+          baseline.eyeCenterY === null
+            ? eyeCenterY
+            : baseline.eyeCenterY * (1 - alpha) + eyeCenterY * alpha;
+      }
+      if (faceHeight !== undefined) {
+        baseline.faceHeight =
+          baseline.faceHeight === null
+            ? faceHeight
+            : baseline.faceHeight * (1 - alpha) + faceHeight * alpha;
+      }
+    }
+
     baseline.samples += 1;
   }, []);
 
@@ -314,6 +454,22 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
       try {
         updateDebugInfo({ backendStatus: 'loading', errorMessage: undefined });
 
+        if (demoMode) {
+          if (!isMounted) {
+            return;
+          }
+
+          setIsReady(true);
+          updateDebugInfo({
+            knownFacesCount: 0,
+            knownFaceLabels: [],
+            detectedPhotoFaces: 0,
+            backendStatus: 'success',
+            errorMessage: undefined,
+          });
+          return;
+        }
+
         const modelPaths = ['/models', 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'];
         let loaded = false;
 
@@ -333,22 +489,6 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
 
         if (!loaded) {
           throw new Error('Failed to load face recognition models.');
-        }
-
-        if (demoMode) {
-          if (!isMounted) {
-            return;
-          }
-
-          setIsReady(true);
-          updateDebugInfo({
-            knownFacesCount: 0,
-            knownFaceLabels: [],
-            detectedPhotoFaces: 0,
-            backendStatus: 'success',
-            errorMessage: undefined,
-          });
-          return;
         }
 
         const reference = await fetchFaceReference();
@@ -392,6 +532,52 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     };
   }, [demoMode, fetchFaceReference, updateDebugInfo]);
 
+  useEffect(() => {
+    if (!demoMode) {
+      return;
+    }
+
+    let disposed = false;
+
+    void (async () => {
+      try {
+        const vision = await FilesetResolver.forVisionTasks(
+          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm'
+        );
+        if (disposed) {
+          return;
+        }
+
+        const landmarker = await FaceLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+          },
+          runningMode: 'VIDEO',
+          numFaces: 1,
+          minFaceDetectionConfidence: 0.5,
+          minFacePresenceConfidence: 0.5,
+          minTrackingConfidence: 0.5,
+        });
+
+        if (disposed) {
+          void landmarker.close();
+          return;
+        }
+
+        demoFaceLandmarkerRef.current = landmarker;
+      } catch (error) {
+        console.error('[FaceRecognitionComponent] Demo FaceLandmarker initialization failed:', error);
+      }
+    })();
+
+    return () => {
+      disposed = true;
+      demoFaceLandmarkerRef.current?.close();
+      demoFaceLandmarkerRef.current = null;
+    };
+  }, [demoMode]);
+
   const processRecognition = useCallback(async () => {
     const referenceEmbedding = referenceEmbeddingRef.current;
     const video = videoRef.current;
@@ -408,6 +594,235 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     const startTime = performance.now();
 
     try {
+      if (demoMode) {
+        const landmarker = demoFaceLandmarkerRef.current;
+        if (!landmarker) {
+          publishNeutralBehavior();
+          updateDebugInfo({
+            currentFrameFaces: faces.length,
+            recognizedFaces: 0,
+            newRecognitions: 0,
+            processingTime: performance.now() - startTime,
+            errorMessage: 'Face landmarker is still initializing.',
+            backendStatus: 'success',
+          });
+          return;
+        }
+
+        const now = Date.now();
+        const result = landmarker.detectForVideo(video, now);
+        const landmarks = result.faceLandmarks?.[0] ?? null;
+
+        if (!landmarks) {
+          publishNeutralBehavior();
+          onRecognitionResult?.([]);
+          updateDebugInfo({
+            currentFrameFaces: faces.length,
+            recognizedFaces: 0,
+            newRecognitions: 0,
+            processingTime: performance.now() - startTime,
+            errorMessage: 'No face landmarks detected in sampled frame.',
+            backendStatus: 'success',
+          });
+          return;
+        }
+
+        const metrics = getMeshMetrics(landmarks);
+        if (!metrics) {
+          publishNeutralBehavior();
+          return;
+        }
+
+        lastFaceSeenAtRef.current = now;
+
+        const {
+          eyeAspectRatio,
+          mouthAspectRatio,
+          headDownScore,
+          postureDropScore,
+          eyeTiltAngle,
+          faceCenterYRatio,
+          eyeCenterY,
+          faceHeight,
+        } = metrics;
+
+        const baseline = baselineRef.current;
+        const hasBaseline = baseline.samples >= 6 &&
+          baseline.eyeAspectRatio !== null &&
+          baseline.mouthAspectRatio !== null &&
+          baseline.headDownScore !== null &&
+          baseline.postureDropScore !== null &&
+          baseline.eyeTiltAngle !== null &&
+          baseline.faceCenterYRatio !== null;
+
+        // Always seed the baseline during the warm-up period.
+        if (!hasBaseline) {
+          updateBaseline(
+            eyeAspectRatio,
+            mouthAspectRatio,
+            headDownScore,
+            postureDropScore,
+            eyeTiltAngle,
+            faceCenterYRatio,
+            eyeCenterY,
+            faceHeight
+          );
+        }
+
+        const eyeBaseline = baseline.eyeAspectRatio ?? eyeAspectRatio;
+        const mouthBaseline = baseline.mouthAspectRatio ?? Math.max(mouthAspectRatio, 0.05);
+        const headBaseline = baseline.headDownScore ?? headDownScore;
+        const postureBaseline = baseline.postureDropScore ?? postureDropScore;
+        const tiltBaseline = baseline.eyeTiltAngle ?? eyeTiltAngle;
+        const faceCenterBaseline = baseline.faceCenterYRatio ?? faceCenterYRatio;
+        const headDownDelta = headDownScore - headBaseline;
+        const postureDropDelta = postureDropScore - postureBaseline;
+        const eyeTiltDelta = Math.abs(eyeTiltAngle - tiltBaseline);
+        const faceCenterDelta = faceCenterYRatio - faceCenterBaseline;
+
+        // Positional baselines — locked after warm-up so slouch can't be absorbed
+        const eyeCenterYBaseline = baseline.eyeCenterY ?? eyeCenterY;
+        const faceHeightBaseline = baseline.faceHeight ?? faceHeight;
+
+        // How far the eye center has dropped in the frame (positive = face moved down = slouch)
+        const eyeCenterYDelta = eyeCenterY - eyeCenterYBaseline;
+        // How much the face has shrunk (positive = face smaller = person moved back = slouch)
+        const faceHeightShrink = faceHeightBaseline > 0
+          ? (faceHeightBaseline - faceHeight) / faceHeightBaseline
+          : 0;
+
+        // MediaPipe landmarks are normalized (0–1).
+        // headDownScore = (noseTip.y - eyeCenter.y) / eyeToChin — typically ~0.35–0.45 upright,
+        // rises to ~0.55+ when looking down.
+        // eyeCenterY: absolute Y of eye center in frame — increases when face drops (slouch).
+        // faceHeightShrink: face appears smaller when person moves back (slouch).
+        const rawLookingDown =
+          headDownScore > Math.max(headBaseline + 0.03, 0.44) ||
+          headDownDelta > 0.04 ||
+          (headDownDelta > 0.025 && eyeCenterYDelta > 0.01);
+        // Slouching: face drops in frame OR face shrinks (person moves back/hunches)
+        // OR head tilts significantly forward. Use OR of multiple weak signals.
+        const rawSlouching =
+          eyeCenterYDelta > 0.015 ||
+          faceHeightShrink > 0.03 ||
+          postureDropDelta > 0.02 ||
+          eyeTiltDelta > 8 ||
+          (headDownDelta > 0.025 && eyeCenterYDelta > 0.01) ||
+          faceCenterDelta > 0.02;
+        const rawSleepy = eyeAspectRatio < Math.max(eyeBaseline * 0.78, 0.2);
+        const rawYawning = mouthAspectRatio > Math.max(mouthBaseline * 1.45, 0.12);
+
+        const isLookingDown = getStableState('lookingDown', rawLookingDown, 2, 2);
+        const isSlouching = getStableState('slouching', rawSlouching, 2, 2);
+        const isSleepy = getStableState('sleepy', rawSleepy, 3, 3);
+        const isYawning = getStableState('yawning', rawYawning, 2, 2);
+
+        // Update baseline when neutral. Also allow very slow drift correction even during
+        // anomalies so the baseline never gets permanently stuck.
+        if (!rawLookingDown && !rawSleepy && !rawYawning && !rawSlouching) {
+          updateBaseline(
+            eyeAspectRatio,
+            mouthAspectRatio,
+            headDownScore,
+            postureDropScore,
+            eyeTiltAngle,
+            faceCenterYRatio,
+            eyeCenterY,
+            faceHeight
+          );
+        } else if (hasBaseline) {
+          // Slow drift correction (alpha = 0.01) for expression signals only.
+          // Positional signals (eyeCenterY, faceHeight) are NOT drifted — they stay locked.
+          const b = baselineRef.current;
+          const slowAlpha = 0.01;
+          b.eyeAspectRatio = b.eyeAspectRatio! * (1 - slowAlpha) + eyeAspectRatio * slowAlpha;
+          b.mouthAspectRatio = b.mouthAspectRatio! * (1 - slowAlpha) + mouthAspectRatio * slowAlpha;
+          b.headDownScore = b.headDownScore! * (1 - slowAlpha) + headDownScore * slowAlpha;
+          b.postureDropScore = b.postureDropScore! * (1 - slowAlpha) + postureDropScore * slowAlpha;
+          b.eyeTiltAngle = b.eyeTiltAngle! * (1 - slowAlpha) + eyeTiltAngle * slowAlpha;
+          b.faceCenterYRatio = b.faceCenterYRatio! * (1 - slowAlpha) + faceCenterYRatio * slowAlpha;
+        }
+
+        const fatigueScore = Number(
+          (
+            (isSleepy ? 0.5 : 0) +
+            (isYawning ? 0.25 : 0) +
+            (isLookingDown ? 0.2 : 0) +
+            (isSlouching ? 0.25 : 0)
+          ).toFixed(2)
+        );
+        const behavior: FaceBehaviorStatus = {
+          isSlouching,
+          isLookingDown,
+          isSleepy,
+          isYawning,
+          isFatigued: fatigueScore >= 0.4,
+          fatigueScore,
+          eyeAspectRatio,
+          mouthAspectRatio,
+          headDownScore,
+          faceHeightShrink,
+          eyeTiltAngle,
+          eyeCenterYDelta,
+        };
+
+        console.debug('[BehaviorDemo]', {
+          eyeAspectRatio: eyeAspectRatio.toFixed(3),
+          eyeBaseline: eyeBaseline.toFixed(3),
+          mouthAspectRatio: mouthAspectRatio.toFixed(3),
+          mouthBaseline: mouthBaseline.toFixed(3),
+          headDownScore: headDownScore.toFixed(3),
+          headBaseline: headBaseline.toFixed(3),
+          postureDropScore: postureDropScore.toFixed(3),
+          postureBaseline: postureBaseline.toFixed(3),
+          postureDropDelta: postureDropDelta.toFixed(3),
+          eyeTiltAngle: eyeTiltAngle.toFixed(2),
+          tiltBaseline: tiltBaseline.toFixed(2),
+          eyeTiltDelta: eyeTiltDelta.toFixed(2),
+          eyeCenterY: eyeCenterY.toFixed(3),
+          eyeCenterYBaseline: eyeCenterYBaseline.toFixed(3),
+          eyeCenterYDelta: eyeCenterYDelta.toFixed(3),
+          faceHeight: faceHeight.toFixed(3),
+          faceHeightBaseline: faceHeightBaseline.toFixed(3),
+          faceHeightShrink: faceHeightShrink.toFixed(3),
+          faceCenterDelta: faceCenterDelta.toFixed(3),
+          rawLookingDown,
+          rawSlouching,
+          rawSleepy,
+          rawYawning,
+          isLookingDown,
+          isSlouching,
+          isSleepy,
+          isYawning,
+        });
+
+        lastBehaviorRef.current = behavior;
+        onBehaviorResult?.(behavior);
+        onRecognitionResult?.([
+          {
+            box: {
+              x: 0,
+              y: 0,
+              width: video.videoWidth || 1,
+              height: video.videoHeight || 1,
+            },
+            label: 'Live face',
+            distance: 0,
+            isMatch: true,
+          },
+        ]);
+        onMismatchChange?.(false);
+        updateDebugInfo({
+          currentFrameFaces: Math.max(faces.length, 1),
+          recognizedFaces: 1,
+          newRecognitions: 1,
+          processingTime: performance.now() - startTime,
+          backendStatus: 'success',
+          errorMessage: undefined,
+        });
+        return;
+      }
+
       // Keep verification focused on the single student face, just like the simpler working sample.
       const detections = await faceapi
         .detectAllFaces(video, createDetectorOptions())
@@ -450,9 +865,18 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
       const mouthAspectRatio = getMouthAspectRatio(mouth);
       const headDownScore = getHeadDownScore(landmarks);
       const eyeCenterY = (getAverageY(leftEye) + getAverageY(rightEye)) / 2;
+      const leftEyeCenter = {
+        x: leftEye.reduce((sum, point) => sum + point.x, 0) / Math.max(leftEye.length, 1),
+        y: leftEye.reduce((sum, point) => sum + point.y, 0) / Math.max(leftEye.length, 1),
+      };
+      const rightEyeCenter = {
+        x: rightEye.reduce((sum, point) => sum + point.x, 0) / Math.max(rightEye.length, 1),
+        y: rightEye.reduce((sum, point) => sum + point.y, 0) / Math.max(rightEye.length, 1),
+      };
+      const eyeTiltAngle = getTiltAngleDegrees(leftEyeCenter, rightEyeCenter);
       const jaw = landmarks.getJawOutline();
       const chinY = jaw.length > 8 ? jaw[8].y : eyeCenterY;
-      const postureDropScore = Math.max(chinY - eyeCenterY, 0) / Math.max(video.videoHeight, 1);
+      const postureDropScore = Math.max(chinY - eyeCenterY, 0) / Math.max(detection.detection.box.height, 1);
       const faceCenterYRatio =
         (detection.detection.box.y + detection.detection.box.height / 2) / Math.max(video.videoHeight, 1);
 
@@ -461,46 +885,56 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
         baseline.eyeAspectRatio !== null &&
         baseline.mouthAspectRatio !== null &&
         baseline.headDownScore !== null &&
+        baseline.postureDropScore !== null &&
+        baseline.eyeTiltAngle !== null &&
         baseline.faceCenterYRatio !== null;
 
       // Keep adapting the neutral baseline when the face looks normal.
       if (!hasBaseline) {
-        updateBaseline(eyeAspectRatio, mouthAspectRatio, headDownScore, faceCenterYRatio);
+        updateBaseline(eyeAspectRatio, mouthAspectRatio, headDownScore, postureDropScore, eyeTiltAngle, faceCenterYRatio);
       }
 
       const eyeBaseline = baseline.eyeAspectRatio ?? eyeAspectRatio;
       const mouthBaseline = baseline.mouthAspectRatio ?? Math.max(mouthAspectRatio, 0.12);
       const headBaseline = baseline.headDownScore ?? headDownScore;
+      const postureBaseline = baseline.postureDropScore ?? postureDropScore;
+      const tiltBaseline = baseline.eyeTiltAngle ?? eyeTiltAngle;
       const faceCenterBaseline = baseline.faceCenterYRatio ?? faceCenterYRatio;
+      const headDownDelta = headDownScore - headBaseline;
+      const postureDropDelta = postureDropScore - postureBaseline;
+      const eyeTiltDelta = Math.abs(eyeTiltAngle - tiltBaseline);
+      const faceCenterDelta = faceCenterYRatio - faceCenterBaseline;
 
       const rawLookingDown =
-        headDownScore > Math.max(headBaseline + 0.05, 0.16) ||
-        postureDropScore > 0.16;
+        headDownScore > Math.max(headBaseline + 0.018, 0.105) ||
+        headDownDelta > 0.012 ||
+        (headDownDelta > 0.01 && postureDropScore > 0.32);
       const rawSlouching =
-        headDownScore > Math.max(headBaseline + 0.1, 0.22) ||
-        postureDropScore > 0.22 ||
-        faceCenterYRatio > faceCenterBaseline + 0.08;
-      const rawSleepy = eyeAspectRatio < Math.max(eyeBaseline * 0.72, 0.16);
-      const rawYawning = mouthAspectRatio > Math.max(mouthBaseline * 1.9, 0.55);
+        (headDownScore > Math.max(headBaseline + 0.022, 0.14) &&
+          (postureDropDelta > 0.02 || postureDropScore > 0.32 || faceCenterDelta > 0.015)) ||
+        eyeTiltDelta > 8 ||
+        faceCenterYRatio > Math.max(faceCenterBaseline + 0.03, 0.56);
+      const rawSleepy = eyeAspectRatio < Math.max(eyeBaseline * 0.82, 0.19);
+      const rawYawning = mouthAspectRatio > Math.max(mouthBaseline * 1.35, 0.09);
 
-      const isLookingDown = getHeldState('lookingDownSince', rawLookingDown, LOOKING_DOWN_HOLD_MS, now);
-      const isSlouching = getHeldState('slouchingSince', rawSlouching, SLOUCHING_HOLD_MS, now);
-      const isSleepy = getHeldState('sleepySince', rawSleepy, SLEEPY_HOLD_MS, now);
-      const isYawning = getHeldState('yawningSince', rawYawning, YAWN_HOLD_MS, now);
+      const isLookingDown = getStableState('lookingDown', rawLookingDown, 2, 2);
+      const isSlouching = getStableState('slouching', rawSlouching, 2, 2);
+      const isSleepy = getStableState('sleepy', rawSleepy, 3, 3);
+      const isYawning = getStableState('yawning', rawYawning, 2, 2);
 
-      if (!isLookingDown && !isSleepy && !isYawning && !isSlouching) {
-        updateBaseline(eyeAspectRatio, mouthAspectRatio, headDownScore, faceCenterYRatio);
+      if (!rawLookingDown && !rawSleepy && !rawYawning && !rawSlouching) {
+        updateBaseline(eyeAspectRatio, mouthAspectRatio, headDownScore, postureDropScore, eyeTiltAngle, faceCenterYRatio);
       }
 
       const fatigueScore = Number(
         (
-          (isSleepy ? 0.45 : 0) +
+          (isSleepy ? 0.5 : 0) +
           (isYawning ? 0.25 : 0) +
-          (isLookingDown ? 0.15 : 0) +
-          (isSlouching ? 0.2 : 0)
+          (isLookingDown ? 0.2 : 0) +
+          (isSlouching ? 0.25 : 0)
         ).toFixed(2)
       );
-      const isFatigued = fatigueScore >= 0.45;
+      const isFatigued = fatigueScore >= 0.4;
 
       const behavior: FaceBehaviorStatus = {
         isSlouching,
@@ -512,23 +946,13 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
         eyeAspectRatio,
         mouthAspectRatio,
         headDownScore,
+        faceHeightShrink: 0,
+        eyeTiltAngle,
+        eyeCenterYDelta: 0,
       };
       lastBehaviorRef.current = behavior;
 
       onBehaviorResult?.(behavior);
-
-      const liveEmbedding = normalizeEmbedding(Array.from(detection.descriptor));
-      if (!liveEmbedding || liveEmbedding.length !== EMBEDDING_LENGTH) {
-        updateDebugInfo({
-          currentFrameFaces: 1,
-          recognizedFaces: 0,
-          newRecognitions: 0,
-          processingTime: performance.now() - startTime,
-          errorMessage: 'Live face data is invalid. Try again.',
-          backendStatus: 'success',
-        });
-        return;
-      }
 
       if (!referenceEmbedding || demoMode) {
         onRecognitionResult?.([
@@ -547,6 +971,23 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
           processingTime: performance.now() - startTime,
           backendStatus: 'success',
           errorMessage: undefined,
+        });
+        return;
+      }
+
+      const descriptor =
+        'descriptor' in detection && detection.descriptor
+          ? detection.descriptor
+          : null;
+      const liveEmbedding = descriptor ? normalizeEmbedding(Array.from(descriptor)) : null;
+      if (!liveEmbedding || liveEmbedding.length !== EMBEDDING_LENGTH) {
+        updateDebugInfo({
+          currentFrameFaces: 1,
+          recognizedFaces: 0,
+          newRecognitions: 0,
+          processingTime: performance.now() - startTime,
+          errorMessage: 'Live face data is invalid. Try again.',
+          backendStatus: 'success',
         });
         return;
       }
@@ -635,7 +1076,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     updateDebugInfo,
     updateBaseline,
     videoRef,
-    getHeldState,
+    getStableState,
   ]);
 
   useEffect(() => {
