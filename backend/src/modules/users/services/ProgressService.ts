@@ -554,6 +554,7 @@ class ProgressService extends BaseService {
       courseId: new ObjectId(GURU_SETU_COURSE_ID),
       courseVersionId: new ObjectId(GURU_SETU_VERSION_ID),
       role: 'STUDENT',
+      status: 'ACTIVE',
       isDeleted: { $ne: true },
     });
 
