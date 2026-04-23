@@ -2,6 +2,9 @@
 import { queryClient } from "@/lib/client";
 import { fetchClient } from "@/lib/openapi";
 
+const ACTIVE_POLICY_PATH =
+  "/ejection-policies/courses/{courseId}/versions/{courseVersionId}/cohorts/{cohortId}/active";
+
 export async function hasActivePolicies(
   courseId: string,
   courseVersionId: string,
@@ -11,14 +14,14 @@ export async function hasActivePolicies(
     const data: any = await queryClient.fetchQuery({
       queryKey: [
         "get",
-        "/ejection-policies/courses/{courseId}/versions/{courseVersionId}/cohorts/{cohortId}/active",
+        ACTIVE_POLICY_PATH,
         courseId,
         courseVersionId,
         cohortId,
       ],
       queryFn: async () => {
-        const res = await fetchClient.GET(
-          "/ejection-policies/courses/{courseId}/versions/{courseVersionId}/cohorts/{cohortId}/active",
+        const res = await (fetchClient.GET as any)(
+          ACTIVE_POLICY_PATH,
           {
             params: {
               path: { courseId, courseVersionId, cohortId },

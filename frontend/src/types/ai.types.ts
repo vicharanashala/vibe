@@ -1,4 +1,4 @@
-import { Face, Keypoint } from "@tensorflow-models/face-detection";
+import { Face } from "@tensorflow-models/face-detection";
 
 export interface BlurDetectionProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;

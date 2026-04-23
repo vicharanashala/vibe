@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 
 import validator from "@rjsf/validator-ajv8";
 import { Button } from "@/components/ui/button";

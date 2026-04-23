@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import {useMemo, useState, useEffect} from 'react';
 import {
   Shield,

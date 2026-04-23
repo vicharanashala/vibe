@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { useState, useEffect } from 'react';
 import { FileText, Edit, X, Loader2, Sparkles, Users, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';

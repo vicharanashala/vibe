@@ -1,6 +1,6 @@
 import { ComponentPropsWithoutRef, ReactNode } from "react";
 
-import { motion, MotionProps, Transition } from "motion/react";
+import { MotionProps, Transition } from "motion/react";
 
 export interface AnimatedGridPatternProps
   extends ComponentPropsWithoutRef<"svg"> {

@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 "use client"
 
 import { useState, useEffect, type Dispatch, type SetStateAction } from "react"

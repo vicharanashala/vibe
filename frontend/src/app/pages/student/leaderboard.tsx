@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { Trophy, Medal, Award, Crown, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";

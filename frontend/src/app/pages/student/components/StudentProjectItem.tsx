@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';

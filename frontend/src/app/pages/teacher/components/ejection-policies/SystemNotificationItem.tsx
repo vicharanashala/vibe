@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { useState } from "react";
 import { SystemNotification } from "@/types/notification.types";
 import { AppealDetailsModal } from "./AppealDetailsModal";

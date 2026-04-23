@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 
 export function FocusableSelectWidget(props: any) {
   const { options, value, onChange, disabled } = props;

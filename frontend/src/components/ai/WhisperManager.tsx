@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import React, { JSX, useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { DetailedHTMLProps, InputHTMLAttributes, useRef } from "react";

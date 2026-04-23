@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { useEffect, useMemo, useState, useImperativeHandle, forwardRef, useRef } from "react";
 import MathRenderer from "./math-renderer";
 

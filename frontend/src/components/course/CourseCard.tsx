@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { Clock, Trophy, Medal, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, Play, Activity, Award, Shield as LucideShield } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

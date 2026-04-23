@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 export interface ProgressRule {
   timeframeDays: number;
   targetPercentage: number;

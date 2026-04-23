@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { useParams, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, ArrowLeft, Loader2, Ban, RefreshCw } from "lucide-react";

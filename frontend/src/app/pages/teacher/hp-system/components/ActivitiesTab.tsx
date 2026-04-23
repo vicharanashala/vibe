@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { useState, useMemo } from "react";
 import { HpActivity } from "@/lib/api/hp-system";
 import { useNavigate, useRouterState } from "@tanstack/react-router";

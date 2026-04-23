@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { CourseInfo, CourseState } from '@/types/course.types';
 
@@ -29,7 +29,7 @@ export const useCourseStore = create<CourseState>()(
     }),
     {
       name: 'course-store', // unique name for localStorage
-      getStorage: () => localStorage,
+      storage: createJSONStorage(() => localStorage),
     }
   )
 );

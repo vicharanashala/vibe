@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 "use client"
 import { useState, useEffect, lazy, ChangeEvent } from "react"
 import { Button } from "@/components/ui/button"

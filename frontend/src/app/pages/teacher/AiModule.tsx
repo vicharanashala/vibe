@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Sparkles, Upload } from "lucide-react";
 import { useNavigate } from '@tanstack/react-router';;

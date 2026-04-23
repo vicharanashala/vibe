@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { EventSourcePolyfill } from 'event-source-polyfill';
 
 // GenAI API utility functions

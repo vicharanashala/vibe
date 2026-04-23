@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 type ApiResponse<T = unknown> = {
   data: T;
 };

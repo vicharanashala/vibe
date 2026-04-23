@@ -54,7 +54,7 @@ export async function detectVirtualCamera(
         confidence: "high",
         reason: `Suspicious active track label detected: "${trackLabel}"`,
         matchedLabel: trackLabel,
-        matchedDeviceId: track.getSettings?.().deviceId,
+        matchedDeviceId: track?.getSettings?.().deviceId,
       };
     }
 

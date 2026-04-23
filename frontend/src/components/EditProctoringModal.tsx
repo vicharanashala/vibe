@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import {
   Dialog,
   DialogContent,

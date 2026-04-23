@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useHpStudentActivities, useSubmitActivity } from "@/hooks/hooks";

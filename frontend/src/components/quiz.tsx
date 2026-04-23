@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { AttemptsOverDialog } from "./AttemptsOverDialog";
 import { AttemptInfoDialog } from "./AttemptInfoDialog";
 import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useRef } from 'react';

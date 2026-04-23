@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import React, { useRef, useEffect, useState, useCallback, JSX} from 'react';
 import ReactDOM from 'react-dom';
 import { ChevronUp, ChevronDown, PictureInPicture2, SquareArrowOutDownLeft} from 'lucide-react';

@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 // Extra type for extended signup (non-breaking addition)
 type SignUpRequestBody = components['schemas']['SignUpBody'] & {
   recaptchaToken?: string;

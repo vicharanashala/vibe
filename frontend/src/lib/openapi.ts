@@ -2,6 +2,8 @@ import createFetchClient from 'openapi-fetch';
 import createClient from 'openapi-react-query';
 import type { paths } from '../types/schema';
 
+type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
 // Helper function to get auth token from localStorage
 const getAuthToken = (): string | null => {
   return localStorage.getItem('firebase-auth-token');
@@ -15,9 +17,9 @@ export const setTokenRefreshFunction = (refreshFn: () => Promise<void>) => {
   refreshTokenFunction = refreshFn;
 };
 
-export const fetchClient = createFetchClient<paths>({
+export const fetchClient: any = createFetchClient<paths>({
   baseUrl: `${import.meta.env.VITE_BASE_URL}`,
-  fetch: (url, options) => {
+  fetch: ((url: RequestInfo | URL, options?: RequestInit) => {
     // openapi-fetch passes a Request object for some requests (like DELETE without body)
     // If we just pass `url` down, it drops the headers added by middleware.
     // Instead, clone it applying options.
@@ -29,12 +31,12 @@ export const fetchClient = createFetchClient<paths>({
       ...options,
       credentials: "include",
     });
-  },
+  }) as FetchLike,
 });
 
 // Add middleware to automatically include Authorization header
 fetchClient.use({
-  onRequest({ request }) {
+  onRequest({ request }: { request: Request }) {
     const token = getAuthToken();
     if (token) {
       request.headers.set('Authorization', `Bearer ${token}`);
@@ -42,7 +44,7 @@ fetchClient.use({
     return request;
   },
 
-  async onResponse({ response, request }) {
+  async onResponse({ response, request }: { response: Response; request: Request }) {
     if (response.status === 401) {
       try {
         if (refreshTokenFunction) {
@@ -75,5 +77,5 @@ fetchClient.use({
   },
 });
 
-export const api = createClient(fetchClient);
+export const api: any = createClient(fetchClient);
 

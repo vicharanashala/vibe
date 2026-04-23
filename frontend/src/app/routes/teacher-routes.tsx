@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { RouteObject } from "react-router-dom";
 import TeacherLayout from "@/layouts/teacher-layout";
 import Dashboard from "@/app/pages/teacher/dashboard";

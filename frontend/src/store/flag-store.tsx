@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { FlagState } from '@/types/flag.types';
 
@@ -30,7 +30,7 @@ export const useFlagStore = create<FlagState>()(
     }),
     {
       name: 'flag-store', // unique name for localStorage
-      getStorage: () => localStorage,
+      storage: createJSONStorage(() => localStorage),
     }
   )
 );

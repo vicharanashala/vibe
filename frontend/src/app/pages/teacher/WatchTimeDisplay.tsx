@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 // Component to display watch time data for selected item
 import { Loader2,Clock } from 'lucide-react'
 

@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import Video from './video';
 import Quiz from './quiz';

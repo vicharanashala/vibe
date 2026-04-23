@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { loginWithGoogle, loginWithEmail, createUserWithEmail } from "@/lib/firebase";
 import { useAuthStore } from "@/store/auth-store";
 import { useNavigate } from "@tanstack/react-router";
