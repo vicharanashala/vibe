@@ -549,6 +549,32 @@ class ProgressService extends BaseService {
     return null;
   }
 
+  public async recalculateGuruSetuProgressBulk(): Promise<any> {
+    const enrollments = await this.enrollmentRepo.findEnrollments({
+      courseId: new ObjectId(GURU_SETU_COURSE_ID),
+      courseVersionId: new ObjectId(GURU_SETU_VERSION_ID),
+      role: 'STUDENT',
+      isDeleted: { $ne: true },
+    });
+
+    if (!enrollments || enrollments.length === 0) {
+      return { message: 'No enrollments found for Guru Setu' };
+    }
+
+    
+    const totalItems = await this.itemRepo.getTotalItemsCount(
+      GURU_SETU_COURSE_ID,
+      GURU_SETU_VERSION_ID
+    );
+
+    return await this.updateEnrollmentProgressPercentBulk(
+      enrollments,
+      GURU_SETU_COURSE_ID,
+      GURU_SETU_VERSION_ID,
+      totalItems
+    );
+  }
+
   // Helper to calculate progress based on completed items
   private _calculateProgress(
     totalItems: number,

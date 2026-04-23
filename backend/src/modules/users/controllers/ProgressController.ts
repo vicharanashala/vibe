@@ -875,6 +875,23 @@ It returns an empty body with a 200 status code.
 
     return result;
   }
+
+  @Post('/progress/recalculate/gurusetu')
+  @HttpCode(200)
+  @OpenAPI({
+    summary: 'Recalculate Guru Setu student progress in bulk',
+    description:
+      'Recalculates and updates the progress of all students in the Guru Setu course.',
+  })
+  @Authorized()
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Failed to recalculate Guru Setu progress',
+    statusCode: 500,
+  })
+  async recalculateGuruSetuBulk(): Promise<any> {
+    return await this.progressService.recalculateGuruSetuProgressBulk();
+  }
+
   @OpenAPI({
     summary: 'Get module wise progress',
     description:

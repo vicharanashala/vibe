@@ -75,6 +75,9 @@ importers:
       '@types/nodemailer':
         specifier: ^6.4.17
         version: 6.4.17
+      archiver:
+        specifier: ^7.0.1
+        version: 7.0.1
       axios:
         specifier: ^1.9.0
         version: 1.10.0
@@ -190,6 +193,9 @@ importers:
       '@swc/helpers':
         specifier: ^0.5.17
         version: 0.5.17
+      '@types/archiver':
+        specifier: ^7.0.0
+        version: 7.0.0
       '@types/bcrypt':
         specifier: ^5.0.2
         version: 5.0.2

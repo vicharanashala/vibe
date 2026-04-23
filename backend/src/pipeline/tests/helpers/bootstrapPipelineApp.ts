@@ -184,14 +184,14 @@ export async function bootstrapPipelineApp(): Promise<BootstrappedPipelineApp> {
 
   const firebaseAuthBinding = await container.rebind(FirebaseAuthService);
   firebaseAuthBinding.toConstantValue({
-    verifyToken: async () => true,
+    verifyToken: async (token: string) => true,
     getUserIdFromReq: async (req: any) => {
       const token = authHeaderToToken(req?.headers?.authorization);
       const user = await getUserFromToken(token);
       return user._id.toString();
     },
     getCurrentUserFromToken: async (token: string) => getUserFromToken(token),
-  });
+  } as unknown as InstanceType<typeof FirebaseAuthService>);
 
   vi.spyOn(FirebaseAuthService.prototype, 'verifyToken').mockResolvedValue(true);
   vi.spyOn(FirebaseAuthService.prototype, 'getUserIdFromReq').mockImplementation(
