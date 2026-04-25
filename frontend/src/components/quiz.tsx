@@ -678,6 +678,18 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       return;
     }
     setFinshingQuiz(true);
+
+    const extractErrorMessage = (error: any): string => {
+      try {
+        return (
+          error?.message || error?.error?.message || error?.response?.data?.message ||
+          (typeof error === 'string' ? error : JSON.stringify(error))
+        );
+      } catch {
+        return 'Failed to submit quiz';
+      }
+    };
+
     try {
       // For non-skipped quizzes, save all answers first, then submit
       if (!isSkipped) {
@@ -695,7 +707,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       }
 
       const answersForSubmission = convertAnswersToSaveFormat();
-      const response = await submitQuiz({
+      const submitPayload = {
         params: { path: { quizId: processedQuizId, attemptId: attemptId } },
         body: {
           answers: answersForSubmission, isSkipped, courseId: currentCourse?.courseId,
@@ -703,7 +715,52 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           watchItemId: currentCourse?.watchItemId ?? undefined,
           cohortId: currentCourse?.cohortId??''
         }
-      });
+      };
+
+      let response;
+      try {
+        response = await submitQuiz(submitPayload);
+      } catch (submitErr: any) {
+        const submitErrorMessage = extractErrorMessage(submitErr);
+        const normalizedSubmitErrorMessage = submitErrorMessage.toLowerCase();
+        const isAlreadySubmittedError =
+          normalizedSubmitErrorMessage.includes('already been submitted') ||
+          normalizedSubmitErrorMessage.includes('already submitted');
+        const isInvalidParamsError = normalizedSubmitErrorMessage.includes('invalid params');
+        const isAttemptNotFoundError =
+          normalizedSubmitErrorMessage.includes('attempt with id') &&
+          normalizedSubmitErrorMessage.includes('not found');
+
+        if (isAlreadySubmittedError) {
+          const alreadySubmittedAlert = 'Your quiz was already submitted. Checking your latest status and moving to the next item.';
+          try {
+            window.alert(alreadySubmittedAlert);
+          } catch {
+            toast.info(alreadySubmittedAlert);
+          }
+          setFinshingQuiz(false);
+          onNext?.();
+          return;
+        }
+
+        // Try one safe recovery attempt for transient submit failures.
+        if (!isInvalidParamsError && !isAttemptNotFoundError) {
+          toast.info('We hit a submission issue. Retrying now...');
+          if (!isSkipped) {
+            try {
+              await saveQuiz({
+                params: { path: { quizId: processedQuizId, attemptId: attemptId } },
+                body: { answers: answersForSubmission, cohortId: currentCourse?.cohortId ?? '' }
+              });
+            } catch {
+              // Continue retry even if save fails.
+            }
+          }
+          response = await submitQuiz(submitPayload);
+        } else {
+          throw submitErr;
+        }
+      }
 
       // No response for skipped quiz!
       if (!response) {
@@ -747,12 +804,46 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
       setQuizCompleted(true);
       setFinshingQuiz(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to submit quiz:', err);
-        setQuizCompleted(false);
+      const errorMessage = extractErrorMessage(err);
+      const normalizedErrorMessage = errorMessage.toLowerCase();
+      const isAlreadySubmittedError =
+        normalizedErrorMessage.includes('already been submitted') ||
+        normalizedErrorMessage.includes('already submitted');
+      const isInvalidParamsError = normalizedErrorMessage.includes('invalid params');
+      const isAttemptNotFoundError = normalizedErrorMessage.includes('attempt with id') && normalizedErrorMessage.includes('not found');
+
+      const userFriendlyMessage = isInvalidParamsError
+        ? 'We could not submit your quiz because some required data is missing. Please refresh and try again.'
+        : isAttemptNotFoundError
+          ? 'We could not find your current quiz attempt. Please restart the quiz and try again.'
+          : 'We could not submit your quiz right now. Please try again.';
+
+      if (isAlreadySubmittedError) {
+        const alreadySubmittedAlert = 'Your quiz was already submitted. Checking your latest status and moving to the next item.';
+        try {
+          window.alert(alreadySubmittedAlert);
+        } catch {
+          toast.info(alreadySubmittedAlert);
+        }
+        setFinshingQuiz(false);
+        onNext?.();
+        return;
+      }
+
+      // Show backend-provided reason to the user
+      try {
+        window.alert(userFriendlyMessage);
+      } catch (e) {
+        // fallback to toast if alert unavailable
+        toast.error(userFriendlyMessage);
+      }
+      toast.error(userFriendlyMessage);
+      setQuizCompleted(false);
       setFinshingQuiz(false);
     }
-  }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem, saveQuiz]);
+  }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem, saveQuiz, onNext]);
 
   const handleNextQuestion = useCallback(async () => {
     setTimeLeft(0);
