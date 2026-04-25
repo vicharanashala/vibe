@@ -464,9 +464,18 @@ class AttemptService extends BaseService {
     let isFirst: Boolean;
     await this._withTransaction(async session => {
       // Save answers (this method should NOT start its own transaction anymore)
-      const saveResult = await this.save(userId, quizId, attemptId, answers, cohortId, isSkipped);
-      if (saveResult.status !== 'saved') {
-        throw new BadRequestError(saveResult.message || 'Failed to save answers');
+      const saveResult = await this.save(
+        userId,
+        quizId,
+        attemptId,
+        answers,
+        cohortId,
+        isSkipped,
+      );
+      if (saveResult?.status !== 'saved') {
+        throw new BadRequestError(
+          saveResult?.message ?? 'Failed to save answers',
+        );
       }
 
       // Fetch metrics inside transaction (it is being updated)
