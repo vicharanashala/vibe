@@ -11,7 +11,7 @@ import { ClientSession, Collection, ObjectId } from "mongodb";
 import { HpActivity, HpLedger, HpResetMode } from "#root/modules/hpSystem/models.js";
 import { HpActivitySubmission } from "#root/modules/hpSystem/classes/transformers/ActivitySubmission.js";
 import { toObjectId } from "#root/modules/hpSystem/utils/toObjectId.js";
-import { getHpLedgerOperationId } from "#root/modules/hpSystem/utils/getHpLedgerOperationId .js";
+import { getHpLedgerOperationId } from "#root/modules/hpSystem/utils/getHpLedgerOperationId.js";
 import { NotFoundError } from "routing-controllers";
 
 @injectable()

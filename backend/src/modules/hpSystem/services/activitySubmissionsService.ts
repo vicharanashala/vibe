@@ -16,7 +16,7 @@ import { ClientSession, ObjectId } from "mongodb";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { SubmissionFeedbackItem } from "../classes/transformers/ActivitySubmission.js";
 import { ID } from "../constants.js";
-import { getHpLedgerOperationId } from "../utils/getHpLedgerOperationId .js";
+import { getHpLedgerOperationId } from "../utils/getHpLedgerOperationId.js";
 import { ISettingRepository } from "#root/shared/database/interfaces/ISettingRepository.js";
 import { ICourseRepository } from "#root/shared/database/interfaces/ICourseRepository.js";
 
