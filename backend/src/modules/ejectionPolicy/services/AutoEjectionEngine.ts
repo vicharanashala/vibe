@@ -11,7 +11,7 @@ import {ManualEjectionService} from './ManualEjectionService.js';
 import {EjectionPolicy} from '../classes/transformers/EjectionPolicy.js';
 import {IEnrollment} from '#root/shared/interfaces/models.js';
 import {NotificationService} from '#root/modules/notifications/services/NotificationService.js';
-import {MailService} from '#root/modules/notifications/index.js';
+import {MailService} from '#root/modules/notifications/services/MailService.js';
 import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
 import {
   EnrollmentRepository,

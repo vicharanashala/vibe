@@ -82,7 +82,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       ? "vibe-support@vicharanashala.zohodesk"
       : "internship-support@vicharanashala.zohodesk";
 
-
+  // const progress = Math.round(enrollment.percentCompleted || 0) as number 
   const progress = Number(Math.min(enrollment.percentCompleted ?? 0, 100).toFixed(2));
 
   const hasAssignedTimeslot = enrollment.assignedTimeSlot &&
@@ -243,7 +243,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                     <div className="space-y-2">
                       <div className="flex justify-between items-center text-sm font-semibold">
 
-                        {enrollment.courseId !== "6981df886e100cfe04f9c4ad" && <> <span className="text-muted-foreground">Progress</span><span className="text-foreground">{progress.toFixed(0)}%</span></>}
+                        {enrollment.courseId !== "6981df886e100cfe04f9c4ad" && <> <span className="text-muted-foreground">Completion Percentage</span><span className="text-foreground">{progress.toFixed(0)}%</span></>}
                       </div>
 
                       {enrollment.courseId !== "6981df886e100cfe04f9c4ad" ? (<div className="h-2 w-full bg-[#F1F5F9] dark:bg-slate-800 rounded-full overflow-hidden">
@@ -419,7 +419,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] bg-white dark:bg-slate-900 rounded-[24px] p-6 border-2 border-primary/20 shadow-xl flex flex-col cursor-pointer" onClick={() => setIsFlipped(false)}>
             <div className="flex-1 overflow-y-auto scrollbar-hide pr-1">
               <div className="flex items-center justify-between mb-4">
-                <Badge className={cn("font-bold px-3 py-1", theme.bg, theme.icon.replace('text-', 'bg-').replace('[', '').replace(']', '/10'))}>
+                <Badge className={cn("font-bold px-3 py-1", theme.bg, theme.icon.replace('text-', 'bg-').replace(/\[/g, '').replace(/\]/g, '/10'))}>
                   Course Details
                 </Badge>
                 <div className="p-2 rounded-full bg-slate-100 dark:bg-slate-800">
@@ -561,15 +561,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
             hasAssignedTimeslot={!!hasAssignedTimeslot}
           />
         </div>
-        <StudentPolicyModal
-          open={showPolicies}
-          onClose={() => setShowPolicies(false)}
-          courseId={courseId}
-          courseVersionId={versionId}
-          cohortId={cohortId}
-          enrollmentDate={enrollment.enrollmentDate}
-          currentProgressPercent={progress}
-        />
       </div>
     );
   }

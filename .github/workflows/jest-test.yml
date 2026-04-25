@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -69,6 +73,14 @@ jobs:
         env:
           DB_URL: ${{ secrets.DB_URL }}
 
+      - name: Report Coverage on PR
+        if: ${{ always() && github.event.pull_request.head.repo.full_name == github.repository }}
+        uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          working-directory: backend
+          json-summary-path: coverage/coverage-summary.json
+          json-final-path: coverage/coverage-final.json
+
       - name: Remove IP from MongoDB Atlas Access List
         if: always()
         run: |
@@ -80,3 +92,46 @@ jobs:
           ATLAS_PUBLIC_KEY: ${{ secrets.ATLAS_PUBLIC_KEY }}
           ATLAS_PRIVATE_KEY: ${{ secrets.ATLAS_PRIVATE_KEY }}
           ATLAS_PROJECT_ID: ${{ secrets.ATLAS_PROJECT_ID }}
+
+  pipeline-test:
+    name: Run Pipeline E2E Tests
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout merged PR code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '23.11.0'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Remove lockfile
+        run: rm pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Create env file for emulator
+        working-directory: backend
+        run: |
+          touch .env
+          echo FIREBASE_AUTH_EMULATOR_HOST="127.0.0.1:9099" >> .env
+          echo FIREBASE_EMULATOR_HOST="127.0.0.1:4000" >> .env
+          echo GCLOUD_PROJECT="demo-test" >> .env
+
+      - name: Install Firebase CLI
+        working-directory: backend
+        run: npm install -g firebase-tools
+
+      - name: Start Firebase Emulator (Auth only)
+        working-directory: backend
+        run: |
+          nohup firebase emulators:start --only auth --project demo-test &
+          sleep 10
+
+      - name: Run pipeline tests
+        run: pnpm test:pipeline

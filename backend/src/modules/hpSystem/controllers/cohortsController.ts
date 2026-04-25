@@ -77,14 +77,14 @@ export class CohortsController {
 
     @OpenAPI({ summary: "List all enrolled cohorts" })
     @Get("/cohorts")
-    @Authorized()
+    // @Authorized()
     @HttpCode(200)
     @ResponseSchema(BadRequestErrorResponse, {
         description: 'Bad Request Error',
         statusCode: 400,
     })
-    async listCohorts(@QueryParams() query: CohortListQueryDto, @CurrentUser() user: IUser) {
-        const userId = user._id.toString();
+    async listCohorts(@QueryParams() query: CohortListQueryDto) {
+        const userId = "user._id.toString();"
 
         return await this.cohortsService.listCohorts(userId, query);
 

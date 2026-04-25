@@ -1969,7 +1969,12 @@ export function useStopItem() {
     "post",
     "/users/progress/courses/{courseId}/versions/{courseVersionId}/stop",
     {
-      retry: 5,
+      retry: (failureCount, error: any) => {
+        // 404 = watch time not found / already stopped — treat as success, don't retry
+        const status = error?.status ?? error?.response?.status;
+        if (status === 404) return false;
+        return failureCount < 5;
+      },
       retryDelay: (attempt) => 1000 * attempt,
 
       onSuccess: (_data, variables) => {
@@ -4868,7 +4873,8 @@ export function useGetUnreadApprovedRegistrations(studentId: string): {
     }
   }, {
     enabled: !!studentId,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    refetchInterval: 30000
   });
 
   return {
@@ -4942,7 +4948,12 @@ export function useMarkNotificationAsRead(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("patch", "/course/registration/notifications/{registrationId}/read");
+  const queryClient = useQueryClient();
+  const result = api.useMutation("patch", "/course/registration/notifications/{registrationId}/read", {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["get", "/course/registration/notifications/unread"] });
+    }
+  });
 
   return {
     ...result,

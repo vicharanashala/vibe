@@ -104,8 +104,7 @@ function generateDefaultItemNames(items: any[]) {
 // Component to display progress for each enrolled user
 // Accepts either a number (percent or fraction) or an object with a progress property
 function EnrollmentProgress(props: { progress: number }) {
-  // Support both direct number and object prop
-  const progress = props.progress;
+  const progress = Math.min(props.progress, 100);
   return (
     <div className={`flex  items-center gap-4 sm:w-40 w-full ${getProgressBg(progress)}`}>
       <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden shadow-inner">
@@ -1669,7 +1668,7 @@ function CourseEnrollments() {
                       <>
                         <div className="flex justify-between items-center mb-3">
                           <p className="text-sm text-muted-foreground">Completion</p>
-                          <EnrollmentProgress progress={Math.min(selectedUser?.progress ?? progressDetail?.percentCompleted ?? 0, 100)} />
+                          <EnrollmentProgress progress={progressDetail?.percentCompleted ?? 0} /> 
                         </div>
                         <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                           <SummaryRow label="Total Items" value={progressDetail.contentCounts?.totalItems ?? 0} />
@@ -1680,15 +1679,11 @@ function CourseEnrollments() {
                           <SummaryRow label="Feedbacks" value={progressDetail.contentCounts?.itemCounts?.FEEDBACK ?? 0} />
                           <SummaryRow
                             label="Quiz Score"
-                            value={`${(progressDetail.totalQuizScore ?? 0).toFixed(2)} / ${(progressDetail.totalQuizMaxScore ?? 0).toFixed(2)}`}
+                            value={`${Number(progressDetail.totalQuizScore ?? 0).toFixed(2)} / ${progressDetail.totalQuizMaxScore ?? 0}`}
                           />
                           <SummaryRow
                             label="Items Completed"
-                            value={`${Math.min(selectedUser?.completedItemsCount ?? progressDetail.completedItemsCount ?? 0, progressDetail.contentCounts?.totalItems ?? 0)} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
-                          />
-                          <SummaryRow
-                            label="Watch Hours"
-                            value={`${(progressDetail.watchHours ?? 0).toFixed(2)}h`}
+                            value={`${Math.min(progressDetail.completedItemsCount ?? 0, progressDetail.contentCounts?.totalItems ?? 0)} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
                           />
                         </div>
                       </>

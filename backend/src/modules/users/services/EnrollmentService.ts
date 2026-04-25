@@ -1,5 +1,5 @@
 import { COURSES_TYPES } from '#courses/types.js';
-import { InviteStatus } from '#root/modules/notifications/index.js';
+import { InviteStatus } from '#root/modules/notifications/classes/validators/InviteValidators.js';
 import { BaseService } from '#root/shared/classes/BaseService.js';
 import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
 import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
@@ -717,19 +717,18 @@ export class EnrollmentService extends BaseService {
         // };
         // const itemCounts = enr.courseVersion?.itemCounts || {};
         const ratio = completedCount / (enr.totalItems || 1);
-        // const calculatedPercent = Number((ratio * 100).toFixed(2));
-        const hpSystem = hpSystemMap.get(versionIdStr) ?? false;
+        const calculatedPercent = Math.min(Number((ratio * 100).toFixed(2)), 100);
 
-        // if (enr.percentCompleted !== calculatedPercent) {
-        //   void this.enrollmentRepo.updateProgressPercentById(
-        //     enr._id.toString(),
-        //     calculatedPercent,
-        //     completedCount,
-        //     enr.cohortId?.toString(),
-        //   );
-        //   enr.percentCompleted = calculatedPercent;
-        //   enr.completedItemsCount = completedCount;
-        // }
+        if (enr.percentCompleted !== calculatedPercent) {
+          void this.enrollmentRepo.updateProgressPercentById(
+            enr._id.toString(),
+            calculatedPercent,
+            completedCount,
+            enr.cohortId?.toString(),
+          );
+          enr.percentCompleted = calculatedPercent;
+          enr.completedItemsCount = completedCount;
+        }
 
         if (enr.percentCompleted >= 0) {
           return {
@@ -754,7 +753,7 @@ export class EnrollmentService extends BaseService {
             hasNewItemsAfterCompletion: enr.hasNewItemsAfterCompletion || false,
             policyReacknowledgementRequired:
               enr.policyReacknowledgementRequired ?? false,
-            hpSystem,
+            hpSystem: hpSystemMap.get(versionIdStr) ?? false,
           };
         }
       });
@@ -899,16 +898,14 @@ export class EnrollmentService extends BaseService {
           const completedCount = watchedItemsMap.get(watchedKey) || 0;
 
           const ratio = completedCount / (enr.totalItems || 1);
-          let calculatedPercent = Number((ratio * 100).toFixed(2));
+          let calculatedPercent = Math.min(Number((ratio * 100).toFixed(2)), 100);
           let totalCompletedItemsCount = completedCount;
 
           // Guru Setu Override
-          // console.log(`Checking Guru Setu for course ${enr.courseId?.toString()} and version ${versionIdStr}`);
           if (
             enr.courseId?.toString() === GURU_SETU_COURSE_ID &&
             versionIdStr === GURU_SETU_VERSION_ID
           ) {
-            // console.log(`Guru Setu Match Found for user ${userId}`);
             const guruProgress =
               await this.progressService.calculateGuruSetuProgress(
                 userId,
@@ -918,46 +915,42 @@ export class EnrollmentService extends BaseService {
             totalCompletedItemsCount = guruProgress.completedItemsCount;
           }
 
-          // if (enr.percentCompleted !== calculatedPercent) {
-          //   void this.enrollmentRepo.updateProgressPercentById(
-          //     enr._id.toString(),
-          //     calculatedPercent,
-          //     totalCompletedItemsCount,
-          //     enr.cohortId?.toString(),
-          //   );
-
-          //   enr.percentCompleted = calculatedPercent;
-          //   enr.completedItemsCount = totalCompletedItemsCount;
-          // }
-
-          if (enr.percentCompleted >= 0) {
-            let itemCounts = enr.itemCounts || {};
-            let totalItems = Number(enr.totalItems ?? 0);
-
-            const hasItemCounts = Object.values(itemCounts).some(
-              (count: any) => Number(count) > 0,
+          if (enr.percentCompleted !== calculatedPercent) {
+            void this.enrollmentRepo.updateProgressPercentById(
+              enr._id.toString(),
+              calculatedPercent,
+              totalCompletedItemsCount,
+              enr.cohortId?.toString(),
             );
+          }
 
-            if (totalItems <= 0 || !hasItemCounts) {
-              if (!itemCountsFallbackCache.has(versionIdStr)) {
-                const fallback =
-                  await this.itemRepo.calculateItemCountsForVersion(
-                    versionIdStr,
-                  );
-                itemCountsFallbackCache.set(versionIdStr, {
-                  totalItems: Number(fallback.totalItems ?? 0),
-                  itemCounts: fallback.itemCounts ?? {},
-                });
-              }
+          let itemCounts = enr.itemCounts || {};
+          let totalItems = Number(enr.totalItems ?? 0);
 
-              const fallback = itemCountsFallbackCache.get(versionIdStr)!;
-              if (totalItems <= 0) {
-                totalItems = fallback.totalItems;
-              }
-              if (!hasItemCounts) {
-                itemCounts = fallback.itemCounts;
-              }
+          const hasItemCounts = Object.values(itemCounts).some(
+            (count: any) => Number(count) > 0,
+          );
+
+          if (totalItems <= 0 || !hasItemCounts) {
+            if (!itemCountsFallbackCache.has(versionIdStr)) {
+              const fallback =
+                await this.itemRepo.calculateItemCountsForVersion(
+                  versionIdStr,
+                );
+              itemCountsFallbackCache.set(versionIdStr, {
+                totalItems: Number(fallback.totalItems ?? 0),
+                itemCounts: fallback.itemCounts ?? {},
+              });
             }
+
+            const fallback = itemCountsFallbackCache.get(versionIdStr)!;
+            if (totalItems <= 0) {
+              totalItems = fallback.totalItems;
+            }
+            if (!hasItemCounts) {
+              itemCounts = fallback.itemCounts;
+            }
+          }
 
             const completedByType = watchedItemsByTypeMap.get(watchedKey) || {
               videos: 0,
@@ -975,7 +968,7 @@ export class EnrollmentService extends BaseService {
               enrollmentDate: new Date(enr.enrollmentDate),
               course: this.filterCourseVersions(enr.course, enrolledVersionIds),
               // courseVersion: enr.courseVersion,
-              percentCompleted: enr.percentCompleted || 0,
+              percentCompleted: calculatedPercent,
               assignedTimeSlot: enr.assignedTimeSlots,
               moduleNumber: enr.moduleNumber,
               sectionNumber: enr.sectionNumber,
@@ -1003,7 +996,6 @@ export class EnrollmentService extends BaseService {
 
               completedItems: watchedItemsMap.get(watchedKey) || 0,
             };
-          }
         }),
       );
 
@@ -1194,19 +1186,29 @@ export class EnrollmentService extends BaseService {
           });
         });
 
+        console.log('[QuizScore Debug] courseVersionId:', courseVersionId);
+        console.log('[QuizScore Debug] itemGroupIds:', itemGroupIds);
+
         if (itemGroupIds.length > 0) {
           const quizInfo = await this.itemRepo.getQuizInfo(itemGroupIds);
+          console.log('[QuizScore Debug] quizInfo:', JSON.stringify(quizInfo));
           const allQuizIds = quizInfo
             .filter((quiz: any) => quiz.items?._id)
             .map((quiz: any) => quiz.items._id.toString());
+
+          console.log('[QuizScore Debug] allQuizIds:', allQuizIds);
+          console.log('[QuizScore Debug] userId:', userId);
 
           if (allQuizIds.length > 0) {
             const quizSubmissions =
               await this.enrollmentRepo.getBatchQuizSubmissionGrades(
                 [userId],
                 allQuizIds,
-                cohortId ? [cohortId] : undefined,
+                undefined // don't filter by cohort — fetch all submissions for this student
               );
+
+            console.log('[QuizScore Debug] quizSubmissions count:', quizSubmissions.length);
+            console.log('[QuizScore Debug] quizSubmissions:', JSON.stringify(quizSubmissions));
 
             quizSubmissions.forEach((submission: any) => {
               const gradingResult = submission.gradingResult;

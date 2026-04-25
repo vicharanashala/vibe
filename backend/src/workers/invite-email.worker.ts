@@ -16,7 +16,7 @@ import {
 import {
   InviteService,
   MailService,
-} from "#root/modules/notifications/index.js";
+} from "#root/modules/notifications/services/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { AttemptRepository, QuestionBankRepository, QuizRepository, SubmissionRepository, UserQuizMetricsRepository } from "#root/modules/quizzes/repositories/index.js";
 import { AnomalyRepository } from "#root/modules/anomalies/index.js";
@@ -66,7 +66,7 @@ const ledgerRepo = new LedgerRepository(database);
 const inviteRepo = new InviteRepository(database)
 const progressRepo = new ProgressRepository(database)
 const attemptRepo = new AttemptRepository(database)
-const enrollmentRepo = new EnrollmentRepository(attemptRepo, database)
+const enrollmentRepo = new EnrollmentRepository(attemptRepo, database, progressRepo)
 const anomalyRepo = new AnomalyRepository(database)
 const settingsRepo = new SettingRepository(database)
 const courseRegistrationRepo = new CourseRegistrationRepository(database)

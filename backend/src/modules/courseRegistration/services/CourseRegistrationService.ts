@@ -23,11 +23,9 @@ import {
   MongoDatabase,
 } from '#root/shared/index.js';
 import {COURSE_REGISTRATION_TYPES} from '../types.js';
-import {
-  Invite,
-  InviteService,
-  MailService,
-} from '#root/modules/notifications/index.js';
+import { Invite } from '#root/modules/notifications/classes/transformers/Invite.js';
+import { InviteService } from '#root/modules/notifications/services/InviteService.js';
+import { MailService } from '#root/modules/notifications/services/MailService.js';
 import {ClientSession, ObjectId} from 'mongodb';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {COURSES_TYPES} from '#root/modules/courses/types.js';

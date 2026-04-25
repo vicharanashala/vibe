@@ -7,7 +7,7 @@ import {USERS_TYPES} from '#root/modules/users/types.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
 import {NotificationService} from '#root/modules/notifications/services/NotificationService.js';
 import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
-import {MailService} from '#root/modules/notifications/index.js';
+import {MailService} from '#root/modules/notifications/services/MailService.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {ICourseRepository, UserRepository} from '#root/shared/index.js';
 

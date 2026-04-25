@@ -16,7 +16,7 @@ import {InternalServerError, NotFoundError} from 'routing-controllers';
 import {CourseVersionService} from './CourseVersionService.js';
 import {ActiveUserDto, CreateCourseVersionBody} from '../classes/index.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
-import {InviteService} from '#root/modules/notifications/index.js';
+import {InviteService} from '#root/modules/notifications/services/InviteService.js';
 import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
 import {SETTING_TYPES} from '#root/modules/setting/types.js';
 import {

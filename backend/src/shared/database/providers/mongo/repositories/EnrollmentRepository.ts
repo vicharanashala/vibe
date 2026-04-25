@@ -1,22 +1,10 @@
-import {
-  EnrollmentRole,
-  EnrollmentStatus,
-  IEnrollment,
-  IProgress,
-  ICourseVersion,
-  IWatchTime,
-  IUser,
-  ID,
-  courseVersionStatus,
-  IUserActivityEvent,
-} from '#shared/interfaces/models.js';
+import { EnrollmentRole, EnrollmentStatus, IEnrollment, IProgress, ICourseVersion, IWatchTime, IUser, ID, courseVersionStatus, IUserActivityEvent } from '#shared/interfaces/models.js';
+import { IReport } from '#shared/interfaces/reports.js';
+import { UserEnrollmentStatisticsResponse } from '#root/modules/users/classes/validators/EnrollmentValidators.js';
 import { injectable, inject } from 'inversify';
 import { ClientSession, Collection, ObjectId, OptionalId } from 'mongodb';
-import {
-  BadRequestError,
-  InternalServerError,
-  NotFoundError,
-} from 'routing-controllers';
+import { BadRequestError, InternalServerError, NotFoundError } from 'routing-controllers';
+import { IProjectSubmission } from '#root/modules/projects/repositories/model.js';
 import { MongoDatabase } from '../MongoDatabase.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { EnrollmentStats } from '#root/modules/users/types.js';
@@ -37,9 +25,8 @@ import {
 import { AttemptRepository } from '#root/modules/quizzes/repositories/index.js';
 import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import { IQuestionBank } from '#root/shared/interfaces/quiz.js';
-import { IProjectSubmission } from '#root/modules/projects/repositories/model.js';
-import { IReport } from '#root/shared/interfaces/reports.js';
-import { UserEnrollmentStatisticsResponse } from '#root/modules/users/classes/index.js';
+import { ProgressRepository } from './ProgressRepository.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
 
 @injectable()
 export class EnrollmentRepository {
@@ -62,6 +49,7 @@ export class EnrollmentRepository {
     @inject(QUIZZES_TYPES.AttemptRepo)
     private attemptRepository: AttemptRepository,
     @inject(GLOBAL_TYPES.Database) private db: MongoDatabase,
+    @inject(USERS_TYPES.ProgressRepo) private progressRepo: ProgressRepository,
   ) { }
 
   private async init() {
@@ -1753,7 +1741,7 @@ export class EnrollmentRepository {
           userId: { $in: [userId, userIdObj] },
           courseId: { $in: [courseId, courseIdObj] },
           courseVersionId: { $in: [courseVersionId, versionIdObj] },
-          ...(cohortIdObj ? { cohortId: cohortIdObj } : { cohortId: null }),
+          ...(cohortIdObj ? { cohortId: cohortIdObj } : {}),
           role: 'STUDENT',
         },
       },
@@ -1809,91 +1797,25 @@ export class EnrollmentRepository {
           },
         },
       },
-      // include watch hours for the student within this course/version
-      {
-        $lookup: {
-          from: 'watchTime',
-          let: { uid: '$userId' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ['$userId', { $toObjectId: '$$uid' }] },
-                    { $in: ['$courseId', [courseId, courseIdObj]] },
-                    {
-                      $in: [
-                        '$courseVersionId',
-                        [courseVersionId, versionIdObj],
-                      ],
-                    },
-                    { $ne: ['$isDeleted', true] },
-                    { $ne: ['$endTime', null] },
-                    ...(cohortIdObj
-                      ? [{ $eq: ['$cohortId', cohortIdObj] }]
-                      : [
-                        {
-                          $or: [
-                            { $eq: ['$cohortId', null] },
-                            { $not: ['$cohortId'] },
-                          ],
-                        },
-                      ]),
-                  ],
-                },
-              },
-            },
-            {
-              $project: {
-                duration: {
-                  $divide: [{ $subtract: ['$endTime', '$startTime'] }, 3600000],
-                },
-              },
-            },
-            {
-              $group: {
-                _id: null,
-                totalHours: { $sum: '$duration' },
-              },
-            },
-          ],
-          as: 'watchInfo',
-        },
-      },
-      {
-        $addFields: {
-          watchHours: {
-            $round: [
-              { $ifNull: [{ $arrayElemAt: ['$watchInfo.totalHours', 0] }, 0] },
-              2,
-            ],
-          },
-        },
-      },
-      { $project: { watchInfo: 0 } },
       { $limit: 1 },
     ];
 
     const result = await this.enrollmentCollection
-      .aggregate(pipeline, { session })
+      .aggregate<any>(pipeline, { session })
       .toArray();
 
-    if (result[0]) {
-      console.debug(
-        'Student progress detail for user',
-        userId,
-        'course',
-        courseId,
-        'version',
-        courseVersionId,
-        'watchHours=',
-        result[0].watchHours,
-        'cohortId=',
-        result[0].cohortId,
-      );
-    }
+    if (!result[0]) return null;
 
-    return result[0] || null;
+    const watchHours = await this.progressRepo.getStudentWatchHours(
+      userId,
+      courseId,
+      courseVersionId,
+      session,
+    );
+
+    console.debug('Student progress detail for user', userId, 'course', courseId, 'version', courseVersionId, 'watchHours=', watchHours);
+
+    return { ...result[0], watchHours };
   }
 
   /**
@@ -2038,76 +1960,20 @@ export class EnrollmentRepository {
       averageProgressPercent: 0,
     };
 
-    // second aggregation to compute average watch hours per user for this course version
-    const watchAgg = await this.watchTimeCollection
-      .aggregate<{
-        averageWatchHoursPerUser: number;
-      }>(
-        [
-          {
-            $match: {
-              $expr: {
-                $and: [
-                  { $in: ['$courseId', [courseId, new ObjectId(courseId)]] },
-                  {
-                    $in: [
-                      '$courseVersionId',
-                      [courseVersionId, new ObjectId(courseVersionId)],
-                    ],
-                  },
-                  { $ne: ['$isDeleted', true] },
-                  { $ne: ['$endTime', null] },
-                ],
-              },
-            },
-          },
-          {
-            $project: {
-              userId: 1,
-              duration: {
-                $divide: [
-                  { $subtract: ['$endTime', '$startTime'] },
-                  3600000, // convert ms to hours
-                ],
-              },
-            },
-          },
-          {
-            $group: {
-              _id: '$userId',
-              totalHours: { $sum: '$duration' },
-            },
-          },
-          {
-            $group: {
-              _id: null,
-              averageWatchHoursPerUser: { $avg: '$totalHours' },
-            },
-          },
-          {
-            $project: { _id: 0, averageWatchHoursPerUser: 1 },
-          },
-        ],
-        { session },
-      )
-      .toArray();
-
-    const watchStats = watchAgg[0] || { averageWatchHoursPerUser: 0 };
-    // debug log
-    console.debug(
-      'Computed averageWatchHoursPerUser for course',
+    // Delegate to ProgressRepository — single source of truth for watch hours computation
+    const averageWatchHoursPerUser = await this.progressRepo.getAverageWatchHoursForVersion(
       courseId,
       courseVersionId,
-      watchStats.averageWatchHoursPerUser,
+      session,
     );
+
+    console.debug('Computed averageWatchHoursPerUser for course', courseId, courseVersionId, averageWatchHoursPerUser);
 
     return {
       totalEnrollments: baseStats.totalEnrollments,
       completedCount: baseStats.completedCount,
       averageProgressPercent: baseStats.averageProgressPercent,
-      averageWatchHoursPerUser: Number(
-        (watchStats.averageWatchHoursPerUser || 0).toFixed(2),
-      ),
+      averageWatchHoursPerUser,
     };
   }
 
@@ -2339,10 +2205,9 @@ export class EnrollmentRepository {
   ): Promise<void> {
     await this.init();
     try {
-      const result = await this.enrollmentCollection.bulkWrite(bulkOperations, {
+      await this.enrollmentCollection.bulkWrite(bulkOperations, {
         session,
       });
-      console.log(`Enrollment bulk update result: ${JSON.stringify(result)}`);
     } catch (error) {
       throw new InternalServerError(
         'Failed to bulk update enrollments.\n More Details: ' + error,
@@ -3788,7 +3653,7 @@ export class EnrollmentRepository {
               quizId: { $in: quizObjectIds },
               ...(cohortObjectIds?.length
                 ? { cohortId: { $in: cohortObjectIds } }
-                : { cohortId: null }),
+                : {}),
               'gradingResult.totalScore': { $exists: true },
             },
           },
@@ -5556,6 +5421,7 @@ export class EnrollmentRepository {
                 $cond: [{ $eq: ['$percentCompleted', 100] }, 1, 0],
               },
             },
+            completedItems: { $sum: { $ifNull: ['$completedItemsCount', 0] } },
             overallProgress: { $avg: '$percentCompleted' },
           },
         },
@@ -5564,6 +5430,7 @@ export class EnrollmentRepository {
             _id: 0,
             totalCourses: 1,
             completedCourses: 1,
+            completedItems: 1,
             overallProgress: { $round: ['$overallProgress', 2] },
           },
         },
@@ -5574,6 +5441,7 @@ export class EnrollmentRepository {
       stats[0] ?? {
         totalCourses: 0,
         completedCourses: 0,
+        completedItems: 0,
         overallProgress: 0,
       }
     );

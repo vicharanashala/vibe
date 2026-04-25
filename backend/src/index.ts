@@ -1,3 +1,16 @@
+// Patch SlowBuffer for buffer-equal-constant-time compatibility (Node.js v10+)
+import { Buffer } from 'buffer';
+// Type-safe polyfill for Buffer.SlowBuffer for legacy dependencies
+interface BufferConstructorWithSlowBuffer extends BufferConstructor {
+  SlowBuffer?: (size: number) => Buffer;
+}
+const BufferWithSlow = Buffer as BufferConstructorWithSlowBuffer;
+if (!BufferWithSlow.SlowBuffer) {
+  BufferWithSlow.SlowBuffer = function(size: number) {
+    return Buffer.allocUnsafe(size);
+  };
+}
+if (typeof globalThis.Buffer === 'undefined') { (globalThis).Buffer = Buffer; }
 import 'reflect-metadata';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 console.log(`Loading Sentry for ${NODE_ENV} environment`);

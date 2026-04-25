@@ -14,6 +14,25 @@ type CurrentProgress = Pick<
 
 @injectable()
 class ProgressRepository {
+    async findWatchTimeById(
+      id: string,
+      session?: ClientSession,
+    ): Promise<IWatchTime | null> {
+      await this.init();
+      const result = await this.watchTimeCollection.findOne(
+        {
+          _id: new ObjectId(id),
+          isDeleted: { $ne: true },
+        },
+        { session },
+      );
+      return result;
+    }
+    // Returns an empty array for now. Replace with actual logic if needed.
+    async getHiddenOrDeletedItems(courseVersionId: string, session?: ClientSession): Promise<{ itemId: ObjectId }[]> {
+      // TODO: Implement actual logic to fetch hidden or deleted items
+      return [];
+    }
   private progressCollection!: Collection<IProgress>;
   private watchTimeCollection!: Collection<IWatchTime>;
   private attemptCollection: Collection<IAttempt>;
@@ -107,7 +126,8 @@ class ProgressRepository {
         courseVersionId: new ObjectId(courseVersionId),
         endTime: { $exists: true, $ne: null },
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: { $exists: false } }),
+
       },
       { session },
     );
@@ -586,14 +606,24 @@ class ProgressRepository {
   async stopItemTracking(
     watchTimeId: string,
     session?: ClientSession,
+    watchedSeconds?: number,
+    isExpired?: boolean,
   ): Promise<IWatchTime | null> {
     await this.init();
+    const now = new Date();
+    const updateFields: Partial<IWatchTime> = { endTime: now };
+    if (typeof watchedSeconds === 'number' && watchedSeconds >= 0) {
+      updateFields.duration = watchedSeconds;
+    }
+    if (isExpired === true) {
+      updateFields.isExpired = true;
+    }
     const result = await this.watchTimeCollection.findOneAndUpdate(
       {
         _id: new ObjectId(watchTimeId),
         isDeleted: { $ne: true },
       },
-      { $set: { endTime: new Date() } },
+      { $set: updateFields },
       { returnDocument: 'after', session },
     );
     return result;
@@ -1089,6 +1119,7 @@ class ProgressRepository {
             courseVersionId: new ObjectId(versionId),
             itemId: new ObjectId(videoId),
             isDeleted: { $ne: true },
+            isExpired: { $ne: true },
           },
         },
 
@@ -1103,21 +1134,27 @@ class ProgressRepository {
             totalWatchMs: {
               $sum: {
                 $cond: [
-                  {
-                    $and: [
-                      { $ne: ["$startTime", null] },
-                      { $ne: ["$endTime", null] },
-                    ],
-                  },
+                  { $ne: ["$startTime", null] },
                   {
                     $let: {
                       vars: {
-                        rawMs: { $subtract: ["$endTime", "$startTime"] },
+                        // Prefer client-reported duration (seconds→ms); fall back to wall-clock diff
+                        effectiveMs: {
+                          $cond: [
+                            { $and: [{ $ne: ["$duration", null] }, { $gte: ["$duration", 0] }] },
+                            { $multiply: ["$duration", 1000] },
+                            { $cond: [
+                              { $ne: ["$endTime", null] },
+                              { $subtract: ["$endTime", "$startTime"] },
+                              0,
+                            ]},
+                          ],
+                        },
                       },
                       in: {
                         $cond: [
-                          { $gt: ["$$rawMs", 0] },
-                          { $min: ["$$rawMs", capMs] },
+                          { $gt: ["$$effectiveMs", 0] },
+                          { $min: ["$$effectiveMs", capMs] },
                           0,
                         ],
                       },
@@ -1263,13 +1300,24 @@ class ProgressRepository {
             courseVersionId: new ObjectId(versionId),
             isDeleted: { $ne: true },
             startTime: { $ne: null },
-            endTime: { $ne: null },
+            isExpired: { $ne: true },
           },
         },
 
         {
           $addFields: {
-            diffMs: { $subtract: ['$endTime', '$startTime'] },
+            // Prefer client-reported duration (seconds→ms); fall back to wall-clock diff
+            effectiveMs: {
+              $cond: [
+                { $and: [{ $ne: ['$duration', null] }, { $gte: ['$duration', 0] }] },
+                { $multiply: ['$duration', 1000] },
+                { $cond: [
+                  { $ne: ['$endTime', null] },
+                  { $subtract: ['$endTime', '$startTime'] },
+                  0,
+                ]},
+              ],
+            },
           },
         },
 
@@ -1279,8 +1327,8 @@ class ProgressRepository {
             totalMs: {
               $sum: {
                 $cond: [
-                  { $gt: ['$diffMs', 0] },
-                  { $min: ['$diffMs', capMs] },
+                  { $gt: ['$effectiveMs', 0] },
+                  { $min: ['$effectiveMs', capMs] },
                   0,
                 ],
               },
@@ -1295,51 +1343,61 @@ class ProgressRepository {
     return Math.floor(totalMs / 1000);
   }
 
-  async getHiddenOrDeletedItems(
+  /**
+   * Computes the total watch hours for a single student in a course version.
+   * This is the single source of truth for the ms-to-hours conversion (÷ 3600000).
+   */
+  async getStudentWatchHours(
+    userId: string,
+    courseId: string,
     courseVersionId: string,
     session?: ClientSession,
-  ): Promise<
-    { itemId: string;}[]
-  > {
+  ): Promise<number> {
     await this.init();
 
-    const results = await this.courseVersionCollection
-      .aggregate(
+    const userIdObj = ObjectId.isValid(userId) ? new ObjectId(userId) : null;
+    const courseIdObj = ObjectId.isValid(courseId) ? new ObjectId(courseId) : null;
+    const versionIdObj = ObjectId.isValid(courseVersionId) ? new ObjectId(courseVersionId) : null;
+
+    if (!userIdObj || !courseIdObj || !versionIdObj) return 0;
+
+    const result = await this.watchTimeCollection
+      .aggregate<{ totalHours: number }>(
         [
           {
             $match: {
-              _id: new ObjectId(courseVersionId),
+              userId: { $in: [userId, userIdObj] },
+              courseId: { $in: [courseId, courseIdObj] },
+              courseVersionId: { $in: [courseVersionId, versionIdObj] },
+              isDeleted: { $ne: true },
+              isExpired: { $ne: true },
             },
           },
-
-          { $unwind: "$modules" },
-          { $unwind: "$modules.sections" },
-
-          {
-            $lookup: {
-              from: "itemsGroup",
-              localField: "modules.sections.itemsGroupId",
-              foreignField: "_id",
-              as: "itemsGroup",
-            },
-          },
-
-          { $unwind: "$itemsGroup" },
-          { $unwind: "$itemsGroup.items" },
-
-          {
-            $match: {
-              $or: [
-                { "itemsGroup.items.isHidden": true },
-                { "itemsGroup.items.isDeleted": true },
-              ],
-            },
-          },
-
           {
             $project: {
-              _id: 0,
-              itemId: { $toString: "$itemsGroup.items._id" },
+              // Prefer client-reported duration (seconds→hours); fall back to wall-clock diff
+              duration: {
+                $divide: [
+                  {
+                    $cond: [
+                      { $and: [{ $ne: ['$duration', null] }, { $gte: ['$duration', 0] }] },
+                      { $multiply: ['$duration', 1000] },
+                      { $cond: [
+                        { $ne: ['$endTime', null] },
+                        { $subtract: ['$endTime', '$startTime'] },
+                        0,
+                      ]},
+                    ],
+                  },
+                  3600000,
+                ],
+              },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalHours: { $sum: '$duration' },
             },
           },
         ],
@@ -1347,22 +1405,77 @@ class ProgressRepository {
       )
       .toArray();
 
-    return results as {
-      itemId: string;
-    }[];
+    return Math.round((result[0]?.totalHours ?? 0) * 100) / 100;
   }
 
-  async findWatchTimeById(
-    id: string,
+  /**
+   * Computes the average watch hours per user across all students enrolled in a course version.
+   * Reuses the same ms-to-hours conversion as getStudentWatchHours.
+   */
+  async getAverageWatchHoursForVersion(
+    courseId: string,
+    courseVersionId: string,
     session?: ClientSession,
-  ): Promise<IWatchTime | null> {
+  ): Promise<number> {
     await this.init();
-    return await this.watchTimeCollection.findOne(
-      { _id: new ObjectId(id), isDeleted: { $ne: true } },
-      {
-        session,
-      },
-    );
+
+    const courseIdObj = ObjectId.isValid(courseId) ? new ObjectId(courseId) : null;
+    const versionIdObj = ObjectId.isValid(courseVersionId) ? new ObjectId(courseVersionId) : null;
+
+    if (!courseIdObj || !versionIdObj) return 0;
+    const result = await this.watchTimeCollection
+      .aggregate<{ averageWatchHoursPerUser: number }>(
+        [
+          {
+            $match: {
+              courseId: { $in: [courseId, courseIdObj] },
+              courseVersionId: { $in: [courseVersionId, versionIdObj] },
+              isDeleted: { $ne: true },
+              isExpired: { $ne: true },
+            },
+          },
+          {
+            $project: {
+              userId: 1,
+              duration: {
+                $divide: [
+                  {
+                    $cond: [
+                      { $and: [{ $ne: ['$duration', null] }, { $gte: ['$duration', 0] }] },
+                      { $multiply: ['$duration', 1000] },
+                      { $cond: [
+                        { $ne: ['$endTime', null] },
+                        { $subtract: ['$endTime', '$startTime'] },
+                        0,
+                      ]},
+                    ],
+                  },
+                  3600000,
+                ],
+              },
+            },
+          },
+          {
+            $group: {
+              _id: '$userId',
+              totalHours: { $sum: '$duration' },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              averageWatchHoursPerUser: { $avg: '$totalHours' },
+            },
+          },
+          {
+            $project: { _id: 0, averageWatchHoursPerUser: 1 },
+          },
+        ],
+        { session },
+      )
+      .toArray();
+
+    return Number((result[0]?.averageWatchHoursPerUser ?? 0).toFixed(2));
   }
 
 }

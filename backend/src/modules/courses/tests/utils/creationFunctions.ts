@@ -206,6 +206,83 @@ async function createBlogItem(
   return itemResponse.body as ItemDataResponse;
 }
 
+async function createProjectItem(
+  app: typeof Express,
+  versionId: string,
+  moduleId: string,
+  sectionId: string,
+): Promise<ItemDataResponse> {
+  const body = {
+    name: faker.commerce.productName(),
+    description: faker.commerce.productDescription(),
+    type: ItemType.PROJECT,
+    details: {
+      name: faker.commerce.productName(),
+      description: faker.commerce.productDescription(),
+    },
+  };
+
+  const params: VersionModuleSectionParams = {
+    versionId: versionId,
+    moduleId: moduleId,
+    sectionId: sectionId,
+  };
+
+  const itemResponse = await request(app)
+    .post(
+      `/courses/versions/${params.versionId}/modules/${params.moduleId}/sections/${params.sectionId}/items`,
+    )
+    .send(body)
+    .expect(201);
+
+  expect(itemResponse.body.itemsGroup.items.length).toBe(1);
+  return itemResponse.body as ItemDataResponse;
+}
+
+async function createFeedbackItem(
+  app: typeof Express,
+  versionId: string,
+  moduleId: string,
+  sectionId: string,
+): Promise<ItemDataResponse> {
+  const body = {
+    name: faker.commerce.productName(),
+    description: faker.commerce.productDescription(),
+    type: ItemType.FEEDBACK,
+    feedbackFormDetails: {
+      jsonSchema: {
+        type: 'object',
+        required: ['rating', 'comment'],
+        properties: {
+          rating: { type: 'number', minimum: 1, maximum: 5 },
+          comment: { type: 'string' },
+        },
+      },
+      uiSchema: {
+        comment: {
+          'ui:widget': 'textarea',
+        },
+      },
+    },
+  };
+
+  const params: VersionModuleSectionParams = {
+    versionId: versionId,
+    moduleId: moduleId,
+    sectionId: sectionId,
+  };
+
+  const itemResponse = await request(app)
+    .post(
+      `/courses/versions/${params.versionId}/modules/${params.moduleId}/sections/${params.sectionId}/items`,
+    )
+    .send(body)
+    .expect(201);
+
+  expect(itemResponse.body.itemsGroup.items.length).toBe(1);
+  return itemResponse.body as ItemDataResponse;
+}
+
 export {
   createCourse,
   createVersion,
@@ -213,4 +290,7 @@ export {
   createSection,
   createQuizItem,
   createVideoItem,
+  createBlogItem,
+  createProjectItem,
+  createFeedbackItem,
 };

@@ -1,5 +1,5 @@
 import {SignUpBody, ChangePasswordBody, GoogleSignUpBody} from '#auth/classes/index.js';
-import { InviteResult } from '#root/modules/notifications/index.js';
+import { InviteResult } from '#root/modules/notifications/classes/validators/InviteValidators.js';
 import {IUser} from '#shared/interfaces/models.js';
 
 /**
