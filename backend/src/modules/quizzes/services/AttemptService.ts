@@ -464,7 +464,10 @@ class AttemptService extends BaseService {
     let isFirst: Boolean;
     await this._withTransaction(async session => {
       // Save answers (this method should NOT start its own transaction anymore)
-      await this.save(userId, quizId, attemptId, answers, cohortId, isSkipped);
+      const saveResult = await this.save(userId, quizId, attemptId, answers, cohortId, isSkipped);
+      if (saveResult.status !== 'saved') {
+        throw new BadRequestError(saveResult.message || 'Failed to save answers');
+      }
 
       // Fetch metrics inside transaction (it is being updated)
       const metrics = await this.userQuizMetricsRepository.get(
@@ -793,11 +796,11 @@ class AttemptService extends BaseService {
         status: 'saved',
         message: 'Answers saved successfully',
       };
-    } catch (error) {
-      return {
-        status: 'failed to save',
-        message: 'Failed to save answers',
-      };
+    } catch (error: any) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new BadRequestError('Failed to save answers');
     }
   }
 
