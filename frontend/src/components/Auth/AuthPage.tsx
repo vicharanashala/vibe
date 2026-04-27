@@ -26,6 +26,7 @@ export default function AuthPage({ role }: AuthPageProps) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [activeRole, setActiveRole] = useState<"teacher" | "student">(role || "student");
 
   // New state variables
@@ -843,17 +844,29 @@ export default function AuthPage({ role }: AuthPageProps) {
                         <Label htmlFor="signup-password" className="font-medium">
                           Password
                         </Label>
-                        <Input
+                        <div className="relative">
+                         <Input
                           id="signup-password"
-                          type={showPassword ? "text" : "password"}
+                          type={showSignupPassword ? "text" : "password"}
                           placeholder="Create a strong password"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           className={cn(
-                            "transition-all duration-200",
-                            formErrors.password && "border-destructive focus-visible:ring-destructive"
-                          )}
-                        />
+                          "transition-all duration-200",
+                          formErrors.password && 
+                         "border-destructive focus-visible:ring-destructive"
+                         )}
+                         />
+                        <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Toggle password visibility"
+                         className="absolute inset-y-0 right-1"
+                         onClick={() =>setShowSignupPassword(p => !p)}
+                         >
+                        {showSignupPassword?<EyeOff /> : <Eye />}
+                        </Button>
+                      </div>
                         {password && (
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
@@ -922,7 +935,7 @@ export default function AuthPage({ role }: AuthPageProps) {
                         <div className="relative">
                           <Input
                             id="confirmPassword"
-                            type={showPassword ? "text" : "password"}
+                            type={showSignupPassword ? "text" : "password"}
 
                             placeholder="Confirm your password"
                             value={confirmPassword}
@@ -932,8 +945,8 @@ export default function AuthPage({ role }: AuthPageProps) {
                               !passwordsMatch && confirmPassword && "border-destructive focus-visible:ring-destructive"
                             )}
                           />
-                          <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
-                            {showPassword ? <EyeOff /> : <Eye />}
+                          <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowSignupPassword(p => !p)}>
+                            {showSignupPassword ? <EyeOff /> : <Eye />}
                           </Button>
                         </div>
                         {!passwordsMatch && confirmPassword && (
