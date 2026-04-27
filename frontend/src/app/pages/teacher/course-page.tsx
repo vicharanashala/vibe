@@ -244,7 +244,7 @@ export default function TeacherCoursesPage() {
               </div>
             </div>
             <h3 className="text-lg font-semibold text-foreground mb-2">Failed to load courses</h3>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">{enrollmentsError}</p>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">We're having trouble reaching the server. Please try again.</p>
             <Button onClick={() => refetch()} className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90">
               <RotateCcw className="h-4 w-4 mr-2" />
               Try Again

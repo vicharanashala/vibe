@@ -135,7 +135,7 @@ export default function StudentCourses() {
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
         <EmptyState
           title="Error loading courses"
-          description={typeof error === 'string' ? error : "Failed to load your courses"}
+          description={typeof error === 'string' ? "We're having trouble reaching the server. Please try again." : "Failed to load your courses"}
           actionText="Try Again"
           onAction={() => refetch()}
           variant="error"
