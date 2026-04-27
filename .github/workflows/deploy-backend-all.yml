@@ -1,11 +1,7 @@
 name: Backend CI/CD (Staging & Optional Production)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/deploy-backend-all.yml'
+ 
   workflow_dispatch:
     inputs:
       deploy_production:
