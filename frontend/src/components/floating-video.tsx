@@ -73,6 +73,7 @@ function FloatingVideo({
   const [penaltyPoints, setPenaltyPoints] = useState(0);
   const [penaltyType, setPenaltyType] = useState("");
   const [contiguousAnomalyPoints, setContiguousAnomalyPoints] = useState(0);
+  const [blurStartTime, setBlurStartTime] = useState<number | null>(null);
 
   // Thumbs-up challenge states
   const [isThumbsUpChallenge, setIsThumbsUpChallenge] = useState(false);
@@ -116,7 +117,8 @@ function FloatingVideo({
   }, [settings]);
 
   // Check which components are enabled
-  const isBlurDetectionEnabled = isComponentEnabled('blurDetection');
+  //const isBlurDetectionEnabled = isComponentEnabled('blurDetection');
+  const isBlurDetectionEnabled = true;//not dependent on backend, always on for frontend anomaly detection and reporting. subject to change to previous line based on future decisions.
   const isFaceCountDetectionEnabled = isComponentEnabled('faceCountDetection');
   const isHandGestureDetectionEnabled = false; //isComponentEnabled('handGestureDetection');
   const isVoiceDetectionEnabled = isComponentEnabled('voiceDetection');
@@ -220,6 +222,7 @@ function FloatingVideo({
 
 // Image record anomaly effect
 const reportImage = useReportAnomalyImage();
+const lastBlurReportedRef = useRef<number>(0);
 const lastCalledRef = useRef<number>(0);
   useEffect(() => {
     const handleImageAnomaly = async () => {
@@ -233,11 +236,17 @@ const lastCalledRef = useRef<number>(0);
       lastCalledRef.current = now;
 
       if (anomaly && anomalyType !== "voiceDetection") {
-      const video = videoRef.current;
-      if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
-        console.log("Video not ready for screenshot");
-        return;
-      }
+        if (anomalyType === "blurDetection") {
+          if (now - lastBlurReportedRef.current < 5000) {
+            return; //skip if called within 5 sec
+          }
+            lastBlurReportedRef.current = now;
+        }
+        const video = videoRef.current;
+        if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+          console.log("Video not ready for screenshot");
+          return;
+        }
       
       // Add validation for course data
       if (!courseStore.currentCourse?.courseId || 
@@ -586,7 +595,7 @@ const lastCalledRef = useRef<number>(0);
       // }
       let newPenaltyPoints = 0;
       let newPenaltyType = "";
-      setAnomalies(['']);
+      setAnomalies(['']);//Check once (remove '' if causing issue)
 
       // Condition 1: If speaking is detected (only if voice detection is enabled)
       if (isSpeaking === "Yes" && isVoiceDetectionEnabled) {
@@ -619,10 +628,31 @@ const lastCalledRef = useRef<number>(0);
       }
 
       // Condition 3: If the screen is blurred (only if blur detection is enabled)
-      if (isBlur === "Yes" && isBlurDetectionEnabled) {
+      /*if (isBlur === "Yes" && isBlurDetectionEnabled) {
         setAnomalies([...anomalies, "blurDetection"]);
         newPenaltyType = "Blur";
         newPenaltyPoints += 1;
+      }*/
+      if (isBlur === "Yes" && isBlurDetectionEnabled) {
+        setBlurStartTime(prev => {
+          if (!prev) return Date.now();
+
+          const duration = Date.now() - prev;
+
+          if (duration >= 2000) {
+            if (!anomalies.includes("blurDetection")) {
+              setAnomalies([...anomalies, "blurDetection"]);
+            }
+            newPenaltyType = "Blur";
+            newPenaltyPoints += 1;
+
+            return Date.now();
+          }
+          return prev;
+        });
+      } 
+      else {
+        setBlurStartTime(null);
       }
 
       // Condition 4: If not focused (only if focus tracking is enabled)
@@ -705,7 +735,7 @@ const lastCalledRef = useRef<number>(0);
         // Reset contiguous anomaly points when no anomalies are detected
         if(contiguousAnomalyPoints>0) setContiguousAnomalyPoints(0);
       }
-    }, 100); // Update every second
+    }, 500); // Update every 0.5 second instead of 0.1 second(too fast) for stable scoring and to reduce performance overhead.
 
     return () => clearInterval(interval);
   }, [readyToDetect,
@@ -1418,7 +1448,7 @@ const lastCalledRef = useRef<number>(0);
           </>
         )}
       </div>
-
+//--
       {/* AI Components - Only render if enabled in proctoring settings */}
       <div className="hidden">
         {isBlurDetectionEnabled && (
