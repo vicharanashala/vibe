@@ -1,11 +1,7 @@
 name: Deploy Frontend to Firebase (Staging & Optional Production)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "frontend/**"
-      - ".github/workflows/deploy-frontend.yml"
+
   workflow_dispatch:
     inputs:
       deploy_production:
