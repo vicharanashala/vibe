@@ -142,7 +142,39 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   //     }, 3500);
   //   });
   // }
+  useEffect(() => {
+  const disableRightClick = (e: MouseEvent) => {
+    e.preventDefault();
+  };
 
+  document.addEventListener("contextmenu", disableRightClick);
+
+  return () => {
+    document.removeEventListener("contextmenu", disableRightClick);
+  };
+}, []);
+
+  useEffect(() => {
+  const disableSelect = (e: Event) => e.preventDefault();
+
+  document.addEventListener("selectstart", disableSelect);
+
+  return () => {
+    document.removeEventListener("selectstart", disableSelect);
+  };
+}, []);
+
+  useEffect(() => {
+  const disableCopy = (e: ClipboardEvent) => e.preventDefault();
+
+  document.addEventListener("copy", disableCopy);
+  document.addEventListener("paste", disableCopy);
+
+  return () => {
+    document.removeEventListener("copy", disableCopy);
+    document.removeEventListener("paste", disableCopy);
+  };
+}, []);
 
 
   const formatTime = useCallback((seconds: number) => {
