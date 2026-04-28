@@ -647,7 +647,7 @@ const CourseRegistration: React.FC = () => {
                             )}
                             <Button
                               type="submit"
-                              disabled={isSubmitting || (!recaptchaToken && isRecaptchaEnabled) || ((formFieldData as any)?.isActive === false) || (versionData && (versionData as any).cohorts?.find((c: any) => c.cohortId === cohort)?.isActive === false)}
+                              disabled={isSubmitting || ((formFieldData as any)?.isActive === false) || (versionData && (versionData as any).cohorts?.find((c: any) => c.cohortId === cohort)?.isActive === false)}
                             >
                               {isSubmitting ? (
                                 <>
