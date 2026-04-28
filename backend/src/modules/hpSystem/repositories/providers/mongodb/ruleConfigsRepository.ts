@@ -157,37 +157,37 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
                     // "activity.activityType": "ASSIGNMENT"
                 }
             },
-            // {
-            //     $addFields: {
-            //         effectiveDeadline: {
-            //             $add: [
-            //                 "$deadlineAt",
-            //                 { $multiply: ["$penalty.graceMinutes", 60000] }
-            //             ]
-            //         }
-            //     }
-            // },
             {
                 $addFields: {
                     effectiveDeadline: {
                         $add: [
                             "$deadlineAt",
-                            {
-                                $multiply: [
-                                    {
-                                        $cond: [
-                                            { $eq: ["$activity.activityType", "VIBE_MILESTONE"] },
-                                            { $add: ["$penalty.graceMinutes", 2] }, // milestone = existing + 2 minutes
-                                            "$penalty.graceMinutes"
-                                        ]
-                                    },
-                                    60000
-                                ]
-                            }
+                            { $multiply: ["$penalty.graceMinutes", 60000] }
                         ]
                     }
                 }
             },
+            // {
+            //     $addFields: {
+            //         effectiveDeadline: {
+            //             $add: [
+            //                 "$deadlineAt",
+            //                 {
+            //                     $multiply: [
+            //                         {
+            //                             $cond: [
+            //                                 { $eq: ["$activity.activityType", "VIBE_MILESTONE"] },
+            //                                 { $add: ["$penalty.graceMinutes", 2] }, // milestone = existing + 2 minutes
+            //                                 "$penalty.graceMinutes"
+            //                             ]
+            //                         },
+            //                         60000
+            //                     ]
+            //                 }
+            //             ]
+            //         }
+            //     }
+            // },
             {
                 $match: {
                     effectiveDeadline: { $lt: now }

@@ -6,6 +6,7 @@ import {
   Params,
   Post,
   ForbiddenError,
+  BadRequestError,
   Authorized,
   Res,
   Controller,
@@ -233,18 +234,31 @@ class AttemptController {
     //   );
     // }
 
-    const result = await this.attemptService.submit(
-      userId,
-      quizId,
-      attemptId,
-      answers,
-      isSkipped,
-      courseId,
-      courseVersionId,
-      watchItemId,
-      cohortId,
-    );
-    return result as SubmitAttemptResponse;
+    try {
+      const result = await this.attemptService.submit(
+        userId,
+        quizId,
+        attemptId,
+        answers,
+        isSkipped,
+        courseId,
+        courseVersionId,
+        watchItemId,
+        cohortId,
+      );
+      return result as SubmitAttemptResponse;
+    } catch (error: any) {
+      // Re-throw routing-controllers errors (BadRequestError, NotFoundError, ForbiddenError)
+      // so they produce their proper 400/403/404 HTTP responses.
+      if (error && typeof error.httpCode === 'number') {
+        throw error;
+      }
+      // Wrap any unexpected error so the client always gets a structured JSON body
+      // instead of a generic 500 with no message.
+      throw new BadRequestError(
+        error?.message || 'Failed to submit quiz attempt',
+      );
+    }
   }
 
   @OpenAPI({
