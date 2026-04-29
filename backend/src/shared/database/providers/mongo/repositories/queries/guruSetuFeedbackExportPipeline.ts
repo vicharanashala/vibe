@@ -6,99 +6,62 @@ export function buildGuruSetuFeedbackExportPipeline(
   parsedCohortId: ObjectId | null,
 ): any[] {
   return [
-    // 1. Start from all enrolled students
     {
       $match: {
         courseId: guruSetuCourseId,
         courseVersionId: guruSetuVersionId,
-        role: 'STUDENT',
-        isDeleted: { $ne: true },
-        ...(parsedCohortId ? { cohortId: parsedCohortId } : {}),
-      },
-    },
-    // 2. Lookup user details
-    {
-      $lookup: {
-        from: 'users',
-        localField: 'userId',
-        foreignField: '_id',
-        as: 'user',
-      },
-    },
-    {
-      $unwind: {
-        path: '$user',
-        preserveNullAndEmptyArrays: false,
+        endTime: { $ne: null },
+        isNotPure: { $ne: true },
       },
     },
     {
       $addFields: {
-        userEmail: '$user.email',
-      },
-    },
-    // 3. Lookup watch time per video for this user in this course
-    {
-      $lookup: {
-        from: 'watchTime',
-        let: { uid: '$userId' },
-        pipeline: [
-          {
-            $match: {
-              $expr: {
-                $and: [
-                  { $eq: ['$userId', '$$uid'] },
-                  { $eq: ['$courseId', guruSetuCourseId] },
-                  { $eq: ['$courseVersionId', guruSetuVersionId] },
-                  { $ne: ['$endTime', null] },
-                  { $ne: ['$isNotPure', true] },
-                ],
+        itemObjId: {
+          $cond: [
+            { $eq: [{ $type: '$itemId' }, 'string'] },
+            {
+              $convert: {
+                input: '$itemId',
+                to: 'objectId',
+                onError: null,
+                onNull: null,
               },
             },
-          },
-          {
-            $addFields: {
-              itemObjId: {
-                $cond: [
-                  { $eq: [{ $type: '$itemId' }, 'string'] },
-                  {
-                    $convert: {
-                      input: '$itemId',
-                      to: 'objectId',
-                      onError: null,
-                      onNull: null,
-                    },
-                  },
-                  '$itemId',
-                ],
-              },
-            },
-          },
-          { $match: { itemObjId: { $ne: null } } },
-          {
-            $group: {
-              _id: '$itemObjId',
-              rawWatchedMs: { $sum: { $subtract: ['$endTime', '$startTime'] } },
-              watchSessionCount: { $sum: 1 },
-              firstWatchAt: { $min: '$startTime' },
-              lastWatchAt: { $max: '$startTime' },
-            },
-          },
-        ],
-        as: 'watchGroups',
+            '$itemId',
+          ],
+        },
       },
     },
-    // 4. One row per watched video; students with no watch data get one row with null watchGroup
     {
-      $unwind: {
-        path: '$watchGroups',
-        preserveNullAndEmptyArrays: true,
+      $match: {
+        itemObjId: { $ne: null },
       },
     },
-    // 5. Lookup video details by watchGroups._id
+    {
+      $group: {
+        _id: {
+          userId: '$userId',
+          videoId: '$itemObjId',
+        },
+        rawWatchedMs: { $sum: { $subtract: ['$endTime', '$startTime'] } },
+        watchSessionCount: { $sum: 1 },
+        firstWatchAt: { $min: '$startTime' },
+        lastWatchAt: { $max: '$startTime' },
+      },
+    },
+    {
+      $addFields: {
+        userId: '$_id.userId',
+        videoId: '$_id.videoId',
+        rawWatchedSeconds: {
+          $round: [{ $divide: ['$rawWatchedMs', 1000] }, 2],
+        },
+      },
+    },
     {
       $lookup: {
         from: 'videos',
-        localField: 'watchGroups._id',
+        localField: 'videoId',
         foreignField: '_id',
         as: 'video',
       },
@@ -106,13 +69,11 @@ export function buildGuruSetuFeedbackExportPipeline(
     {
       $unwind: {
         path: '$video',
-        preserveNullAndEmptyArrays: true,
+        preserveNullAndEmptyArrays: false,
       },
     },
-    // 6. Compute video duration, raw watched seconds, and watchPercent
     {
       $addFields: {
-        videoId: '$watchGroups._id',
         videoName: { $ifNull: ['$video.name', '$video.title'] },
         videoDurationSeconds: {
           $let: {
@@ -211,44 +172,73 @@ export function buildGuruSetuFeedbackExportPipeline(
             },
           },
         },
-        rawWatchedSecondsUncapped: {
-          $round: [
-            { $divide: [{ $ifNull: ['$watchGroups.rawWatchedMs', 0] }, 1000] },
-            2,
-          ],
-        },
       },
     },
     {
       $addFields: {
         rawWatchedSeconds: {
-          $min: ['$rawWatchedSecondsUncapped', '$videoDurationSeconds'],
-        },
-        watchPercent: {
-          $cond: {
-            if: { $gt: ['$videoDurationSeconds', 0] },
-            then: {
-              $round: [
-                {
-                  $multiply: [
-                    {
-                      $divide: [
-                        { $min: ['$rawWatchedSecondsUncapped', '$videoDurationSeconds'] },
-                        '$videoDurationSeconds',
-                      ],
-                    },
-                    100,
-                  ],
-                },
-                2,
-              ],
-            },
-            else: null,
-          },
+          $min: ['$rawWatchedSeconds', '$videoDurationSeconds'],
         },
       },
     },
-    // 7. Lookup feedback submission (left join — null if no feedback)
+    {
+      $match: {
+        $expr: {
+          $and: [
+            { $gt: ['$videoDurationSeconds', 0] },
+            {
+              $gt: [
+                '$rawWatchedSeconds',
+                { $multiply: ['$videoDurationSeconds', 0.5] },
+              ],
+            },
+          ],
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'userId',
+        foreignField: '_id',
+        as: 'user',
+      },
+    },
+    {
+      $unwind: {
+        path: '$user',
+        preserveNullAndEmptyArrays: false,
+      },
+    },
+    {
+      $lookup: {
+        from: 'enrollment',
+        let: { uid: '$userId' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ['$userId', '$$uid'] },
+                  { $eq: ['$courseId', guruSetuCourseId] },
+                  { $eq: ['$courseVersionId', guruSetuVersionId] },
+                  { $eq: ['$role', 'STUDENT'] },
+                  { $ne: ['$isDeleted', true] },
+                ],
+              },
+              ...(parsedCohortId ? { cohortId: parsedCohortId } : {}),
+            },
+          },
+          { $limit: 1 },
+        ],
+        as: 'enrollment',
+      },
+    },
+    {
+      $match: {
+        'enrollment.0': { $exists: true },
+      },
+    },
     {
       $lookup: {
         from: 'feedback_submission',
@@ -289,7 +279,7 @@ export function buildGuruSetuFeedbackExportPipeline(
     {
       $unwind: {
         path: '$feedbackSubmission',
-        preserveNullAndEmptyArrays: true,
+        preserveNullAndEmptyArrays: false,
       },
     },
     {
@@ -306,20 +296,17 @@ export function buildGuruSetuFeedbackExportPipeline(
         preserveNullAndEmptyArrays: true,
       },
     },
-    // 8. Project final columns
     {
       $project: {
         _id: 0,
         userId: { $toString: '$userId' },
-        userEmail: 1,
+        userEmail: '$user.email',
         videoName: 1,
         videoDurationSeconds: 1,
         rawWatchedSeconds: 1,
-        rawWatchedSecondsUncapped: 1,
-        watchSessionCount: '$watchGroups.watchSessionCount',
-        watchPercent: 1,
-        firstWatchAt: '$watchGroups.firstWatchAt',
-        lastWatchAt: '$watchGroups.lastWatchAt',
+        watchSessionCount: 1,
+        firstWatchAt: 1,
+        lastWatchAt: 1,
         details: '$feedbackSubmission.details',
         feedbackFormName: '$feedbackForm.name',
         'Was the explanation in the video clear?': {
