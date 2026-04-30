@@ -3750,7 +3750,7 @@ export class EnrollmentRepository {
       ? new ObjectId(cohortId)
       : null;
 
-    const enrollmentCollection = await this.db.getCollection<any>('enrollment');
+    const watchTimeCollection = await this.db.getCollection<any>('watchTime');
 
     const pipeline = buildGuruSetuFeedbackExportPipeline(
       guruSetuCourseId,
@@ -3758,7 +3758,7 @@ export class EnrollmentRepository {
       parsedCohortId,
     );
 
-    return enrollmentCollection
+    return watchTimeCollection
       .aggregate(pipeline, { allowDiskUse: true })
       .toArray();
   }
