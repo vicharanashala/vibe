@@ -1,11 +1,7 @@
 name: Backend CI/CD (Staging & Optional Production)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/deploy-backend-all.yml'
+ 
   workflow_dispatch:
     inputs:
       deploy_production:
@@ -57,14 +53,13 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:staging
-          # cache-from: type=gha
-          # cache-to: type=gha,mode=max
           build-args: |
             NODE_ENV=staging
             APP_PORT=${{ secrets.APP_PORT }}
 
   deploy_staging:
     name: Deploy to Cloud Run (Staging)
+    if: github.event_name == 'workflow_dispatch'   # ✅ KEY FIX
     needs: [build]
     runs-on: ubuntu-latest
     environment:
@@ -104,8 +99,6 @@ jobs:
             ENABLE_HP_JOB=${{ secrets.ENABLE_HP_JOB }}
             GCP_BACKUP_ACTIVITY_BUCKET=${{ secrets.GCP_BACKUP_ACTIVITY_BUCKET }}
             AI_PROXY_ADDRESS=socks5h://localhost:1055
-            
-           
           flags: --allow-unauthenticated
 
   deploy_production:
@@ -120,7 +113,6 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
-          
 
       - name: Deploy to Cloud Run (Production)
         uses: google-github-actions/deploy-cloudrun@v1
@@ -151,7 +143,4 @@ jobs:
             ENABLE_HP_JOB=${{ secrets.ENABLE_HP_JOB }}
             GCP_BACKUP_ACTIVITY_BUCKET=${{ secrets.GCP_BACKUP_ACTIVITY_BUCKET }}
             AI_PROXY_ADDRESS=socks5h://localhost:1055
-         
-          
-            
           flags: --allow-unauthenticated
