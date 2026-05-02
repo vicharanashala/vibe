@@ -3301,6 +3301,7 @@ export class EnrollmentRepository {
           $project: {
             userId: 1,
             cohortId: 1,
+            percentCompleted: 1,
             'user.firstName': 1,
             'user.lastName': 1,
             'user.email': 1,
@@ -3581,6 +3582,7 @@ export class EnrollmentRepository {
           `${enrollment.user.firstName ?? ''} ${enrollment.user.lastName ?? ''
             }`.trim() || 'Unknown',
         email: enrollment.user.email ?? '',
+        percentCompleted: this.formatExportScore(enrollment.percentCompleted ?? 0),
         totalCourseScore: formattedTotalScore,
         totalCourseMaxScore: formattedTotalMaxScore,
         quizScores,
