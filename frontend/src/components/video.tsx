@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, Loader2, XCircle, Maximize, Minimize, FastForward } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, XCircle, Maximize, Minimize, FastForward } from 'lucide-react';
 import { useSkipOptionalItem, useStartItem, useStopItem, useStoreWatchTimeTrack, } from '../hooks/hooks';
 
 
@@ -12,7 +12,6 @@ import { usePlayerStore } from '../store/player-store'; // Import the new store
 import type { VideoProps, YTPlayerInstance } from '@/types/video.types';
 
 import { toast } from 'sonner';
-import { Badge } from './ui/badge';
 import { WatchTimeTrackData } from '@/types/user_activity_event.types';
 
 
@@ -59,6 +58,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const [maxTime, setMaxTime] = useState(0);
   const [, setIsHovering] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
+  const [reachedVideoEnd, setReachedVideoEnd] = useState(false);
   const videoId = getYouTubeId(URL);
   const { currentCourse, setWatchItemId } = useCourseStore();
   const startItem = useStartItem();
@@ -66,6 +66,69 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const isStopping = stopItem.isPending;
   const stopError = stopItem.error;
   const { mutateAsync: storeWatchTimeTrack } = useStoreWatchTimeTrack();
+
+  // Background flusher: retry any stop payloads previously queued after exhausting
+  // their inline retries. Runs on mount and whenever the tab regains connectivity.
+  useEffect(() => {
+    const QUEUE_KEY = 'vibe.failedStopQueue';
+    let cancelled = false;
+
+    const QUEUE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+    const flush = async () => {
+      let queue: any[] = [];
+      try {
+        const raw = localStorage.getItem(QUEUE_KEY);
+        queue = raw ? JSON.parse(raw) : [];
+      } catch {
+        return;
+      }
+      if (!Array.isArray(queue) || queue.length === 0) return;
+
+      // Drop entries older than TTL — they may be stale (course restructured, archived, etc.)
+      const now = Date.now();
+      queue = queue.filter(e => {
+        const age = now - (e?.queuedAt ?? 0);
+        if (age > QUEUE_TTL_MS) {
+          console.warn('[Stop Queue] Dropping expired entry (>24h old):', e?.body?.itemId);
+          return false;
+        }
+        return true;
+      });
+
+      const remaining: any[] = [];
+      for (const entry of queue) {
+        if (cancelled) {
+          remaining.push(entry);
+          continue;
+        }
+        try {
+          await stopItem.mutateAsync({
+            params: entry.params,
+            body: entry.body,
+          });
+          console.log('[Stop Queue] Flushed queued stop for item', entry?.body?.itemId);
+        } catch (err) {
+          console.warn('[Stop Queue] Retry still failing; keeping in queue:', err);
+          remaining.push(entry);
+        }
+      }
+      try {
+        localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+      } catch {
+        // ignore
+      }
+    };
+
+    flush();
+    const onOnline = () => flush();
+    window.addEventListener('online', onOnline);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('online', onOnline);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Parse start and end times
   const startTimeSeconds = parseTimeToSeconds(startTime || '0');
@@ -75,6 +138,10 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const progressStoppedRef = useRef(false);
   const watchItemIdRef = useRef<string | null>(null);
   const stopInFlightRef = useRef(false);
+  // Tracks the current item being watched; updated on every render so async handlers
+  // can detect if navigation already happened while handleStopItem was awaiting.
+  const currentItemIdRef = useRef<string | undefined>(currentCourse?.itemId);
+  currentItemIdRef.current = currentCourse?.itemId;
 
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(false);
   const [subtitlesAvailable, setSubtitlesAvailable] = useState(false);
@@ -357,7 +424,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     });
   };
 
-  //  function to handle stop with debouncing
+  //  function to handle stop with debouncing and retry logic
   const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs: number = 0): Promise<boolean> => {
     // Clear any pending stop request
     if (stopTimeoutRef.current) {
@@ -376,7 +443,97 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         stopInFlightRef.current = true;
         try {
           if (watchItemId && !isAlreadyWatched && !(currentCourse!.itemId && completedItemIdsRef.current.has(currentCourse!.itemId)) && !isCompleted) {
-            await stopItem.mutateAsync({
+            // Retry logic: up to 3 attempts with per-attempt timeout.
+            // Each attempt uses AbortController so the HTTP request is actually
+            // cancelled (not just ignored) when the deadline fires — this prevents
+            // background requests from creating concurrent MongoDB transactions that
+            // cause write-conflict 500s on the next attempt.
+            const ATTEMPT_TIMEOUT_MS = 8000;
+            let lastError: any = null;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              let abortController: AbortController | null = null;
+              let timeoutId: ReturnType<typeof setTimeout> | null = null;
+              try {
+                console.log(`[Stop Item] Attempt ${attempt}/3 for itemId: ${currentCourse!.itemId}`);
+
+                abortController = new AbortController();
+                const stopPromise = stopItem.mutateAsync({
+                  params: {
+                    path: {
+                      courseId: currentCourse!.courseId,
+                      courseVersionId: currentCourse!.versionId ?? '',
+                    },
+                  },
+                  body: {
+                    watchItemId,
+                    itemId: currentCourse!.itemId ?? '',
+                    moduleId: currentCourse!.moduleId ?? '',
+                    sectionId: currentCourse!.sectionId ?? '',
+                    seekForwardEnabled,
+                    nextItemId,
+                    cohortId: currentCourse!.cohortId ?? '',
+                  },
+                  signal: abortController.signal,
+                } as any);
+
+                const timeoutPromise = new Promise<never>((_, reject) => {
+                  timeoutId = setTimeout(() => {
+                    abortController?.abort();
+                    reject(new Error(`Stop API timeout after ${ATTEMPT_TIMEOUT_MS}ms`));
+                  }, ATTEMPT_TIMEOUT_MS);
+                });
+
+                const response = await Promise.race([stopPromise, timeoutPromise]);
+                if (timeoutId) clearTimeout(timeoutId);
+                console.log(`[Stop Item] Success on attempt ${attempt}:`, response);
+                lastError = null;
+                break; // Success, exit retry loop
+              } catch (err: any) {
+                if (timeoutId) clearTimeout(timeoutId);
+                lastError = err;
+                const status = err?.response?.status;
+                // Treat AbortError as a timeout (no status) — same retry logic applies
+                const isAbort = err?.name === 'AbortError' || err?.message?.includes('aborted');
+                console.warn(`[Stop Item] Attempt ${attempt} failed with status ${status}:`, err?.message);
+
+                // 403 = archived course or permission denied — will never succeed, don't retry or queue
+                if (status === 403) {
+                  console.warn('[Stop Item] Forbidden (403) — skipping retries and queue');
+                  progressStoppedRef.current = true;
+                  if (currentCourse?.itemId) completedItemIdsRef.current.add(currentCourse.itemId);
+                  resolve(true);
+                  return;
+                }
+
+                // Retry on transient errors, timeouts, or aborted requests
+                if (attempt < 3 && (status === 400 || status === 500 || status === 504 || !status || isAbort)) {
+                  console.log(`[Stop Item] Retrying in 1 second...`);
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                } else if (attempt === 3) {
+                  throw err;
+                }
+              }
+            }
+
+            if (lastError) {
+              throw lastError;
+            }
+          }
+
+          if (!currentCourse?.itemId) return;
+          completedItemIdsRef.current.add(currentCourse!.itemId);
+
+          progressStoppedRef.current = true;
+          resolve(true);
+
+        } catch (err: any) {
+          const status = err?.response?.status;
+          const message = err?.response?.data?.message || err?.message;
+          console.error(`[Stop Item] Final failure after retries. Status: ${status}, Message:`, message);
+
+          // Queue the failed stop for background retry so the learner can advance.
+          try {
+            const payload = {
               params: {
                 path: {
                   courseId: currentCourse!.courseId,
@@ -392,21 +549,31 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 nextItemId,
                 cohortId: currentCourse!.cohortId ?? '',
               },
-            });
+              queuedAt: Date.now(),
+            };
+            const QUEUE_KEY = 'vibe.failedStopQueue';
+            const raw = localStorage.getItem(QUEUE_KEY);
+            const queue: any[] = raw ? JSON.parse(raw) : [];
+            const dedupKey = `${payload.body.itemId}:${payload.body.watchItemId}`;
+            const exists = queue.some(
+              (q: any) => `${q?.body?.itemId}:${q?.body?.watchItemId}` === dedupKey,
+            );
+            if (!exists) {
+              queue.push(payload);
+              localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+              console.warn('[Stop Item] Queued failed stop for background retry:', dedupKey);
+            }
+          } catch (queueErr) {
+            console.error('[Stop Item] Failed to enqueue stop for retry:', queueErr);
           }
 
-          if (!currentCourse?.itemId) return;
-          completedItemIdsRef.current.add(currentCourse!.itemId);
-
-          progressStoppedRef.current = true;
-          resolve(true);
-
-        } catch (err: any) {
-          console.error('Stop item failed:', err);
           progressStoppedRef.current = true; // Prevent infinite retries
-          toast.warning('Unable to save progress.');
-          setIsStopFailed(true);
-          resolve(false);
+          if (currentCourse?.itemId) {
+            completedItemIdsRef.current.add(currentCourse.itemId);
+          }
+          toast.warning('Progress will be saved shortly.');
+          // Resolve true so the caller can advance to the next item; queue flusher will retry.
+          resolve(true);
 
         } finally {
           stopInFlightRef.current = false;
@@ -676,6 +843,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
               if (!progressStartedRef.current) {
                 handleSendStartItem();
                 setVideoEnded(false);
+                setReachedVideoEnd(false);
                 progressStartedRef.current = true;
               }
               setTimeout(() => {
@@ -695,8 +863,10 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                   }
                 }
                 else if (watchItemId) {
+                  setReachedVideoEnd(true);
+                  const capturedItemId = currentItemIdRef.current;
                   const success = await handleStopItem(watchItemId, 0); // No debounce on natural end
-                  if (success) {
+                  if (success && currentItemIdRef.current === capturedItemId) {
                     console.log("Damnnnn.......")
                     onNext?.();
                   }
@@ -826,8 +996,16 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
             console.log("This if condition is triggred now -> ", "Fahhhhaaaa")
              const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
 
-            // if (watchItemId) {
             player?.pauseVideo();
+
+            // Rewatch of already-completed item: startItem returned no watchItemId.
+            // No stop API needed — just navigate, matching the ENDED event handler.
+            if (!watchItemId && isAlreadyWatched) {
+              progressStoppedRef.current = true;
+              const capturedItemId = currentItemIdRef.current;
+              if (currentItemIdRef.current === capturedItemId) onNext?.();
+              return;
+            }
 
             // Check if user recently seeked (within last 3 seconds)
             const timeSinceLastSeek = Date.now() - lastSeekTimeRef.current;
@@ -836,20 +1014,25 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
             // CAPTURE tracking data BEFORE calling handleStopItem
             captureInProgressRef.current = true;
             const capturedTrackData = { ...watchTimeTrackRef.current };
+            const capturedItemId = currentItemIdRef.current;
 
+            setReachedVideoEnd(true);
             const success = await handleStopItem(watchItemId, debounceTime);
-            if (success) {
+            if (success && currentItemIdRef.current === capturedItemId) {
               await sendWatchTimeTrackData(capturedTrackData);
               onNext?.();
             }
-            // }
           }
 
           // Handle videos without endTime constraint that reach near completion
           if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= duration - 2 && currentCourse) {
             console.log("Fahhhhaaaaaaa")
             const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-            if (watchItemId) {
+            if (!watchItemId && isAlreadyWatched) {
+              progressStoppedRef.current = true;
+              const capturedItemId = currentItemIdRef.current;
+              if (currentItemIdRef.current === capturedItemId) onNext?.();
+            } else if (watchItemId) {
               player?.pauseVideo();
 
               // Check if user recently seeked
@@ -858,9 +1041,11 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
               // CAPTURE tracking data BEFORE calling handleStopItem
               const capturedTrackData = { ...watchTimeTrackRef.current };
+              const capturedItemId = currentItemIdRef.current;
 
+              setReachedVideoEnd(true);
               const success = await handleStopItem(watchItemId, debounceTime);
-              if (success) {
+              if (success && currentItemIdRef.current === capturedItemId) {
                 await sendWatchTimeTrackData(capturedTrackData);
                 onNext?.();
               }
@@ -1046,8 +1231,6 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         handlePlayPause={()=>{playVideoAgain(); setIsStopFailed(false)}}
       />
 
-      <NavigatingOverlay visible={isStopping || isSkipping} />
-
       <div
         ref={videoContainerRef}
         style={{
@@ -1063,6 +1246,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         }}>
         {/* Video Container */}
         <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+          <NavigatingOverlay visible={(isStopping && reachedVideoEnd) || isSkipping} />
 
           {!readyToDetect ? (  // Show preparing message before player is ready 
             <div
@@ -1922,83 +2106,56 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
 
 
+const TECH_QUOTES = [
+  { quote: 'If we are not able to bring quality education to the doorsteps of the poor, technology will have failed in its purpose.', author: 'A.P.J. Abdul Kalam' },
+  { quote: 'Creativity is the key to success in the future, and primary education is where teachers can bring creativity in children at no extra cost.', author: 'A.P.J. Abdul Kalam' },
+  { quote: 'Technology will never replace great teachers, but technology in the hands of a great teacher can be transformational.', author: 'A.P.J. Abdul Kalam' },
+  { quote: 'AI is the defining technology of our time — and education is where it will have the most lasting impact.', author: 'Satya Nadella' },
+  { quote: 'The learn-it-all will always do better than the know-it-all — and AI is here to help every learner reach their potential.', author: 'Satya Nadella' },
+  { quote: 'Every product and service in the future will be infused with intelligence, and that starts with how we learn.', author: 'Satya Nadella' },
+  { quote: 'Technology is a great leveler. It can bring quality education to every child, regardless of where they are born.', author: 'Sam Pitroda' },
+  { quote: 'The mobile phone and the internet have already disrupted education — AI will complete that revolution.', author: 'Nandan Nilekani' },
+  { quote: 'Digital technology, when designed well, can eliminate the gap between the privileged and the underprivileged in access to education.', author: 'Nandan Nilekani' },
+  { quote: 'The next wave of innovation in AI will be driven by those who use it not just to automate tasks, but to amplify human learning.', author: 'Sundar Pichai' },
+  { quote: 'Technology should be an equalizing force — making the best teachers accessible to every student, not just the lucky few.', author: 'Sundar Pichai' },
+  { quote: 'Progress is often equal to the difference between mind and mindset — and technology today gives every mind a chance to grow.', author: 'N. R. Narayana Murthy' },
+];
+
 type NavigatingOverlayProps = {
   visible: boolean;
-  title?: string;
-  message?: string;
-  position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
-  variant?: 'blue' | 'red' | 'green';
 };
 
-export function NavigatingOverlay({
-  visible,
-  title = 'Please wait',
-  message = 'Navigating to next item…',
-  position = 'top-right',
-  variant = 'blue',
-}: NavigatingOverlayProps) {
+export function NavigatingOverlay({ visible }: NavigatingOverlayProps) {
+  const quoteRef = useRef(TECH_QUOTES[Math.floor(Math.random() * TECH_QUOTES.length)]);
+
   if (!visible) return null;
 
-  const positionClasses: Record<typeof position, string> = {
-    'top-right': 'top-4 right-4',
-    'top-left': 'top-4 left-4',
-    'bottom-right': 'bottom-4 right-4',
-    'bottom-left': 'bottom-4 left-4',
-  };
-
-  const variantClasses: Record<
-    typeof variant,
-    {
-      card: string;
-      badge: string;
-      icon: string;
-    }
-  > = {
-    blue: {
-      card: 'border-blue-400/40 bg-blue-600/95 text-blue-50',
-      badge: 'border-blue-50/30 bg-blue-50/10 text-blue-50',
-      icon: 'bg-blue-50/10',
-    },
-    red: {
-      card: 'border-red-400/40 bg-red-600/95 text-red-50',
-      badge: 'border-red-50/30 bg-red-50/10 text-red-50',
-      icon: 'bg-red-50/10',
-    },
-    green: {
-      card: 'border-green-400/40 bg-green-600/95 text-green-50',
-      badge: 'border-green-50/30 bg-green-50/10 text-green-50',
-      icon: 'bg-green-50/10',
-    },
-  };
-
-  const styles = variantClasses[variant];
+  const { quote, author } = quoteRef.current;
 
   return (
-    <div
-      className={`absolute z-50 animate-in slide-in-from-right-3 duration-300 ${positionClasses[position]}`}
-    >
-      <Card className={`shadow-lg backdrop-blur-md ${styles.card}`}>
-        <CardContent className="flex items-center gap-3 px-4 py-3">
-          <div
-            className={`flex h-10 w-10 items-center justify-center rounded ${styles.icon}`}
-          >
-            <Loader2 className="h-6 w-6 animate-spin" />
-          </div>
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px] animate-in fade-in duration-300">
+      <div className="mx-8 w-full max-w-[360px] rounded-xl border border-primary/25 bg-card px-6 py-5 shadow-2xl shadow-black/40">
 
-          <div className="flex-1 space-y-1">
-            <Badge
-              variant="outline"
-              className={`font-semibold ${styles.badge}`}
-            >
-              {title}
-            </Badge>
+        <div className="mb-1 font-serif text-6xl leading-none text-primary/35 select-none">&ldquo;</div>
 
-            <p className="text-sm font-medium leading-relaxed">
-              {message}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+        <p className="text-[0.8125rem] italic leading-[1.7] text-card-foreground/80">
+          {quote}
+        </p>
+
+        <p className="mt-3 text-right text-[0.6875rem] font-semibold tracking-wide text-primary">
+          — {author}
+        </p>
+
+        <div className="mt-4 h-px bg-border/50" />
+
+        <div className="mt-3 flex items-center gap-2">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary/65 animate-bounce [animation-delay:0ms]" />
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary/65 animate-bounce [animation-delay:160ms]" />
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary/65 animate-bounce [animation-delay:320ms]" />
+          <span className="ml-1.5 text-[0.6875rem] text-muted-foreground">Navigating to next item…</span>
+        </div>
+
+      </div>
     </div>
   );
 }
