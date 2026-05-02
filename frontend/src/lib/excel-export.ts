@@ -28,6 +28,7 @@ export interface StudentData {
   studentId: string;
   name: string;
   email: string;
+  percentCompleted?: number;
   cohortName:string;
   totalCourseScore: number;
   totalCourseMaxScore: number;
@@ -38,6 +39,7 @@ interface TransformedData {
   'S.No.': number | string;
   'Name': string;
   'Email': string;
+  'Progress %': number | string;
   'Total Course Score': number | string;
   [key: string]: string | number;
 }
@@ -132,31 +134,35 @@ export function transformDataForExcel(
     'S.No.': 'S.No.', 
     'Name': 'Name', 
     'Email': 'Email',
+    'Progress %': 'Progress %',
     'Total Course Score': `Total Course Score (x/${totalCourseMaxScore})`
   };  // Module headers
   const headerRow2: TransformedData = { 
     'S.No.': '', 
     'Name': '', 
     'Email': '',
+    'Progress %': '',
     'Total Course Score': ''
   };  // Section headers
   const headerRow3: TransformedData = { 
     'S.No.': '', 
     'Name': '', 
     'Email': '',
+    'Progress %': '',
     'Total Course Score': ''
   };  // Quiz headers
   const headerRow4: TransformedData = { 
     'S.No.': '', 
     'Name': '', 
     'Email': '',
+    'Progress %': '',
     'Total Course Score': 'Score'
   };  // Question/Score/Attempts headers
   
   // Track merges for Excel
   const merges: { s: { r: number; c: number }; e: { r: number; c: number } }[] = [];
   
-  let currentCol = 4; // Start after S.No., Name, Email, TotalScore
+  let currentCol = 5; // Start after S.No., Name, Email, Progress %, TotalScore
   let currentModuleId = '';
   let currentSectionId = '';
   let moduleStartCol = 4;
@@ -280,11 +286,12 @@ export function transformDataForExcel(
       'S.No.': rowIndex + 1,
       'Name': student.name + (student.cohortName ? ` (${student.cohortName})` : ''),
       'Email': student.email || '',
+      'Progress %': Number(student.percentCompleted) || 0,
       'Total Course Score': student.totalCourseScore || 0
     };
     
     // Initialize all columns with default values
-    let colIndex = 4; // Start after S.No., Name, Email, TotalScore
+    let colIndex = 5; // Start after S.No., Name, Email, Progress %, TotalScore
     orderedQuizzes.forEach(quiz => {
       const questionsCount = Math.max(quiz.maxQuestions, 0);
       const questionColumns = options.includeQuestionScores ? questionsCount : 0;
@@ -307,7 +314,7 @@ export function transformDataForExcel(
     
     // Fill in actual data
     if (student.quizScores?.length) {
-      let currentColIndex = 4; // Start after S.No., Name, Email, TotalScore
+      let currentColIndex = 5; // Start after S.No., Name, Email, Progress %, TotalScore
       
       orderedQuizzes.forEach(quizColumn => {
         const studentQuiz = student.quizScores.find(sq => 
@@ -366,7 +373,13 @@ export function generateExcel(
     const aoa: any[][] = [];
     
     transformedData.forEach(row => {
-      const rowArray = [row['S.No.'], row['Name'], row['Email'], row['Total Course Score']];
+      const rowArray = [
+        row['S.No.'],
+        row['Name'],
+        row['Email'],
+        row['Progress %'],
+        row['Total Course Score'],
+      ];
       
       // Add all the columns in order
       const keys = Object.keys(row).filter(key => key.startsWith('col_'));
@@ -389,7 +402,7 @@ export function generateExcel(
     
     // Calculate merges based on the quiz structure
     const merges = [];
-    let currentCol = 4; // Start after S.No., Name, Email, TotalScore
+    let currentCol = 5; // Start after S.No., Name, Email, Progress %, TotalScore
     let currentModuleId = '';
     let currentSectionId = '';
     let moduleStartCol = 4;
@@ -511,13 +524,14 @@ export function generateExcel(
     ws['!merges'] = merges;
     
     // Set column widths
-    const totalCols = aoa[0]?.length || 4;
+    const totalCols = aoa[0]?.length || 5;
     ws['!cols'] = [
       { wch: 5 },  // S.No.
       { wch: 18 }, // Name
       { wch: 30 }, // Email
+      { wch: 12 }, // Progress %
       { wch: 25 }, // Total Course Score 
-      ...Array(totalCols - 4).fill({ wch: 10 }) // Question/Score/Attempts columns
+      ...Array(totalCols - 5).fill({ wch: 10 }) // Question/Score/Attempts columns
     ];
 
     // Add worksheet to workbook and save

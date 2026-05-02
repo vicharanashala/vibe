@@ -539,6 +539,7 @@ function CourseEnrollments() {
           studentId: student.studentId ?? `student-${index}`,
           name: student.name ?? 'Unknown Student',
           email: student.email ?? '',
+          percentCompleted: Number(student.percentCompleted) || 0,
           cohortName: student.cohortName ?? null,
           totalCourseScore: Number(student.totalCourseScore) || 0,
           totalCourseMaxScore: Number(student.totalCourseMaxScore) || 0,
