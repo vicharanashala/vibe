@@ -2227,25 +2227,37 @@ class ProgressService extends BaseService {
      * - current item matches progress.currentItem
      * OR
      * - previous item in sequence is already completed
+     * OR
+     * - item is already completed (rewatch — student already earned access)
      *
      * This prevents frontend/backend desync from blocking users after refresh.
      *
      * Skip strict validation for:
      * - QUIZ reattempt flows
      * - skipped items
+     * - rewatch of already-completed items
      */
     if (item.type !== 'QUIZ' && !isSkipped) {
-      await this.validateProgressPositionOrPreviousCompleted(
-        progress,
-        courseVersion,
+      const alreadyCompleted = await this.progressRepository.isItemCompleted(
         userId,
         courseId,
         courseVersionId,
-        moduleId,
-        sectionId,
         itemId,
         cohortId,
       );
+      if (!alreadyCompleted) {
+        await this.validateProgressPositionOrPreviousCompleted(
+          progress,
+          courseVersion,
+          userId,
+          courseId,
+          courseVersionId,
+          moduleId,
+          sectionId,
+          itemId,
+          cohortId,
+        );
+      }
     }
 
     await this._withTransaction(async session => {
@@ -2257,41 +2269,35 @@ class ProgressService extends BaseService {
       // ----------------------------------------------------
       if (item.type !== 'QUIZ') {
         if (!isSkipped) {
-          /**
-           * IMPORTANT:
-           * stopItemTracking should ideally be idempotent.
-           * If already stopped, do not hard-fail unless your business logic requires it.
-           */
           stoppedWatchTime = await this.progressRepository.stopItemTracking(
             watchItemId,
             session,
           );
 
-          if (!stoppedWatchTime) {
-            /**
-             * If your repository currently returns null when already stopped,
-             * this hard failure creates retry bugs.
-             *
-             * Recommended:
-             * either make stopItemTracking idempotent in repo,
-             * or treat "already stopped" as safe.
-             *
-             * For now, keeping compatibility:
-             */
-            throw new NotFoundError('Watch time not found or already stopped');
+          if (stoppedWatchTime) {
+            await this.validateItemStopEligibility(
+              item,
+              itemId,
+              userId,
+              courseId,
+              courseVersionId,
+              attemptId,
+              isSkipped,
+              stoppedWatchTime,
+              cohortId,
+            );
+          } else {
+            // watchTimeId not found or soft-deleted — treat as already-stopped (idempotent).
+            // This can happen on legitimate frontend retries; log so data integrity issues
+            // (wrong watchItemId) remain detectable in production.
+            console.warn('[stopItem] watchTime document not found — treating as already stopped', {
+              watchItemId,
+              itemId,
+              userId,
+              courseId,
+              courseVersionId,
+            });
           }
-
-          await this.validateItemStopEligibility(
-            item,
-            itemId,
-            userId,
-            courseId,
-            courseVersionId,
-            attemptId,
-            isSkipped,
-            stoppedWatchTime,
-            cohortId,
-          );
 
           shouldCountCurrentItemAsCompleted = true;
         }
@@ -3910,6 +3916,20 @@ class ProgressService extends BaseService {
 
     const completedSet = new Set(completedItemIds.map(id => id.toString()));
 
+    // Collect all unique itemsGroupIds across all modules/sections
+    const allGroupIds: string[] = [];
+    for (const module of courseVersion.modules || []) {
+      for (const section of module.sections || []) {
+        if (section.itemsGroupId) allGroupIds.push(section.itemsGroupId.toString());
+      }
+    }
+
+    // Fetch all groups in parallel instead of serially
+    const groups = await Promise.all(
+      allGroupIds.map(id => this.itemRepo.readItemsGroup(id)),
+    );
+    const groupMap = new Map(allGroupIds.map((id, i) => [id, groups[i]]));
+
     const moduleStats: Array<{
       moduleId: string;
       moduleName: string;
@@ -3918,34 +3938,23 @@ class ProgressService extends BaseService {
     }> = [];
 
     for (const module of courseVersion.modules || []) {
-      let moduleItemIds: string[] = [];
+      const moduleItemIds: string[] = [];
 
       for (const section of module.sections || []) {
         if (!section.itemsGroupId) continue;
-
-        const group = await this.itemRepo.readItemsGroup(
-          section.itemsGroupId.toString(),
-        );
-
+        const group = groupMap.get(section.itemsGroupId.toString());
         if (!group?.items) continue;
-
         for (const item of group.items) {
-          if (item.isHidden) continue; // skip hidden items
+          if (item.isHidden) continue;
           moduleItemIds.push(item._id.toString());
         }
       }
 
-      const totalItems = moduleItemIds.length;
-
-      const completedItems = moduleItemIds.filter(id =>
-        completedSet.has(id),
-      ).length;
-
       moduleStats.push({
         moduleId: module.moduleId.toString(),
         moduleName: module.name,
-        totalItems,
-        completedItems,
+        totalItems: moduleItemIds.length,
+        completedItems: moduleItemIds.filter(id => completedSet.has(id)).length,
       });
     }
 
