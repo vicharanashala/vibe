@@ -96,6 +96,7 @@ export default function CoursePage() {
   const [attemptId, setAttemptId] = useState<string | null>(null);
   // Dialog state for proctoring declaration
   const [showProctorDialog, setShowProctorDialog] = useState(true);
+  const proctoringAcceptedRef = useRef(false);
   const { user } = useAuthStore();
   const router = useRouter();
   const currentCourse = useCourseStore((state) => state.currentCourse);
@@ -214,6 +215,9 @@ export default function CoursePage() {
   const [doGesture, setDoGesture] = useState<boolean>(false);
   const [isItemForbidden, setIsItemForbidden] = useState<boolean>(false);
   const [isNavigatingToNext, setIsNavigatingToNext] = useState<boolean>(false);
+  // Retry counter for item fetch after 403 when a queued stop might still be flushing
+  const itemFetchRetryCountRef = useRef(0);
+  const lastForbiddenItemIdRef = useRef<string | null>(null);
   const [rewindVid, setRewindVid] = useState<boolean>(false);
   const [pauseVid, setPauseVid] = useState<boolean>(false);
   const [quizPassed, setQuizPassed] = useState(2);
@@ -238,6 +242,13 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   const [waitingForNextSection, setWaitingForNextSection] = useState<{
     moduleId: string;
     sectionId: string;
+  } | null>(null);
+
+  // State to track when we're waiting for a previous section's items to load (Rewatch Video flow)
+  const [waitingForPrevVideoSection, setWaitingForPrevVideoSection] = useState<{
+    moduleId: string;
+    sectionId: string;
+    remaining: { moduleId: string; sectionId: string }[];
   } | null>(null);
 
 
@@ -281,7 +292,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   // ---------------------------------------------
   const hasSectionItems =
     !!activeSectionInfo?.sectionId &&
-    !!sectionItems[activeSectionInfo.sectionId];
+    (sectionItems[activeSectionInfo.sectionId]?.length ?? 0) > 0;
 
   const shouldFetchItems =
     !!activeSectionInfo?.moduleId &&
@@ -306,7 +317,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     data: itemData,
     isLoading: itemLoading,
     error: itemError,
-    errorName: itemErrorName
+    errorName: itemErrorName,
+    refetch: refetchItem,
   } = useItemById(
     shouldFetchItem ? COURSE_ID : '',
     shouldFetchItem ? VERSION_ID : '',
@@ -397,7 +409,38 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
       return;
     }
 
+    // Skip forbidden error handling during active navigation to avoid spurious alerts
+    if (isNavigatingToNext) {
+      console.log('Skipping forbidden error during navigation:', itemError);
+      return;
+    }
+
     if (itemError && selectedItemId && itemErrorName === "ForbiddenError") {
+      // If the stop API failed and was queued, the backend progress may not be updated yet.
+      // Give the background queue flusher up to 2 chances (3s apart) before reverting.
+      const QUEUE_KEY = 'vibe.failedStopQueue';
+      let hasQueuedStop = false;
+      try {
+        const raw = localStorage.getItem(QUEUE_KEY);
+        const queue = raw ? JSON.parse(raw) : [];
+        hasQueuedStop = Array.isArray(queue) && queue.length > 0;
+      } catch { /* ignore */ }
+
+      if (hasQueuedStop) {
+        if (lastForbiddenItemIdRef.current !== selectedItemId) {
+          itemFetchRetryCountRef.current = 0;
+          lastForbiddenItemIdRef.current = selectedItemId;
+        }
+        if (itemFetchRetryCountRef.current < 2) {
+          itemFetchRetryCountRef.current += 1;
+          console.log(`[Item 403] Queued stop pending — retry ${itemFetchRetryCountRef.current}/2 in 3s`);
+          const retryTimer = setTimeout(() => refetchItem(), 3000);
+          return () => clearTimeout(retryTimer);
+        }
+        // Retries exhausted — fall through to normal revert
+        itemFetchRetryCountRef.current = 0;
+        lastForbiddenItemIdRef.current = null;
+      }
 
       toast.error(itemError);
       // Clear loading state on error
@@ -438,7 +481,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
       return () => clearTimeout(clearErrorTimeout);
     }
-  }, [itemError, selectedItemId, previousValidItem, updateCourseNavigation]);
+  }, [itemError, selectedItemId, previousValidItem, updateCourseNavigation, isNavigatingToNext, refetchItem]);
 
   useEffect(() => {
   }, [itemData]);
@@ -511,6 +554,42 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
     }
   }, [sectionItems, waitingForNextSection, updateCourseNavigation]);
+
+  // When items for a previous section load (Rewatch Video flow), find the last video.
+  // If the section has no video, keep walking backwards through `remaining` sections.
+  useEffect(() => {
+    if (!waitingForPrevVideoSection) return;
+    const items = sectionItems[waitingForPrevVideoSection.sectionId];
+    if (!items || items.length === 0) return;
+
+    const lastVideo = [...items].reverse().find((item: any) => item.type?.toLowerCase() === 'video');
+
+    if (!lastVideo) {
+      // No video here — try the next section back
+      const { remaining } = waitingForPrevVideoSection;
+      if (remaining.length === 0) {
+        setWaitingForPrevVideoSection(null);
+        setIsNavigatingToPrev(false);
+        return;
+      }
+      const [next, ...rest] = remaining;
+      setActiveSectionInfo({ moduleId: next.moduleId, sectionId: next.sectionId });
+      setWaitingForPrevVideoSection({ ...next, remaining: rest });
+      return;
+    }
+
+    const targetId = lastVideo._id ?? '';
+    if (!targetId) { setWaitingForPrevVideoSection(null); setIsNavigatingToPrev(false); return; }
+
+    setWaitingForPrevVideoSection(null);
+    setSelectedModuleId(waitingForPrevVideoSection.moduleId);
+    setSelectedSectionId(waitingForPrevVideoSection.sectionId);
+    setSelectedItemId(targetId);
+    setExpandedModules(prev => ({ ...prev, [waitingForPrevVideoSection.moduleId]: true }));
+    setExpandedSections(prev => ({ ...prev, [waitingForPrevVideoSection.sectionId]: true }));
+    updateCourseNavigation(waitingForPrevVideoSection.moduleId, waitingForPrevVideoSection.sectionId, targetId);
+    setIsNavigatingToPrev(false);
+  }, [sectionItems, waitingForPrevVideoSection, updateCourseNavigation]);
 
   // Notification effects
   useEffect(() => {
@@ -609,6 +688,16 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
       setInitialLoadComplete(true);
     }
   }, [progressData, updateCourseNavigation, initialLoadComplete]);
+
+  // If the item fetch hangs (backend slow / DB issue), auto-retry after 20 s to unblock the UI.
+  useEffect(() => {
+    if (!itemLoading || !shouldFetchItem) return;
+    const timer = setTimeout(() => {
+      console.warn('[Item Load] Still loading after 20s — forcing refetch');
+      refetchItem();
+    }, 20000);
+    return () => clearTimeout(timer);
+  }, [itemLoading, shouldFetchItem, refetchItem, selectedItemId]);
 
   // Effect to set current item when item data is fetched
   useEffect(() => {
@@ -1110,44 +1199,39 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
       setIsNavigatingToNext(true);
 
       try {
-        // 1️⃣ Stop current item (clean + API)
+        // 1️⃣ Stop current item (clean + API) with retry logic
         if (itemContainerRef.current) {
-          try {
-            console.log("Handle next is called to end the current item.....")
-            await itemContainerRef.current.stopCurrentItem();
-          } catch (error: any) {
-            const errorMessage = error?.response?.data?.message || error?.message || 'Failed to save progress. Please try again.';
-            toast.error(errorMessage);
+          let stopSucceeded = false;
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+              console.log(`[handleNext] Attempt ${attempt}/3 to stop current item`);
+              await itemContainerRef.current.stopCurrentItem();
+              stopSucceeded = true;
+              console.log(`[handleNext] Successfully stopped item on attempt ${attempt}`);
+              break;
+            } catch (error: any) {
+              const status = error?.response?.status;
+              const errorMessage = error?.response?.data?.message || error?.message;
+              console.warn(`[handleNext] Attempt ${attempt} failed - Status: ${status}, Message: ${errorMessage}`);
 
-            // Navigate to previous video item on stop API failure
-            const previousVideoItem = findPreviousVideoItem();
-            if (previousVideoItem && previousVideoItem.itemId && previousVideoItem.itemId !== selectedItemId) {
-
-              // Update local React state to trigger re-render
-              setSelectedModuleId(previousVideoItem.moduleId);
-              setSelectedSectionId(previousVideoItem.sectionId);
-              setSelectedItemId(previousVideoItem.itemId);
-
-              // Expand the module and section
-              setExpandedModules(prev => ({ ...prev, [previousVideoItem.moduleId]: true }));
-              setExpandedSections(prev => ({ ...prev, [previousVideoItem.sectionId]: true }));
-
-              // Ensure section items are loaded
-              if (!sectionItems[previousVideoItem.sectionId]) {
-                setActiveSectionInfo({
-                  moduleId: previousVideoItem.moduleId,
-                  sectionId: previousVideoItem.sectionId
-                });
+              // Retry on retryable errors
+              if (attempt < 3 && (status === 400 || status === 500 || status === 504 || !status)) {
+                console.log(`[handleNext] Retrying in 1 second (attempt ${attempt + 1}/3)...`);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              } else if (attempt === 3) {
+                // All retries exhausted: do NOT roll back — the learner has already
+                // finished the video. video.tsx::handleStopItem has queued the failed
+                // stop payload to localStorage and a background flusher will retry it.
+                // Proceed to the next item.
+                console.warn(`[handleNext] Stop failed after 3 attempts; will be retried in background. Status: ${status}, Message: ${errorMessage}`);
+                toast.warning('Progress will be saved shortly.');
+                stopSucceeded = true;
+                break;
               }
-
-              // Update course store
-              updateCourseNavigation(
-                previousVideoItem.moduleId,
-                previousVideoItem.sectionId,
-                previousVideoItem.itemId
-              );
             }
+          }
 
+          if (!stopSucceeded) {
             setIsNavigatingToNext(false);
             return;
           }
@@ -1246,8 +1330,22 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
           // Set waiting state to track when items are loaded
           setWaitingForNextSection({ moduleId, sectionId });
 
-          // Trigger loading of next section items
-          safeSetActiveSection(moduleId, sectionId);
+          // Remove any stale empty entry for this section so hasSectionItems → false
+          // and shouldFetchItems → true. An empty array would block the re-fetch because
+          // !![] is truthy, causing the hook to be called with empty strings indefinitely.
+          setSectionItems(prev => {
+            if (sectionId in prev) {
+              const next = { ...prev };
+              delete next[sectionId];
+              return next;
+            }
+            return prev;
+          });
+
+          // Bypass safeSetActiveSection's dedup guard — always write a new object so
+          // the fetch hook's query key changes and React Query issues a fresh request,
+          // even if activeSectionInfo was already pointing at this section.
+          setActiveSectionInfo({ moduleId, sectionId });
 
           // Keep loading state active (will be cleared when navigation completes)
           return;
@@ -1310,6 +1408,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     recalculateStudentProgressAsync,
     COURSE_ID,
     VERSION_ID,
+    setActiveSectionInfo,
+    setSectionItems,
   ]);
 
 
@@ -1410,11 +1510,35 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
         await new Promise(resolve => setTimeout(resolve, 50));
       }
 
-      // Find the previous video item
+      // Find the previous video item (only works if that section's items are already cached)
       const prevVideoItem = findPreviousVideoItem();
 
       if (!prevVideoItem) {
-        setIsNavigatingToPrev(false);
+        // Build the full ordered list of sections that come before the current one so the
+        // useEffect can walk backwards through them one at a time until a video is found.
+        const modules = (courseVersionData as any)?.modules || [];
+        const sortedModules = [...modules].sort((a: any, b: any) => a.order?.localeCompare?.(b.order) ?? 0);
+        const curModIdx = sortedModules.findIndex((m: any) => m.moduleId === selectedModuleId);
+
+        const prevSections: { moduleId: string; sectionId: string }[] = [];
+        for (let mi = curModIdx; mi >= 0; mi--) {
+          const mod = sortedModules[mi];
+          const sections = [...(mod.sections || [])].sort((a: any, b: any) => a.order?.localeCompare?.(b.order) ?? 0);
+          const startIdx = mi === curModIdx
+            ? sections.findIndex((s: any) => s.sectionId === selectedSectionId) - 1
+            : sections.length - 1;
+          for (let si = startIdx; si >= 0; si--) {
+            if (sections[si]?.sectionId) {
+              prevSections.push({ moduleId: mod.moduleId, sectionId: sections[si].sectionId });
+            }
+          }
+        }
+
+        if (prevSections.length === 0) { setIsNavigatingToPrev(false); return; }
+
+        const [first, ...rest] = prevSections;
+        setActiveSectionInfo({ moduleId: first.moduleId, sectionId: first.sectionId });
+        setWaitingForPrevVideoSection({ ...first, remaining: rest });
         return;
       }
 
@@ -1473,6 +1597,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     selectedSectionId,
     selectedItemId,
     sectionItems,
+    courseVersionData,
     updateCourseNavigation,
   ]);
 
@@ -1590,7 +1715,7 @@ useEffect(() => {
   return (
     <>
       <Dialog open={showProctorDialog} onOpenChange={(open) => {
-        if (!open) {
+        if (!open && !proctoringAcceptedRef.current) {
           router.navigate({ to: '/student' });
         }
       }}>
@@ -1610,7 +1735,7 @@ useEffect(() => {
             </li>
           </ul>
           <div className="w-full flex justify-end">
-            <Button onClick={() => { setShowProctorDialog(false) }} className="w-full">ACCEPT</Button>
+            <Button onClick={() => { proctoringAcceptedRef.current = true; setShowProctorDialog(false); }} className="w-full">ACCEPT</Button>
           </div>
         </DialogContent>
       </Dialog>

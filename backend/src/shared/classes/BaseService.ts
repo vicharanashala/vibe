@@ -31,10 +31,16 @@ export abstract class BaseService {
       } catch (error: any) {
         if (session.inTransaction()) await session.abortTransaction();
         await session.endSession();
+        // TransientTransactionError: driver-level label for safe-to-retry errors.
+        // WriteConflict (code 112): concurrent transactions modifying the same document —
+        // the driver does not always label this as TransientTransactionError, so we check
+        // explicitly. Both are safe to retry after a brief backoff.
         const isTransient =
-          Array.isArray(error?.errorLabels) &&
-          error.errorLabels.includes('TransientTransactionError');
+          (Array.isArray(error?.errorLabels) && error.errorLabels.includes('TransientTransactionError')) ||
+          error?.code === 112 ||
+          (typeof error?.message === 'string' && error.message.includes('Write conflict'));
         if (isTransient && attempt < MAX_RETRIES - 1) {
+          await new Promise(resolve => setTimeout(resolve, 50 * (attempt + 1)));
           continue;
         }
         throw error;
