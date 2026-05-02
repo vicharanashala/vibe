@@ -1443,22 +1443,6 @@ class ProgressService extends BaseService {
         cohortId
       );
 
-      if (progress?.completed === true) {
-        const courseVersion =
-          await this.courseRepo.readVersion(courseVersionId);
-
-        const initialProgress = await this.initializeProgress(
-          userId.toString(),
-          courseId,
-          courseVersionId,
-          courseVersion,
-        );
-
-        progress.currentModule = initialProgress.currentModule;
-        progress.currentSection = initialProgress.currentSection;
-        progress.currentItem = initialProgress.currentItem;
-      }
-
       // if (!progress) {
       //   throw new NotFoundError('Progress not found');
       // }
@@ -2267,31 +2251,19 @@ class ProgressService extends BaseService {
             session,
           );
 
-          if (!stoppedWatchTime) {
-            /**
-             * If your repository currently returns null when already stopped,
-             * this hard failure creates retry bugs.
-             *
-             * Recommended:
-             * either make stopItemTracking idempotent in repo,
-             * or treat "already stopped" as safe.
-             *
-             * For now, keeping compatibility:
-             */
-            throw new NotFoundError('Watch time not found or already stopped');
+          if (stoppedWatchTime) {
+            await this.validateItemStopEligibility(
+              item,
+              itemId,
+              userId,
+              courseId,
+              courseVersionId,
+              attemptId,
+              isSkipped,
+              stoppedWatchTime,
+              cohortId,
+            );
           }
-
-          await this.validateItemStopEligibility(
-            item,
-            itemId,
-            userId,
-            courseId,
-            courseVersionId,
-            attemptId,
-            isSkipped,
-            stoppedWatchTime,
-            cohortId,
-          );
 
           shouldCountCurrentItemAsCompleted = true;
         }
