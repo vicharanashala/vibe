@@ -656,7 +656,6 @@ export class ItemService extends BaseService {
             currentModule: moduleId,
             currentSection: sectionId,
             completed: false,
-            ...(cohortId ? { cohortId } : {}),
           },
           cohortId
         );

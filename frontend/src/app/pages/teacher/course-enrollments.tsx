@@ -50,6 +50,10 @@ import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
 import { generateExcel, generateStudentContactsExcel, type ExcelExportOptions } from "@/lib/excel-export"
 import {
+  downloadGuruSetuFeedbackExport,
+  isGuruSetuPilotCourse,
+} from "@/lib/gurusetu-feedback-export"
+import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -430,6 +434,7 @@ function CourseEnrollments() {
   const [isSearching, setIsSearching] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingStudentContacts, setIsExportingStudentContacts] = useState(false);
+  const [isExportingGuruSetuFeedback, setIsExportingGuruSetuFeedback] = useState(false);
   const [quizExportOptions, setQuizExportOptions] = useState<ExcelExportOptions>({
     includeAttempts: true,
     includeQuestionScores: true,
@@ -539,6 +544,7 @@ function CourseEnrollments() {
           studentId: student.studentId ?? `student-${index}`,
           name: student.name ?? 'Unknown Student',
           email: student.email ?? '',
+          percentCompleted: Number(student.percentCompleted) || 0,
           cohortName: student.cohortName ?? null,
           totalCourseScore: Number(student.totalCourseScore) || 0,
           totalCourseMaxScore: Number(student.totalCourseMaxScore) || 0,
@@ -856,6 +862,7 @@ function CourseEnrollments() {
     }
   }, [totalDocuments, enrollmentTab])
   const totalPages = enrollmentsData?.totalPages || 1
+  const isGuruSetuCourse = isGuruSetuPilotCourse(courseId, versionId)
   // console.log("enrollmentsData--------------", enrollmentsData);
 
   // Sorting handler
@@ -924,6 +931,38 @@ function CourseEnrollments() {
           ? error.message
           : 'Failed to export student contacts',
       );
+    }
+  };
+
+  const handleExportGuruSetuFeedback = async () => {
+    if (!courseId || !versionId) {
+      toast.error('Course ID or Version ID is missing');
+      return;
+    }
+
+    const authToken = localStorage.getItem('firebase-auth-token');
+    if (!authToken) {
+      toast.error('Authentication token missing');
+      return;
+    }
+
+    try {
+      setIsExportingGuruSetuFeedback(true);
+      const rows = await downloadGuruSetuFeedbackExport({
+        courseId,
+        versionId,
+        token: authToken,
+        cohortId: cohort ?? undefined,
+      });
+      toast.success(`Downloaded ${rows} Gurusetu feedback rows`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to download Gurusetu feedback export',
+      );
+    } finally {
+      setIsExportingGuruSetuFeedback(false);
     }
   };
 
@@ -1537,6 +1576,9 @@ function CourseEnrollments() {
                   setIsExporting={setIsExporting}
                   isExportingStudentContacts={isLoadingStudentContacts}
                   setIsExportingStudentContacts={setIsExportingStudentContacts}
+                  isExportingGuruSetuFeedback={isExportingGuruSetuFeedback}
+                  onExportGuruSetuFeedback={handleExportGuruSetuFeedback}
+                  isGuruSetuCourse={isGuruSetuCourse}
                   unenrollMutation={unenrollMutation}
                   changeStatusMutation={changeStatusMutation}
                   bulkChangeStatusMutation={bulkChangeStatusMutation}
@@ -1577,6 +1619,9 @@ function CourseEnrollments() {
                   setIsExporting={setIsExporting}
                   isExportingStudentContacts={isLoadingStudentContacts}
                   setIsExportingStudentContacts={setIsExportingStudentContacts}
+                  isExportingGuruSetuFeedback={isExportingGuruSetuFeedback}
+                  onExportGuruSetuFeedback={handleExportGuruSetuFeedback}
+                  isGuruSetuCourse={isGuruSetuCourse}
                   unenrollMutation={unenrollMutation}
                   changeStatusMutation={changeStatusMutation}
                   bulkChangeStatusMutation={bulkChangeStatusMutation}
@@ -2857,6 +2902,9 @@ interface EnrollmentsTableProps {
   setIsExporting: (exporting: boolean) => void;
   isExportingStudentContacts: boolean;
   setIsExportingStudentContacts: (exporting: boolean) => void;
+  isExportingGuruSetuFeedback: boolean;
+  onExportGuruSetuFeedback: () => void;
+  isGuruSetuCourse: boolean;
   quizExportOptions: ExcelExportOptions;
   setQuizExportOptions: Dispatch<SetStateAction<ExcelExportOptions>>;
   unenrollMutation: any;
@@ -2898,6 +2946,9 @@ function EnrollmentsTable({
   setIsExporting,
   isExportingStudentContacts,
   setIsExportingStudentContacts,
+  isExportingGuruSetuFeedback,
+  onExportGuruSetuFeedback,
+  isGuruSetuCourse,
   quizExportOptions,
   setQuizExportOptions,
   unenrollMutation,
@@ -3082,6 +3133,24 @@ function EnrollmentsTable({
                 )}
                 <span>{isLoadingQuizScores ? "Exporting..." : "Export Quiz Scores"}</span>
               </DropdownMenuItem>
+
+              {isGuruSetuCourse && (
+                <DropdownMenuItem
+                  onClick={onExportGuruSetuFeedback}
+                  disabled={isExportingGuruSetuFeedback}
+                >
+                  {isExportingGuruSetuFeedback ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileDown className="h-4 w-4" />
+                  )}
+                  <span>
+                    {isExportingGuruSetuFeedback
+                      ? "Downloading..."
+                      : "Download Gurusetu Feedback"}
+                  </span>
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 
