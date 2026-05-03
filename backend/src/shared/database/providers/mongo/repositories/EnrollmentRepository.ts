@@ -3752,15 +3752,13 @@ export class EnrollmentRepository {
       ? new ObjectId(cohortId)
       : null;
 
-    const watchTimeCollection = await this.db.getCollection<any>('watchTime');
-
     const pipeline = buildGuruSetuFeedbackExportPipeline(
       guruSetuCourseId,
       guruSetuVersionId,
       parsedCohortId,
     );
 
-    return watchTimeCollection
+    return this.enrollmentCollection
       .aggregate(pipeline, { allowDiskUse: true })
       .toArray();
   }

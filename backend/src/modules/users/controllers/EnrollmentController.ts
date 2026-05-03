@@ -956,7 +956,7 @@ export class EnrollmentController {
   @OpenAPI({
     summary: 'Export Gurusetu feedback rows',
     description:
-      'Returns Gurusetu Pilot(FDP for Faculty) feedback rows for students who watched more than 50% of each video. Optional cohort filter via cohortId query parameter.',
+      'Returns one row per (enrolled student, video) for Gurusetu Pilot(FDP for Faculty), including watch time, watch percentage, and feedback when submitted. Optional cohort filter via cohortId query parameter.',
   })
   async exportGuruSetuFeedback(
     @Param('courseId') courseId: string,
