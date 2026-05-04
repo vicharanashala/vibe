@@ -797,7 +797,19 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     function createPlayer() {
       if (!iframeRef.current || !videoId) return;
 
-      playerRef.current = new window.YT!.Player(iframeRef.current, {
+      // Pass an inner div to YT.Player instead of iframeRef.current directly.
+      // YT.Player replaces the passed element with an <iframe>, which would remove
+      // iframeRef.current from the DOM and leave React holding a stale reference.
+      // When NavigatingOverlay later mounts, React calls insertBefore(overlay, iframeRef.current)
+      // which throws "not a child" because the div is no longer in the DOM.
+      // Keeping iframeRef.current in place prevents that error.
+      const ytTarget = document.createElement('div');
+      ytTarget.style.width = '100%';
+      ytTarget.style.height = '100%';
+      iframeRef.current.innerHTML = '';
+      iframeRef.current.appendChild(ytTarget);
+
+      playerRef.current = new window.YT!.Player(ytTarget, {
         videoId,
         playerVars: {
           controls: 0,
