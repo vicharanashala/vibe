@@ -46,7 +46,7 @@ export async function detectVirtualCamera(
     const track = stream?.getVideoTracks?.()[0];
     const trackLabel = track?.label?.trim() || "";
 
-    console.log("Active camera:", trackLabel);
+    // console.log("Active camera:", trackLabel);
 
     if (trackLabel && matchesSuspiciousLabel(trackLabel)) {
       return {
@@ -103,7 +103,7 @@ export function inspectCameraStreamQuality(stream?: MediaStream) {
   const height = settings?.height ?? 0;
   const frameRate = settings?.frameRate ?? 0;
 
-  console.log("[Camera Quality]", { width, height, frameRate });
+  // console.log("[Camera Quality]", { width, height, frameRate });
 
   const suspicious =
     width > 3840 ||   

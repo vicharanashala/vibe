@@ -267,11 +267,11 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
   const shouldRandomize = courseVersionData?.shouldRandomize || false;
 
-    console.log("******************")
-    console.log("******************")
-    console.log(courseVersionData)
-    console.log("******************")
-    console.log("******************")
+    // console.log("******************")
+    // console.log("******************")
+    // console.log(courseVersionData)
+    // console.log("******************")
+    // console.log("******************")
 
   // Fetch user progress
   const { data: progressData, isLoading: progressLoading, error: progressError } =
