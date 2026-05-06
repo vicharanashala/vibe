@@ -45,6 +45,8 @@ function parseTimeToSeconds(timeStr: string): number {
 export default function Video({ URL, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(true);
+  const hasNavigatedRef = useRef(false);
   const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSeekTimeRef = useRef<number>(0);
   const lastSeekErrorToastRef = useRef<number>(0);
@@ -254,6 +256,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     }
   };
 
+
   const toggleFullscreen = useCallback(async () => {
     const container = videoContainerRef.current;
     if (!container) return;
@@ -282,6 +285,13 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
   }, []);
+
+  const safeNavigateNext = useCallback(() => {
+    if (hasNavigatedRef.current || !isMountedRef.current) return;
+    hasNavigatedRef.current = true;
+    progressStoppedRef.current = true;
+    onNext?.();
+  }, [onNext]);
 
   // Pause video when user switches browser tabs
   useEffect(() => {
@@ -327,6 +337,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     setGracePeriodCompleted(false);
     hasAutoPlayedRef.current = false; // Reset autoplay flag for new video
     maxTimeRef.current = startTimeSeconds; // Reset maxTime ref
+    hasNavigatedRef.current = false;
 
     // Update watchTimeTrack with course info when video changes
     if (currentCourse?.itemId) {
@@ -363,7 +374,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
       // Prevent playing if current time is at or beyond endTime
       if (endTimeSeconds > 0 && currentTime >= endTimeSeconds) {
         return;
-      }else{
+      } else {
         player.playVideo();
       }
       setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
@@ -869,9 +880,10 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 if (!watchItemId && isAlreadyWatched) {
                   if (currentCourse.courseId === "6981df886e100cfe04f9c4ad") {
                     console.log("Stop API failed for this course")
-                  }else{
+                  } else {
                     console.log("Fahhhhaaaaa.....")
-                    onNext?.();
+                    // onNext?.();
+                    safeNavigateNext();
                   }
                 }
                 else if (watchItemId) {
@@ -880,7 +892,8 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                   const success = await handleStopItem(watchItemId, 0); // No debounce on natural end
                   if (success && currentItemIdRef.current === capturedItemId) {
                     console.log("Damnnnn.......")
-                    onNext?.();
+                    // onNext?.();
+                    safeNavigateNext();
                   }
                 }
               }
@@ -939,8 +952,29 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
       // Destroy player
       if (playerRef.current) {
-        playerRef.current.destroy?.();
-        playerRef.current = null;
+        try {
+          playerRef.current.stopVideo?.();
+          // ✅ Remove iframe BEFORE destroy to prevent React reconciliation conflict
+          try {
+            if (iframeRef.current) {
+              // Case 1: YouTube replaced the div with an iframe
+              if (iframeRef.current.tagName === 'IFRAME') {
+                iframeRef.current.parentNode?.removeChild(iframeRef.current);
+              } else {
+                // Case 2: YouTube inserted iframe inside our div
+                const iframe = iframeRef.current.querySelector('iframe');
+                iframe?.parentNode?.removeChild(iframe);
+              }
+            }
+          } catch (e) {
+            // Ignore — node may already be detached
+          }
+          playerRef.current.destroy?.();
+        } catch (error) {
+          console.warn('Player cleanup error:', error);
+        } finally {
+          playerRef.current = null;
+        }
       }
     };
   }, [videoId, startTimeSeconds, readyToDetect]);
@@ -985,6 +1019,11 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     if (playerReady) {
       interval = setInterval(async () => {
 
+        if (!isMountedRef.current) {        // ADD THIS CHECK
+          clearInterval(interval);
+          return;
+        }
+
         if (progressStoppedRef.current || stopInFlightRef.current) {
           return;
         }
@@ -992,6 +1031,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         const player = playerRef.current;
         if (player && player.getCurrentTime) {
           const time = player.getCurrentTime();
+            if (!isMountedRef.current) return;
           setCurrentTime(time);
           setDuration(player.getDuration());
           // setVolume(player.getVolume());
@@ -1006,7 +1046,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           // Enforce endTime constraint
           if (endTimeSeconds > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= endTimeSeconds && currentCourse) {
             console.log("This if condition is triggred now -> ", "Fahhhhaaaa")
-             const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
+            const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
 
             player?.pauseVideo();
 
@@ -1032,7 +1072,8 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
             const success = await handleStopItem(watchItemId, debounceTime);
             if (success && currentItemIdRef.current === capturedItemId) {
               await sendWatchTimeTrackData(capturedTrackData);
-              onNext?.();
+              // onNext?.();
+              safeNavigateNext();
             }
           }
 
@@ -1059,7 +1100,8 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
               const success = await handleStopItem(watchItemId, debounceTime);
               if (success && currentItemIdRef.current === capturedItemId) {
                 await sendWatchTimeTrackData(capturedTrackData);
-                onNext?.();
+                // onNext?.();
+                safeNavigateNext();
               }
             }
           }
@@ -1240,7 +1282,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           handleSkipItem();
           setIsStopFailed(false);
         }}
-        handlePlayPause={()=>{playVideoAgain(); setIsStopFailed(false)}}
+        handlePlayPause={() => { playVideoAgain(); setIsStopFailed(false) }}
       />
 
       <div
@@ -1296,6 +1338,15 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           ) : (
             // YouTube iframe container
             <>
+            <div
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  position: 'relative',
+                  borderRadius: '12px 12px 0 0',
+                  overflow: 'hidden',
+                }}
+              >
               <div
 
                 ref={iframeRef}
@@ -1327,7 +1378,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 }}
 
               />
-
+              </div>
 
 
               {/* Multiple overlay layers to block YouTube controls */}

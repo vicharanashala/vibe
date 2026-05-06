@@ -1443,22 +1443,6 @@ class ProgressService extends BaseService {
         cohortId
       );
 
-      if (progress?.completed === true) {
-        const courseVersion =
-          await this.courseRepo.readVersion(courseVersionId);
-
-        const initialProgress = await this.initializeProgress(
-          userId.toString(),
-          courseId,
-          courseVersionId,
-          courseVersion,
-        );
-
-        progress.currentModule = initialProgress.currentModule;
-        progress.currentSection = initialProgress.currentSection;
-        progress.currentItem = initialProgress.currentItem;
-      }
-
       // if (!progress) {
       //   throw new NotFoundError('Progress not found');
       // }
