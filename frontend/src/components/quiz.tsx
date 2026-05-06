@@ -2046,17 +2046,34 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
         {/* Navigation */}
         <div className="flex justify-between items-center">
-          {/* Skip button (shown after 5 attempts) */}
-          {(attempts >= 5 && allowSkip == true) && (
-            <Button
-              // variant="outline"
-              onClick={handleSkipQuiz}
-              // className="text-white hover:text-background/90 hover:bg-foreground/10"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Skipping...' : 'Skip Quiz'}
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {/* Issue #561: Allow learner to rewatch the previous video from quiz */}
+            {onPrevVideo && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  onPrevVideo();
+                }}
+                disabled={isProgressUpdating || isSubmitting || isSaving}
+                className="border-blue-300 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/30"
+              >
+                <ChevronLeft className="mr-2 h-4 w-4" />
+                Rewatch Video
+              </Button>
+            )}
+
+            {/* Skip button (shown after 5 attempts) */}
+            {(attempts >= 5 && allowSkip == true) && (
+              <Button
+                // variant="outline"
+                onClick={handleSkipQuiz}
+                // className="text-white hover:text-background/90 hover:bg-foreground/10"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Skipping...' : 'Skip Quiz'}
+              </Button>
+            )}
+          </div>
 
           <div className="flex gap-2">
             <Button
