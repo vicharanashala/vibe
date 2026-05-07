@@ -543,19 +543,30 @@
 //                             Password
 //                           </Label>
 //                           <div className="relative">
-//                             <Input
-//                               id="password"
-//                               name="new-password"
-//                               type={showPassword ? "text" : "password"}
-//                               placeholder="Enter your password"
-//                               autoComplete="new-password"
-//                               value={password}
-//                               onChange={(e) => setPassword(e.target.value)}
-//                               className={cn(
-//                                 "transition-all duration-200",
-//                                 formErrors.password && "border-destructive focus-visible:ring-destructive"
-//                               )}
-//                             />
+//                           <div className="relative">
+//  <Input
+//    id="password"
+//    name="new-password"
+//    type={showPassword ? "text" : "password"}
+//    placeholder="Enter your password"
+//    autoComplete="new-password"
+//    value={password}
+//    onChange={(e) => setPassword(e.target.value)}
+//    className={cn(
+//      "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16 pr-14",
+//      formErrors.password && "border-destructive focus-visible:ring-destructive"
+//    )}
+//  />
+//  <button
+//    type="button"
+//    onClick={() => setShowPassword(p => !p)}
+//    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[rgb(52,152,169)] transition-colors"
+//    aria-label={showPassword ? "Hide password" : "Show password"}
+//  >
+//    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+//  </button>
+//</div>
+//                             
 //                             <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
 //                               {showPassword ? <EyeOff /> : <Eye />}
 //                             </Button>
@@ -709,11 +720,28 @@
 //                           <Label htmlFor="signup-password" className="text-sm font-medium">
 //                             Password
 //                           </Label>
-//                           <Input
-//                             id="signup-password"
-//                             type={showPassword ? "text" : "password"}
-//                             placeholder="Create a strong password"
-//                             value={password}
+//                          	<div className="relative">
+//  <Input
+//    id="signup-password"
+//    type={showPassword ? "text" : "password"}
+//    placeholder="Create a strong password"
+//    value={password}
+//    onChange={(e) => setPassword(e.target.value)}
+//    className={cn(
+//      "transition-all duration-200 border-0 !bg-[#FFFFFF] placeholder:text-[#9CA3AF] text-[#000000] text-lg h-16 pr-14",
+//      formErrors.password && "border-destructive focus-visible:ring-destructive"
+//    )}
+//  />
+//  <button
+//    type="button"
+//    onClick={() => setShowPassword(p => !p)}
+//    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[rgb(52,152,169)] transition-colors"
+//    aria-label={showPassword ? "Hide password" : "Show password"}
+//  >
+//    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+//  </button>
+//</div>
+////                             value={password}
 //                             onChange={(e) => setPassword(e.target.value)}
 //                             className={cn(
 //                               "transition-all duration-200",
