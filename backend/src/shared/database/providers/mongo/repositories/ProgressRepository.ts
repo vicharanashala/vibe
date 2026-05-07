@@ -639,13 +639,16 @@ class ProgressRepository {
     await this.init();
     const capMs = Math.max(0, capSeconds) * 1000;
 
+    // isExpired sessions (idle-timer-closed) still count: the seconds the
+    // student actually watched before stepping away are honest engagement.
+    // The cap-per-session below already prevents a "leave it playing in the
+    // background" abuse from inflating the total beyond the video's duration.
     const match: any = {
       userId: new ObjectId(userId),
       itemId: new ObjectId(itemId),
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
       isDeleted: { $ne: true },
-      isExpired: { $ne: true },
       startTime: { $ne: null },
     };
     if (cohortId) {

@@ -2145,37 +2145,52 @@ useEffect(() => {
 
                 {/* Notification Stack */}
                 <div className="fixed top-6 right-6 z-50 flex flex-col gap-2 w-90 ">
-                  {/* ✅ Item Access Error Notification */}
-                  {isItemForbidden && (
-                    <Card className="border border-red-400/40 bg-red-600/95 text-red-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
-                      <CardContent className="flex items-center gap-3 px-4 py-0">
-                        <div className="flex h-22 w-22 items-center justify-center rounded-l border-red-50/30 bg-red-50/10 text-4xl p-4">
-                          <AlertCircle className="h-16 w-16" />
-                        </div>
-                        <div className="flex-1 space-y-1">
-                          <Badge variant="outline" className="border-red-50/30 bg-red-50/10 text-red-50 text-lg font-bold">
-                            Access Restricted
-                          </Badge>
-                          <p className="text-md font-medium leading-relaxed">
-                            {itemError && itemErrorName === "ForbiddenError"
-                              ? itemError
-                              : previousValidItem
-                                ? "Returning to previous valid content."
-                                : "Complete current item first to access this content."
-                            }
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setIsItemForbidden(false)}
-                          className="h-6 w-6 p-0 text-red-50 hover:bg-red-50/10"
-                        >
-                          ×
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  )}
+                  {/* Item Not Completed Notification.
+                      currentItem still points at the previous (incomplete) item here:
+                      a 403 leaves itemData undefined, so setCurrentItem() doesn't run. */}
+                  {isItemForbidden && (() => {
+                    const itemKind =
+                      currentItem?.type === 'VIDEO' ? 'video'
+                      : currentItem?.type === 'QUIZ' ? 'quiz'
+                      : currentItem?.type === 'BLOG' ? 'reading'
+                      : currentItem?.type === 'PROJECT' ? 'project'
+                      : 'item';
+                    const isPrerequisiteBlock =
+                      itemErrorName === 'ForbiddenError' &&
+                      typeof itemError === 'string' &&
+                      itemError.toLowerCase().includes("don't have permission to watch");
+                    const heading = isPrerequisiteBlock
+                      ? `${itemKind.charAt(0).toUpperCase() + itemKind.slice(1)} not completed`
+                      : 'Cannot open this item';
+                    const body = isPrerequisiteBlock
+                      ? `Please complete the current ${itemKind} item before moving to the next one.`
+                      : (itemError || `Please complete the current ${itemKind} item before moving to the next one.`);
+                    return (
+                      <Card className="border border-amber-400/40 bg-amber-600/95 text-amber-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
+                        <CardContent className="flex items-center gap-3 px-4 py-0">
+                          <div className="flex h-22 w-22 items-center justify-center rounded-l border-amber-50/30 bg-amber-50/10 text-4xl p-4">
+                            <AlertCircle className="h-16 w-16" />
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            <Badge variant="outline" className="border-amber-50/30 bg-amber-50/10 text-amber-50 text-lg font-bold">
+                              {heading}
+                            </Badge>
+                            <p className="text-md font-medium leading-relaxed">
+                              {body}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setIsItemForbidden(false)}
+                            className="h-6 w-6 p-0 text-amber-50 hover:bg-amber-50/10"
+                          >
+                            ×
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })()}
 
                   {/* Gesture Notification */}
                   {doGesture && currentItem?.type !== 'VIDEO' && (

@@ -444,7 +444,11 @@ class AttemptService extends BaseService {
       throw new NotFoundError(`Quiz with ID ${quizId} not found`);
     }
 
-    // 2. Check existing submission (idempotency)
+    // 2. Idempotent re-submit. Common when a slow first request made the
+    // student click submit again, or the page reloaded mid-submit. Return the
+    // prior grading result and reconcile progress (in case the first call
+    // died after creating the submission row but before the progress write
+    // landed) — never throw, since the user already submitted in good faith.
     const existingSubmission = await this.submissionRepository.get(
       quizId,
       userId,
@@ -452,9 +456,48 @@ class AttemptService extends BaseService {
       cohortId
     );
     if (existingSubmission) {
-      throw new BadRequestError(
-        `Attempt with ID ${attemptId} has already been submitted`,
-      );
+      let existingGrading = existingSubmission.gradingResult;
+
+      if (!existingGrading) {
+        // First submit landed the row but never graded it. Grade now and
+        // persist on the existing record so future re-submits are pure reads.
+        const fresh = await this._grade(attemptId, quizId, answers);
+        existingGrading = {
+          ...fresh,
+          overallFeedback: fresh.overallFeedback.map(each => ({
+            ...each,
+            questionId: new ObjectId(each.questionId),
+          })),
+        };
+        await this.submissionRepository.update(
+          existingSubmission._id.toString(),
+          { gradingResult: existingGrading },
+        );
+      }
+
+      if (!isSkipped && courseId && courseVersionId) {
+        const isItemCompleted = await this.progressRepository.isItemCompleted(
+          userId.toString(),
+          courseId,
+          courseVersionId,
+          quizId,
+          cohortId,
+        );
+        if (!isItemCompleted) {
+          const isPassed = existingGrading.gradingStatus === 'PASSED';
+          await this.progressService.handleQuizeProgressAfterSubmission(
+            userId,
+            quizId,
+            courseId,
+            courseVersionId,
+            isPassed,
+            watchItemId,
+            cohortId,
+          );
+        }
+      }
+
+      return this._buildGradingResult(quiz, existingGrading);
     }
 
     /* -------------------- TRANSACTION (STATE MUTATION ONLY) -------------------- */

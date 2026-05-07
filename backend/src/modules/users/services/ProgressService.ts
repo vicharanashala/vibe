@@ -1374,10 +1374,6 @@ class ProgressService extends BaseService {
     if (!watchTime.startTime || !watchTime.endTime || !item.details) {
       return false;
     }
-    // Sessions closed by the idle timer never count toward completion
-    if (watchTime.isExpired) {
-      return false;
-    }
 
     switch (item.type) {
       case 'VIDEO': {
@@ -1389,10 +1385,12 @@ class ProgressService extends BaseService {
           this.parseTimeToSeconds(videoDetails.startTime);
         if (totalVideoDuration <= 0) return false;
 
-        // Sum play time across all of this user's non-expired sessions for the
-        // item. Each session is capped at the video's own duration so re-watches
-        // can't push a partial viewer across the line. The just-closed session
-        // is included because stopItemTracking ran before this check.
+        // Sum play time across all of this user's sessions for the item
+        // (including idle-expired ones — those seconds are still honest
+        // engagement). Each session is capped at the video's own duration so
+        // re-watches and background-playback abuse can't push a partial viewer
+        // across the line. The just-closed session is included because
+        // stopItemTracking ran before this check.
         const cumulativeWatched =
           await this.progressRepository.sumWatchSecondsForItem(
             userId,
