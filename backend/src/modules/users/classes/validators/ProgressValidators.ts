@@ -322,6 +322,25 @@ export class StopItemBody {
     type: 'string',
   })
   cohortId?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @JSONSchema({
+    description: 'Actual seconds the video was playing in this session (player-tracked, not wall-clock)',
+    example: 342,
+    type: 'number',
+  })
+  watchedSeconds?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'True when this session was closed because the idle timer fired, not normal completion',
+    example: false,
+    type: 'boolean',
+  })
+  isExpired?: boolean;
 }
 
 export class ItemIdparams {

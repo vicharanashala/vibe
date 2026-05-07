@@ -1361,65 +1361,69 @@ class ProgressService extends BaseService {
     throw new Error('Invalid time format');
   }
 
-  private isValidWatchTime(watchTime: IWatchTime, item: Item) {
-    // Basic sanity checks
+  private async isValidWatchTime(
+    watchTime: IWatchTime,
+    item: Item,
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    itemId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
     if (!watchTime.startTime || !watchTime.endTime || !item.details) {
       return false;
     }
-
-    const watchStartTime = new Date(watchTime.startTime);
-    const watchEndTime = new Date(watchTime.endTime);
-
-    // Server-side measured duration in seconds
-    const serverDuration =
-      Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
-
-    // Buffer for latency/load (add 5 seconds to the server's measured time)
-    // This assumes the user actually watched longer, but the server started late or ended early
-    // Effectively, we are saying If the server saw 5s, maybe they actually watched 10s
-    const adjustedDuration = serverDuration + 5;
+    // Sessions closed by the idle timer never count toward completion
+    if (watchTime.isExpired) {
+      return false;
+    }
 
     switch (item.type) {
-      case 'VIDEO':
+      case 'VIDEO': {
         const videoDetails = item.details as IVideoDetails;
         if (!videoDetails.startTime || !videoDetails.endTime) return false;
 
-        // parse it to seconds through liabrary
-        const videoEndTimeInSeconds = this.parseTimeToSeconds(
-          videoDetails.endTime,
-        );
-        // parseInt(videoDetails.endTime.split(':')[0]) * 3600 +
-        // parseInt(videoDetails.endTime.split(':')[1]) * 60 +
-        // parseInt(videoDetails.endTime.split(':')[2]);
-        const videoStartTimeInSeconds = this.parseTimeToSeconds(
-          videoDetails.startTime,
-        );
-        // parseInt(videoDetails.startTime.split(':')[0]) * 3600 +
-        // parseInt(videoDetails.startTime.split(':')[1]) * 60 +
-        // parseInt(videoDetails.startTime.split(':')[2]);
-
         const totalVideoDuration =
-          videoEndTimeInSeconds - videoStartTimeInSeconds;
+          this.parseTimeToSeconds(videoDetails.endTime) -
+          this.parseTimeToSeconds(videoDetails.startTime);
+        if (totalVideoDuration <= 0) return false;
 
-        // Security Rule
-        // - Must have watched at least 15% of the video
-        // OR
-        // - If the video is long, must have watched at least 30 seconds
-        const minimumRequired = Math.min(totalVideoDuration * 0.15, 30);
+        // Sum play time across all of this user's non-expired sessions for the
+        // item. Each session is capped at the video's own duration so re-watches
+        // can't push a partial viewer across the line. The just-closed session
+        // is included because stopItemTracking ran before this check.
+        const cumulativeWatched =
+          await this.progressRepository.sumWatchSecondsForItem(
+            userId,
+            itemId,
+            courseId,
+            courseVersionId,
+            totalVideoDuration,
+            cohortId,
+            session,
+          );
 
-        return adjustedDuration >= minimumRequired;
+        // 40% covers a student watching at up to 2x speed with normal
+        // seek/pause behavior. Teachers can mark an item isOptional to bypass.
+        return cumulativeWatched >= totalVideoDuration * 0.4;
+      }
 
-      case 'BLOG':
+      case 'BLOG': {
         const blogDetails = item.details as IBlogDetails;
-        // Estimated read time is in minutes
         const readTimeSeconds =
           (blogDetails.estimatedReadTimeInMinutes || 1) * 60;
-
-        // Require at least 10% of estimated time OR 10 seconds
-        // This stops instant click-throughs but doesn't punish fast readers
         const minReadTime = Math.min(readTimeSeconds * 0.1, 10);
 
-        return adjustedDuration >= minReadTime;
+        // Blog has no client-side play tracking — wall-clock with 5s grace.
+        const sessionSeconds = typeof watchTime.duration === 'number'
+          ? watchTime.duration
+          : Math.abs(
+              new Date(watchTime.endTime).getTime() -
+              new Date(watchTime.startTime).getTime(),
+            ) / 1000;
+        return sessionSeconds + 5 >= minReadTime;
+      }
 
       default:
         return true;
@@ -2166,6 +2170,8 @@ class ProgressService extends BaseService {
     seekForwardEnabled?: boolean,
     nextItemId?: string,
     cohortId?: string,
+    watchedSeconds?: number,
+    isExpired?: boolean,
   ): Promise<void> {
     const [courseVersion, progress, item, linearProgressionEnabled] =
       await Promise.all([
@@ -2256,6 +2262,8 @@ class ProgressService extends BaseService {
           stoppedWatchTime = await this.progressRepository.stopItemTracking(
             watchItemId,
             session,
+            watchedSeconds,
+            isExpired,
           );
 
           if (stoppedWatchTime) {
@@ -2269,6 +2277,7 @@ class ProgressService extends BaseService {
               isSkipped,
               stoppedWatchTime,
               cohortId,
+              session,
             );
           } else {
             // watchTimeId not found or soft-deleted — treat as already-stopped (idempotent).
@@ -2558,12 +2567,22 @@ class ProgressService extends BaseService {
     isSkipped?: boolean,
     stoppedWatchTime?: IWatchTime,
     cohortId?: string,
+    session?: ClientSession,
   ): Promise<void> {
     const WATCH_TIME_REQUIRED_ITEMS = new Set<string>(['VIDEO', 'BLOG']);
 
     // 1 Watch-time based items
     if (WATCH_TIME_REQUIRED_ITEMS.has(item.type)) {
-      this.validateWatchTime(item, stoppedWatchTime);
+      await this.validateWatchTime(
+        item,
+        userId,
+        courseId,
+        courseVersionId,
+        itemId,
+        stoppedWatchTime,
+        cohortId,
+        session,
+      );
       return;
     }
 
@@ -2581,12 +2600,31 @@ class ProgressService extends BaseService {
     }
   }
 
-  private validateWatchTime(item: Item, stoppedWatchTime?: IWatchTime): void {
+  private async validateWatchTime(
+    item: Item,
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    itemId: string,
+    stoppedWatchTime?: IWatchTime,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<void> {
     if (!stoppedWatchTime) {
       throw new BadRequestError('Watch time not found');
     }
 
-    if (!this.isValidWatchTime(stoppedWatchTime, item)) {
+    const ok = await this.isValidWatchTime(
+      stoppedWatchTime,
+      item,
+      userId,
+      courseId,
+      courseVersionId,
+      itemId,
+      cohortId,
+      session,
+    );
+    if (!ok) {
       throw new BadRequestError('Invalid watch time');
     }
   }
@@ -2683,7 +2721,17 @@ class ProgressService extends BaseService {
         if (!watchTime) {
           throw new NotFoundError('Watch time not found');
         }
-        if (!this.isValidWatchTime(watchTime, item)) {
+        const ok = await this.isValidWatchTime(
+          watchTime,
+          item,
+          userId,
+          courseId,
+          courseVersionId,
+          itemId,
+          cohort,
+          session,
+        );
+        if (!ok) {
           throw new BadRequestError(
             'Watch time is not valid, the user did not watch the item long enough',
           );
@@ -3495,9 +3543,9 @@ class ProgressService extends BaseService {
       throw new NotFoundError(`Item ${itemId} not found`);
     }
 
-    // if (item.isOptional !== true) {
-    //   throw new BadRequestError('Item is not marked as optional');
-    // }
+    if (item.isOptional !== true) {
+      throw new BadRequestError('Item is not marked as optional');
+    }
 
     // Get or create progress
 
