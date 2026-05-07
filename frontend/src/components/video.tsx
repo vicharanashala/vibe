@@ -954,21 +954,6 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
       if (playerRef.current) {
         try {
           playerRef.current.stopVideo?.();
-          // ✅ Remove iframe BEFORE destroy to prevent React reconciliation conflict
-          try {
-            if (iframeRef.current) {
-              // Case 1: YouTube replaced the div with an iframe
-              if (iframeRef.current.tagName === 'IFRAME') {
-                iframeRef.current.parentNode?.removeChild(iframeRef.current);
-              } else {
-                // Case 2: YouTube inserted iframe inside our div
-                const iframe = iframeRef.current.querySelector('iframe');
-                iframe?.parentNode?.removeChild(iframe);
-              }
-            }
-          } catch (e) {
-            // Ignore — node may already be detached
-          }
           playerRef.current.destroy?.();
         } catch (error) {
           console.warn('Player cleanup error:', error);
