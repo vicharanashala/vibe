@@ -4,8 +4,16 @@ import { auth } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth-store';
 import { logout, loginWithGoogle, loginWithEmail, refreshFirebaseToken } from '@/utils/auth';
 import { setTokenRefreshFunction } from '@/lib/openapi';
+import { toast } from 'sonner';
 
 import type { Role, AuthContextType } from '@/types/auth.types';
+
+// Auto-logout after this many milliseconds of user inactivity. Activity is
+// detected from pointer/keyboard/touch events and from the tab becoming
+// visible after being hidden. The threshold is intentionally generous so
+// learners watching long videos (where the tab is visible but they aren't
+// touching anything) are not booted out unfairly.
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 
 // Create a context with default values
@@ -57,21 +65,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               await refreshFirebaseToken();
             } catch (error) {
               console.error('Failed to refresh token:', error);
-              // If refresh fails, sign out user
-              // handleLogout();
-
-              // Retry token refresh 
+              // First retry: try once more before giving up. A transient
+              // network blip or a brief Firebase hiccup should not log
+              // the learner out.
               try {
                 console.log('Retrying token refresh...');
                 const firebaseUser = auth.currentUser;
                 if (firebaseUser) {
                   const newToken = await firebaseUser.getIdToken(true);
                   setToken(newToken);
+                  return;
                 }
               } catch (retryError) {
                 console.error('Token refresh retry failed:', retryError);
-
               }
+              // Both attempts failed. The token cannot be renewed, which
+              // means subsequent API calls will return 401. Sign the user
+              // out cleanly so they re-authenticate, instead of leaving
+              // the UI in a "logged in" state that silently 401s on
+              // every request and can mask account revocation.
+              toast.error('Your session has expired. Please sign in again.');
+              handleLogout();
             }
           }, 50 * 60 * 1000); // 50 minutes in milliseconds
 
@@ -83,7 +97,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setToken(retryToken);
           } catch (retryError) {
             console.error('Token refresh on page load failed:', retryError);
-
+            // The initial token fetch and its retry both failed. Treat
+            // this as an unrecoverable auth error and force re-login,
+            // rather than leaving the app in an authReady=false limbo.
+            toast.error('Unable to verify your session. Please sign in again.');
+            handleLogout();
           }
         }
       } else {
@@ -105,6 +123,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
   }, [setToken, clearUser, handleLogout]);
+
+  // Idle auto-logout.
+  //
+  // The Firebase token-refresh loop above keeps the session alive
+  // indefinitely as long as the tab is open. Without an idle bound, a
+  // learner who walks away from a shared/public machine leaves an
+  // authenticated session running, and any cached watch-time / progress
+  // session ticks against their account. This effect logs the user out
+  // after IDLE_TIMEOUT_MS of no detectable interaction.
+  //
+  // We deliberately count tab visibility as activity (not just pointer /
+  // keyboard input) so a learner who is actively watching a long video
+  // with the tab focused is not logged out, while a backgrounded tab
+  // counts only its last visibility transition as activity.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const triggerIdleLogout = () => {
+      console.warn('[Auth] Idle timeout reached — logging out');
+      toast.info('You were signed out after a period of inactivity.');
+      handleLogout();
+    };
+
+    const resetIdleTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(triggerIdleLogout, IDLE_TIMEOUT_MS);
+    };
+
+    const onVisibility = () => {
+      if (!document.hidden) resetIdleTimer();
+    };
+
+    const activityEvents: Array<keyof DocumentEventMap> = [
+      'mousemove',
+      'mousedown',
+      'keydown',
+      'touchstart',
+      'scroll',
+      'wheel',
+    ];
+    activityEvents.forEach(evt =>
+      document.addEventListener(evt, resetIdleTimer, { passive: true }),
+    );
+    document.addEventListener('visibilitychange', onVisibility);
+
+    resetIdleTimer();
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      activityEvents.forEach(evt =>
+        document.removeEventListener(evt, resetIdleTimer),
+      );
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [isAuthenticated, handleLogout]);
 
   // Login function that sets the user in the store
   const login = (selectedRole: Role, uid: string, email: string, name?: string) => {
