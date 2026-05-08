@@ -2238,8 +2238,9 @@ class ProgressService extends BaseService {
      * - skipped items
      * - rewatch of already-completed items
      */
+    let alreadyCompleted = false;
     if (item.type !== 'QUIZ' && !isSkipped) {
-      const alreadyCompleted = await this.progressRepository.isItemCompleted(
+      alreadyCompleted = await this.progressRepository.isItemCompleted(
         userId,
         courseId,
         courseVersionId,
@@ -2528,14 +2529,18 @@ class ProgressService extends BaseService {
       // ----------------------------------------------------
       // 11. FINAL PROGRESS UPDATE
       // ----------------------------------------------------
-      await this.progressRepository.updateProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        newProgress,
-        cohortId,
-        session,
-      );
+      // On rewatch of an already-completed item, skip the pointer write so
+      // currentItem isn't rewound from the student's real forward position.
+      if (!alreadyCompleted) {
+        await this.progressRepository.updateProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          newProgress,
+          cohortId,
+          session,
+        );
+      }
     });
   }
 
