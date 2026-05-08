@@ -3356,7 +3356,10 @@ export class EnrollmentRepository {
 
     const quizIdsObj = validQuizIds.map(id => new ObjectId(id));
 
-    const quizDetails = await this.getQuizDetails(quizIdsObj);
+    const [quizDetails, quizQuestionsMap] = await Promise.all([
+      this.getQuizDetails(quizIdsObj),
+      this.getQuizQuestionIdsBulk(validQuizIds),
+    ]);
 
     /* -------------------------------------------------------
      * 3️⃣ AGGREGATE SUBMISSIONS IN MONGO (🔥 FIX)
@@ -3544,10 +3547,10 @@ export class EnrollmentRepository {
               ),
               attempts:
                 attemptsMap.get(userId)?.get(cohortId)?.get(quizId) ?? 0,
-              questionScores: Array.from(qScoreMap.entries()).map(
-                ([questionId, score]) => ({
-                  questionId,
-                  score: this.formatExportScore(score),
+              questionScores: (quizQuestionsMap.get(quizId) ?? []).map(
+                qid => ({
+                  questionId: qid,
+                  score: this.formatExportScore(qScoreMap.get(qid) ?? 0),
                 }),
               ),
             });

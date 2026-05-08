@@ -1345,9 +1345,91 @@ class ProgressService extends BaseService {
   }
 
   private isValidWatchTime(watchTime: IWatchTime, item: Item) {
+<<<<<<< fix/progress-stale-completed-flag-backfill
     // Delegated to a pure helper so the validation logic can be
     // unit-tested without bootstrapping the full DI container.
     return isValidWatchTimePure(watchTime, item as any);
+=======
+    // Basic sanity checks
+    if (!watchTime.startTime || !watchTime.endTime || !item.details) {
+      return false;
+    }
+
+    const watchStartTime = new Date(watchTime.startTime);
+    const watchEndTime = new Date(watchTime.endTime);
+
+    // Server-side measured duration in seconds
+    const serverDuration =
+      Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
+
+    // Buffer for latency/load (add 5 seconds to the server's measured time)
+    // This assumes the user actually watched longer, but the server started late or ended early
+    // Effectively, we are saying If the server saw 5s, maybe they actually watched 10s
+    const adjustedDuration = serverDuration + 5;
+
+    switch (item.type) {
+      case 'VIDEO':
+        const videoDetails = item.details as IVideoDetails;
+        if (!videoDetails.startTime || !videoDetails.endTime) return false;
+
+        // parse it to seconds through liabrary
+        const videoEndTimeInSeconds = this.parseTimeToSeconds(
+          videoDetails.endTime,
+        );
+        // parseInt(videoDetails.endTime.split(':')[0]) * 3600 +
+        // parseInt(videoDetails.endTime.split(':')[1]) * 60 +
+        // parseInt(videoDetails.endTime.split(':')[2]);
+        const videoStartTimeInSeconds = this.parseTimeToSeconds(
+          videoDetails.startTime,
+        );
+        // parseInt(videoDetails.startTime.split(':')[0]) * 3600 +
+        // parseInt(videoDetails.startTime.split(':')[1]) * 60 +
+        // parseInt(videoDetails.startTime.split(':')[2]);
+
+        const totalVideoDuration =
+          videoEndTimeInSeconds - videoStartTimeInSeconds;
+
+        // Security Rule
+        // - Must have watched at least 15% of the video
+        // OR
+        // - If the video is long, must have watched at least 30 seconds
+        const minimumRequired = Math.min(totalVideoDuration * 0.15, 30);
+
+        // Upper-bound sanity check.
+        // A single uninterrupted watch span should not exceed a reasonable
+        // multiple of the video duration. If it does, the most likely cause
+        // is that the learner left the tab/player open without calling stop
+        // (paused video, hidden tab, sleeping laptop). Reject the span so
+        // the item is not marked completed off an inflated wall-clock delta.
+        const maxAllowedVideoDuration = totalVideoDuration * 3 + 60;
+        if (serverDuration > maxAllowedVideoDuration) {
+          return false;
+        }
+
+        return adjustedDuration >= minimumRequired;
+
+      case 'BLOG':
+        const blogDetails = item.details as IBlogDetails;
+        // Estimated read time is in minutes
+        const readTimeSeconds =
+          (blogDetails.estimatedReadTimeInMinutes || 1) * 60;
+
+        // Require at least 10% of estimated time OR 10 seconds
+        // This stops instant click-throughs but doesn't punish fast readers
+        const minReadTime = Math.min(readTimeSeconds * 0.1, 10);
+
+        // Upper-bound sanity check (see VIDEO branch for rationale).
+        const maxAllowedReadTime = readTimeSeconds * 5 + 60;
+        if (serverDuration > maxAllowedReadTime) {
+          return false;
+        }
+
+        return adjustedDuration >= minReadTime;
+
+      default:
+        return true;
+    }
+>>>>>>> main
   }
 
   async getUserProgress(
@@ -2145,8 +2227,9 @@ class ProgressService extends BaseService {
      * - skipped items
      * - rewatch of already-completed items
      */
+    let alreadyCompleted = false;
     if (item.type !== 'QUIZ' && !isSkipped) {
-      const alreadyCompleted = await this.progressRepository.isItemCompleted(
+      alreadyCompleted = await this.progressRepository.isItemCompleted(
         userId,
         courseId,
         courseVersionId,
@@ -2435,14 +2518,18 @@ class ProgressService extends BaseService {
       // ----------------------------------------------------
       // 11. FINAL PROGRESS UPDATE
       // ----------------------------------------------------
-      await this.progressRepository.updateProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        newProgress,
-        cohortId,
-        session,
-      );
+      // On rewatch of an already-completed item, skip the pointer write so
+      // currentItem isn't rewound from the student's real forward position.
+      if (!alreadyCompleted) {
+        await this.progressRepository.updateProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          newProgress,
+          cohortId,
+          session,
+        );
+      }
     });
   }
 
