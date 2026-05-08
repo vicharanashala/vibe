@@ -1345,91 +1345,9 @@ class ProgressService extends BaseService {
   }
 
   private isValidWatchTime(watchTime: IWatchTime, item: Item) {
-<<<<<<< fix/progress-stale-completed-flag-backfill
     // Delegated to a pure helper so the validation logic can be
     // unit-tested without bootstrapping the full DI container.
     return isValidWatchTimePure(watchTime, item as any);
-=======
-    // Basic sanity checks
-    if (!watchTime.startTime || !watchTime.endTime || !item.details) {
-      return false;
-    }
-
-    const watchStartTime = new Date(watchTime.startTime);
-    const watchEndTime = new Date(watchTime.endTime);
-
-    // Server-side measured duration in seconds
-    const serverDuration =
-      Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
-
-    // Buffer for latency/load (add 5 seconds to the server's measured time)
-    // This assumes the user actually watched longer, but the server started late or ended early
-    // Effectively, we are saying If the server saw 5s, maybe they actually watched 10s
-    const adjustedDuration = serverDuration + 5;
-
-    switch (item.type) {
-      case 'VIDEO':
-        const videoDetails = item.details as IVideoDetails;
-        if (!videoDetails.startTime || !videoDetails.endTime) return false;
-
-        // parse it to seconds through liabrary
-        const videoEndTimeInSeconds = this.parseTimeToSeconds(
-          videoDetails.endTime,
-        );
-        // parseInt(videoDetails.endTime.split(':')[0]) * 3600 +
-        // parseInt(videoDetails.endTime.split(':')[1]) * 60 +
-        // parseInt(videoDetails.endTime.split(':')[2]);
-        const videoStartTimeInSeconds = this.parseTimeToSeconds(
-          videoDetails.startTime,
-        );
-        // parseInt(videoDetails.startTime.split(':')[0]) * 3600 +
-        // parseInt(videoDetails.startTime.split(':')[1]) * 60 +
-        // parseInt(videoDetails.startTime.split(':')[2]);
-
-        const totalVideoDuration =
-          videoEndTimeInSeconds - videoStartTimeInSeconds;
-
-        // Security Rule
-        // - Must have watched at least 15% of the video
-        // OR
-        // - If the video is long, must have watched at least 30 seconds
-        const minimumRequired = Math.min(totalVideoDuration * 0.15, 30);
-
-        // Upper-bound sanity check.
-        // A single uninterrupted watch span should not exceed a reasonable
-        // multiple of the video duration. If it does, the most likely cause
-        // is that the learner left the tab/player open without calling stop
-        // (paused video, hidden tab, sleeping laptop). Reject the span so
-        // the item is not marked completed off an inflated wall-clock delta.
-        const maxAllowedVideoDuration = totalVideoDuration * 3 + 60;
-        if (serverDuration > maxAllowedVideoDuration) {
-          return false;
-        }
-
-        return adjustedDuration >= minimumRequired;
-
-      case 'BLOG':
-        const blogDetails = item.details as IBlogDetails;
-        // Estimated read time is in minutes
-        const readTimeSeconds =
-          (blogDetails.estimatedReadTimeInMinutes || 1) * 60;
-
-        // Require at least 10% of estimated time OR 10 seconds
-        // This stops instant click-throughs but doesn't punish fast readers
-        const minReadTime = Math.min(readTimeSeconds * 0.1, 10);
-
-        // Upper-bound sanity check (see VIDEO branch for rationale).
-        const maxAllowedReadTime = readTimeSeconds * 5 + 60;
-        if (serverDuration > maxAllowedReadTime) {
-          return false;
-        }
-
-        return adjustedDuration >= minReadTime;
-
-      default:
-        return true;
-    }
->>>>>>> main
   }
 
   async getUserProgress(
@@ -4035,8 +3953,27 @@ class ProgressService extends BaseService {
     const hiddenItems = await this.progressRepository.getHiddenOrDeletedItems(versionId);
     const hiddenSet = new Set(hiddenItems.map(i => i.itemId.toString()));
     missedItemIds = missedItemIds.filter(itemId => !hiddenSet.has(itemId));
+
+    // Safeguard: if progress.completed is set but real completed items are less
+    // than 50% of relevant items, the flag is stale (e.g. carried from a prior
+    // course version). Backfilling here would grant credit for unwatched items.
+    const staleCompletedFlag =
+      progress.completed &&
+      completedItemSet.size < allRelevantItemIds.length * 0.5;
+
+    if (staleCompletedFlag) {
+      await this.progressRepository.updateProgress(
+        userId,
+        courseId,
+        versionId,
+        { completed: false },
+        cohortId,
+      );
+      missedItemIds = [];
+    }
+
     // 3. Backfill missed watch-time records
-    if (missedItemIds.length > 0) {
+    if (!staleCompletedFlag && missedItemIds.length > 0) {
       await this.progressRepository.addBulkWatchTime(
         userId,
         courseId,
