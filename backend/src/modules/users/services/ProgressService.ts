@@ -47,6 +47,7 @@ import { GetCurrentProgressPathResponse } from '../classes/dtos/GetCurrentProgre
 import { SETTING_TYPES } from '#root/modules/setting/types.js';
 import { CourseSettingService } from '#root/modules/setting/index.js';
 import { getContainer } from '#root/bootstrap/loadModules.js';
+import { isValidWatchTime as isValidWatchTimePure } from '../utils/watchTimeValidation.js';
 
 const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
 const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
@@ -1343,25 +1344,12 @@ class ProgressService extends BaseService {
     };
   }
 
-  private parseTimeToSeconds(timeStr: string) {
-    const parts = timeStr.split(':').map(Number);
-
-    if (parts.length === 3) {
-      // HH:MM:SS
-      const [hours, minutes, seconds] = parts;
-      return hours * 3600 + minutes * 60 + seconds;
-    }
-
-    if (parts.length === 2) {
-      // MM:SS
-      const [minutes, seconds] = parts;
-      return minutes * 60 + seconds;
-    }
-
-    throw new Error('Invalid time format');
-  }
-
   private isValidWatchTime(watchTime: IWatchTime, item: Item) {
+<<<<<<< fix/progress-stale-completed-flag-backfill
+    // Delegated to a pure helper so the validation logic can be
+    // unit-tested without bootstrapping the full DI container.
+    return isValidWatchTimePure(watchTime, item as any);
+=======
     // Basic sanity checks
     if (!watchTime.startTime || !watchTime.endTime || !item.details) {
       return false;
@@ -1441,6 +1429,7 @@ class ProgressService extends BaseService {
       default:
         return true;
     }
+>>>>>>> main
   }
 
   async getUserProgress(
