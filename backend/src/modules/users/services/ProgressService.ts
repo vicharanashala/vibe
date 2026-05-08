@@ -1407,6 +1407,17 @@ class ProgressService extends BaseService {
         // - If the video is long, must have watched at least 30 seconds
         const minimumRequired = Math.min(totalVideoDuration * 0.15, 30);
 
+        // Upper-bound sanity check.
+        // A single uninterrupted watch span should not exceed a reasonable
+        // multiple of the video duration. If it does, the most likely cause
+        // is that the learner left the tab/player open without calling stop
+        // (paused video, hidden tab, sleeping laptop). Reject the span so
+        // the item is not marked completed off an inflated wall-clock delta.
+        const maxAllowedVideoDuration = totalVideoDuration * 3 + 60;
+        if (serverDuration > maxAllowedVideoDuration) {
+          return false;
+        }
+
         return adjustedDuration >= minimumRequired;
 
       case 'BLOG':
@@ -1418,6 +1429,12 @@ class ProgressService extends BaseService {
         // Require at least 10% of estimated time OR 10 seconds
         // This stops instant click-throughs but doesn't punish fast readers
         const minReadTime = Math.min(readTimeSeconds * 0.1, 10);
+
+        // Upper-bound sanity check (see VIDEO branch for rationale).
+        const maxAllowedReadTime = readTimeSeconds * 5 + 60;
+        if (serverDuration > maxAllowedReadTime) {
+          return false;
+        }
 
         return adjustedDuration >= minReadTime;
 
@@ -2221,8 +2238,9 @@ class ProgressService extends BaseService {
      * - skipped items
      * - rewatch of already-completed items
      */
+    let alreadyCompleted = false;
     if (item.type !== 'QUIZ' && !isSkipped) {
-      const alreadyCompleted = await this.progressRepository.isItemCompleted(
+      alreadyCompleted = await this.progressRepository.isItemCompleted(
         userId,
         courseId,
         courseVersionId,
@@ -2511,14 +2529,18 @@ class ProgressService extends BaseService {
       // ----------------------------------------------------
       // 11. FINAL PROGRESS UPDATE
       // ----------------------------------------------------
-      await this.progressRepository.updateProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        newProgress,
-        cohortId,
-        session,
-      );
+      // On rewatch of an already-completed item, skip the pointer write so
+      // currentItem isn't rewound from the student's real forward position.
+      if (!alreadyCompleted) {
+        await this.progressRepository.updateProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          newProgress,
+          cohortId,
+          session,
+        );
+      }
     });
   }
 
