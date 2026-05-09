@@ -132,14 +132,6 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    isMountedRef.current = true;
-    hasNavigatedRef.current = false;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
   // Parse start and end times
   const startTimeSeconds = parseTimeToSeconds(startTime || '0');
   const endTimeSeconds = parseTimeToSeconds(endTime || '');
@@ -332,8 +324,69 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     onNext?.();
   }, [onNext]);
 
-  // Pause video when user switches browser tabs
+  // Pause video AND close the open WatchTime row when the learner hides the tab.
+  //
+  // Why we close the row (not just pause):
+  // The backend computes engagement as endTime - startTime on the WatchTime
+  // record opened by startItemTracking. If we only pause the player, the
+  // record stays open while the tab is hidden; whenever stopItem eventually
+  // fires (sometimes hours later) the recorded duration is wall-clock time,
+  // which trivially passes isValidWatchTime's minimum-watch threshold and
+  // marks the item as legitimately watched. Closing the row on hide bounds
+  // each WatchTime span to actual foreground time.
+  //
+  // Why we do NOT call handleStopItem here:
+  // handleStopItem treats a successful stop as item completion (sets
+  // progressStoppedRef, adds to completedItemIdsRef, and may navigate). On
+  // tab hide we explicitly do not want to mark the item completed — we just
+  // want to close the open span. So we fire the underlying mutation
+  // directly and re-open a fresh span via handleSendStartItem on return.
   useEffect(() => {
+    const closeOpenWatchTimeForHide = async () => {
+      const watchItemId = watchItemIdRef.current;
+      if (!watchItemId) return;
+      if (!currentCourse?.itemId) return;
+      // Already navigating away or already stopped — nothing to close.
+      if (progressStoppedRef.current || stopInFlightRef.current) return;
+      // Item is already complete — backend will reject anyway, skip.
+      if (
+        isAlreadyWatched ||
+        isCompleted ||
+        completedItemIdsRef.current.has(currentCourse.itemId)
+      ) {
+        return;
+      }
+      try {
+        await stopItem.mutateAsync({
+          params: {
+            path: {
+              courseId: currentCourse.courseId,
+              courseVersionId: currentCourse.versionId ?? '',
+            },
+          },
+          body: {
+            watchItemId,
+            itemId: currentCourse.itemId,
+            moduleId: currentCourse.moduleId ?? '',
+            sectionId: currentCourse.sectionId ?? '',
+            seekForwardEnabled,
+            nextItemId,
+            cohortId: currentCourse.cohortId ?? '',
+          },
+        } as any);
+        // Clear the local watchItemId so a fresh one is opened on return.
+        watchItemIdRef.current = null;
+        setWatchItemId('');
+        // Allow the player-state PLAYING handler to fire startItem again
+        // when playback resumes after the tab becomes visible.
+        progressStartedRef.current = false;
+      } catch (err) {
+        // Best-effort: if the close fails the server-side cap in
+        // isValidWatchTime is the safety net.
+        console.warn('[Visibility] stopItem on hide failed:', err);
+      }
+    };
+
     const handleVisibilityChange = () => {
       const player = playerRef.current;
       if (!player) return;
@@ -345,20 +398,82 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         } else {
           wasPlayingBeforeTabSwitch.current = false;
         }
+        // Close the open WatchTime regardless of play state, because the
+        // row was opened the moment playback first started and would
+        // otherwise keep accruing wall-clock time while hidden.
+        void closeOpenWatchTimeForHide();
       } else {
         if (wasPlayingBeforeTabSwitch.current && playerReady) {
           player.playVideo();
           setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
           wasPlayingBeforeTabSwitch.current = false;
         }
+        // Re-open a fresh WatchTime so the resumed playback is tracked.
+        // handleSendStartItem itself guards against already-completed items.
+        if (!watchItemIdRef.current) {
+          handleSendStartItem();
+        }
+      }
+    };
+
+    // On pagehide / unload we cannot await a network round-trip, so enqueue
+    // the close into the existing failedStopQueue. The next page load's
+    // queue-flush effect will send it, ensuring the WatchTime row is
+    // closed even if the user navigates away or kills the tab.
+    const handlePageHide = () => {
+      const watchItemId = watchItemIdRef.current;
+      if (!watchItemId || !currentCourse?.itemId) return;
+      if (progressStoppedRef.current) return;
+      if (
+        isAlreadyWatched ||
+        isCompleted ||
+        completedItemIdsRef.current.has(currentCourse.itemId)
+      ) {
+        return;
+      }
+      try {
+        const QUEUE_KEY = 'vibe.failedStopQueue';
+        const raw = localStorage.getItem(QUEUE_KEY);
+        const queue: any[] = raw ? JSON.parse(raw) : [];
+        const payload = {
+          params: {
+            path: {
+              courseId: currentCourse.courseId,
+              courseVersionId: currentCourse.versionId ?? '',
+            },
+          },
+          body: {
+            watchItemId,
+            itemId: currentCourse.itemId,
+            moduleId: currentCourse.moduleId ?? '',
+            sectionId: currentCourse.sectionId ?? '',
+            seekForwardEnabled,
+            nextItemId,
+            cohortId: currentCourse.cohortId ?? '',
+          },
+          queuedAt: Date.now(),
+        };
+        const dedupKey = `${payload.body.itemId}:${payload.body.watchItemId}`;
+        const exists = queue.some(
+          (q: any) => `${q?.body?.itemId}:${q?.body?.watchItemId}` === dedupKey,
+        );
+        if (!exists) {
+          queue.push(payload);
+          localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+        }
+      } catch (err) {
+        console.warn('[Visibility] failed to enqueue stop on pagehide:', err);
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
     };
-  }, [playing, playerReady, playbackRate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, playerReady, playbackRate, currentCourse?.itemId, currentCourse?.courseId, currentCourse?.versionId, currentCourse?.moduleId, currentCourse?.sectionId, currentCourse?.cohortId, isAlreadyWatched, isCompleted, seekForwardEnabled, nextItemId]);
 
   // Wait 10 seconds after readyToDetect becomes true (to match FloatingVideo's grace period)
   useEffect(() => {
@@ -852,7 +967,19 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     function createPlayer() {
       if (!iframeRef.current || !videoId) return;
 
-      playerRef.current = new window.YT!.Player(iframeRef.current, {
+      // Pass an inner div to YT.Player instead of iframeRef.current directly.
+      // YT.Player replaces the passed element with an <iframe>, which would remove
+      // iframeRef.current from the DOM and leave React holding a stale reference.
+      // When NavigatingOverlay later mounts, React calls insertBefore(overlay, iframeRef.current)
+      // which throws "not a child" because the div is no longer in the DOM.
+      // Keeping iframeRef.current in place prevents that error.
+      const ytTarget = document.createElement('div');
+      ytTarget.style.width = '100%';
+      ytTarget.style.height = '100%';
+      iframeRef.current.innerHTML = '';
+      iframeRef.current.appendChild(ytTarget);
+
+      playerRef.current = new window.YT!.Player(ytTarget, {
         videoId,
         playerVars: {
           controls: 0,
@@ -1011,21 +1138,6 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
       if (playerRef.current) {
         try {
           playerRef.current.stopVideo?.();
-          // ✅ Remove iframe BEFORE destroy to prevent React reconciliation conflict
-          try {
-            if (iframeRef.current) {
-              // Case 1: YouTube replaced the div with an iframe
-              if (iframeRef.current.tagName === 'IFRAME') {
-                iframeRef.current.parentNode?.removeChild(iframeRef.current);
-              } else {
-                // Case 2: YouTube inserted iframe inside our div
-                const iframe = iframeRef.current.querySelector('iframe');
-                iframe?.parentNode?.removeChild(iframe);
-              }
-            }
-          } catch (e) {
-            // Ignore — node may already be detached
-          }
           playerRef.current.destroy?.();
         } catch (error) {
           console.warn('Player cleanup error:', error);
@@ -1112,7 +1224,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
             if (!watchItemId && isAlreadyWatched) {
               progressStoppedRef.current = true;
               const capturedItemId = currentItemIdRef.current;
-              if (currentItemIdRef.current === capturedItemId) safeNavigateNext();
+              if (currentItemIdRef.current === capturedItemId) onNext?.();
               return;
             }
 
@@ -1141,7 +1253,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
             if (!watchItemId && isAlreadyWatched) {
               progressStoppedRef.current = true;
               const capturedItemId = currentItemIdRef.current;
-              if (currentItemIdRef.current === capturedItemId) safeNavigateNext();
+              if (currentItemIdRef.current === capturedItemId) onNext?.();
             } else if (watchItemId) {
               player?.pauseVideo();
 

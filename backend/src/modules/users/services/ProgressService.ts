@@ -2326,8 +2326,9 @@ class ProgressService extends BaseService {
      * - skipped items
      * - rewatch of already-completed items
      */
+    let alreadyCompleted = false;
     if (item.type !== 'QUIZ' && !isSkipped) {
-      const alreadyCompleted = await this.progressRepository.isItemCompleted(
+      alreadyCompleted = await this.progressRepository.isItemCompleted(
         userId,
         courseId,
         courseVersionId,
@@ -2613,14 +2614,18 @@ class ProgressService extends BaseService {
       // ----------------------------------------------------
       // 11. FINAL PROGRESS UPDATE
       // ----------------------------------------------------
-      await this.progressRepository.updateProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        newProgress,
-        cohortId,
-        session,
-      );
+      // On rewatch of an already-completed item, skip the pointer write so
+      // currentItem isn't rewound from the student's real forward position.
+      if (!alreadyCompleted) {
+        await this.progressRepository.updateProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          newProgress,
+          cohortId,
+          session,
+        );
+      }
     });
 
     // Post-commit, best-effort. A failure here leaves the canonical progress
@@ -4204,8 +4209,27 @@ class ProgressService extends BaseService {
     const hiddenItems = await this.progressRepository.getHiddenOrDeletedItems(versionId);
     const hiddenSet = new Set(hiddenItems.map(i => i.itemId.toString()));
     missedItemIds = missedItemIds.filter(itemId => !hiddenSet.has(itemId));
+
+    // Safeguard: if progress.completed is set but real completed items are less
+    // than 50% of relevant items, the flag is stale (e.g. carried from a prior
+    // course version). Backfilling here would grant credit for unwatched items.
+    const staleCompletedFlag =
+      progress.completed &&
+      completedItemSet.size < allRelevantItemIds.length * 0.5;
+
+    if (staleCompletedFlag) {
+      await this.progressRepository.updateProgress(
+        userId,
+        courseId,
+        versionId,
+        { completed: false },
+        cohortId,
+      );
+      missedItemIds = [];
+    }
+
     // 3. Backfill missed watch-time records
-    if (missedItemIds.length > 0) {
+    if (!staleCompletedFlag && missedItemIds.length > 0) {
       await this.progressRepository.addBulkWatchTime(
         userId,
         courseId,
