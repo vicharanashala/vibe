@@ -187,8 +187,24 @@ export default function CoursePage() {
   // ✅ Add the missing ref declaration
   const itemContainerRef = useRef<ItemContainerRef>(null);
 
-  // Ref for autoscroll to selected sidebar item
+  // Ref for autoscroll to selected sidebar item. Uses a callback ref so we
+  // scroll the moment the active row mounts — selectedItemId often updates
+  // before its section items have been fetched/rendered, so a useEffect on
+  // [selectedItemId] runs while the ref is still null.
   const selectedItemRef = useRef<HTMLButtonElement | null>(null);
+  const lastScrolledItemIdRef = useRef<string | null>(null);
+  const setSelectedItemRef = useCallback((node: HTMLButtonElement | null) => {
+    selectedItemRef.current = node;
+    if (!node) return;
+    const itemId = node.dataset.itemId;
+    if (!itemId || lastScrolledItemIdRef.current === itemId) return;
+    lastScrolledItemIdRef.current = itemId;
+    // One frame of slack lets the surrounding collapsibles finish painting
+    // before we ask the browser to scroll the row into view.
+    requestAnimationFrame(() => {
+      node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, []);
 
   // Helper function to update course store navigation state
   const updateCourseNavigation = useCallback((moduleId: string, sectionId: string, itemId: string) => {
@@ -1659,13 +1675,6 @@ useEffect(() => {
 
 
 
-  // Autoscroll to selected sidebar item when selectedItemId changes
-  useEffect(() => {
-    if (selectedItemRef.current) {
-      selectedItemRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }, [selectedItemId]);
-
   useEffect(() => {
     refetchVersion();
   }, [courseVersionData]);
@@ -1914,8 +1923,10 @@ useEffect(() => {
                                                     onClick={() => handleSelectItem(moduleId, sectionId, itemId)}
                                                     isActive={isCurrentItem}
                                                     className="group relative h-8 px-3 w-full rounded-md transition-all duration-200 hover:bg-accent/10 dark:data-[state=active]:bg-primary/10 data-[state=active]:bg-primary/10 data-[state=active]:text-primary justify-start"
-                                                    // Assign ref only to the selected item for autoscroll
-                                                    ref={isCurrentItem ? selectedItemRef : undefined}
+                                                    data-item-id={itemId}
+                                                    // Callback ref scrolls when the active row mounts, regardless of
+                                                    // when selectedItemId vs. items-list arrival happens.
+                                                    ref={isCurrentItem ? setSelectedItemRef : undefined}
                                                   >
                                                     <div className="flex items-center gap-2 w-full min-w-0">
                                                       <div className={`p-0.5 rounded transition-colors flex-shrink-0 ${isCurrentItem
