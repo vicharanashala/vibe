@@ -565,6 +565,18 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<string | null> {
     await this.init();
+    // Close any orphaned open sessions for this (user, item) so concurrent tabs
+    // can't double-count toward the cumulative completion threshold.
+    await this.watchTimeCollection.updateMany(
+      {
+        userId: new ObjectId(userId),
+        itemId: new ObjectId(itemId),
+        endTime: { $exists: false },
+        isDeleted: { $ne: true },
+      },
+      { $set: { endTime: new Date(), isExpired: true } },
+      { session },
+    );
     const watchTime: IWatchTime = {
       userId: new ObjectId(userId),
       courseId: new ObjectId(courseId),
@@ -586,17 +598,115 @@ class ProgressRepository {
   async stopItemTracking(
     watchTimeId: string,
     session?: ClientSession,
+    watchedSeconds?: number,
+    isExpired?: boolean,
   ): Promise<IWatchTime | null> {
     await this.init();
+    const updateFields: Partial<IWatchTime> = { endTime: new Date() };
+    if (typeof watchedSeconds === 'number' && watchedSeconds >= 0) {
+      updateFields.duration = watchedSeconds;
+    }
+    if (isExpired === true) {
+      updateFields.isExpired = true;
+    }
     const result = await this.watchTimeCollection.findOneAndUpdate(
       {
         _id: new ObjectId(watchTimeId),
         isDeleted: { $ne: true },
       },
-      { $set: { endTime: new Date() } },
+      { $set: updateFields },
       { returnDocument: 'after', session },
     );
     return result;
+  }
+
+  /**
+   * Sum the cumulative play seconds for an item across all of a user's
+   * non-expired, soft-undeleted watch records. Each record contributes
+   * `min(record_seconds, capSeconds)` so re-watches don't inflate the total
+   * past the video's own duration. Prefers the client-reported `duration`
+   * field; falls back to wall-clock (endTime − startTime) for legacy records.
+   */
+  async sumWatchSecondsForItem(
+    userId: string | ObjectId,
+    itemId: string,
+    courseId: string,
+    courseVersionId: string,
+    capSeconds: number,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    const capMs = Math.max(0, capSeconds) * 1000;
+
+    // isExpired sessions (idle-timer-closed) still count: the seconds the
+    // student actually watched before stepping away are honest engagement.
+    // The cap-per-session below already prevents a "leave it playing in the
+    // background" abuse from inflating the total beyond the video's duration.
+    const match: any = {
+      userId: new ObjectId(userId),
+      itemId: new ObjectId(itemId),
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      isDeleted: { $ne: true },
+      startTime: { $ne: null },
+    };
+    if (cohortId) {
+      match.cohortId = new ObjectId(cohortId);
+    } else {
+      match.$or = [
+        { cohortId: null },
+        { cohortId: { $exists: false } },
+      ];
+    }
+
+    const result = await this.watchTimeCollection
+      .aggregate<{ totalMs: number }>(
+        [
+          { $match: match },
+          {
+            $project: {
+              effectiveMs: {
+                $let: {
+                  vars: {
+                    raw: {
+                      $cond: [
+                        { $and: [{ $ne: ['$duration', null] }, { $gte: ['$duration', 0] }] },
+                        { $multiply: ['$duration', 1000] },
+                        {
+                          $cond: [
+                            { $ne: ['$endTime', null] },
+                            { $subtract: ['$endTime', '$startTime'] },
+                            0,
+                          ],
+                        },
+                      ],
+                    },
+                  },
+                  in: {
+                    $cond: [
+                      { $gt: ['$$raw', 0] },
+                      { $min: ['$$raw', capMs] },
+                      0,
+                    ],
+                  },
+                },
+              },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalMs: { $sum: '$effectiveMs' },
+            },
+          },
+        ],
+        { session },
+      )
+      .toArray();
+
+    const totalMs = result[0]?.totalMs ?? 0;
+    return totalMs / 1000;
   }
 
   async getWatchTime(

@@ -47,7 +47,6 @@ import { GetCurrentProgressPathResponse } from '../classes/dtos/GetCurrentProgre
 import { SETTING_TYPES } from '#root/modules/setting/types.js';
 import { CourseSettingService } from '#root/modules/setting/index.js';
 import { getContainer } from '#root/bootstrap/loadModules.js';
-import { isValidWatchTime as isValidWatchTimePure } from '../utils/watchTimeValidation.js';
 
 const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
 const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
@@ -628,6 +627,24 @@ class ProgressService extends BaseService {
       return;
     }
 
+    // Re-opening an item the learner has already passed in sequence is allowed
+    // even if its watchTime row never recorded a clean completion.
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    if (
+      courseVersion &&
+      (await this.isItemAtOrBeforeCurrent(
+        courseVersion,
+        progress.currentModule?.toString(),
+        progress.currentSection?.toString(),
+        progress.currentItem?.toString(),
+        moduleId,
+        sectionId,
+        itemId,
+      ))
+    ) {
+      return;
+    }
+
     if (
       progress.currentModule.toString() !== moduleId ||
       progress.currentSection.toString() !== sectionId ||
@@ -947,6 +964,74 @@ class ProgressService extends BaseService {
     }
 
     return null;
+  }
+
+  /**
+   * Returns true if the candidate (item) sits at-or-before the learner's
+   * current progress pointer in the course's declared module/section/item
+   * order. Used to let learners freely re-open any item they've already
+   * passed without depending on watchTime.endTime — the access predicate
+   * for completed/earlier items is positional, not watch-history-based.
+   */
+  public async isItemAtOrBeforeCurrent(
+    courseVersion: ICourseVersion,
+    currentModuleId: string,
+    currentSectionId: string,
+    currentItemId: string,
+    itemModuleId: string,
+    itemSectionId: string,
+    itemId: string,
+  ): Promise<boolean> {
+    if (!currentModuleId || !currentSectionId || !currentItemId) return false;
+    if (!itemModuleId || !itemSectionId || !itemId) return false;
+
+    if (
+      itemModuleId === currentModuleId &&
+      itemSectionId === currentSectionId &&
+      itemId === currentItemId
+    ) {
+      return true;
+    }
+
+    const sortedModules = [...courseVersion.modules].sort((a, b) =>
+      a.order.localeCompare(b.order),
+    );
+    const currentModuleIdx = sortedModules.findIndex(
+      m => m.moduleId?.toString() === currentModuleId,
+    );
+    const itemModuleIdx = sortedModules.findIndex(
+      m => m.moduleId?.toString() === itemModuleId,
+    );
+    if (currentModuleIdx === -1 || itemModuleIdx === -1) return false;
+    if (itemModuleIdx < currentModuleIdx) return true;
+    if (itemModuleIdx > currentModuleIdx) return false;
+
+    const sortedSections = [...sortedModules[currentModuleIdx].sections].sort(
+      (a, b) => a.order.localeCompare(b.order),
+    );
+    const currentSectionIdx = sortedSections.findIndex(
+      s => s.sectionId?.toString() === currentSectionId,
+    );
+    const itemSectionIdx = sortedSections.findIndex(
+      s => s.sectionId?.toString() === itemSectionId,
+    );
+    if (currentSectionIdx === -1 || itemSectionIdx === -1) return false;
+    if (itemSectionIdx < currentSectionIdx) return true;
+    if (itemSectionIdx > currentSectionIdx) return false;
+
+    const itemsGroup = await this.itemRepo.readItemsGroup(
+      sortedSections[currentSectionIdx].itemsGroupId?.toString(),
+    );
+    if (!itemsGroup?.items) return false;
+    const sortedItems = [...itemsGroup.items].sort((a, b) =>
+      a.order.localeCompare(b.order),
+    );
+    const currentItemIdx = sortedItems.findIndex(
+      i => i._id.toString() === currentItemId,
+    );
+    const itemIdx = sortedItems.findIndex(i => i._id.toString() === itemId);
+    if (currentItemIdx === -1 || itemIdx === -1) return false;
+    return itemIdx <= currentItemIdx;
   }
 
   public async getPreviousVideoItem(
@@ -1344,10 +1429,89 @@ class ProgressService extends BaseService {
     };
   }
 
-  private isValidWatchTime(watchTime: IWatchTime, item: Item) {
-    // Delegated to a pure helper so the validation logic can be
-    // unit-tested without bootstrapping the full DI container.
-    return isValidWatchTimePure(watchTime, item as any);
+  private parseTimeToSeconds(timeStr: string) {
+    const parts = timeStr.split(':').map(Number);
+
+    if (parts.length === 3) {
+      // HH:MM:SS
+      const [hours, minutes, seconds] = parts;
+      return hours * 3600 + minutes * 60 + seconds;
+    }
+
+    if (parts.length === 2) {
+      // MM:SS
+      const [minutes, seconds] = parts;
+      return minutes * 60 + seconds;
+    }
+
+    throw new Error('Invalid time format');
+  }
+
+  private async isValidWatchTime(
+    watchTime: IWatchTime,
+    item: Item,
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    itemId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    if (!watchTime.startTime || !watchTime.endTime || !item.details) {
+      return false;
+    }
+
+    switch (item.type) {
+      case 'VIDEO': {
+        const videoDetails = item.details as IVideoDetails;
+        if (!videoDetails.startTime || !videoDetails.endTime) return false;
+
+        const totalVideoDuration =
+          this.parseTimeToSeconds(videoDetails.endTime) -
+          this.parseTimeToSeconds(videoDetails.startTime);
+        if (totalVideoDuration <= 0) return false;
+
+        // Sum play time across all of this user's sessions for the item
+        // (including idle-expired ones — those seconds are still honest
+        // engagement). Each session is capped at the video's own duration so
+        // re-watches and background-playback abuse can't push a partial viewer
+        // across the line. The just-closed session is included because
+        // stopItemTracking ran before this check.
+        const cumulativeWatched =
+          await this.progressRepository.sumWatchSecondsForItem(
+            userId,
+            itemId,
+            courseId,
+            courseVersionId,
+            totalVideoDuration,
+            cohortId,
+            session,
+          );
+
+        // 40% covers a student watching at up to 2x speed with normal
+        // seek/pause behavior. Teachers can mark an item isOptional to bypass.
+        return cumulativeWatched >= totalVideoDuration * 0.4;
+      }
+
+      case 'BLOG': {
+        const blogDetails = item.details as IBlogDetails;
+        const readTimeSeconds =
+          (blogDetails.estimatedReadTimeInMinutes || 1) * 60;
+        const minReadTime = Math.min(readTimeSeconds * 0.1, 10);
+
+        // Blog has no client-side play tracking — wall-clock with 5s grace.
+        const sessionSeconds = typeof watchTime.duration === 'number'
+          ? watchTime.duration
+          : Math.abs(
+              new Date(watchTime.endTime).getTime() -
+              new Date(watchTime.startTime).getTime(),
+            ) / 1000;
+        return sessionSeconds + 5 >= minReadTime;
+      }
+
+      default:
+        return true;
+    }
   }
 
   async getUserProgress(
@@ -1961,6 +2125,21 @@ class ProgressService extends BaseService {
       return;
     }
 
+    // Re-watching an earlier item in sequence is allowed without requiring its
+    // own or its predecessor's watchTime row to look clean.
+    const isAtOrBefore = await this.isItemAtOrBeforeCurrent(
+      courseVersion,
+      progress.currentModule?.toString(),
+      progress.currentSection?.toString(),
+      progress.currentItem?.toString(),
+      moduleId,
+      sectionId,
+      itemId,
+    );
+    if (isAtOrBefore) {
+      return;
+    }
+
     const previousItem = await this.getPreviousItemInSequence(
       courseVersion,
       moduleId,
@@ -2090,6 +2269,8 @@ class ProgressService extends BaseService {
     seekForwardEnabled?: boolean,
     nextItemId?: string,
     cohortId?: string,
+    watchedSeconds?: number,
+    isExpired?: boolean,
   ): Promise<void> {
     const [courseVersion, progress, item, linearProgressionEnabled] =
       await Promise.all([
@@ -2169,6 +2350,18 @@ class ProgressService extends BaseService {
       }
     }
 
+    // Captured inside the transaction, applied after commit. Enrollment
+    // percent + recalculate-on-completion are derived/eventually-consistent
+    // metrics that don't need the same atomicity as currentItem advancement.
+    // Keeping them outside the transaction shrinks the lock-hold window —
+    // the captured 64s stop in production logs traced to these RTTs running
+    // before the final updateProgress committed.
+    let postTxEnrollmentId: string | null = null;
+    let postTxPercentCompleted: number | null = null;
+    let postTxCompletedCount: number | null = null;
+    let postTxGuruProgress: { percentCompleted: number; completedItemsCount: number } | null = null;
+    let postTxShouldRecalc = false;
+
     await this._withTransaction(async session => {
       let shouldCountCurrentItemAsCompleted = false;
       let stoppedWatchTime: any = null;
@@ -2181,6 +2374,8 @@ class ProgressService extends BaseService {
           stoppedWatchTime = await this.progressRepository.stopItemTracking(
             watchItemId,
             session,
+            watchedSeconds,
+            isExpired,
           );
 
           if (stoppedWatchTime) {
@@ -2194,6 +2389,7 @@ class ProgressService extends BaseService {
               isSkipped,
               stoppedWatchTime,
               cohortId,
+              session,
             );
           } else {
             // watchTimeId not found or soft-deleted — treat as already-stopped (idempotent).
@@ -2395,43 +2591,25 @@ class ProgressService extends BaseService {
       );
 
       // ----------------------------------------------------
-      // 9. GURU SETU OVERRIDE
+      // 9. GURU SETU OVERRIDE — capture for post-commit
       // ----------------------------------------------------
       if (
         courseId?.toString() === GURU_SETU_COURSE_ID &&
         courseVersionId?.toString() === GURU_SETU_VERSION_ID
       ) {
-        const guruProgress = await this.calculateGuruSetuProgress(
+        postTxGuruProgress = await this.calculateGuruSetuProgress(
           userId,
           courseVersionId,
-        );
-
-        await this.enrollmentRepo.updateProgressPercentById(
-          enrollment._id.toString(),
-          guruProgress.percentCompleted,
-          guruProgress.completedItemsCount,
-          cohortId,
         );
       }
 
       // ----------------------------------------------------
-      // 10. NORMAL ENROLLMENT PROGRESS UPDATE
+      // 10. NORMAL ENROLLMENT PROGRESS — capture for post-commit
       // ----------------------------------------------------
-      await this.enrollmentRepo.updateProgressPercentById(
-        enrollment._id.toString(),
-        percentCompleted,
-        completedCourseItemsCount,
-        cohortId,
-      );
-
-      if (percentCompleted > 99) {
-        await this.recalculateStudentProgress(
-          userId,
-          courseId,
-          courseVersionId,
-          cohortId,
-        );
-      }
+      postTxEnrollmentId = enrollment._id.toString();
+      postTxPercentCompleted = percentCompleted;
+      postTxCompletedCount = completedCourseItemsCount;
+      postTxShouldRecalc = percentCompleted > 99;
 
       // ----------------------------------------------------
       // 11. FINAL PROGRESS UPDATE
@@ -2449,6 +2627,45 @@ class ProgressService extends BaseService {
         );
       }
     });
+
+    // Post-commit, best-effort. A failure here leaves the canonical progress
+    // row intact; the next stop recomputes percent from `getCompletedItems`
+    // and self-heals. Never rethrown so an enrollment-percent hiccup can't
+    // appear to the client as a stop failure.
+    if (postTxEnrollmentId !== null) {
+      try {
+        if (postTxGuruProgress) {
+          await this.enrollmentRepo.updateProgressPercentById(
+            postTxEnrollmentId,
+            postTxGuruProgress.percentCompleted,
+            postTxGuruProgress.completedItemsCount,
+            cohortId,
+          );
+        }
+        await this.enrollmentRepo.updateProgressPercentById(
+          postTxEnrollmentId,
+          postTxPercentCompleted!,
+          postTxCompletedCount!,
+          cohortId,
+        );
+        if (postTxShouldRecalc) {
+          await this.recalculateStudentProgress(
+            userId,
+            courseId,
+            courseVersionId,
+            cohortId,
+          );
+        }
+      } catch (err) {
+        console.warn('[stopItem] post-commit enrollment percent update failed', {
+          userId,
+          courseId,
+          courseVersionId,
+          itemId,
+          err: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
   }
 
   private validateProgressPosition(
@@ -2487,12 +2704,22 @@ class ProgressService extends BaseService {
     isSkipped?: boolean,
     stoppedWatchTime?: IWatchTime,
     cohortId?: string,
+    session?: ClientSession,
   ): Promise<void> {
     const WATCH_TIME_REQUIRED_ITEMS = new Set<string>(['VIDEO', 'BLOG']);
 
     // 1 Watch-time based items
     if (WATCH_TIME_REQUIRED_ITEMS.has(item.type)) {
-      this.validateWatchTime(item, stoppedWatchTime);
+      await this.validateWatchTime(
+        item,
+        userId,
+        courseId,
+        courseVersionId,
+        itemId,
+        stoppedWatchTime,
+        cohortId,
+        session,
+      );
       return;
     }
 
@@ -2510,12 +2737,31 @@ class ProgressService extends BaseService {
     }
   }
 
-  private validateWatchTime(item: Item, stoppedWatchTime?: IWatchTime): void {
+  private async validateWatchTime(
+    item: Item,
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    itemId: string,
+    stoppedWatchTime?: IWatchTime,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<void> {
     if (!stoppedWatchTime) {
       throw new BadRequestError('Watch time not found');
     }
 
-    if (!this.isValidWatchTime(stoppedWatchTime, item)) {
+    const ok = await this.isValidWatchTime(
+      stoppedWatchTime,
+      item,
+      userId,
+      courseId,
+      courseVersionId,
+      itemId,
+      cohortId,
+      session,
+    );
+    if (!ok) {
       throw new BadRequestError('Invalid watch time');
     }
   }
@@ -2612,7 +2858,17 @@ class ProgressService extends BaseService {
         if (!watchTime) {
           throw new NotFoundError('Watch time not found');
         }
-        if (!this.isValidWatchTime(watchTime, item)) {
+        const ok = await this.isValidWatchTime(
+          watchTime,
+          item,
+          userId,
+          courseId,
+          courseVersionId,
+          itemId,
+          cohort,
+          session,
+        );
+        if (!ok) {
           throw new BadRequestError(
             'Watch time is not valid, the user did not watch the item long enough',
           );
@@ -3424,9 +3680,9 @@ class ProgressService extends BaseService {
       throw new NotFoundError(`Item ${itemId} not found`);
     }
 
-    // if (item.isOptional !== true) {
-    //   throw new BadRequestError('Item is not marked as optional');
-    // }
+    if (item.isOptional !== true) {
+      throw new BadRequestError('Item is not marked as optional');
+    }
 
     // Get or create progress
 

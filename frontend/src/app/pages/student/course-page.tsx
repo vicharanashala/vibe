@@ -187,8 +187,24 @@ export default function CoursePage() {
   // ✅ Add the missing ref declaration
   const itemContainerRef = useRef<ItemContainerRef>(null);
 
-  // Ref for autoscroll to selected sidebar item
+  // Ref for autoscroll to selected sidebar item. Uses a callback ref so we
+  // scroll the moment the active row mounts — selectedItemId often updates
+  // before its section items have been fetched/rendered, so a useEffect on
+  // [selectedItemId] runs while the ref is still null.
   const selectedItemRef = useRef<HTMLButtonElement | null>(null);
+  const lastScrolledItemIdRef = useRef<string | null>(null);
+  const setSelectedItemRef = useCallback((node: HTMLButtonElement | null) => {
+    selectedItemRef.current = node;
+    if (!node) return;
+    const itemId = node.dataset.itemId;
+    if (!itemId || lastScrolledItemIdRef.current === itemId) return;
+    lastScrolledItemIdRef.current = itemId;
+    // One frame of slack lets the surrounding collapsibles finish painting
+    // before we ask the browser to scroll the row into view.
+    requestAnimationFrame(() => {
+      node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, []);
 
   // Helper function to update course store navigation state
   const updateCourseNavigation = useCallback((moduleId: string, sectionId: string, itemId: string) => {
@@ -1659,13 +1675,6 @@ useEffect(() => {
 
 
 
-  // Autoscroll to selected sidebar item when selectedItemId changes
-  useEffect(() => {
-    if (selectedItemRef.current) {
-      selectedItemRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }, [selectedItemId]);
-
   useEffect(() => {
     refetchVersion();
   }, [courseVersionData]);
@@ -1914,8 +1923,10 @@ useEffect(() => {
                                                     onClick={() => handleSelectItem(moduleId, sectionId, itemId)}
                                                     isActive={isCurrentItem}
                                                     className="group relative h-8 px-3 w-full rounded-md transition-all duration-200 hover:bg-accent/10 dark:data-[state=active]:bg-primary/10 data-[state=active]:bg-primary/10 data-[state=active]:text-primary justify-start"
-                                                    // Assign ref only to the selected item for autoscroll
-                                                    ref={isCurrentItem ? selectedItemRef : undefined}
+                                                    data-item-id={itemId}
+                                                    // Callback ref scrolls when the active row mounts, regardless of
+                                                    // when selectedItemId vs. items-list arrival happens.
+                                                    ref={isCurrentItem ? setSelectedItemRef : undefined}
                                                   >
                                                     <div className="flex items-center gap-2 w-full min-w-0">
                                                       <div className={`p-0.5 rounded transition-colors flex-shrink-0 ${isCurrentItem
@@ -2145,37 +2156,52 @@ useEffect(() => {
 
                 {/* Notification Stack */}
                 <div className="fixed top-6 right-6 z-50 flex flex-col gap-2 w-90 ">
-                  {/* ✅ Item Access Error Notification */}
-                  {isItemForbidden && (
-                    <Card className="border border-red-400/40 bg-red-600/95 text-red-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
-                      <CardContent className="flex items-center gap-3 px-4 py-0">
-                        <div className="flex h-22 w-22 items-center justify-center rounded-l border-red-50/30 bg-red-50/10 text-4xl p-4">
-                          <AlertCircle className="h-16 w-16" />
-                        </div>
-                        <div className="flex-1 space-y-1">
-                          <Badge variant="outline" className="border-red-50/30 bg-red-50/10 text-red-50 text-lg font-bold">
-                            Access Restricted
-                          </Badge>
-                          <p className="text-md font-medium leading-relaxed">
-                            {itemError && itemErrorName === "ForbiddenError"
-                              ? itemError
-                              : previousValidItem
-                                ? "Returning to previous valid content."
-                                : "Complete current item first to access this content."
-                            }
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setIsItemForbidden(false)}
-                          className="h-6 w-6 p-0 text-red-50 hover:bg-red-50/10"
-                        >
-                          ×
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  )}
+                  {/* Item Not Completed Notification.
+                      currentItem still points at the previous (incomplete) item here:
+                      a 403 leaves itemData undefined, so setCurrentItem() doesn't run. */}
+                  {isItemForbidden && (() => {
+                    const itemKind =
+                      currentItem?.type === 'VIDEO' ? 'video'
+                      : currentItem?.type === 'QUIZ' ? 'quiz'
+                      : currentItem?.type === 'BLOG' ? 'reading'
+                      : currentItem?.type === 'PROJECT' ? 'project'
+                      : 'item';
+                    const isPrerequisiteBlock =
+                      itemErrorName === 'ForbiddenError' &&
+                      typeof itemError === 'string' &&
+                      itemError.toLowerCase().includes("don't have permission to watch");
+                    const heading = isPrerequisiteBlock
+                      ? `${itemKind.charAt(0).toUpperCase() + itemKind.slice(1)} not completed`
+                      : 'Cannot open this item';
+                    const body = isPrerequisiteBlock
+                      ? `Please complete the current ${itemKind} item before moving to the next one.`
+                      : (itemError || `Please complete the current ${itemKind} item before moving to the next one.`);
+                    return (
+                      <Card className="border border-amber-400/40 bg-amber-600/95 text-amber-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
+                        <CardContent className="flex items-center gap-3 px-4 py-0">
+                          <div className="flex h-22 w-22 items-center justify-center rounded-l border-amber-50/30 bg-amber-50/10 text-4xl p-4">
+                            <AlertCircle className="h-16 w-16" />
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            <Badge variant="outline" className="border-amber-50/30 bg-amber-50/10 text-amber-50 text-lg font-bold">
+                              {heading}
+                            </Badge>
+                            <p className="text-md font-medium leading-relaxed">
+                              {body}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setIsItemForbidden(false)}
+                            className="h-6 w-6 p-0 text-amber-50 hover:bg-amber-50/10"
+                          >
+                            ×
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })()}
 
                   {/* Gesture Notification */}
                   {doGesture && currentItem?.type !== 'VIDEO' && (

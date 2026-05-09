@@ -188,6 +188,37 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
   const wasPlayingBeforeTabSwitch = useRef(false);
 
+  // Tracks actual seconds the video was playing in the current watch session,
+  // not wall-clock. Backend uses this (capped per session at video duration)
+  // to compute cumulative engagement vs. the 40% completion threshold.
+  const playedSecondsRef = useRef(0);
+  const playStartTimestampRef = useRef<number | null>(null);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+
+  const onPlayStart = () => {
+    playStartTimestampRef.current = Date.now();
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = null;
+    }
+  };
+
+  const onPlayPause = () => {
+    if (playStartTimestampRef.current !== null) {
+      playedSecondsRef.current += (Date.now() - playStartTimestampRef.current) / 1000;
+      playStartTimestampRef.current = null;
+    }
+  };
+
+  const getPlayedSeconds = () => {
+    let total = playedSecondsRef.current;
+    if (playStartTimestampRef.current !== null) {
+      total += (Date.now() - playStartTimestampRef.current) / 1000;
+    }
+    return Math.round(total);
+  };
+
 
   useEffect(() => {
     watchTimeTrackRef.current = watchTimeTrack;
@@ -559,7 +590,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   };
 
   //  function to handle stop with debouncing and retry logic
-  const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs: number = 0): Promise<boolean> => {
+  const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs: number = 0, isExpired: boolean = false): Promise<boolean> => {
     // Clear any pending stop request
     if (stopTimeoutRef.current) {
       clearTimeout(stopTimeoutRef.current);
@@ -606,6 +637,8 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                     seekForwardEnabled,
                     nextItemId,
                     cohortId: currentCourse!.cohortId ?? '',
+                    watchedSeconds: getPlayedSeconds(),
+                    isExpired,
                   },
                   signal: abortController.signal,
                 } as any);
@@ -885,6 +918,9 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   function handleSendStartItem() {
 
     if (!currentCourse?.itemId) return;
+    // Reset the play-time counter for this fresh session
+    playedSecondsRef.current = 0;
+    playStartTimestampRef.current = null;
     if (!isAlreadyWatched && !completedItemIdsRef.current.has(currentCourse!.itemId) && !isCompleted) {
       startItem.mutate({
         params: {
@@ -986,6 +1022,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           onStateChange: async (event: { data: number; target: YTPlayerInstance }) => {
             if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
               setPlaying(true);
+              onPlayStart();
               if (!progressStartedRef.current) {
                 handleSendStartItem();
                 setVideoEnded(false);
@@ -997,6 +1034,8 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
               }, 500);
             } else if (window.YT && event.data === window.YT.PlayerState.ENDED) {
               setPlaying(false);
+              onPlayPause();
+              if (idleTimerRef.current) { clearTimeout(idleTimerRef.current); idleTimerRef.current = null; }
               setVideoEnded(true);
               if (!progressStoppedRef.current && currentCourse) {
                 const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
@@ -1022,6 +1061,23 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
               }
             } else {
               setPlaying(false);
+              onPlayPause();
+              // Start idle expiry countdown — if the user pauses and walks away,
+              // we close the session as expired so it doesn't count toward completion.
+              if (!progressStoppedRef.current) {
+                if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+                idleTimerRef.current = setTimeout(async () => {
+                  const watchItemId = watchItemIdRef.current || currentCourse?.watchItemId;
+                  if (watchItemId && !progressStoppedRef.current) {
+                    await handleStopItem(watchItemId, 0, true /* isExpired */);
+                    progressStartedRef.current = false;
+                    progressStoppedRef.current = false;
+                    watchItemIdRef.current = null;
+                    playedSecondsRef.current = 0;
+                    playStartTimestampRef.current = null;
+                  }
+                }, IDLE_TIMEOUT_MS);
+              }
             }
           },
         },
@@ -1042,6 +1098,11 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   if (stopTimeoutRef.current) {
     clearTimeout(stopTimeoutRef.current);
     stopTimeoutRef.current = null;
+  }
+  // Clear pending idle expiry timer so it doesn't fire after unmount
+  if (idleTimerRef.current) {
+    clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = null;
   }
     // Stop if started but not yet stopped (immediate on unmount, no debounce)
   // if (!progressStoppedRef.current && !stopInFlightRef.current && watchItemIdRef.current && currentCourse) {

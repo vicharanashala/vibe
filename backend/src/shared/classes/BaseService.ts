@@ -13,7 +13,14 @@ export abstract class BaseService {
     operation: (session: ClientSession) => Promise<T>,
   ): Promise<T> {
     const client = await this.db.getClient();
-    const MAX_RETRIES = 3;
+    // Five attempts with exponential backoff + jitter. The previous budget (3
+    // attempts, fixed 50/100ms) was too tight under concurrent writes from the
+    // student flow (stop + start of next item, double-clicked submit, nested
+    // save() transaction inside submit()) — competing transactions kept losing
+    // in lockstep and surfacing as 500s. Jitter breaks the lockstep; the
+    // longer total budget (~1s worst case) is invisible to the user but covers
+    // the window where contending writers finish and clear the conflict.
+    const MAX_RETRIES = 5;
     const txOptions = {
       readPreference: ReadPreference.primary,
       readConcern: new ReadConcern('snapshot'),
@@ -40,7 +47,10 @@ export abstract class BaseService {
           error?.code === 112 ||
           (typeof error?.message === 'string' && error.message.includes('Write conflict'));
         if (isTransient && attempt < MAX_RETRIES - 1) {
-          await new Promise(resolve => setTimeout(resolve, 50 * (attempt + 1)));
+          // 50, 100, 200, 400 ms base + 0–50 ms jitter.
+          const baseMs = 50 * Math.pow(2, attempt);
+          const jitterMs = Math.floor(Math.random() * 50);
+          await new Promise(resolve => setTimeout(resolve, baseMs + jitterMs));
           continue;
         }
         throw error;

@@ -628,10 +628,40 @@ export class ItemService extends BaseService {
     // 1) current item matches => allow
     if (currentItemId === itemId) return response();
 
-    // 2) already completed => allow
+    // 2) item is at-or-before learner's progress pointer => allow re-watch
+    //    without depending on watchTime.endTime for the candidate item.
+    if (currentUserProgress && courseVersion && moduleId && sectionId) {
+      const isAtOrBefore = await this.progressService.isItemAtOrBeforeCurrent(
+        courseVersion,
+        currentUserProgress.currentModule?.toString(),
+        currentUserProgress.currentSection?.toString(),
+        currentUserProgress.currentItem?.toString(),
+        moduleId,
+        sectionId,
+        itemId,
+      );
+      if (isAtOrBefore) return response(isItemAlreadyCompleted);
+      console.warn('[ItemService.readItem] position check returned false', {
+        itemId,
+        moduleId,
+        sectionId,
+        progressModule: currentUserProgress.currentModule?.toString(),
+        progressSection: currentUserProgress.currentSection?.toString(),
+        progressItem: currentUserProgress.currentItem?.toString(),
+      });
+    } else {
+      console.warn('[ItemService.readItem] position check skipped', {
+        hasProgress: !!currentUserProgress,
+        hasCourseVersion: !!courseVersion,
+        moduleId,
+        sectionId,
+      });
+    }
+
+    // 3) already completed => allow
     if (isItemAlreadyCompleted) return response(true);
 
-    // 3) previous item completed => allow
+    // 4) previous item completed => allow
     const previousItemCompleted = await this._isPreviousItemCompleted(
       courseVersion,
       moduleId,
@@ -663,7 +693,23 @@ export class ItemService extends BaseService {
       return response();
     }
 
-    // All checks failed => forbid
+    // All checks failed => forbid. Log the decision context so we can see
+    // why each gate let the request through.
+    console.warn('[ItemService.readItem] Access denied', {
+      userId,
+      versionId,
+      itemId,
+      moduleId,
+      sectionId,
+      cohortId,
+      isItemAlreadyCompleted,
+      isItemAlreadyAttempted,
+      linearProgressionEnabled,
+      currentItemId,
+      progressModule: currentUserProgress?.currentModule?.toString(),
+      progressSection: currentUserProgress?.currentSection?.toString(),
+      progressItem: currentUserProgress?.currentItem?.toString(),
+    });
     throw new ForbiddenError("You don't have permission to watch this item");
     // return {
     //   ...item,
