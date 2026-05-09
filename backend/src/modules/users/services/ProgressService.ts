@@ -627,6 +627,24 @@ class ProgressService extends BaseService {
       return;
     }
 
+    // Re-opening an item the learner has already passed in sequence is allowed
+    // even if its watchTime row never recorded a clean completion.
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    if (
+      courseVersion &&
+      (await this.isItemAtOrBeforeCurrent(
+        courseVersion,
+        progress.currentModule?.toString(),
+        progress.currentSection?.toString(),
+        progress.currentItem?.toString(),
+        moduleId,
+        sectionId,
+        itemId,
+      ))
+    ) {
+      return;
+    }
+
     if (
       progress.currentModule.toString() !== moduleId ||
       progress.currentSection.toString() !== sectionId ||
@@ -946,6 +964,74 @@ class ProgressService extends BaseService {
     }
 
     return null;
+  }
+
+  /**
+   * Returns true if the candidate (item) sits at-or-before the learner's
+   * current progress pointer in the course's declared module/section/item
+   * order. Used to let learners freely re-open any item they've already
+   * passed without depending on watchTime.endTime — the access predicate
+   * for completed/earlier items is positional, not watch-history-based.
+   */
+  public async isItemAtOrBeforeCurrent(
+    courseVersion: ICourseVersion,
+    currentModuleId: string,
+    currentSectionId: string,
+    currentItemId: string,
+    itemModuleId: string,
+    itemSectionId: string,
+    itemId: string,
+  ): Promise<boolean> {
+    if (!currentModuleId || !currentSectionId || !currentItemId) return false;
+    if (!itemModuleId || !itemSectionId || !itemId) return false;
+
+    if (
+      itemModuleId === currentModuleId &&
+      itemSectionId === currentSectionId &&
+      itemId === currentItemId
+    ) {
+      return true;
+    }
+
+    const sortedModules = [...courseVersion.modules].sort((a, b) =>
+      a.order.localeCompare(b.order),
+    );
+    const currentModuleIdx = sortedModules.findIndex(
+      m => m.moduleId?.toString() === currentModuleId,
+    );
+    const itemModuleIdx = sortedModules.findIndex(
+      m => m.moduleId?.toString() === itemModuleId,
+    );
+    if (currentModuleIdx === -1 || itemModuleIdx === -1) return false;
+    if (itemModuleIdx < currentModuleIdx) return true;
+    if (itemModuleIdx > currentModuleIdx) return false;
+
+    const sortedSections = [...sortedModules[currentModuleIdx].sections].sort(
+      (a, b) => a.order.localeCompare(b.order),
+    );
+    const currentSectionIdx = sortedSections.findIndex(
+      s => s.sectionId?.toString() === currentSectionId,
+    );
+    const itemSectionIdx = sortedSections.findIndex(
+      s => s.sectionId?.toString() === itemSectionId,
+    );
+    if (currentSectionIdx === -1 || itemSectionIdx === -1) return false;
+    if (itemSectionIdx < currentSectionIdx) return true;
+    if (itemSectionIdx > currentSectionIdx) return false;
+
+    const itemsGroup = await this.itemRepo.readItemsGroup(
+      sortedSections[currentSectionIdx].itemsGroupId?.toString(),
+    );
+    if (!itemsGroup?.items) return false;
+    const sortedItems = [...itemsGroup.items].sort((a, b) =>
+      a.order.localeCompare(b.order),
+    );
+    const currentItemIdx = sortedItems.findIndex(
+      i => i._id.toString() === currentItemId,
+    );
+    const itemIdx = sortedItems.findIndex(i => i._id.toString() === itemId);
+    if (currentItemIdx === -1 || itemIdx === -1) return false;
+    return itemIdx <= currentItemIdx;
   }
 
   public async getPreviousVideoItem(
@@ -2036,6 +2122,21 @@ class ProgressService extends BaseService {
       progress.currentItem?.toString() === itemId;
 
     if (isExactCurrentItem) {
+      return;
+    }
+
+    // Re-watching an earlier item in sequence is allowed without requiring its
+    // own or its predecessor's watchTime row to look clean.
+    const isAtOrBefore = await this.isItemAtOrBeforeCurrent(
+      courseVersion,
+      progress.currentModule?.toString(),
+      progress.currentSection?.toString(),
+      progress.currentItem?.toString(),
+      moduleId,
+      sectionId,
+      itemId,
+    );
+    if (isAtOrBefore) {
       return;
     }
 
