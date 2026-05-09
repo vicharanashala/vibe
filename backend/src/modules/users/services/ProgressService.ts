@@ -2349,6 +2349,18 @@ class ProgressService extends BaseService {
       }
     }
 
+    // Captured inside the transaction, applied after commit. Enrollment
+    // percent + recalculate-on-completion are derived/eventually-consistent
+    // metrics that don't need the same atomicity as currentItem advancement.
+    // Keeping them outside the transaction shrinks the lock-hold window —
+    // the captured 64s stop in production logs traced to these RTTs running
+    // before the final updateProgress committed.
+    let postTxEnrollmentId: string | null = null;
+    let postTxPercentCompleted: number | null = null;
+    let postTxCompletedCount: number | null = null;
+    let postTxGuruProgress: { percentCompleted: number; completedItemsCount: number } | null = null;
+    let postTxShouldRecalc = false;
+
     await this._withTransaction(async session => {
       let shouldCountCurrentItemAsCompleted = false;
       let stoppedWatchTime: any = null;
@@ -2578,43 +2590,25 @@ class ProgressService extends BaseService {
       );
 
       // ----------------------------------------------------
-      // 9. GURU SETU OVERRIDE
+      // 9. GURU SETU OVERRIDE — capture for post-commit
       // ----------------------------------------------------
       if (
         courseId?.toString() === GURU_SETU_COURSE_ID &&
         courseVersionId?.toString() === GURU_SETU_VERSION_ID
       ) {
-        const guruProgress = await this.calculateGuruSetuProgress(
+        postTxGuruProgress = await this.calculateGuruSetuProgress(
           userId,
           courseVersionId,
-        );
-
-        await this.enrollmentRepo.updateProgressPercentById(
-          enrollment._id.toString(),
-          guruProgress.percentCompleted,
-          guruProgress.completedItemsCount,
-          cohortId,
         );
       }
 
       // ----------------------------------------------------
-      // 10. NORMAL ENROLLMENT PROGRESS UPDATE
+      // 10. NORMAL ENROLLMENT PROGRESS — capture for post-commit
       // ----------------------------------------------------
-      await this.enrollmentRepo.updateProgressPercentById(
-        enrollment._id.toString(),
-        percentCompleted,
-        completedCourseItemsCount,
-        cohortId,
-      );
-
-      if (percentCompleted > 99) {
-        await this.recalculateStudentProgress(
-          userId,
-          courseId,
-          courseVersionId,
-          cohortId,
-        );
-      }
+      postTxEnrollmentId = enrollment._id.toString();
+      postTxPercentCompleted = percentCompleted;
+      postTxCompletedCount = completedCourseItemsCount;
+      postTxShouldRecalc = percentCompleted > 99;
 
       // ----------------------------------------------------
       // 11. FINAL PROGRESS UPDATE
@@ -2628,6 +2622,45 @@ class ProgressService extends BaseService {
         session,
       );
     });
+
+    // Post-commit, best-effort. A failure here leaves the canonical progress
+    // row intact; the next stop recomputes percent from `getCompletedItems`
+    // and self-heals. Never rethrown so an enrollment-percent hiccup can't
+    // appear to the client as a stop failure.
+    if (postTxEnrollmentId !== null) {
+      try {
+        if (postTxGuruProgress) {
+          await this.enrollmentRepo.updateProgressPercentById(
+            postTxEnrollmentId,
+            postTxGuruProgress.percentCompleted,
+            postTxGuruProgress.completedItemsCount,
+            cohortId,
+          );
+        }
+        await this.enrollmentRepo.updateProgressPercentById(
+          postTxEnrollmentId,
+          postTxPercentCompleted!,
+          postTxCompletedCount!,
+          cohortId,
+        );
+        if (postTxShouldRecalc) {
+          await this.recalculateStudentProgress(
+            userId,
+            courseId,
+            courseVersionId,
+            cohortId,
+          );
+        }
+      } catch (err) {
+        console.warn('[stopItem] post-commit enrollment percent update failed', {
+          userId,
+          courseId,
+          courseVersionId,
+          itemId,
+          err: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
   }
 
   private validateProgressPosition(
