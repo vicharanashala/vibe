@@ -4061,6 +4061,13 @@ class ProgressService extends BaseService {
   }
 
   /**
+   * Convenience wrapper around getNextItemInSequence that loads the course
+   * version itself. Returns the next visible item ID (or null), so callers
+   * that don't already have the courseVersion object — like the CASL ability
+   * builder — can ask "what's the natural next item after this pointer?"
+   * without duplicating the load.
+   */
+  async getNextItemIdAfterCurrent(
    * Returns every item ID positionally at-or-before (currentModuleId,
    * currentSectionId, currentItemId) in the course version's declared
    * module → section → item order. Used by the CASL ability builder to
@@ -4075,6 +4082,21 @@ class ProgressService extends BaseService {
     currentModuleId: string,
     currentSectionId: string,
     currentItemId: string,
+  ): Promise<string | null> {
+    if (!courseVersionId || !currentModuleId || !currentSectionId || !currentItemId) {
+      return null;
+    }
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    if (!courseVersion) return null;
+    const next = await this.getNextItemInSequence(
+      courseVersion,
+      currentModuleId,
+      currentSectionId,
+      currentItemId,
+    );
+    return next?.itemId ?? null;
+  }
+
   ): Promise<string[]> {
     if (!courseVersionId || !currentModuleId || !currentSectionId || !currentItemId) {
       return [];

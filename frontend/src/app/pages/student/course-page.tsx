@@ -1230,8 +1230,24 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
               const errorMessage = error?.response?.data?.message || error?.message;
               console.warn(`[handleNext] Attempt ${attempt} failed - Status: ${status}, Message: ${errorMessage}`);
 
-              // Retry on retryable errors
-              if (attempt < 3 && (status === 400 || status === 500 || status === 504 || !status)) {
+              // Server-side validation rejections (e.g. cumulative-watch-time
+              // gate failure) are deliberate — retrying or advancing past them
+              // hides a real product constraint and lands the learner on a
+              // CASL-gated next item that 403s. Treat as a hard stop with a
+              // user-facing toast, no retry, no advancement.
+              const isWatchGateRejection =
+                status === 400 &&
+                typeof errorMessage === 'string' &&
+                errorMessage.toLowerCase().includes('invalid watch time');
+              if (isWatchGateRejection) {
+                console.warn('[handleNext] Stop rejected by watch-time gate; not advancing.');
+                toast.error('Please watch more of this video before moving on.');
+                setIsNavigatingToNext(false);
+                return;
+              }
+
+              // Retry on transient errors (network/server flakes)
+              if (attempt < 3 && (status === 500 || status === 504 || !status)) {
                 console.log(`[handleNext] Retrying in 1 second (attempt ${attempt + 1}/3)...`);
                 await new Promise(resolve => setTimeout(resolve, 1000));
               } else if (attempt === 3) {
@@ -1243,6 +1259,12 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
                 toast.warning('Progress will be saved shortly.');
                 stopSucceeded = true;
                 break;
+              } else {
+                // Non-retryable status that isn't the watch gate (e.g. 401, 403
+                // on stop). Bail without advancing.
+                console.warn('[handleNext] Non-retryable stop failure; not advancing.');
+                setIsNavigatingToNext(false);
+                return;
               }
             }
           }
@@ -1903,12 +1925,24 @@ useEffect(() => {
                                               <Skeleton className="h-4 w-4/5 rounded" />
                                             </div>
                                           ) : sectionItems[sectionId] ? (
-                                            (shouldRandomize
-                                              ? sectionItems[sectionId]
-                                              : sortItemsByOrder(sectionItems[sectionId])
-                                            ).map((item: any) => {
+                                            (() => {
+                                              const orderedItems = shouldRandomize
+                                                ? sectionItems[sectionId]
+                                                : sortItemsByOrder(sectionItems[sectionId]);
+                                              return orderedItems.map((item: any, idx: number) => {
                                               const itemId = item._id;
                                               const isCurrentItem = itemId === selectedItemId;
+                                              // A video isn't "fully done" until the immediate-next quiz
+                                              // (if any in this section) is also passed — failing the
+                                              // quiz sends the learner back to re-watch the video, so
+                                              // the badge would otherwise be misleading. The badge for
+                                              // non-video items, and for videos with no quiz right
+                                              // after, follows the raw isCompleted flag.
+                                              const nextItem: any = orderedItems[idx + 1];
+                                              const showCompletedBadge =
+                                                item.type === 'VIDEO' && nextItem?.type === 'QUIZ'
+                                                  ? !!item.isCompleted && !!nextItem.isCompleted
+                                                  : !!item.isCompleted;
 
                                               return (
                                                 <SidebarMenuSubItem 
@@ -1948,7 +1982,7 @@ useEffect(() => {
                                                             return itemName.length > 18 ? `${itemName.substring(0, 15)}...` : itemName;
                                                           })()}
                                                         </div>
-                                                        {item.isCompleted && (
+                                                        {showCompletedBadge && (
                                                           <div className={`text-[10px] dark:text-green-500 text-green-600 font-medium mt-0.5 flex items-center gap-1 ${selectedItemId === itemId ? "text-green-900" : ""} `}>
                                                             <CheckCircle className="h-3 w-3" />
                                                             Completed
@@ -1959,7 +1993,8 @@ useEffect(() => {
                                                   </SidebarMenuSubButton>
                                                 </SidebarMenuSubItem>
                                               );
-                                            })
+                                            });
+                                            })()
                                           ) : (
                                             <div className="p-3 text-center">
                                               <div className="text-xs text-muted-foreground">No items found</div>
