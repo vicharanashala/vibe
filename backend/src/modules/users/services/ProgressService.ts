@@ -4068,6 +4068,16 @@ class ProgressService extends BaseService {
    * without duplicating the load.
    */
   async getNextItemIdAfterCurrent(
+   * Returns every item ID positionally at-or-before (currentModuleId,
+   * currentSectionId, currentItemId) in the course version's declared
+   * module → section → item order. Used by the CASL ability builder to
+   * construct an `$in` allow-list that matches the position-walk semantics
+   * already enforced inside ItemService.readItem — without it, a
+   * positionally-passed item whose watchTime row never recorded a clean
+   * endTime is missing from the allow-list and the controller-layer 403
+   * fires before the service-layer bypass can run.
+   */
+  async getItemIdsAtOrBeforeCurrent(
     courseVersionId: string,
     currentModuleId: string,
     currentSectionId: string,
@@ -4087,6 +4097,67 @@ class ProgressService extends BaseService {
     return next?.itemId ?? null;
   }
 
+  ): Promise<string[]> {
+    if (!courseVersionId || !currentModuleId || !currentSectionId || !currentItemId) {
+      return [];
+    }
+
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    if (!courseVersion) return [];
+
+    const sortedModules = [...courseVersion.modules].sort((a, b) =>
+      a.order.localeCompare(b.order),
+    );
+    const currentModuleIdx = sortedModules.findIndex(
+      m => m.moduleId?.toString() === currentModuleId,
+    );
+    if (currentModuleIdx === -1) return [];
+
+    const collected: string[] = [];
+
+    for (let mi = 0; mi <= currentModuleIdx; mi++) {
+      const module = sortedModules[mi];
+      const sortedSections = [...module.sections].sort((a, b) =>
+        a.order.localeCompare(b.order),
+      );
+
+      const isCurrentModule = mi === currentModuleIdx;
+      const currentSectionIdx = isCurrentModule
+        ? sortedSections.findIndex(s => s.sectionId?.toString() === currentSectionId)
+        : sortedSections.length - 1;
+      if (isCurrentModule && currentSectionIdx === -1) return [];
+
+      const lastSectionIdx = isCurrentModule ? currentSectionIdx : sortedSections.length - 1;
+
+      for (let si = 0; si <= lastSectionIdx; si++) {
+        const section = sortedSections[si];
+        if (!section.itemsGroupId) continue;
+        const itemsGroup = await this.itemRepo.readItemsGroup(
+          section.itemsGroupId.toString(),
+        );
+        if (!itemsGroup?.items) continue;
+
+        const sortedItems = [...itemsGroup.items].sort((a, b) =>
+          a.order.localeCompare(b.order),
+        );
+
+        const isCurrentSection = isCurrentModule && si === currentSectionIdx;
+        const currentItemIdx = isCurrentSection
+          ? sortedItems.findIndex(i => i._id.toString() === currentItemId)
+          : sortedItems.length - 1;
+        if (isCurrentSection && currentItemIdx === -1) return [];
+
+        const lastItemIdx = isCurrentSection ? currentItemIdx : sortedItems.length - 1;
+
+        for (let ii = 0; ii <= lastItemIdx; ii++) {
+          const item = sortedItems[ii];
+          if (item._id) collected.push(item._id.toString());
+        }
+      }
+    }
+
+    return collected;
+  }
   async getModuleWiseProgress(
     userId: string,
     courseId: string,
