@@ -658,6 +658,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         try {
           const watchItemIdForStop = await handleSendStartItem(true);
           if (currentCourse?.itemId && watchItemIdForStop) {
+            // isSkipped:true short-circuits resolveQuizProgressOutcome on the
+            // backend so it doesn't try to look up a (non-existent) attempt.
+            // itemId/moduleId/sectionId are required for the backend's
+            // sequence-position validation; sending only watchItemId left
+            // the request untyped and crashed the stop transaction with
+            // a 77s TypeError on attemptId.toString.
             await stopItem.mutateAsync({
               params: {
                 path: {
@@ -667,6 +673,11 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               },
               body: {
                 watchItemId: watchItemIdForStop,
+                itemId: currentCourse.itemId,
+                moduleId: currentCourse.moduleId ?? '',
+                sectionId: currentCourse.sectionId ?? '',
+                isSkipped: true,
+                cohortId: currentCourse.cohortId ?? '',
               },
             });
           }
