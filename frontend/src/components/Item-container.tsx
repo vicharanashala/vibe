@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react';
-import Video from './video';
+import Video, { type VideoRef } from './video';
 import Quiz from './quiz';
 import Article from './article';
 import ProjectItem from '../app/pages/teacher/components/ProjectItem';
@@ -19,11 +19,14 @@ export interface ISubmitFeedbackBody {
 const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, nextItem, doGesture, onNext, onPrevVideo, isProgressUpdating, isNavigatingToPrev, readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson, keyboardLockEnabled, setIsQuizSkipped, linearProgressionEnabled, seekForwardEnabled, courseId, versionId, completedItemIdsRef, cohortId, cohortName, previousItem }, ref) => {
   const articleRef = useRef<ArticleRef>(null);
   const quizRef = useRef<QuizRef>(null);
+  const videoRef = useRef<VideoRef>(null);
 
-  // ✅ Expose stop function to parent - handles both article and quiz
+  // ✅ Expose stop function to parent - handles video, article, and quiz
   useImperativeHandle(ref, () => ({
     stopCurrentItem: async () => {
-      if (articleRef.current) {
+      if (videoRef.current) {
+        await videoRef.current.stopItem();
+      } else if (articleRef.current) {
         await articleRef.current.stopItem();
       } else if (quizRef.current) {
         await quizRef.current.stopItem();
@@ -48,6 +51,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
     switch (itemType) {
       case 'video':
         return <Video
+          ref={videoRef}
           URL={item.details?.URL ? item.details.URL : ''}
           startTime={item.details?.startTime ? item.details.startTime : ''}
           endTime={item.details?.endTime ? item.details.endTime : ''}
