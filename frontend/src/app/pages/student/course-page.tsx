@@ -1487,6 +1487,10 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
                 // the rejection so the user knows the click didn't do nothing.
                 setIsNavigatingToNext(false);
                 toast.error('Could not move to the next item. Please try again.');
+                // Non-retryable status that isn't the watch gate (e.g. 401, 403
+                // on stop). Bail without advancing.
+                console.warn('[handleNext] Non-retryable stop failure; not advancing.');
+                setIsNavigatingToNext(false);
                 return;
               }
             }
