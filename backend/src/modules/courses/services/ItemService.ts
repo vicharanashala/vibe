@@ -661,21 +661,6 @@ export class ItemService extends BaseService {
     // 3) already completed => allow
     if (isItemAlreadyCompleted) return response(true);
 
-    // 3) already completed => allow
-    if (isItemAlreadyCompleted) return response(true);
-
-    // 4) previous item completed => allow
-    const previousItemCompleted = await this._isPreviousItemCompleted(
-      courseVersion,
-      moduleId,
-      sectionId,
-      itemId,
-      userId,
-      courseId,
-      versionId,
-      cohortId,
-    );
-
     // 4) previous item check.
     // Resolve the in-sequence predecessor once so we can reuse it for both
     // "previous-completed" and "user is sitting on the predecessor" gates.
