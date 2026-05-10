@@ -1903,12 +1903,24 @@ useEffect(() => {
                                               <Skeleton className="h-4 w-4/5 rounded" />
                                             </div>
                                           ) : sectionItems[sectionId] ? (
-                                            (shouldRandomize
-                                              ? sectionItems[sectionId]
-                                              : sortItemsByOrder(sectionItems[sectionId])
-                                            ).map((item: any) => {
+                                            (() => {
+                                              const orderedItems = shouldRandomize
+                                                ? sectionItems[sectionId]
+                                                : sortItemsByOrder(sectionItems[sectionId]);
+                                              return orderedItems.map((item: any, idx: number) => {
                                               const itemId = item._id;
                                               const isCurrentItem = itemId === selectedItemId;
+                                              // A video isn't "fully done" until the immediate-next quiz
+                                              // (if any in this section) is also passed — failing the
+                                              // quiz sends the learner back to re-watch the video, so
+                                              // the badge would otherwise be misleading. The badge for
+                                              // non-video items, and for videos with no quiz right
+                                              // after, follows the raw isCompleted flag.
+                                              const nextItem: any = orderedItems[idx + 1];
+                                              const showCompletedBadge =
+                                                item.type === 'VIDEO' && nextItem?.type === 'QUIZ'
+                                                  ? !!item.isCompleted && !!nextItem.isCompleted
+                                                  : !!item.isCompleted;
 
                                               return (
                                                 <SidebarMenuSubItem 
@@ -1948,7 +1960,7 @@ useEffect(() => {
                                                             return itemName.length > 18 ? `${itemName.substring(0, 15)}...` : itemName;
                                                           })()}
                                                         </div>
-                                                        {item.isCompleted && (
+                                                        {showCompletedBadge && (
                                                           <div className={`text-[10px] dark:text-green-500 text-green-600 font-medium mt-0.5 flex items-center gap-1 ${selectedItemId === itemId ? "text-green-900" : ""} `}>
                                                             <CheckCircle className="h-3 w-3" />
                                                             Completed
@@ -1959,7 +1971,8 @@ useEffect(() => {
                                                   </SidebarMenuSubButton>
                                                 </SidebarMenuSubItem>
                                               );
-                                            })
+                                            });
+                                            })()
                                           ) : (
                                             <div className="p-3 text-center">
                                               <div className="text-xs text-muted-foreground">No items found</div>
