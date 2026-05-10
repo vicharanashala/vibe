@@ -1,0 +1,61 @@
+name: Release E2E gate
+
+on:
+  workflow_call:
+    inputs:
+      base_url:
+        description: Frontend URL to run the full Playwright suite against.
+        required: true
+        type: string
+    secrets:
+      INSTRUCTOR_EMAIL:
+        required: true
+      INSTRUCTOR_PASSWORD:
+        required: true
+      STUDENT_EMAIL:
+        required: true
+      STUDENT_PASSWORD:
+        required: true
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Frontend URL to run the full Playwright suite against.
+        required: true
+        type: string
+
+jobs:
+  full-playwright:
+    name: Full Playwright suite (release gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --dir e2e exec playwright install --with-deps chromium
+
+      - name: Run full Playwright suite
+        run: pnpm --dir e2e test:full
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+          INSTRUCTOR_EMAIL: ${{ secrets.INSTRUCTOR_EMAIL }}
+          INSTRUCTOR_PASSWORD: ${{ secrets.INSTRUCTOR_PASSWORD }}
+          STUDENT_EMAIL: ${{ secrets.STUDENT_EMAIL }}
+          STUDENT_PASSWORD: ${{ secrets.STUDENT_PASSWORD }}
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-e2e-report-${{ github.run_id }}
+          path: e2e/playwright-report/

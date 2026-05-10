@@ -1,0 +1,157 @@
+name: Test (PR matrix)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      contents: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      e2e: ${{ steps.filter.outputs.e2e }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.github/workflows/test.yml'
+            frontend:
+              - 'frontend/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.github/workflows/test.yml'
+            e2e:
+              - 'frontend/**'
+              - 'backend/**'
+              - 'e2e/**'
+              - '.github/workflows/test.yml'
+
+  backend-unit:
+    name: Backend unit
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - run: pnpm install --frozen-lockfile
+      - name: Run backend unit tests with coverage
+        run: pnpm --dir backend test:unit -- --coverage
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-unit-coverage
+          path: backend/coverage/unit
+          if-no-files-found: ignore
+
+  backend-integration:
+    name: Backend integration (in-memory Mongo)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - run: pnpm install --frozen-lockfile
+      - name: Run backend integration tests
+        run: pnpm --dir backend test:integration
+        env:
+          NODE_ENV: test
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-integration-coverage
+          path: backend/coverage/integration
+          if-no-files-found: ignore
+
+  frontend-unit:
+    name: Frontend unit
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - run: pnpm install --frozen-lockfile
+      - name: Run frontend unit tests with coverage
+        run: pnpm --dir frontend test:unit -- --coverage
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-unit-coverage
+          path: frontend/coverage/unit
+          if-no-files-found: ignore
+
+  frontend-integration:
+    name: Frontend integration (RTL + MSW)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - run: pnpm install --frozen-lockfile
+      - name: Run frontend integration tests
+        run: pnpm --dir frontend test:integration
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-integration-coverage
+          path: frontend/coverage/integration
+          if-no-files-found: ignore
+
+  test-summary:
+    name: Test summary (all required)
+    needs: [backend-unit, backend-integration, frontend-unit, frontend-integration]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Aggregate result
+        run: |
+          set -e
+          fail=0
+          for r in "${{ needs.backend-unit.result }}" "${{ needs.backend-integration.result }}" "${{ needs.frontend-unit.result }}" "${{ needs.frontend-integration.result }}"; do
+            if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
+              fail=1
+            fi
+          done
+          if [ "$fail" = "1" ]; then
+            echo "One or more test jobs failed."; exit 1
+          fi
+          echo "All required tests passed (or were skipped due to no changes)."

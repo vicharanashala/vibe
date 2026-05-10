@@ -1,0 +1,21 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "noEmit": true,
+    "types": ["node", "express", "vitest/globals"],
+    "paths": {
+      "#root/*": ["../src/*"],
+      "#shared/*": ["../src/shared/*"],
+      "#auth/*": ["../src/modules/auth/*"],
+      "#courses/*": ["../src/modules/courses/*"],
+      "#users/*": ["../src/modules/users/*"],
+      "#quizzes/*": ["../src/modules/quizzes/*"],
+      "#settings/*": ["../src/modules/settings/*"],
+      "#ejectionPolicy/*": ["../src/modules/ejectionPolicy/*"],
+      "@tests/*": ["./*"]
+    }
+  },
+  "include": ["**/*.ts", "../src/**/*.ts"],
+  "exclude": ["../build", "../dist"]
+}

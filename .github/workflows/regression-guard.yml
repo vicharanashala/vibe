@@ -1,0 +1,44 @@
+name: Regression guard
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  enforce-regression-test:
+    name: Bug-fix PRs require a regression test
+    if: contains(github.event.pull_request.labels.*.name, 'bug')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute base...head diff
+        id: diff
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+          git fetch origin "$base" "$head" --depth=200 || true
+          changed=$(git diff --name-only "$base"..."$head")
+          echo "Changed files:"
+          echo "$changed"
+          echo "$changed" > /tmp/changed.txt
+
+      - name: Require new/modified test file in this PR
+        run: |
+          changed=$(cat /tmp/changed.txt)
+          # Test file patterns that satisfy the bug-fix regression rule:
+          #   backend/tests/**/*.test.ts
+          #   frontend/tests/**/*.test.{ts,tsx}
+          #   e2e/tests/regression/**/*.spec.ts
+          if echo "$changed" | grep -E '^(backend/tests/.*\.test\.ts|frontend/tests/.*\.(test|integration\.test)\.(ts|tsx)|e2e/tests/regression/.*\.spec\.ts)$' > /dev/null; then
+            echo "Found a test-suite file change. Regression rule satisfied."
+            exit 0
+          fi
+          echo "::error::PR is labeled 'bug' but no test under backend/tests/, frontend/tests/, or e2e/tests/regression/ was added or modified."
+          echo "::error::Add a regression test that fails on the broken commit and passes on this fix."
+          exit 1
