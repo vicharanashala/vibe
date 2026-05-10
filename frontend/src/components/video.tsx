@@ -710,6 +710,18 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
           const message = err?.response?.data?.message || err?.message;
           console.error(`[Stop Item] Final failure after retries. Status: ${status}, Message:`, message);
 
+          // Hard server rejections are NOT transient and must not be masked
+          // as success — retrying won't help, and advancing past them lands
+          // the learner on a CASL-gated next item that 403s. Bubble the
+          // error up so handleNext's watch-gate check can show the right
+          // toast and stay on the current item.
+          const isWatchGateRejection =
+            status === 400 &&
+            typeof message === 'string' &&
+            message.toLowerCase().includes('invalid watch time');
+          if (isWatchGateRejection) {
+            console.warn('[Stop Item] Watch-gate rejection — propagating to caller');
+            stopInFlightRef.current = false;
           // Any 4xx is a deterministic backend rejection — retrying won't
           // help and queueing it for background retry will fail the same way
           // forever. Worse, masking the failure as resolve(true) makes
