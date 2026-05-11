@@ -222,22 +222,15 @@ export class ItemService extends BaseService {
 
       const courseId = version.courseId.toString();
 
-      // Step 3: Run multiple async operations in parallel
-      const [
-        createdItemDetailsPersistenceResult,
-        // totalItemsCountIfNeeded,
-        enrollments,
-      ] = await Promise.all([
-        this.itemRepo.createItem(item.itemDetails, session),
-        // version.totalItems
-        //   ? Promise.resolve(null)
-        //   : this.itemRepo.CalculateTotalItemsCount(
-        //     courseId,
-        //     version._id.toString(),
-        //     session,
-        //   ),
-        this.enrollmentRepo.getByCourseVersion(courseId, versionId, session),
-      ]);
+      // Step 3: Persist the new item.
+      // Enrollment progress is recalculated by the nightly cron
+      // (DeleteCronService.scheduleProgressUpdateCron) rather than inline —
+      // for courses with many enrolled students (e.g. Guru Setu) the per-user
+      // recalc was blowing past the transaction timeout on item create.
+      const createdItemDetailsPersistenceResult = await this.itemRepo.createItem(
+        item.itemDetails,
+        session,
+      );
 
       // Step 3a: Validate creation
       if (!createdItemDetailsPersistenceResult) {
@@ -247,15 +240,6 @@ export class ItemService extends BaseService {
       }
       createdItemDetailsPersistenceResult._id =
         createdItemDetailsPersistenceResult._id.toString();
-
-      // Step 4: Update enrollment progress in bulk
-      await this.progressService.updateEnrollmentProgressPercentBulk(
-        enrollments,
-        courseId,
-        versionId,
-        version.totalItems,
-        session,
-      );
 
       // Step 5: Add item to itemsGroup
       const newItemDB = new ItemRef(item);
@@ -961,26 +945,17 @@ export class ItemService extends BaseService {
         const courseId = version.courseId.toString();
         const versionId = version._id.toString();
 
-        // Step 3: Run in parallel: count total items, delete watch time, get enrollments
-        const [_, enrollments] = await Promise.all([
-          // this.itemRepo.CalculateTotalItemsCount(courseId, versionId, session),
-          this.progressRepo.deleteWatchTimeByItemId(itemId, session),
-          this.enrollmentRepo.getByCourseVersion(courseId, versionId, session),
-        ]);
+        // Step 3: Delete watch time for the item.
+        // Per-student progress recalculation is handled by the nightly cron
+        // (DeleteCronService.scheduleProgressUpdateCron) rather than inline —
+        // for courses with many enrolled students the per-user recalc was
+        // blowing past the transaction timeout.
+        await this.progressRepo.deleteWatchTimeByItemId(itemId, session);
 
         const { totalItems, itemCounts } =
           await this.itemRepo.calculateItemCountsForVersion(versionId, session);
         version.totalItems = totalItems;
         version.itemCounts = itemCounts;
-
-        // Step 4: Update progress for all users in parallel
-        await this.progressService.updateEnrollmentProgressPercentBulk(
-          enrollments,
-          courseId,
-          versionId,
-          version.totalItems,
-          session,
-        );
 
         // Step 5: Update version
         const updatedVersion = await this.courseRepo.updateVersion(
