@@ -46,53 +46,21 @@ export class DeleteCronService extends BaseService {
     console.log('Delete cron job scheduled for 1:00 AM daily');
   }
 
-  public async scheduleProgressUpdateCron() {
-    // const courseVersionMap = [
-    //   { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
-    //   {
-    //     courseId: "6970f87e30644cbc74b6714f", versionId:
-    //       "6970f87e30644cbc74b67150"
-    //   },
-
-    // ];
-
+  public scheduleProgressUpdateCron() {
     cron.schedule('0 3 * * *', async () => {
-      console.log(
-        `⏰ Running parallel progress cron for ${/*courseVersionMap.length*/''} course versions`,
-      );
+      try {
+        console.log('⏰ Running parallel progress cron across all course versions');
+        const response =
+          await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion();
+        console.log(
+          `🎉 Parallel progress cron completed — total: ${response.totalCount}, updated: ${response.updatedCount}`,
+        );
+      } catch (err) {
+        console.error('❌ Progress update cron failed:', err);
+      }
     });
 
-    // const results = await Promise.allSettled(
-    //   courseVersionMap.map(({ courseId, versionId }) =>
-    //     this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion(
-    //       courseId,
-    //       versionId,
-    //     ),
-    //   ),
-    // );
-    const response = await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion();
-    // results.forEach((result, index) => {
-    //   const { courseId, versionId } = courseVersionMap[index];
-
-    //   if (result.status === 'fulfilled') {
-    //     console.log(
-    //       `✅ Course ${courseId} | Version ${versionId} completed`,
-    //       `Total count:${result.value.totalCount}`, `Updated count:${result.value.updatedCount}`,
-    //     );
-    //   } else {
-    //     console.error(
-    //       `❌ Course ${courseId} | Version ${versionId} failed`,
-    //       result.reason?.message || result.reason,
-    //     );
-    //   }
-    // });
-
-    console.log(`🎉 Parallel progress cron completed \n
-        Total count : ${response.totalCount} \n
-        Updated count : ${response.updatedCount}`);
-    // });
-
-    // console.log('🗓️ Progress update cron scheduled (hourly, parallel)');
+    console.log('🗓️ Progress update cron scheduled (daily at 3 AM IST)');
   }
 
 
