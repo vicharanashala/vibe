@@ -140,6 +140,22 @@ export async function setupItemAbilities(
             );
             if (nextId && !allowedItemIds.includes(nextId)) {
               allowedItemIds.push(nextId);
+          // Mirror ItemService.readItem's position-walk bypass at the CASL
+          // layer: every item positionally at-or-before the learner's pointer
+          // is freely accessible, regardless of whether its watchTime row
+          // recorded a clean endTime. Without this, a positionally-passed
+          // item missing from completedItems (40%-gate failure, rolled-back
+          // tx, cohort-mismatched watchTime row) is rejected by the $in
+          // filter below before ItemService gets a chance to allow it.
+          const positionalIds = await progressService.getItemIdsAtOrBeforeCurrent(
+            enrollment.versionId,
+            progress.currentModule?.toString?.(),
+            progress.currentSection?.toString?.(),
+            currentItemId,
+          );
+          for (const id of positionalIds) {
+            if (!allowedItemIds.includes(id)) {
+              allowedItemIds.push(id);
             }
           }
 
