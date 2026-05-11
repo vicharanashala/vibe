@@ -645,31 +645,6 @@ class ProgressService extends BaseService {
       return;
     }
 
-    // If the learner's current pointer is on a completed item and the item
-    // they're starting is the next-in-sequence, allow it. Mirrors the CASL
-    // allow-list extension for readItem — without it, the frontend's
-    // smart-advance (or any natural forward navigation after a completed
-    // current) hits a /start 400 even though the next item is the right
-    // place to land.
-    const currentItemCompleted = await this.progressRepository.isItemCompleted(
-      userId,
-      courseId,
-      courseVersionId,
-      progress.currentItem.toString(),
-      cohort,
-    );
-    if (currentItemCompleted) {
-      const nextId = await this.getNextItemIdAfterCurrent(
-        courseVersionId,
-        progress.currentModule?.toString(),
-        progress.currentSection?.toString(),
-        progress.currentItem.toString(),
-      );
-      if (nextId && nextId === itemId) {
-        return;
-      }
-    }
-
     if (
       progress.currentModule.toString() !== moduleId ||
       progress.currentSection.toString() !== sectionId ||
@@ -2182,19 +2157,6 @@ class ProgressService extends BaseService {
       );
     }
 
-    // The learner's pointer is on the immediate predecessor. That happens
-    // when readItem advanced them forward without the prior /stop having
-    // committed yet (slow /stop window). Treat the stop as in-sequence so
-    // navigation isn't blocked — the prior item's completion catches up
-    // when its own /stop lands or via the next derived recompute.
-    const pointerOnPredecessor =
-      progress.currentModule?.toString() === previousItem.moduleId &&
-      progress.currentSection?.toString() === previousItem.sectionId &&
-      progress.currentItem?.toString() === previousItem.itemId;
-    if (pointerOnPredecessor) {
-      return;
-    }
-
     const isPreviousCompleted = await this.progressRepository.isItemCompleted(
       userId,
       courseId,
@@ -2365,7 +2327,7 @@ class ProgressService extends BaseService {
      * - rewatch of already-completed items
      */
     let alreadyCompleted = false;
-    if (!isSkipped) {
+    if (item.type !== 'QUIZ' && !isSkipped) {
       alreadyCompleted = await this.progressRepository.isItemCompleted(
         userId,
         courseId,
@@ -2373,7 +2335,7 @@ class ProgressService extends BaseService {
         itemId,
         cohortId,
       );
-      if (item.type !== 'QUIZ' && !alreadyCompleted) {
+      if (!alreadyCompleted) {
         await this.validateProgressPositionOrPreviousCompleted(
           progress,
           courseVersion,
@@ -2388,32 +2350,6 @@ class ProgressService extends BaseService {
       }
     }
 
-    // Quiz already passed/skipped: handleQuizeProgressAfterSubmission already
-    // advanced progress.currentItem and closed the WatchTime row at submit
-    // time, so a follow-up /stop from handleNext is a redundant cleanup.
-    // Skipping the transaction here avoids:
-    //   - resolveQuizProgressOutcome → submissionRepository.get returning
-    //     null on a stale/mismatched attemptId and throwing 'Quiz not
-    //     submitted' (blocks navigation despite the quiz being passed),
-    //   - the long Atlas-read window that surfaced as a 77s /stop in the
-    //     undefined-attemptId case before this guard existed.
-    // Enrollment percent is eventually consistent and self-heals on the
-    // next stop — same trade-off as the post-tx percent update.
-    if (item.type === 'QUIZ' && !isSkipped && alreadyCompleted) {
-      return;
-    }
-
-    // Quiz stop without attemptId can't resolve a pass/fail outcome, so
-    // resolveQuizProgressOutcome would call submissionRepository.get(undefined)
-    // and crash on `attemptId.toString()` deep inside the transaction.
-    // Fail fast here so the frontend gets a clear 400 instead of a stalled
-    // tab while the tx burns through Atlas reads.
-    if (item.type === 'QUIZ' && !isSkipped && !attemptId) {
-      throw new BadRequestError(
-        'attemptId is required to stop a quiz item',
-      );
-    }
-
     // Captured inside the transaction, applied after commit. Enrollment
     // percent + recalculate-on-completion are derived/eventually-consistent
     // metrics that don't need the same atomicity as currentItem advancement.
@@ -2426,138 +2362,192 @@ class ProgressService extends BaseService {
     let postTxGuruProgress: { percentCompleted: number; completedItemsCount: number } | null = null;
     let postTxShouldRecalc = false;
 
-    // ---------------------------------------------------------------
-    // PRE-TRANSACTION PHASE
-    // ---------------------------------------------------------------
-    // Everything below up to the `_withTransaction` call is read-only
-    // computation. None of it needs to participate in the same snapshot
-    // as the `stopItemTracking` + `updateProgress` writes:
-    //   - getNextItemInSequence / readItemById walk the (immutable for the
-    //     duration of a stop) course version structure.
-    //   - getAllItemIds, getCompletedItems and getHiddenOrDeletedItems are
-    //     aggregations whose result is rolled into a percentage that is
-    //     itself eventually-consistent (post-commit write to enrollment).
-    //   - enrollment lookup is read-only and the row is not modified inside
-    //     the tx.
-    //   - resolveQuizProgressOutcome is reads only (submissionRepository.get
-    //     and getUserMetricsForQuiz).
-    // Pulling these out of the transaction shrinks the lock-hold window
-    // dramatically — production traces showed multi-second tx durations
-    // dominated by these Atlas reads while a `WriteConflict` retry was in
-    // progress. Now the only work inside the tx is the two writes plus a
-    // small validation read against the just-stopped watchTime row.
-    let shouldCountCurrentItemAsCompleted = false;
-    if (item.type !== 'QUIZ' && !isSkipped) {
-      shouldCountCurrentItemAsCompleted = true;
-    }
+    await this._withTransaction(async session => {
+      let shouldCountCurrentItemAsCompleted = false;
+      let stoppedWatchTime: any = null;
 
-    // 2. DETERMINE NEXT ITEM
-    let nextItem: { moduleId: string; sectionId: string; itemId: string; completed?: boolean } | null = null;
-    if (nextItemId) {
-      const nextItemEntity = await this.itemRepo.readItemById(nextItemId);
-      if (!nextItemEntity) {
-        throw new BadRequestError('Invalid next item');
-      }
-      nextItem = { moduleId, sectionId, itemId: nextItemId };
-    } else {
-      nextItem = await this.getNextItemInSequence(
-        courseVersion,
-        moduleId,
-        sectionId,
-        itemId,
-      );
-    }
-    let isCompleted = !nextItem;
+      // ----------------------------------------------------
+      // 1. STOP WATCH TRACKING / ITEM COMPLETION VALIDATION
+      // ----------------------------------------------------
+      if (item.type !== 'QUIZ') {
+        if (!isSkipped) {
+          stoppedWatchTime = await this.progressRepository.stopItemTracking(
+            watchItemId,
+            session,
+            watchedSeconds,
+            isExpired,
+          );
 
-    // 3. COURSE ITEM METADATA
-    const allCourseItemIds = await this.getAllItemIds(courseVersionId);
-    const allCourseItemIdSet = new Set(
-      allCourseItemIds.map(id => id.toString()),
-    );
-    const totalCourseItems = allCourseItemIdSet.size;
+          if (stoppedWatchTime) {
+            await this.validateItemStopEligibility(
+              item,
+              itemId,
+              userId,
+              courseId,
+              courseVersionId,
+              attemptId,
+              isSkipped,
+              stoppedWatchTime,
+              cohortId,
+              session,
+            );
+          } else {
+            // watchTimeId not found or soft-deleted — treat as already-stopped (idempotent).
+            // This can happen on legitimate frontend retries; log so data integrity issues
+            // (wrong watchItemId) remain detectable in production.
+            console.warn('[stopItem] watchTime document not found — treating as already stopped', {
+              watchItemId,
+              itemId,
+              userId,
+              courseId,
+              courseVersionId,
+            });
+          }
 
-    // 4. NON-LINEAR PROGRESSION FINAL COMPLETION CHECK
-    if (!linearProgressionEnabled && isCompleted) {
-      const completedItemsArray =
-        await this.progressRepository.getCompletedItems(
-          userId,
-          courseId,
-          courseVersionId,
-          cohortId,
-        );
-      const completedItemsSet = new Set(
-        completedItemsArray.map(id => id.toString()),
-      );
-      if (shouldCountCurrentItemAsCompleted) {
-        completedItemsSet.add(itemId);
-      }
-      const effectiveCompleted = Array.from(allCourseItemIdSet).filter(id =>
-        completedItemsSet.has(id),
-      ).length;
-      isCompleted = effectiveCompleted >= totalCourseItems;
-      if (!isCompleted) {
-        nextItem = await this.findFirstIncompleteItemInSequence(
-          courseVersion,
-          completedItemsSet,
-        );
-        if (!nextItem) {
-          nextItem = {
-            moduleId,
-            sectionId,
-            itemId,
-            completed: false,
-          };
+          shouldCountCurrentItemAsCompleted = true;
         }
       }
-    }
 
-    // 5. DEFAULT PROGRESS PAYLOAD
-    let newProgress: Partial<IProgress> = isCompleted
-      ? {
-        currentModule: moduleId,
-        currentSection: sectionId,
-        currentItem: itemId,
-        completed: true,
-        completedAt: new Date(),
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+      // ----------------------------------------------------
+      // 2. DETERMINE NEXT ITEM
+      // ----------------------------------------------------
+      let nextItem = null;
+
+      if (nextItemId) {
+        const nextItemEntity = await this.itemRepo.readItemById(nextItemId);
+
+        if (!nextItemEntity) {
+          throw new BadRequestError('Invalid next item');
+        }
+
+        nextItem = {
+          moduleId,
+          sectionId,
+          itemId: nextItemId,
+        };
+      } else {
+        nextItem = await this.getNextItemInSequence(
+          courseVersion,
+          moduleId,
+          sectionId,
+          itemId,
+        );
       }
-      : {
-        completed: false,
-        currentModule: nextItem!.moduleId,
-        currentSection: nextItem!.sectionId,
-        currentItem: nextItem!.itemId,
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
-      };
 
-    // 6. QUIZ-SPECIFIC LOGIC
-    if (item.type === 'QUIZ' && !isSkipped) {
-      const quizOutcome = await this.resolveQuizProgressOutcome(
-        userId,
-        itemId,
-        attemptId,
-        cohortId,
-        courseVersion,
-        moduleId,
-        sectionId,
-        itemId,
-        newProgress,
+      let isCompleted = !nextItem;
+
+      // ----------------------------------------------------
+      // 3. COURSE ITEM METADATA
+      // ----------------------------------------------------
+      const allCourseItemIds = await this.getAllItemIds(courseVersionId);
+      const allCourseItemIdSet = new Set(
+        allCourseItemIds.map(id => id.toString()),
       );
-      newProgress = quizOutcome.newProgress;
-      shouldCountCurrentItemAsCompleted =
-        quizOutcome.shouldCountCurrentItemAsCompleted;
-    }
+      const totalCourseItems = allCourseItemIdSet.size;
 
-    // 7. ENROLLMENT LOOKUP
-    const enrollment = await this.enrollmentRepo.findEnrollment(
-      userId,
-      courseId,
-      courseVersionId,
-      cohortId,
-    );
+      // ----------------------------------------------------
+      // 4. NON-LINEAR PROGRESSION FINAL COMPLETION CHECK
+      // ----------------------------------------------------
+      if (!linearProgressionEnabled && isCompleted) {
+        const completedItemsArray =
+          await this.progressRepository.getCompletedItems(
+            userId,
+            courseId,
+            courseVersionId,
+            cohortId,
+          );
 
-    if (enrollment) {
+        const completedItemsSet = new Set(
+          completedItemsArray.map(id => id.toString()),
+        );
+
+        if (shouldCountCurrentItemAsCompleted) {
+          completedItemsSet.add(itemId);
+        }
+
+        const effectiveCompleted = Array.from(allCourseItemIdSet).filter(id =>
+          completedItemsSet.has(id),
+        ).length;
+
+        isCompleted = effectiveCompleted >= totalCourseItems;
+
+        if (!isCompleted) {
+          nextItem = await this.findFirstIncompleteItemInSequence(
+            courseVersion,
+            completedItemsSet,
+          );
+
+          if (!nextItem) {
+            nextItem = {
+              moduleId,
+              sectionId,
+              itemId,
+              completed: false,
+            };
+          }
+        }
+      }
+
+      // ----------------------------------------------------
+      // 5. DEFAULT PROGRESS PAYLOAD
+      // ----------------------------------------------------
+      let newProgress: Partial<IProgress> = isCompleted
+        ? {
+          currentModule: moduleId,
+          currentSection: sectionId,
+          currentItem: itemId,
+          completed: true,
+          completedAt: new Date(),
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        }
+        : {
+          completed: false,
+          currentModule: nextItem.moduleId,
+          currentSection: nextItem.sectionId,
+          currentItem: nextItem.itemId,
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        };
+
+      // ----------------------------------------------------
+      // 6. QUIZ-SPECIFIC LOGIC
+      // ----------------------------------------------------
+      if (item.type === 'QUIZ' && !isSkipped) {
+        const quizOutcome = await this.resolveQuizProgressOutcome(
+          userId,
+          itemId,
+          attemptId,
+          cohortId,
+          courseVersion,
+          moduleId,
+          sectionId,
+          itemId,
+          newProgress,
+        );
+
+        newProgress = quizOutcome.newProgress;
+        shouldCountCurrentItemAsCompleted =
+          quizOutcome.shouldCountCurrentItemAsCompleted;
+      }
+
+      // ----------------------------------------------------
+      // 7. ENROLLMENT LOOKUP
+      // ----------------------------------------------------
+      const enrollment = await this.enrollmentRepo.findEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId,
+      );
+
+      if (!enrollment) {
+        return;
+      }
+
+      // ----------------------------------------------------
       // 8. DERIVED PROGRESS CALCULATION
+      // ----------------------------------------------------
       let totalItems = totalCourseItems;
+
       const completedItemsArray =
         await this.progressRepository.getCompletedItems(
           userId,
@@ -2565,32 +2555,44 @@ class ProgressService extends BaseService {
           courseVersionId,
           cohortId,
         );
+
       let completedItemsSet = new Set(
         completedItemsArray.map(id => id.toString()),
       );
+
       if (shouldCountCurrentItemAsCompleted) {
         completedItemsSet.add(itemId);
       }
+
       const hiddenItems =
         await this.progressRepository.getHiddenOrDeletedItems(
           courseVersionId,
+          session,
         );
+
       const hiddenSet = new Set(hiddenItems.map(i => i.itemId.toString()));
+
       completedItemsSet = new Set(
         Array.from(completedItemsSet).filter(id => !hiddenSet.has(id)),
       );
+
       totalItems = totalItems - hiddenSet.size;
+
       const completedCourseItemsCount = Array.from(allCourseItemIdSet).filter(
         id => completedItemsSet.has(id),
       ).length;
+
       const rawPercent =
         totalItems > 0 ? (completedCourseItemsCount / totalItems) * 100 : 0;
+
       const percentCompleted = Math.min(
         100,
         parseFloat(rawPercent.toFixed(2)),
       );
 
+      // ----------------------------------------------------
       // 9. GURU SETU OVERRIDE — capture for post-commit
+      // ----------------------------------------------------
       if (
         courseId?.toString() === GURU_SETU_COURSE_ID &&
         courseVersionId?.toString() === GURU_SETU_VERSION_ID
@@ -2601,55 +2603,17 @@ class ProgressService extends BaseService {
         );
       }
 
+      // ----------------------------------------------------
       // 10. NORMAL ENROLLMENT PROGRESS — capture for post-commit
+      // ----------------------------------------------------
       postTxEnrollmentId = enrollment._id.toString();
       postTxPercentCompleted = percentCompleted;
       postTxCompletedCount = completedCourseItemsCount;
       postTxShouldRecalc = percentCompleted > 99;
-    }
 
-    // ---------------------------------------------------------------
-    // TRANSACTION PHASE — writes only.
-    // ---------------------------------------------------------------
-    await this._withTransaction(async session => {
-      // 1. STOP WATCH TRACKING / VALIDATE
-      if (item.type !== 'QUIZ' && !isSkipped) {
-        const stoppedWatchTime = await this.progressRepository.stopItemTracking(
-          watchItemId,
-          session,
-          watchedSeconds,
-          isExpired,
-        );
-
-        if (stoppedWatchTime) {
-          await this.validateItemStopEligibility(
-            item,
-            itemId,
-            userId,
-            courseId,
-            courseVersionId,
-            attemptId,
-            isSkipped,
-            stoppedWatchTime,
-            cohortId,
-            session,
-          );
-        } else {
-          // watchTimeId not found or soft-deleted — treat as already-stopped
-          // (idempotent). This can happen on legitimate frontend retries; log
-          // so data integrity issues (wrong watchItemId) remain detectable
-          // in production.
-          console.warn('[stopItem] watchTime document not found — treating as already stopped', {
-            watchItemId,
-            itemId,
-            userId,
-            courseId,
-            courseVersionId,
-          });
-        }
-      }
-
+      // ----------------------------------------------------
       // 11. FINAL PROGRESS UPDATE
+      // ----------------------------------------------------
       // On rewatch of an already-completed item, skip the pointer write so
       // currentItem isn't rewound from the student's real forward position.
       if (!alreadyCompleted) {
@@ -2662,7 +2626,7 @@ class ProgressService extends BaseService {
           session,
         );
       }
-    }, 'ProgressService.stopItem');
+    });
 
     // Post-commit, best-effort. A failure here leaves the canonical progress
     // row intact; the next stop recomputes percent from `getCompletedItems`
@@ -4097,32 +4061,81 @@ class ProgressService extends BaseService {
   }
 
   /**
-   * Convenience wrapper around getNextItemInSequence that loads the course
-   * version itself. Returns the next visible item ID (or null), so callers
-   * that don't already have the courseVersion object — like the CASL ability
-   * builder — can ask "what's the natural next item after this pointer?"
-   * without duplicating the load.
+   * Returns every item ID positionally at-or-before (currentModuleId,
+   * currentSectionId, currentItemId) in the course version's declared
+   * module → section → item order. Used by the CASL ability builder to
+   * construct an `$in` allow-list that matches the position-walk semantics
+   * already enforced inside ItemService.readItem — without it, a
+   * positionally-passed item whose watchTime row never recorded a clean
+   * endTime is missing from the allow-list and the controller-layer 403
+   * fires before the service-layer bypass can run.
    */
-  async getNextItemIdAfterCurrent(
+  async getItemIdsAtOrBeforeCurrent(
     courseVersionId: string,
     currentModuleId: string,
     currentSectionId: string,
     currentItemId: string,
-  ): Promise<string | null> {
+  ): Promise<string[]> {
     if (!courseVersionId || !currentModuleId || !currentSectionId || !currentItemId) {
-      return null;
+      return [];
     }
-    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
-    if (!courseVersion) return null;
-    const next = await this.getNextItemInSequence(
-      courseVersion,
-      currentModuleId,
-      currentSectionId,
-      currentItemId,
-    );
-    return next?.itemId ?? null;
-  }
 
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    if (!courseVersion) return [];
+
+    const sortedModules = [...courseVersion.modules].sort((a, b) =>
+      a.order.localeCompare(b.order),
+    );
+    const currentModuleIdx = sortedModules.findIndex(
+      m => m.moduleId?.toString() === currentModuleId,
+    );
+    if (currentModuleIdx === -1) return [];
+
+    const collected: string[] = [];
+
+    for (let mi = 0; mi <= currentModuleIdx; mi++) {
+      const module = sortedModules[mi];
+      const sortedSections = [...module.sections].sort((a, b) =>
+        a.order.localeCompare(b.order),
+      );
+
+      const isCurrentModule = mi === currentModuleIdx;
+      const currentSectionIdx = isCurrentModule
+        ? sortedSections.findIndex(s => s.sectionId?.toString() === currentSectionId)
+        : sortedSections.length - 1;
+      if (isCurrentModule && currentSectionIdx === -1) return [];
+
+      const lastSectionIdx = isCurrentModule ? currentSectionIdx : sortedSections.length - 1;
+
+      for (let si = 0; si <= lastSectionIdx; si++) {
+        const section = sortedSections[si];
+        if (!section.itemsGroupId) continue;
+        const itemsGroup = await this.itemRepo.readItemsGroup(
+          section.itemsGroupId.toString(),
+        );
+        if (!itemsGroup?.items) continue;
+
+        const sortedItems = [...itemsGroup.items].sort((a, b) =>
+          a.order.localeCompare(b.order),
+        );
+
+        const isCurrentSection = isCurrentModule && si === currentSectionIdx;
+        const currentItemIdx = isCurrentSection
+          ? sortedItems.findIndex(i => i._id.toString() === currentItemId)
+          : sortedItems.length - 1;
+        if (isCurrentSection && currentItemIdx === -1) return [];
+
+        const lastItemIdx = isCurrentSection ? currentItemIdx : sortedItems.length - 1;
+
+        for (let ii = 0; ii <= lastItemIdx; ii++) {
+          const item = sortedItems[ii];
+          if (item._id) collected.push(item._id.toString());
+        }
+      }
+    }
+
+    return collected;
+  }
   async getModuleWiseProgress(
     userId: string,
     courseId: string,

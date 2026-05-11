@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, XCircle, Maximize, Minimize, FastForward } from 'lucide-react';
 import { useSkipOptionalItem, useStartItem, useStopItem, useStoreWatchTimeTrack, } from '../hooks/hooks';
-import { stopGate } from '../hooks/useStopQueueFlusher';
 
 
 import { useCourseStore } from '../store/course-store';
@@ -15,12 +14,6 @@ import type { VideoProps, YTPlayerInstance } from '@/types/video.types';
 import { toast } from 'sonner';
 import { WatchTimeTrackData } from '@/types/user_activity_event.types';
 
-
-// Module-level flag: true once the first video in this page session has
-// finished its calibration grace period. Subsequent videos skip the wait
-// entirely — the proctoring camera doesn't need to recalibrate per video.
-// Resets only on full page reload (when the module reloads).
-let sessionCalibrationDone = false;
 
 // Helper to format seconds to HH:MM:SS
 function formatSecondsToTime(seconds: number): string {
@@ -49,16 +42,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-// Imperative handle so Item-container's stopCurrentItem can actually trigger
-// a stop for video items. Previously Video had no ref interface, which made
-// itemContainerRef.current.stopCurrentItem() a no-op for videos —
-// handleNext advanced optimistically and the GET on the next item 403'd
-// because backend currentItem hadn't moved.
-export type VideoRef = {
-  stopItem: () => Promise<void>;
-};
-
-const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef }, ref) {
+export default function Video({ URL, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(true);
@@ -85,10 +69,68 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
   const stopError = stopItem.error;
   const { mutateAsync: storeWatchTimeTrack } = useStoreWatchTimeTrack();
 
-  // Queue flusher lives at the course-page level now (useStopQueueFlusher)
-  // so it keeps draining the failed-stop queue while items are loading and
-  // no Video is mounted. Foreground-vs-flusher coordination is via the
-  // module-level stopGate singleton imported below.
+  // Background flusher: retry any stop payloads previously queued after exhausting
+  // their inline retries. Runs on mount and whenever the tab regains connectivity.
+  useEffect(() => {
+    const QUEUE_KEY = 'vibe.failedStopQueue';
+    let cancelled = false;
+
+    const QUEUE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+    const flush = async () => {
+      let queue: any[] = [];
+      try {
+        const raw = localStorage.getItem(QUEUE_KEY);
+        queue = raw ? JSON.parse(raw) : [];
+      } catch {
+        return;
+      }
+      if (!Array.isArray(queue) || queue.length === 0) return;
+
+      // Drop entries older than TTL — they may be stale (course restructured, archived, etc.)
+      const now = Date.now();
+      queue = queue.filter(e => {
+        const age = now - (e?.queuedAt ?? 0);
+        if (age > QUEUE_TTL_MS) {
+          console.warn('[Stop Queue] Dropping expired entry (>24h old):', e?.body?.itemId);
+          return false;
+        }
+        return true;
+      });
+
+      const remaining: any[] = [];
+      for (const entry of queue) {
+        if (cancelled) {
+          remaining.push(entry);
+          continue;
+        }
+        try {
+          await stopItem.mutateAsync({
+            params: entry.params,
+            body: entry.body,
+          });
+          console.log('[Stop Queue] Flushed queued stop for item', entry?.body?.itemId);
+        } catch (err) {
+          console.warn('[Stop Queue] Retry still failing; keeping in queue:', err);
+          remaining.push(entry);
+        }
+      }
+      try {
+        localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+      } catch {
+        // ignore
+      }
+    };
+
+    flush();
+    const onOnline = () => flush();
+    window.addEventListener('online', onOnline);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('online', onOnline);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Parse start and end times
   const startTimeSeconds = parseTimeToSeconds(startTime || '0');
@@ -97,6 +139,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
   const progressStartedRef = useRef(false);
   const progressStoppedRef = useRef(false);
   const watchItemIdRef = useRef<string | null>(null);
+  const stopInFlightRef = useRef(false);
   // Tracks the current item being watched; updated on every render so async handlers
   // can detect if navigation already happened while handleStopItem was awaiting.
   const currentItemIdRef = useRef<string | undefined>(currentCourse?.itemId);
@@ -123,10 +166,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
   const maxTimeRef = useRef(startTimeSeconds);
 
   // Track grace period completion
-  // First video pays the full calibration delay; subsequent videos in the
-  // same page session start with grace already satisfied (sessionCalibrationDone
-  // is true once any video has finished its first wait).
-  const [gracePeriodCompleted, setGracePeriodCompleted] = useState(sessionCalibrationDone);
+  const [gracePeriodCompleted, setGracePeriodCompleted] = useState(false);
 
   // Fullscreen state
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -307,7 +347,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
       if (!watchItemId) return;
       if (!currentCourse?.itemId) return;
       // Already navigating away or already stopped — nothing to close.
-      if (progressStoppedRef.current || stopGate.inFlight) return;
+      if (progressStoppedRef.current || stopInFlightRef.current) return;
       // Item is already complete — backend will reject anyway, skip.
       if (
         isAlreadyWatched ||
@@ -316,10 +356,6 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
       ) {
         return;
       }
-      // Hold the foreground stop gate while this fires so a user-driven
-      // handleStopItem (Next click) can't open a second transaction on the
-      // same Progress/WatchTime doc and trigger backend write conflicts.
-      stopGate.inFlight = true;
       try {
         await stopItem.mutateAsync({
           params: {
@@ -348,8 +384,6 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
         // Best-effort: if the close fails the server-side cap in
         // isValidWatchTime is the safety net.
         console.warn('[Visibility] stopItem on hide failed:', err);
-      } finally {
-        stopGate.inFlight = false;
       }
     };
 
@@ -441,27 +475,20 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing, playerReady, playbackRate, currentCourse?.itemId, currentCourse?.courseId, currentCourse?.versionId, currentCourse?.moduleId, currentCourse?.sectionId, currentCourse?.cohortId, isAlreadyWatched, isCompleted, seekForwardEnabled, nextItemId]);
 
-  // First-video calibration: give the proctoring camera time to settle
-  // before autoplay so the anomaly detector doesn't false-positive on
-  // "no face" while the user is still adjusting. Only the FIRST video in
-  // the page session pays the wait — sessionCalibrationDone gets flipped
-  // true and persists across video re-mounts. Reduced from 10s to 4s; the
-  // YouTube player + camera tile are typically render-ready in <2s.
+  // Wait 10 seconds after readyToDetect becomes true (to match FloatingVideo's grace period)
   useEffect(() => {
     if (readyToDetect && !gracePeriodCompleted) {
       const timer = setTimeout(() => {
-        sessionCalibrationDone = true;
         setGracePeriodCompleted(true);
-      }, 4000);
+      }, 10000); // 10 seconds to match FloatingVideo's grace period
 
       return () => clearTimeout(timer);
     }
   }, [readyToDetect, gracePeriodCompleted]);
 
-  // Reset when video changes — but if the session has already calibrated
-  // once, start the new video with grace already satisfied.
+  // Reset when video changes
   useEffect(() => {
-    setGracePeriodCompleted(sessionCalibrationDone);
+    setGracePeriodCompleted(false);
     hasAutoPlayedRef.current = false; // Reset autoplay flag for new video
     maxTimeRef.current = startTimeSeconds; // Reset maxTime ref
     hasNavigatedRef.current = false;
@@ -494,7 +521,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
   // Control handlers
   const handlePlayPause = useCallback(() => {
     const player = playerRef.current;
-    if (!player || typeof player.pauseVideo !== 'function' || stopGate.inFlight) return;
+    if (!player || typeof player.pauseVideo !== 'function' || stopInFlightRef.current) return;
     if (playing || isSkipping || isStopFailed || isStopping) {
       player.pauseVideo();
     } else {
@@ -571,14 +598,14 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
     }
 
     // Prevent duplicate concurrent requests
-    if (stopGate.inFlight) {
+    if (stopInFlightRef.current) {
       console.log('Stop request already in flight, skipping');
       return false;
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const executeStop = async () => {
-        stopGate.inFlight = true;
+        stopInFlightRef.current = true;
         try {
           if (watchItemId && !isAlreadyWatched && !(currentCourse!.itemId && completedItemIdsRef.current.has(currentCourse!.itemId)) && !isCompleted) {
             // Retry logic: up to 3 attempts with per-attempt timeout.
@@ -586,14 +613,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
             // cancelled (not just ignored) when the deadline fires — this prevents
             // background requests from creating concurrent MongoDB transactions that
             // cause write-conflict 500s on the next attempt.
-            // 25s. The backend stop transaction has to do many Atlas reads
-            // plus up to 5 internal write-conflict retries (with backoff) —
-            // on a slow remote Atlas that legitimately takes 10–15s. The old
-            // 8s value was firing aborts before the server finished, and the
-            // immediate retry opened a second transaction that collided with
-            // the still-running first one ('Write conflict during plan
-            // execution and yielding is disabled' loop).
-            const ATTEMPT_TIMEOUT_MS = 25000;
+            const ATTEMPT_TIMEOUT_MS = 8000;
             let lastError: any = null;
             for (let attempt = 1; attempt <= 3; attempt++) {
               let abortController: AbortController | null = null;
@@ -652,40 +672,8 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
                   return;
                 }
 
-                // Retry on transient errors only.
-                // 4xx is deterministic — never retry. Throw immediately so the
-                // outer catch can propagate to handleNext (which then bails
-                // without advancing instead of landing on a CASL-gated item).
-                const isClient4xx =
-                  typeof status === 'number' && status >= 400 && status < 500;
-                if (isClient4xx) {
-                  throw err;
-                }
-                // Abort means the previous request is still in flight on the
-                // backend (Express doesn't honor client aborts mid-handler).
-                // Retrying opens a SECOND transaction on the same
-                // Progress/WatchTime doc and creates the
-                // 'Write conflict during plan execution and yielding is
-                // disabled' loop seen in production. Bail to the queue path
-                // and let the background flusher try once the original
-                // server-side transaction has actually committed/failed.
-                if (isAbort) {
-                  throw err;
-                }
-                // !status (no HTTP response) covers fetch failures and the
-                // race between the AbortController and a slow Atlas write.
-                // The server-side stop is idempotent (duplicate watchTimeId
-                // is a no-op, second updateProgress is the same write), but
-                // retrying a still-running stop spawns a competing
-                // transaction that fights the original for the WriteConflict
-                // budget on the same Progress doc. Skip retries here and let
-                // the background flusher reconcile once the original has
-                // committed/failed; the user-perceived delay drops from
-                // ~75s (3×25s) to one timeout window.
-                if (!status) {
-                  throw err;
-                }
-                if (attempt < 3 && (status === 500 || status === 504)) {
+                // Retry on transient errors, timeouts, or aborted requests
+                if (attempt < 3 && (status === 400 || status === 500 || status === 504 || !status || isAbort)) {
                   console.log(`[Stop Item] Retrying in 1 second...`);
                   await new Promise(resolve => setTimeout(resolve, 1000));
                 } else if (attempt === 3) {
@@ -709,59 +697,6 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
           const status = err?.response?.status;
           const message = err?.response?.data?.message || err?.message;
           console.error(`[Stop Item] Final failure after retries. Status: ${status}, Message:`, message);
-
-          // Hard server rejections are NOT transient and must not be masked
-          // as success — retrying won't help, and advancing past them lands
-          // the learner on a CASL-gated next item that 403s. Bubble the
-          // error up so handleNext's watch-gate check can show the right
-          // toast and stay on the current item.
-          const isWatchGateRejection =
-            status === 400 &&
-            typeof message === 'string' &&
-            message.toLowerCase().includes('invalid watch time');
-          if (isWatchGateRejection) {
-            console.warn('[Stop Item] Watch-gate rejection — propagating to caller');
-            stopInFlightRef.current = false;
-          // Any 4xx is a deterministic backend rejection — retrying won't
-          // help and queueing it for background retry will fail the same way
-          // forever. Worse, masking the failure as resolve(true) makes
-          // handleNext advance to the next item; backend currentItem stays
-          // put, and the GET /item for the new selection 403s, leaving the
-          // learner stuck on a Loading screen. Propagate so handleNext
-          // bails without advancing. Examples seen in production:
-          //   - 400 'Invalid watch time'  (watch-time gate)
-          //   - 400 'ModuleId, sectionId and itemId do not match current progress'
-          //   - 400 'attemptId is required to stop a quiz item'
-          //   - 400 'Quiz not submitted'
-          const isClientRejection =
-            typeof status === 'number' && status >= 400 && status < 500;
-          if (isClientRejection) {
-            console.warn(
-              `[Stop Item] Client rejection ${status} — propagating to caller without queueing:`,
-              message,
-            );
-            // Break the auto-poll loop. Without this, the time-based
-            // auto-stop in the poll interval would re-fire every ~1.5–2s
-            // (because progressStoppedRef stays false on rejection),
-            // hammering the backend with the same 400 forever. Also surface
-            // a toast — the user-driven Next click path is a no-op for
-            // videos (Video has no imperative handle), so the auto-poll is
-            // the ONLY caller of this code path for video items, and
-            // without a toast here the user sees nothing change.
-            progressStoppedRef.current = true;
-            const isWatchGate =
-              status === 400 &&
-              typeof message === 'string' &&
-              message.toLowerCase().includes('invalid watch time');
-            if (isWatchGate) {
-              toast.error('Please watch more of this video before moving on.');
-            } else {
-              toast.error('Could not save progress for this item. Please try again.');
-            }
-            stopGate.inFlight = false;
-            reject(err);
-            return;
-          }
 
           // Queue the failed stop for background retry so the learner can advance.
           try {
@@ -808,7 +743,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
           resolve(true);
 
         } finally {
-          stopGate.inFlight = false;
+          stopInFlightRef.current = false;
           stopTimeoutRef.current = null;
         }
       };
@@ -820,26 +755,6 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
       }
     });
   }, [currentCourse, stopItem, isAlreadyWatched, completedItemIdsRef]);
-
-  // Expose stopItem to Item-container so handleNext actually triggers a
-  // backend stop for video items. Without this, stopCurrentItem was a no-op
-  // for videos: handleNext would advance optimistically while the auto-poll
-  // hammered the backend in the background, and any 4xx rejection (watch
-  // gate, position mismatch) never reached handleNext to bail.
-  useImperativeHandle(ref, () => ({
-    stopItem: async () => {
-      const watchItemId = watchItemIdRef.current || currentCourse?.watchItemId;
-      if (!watchItemId) return;
-      // Re-throw so handleNext can detect 4xx and bail without advancing.
-      const result = await handleStopItem(watchItemId, 0);
-      if (!result) {
-        // handleStopItem returns false when stopGate is already locked
-        // (auto-poll is mid-flight) or there's nothing to stop. That's not
-        // an error from handleNext's perspective.
-        return;
-      }
-    },
-  }), [handleStopItem, currentCourse]);
 
   // Pause/resume video based on doGesture
   useEffect(() => {
@@ -1190,8 +1105,8 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
     idleTimerRef.current = null;
   }
     // Stop if started but not yet stopped (immediate on unmount, no debounce)
-  // if (!progressStoppedRef.current && !stopGate.inFlight && watchItemIdRef.current && currentCourse) {
-  //   stopGate.inFlight = true;
+  // if (!progressStoppedRef.current && !stopInFlightRef.current && watchItemIdRef.current && currentCourse) {
+  //   stopInFlightRef.current = true;
   //   stopItem.mutate({
   //     params: {
   //       path: {
@@ -1213,7 +1128,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
       // Reset references
       progressStartedRef.current = false;
       progressStoppedRef.current = false;
-      stopGate.inFlight = false;
+      stopInFlightRef.current = false;
       watchItemIdRef.current = null;
 
       // Reset player ready state when video changes
@@ -1278,21 +1193,16 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
           return;
         }
 
+        if (progressStoppedRef.current || stopInFlightRef.current) {
+          return;
+        }
+
         const player = playerRef.current;
-        if (!player || !player.getCurrentTime) return;
-
-        // UI state and player-bound enforcement run unconditionally — the
-        // outer ref gate used to short-circuit everything (including the
-        // pause-at-endTime player control), which is why the playhead could
-        // sail past endTimeSeconds once auto-stop set progressStoppedRef.
-        // The branches that fire API calls (auto-stop, navigate) carry their
-        // own inline ref checks, so the outer gate is redundant.
-        const time = player.getCurrentTime();
-        if (!isMountedRef.current) return;
-        setCurrentTime(time);
-        setDuration(player.getDuration());
-
-        {
+        if (player && player.getCurrentTime) {
+          const time = player.getCurrentTime();
+            if (!isMountedRef.current) return;
+          setCurrentTime(time);
+          setDuration(player.getDuration());
           // setVolume(player.getVolume());
 
           // Enforce startTime constraint
@@ -1303,7 +1213,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
           }
 
           // Enforce endTime constraint
-          if (endTimeSeconds > 0 && !progressStoppedRef.current && !stopGate.inFlight && time >= endTimeSeconds && currentCourse) {
+          if (endTimeSeconds > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= endTimeSeconds && currentCourse) {
             console.log("This if condition is triggred now -> ", "Fahhhhaaaa")
             const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
 
@@ -1337,7 +1247,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
           }
 
           // Handle videos without endTime constraint that reach near completion
-          if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && !stopGate.inFlight && time >= duration - 2 && currentCourse) {
+          if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= duration - 2 && currentCourse) {
             console.log("Fahhhhaaaaaaa")
             const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
             if (!watchItemId && isAlreadyWatched) {
@@ -1499,7 +1409,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
   // VERY IMPORTANT
   progressStartedRef.current = false;
   progressStoppedRef.current = false;
-  stopGate.inFlight = false;
+  stopInFlightRef.current = false;
   watchItemIdRef.current = null;
 
   // allow autoplay again
@@ -2424,9 +2334,9 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, startTime, 
       `}</style>
     </div >
   );
-});
+}
 
-export default Video;
+
 
 const TECH_QUOTES = [
   { quote: 'If we are not able to bring quality education to the doorsteps of the poor, technology will have failed in its purpose.', author: 'A.P.J. Abdul Kalam' },
@@ -2443,25 +2353,11 @@ const TECH_QUOTES = [
   { quote: 'Progress is often equal to the difference between mind and mindset — and technology today gives every mind a chance to grow.', author: 'N. R. Narayana Murthy' },
 ];
 
-type TransitionQuoteScreenProps = {
+type NavigatingOverlayProps = {
   visible: boolean;
 };
 
-// Aesthetic transition screen shown during navigation between items. The
-// slow stop+advance path (Atlas latency, queue flusher, 403 retries) can
-// take 5–25s; flashing a spinner during that window feels glitchy. Showing
-// a watermark quote screen for a minimum duration (3.5s, controlled by
-// the parent's visibility hook) makes the wait feel deliberate.
-//
-// Positioning: `absolute inset-0` so it overlays whatever its parent
-// container is — the parent in course-page.tsx is the main ResizablePanel,
-// which keeps the left sidebar / progress visible alongside the overlay.
-//
-// Quote stability: picked ONCE on first mount and never re-rolled. The
-// previous version reset quoteRef on every visible-toggle, which combined
-// with back-to-back navs surfaced a different quote on each transition —
-// looking like a flicker.
-export function TransitionQuoteScreen({ visible }: TransitionQuoteScreenProps) {
+export function NavigatingOverlay({ visible }: NavigatingOverlayProps) {
   const quoteRef = useRef(TECH_QUOTES[Math.floor(Math.random() * TECH_QUOTES.length)]);
 
   if (!visible) return null;
@@ -2469,57 +2365,31 @@ export function TransitionQuoteScreen({ visible }: TransitionQuoteScreenProps) {
   const { quote, author } = quoteRef.current;
 
   return (
-    <div className="absolute inset-0 z-[60] flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 backdrop-blur-sm animate-in fade-in duration-500">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 flex items-center justify-center select-none"
-      >
-        <span className="font-serif leading-none text-primary/[0.05] text-[24rem] md:text-[32rem] -translate-y-16">
-          &ldquo;
-        </span>
-      </div>
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px] animate-in fade-in duration-300">
+      <div className="mx-8 w-full max-w-[360px] rounded-xl border border-primary/25 bg-card px-6 py-5 shadow-2xl shadow-black/40">
 
-      <div className="relative z-10 mx-auto w-full max-w-3xl px-8 text-center">
-        <div className="mb-8 font-serif text-8xl leading-none text-primary/30 select-none">
-          &ldquo;
-        </div>
+        <div className="mb-1 font-serif text-6xl leading-none text-primary/35 select-none">&ldquo;</div>
 
-        <p className="text-2xl md:text-3xl italic font-light leading-relaxed text-foreground/85">
+        <p className="text-[0.8125rem] italic leading-[1.7] text-card-foreground/80">
           {quote}
         </p>
 
-        <div className="mt-8 mx-auto h-px w-24 bg-border" />
-
-        <p className="mt-6 text-base font-semibold tracking-wide text-primary">
+        <p className="mt-3 text-right text-[0.6875rem] font-semibold tracking-wide text-primary">
           — {author}
         </p>
 
-        <div className="mt-14 flex items-center justify-center gap-2">
-          <span className="inline-block h-2 w-2 rounded-full bg-primary/60 animate-bounce [animation-delay:0ms]" />
-          <span className="inline-block h-2 w-2 rounded-full bg-primary/60 animate-bounce [animation-delay:160ms]" />
-          <span className="inline-block h-2 w-2 rounded-full bg-primary/60 animate-bounce [animation-delay:320ms]" />
-          <span className="ml-2 text-sm text-muted-foreground">Preparing your next lesson…</span>
+        <div className="mt-4 h-px bg-border/50" />
+
+        <div className="mt-3 flex items-center gap-2">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary/65 animate-bounce [animation-delay:0ms]" />
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary/65 animate-bounce [animation-delay:160ms]" />
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary/65 animate-bounce [animation-delay:320ms]" />
+          <span className="ml-1.5 text-[0.6875rem] text-muted-foreground">Navigating to next item…</span>
         </div>
+
       </div>
     </div>
   );
-}
-
-type NavigatingOverlayProps = {
-  visible: boolean;
-};
-
-// Disabled: navigation transitions are now exclusively driven by the
-// page-level <TransitionQuoteScreen> in course-page.tsx. Rendering this
-// fullscreen overlay from inside Video/Quiz/Article on top of that one
-// double-stacked the screen with a SECOND TransitionQuoteScreen
-// (different random quote, different mount lifecycle) — producing the
-// "two quotes flickering / one disappearing and another appearing"
-// behavior. Returning null keeps existing call sites compiling without
-// re-introducing the duplicate.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function NavigatingOverlay(_props: NavigatingOverlayProps) {
-  return null;
 }
 interface ConfirmOverlayProps {
   visible: boolean;

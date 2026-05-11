@@ -15,7 +15,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem, useRecalculateStudentProgress } from "@/hooks/hooks";
-import { useStopQueueFlusher } from "@/hooks/useStopQueueFlusher";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
@@ -45,7 +44,6 @@ import {
   ExternalLink, Menu
 } from "lucide-react";
 import FloatingVideo, { FloatingVideoPlaceholder } from "@/components/floating-video";
-import { TransitionQuoteScreen } from "@/components/video";
 import type { itemref } from "@/types/course.types";
 import { logout } from "@/utils/auth";
 import { StudentProctoringSettings } from "@/types/video.types";
@@ -96,11 +94,6 @@ export default function CoursePage() {
     };
   }, []);
   const [attemptId, setAttemptId] = useState<string | null>(null);
-  // Always-mounted flusher: drains the failed-stop queue even while items
-  // are loading. Previously lived in Video.tsx, which left the learner
-  // stuck on the Loading screen when GET /item 403'd because of a
-  // not-yet-flushed queued stop and Video never got a chance to mount.
-  useStopQueueFlusher();
   // Dialog state for proctoring declaration
   const [showProctorDialog, setShowProctorDialog] = useState(true);
   const proctoringAcceptedRef = useRef(false);
@@ -238,20 +231,6 @@ export default function CoursePage() {
   const [doGesture, setDoGesture] = useState<boolean>(false);
   const [isItemForbidden, setIsItemForbidden] = useState<boolean>(false);
   const [isNavigatingToNext, setIsNavigatingToNext] = useState<boolean>(false);
-  // Synchronous gate. setIsNavigatingToNext runs INSIDE the enqueueNavigation
-  // async fn, so the disabled-button flag (bound to isNavigatingToNext) doesn't
-  // flip until the queue actually starts that fn — leaving a multi-frame window
-  // where rapid clicks (or any spurious re-fire of onClick) all queue their own
-  // handleNext, each advancing one item and marking it complete. This ref flips
-  // synchronously on the first click and blocks the rest.
-  const navInFlightRef = useRef(false);
-  // Full-screen transition quote overlay state. Stays visible for at least
-  // MIN_VISIBLE_MS so the user has time to actually read the quote even if
-  // the next item loads quickly, and stays visible as long as anything is
-  // still loading after that. Hides only when both conditions are met.
-  const [showTransitionQuote, setShowTransitionQuote] = useState<boolean>(false);
-  const transitionStartedAtRef = useRef<number | null>(null);
-  const transitionHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Retry counter for item fetch after 403 when a queued stop might still be flushing
   const itemFetchRetryCountRef = useRef(0);
   const lastForbiddenItemIdRef = useRef<string | null>(null);
@@ -311,7 +290,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     // console.log("******************")
 
   // Fetch user progress
-  const { data: progressData, isLoading: progressLoading, error: progressError, refetch: refetchProgress } =
+  const { data: progressData, isLoading: progressLoading, error: progressError } =
     useUserProgress(COURSE_ID, VERSION_ID, COHORT_ID);
   const { data: moduleProgressData, isLoading: moduleProgressLoading } =
     useModuleProgress(COURSE_ID, VERSION_ID, COHORT_ID);
@@ -364,62 +343,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     shouldFetchItem ? activeSectionInfo!.sectionId : '',
     shouldFetchItem ? COHORT_ID : ''
   );
-
-  // Drive the full-screen TransitionQuoteScreen visibility with two
-  // stabilizers so the screen never "comes and goes":
-  //   - OPEN_DEBOUNCE_MS: only open after wantTransition has been true for
-  //     at least this long. Skips the flash on instant-resolving navs
-  //     (watch-gate rejection in <500ms).
-  //   - MIN_VISIBLE_MS: once open, stay visible for at least this long.
-  //     Brief drops of wantTransition during a single nav (e.g. between
-  //     stop-failure and the resync's new GET) cancel the pending hide
-  //     and the screen stays put.
-  const TRANSITION_MIN_VISIBLE_MS = 3500;
-  const TRANSITION_OPEN_DEBOUNCE_MS = 400;
-  const wantTransition = isNavigatingToNext || itemLoading;
-  const transitionOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (wantTransition) {
-      // Cancel any pending hide.
-      if (transitionHideTimerRef.current) {
-        clearTimeout(transitionHideTimerRef.current);
-        transitionHideTimerRef.current = null;
-      }
-      if (showTransitionQuote) return;
-      if (transitionOpenTimerRef.current) return; // already scheduled
-      transitionOpenTimerRef.current = setTimeout(() => {
-        transitionOpenTimerRef.current = null;
-        transitionStartedAtRef.current = Date.now();
-        setShowTransitionQuote(true);
-      }, TRANSITION_OPEN_DEBOUNCE_MS);
-      return;
-    }
-    // wantTransition became false. If we never opened yet, just cancel the
-    // pending open — no screen, no flash.
-    if (transitionOpenTimerRef.current) {
-      clearTimeout(transitionOpenTimerRef.current);
-      transitionOpenTimerRef.current = null;
-    }
-    if (!showTransitionQuote) return;
-    const elapsed =
-      transitionStartedAtRef.current !== null
-        ? Date.now() - transitionStartedAtRef.current
-        : TRANSITION_MIN_VISIBLE_MS;
-    const remaining = Math.max(0, TRANSITION_MIN_VISIBLE_MS - elapsed);
-    if (transitionHideTimerRef.current) clearTimeout(transitionHideTimerRef.current);
-    transitionHideTimerRef.current = setTimeout(() => {
-      setShowTransitionQuote(false);
-      transitionStartedAtRef.current = null;
-      transitionHideTimerRef.current = null;
-    }, remaining);
-    return () => {
-      if (transitionHideTimerRef.current) {
-        clearTimeout(transitionHideTimerRef.current);
-        transitionHideTimerRef.current = null;
-      }
-    };
-  }, [wantTransition, showTransitionQuote]);
-
   // State to track previous valid item for reverting
   const [previousValidItem, setPreviousValidItem] = useState<{
     moduleId: string;
@@ -495,21 +418,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   useEffect(() => {
     if (!itemError) return;
     console.error('Current item error:', itemError);
-    // Auth failure detection: catches both expired tokens and the
-    // 'Decoding Firebase ID token failed' / 'Authorization is required'
-    // 401 variants surfaced when the cached token is malformed or the
-    // Firebase session was wiped without the localStorage entry being
-    // cleared. The 401-retry middleware in lib/openapi.ts has already
-    // tried to refresh; if we still see auth errors here, refresh
-    // failed (firebaseUser is null) and the only path forward is
-    // re-auth.
-    const isAuthFailure =
-      itemErrorName === 'UnauthorizedError' ||
-      itemError.includes('auth/id-token-expired') ||
-      itemError.includes('auth/argument-error') ||
-      itemError.toLowerCase().includes('decoding firebase id token failed') ||
-      itemError.toLowerCase().includes('authorization is required');
-    if (isAuthFailure) {
+    // if (itemError === "Firebase ID token has expired. Get a fresh ID token from your client app and try again (auth/id-token-expired). See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.")
+    if (itemError.includes("auth/id-token-expired")) {
       logout();
       Navigate({ to: '/auth' });
       return;
@@ -548,75 +458,37 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
         lastForbiddenItemIdRef.current = null;
       }
 
-      // Authoritative recovery: re-fetch backend progress (which may have
-      // changed since we last cached it) and snap the UI to whatever
-      // currentItem the backend says it is. This unsticks the user when
-      // their session has drifted ahead of backend state — common after
-      // a chain of failed stops where the frontend advanced locally but
-      // the backend's currentItem fell behind. previousValidItem (a
-      // frontend-cached fallback) is only used if the refetched progress
-      // doesn't give us anything actionable.
+      toast.error(itemError);
+      // Clear loading state on error
       setIsNavigatingToNext(false);
-      (async () => {
-        let backendCurrent: { moduleId?: string; sectionId?: string; itemId?: string } | null = null;
-        try {
-          const refetched = await refetchProgress();
-          const p: any = refetched?.data;
-          if (p?.currentItem && p?.currentSection && p?.currentModule) {
-            backendCurrent = {
-              moduleId: String(p.currentModule),
-              sectionId: String(p.currentSection),
-              itemId: String(p.currentItem),
-            };
-          }
-        } catch (refetchErr) {
-          console.warn('[403 recovery] refetchProgress failed:', refetchErr);
+      setIsItemForbidden(true);
+
+      // Only revert if we have a previous valid item
+      if (previousValidItem) {
+        console.log('Access denied. Reverting to previous valid item:', previousValidItem);
+
+        // Revert selection state immediately
+        setSelectedModuleId(previousValidItem.moduleId);
+        setSelectedSectionId(previousValidItem.sectionId);
+        setSelectedItemId(previousValidItem.itemId);
+
+        // Ensure section items are loaded for the previous valid item
+        if (!sectionItems[previousValidItem.sectionId]) {
+          setActiveSectionInfo({
+            moduleId: previousValidItem.moduleId,
+            sectionId: previousValidItem.sectionId
+          });
         }
 
-        if (backendCurrent && backendCurrent.itemId !== selectedItemId) {
-          console.log('[403 recovery] Snapping to backend currentItem:', backendCurrent);
-          setSelectedModuleId(backendCurrent.moduleId!);
-          setSelectedSectionId(backendCurrent.sectionId!);
-          setSelectedItemId(backendCurrent.itemId!);
-          if (!sectionItems[backendCurrent.sectionId!]) {
-            setActiveSectionInfo({
-              moduleId: backendCurrent.moduleId!,
-              sectionId: backendCurrent.sectionId!,
-            });
-          }
-          updateCourseNavigation(
-            backendCurrent.moduleId!,
-            backendCurrent.sectionId!,
-            backendCurrent.itemId!,
-          );
-          toast.info('Resuming from your last saved position.');
-          return;
-        }
-
-        // Backend currentItem matches what we already have (or refetch
-        // failed) — fall back to the previousValidItem cache and the
-        // orange alert.
-        toast.error(itemError);
-        setIsItemForbidden(true);
-
-        if (previousValidItem) {
-          console.log('Access denied. Reverting to previous valid item:', previousValidItem);
-          setSelectedModuleId(previousValidItem.moduleId);
-          setSelectedSectionId(previousValidItem.sectionId);
-          setSelectedItemId(previousValidItem.itemId);
-          if (!sectionItems[previousValidItem.sectionId]) {
-            setActiveSectionInfo({
-              moduleId: previousValidItem.moduleId,
-              sectionId: previousValidItem.sectionId,
-            });
-          }
-          updateCourseNavigation(
-            previousValidItem.moduleId,
-            previousValidItem.sectionId,
-            previousValidItem.itemId,
-          );
-        }
-      })();
+        // Update course store navigation
+        updateCourseNavigation(
+          previousValidItem.moduleId,
+          previousValidItem.sectionId,
+          previousValidItem.itemId
+        );
+      } else {
+        setIsNavigatingToNext(false);
+      }
 
       // Always clear error after a delay, regardless of whether we reverted
       const clearErrorTimeout = setTimeout(() => {
@@ -741,10 +613,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   }, [quizPassed]);
   // Add a flag to track if initial load from progress is complete
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-  // Tracks whether the once-per-load "advance past completed quiz" check has
-  // run, so we don't shift the selection again when sectionItems re-arrives
-  // mid-session (after the learner has navigated freely).
-  const didSmartAdvanceFromQuizRef = useRef<boolean>(false);
 
   // Track the last known progress data to detect resets
   const [lastProgressData, setLastProgressData] = useState<any>(null);
@@ -836,42 +704,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
       setInitialLoadComplete(true);
     }
   }, [progressData, updateCourseNavigation, initialLoadComplete]);
-
-  // After initial load and once the current section's items list has arrived,
-  // if the pointer landed on a completed QUIZ, advance to the next item in
-  // section order. The pointer can be parked on a completed quiz when a
-  // previous session passed it but the post-quiz progress advancement
-  // didn't complete cleanly. Loading the learner straight onto a completed
-  // quiz is unintuitive — they expect to land on the next un-finished item.
-  // Runs exactly once per page-load via didSmartAdvanceFromQuizRef.
-  useEffect(() => {
-    if (!initialLoadComplete || !progressData || !selectedSectionId) return;
-    if (didSmartAdvanceFromQuizRef.current) return;
-    const items = sectionItems[selectedSectionId];
-    if (!items?.length) return;
-    const currentItemId = progressData.currentItem;
-    const currentEntry: any = items.find((i: any) => i._id === currentItemId);
-    if (!currentEntry) {
-      // Items list arrived but currentItem isn't in this section; mark done
-      // so we don't keep trying.
-      didSmartAdvanceFromQuizRef.current = true;
-      return;
-    }
-    const isCompletedQuiz =
-      currentEntry.type === 'QUIZ' && !!currentEntry.isCompleted;
-    if (!isCompletedQuiz) {
-      didSmartAdvanceFromQuizRef.current = true;
-      return;
-    }
-    const idx = items.findIndex((i: any) => i._id === currentItemId);
-    const nextItem: any = idx >= 0 ? items[idx + 1] : undefined;
-    if (nextItem?._id) {
-      console.log('[smart-advance-from-quiz] currentItem is a completed quiz; advancing to', nextItem._id);
-      setSelectedItemId(nextItem._id);
-      updateCourseNavigation(selectedModuleId!, selectedSectionId, nextItem._id);
-    }
-    didSmartAdvanceFromQuizRef.current = true;
-  }, [initialLoadComplete, progressData, sectionItems, selectedSectionId, selectedModuleId, updateCourseNavigation]);
 
   // If the item fetch hangs (backend slow / DB issue), auto-retry after 20 s to unblock the UI.
   useEffect(() => {
@@ -1378,18 +1210,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
 
   const handleNext = useCallback(() => {
-    // Synchronous re-entry gate: drop any click that arrives before the
-    // previous handleNext has finished. Without this, three rapid clicks of
-    // the Quiz Passed → Next Lesson button would each queue their own
-    // handleNext via enqueueNavigation, and each would mark one item complete
-    // and advance — surfacing as "one click marked three quiz/video pairs
-    // complete." The disabled button flag isn't enough because it's bound to
-    // setIsNavigatingToNext, which runs inside the queued async fn.
-    if (navInFlightRef.current) {
-      console.log('[handleNext] Already in flight — ignoring duplicate click');
-      return;
-    }
-    navInFlightRef.current = true;
     enqueueNavigation(async () => {
 
       setIsNavigatingToNext(true);
@@ -1410,24 +1230,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
               const errorMessage = error?.response?.data?.message || error?.message;
               console.warn(`[handleNext] Attempt ${attempt} failed - Status: ${status}, Message: ${errorMessage}`);
 
-              // Server-side validation rejections (e.g. cumulative-watch-time
-              // gate failure) are deliberate — retrying or advancing past them
-              // hides a real product constraint and lands the learner on a
-              // CASL-gated next item that 403s. Treat as a hard stop with a
-              // user-facing toast, no retry, no advancement.
-              const isWatchGateRejection =
-                status === 400 &&
-                typeof errorMessage === 'string' &&
-                errorMessage.toLowerCase().includes('invalid watch time');
-              if (isWatchGateRejection) {
-                console.warn('[handleNext] Stop rejected by watch-time gate; not advancing.');
-                toast.error('Please watch more of this video before moving on.');
-                setIsNavigatingToNext(false);
-                return;
-              }
-
-              // Retry on transient errors (network/server flakes)
-              if (attempt < 3 && (status === 500 || status === 504 || !status)) {
+              // Retry on retryable errors
+              if (attempt < 3 && (status === 400 || status === 500 || status === 504 || !status)) {
                 console.log(`[handleNext] Retrying in 1 second (attempt ${attempt + 1}/3)...`);
                 await new Promise(resolve => setTimeout(resolve, 1000));
               } else if (attempt === 3) {
@@ -1439,59 +1243,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
                 toast.warning('Progress will be saved shortly.');
                 stopSucceeded = true;
                 break;
-              } else {
-                // Non-retryable failure that isn't the watch gate (e.g. 400
-                // 'ModuleId, sectionId and itemId do not match current
-                // progress', 401 auth, 403 forbidden). The local UI has
-                // probably drifted ahead of the backend's currentItem.
-                // Re-fetch progress and snap the selection to whatever
-                // backend says is current. Important: keep
-                // isNavigatingToNext=true through the entire resync so the
-                // TransitionQuoteScreen doesn't flicker off and on while we
-                // swap selectedItemId. itemLoading will be true once the
-                // new fetch fires, taking over visibility coverage; only
-                // then do we drop isNavigatingToNext.
-                console.warn('[handleNext] Non-retryable stop failure; resyncing to backend progress.', {
-                  status,
-                  errorMessage,
-                });
-                try {
-                  const refetched = await refetchProgress();
-                  const p: any = refetched?.data;
-                  if (
-                    p?.currentItem &&
-                    p?.currentSection &&
-                    p?.currentModule &&
-                    String(p.currentItem) !== selectedItemId
-                  ) {
-                    const targetModule = String(p.currentModule);
-                    const targetSection = String(p.currentSection);
-                    const targetItem = String(p.currentItem);
-                    setSelectedModuleId(targetModule);
-                    setSelectedSectionId(targetSection);
-                    setSelectedItemId(targetItem);
-                    if (!sectionItems[targetSection]) {
-                      setActiveSectionInfo({ moduleId: targetModule, sectionId: targetSection });
-                    }
-                    updateCourseNavigation(targetModule, targetSection, targetItem);
-                    toast.info('Resuming from your last saved position.');
-                    // Drop nav flag last; itemLoading from the new fetch
-                    // is already covering the transition screen.
-                    setIsNavigatingToNext(false);
-                    return;
-                  }
-                } catch (resyncErr) {
-                  console.warn('[handleNext] resync after stop failure failed:', resyncErr);
-                }
-                // Local already matches backend (or resync failed). Surface
-                // the rejection so the user knows the click didn't do nothing.
-                setIsNavigatingToNext(false);
-                toast.error('Could not move to the next item. Please try again.');
-                // Non-retryable status that isn't the watch gate (e.g. 401, 403
-                // on stop). Bail without advancing.
-                console.warn('[handleNext] Non-retryable stop failure; not advancing.');
-                setIsNavigatingToNext(false);
-                return;
               }
             }
           }
@@ -1658,8 +1409,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
         console.error('Error navigating to next item:', error);
         // Clear loading state on error
         setIsNavigatingToNext(false);
-      } finally {
-        navInFlightRef.current = false;
       }
     });
   }, [
@@ -2154,24 +1903,12 @@ useEffect(() => {
                                               <Skeleton className="h-4 w-4/5 rounded" />
                                             </div>
                                           ) : sectionItems[sectionId] ? (
-                                            (() => {
-                                              const orderedItems = shouldRandomize
-                                                ? sectionItems[sectionId]
-                                                : sortItemsByOrder(sectionItems[sectionId]);
-                                              return orderedItems.map((item: any, idx: number) => {
+                                            (shouldRandomize
+                                              ? sectionItems[sectionId]
+                                              : sortItemsByOrder(sectionItems[sectionId])
+                                            ).map((item: any) => {
                                               const itemId = item._id;
                                               const isCurrentItem = itemId === selectedItemId;
-                                              // A video isn't "fully done" until the immediate-next quiz
-                                              // (if any in this section) is also passed — failing the
-                                              // quiz sends the learner back to re-watch the video, so
-                                              // the badge would otherwise be misleading. The badge for
-                                              // non-video items, and for videos with no quiz right
-                                              // after, follows the raw isCompleted flag.
-                                              const nextItem: any = orderedItems[idx + 1];
-                                              const showCompletedBadge =
-                                                item.type === 'VIDEO' && nextItem?.type === 'QUIZ'
-                                                  ? !!item.isCompleted && !!nextItem.isCompleted
-                                                  : !!item.isCompleted;
 
                                               return (
                                                 <SidebarMenuSubItem 
@@ -2211,7 +1948,7 @@ useEffect(() => {
                                                             return itemName.length > 18 ? `${itemName.substring(0, 15)}...` : itemName;
                                                           })()}
                                                         </div>
-                                                        {showCompletedBadge && (
+                                                        {item.isCompleted && (
                                                           <div className={`text-[10px] dark:text-green-500 text-green-600 font-medium mt-0.5 flex items-center gap-1 ${selectedItemId === itemId ? "text-green-900" : ""} `}>
                                                             <CheckCircle className="h-3 w-3" />
                                                             Completed
@@ -2222,8 +1959,7 @@ useEffect(() => {
                                                   </SidebarMenuSubButton>
                                                 </SidebarMenuSubItem>
                                               );
-                                            });
-                                            })()
+                                            })
                                           ) : (
                                             <div className="p-3 text-center">
                                               <div className="text-xs text-muted-foreground">No items found</div>
@@ -2366,13 +2102,7 @@ useEffect(() => {
           {/* {isDesktopSidebarVisible &&  */}
           <ResizableHandle className="hidden md:flex h-screen" />
           {/* } */}
-          <ResizablePanel defaultSize={80} className="min-w-0 min-h-screen relative">
-            {/* TransitionQuoteScreen overlays only the main content area —
-                rendering it here (instead of at the page root) keeps the
-                left sidebar / progress visible while transitions are in
-                flight. Positioning is `absolute inset-0` against this
-                relatively-positioned ResizablePanel. */}
-            <TransitionQuoteScreen visible={showTransitionQuote} />
+          <ResizablePanel defaultSize={80} className="min-w-0 min-h-screen">
             {/* Main Content Area */}
             <SidebarInset className="flex-1  bg-gradient-to-br from-background via-background to-background/95 peer-data-[variant=inset]:!m-0">
               <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/20 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-4">

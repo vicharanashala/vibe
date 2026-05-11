@@ -125,21 +125,22 @@ export async function setupItemAbilities(
             allowedItemIds.push(currentItemId);
           }
 
-          // If the learner has actually completed the current item, allow the
-          // immediate next visible item too — mirrors the linear-progression
-          // intent of "complete current → unlock next" at the CASL layer, so
-          // the controller doesn't 403 a forward-by-one navigation that
-          // ItemService.readItem path 4 (previousItemCompleted) would itself
-          // grant.
-          if (completedItemsStr.includes(currentItemId)) {
-            const nextId = await progressService.getNextItemIdAfterCurrent(
-              enrollment.versionId,
-              progress.currentModule?.toString?.(),
-              progress.currentSection?.toString?.(),
-              currentItemId,
-            );
-            if (nextId && !allowedItemIds.includes(nextId)) {
-              allowedItemIds.push(nextId);
+          // Mirror ItemService.readItem's position-walk bypass at the CASL
+          // layer: every item positionally at-or-before the learner's pointer
+          // is freely accessible, regardless of whether its watchTime row
+          // recorded a clean endTime. Without this, a positionally-passed
+          // item missing from completedItems (40%-gate failure, rolled-back
+          // tx, cohort-mismatched watchTime row) is rejected by the $in
+          // filter below before ItemService gets a chance to allow it.
+          const positionalIds = await progressService.getItemIdsAtOrBeforeCurrent(
+            enrollment.versionId,
+            progress.currentModule?.toString?.(),
+            progress.currentSection?.toString?.(),
+            currentItemId,
+          );
+          for (const id of positionalIds) {
+            if (!allowedItemIds.includes(id)) {
+              allowedItemIds.push(id);
             }
           }
 
