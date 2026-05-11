@@ -661,9 +661,6 @@ export class ItemService extends BaseService {
     // 3) already completed => allow
     if (isItemAlreadyCompleted) return response(true);
 
-    // 3) already completed => allow
-    if (isItemAlreadyCompleted) return response(true);
-
     // 4) previous item completed => allow
     const previousItemCompleted = await this._isPreviousItemCompleted(
       courseVersion,
@@ -676,44 +673,9 @@ export class ItemService extends BaseService {
       cohortId,
     );
 
-    // 4) previous item check.
-    // Resolve the in-sequence predecessor once so we can reuse it for both
-    // "previous-completed" and "user is sitting on the predecessor" gates.
-    const previousItem = courseVersion && moduleId && sectionId
-      ? await this.progressService.getPreviousItemInSequence(
-          courseVersion,
-          moduleId,
-          sectionId,
-          itemId,
-        )
-      : null;
-
-    // 4a) No previous item (first in sequence) => allow
-    // 4b) Previous item already completed => allow
-    // 4c) User's progress pointer is exactly on the predecessor => allow.
-    //     This unblocks the legitimate "next" navigation when the prior
-    //     /stop request is in-flight or was dropped (e.g. the slow /stop
-    //     window). The pointer being on the predecessor is itself proof
-    //     the learner reached this item through linear progression; the
-    //     prior item's completion will be reconciled when its /stop lands.
-    const previousItemCompleted = previousItem
-      ? await this.progressRepo.isItemCompleted(
-          userId,
-          courseId,
-          versionId,
-          previousItem.itemId,
-          cohortId,
-        )
-      : true;
-
-    const pointerOnPredecessor =
-      !!previousItem &&
-      currentItemId === previousItem.itemId.toString();
-
-    if (previousItemCompleted || pointerOnPredecessor) {
-      // If we're advancing past where the pointer was, move it forward and
-      // mark the course as not completed. Skip when the item is already
-      // completed (rewatch) so we don't rewind from a later position.
+    if (previousItemCompleted) {
+      // If previous item is completed and current item is NOT already completed,
+      // update progress to point to the newly accessed item and mark course as not completed
       if (!isItemAlreadyCompleted) {
         await this.progressRepo.updateProgress(
           userId,
