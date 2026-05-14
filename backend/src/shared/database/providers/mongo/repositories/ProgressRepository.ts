@@ -107,7 +107,12 @@ class ProgressRepository {
         courseVersionId: new ObjectId(courseVersionId),
         endTime: { $exists: true, $ne: null },
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {
+          $or: [
+            { cohortId: null },
+            { cohortId: { $exists: false } },
+          ]
+        }),
       },
       { session },
     );
@@ -168,18 +173,23 @@ class ProgressRepository {
     //   { session, limit: 1 },
     // );
     // } else{
-    const  existing = await this.watchTimeCollection.findOne(
-        {
-          userId: new ObjectId(userId),
-          courseId: new ObjectId(courseId),
-          courseVersionId: new ObjectId(courseVersionId),
-          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
-          itemId: new ObjectId(itemId),
-          endTime: { $exists: true, $ne: null },
-          isDeleted: { $ne: true },
-        },
-        { session, limit: 1 },
-      );
+    const existing = await this.watchTimeCollection.findOne(
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        itemId: new ObjectId(itemId),
+        endTime: { $exists: true, $ne: null },
+        isDeleted: { $ne: true },
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {
+          $or: [
+            { cohortId: null },
+            { cohortId: { $exists: false } },
+          ]
+        }),
+      },
+      { session, limit: 1 },
+    );
     // }
 
     return existing !== null;
@@ -283,7 +293,12 @@ class ProgressRepository {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {
+          $or: [
+            { cohortId: null },
+            { cohortId: { $exists: false } },
+          ]
+        }),
       },
       { $set: { isDeleted: true, deletedAt: new Date() } },
       { session },
@@ -362,7 +377,12 @@ class ProgressRepository {
           {
             userId: { $in: [userIdStr, userIdObj] },
             quizId: { $in: [quizIdStr, quizIdObj] },
-            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {
+              $or: [
+                { cohortId: null },
+                { cohortId: { $exists: false } },
+              ]
+            }),
           },
           { session },
         )
@@ -378,7 +398,12 @@ class ProgressRepository {
           filter: {
             userId: { $in: [userIdStr, userIdObj] },
             quizId: { $in: [quizIdStr, quizIdObj] },
-            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
+            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {
+              $or: [
+                { cohortId: null },
+                { cohortId: { $exists: false } },
+              ]
+            }),
           },
         },
       });
@@ -389,7 +414,12 @@ class ProgressRepository {
           filter: {
             quizId: { $in: [quizIdStr, quizIdObj] },
             userId: { $in: [userIdStr, userIdObj] },
-            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {
+              $or: [
+                { cohortId: null },
+                { cohortId: { $exists: false } },
+              ]
+            }),
           },
           update: {
             $set: {
@@ -454,7 +484,12 @@ class ProgressRepository {
         courseId: { $in: [new ObjectId(courseId), courseId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {
+          $or: [
+            { cohortId: null },
+            { cohortId: { $exists: false } },
+          ]
+        }),
       },
       {
         session,
@@ -530,8 +565,13 @@ class ProgressRepository {
         userId: { $in: [new ObjectId(userId), userId] },
         courseId: { $in: [new ObjectId(courseId), courseId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
         isDeleted: { $ne: true },
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {
+          $or: [
+            { cohortId: null },
+            { cohortId: { $exists: false } },
+          ]
+        }),
       },
       { $set: normalizedProgress },
       { returnDocument: 'after', session },
@@ -790,8 +830,13 @@ class ProgressRepository {
         userId: { $in: [new ObjectId(userId), userId] },
         courseId: { $in: [new ObjectId(courseId), courseId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
         isDeleted: { $ne: true },
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {
+          $or: [
+            { cohortId: null },
+            { cohortId: { $exists: false } },
+          ]
+        }),
       },
       { $set: progress },
       {
@@ -846,7 +891,12 @@ class ProgressRepository {
         {
           courseId: { $in: [new ObjectId(courseId), courseId] },
           courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
-          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {
+            $or: [
+              { cohortId: null },
+              { cohortId: { $exists: false } },
+            ]
+          }),
         },
         { session },
       )
