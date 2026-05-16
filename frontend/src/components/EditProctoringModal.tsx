@@ -64,7 +64,6 @@ export function ProctoringModal({
   const [hpSystemEnabled, setHpSystemEnabled] = useState(false);
   const [baseHp, setbaseHp] = useState<number>(0);
   const [isPublic, setIsPublic] = useState(false);
-  const [crowdsourcedQuestionSubmissionEnabled, setCrowdsourcedQuestionSubmissionEnabled] = useState(false);
   const [isAdditionalSettingsExpanded, setIsAdditionalSettingsExpanded] = useState(false);
   const [enableRandomize, setEnableRandomize] = useState<boolean>(false);
   const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(courseVersionId || "")
@@ -78,7 +77,6 @@ export function ProctoringModal({
           setLinearProgressionEnabled(result.settings?.linearProgressionEnabled)
           setSeekForwardEnabled(result.settings?.seekForwardEnabled ?? false)
           setIsPublic(result.settings?.isPublic ?? false)
-          setCrowdsourcedQuestionSubmissionEnabled(result.settings?.crowdsourcedQuestionSubmissionEnabled ?? false)
           setHpSystemEnabled(result.settings?.hpSystem ?? false)
           setbaseHp(result.settings?.baseHp ?? 0)
           setEnableRandomize(result.settings?.randomizeItems ?? false)
@@ -103,7 +101,7 @@ export function ProctoringModal({
 
   const handleSubmit = async () => {
     try {
-      const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled, seekForwardEnabled, isPublic, hpSystemEnabled, baseHp, enableRandomize, crowdsourcedQuestionSubmissionEnabled)
+      const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled, seekForwardEnabled, isPublic, hpSystemEnabled, baseHp, enableRandomize)
       if (result != undefined) {
         onSuccess?.();
         onClose();
@@ -276,16 +274,6 @@ export function ProctoringModal({
                       </div>
                       <Switch checked={enableRandomize} disabled={linearProgressionEnabled} onCheckedChange={() => setEnableRandomize(prev => !prev)} />
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between space-x-3">
-                    <div className="space-y-1">
-                      <Label className="text-sm font-medium">Crowdsourced Questions</Label>
-                      <p className="text-xs text-muted-foreground">Allow students to submit questions after watching a video</p>
-                    </div>
-                    <Switch
-                      checked={crowdsourcedQuestionSubmissionEnabled}
-                      onCheckedChange={() => setCrowdsourcedQuestionSubmissionEnabled(prev => !prev)}
-                    />
                   </div>
                 </div>
               )}

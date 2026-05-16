@@ -2138,7 +2138,6 @@ export function useEditProctoringSettings() {
     hpSystem: boolean,
     baseHp: number,
     randomizeItems: boolean,
-    crowdsourcedQuestionSubmissionEnabled: boolean = false,
   ) => {
     setLoading(true);
     setError(null);
@@ -2160,7 +2159,6 @@ export function useEditProctoringSettings() {
         hpSystem,
         baseHp,
         randomizeItems,
-        crowdsourcedQuestionSubmissionEnabled,
       };
 
       const res = await fetch(url, {

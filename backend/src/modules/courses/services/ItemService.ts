@@ -1272,7 +1272,7 @@ export class ItemService extends BaseService {
     data: CSVQuizQuestion[],
   ) {
     const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId);
-
+      
     if(versionStatus==="archived"){
       throw new ForbiddenError("This course version is archived and cannot create items.");
     }
@@ -1283,18 +1283,6 @@ export class ItemService extends BaseService {
     if (data.length === 0) {
       throw new Error('CSV file contains no data rows');
     }
-
-    // Fetch section to get its name for video naming
-    const version = await this.courseRepo.readVersion(versionId);
-    if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
-
-    const module = version.modules.find(m => m.moduleId?.toString() === moduleId);
-    if (!module) throw new NotFoundError(`Module ${moduleId} not found in version ${versionId}.`);
-
-    const section = module.sections.find(s => s.sectionId?.toString() === sectionId);
-    if (!section) throw new NotFoundError(`Section ${sectionId} not found in module ${moduleId}.`);
-
-    const sectionName = section.name;
 
     const normalizeKey = (key: string): string =>
       key.replace(/\s+/g, ' ').trim();
@@ -1421,7 +1409,7 @@ export class ItemService extends BaseService {
             sectionId,
             {
               type: ItemType.VIDEO,
-              name: `${sectionName}: Part ${segmentNumber}`,
+              name: `Video ${segmentNumber}`,
               description: `Video segment ${segmentNumber} from CSV upload`,
               videoDetails: {
                 URL: youtubeUrl,
@@ -1439,7 +1427,7 @@ export class ItemService extends BaseService {
             sectionId,
             {
               type: ItemType.QUIZ,
-              name: `Quiz Part ${segmentNumber}`,
+              name: `Quiz - Segment ${segmentNumber}`,
               description: `Quiz for segment ${segmentNumber} from CSV upload`,
               quizDetails: {
                 passThreshold: 0.5,
@@ -1463,7 +1451,7 @@ export class ItemService extends BaseService {
           const questionBank = await this.questionBankService.create({
             courseId: new ObjectId(courseId),
             courseVersionId: new ObjectId(versionId),
-            title: `Question Bank - Part ${segmentNumber}`,
+            title: `Question Bank - Segment ${segmentNumber}`,
             description: `Questions for segment ${segmentNumber} from CSV upload`,
             questions: [],
             tags: [],
