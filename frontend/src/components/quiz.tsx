@@ -656,6 +656,20 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         toast.info('You have used all available attempts for this quiz.');
 
         try {
+          const watchItemIdForStop = await handleSendStartItem(true);
+          if (currentCourse?.itemId && watchItemIdForStop) {
+            await stopItem.mutateAsync({
+              params: {
+                path: {
+                  courseId: currentCourse.courseId,
+                  courseVersionId: currentCourse.versionId ?? '',
+                },
+              },
+              body: {
+                watchItemId: watchItemIdForStop,
+              },
+            });
+          }
           await handleSkipItem();
         } catch (progressErr) {
           console.error('Failed to update progress for exhausted quiz attempts:', progressErr);
@@ -791,15 +805,15 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         setScore(totalScore);
       }
 
-      // Only call stopItem for PASSED quizzes to mark them as completed
-      if (response.gradingStatus === 'PASSED') {
-        // console.log('Quiz passed - marking as completed');
-        try {
-          await handleStopItem(false);
-        } catch (stopError) {
-          console.error('Failed to update progress after quiz pass:', stopError);
-        }
-      }
+      // Backend (handleQuizeProgressAfterSubmission) now handles progress update for PASSED quizzes
+      // No need to call stopItem here - it would create duplicate progress updates
+      // if (response.gradingStatus === 'PASSED') {
+      //   try {
+      //     await handleStopItem(false);
+      //   } catch (stopError) {
+      //     console.error('Failed to update progress after quiz pass:', stopError);
+      //   }
+      // }
       completedItemIdsRef.current.add(processedQuizId);
 
       setQuizCompleted(true);

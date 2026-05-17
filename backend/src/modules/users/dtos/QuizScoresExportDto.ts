@@ -21,6 +21,10 @@ export class StudentQuizScoreDto {
   email: string;
 
   @Expose()
+  @IsNumber()
+  percentCompleted: number;
+
+  @Expose()
   @IsString()
   @IsOptional()
   cohortName?: string;

@@ -949,6 +949,48 @@ export class EnrollmentController {
       cohortId,
     );
   }
+
+  @Get('/enrollments/courses/:courseId/versions/:versionId/export/gurusetu-feedback')
+  @Authorized()
+  @HttpCode(200)
+  @OpenAPI({
+    summary: 'Export Gurusetu feedback rows',
+    description:
+      'Returns one row per (enrolled student, video) for Gurusetu Pilot(FDP for Faculty), including watch time, watch percentage, and feedback when submitted. Optional cohort filter via cohortId query parameter.',
+  })
+  async exportGuruSetuFeedback(
+    @Param('courseId') courseId: string,
+    @Param('versionId') versionId: string,
+    @Ability(getEnrollmentAbility) {ability},
+    @QueryParam('cohortId') cohortId?: string,
+  ): Promise<{ data: any[] }> {
+    const courseResource = subject('Enrollment', {courseId});
+    const hasCourseLevelAccess = ability.can(
+      EnrollmentActions.ViewAll,
+      courseResource,
+    );
+
+    const versionResource = subject('Enrollment', {courseId, versionId});
+    const hasVersionLevelAccess = ability.can(
+      EnrollmentActions.ViewAll,
+      versionResource,
+    );
+
+    if (!hasCourseLevelAccess && !hasVersionLevelAccess) {
+      throw new ForbiddenError(
+        'You do not have permission to export Gurusetu feedback for this course',
+      );
+    }
+
+    const data = await this.enrollmentService.getGuruSetuFeedbackRows(
+      courseId,
+      versionId,
+      cohortId,
+    );
+
+    return { data };
+  }
+
   @OpenAPI({
     summary: 'Update completed items count for all enrollments',
     description:

@@ -820,25 +820,25 @@ const lastCalledRef = useRef<number>(0);
                               (hasFaceRecognitionMismatch && isFaceRecognitionEnabled) ||
                               (isThumbsUpChallenge && isHandGestureDetectionEnabled);
 
-  useEffect(() => {
-    console.log('[FaceRecognitionDebug] floating-video state', {
-      hasFaceRecognitionMismatch,
-      isFaceRecognitionEnabled,
-      isAnomaliesDetected,
-      recognizedFaces,
-      readyToDetect,
-      modelReady,
-      isVideoActive,
-    });
-  }, [
-    hasFaceRecognitionMismatch,
-    isFaceRecognitionEnabled,
-    isAnomaliesDetected,
-    recognizedFaces,
-    readyToDetect,
-    modelReady,
-    isVideoActive,
-  ]);
+  // useEffect(() => {
+  //   console.log('[FaceRecognitionDebug] floating-video state', {
+  //     hasFaceRecognitionMismatch,
+  //     isFaceRecognitionEnabled,
+  //     isAnomaliesDetected,
+  //     recognizedFaces,
+  //     readyToDetect,
+  //     modelReady,
+  //     isVideoActive,
+  //   });
+  // }, [
+  //   hasFaceRecognitionMismatch,
+  //   isFaceRecognitionEnabled,
+  //   isAnomaliesDetected,
+  //   recognizedFaces,
+  //   readyToDetect,
+  //   modelReady,
+  //   isVideoActive,
+  // ]);
 
 
   // Smart overlay positioning based on face detection
@@ -965,7 +965,7 @@ const lastCalledRef = useRef<number>(0);
 
     // Log actual face data if available
     if (faces.length > 0) {
-      console.log('👤 TensorFlow Face Details:', faces);
+      // console.log('👤 TensorFlow Face Details:', faces);
     }
     if (recognizedFaces.length > 0) {
       console.log('🎭 Face-api Recognition Details:', recognizedFaces);

@@ -741,10 +741,9 @@ Access control logic:
     // Create an item resource object for permission checking
     const itemResource = subject('Item', {courseId, versionId, itemId});
 
-    // Check permission using ability.can() with the actual item resource
-    // if (!ability.can(ItemActions.View, itemResource)) {
-    //  throw new ForbiddenError('You do not have permission to view this item');
-    // }
+    if (!ability.can(ItemActions.View, itemResource)) {
+      throw new ForbiddenError('You do not have permission to view this item');
+    }
 
     return {
       item: await this.itemService.readItem(userId?.toString(), versionId, itemId, courseId, moduleId, sectionId, cohortId),

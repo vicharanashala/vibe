@@ -40,6 +40,7 @@ import { IQuestionBank } from '#root/shared/interfaces/quiz.js';
 import { IProjectSubmission } from '#root/modules/projects/repositories/model.js';
 import { IReport } from '#root/shared/interfaces/reports.js';
 import { UserEnrollmentStatisticsResponse } from '#root/modules/users/classes/index.js';
+import { buildGuruSetuFeedbackExportPipeline } from './queries/guruSetuFeedbackExportPipeline.js';
 
 @injectable()
 export class EnrollmentRepository {
@@ -3300,6 +3301,7 @@ export class EnrollmentRepository {
           $project: {
             userId: 1,
             cohortId: 1,
+            percentCompleted: 1,
             'user.firstName': 1,
             'user.lastName': 1,
             'user.email': 1,
@@ -3580,6 +3582,7 @@ export class EnrollmentRepository {
           `${enrollment.user.firstName ?? ''} ${enrollment.user.lastName ?? ''
             }`.trim() || 'Unknown',
         email: enrollment.user.email ?? '',
+        percentCompleted: this.formatExportScore(enrollment.percentCompleted ?? 0),
         totalCourseScore: formattedTotalScore,
         totalCourseMaxScore: formattedTotalMaxScore,
         quizScores,
@@ -3730,6 +3733,34 @@ export class EnrollmentRepository {
         { session },
       )
       .next();
+  }
+
+  async getGuruSetuFeedbackRows(
+    courseId: string,
+    versionId: string,
+    cohortId?: string,
+  ): Promise<any[]> {
+    await this.init();
+
+    if (!ObjectId.isValid(courseId) || !ObjectId.isValid(versionId)) {
+      throw new BadRequestError('Invalid courseId or versionId');
+    }
+
+    const guruSetuCourseId = new ObjectId(courseId);
+    const guruSetuVersionId = new ObjectId(versionId);
+    const parsedCohortId = cohortId && ObjectId.isValid(cohortId)
+      ? new ObjectId(cohortId)
+      : null;
+
+    const pipeline = buildGuruSetuFeedbackExportPipeline(
+      guruSetuCourseId,
+      guruSetuVersionId,
+      parsedCohortId,
+    );
+
+    return this.enrollmentCollection
+      .aggregate(pipeline, { allowDiskUse: true })
+      .toArray();
   }
 
   async setWatchTimeVisibility(

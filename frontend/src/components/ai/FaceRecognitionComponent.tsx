@@ -306,7 +306,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
           if (!mismatchReportedRef.current) {
             await reportMismatch();
             mismatchReportedRef.current = true;
-            console.log('[FaceRecognitionDebug] anomaly sent', { distance });
+            // console.log('[FaceRecognitionDebug] anomaly sent', { distance });
           }
         }
       }
@@ -316,13 +316,13 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
       onRecognitionResult?.([recognition]);
       onMismatchChange?.(hasConfirmedMismatch);
 
-      console.log('[FaceRecognitionDebug] comparison', {
-        distance,
-        rawMatch,
-        matchCount: matchCountRef.current,
-        mismatchCount: mismatchCountRef.current,
-        confirmedMismatch: hasConfirmedMismatch,
-      });
+      // console.log('[FaceRecognitionDebug] comparison', {
+      //   distance,
+      //   rawMatch,
+      //   matchCount: matchCountRef.current,
+      //   mismatchCount: mismatchCountRef.current,
+      //   confirmedMismatch: hasConfirmedMismatch,
+      // });
 
       updateDebugInfo({
         currentFrameFaces: 1,

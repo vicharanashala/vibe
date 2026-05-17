@@ -13,6 +13,9 @@ Thumbs.db
 .idea/
 .vscode/
 !.vscode/settings.json
+
+# Local agent customizations (personal, not for repo)
+.github/agents/debugger.agent.md
 *.swp
 *.swo
 
