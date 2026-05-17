@@ -27,6 +27,7 @@ import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import { IQuestionBank } from '#root/shared/interfaces/quiz.js';
 import { ProgressRepository } from './ProgressRepository.js';
 import { USERS_TYPES } from '#root/modules/users/types.js';
+import { buildGuruSetuFeedbackExportPipeline } from './queries/guruSetuFeedbackExportPipeline.js';
 
 @injectable()
 export class EnrollmentRepository {
@@ -3596,6 +3597,34 @@ export class EnrollmentRepository {
         { session },
       )
       .next();
+  }
+
+  async getGuruSetuFeedbackRows(
+    courseId: string,
+    versionId: string,
+    cohortId?: string,
+  ): Promise<any[]> {
+    await this.init();
+
+    if (!ObjectId.isValid(courseId) || !ObjectId.isValid(versionId)) {
+      throw new BadRequestError('Invalid courseId or versionId');
+    }
+
+    const guruSetuCourseId = new ObjectId(courseId);
+    const guruSetuVersionId = new ObjectId(versionId);
+    const parsedCohortId = cohortId && ObjectId.isValid(cohortId)
+      ? new ObjectId(cohortId)
+      : null;
+
+    const pipeline = buildGuruSetuFeedbackExportPipeline(
+      guruSetuCourseId,
+      guruSetuVersionId,
+      parsedCohortId,
+    );
+
+    return this.enrollmentCollection
+      .aggregate(pipeline, { allowDiskUse: true })
+      .toArray();
   }
 
   async setWatchTimeVisibility(
