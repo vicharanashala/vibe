@@ -22,7 +22,7 @@ import {
 // Enum representing the different components of proctoring that can be enabled or disabled.
 export enum ProctoringComponent {
   CAMERAMICRO = 'cameraMic',
-  BLURDETECTION = 'blurDetection', // bulrDetection
+  BLURDETECTION = 'blurDetection', // blurDetection
   FACECOUNTDETECTION = 'faceCountDetection', // faceCountDetection
   HANDGESTUREDETECTION = 'handGestureDetection', // handGestureDetection
   VOICEDETECTION = 'voiceDetection', // voiceDetection
