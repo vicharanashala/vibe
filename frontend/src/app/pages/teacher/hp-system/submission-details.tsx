@@ -335,7 +335,9 @@ function TransactionSection({ ledgerEntries }: {
 }) {
 
     // Convert ObjectId buffers to strings and normalize the data
-    const normalizedTransactions = ledgerEntries.map((entry: any) => ({
+    const normalizedTransactions = [...ledgerEntries].sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    ).map((entry: any) => ({
         ...entry,
         _id: entry._id?.toString?.() || entry._id,
         submissionId: entry.submissionId?.toString?.() || entry.submissionId,
@@ -465,7 +467,7 @@ function TransactionSection({ ledgerEntries }: {
 
 export default function SubmissionDetailsPage() {
     const [isTextExpanded, setIsTextExpanded] = useState(false);
-    const { courseVersionId, cohortName, studentId, submissionId } = useParams({ strict: false });
+    const { courseVersionId, cohortId, studentId, submissionId } = useParams({ strict: false });
     const navigate = useNavigate();
 
     // Check if submissionId is provided
@@ -477,10 +479,10 @@ export default function SubmissionDetailsPage() {
             </div>
         );
     }
-    const { data: submissions, isLoading: submissionsLoading, error } = useHpStudentSubmissions(
-        studentId || "", courseVersionId || "", cohortName || ""
+    const { data: submissions, isLoading: submissionsLoading, error, refetch } = useHpStudentSubmissions(
+        studentId || "", courseVersionId || "", cohortId || ""
     );
-    const { data: students, isLoading: studentsLoading } = useHpStudents(courseVersionId || "", cohortName || "");
+    const { data: students, isLoading: studentsLoading } = useHpStudents(courseVersionId || "", cohortId || "");
     const student = students.find(s => s._id === studentId);
 
     const { mutateAsync: revertEntry, isPending: isReverting } = useRevertHpEntry();
@@ -521,16 +523,15 @@ export default function SubmissionDetailsPage() {
     };
 
     const handleConfirmAction = async () => {
-        const { subId, action, note, pointsToDeduct } = reasonDialog;
-        setReasonDialog({ ...reasonDialog, open: false });
-        setActionType(action); // ✅ IMPORTANT
-        setActionSubId(subId);
-        try {
-            if (action === 'restore') {
-                toast.error("Restore functionality is not available yet. It will be added soon.");
-                // return
-                // await restoreEntry(subId);
-            } else if (action === 'approve' || action === 'reject' || action === 'revert') {
+    const { subId, action, note, pointsToDeduct } = reasonDialog;
+    setReasonDialog({ ...reasonDialog, open: false });
+    setActionType(action);
+    setActionSubId(subId);
+    try {
+        if (action === 'restore') {
+            await restoreEntry({ entryId: subId, note: note.trim() || undefined });
+            await refetch();
+        } else if (action === 'approve' || action === 'reject' || action === 'revert') {
                 await reviewSubmission({
                     submissionId: subId,
                     decision: action === 'approve' ? 'APPROVED' : action === 'reject' ? 'REJECTED' : 'REVERTED',
@@ -587,7 +588,7 @@ export default function SubmissionDetailsPage() {
                         variant="outline"
                         size="icon"
                         onClick={() => navigate({
-                            to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || "")}/student/${studentId}/submissions`
+                            to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortId || "")}/student/${studentId}/submissions`
                         })}
                     >
                         <ArrowLeft className="h-4 w-4" />
@@ -597,7 +598,7 @@ export default function SubmissionDetailsPage() {
                             {submission.activity?.title || "Unknown Activity"}
                         </h2>
                         <p className="text-muted-foreground">
-                            {student?.name || "Student"} · {student?.email || ""} · {decodeURIComponent(cohortName || "")}
+                            {student?.name || "Student"} · {student?.email || ""} · {decodeURIComponent(cohortId || "")}
                         </p>
                     </div>
                 </div>
@@ -776,7 +777,7 @@ export default function SubmissionDetailsPage() {
                                             </Button>
                                         </div>
                                     )}
-                                    {(status === 'APPROVED' || status === 'REJECTED') && (
+                                    {status === 'APPROVED' && (
                                         <Button
                                             variant="outline"
                                             size="sm"
@@ -788,14 +789,14 @@ export default function SubmissionDetailsPage() {
                                             {isReviewing && actionSubId === submission?.submission?._id ? 'Reverting...' : 'Revert Decision'}
                                         </Button>
                                     )}
-                                    {status === 'REVERTED' && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-950/50 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
-                                            disabled={isRestoring && actionSubId === submission?.submission?._id}
-                                            onClick={() => openReasonDialog(submission?.submission?._id || '', 'restore', submission?.activity?.title)}
-                                        >
+                                    {(status === 'REVERTED' || status === 'REJECTED') && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-950/50 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
+                                                disabled={isReviewing && actionSubId === submission?.submission?._id}
+                                                onClick={() => openReasonDialog(submission?.submission?._id || '', 'restore', submission?.activity?.title)}
+                                            >
                                             <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
                                             {isRestoring && actionSubId === submission?.submission?._id ? 'Restoring...' : 'Restore Submission'}
                                         </Button>
@@ -847,7 +848,7 @@ export default function SubmissionDetailsPage() {
                             </DialogDescription>
                         </DialogHeader>
 
-                        {(reasonDialog.action === 'reject' || reasonDialog.action === 'revert') && (
+                        {(reasonDialog.action === 'reject' || reasonDialog.action === 'revert' || reasonDialog.action === 'restore') && (
                             <div className="py-4 space-y-4">
                                 <div>
                                     <label className="text-sm font-medium mb-2 block">

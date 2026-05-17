@@ -446,7 +446,7 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
   const [cohortInput, setCohortInput] = useState("");
   const [cohortError, setCohortError] = useState("");
   const MAX_COHORTS = 10;
-  const BLOCKED_COHORT_NAMES = ["euclideans", "dijkstrians", "kruskalians", "rsaians", "aksians"];
+  const BLOCKED_COHORT_NAMES = ["euclideans", "dijkstrians", "kruskalians", "rsaians", "aksians", "a", "b"];
 
   const addCohort = (value: string) => {
     const trimmed = value.trim();
@@ -460,6 +460,10 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
     setCohortError("");
     setCohorts(prev => [...prev, trimmed.toLowerCase()]);
     setCohortInput("");
+  };
+
+  const removeCohort = (name: string) => {
+    setCohorts(prev => prev.filter(c => c !== name));
   };
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || e.key === ",") {

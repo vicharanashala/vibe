@@ -2,14 +2,17 @@ import { Course, CourseVersion } from "#root/modules/courses/classes/index.js";
 import { CohortStudentItemDto, CohortStudentsListQueryDto } from "#root/modules/hpSystem/classes/validators/courseAndCohorts.js";
 import { COHORT_OVERRIDES, ID } from "#root/modules/hpSystem/constants.js";
 import { ICohortRepository } from "#root/modules/hpSystem/interfaces/ICohortsRepository.js";
-import { ICohort, IEnrollment, MongoDatabase } from "#root/shared/index.js";
+import { ICohort, IEnrollment, IUserRepository, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { plainToInstance } from "class-transformer";
 import { CourseWithVersionsDto } from "#root/modules/hpSystem/classes/validators/courseAndCohorts.js";
 import { inject, injectable } from "inversify";
 import { ClientSession, Collection, ObjectId } from "mongodb";
-import { HpActivity, HpLedger } from "#root/modules/hpSystem/models.js";
+import { HpActivity, HpLedger, HpResetMode } from "#root/modules/hpSystem/models.js";
 import { HpActivitySubmission } from "#root/modules/hpSystem/classes/transformers/ActivitySubmission.js";
+import { toObjectId } from "#root/modules/hpSystem/utils/toObjectId.js";
+import { getHpLedgerOperationId } from "#root/modules/hpSystem/utils/getHpLedgerOperationId .js";
+import { NotFoundError } from "routing-controllers";
 
 @injectable()
 export class CohortRepository implements ICohortRepository {
@@ -25,6 +28,8 @@ export class CohortRepository implements ICohortRepository {
     constructor(
         @inject(GLOBAL_TYPES.Database)
         private db: MongoDatabase,
+        @inject(GLOBAL_TYPES.UserRepo) 
+        private readonly userRepo: IUserRepository,
     ) { }
 
     private async init() {
@@ -53,6 +58,8 @@ export class CohortRepository implements ICohortRepository {
     }
 async getCourseDetailsByVersionId(courseVersionId: string) {
     await this.init();
+
+    if (!ObjectId.isValid(courseVersionId)) return null;
 
     const versionObjId = new ObjectId(courseVersionId);
 
@@ -90,6 +97,7 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
 
     async getTotalStudentsCountForCourseVersion(courseVersionId: string): Promise<number> {
         await this.init();
+        if (!ObjectId.isValid(courseVersionId)) return 0;
         return await this.enrollmentCollection.countDocuments({
             courseVersionId: new ObjectId(courseVersionId), isDeleted: { $ne: true },
         });
@@ -122,6 +130,86 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
             { projection: { _id: 1 } }
         );
         return cohort?._id?.toString() ?? null;
+    }
+
+    async getCohortById(cohortId: string): Promise<ICohort | null> {
+        await this.init();
+
+        if (!ObjectId.isValid(cohortId)) return null;
+
+        return await this.cohortsCollection.findOne({
+            _id: new ObjectId(cohortId),
+            isDeleted: { $ne: true },
+        });
+    }
+
+    async resolveCohort(
+        idOrName: string,
+        courseId?: string,
+        courseVersionId?: string,
+        session?: ClientSession,
+    ): Promise<ICohort | null> {
+        await this.init();
+
+        if (!idOrName) return null;
+
+        // Helper to ensure we have a common format for comparison/assignment
+        const toId = (val: any) => ObjectId.isValid(val) ? new ObjectId(val) : val;
+
+        let cohort: ICohort | null = null;
+
+        // 1. Try to resolve by ObjectId if valid
+        if (ObjectId.isValid(idOrName)) {
+            cohort = await this.cohortsCollection.findOne({
+                _id: new ObjectId(idOrName),
+                isDeleted: { $ne: true },
+            }, { session });
+        }
+
+        // 2. Fallback to resolution by name if not found by ID
+        if (!cohort) {
+            const query: any = {
+                name: idOrName,
+                isDeleted: { $ne: true },
+            };
+
+            const isPseudoId = (id?: string) => id?.startsWith("00000000000000000");
+
+            // If scoping IDs are provided, use them to ensure uniqueness
+            // But SKIP if they are pseudoIDs (used as markers for legacy courses)
+            if (courseId && !isPseudoId(courseId)) query.courseId = toId(courseId);
+            if (courseVersionId && !isPseudoId(courseVersionId)) query.courseVersionId = toId(courseVersionId);
+
+            cohort = await this.cohortsCollection.findOne(query, { session });
+            
+            // Final fallback for names: if scoped query fails, try searching by name only
+            if (!cohort && !ObjectId.isValid(idOrName)) {
+                 cohort = await this.cohortsCollection.findOne({ name: idOrName, isDeleted: { $ne: true } }, { session });
+            }
+        }
+
+        if (cohort) {
+            // ✅ PROFESSIONAL FALLBACK & INFERENCE:
+            // If the database record is missing scoping IDs (common in older dynamic cohorts),
+            // but they were provided in the call context (URL params), attach them.
+            if (!cohort.courseId && courseId) cohort.courseId = toId(courseId);
+            if (!cohort.courseVersionId && courseVersionId) cohort.courseVersionId = toId(courseVersionId);
+
+            // ✅ SMART INFERENCE:
+            // If we still don't have a courseId but we DO have a courseVersionId (either from doc or argument),
+            // perform a one-time lookup to find the parent courseId.
+            if (!cohort.courseId && cohort.courseVersionId) {
+                const versionDoc = await this.courseVersionCollection.findOne(
+                    { _id: toId(cohort.courseVersionId) },
+                    { projection: { courseId: 1 }, session }
+                );
+                if (versionDoc?.courseId) {
+                    cohort.courseId = toId(versionDoc.courseId);
+                }
+            }
+        }
+
+        return cohort;
     }
 
     async getTotalStudentsCountForCohort(courseVersionId: string, cohortId: string): Promise<number> {
@@ -264,7 +352,7 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
             $or: [
                 { cohortId: { $exists: false } },
                 { cohortId: null },
-                { cohortId: new ObjectId(cohortId) }
+                ...(ObjectId.isValid(cohortId) ? [{ cohortId: new ObjectId(cohortId) }] : [{ cohortId: cohortId }])
             ]
         };
 
@@ -333,6 +421,7 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
         const page = query.page ?? 1;
         const limit = query.limit ?? 20;
         const skip = (page - 1) * limit;
+        const status = query.status;
 
         const search = query.search?.trim();
         const sortOrder = query.sortOrder === "desc" ? -1 : 1;
@@ -410,6 +499,53 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
                     },
                 ]
                 : []),
+            {
+                $lookup: {
+                    from: "cohorts",
+                    localField: "cohortId",
+                    foreignField: "_id",
+                    as: "cohort",
+                },
+            },
+            {
+                $unwind: {
+                    path: "$cohort",
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
+                $addFields: {
+                    safeHp: { $ifNull: ["$cohort.safeHp", 0] },
+                },
+            },
+
+            ...(status === "SAFE"
+                ? [
+                    {
+                        $match: {
+                            $expr: {
+                                $gte: [
+                                    { $ifNull: ["$hpPoints", 0] },
+                                    "$safeHp",
+                                ],
+                            },
+                        },
+                    },
+                ]
+                : status === "UNSAFE"
+                    ? [
+                        {
+                            $match: {
+                                $expr: {
+                                    $lt: [
+                                        { $ifNull: ["$hpPoints", 0] },
+                                        "$safeHp",
+                                    ],
+                                },
+                            },
+                        },
+                    ]
+                    : []),
 
             {
                 $project: {
@@ -418,6 +554,13 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
                     name: "$fullName",
                     completionPercentage: { $ifNull: ["$percentCompleted", 0] },
                     totalHp: { $ifNull: ["$hpPoints", 0] },
+
+                    isSafe: {
+                        $gte: [
+                            { $ifNull: ["$hpPoints", 0] },
+                            { $ifNull: ["$safeHp", 0] },
+                        ],
+                    },
                 },
             },
 
@@ -435,71 +578,45 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
     }
 
 
-    private async _getCohortMatchConditions(cohort: string, versionId: string): Promise<any[]> {
-        const orConditions: any[] = [{ tag: cohort }];
 
-        if (ObjectId.isValid(cohort)) {
-            orConditions.push({ cohortId: new ObjectId(cohort) });
-            orConditions.push({ cohortId: cohort });
-        } else {
-            const dynamicCohort = await this.cohortsCollection.findOne({ name: cohort, courseVersionId: new ObjectId(versionId) });
-            if (dynamicCohort) {
-                orConditions.push({ cohortId: dynamicCohort._id });
-                orConditions.push({ cohortId: dynamicCohort._id.toString() });
-            }
-        }
-
-        return orConditions;
-    }
 
     async findEnrollment(
         userId: string | ObjectId,
         courseId: string,
         courseVersionId: string,
-        cohort: string,
+        cohortId: string,
         session?: ClientSession,
     ): Promise<IEnrollment | null> {
         await this.init();
-
-        const override = COHORT_OVERRIDES[cohort];
-
-        const effectiveCourseId = override?.courseId ?? courseId;
-        const effectiveCourseVersionId = override?.versionId ?? courseVersionId;
 
         const normalizedUserId =
             typeof userId === "string" && ObjectId.isValid(userId)
                 ? [userId, new ObjectId(userId)]
                 : [userId];
 
-        const normalizedCourseId = ObjectId.isValid(effectiveCourseId)
-            ? [effectiveCourseId, new ObjectId(effectiveCourseId)]
-            : [effectiveCourseId];
+        const normalizedCourseId = ObjectId.isValid(courseId)
+            ? [courseId, new ObjectId(courseId)]
+            : [courseId];
 
-        const normalizedCourseVersionId = ObjectId.isValid(effectiveCourseVersionId)
-            ? [effectiveCourseVersionId, new ObjectId(effectiveCourseVersionId)]
-            : [effectiveCourseVersionId];
+        const normalizedCourseVersionId = ObjectId.isValid(courseVersionId)
+            ? [courseVersionId, new ObjectId(courseVersionId)]
+            : [courseVersionId];
+
+        const normalizedCohortId = ObjectId.isValid(cohortId)
+            ? [cohortId, new ObjectId(cohortId)]
+            : [cohortId];
 
         const query: any = {
             userId: { $in: normalizedUserId },
             courseId: { $in: normalizedCourseId },
             courseVersionId: { $in: normalizedCourseVersionId },
             isDeleted: { $ne: true },
-        };
-
-        if (!override) {
-            const cohortConditions = await this._getCohortMatchConditions(
-                cohort,
-                effectiveCourseVersionId
-            );
-
-            query.$or = [
+            $or: [
+                { cohortId: { $in: normalizedCohortId } },
                 { cohortId: { $exists: false } },
-                {
-                    cohortId: { $exists: true },
-                    $or: cohortConditions,
-                },
-            ];
-        }
+                { cohortId: null }
+            ]
+        };
 
         return await this.enrollmentCollection.findOne(query, { session });
     }
@@ -509,11 +626,11 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
      */
     async isStudentEnrolledInVersion(userId: string, courseVersionId: string): Promise<boolean> {
         await this.init();
-        const userObjId = new ObjectId(userId);
+        const userObjId = ObjectId.isValid(userId) ? new ObjectId(userId) : null;
         const versionObjId = ObjectId.isValid(courseVersionId) ? new ObjectId(courseVersionId) : null;
 
         const match: any = {
-            userId: { $in: [userId, userObjId] },
+            userId: userObjId ? { $in: [userId, userObjId] } : userId,
             courseVersionId: versionObjId
                 ? { $in: [courseVersionId, versionObjId] }
                 : courseVersionId,
@@ -656,35 +773,23 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
         userId: ID,
         courseId: ID,
         courseVersionId: ID,
-        cohort: string,
+        cohortId: string,
         amount: number,
         session?: ClientSession,
     ): Promise<boolean> {
         await this.init();
-
-        const isOverrideCohort = cohort in COHORT_OVERRIDES;
 
         const query: any = {
             userId: { $in: [userId, new ObjectId(userId)] },
             courseId: { $in: [courseId, new ObjectId(courseId)] },
             courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
             isDeleted: { $ne: true },
-        };
-
-        if (!isOverrideCohort) {
-            const cohortConditions = await this._getCohortMatchConditions(
-                cohort,
-                courseVersionId.toString()
-            );
-
-            query.$or = [
+            $or: [
+                { cohortId: { $in: [cohortId, new ObjectId(cohortId)] } },
                 { cohortId: { $exists: false } },
-                {
-                    cohortId: { $exists: true },
-                    $or: cohortConditions,
-                },
-            ];
-        }
+                { cohortId: null }
+            ]
+        };
 
         const updateResult = await this.enrollmentCollection.updateOne(
             query,
@@ -815,12 +920,20 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
     ): Promise<number> {
         await this.init();
 
-        const match: any = {
-            courseVersionId: new ObjectId(courseVersionId),
-        };
+        const match: any = {};
+
+        if (ObjectId.isValid(courseVersionId)) {
+            match.courseVersionId = new ObjectId(courseVersionId);
+        } else {
+            match.courseVersionId = courseVersionId;
+        }
 
         if (cohortId) {
-            match.cohortId = new ObjectId(cohortId);
+            if (ObjectId.isValid(cohortId)) {
+                match.cohortId = new ObjectId(cohortId);
+            } else {
+                match.cohortId = cohortId;
+            }
         }
 
         const result = await this.enrollmentCollection
@@ -847,10 +960,14 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
     ): Promise<void> {
         await this.init();
 
-        const filter = {
-            cohort: oldCohortName,
-            courseVersionId: new ObjectId(courseVersionId),
-        };
+        const match: any = { cohort: oldCohortName };
+        if (ObjectId.isValid(courseVersionId)) {
+            match.courseVersionId = new ObjectId(courseVersionId);
+        } else {
+            match.courseVersionId = courseVersionId;
+        }
+
+        const filter = match;
 
         const update = {
             $set: { cohort: newCohortName },
@@ -872,18 +989,43 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
     ): Promise<number> {
         await this.init();
 
+        const match: any = {
+            isDeleted: { $ne: true }
+        };
+
+        if (ObjectId.isValid(studentId)) {
+            match.userId = new ObjectId(studentId);
+        } else {
+            match.userId = studentId;
+        }
+
+        if (ObjectId.isValid(courseId)) {
+            match.courseId = new ObjectId(courseId);
+        } else {
+            match.courseId = courseId;
+        }
+
+        if (ObjectId.isValid(courseVersionId)) {
+            match.courseVersionId = new ObjectId(courseVersionId);
+        } else {
+            match.courseVersionId = courseVersionId;
+        }
+
+        if (cohortId) {
+            const orMatch: any[] = [
+                { cohortId: { $exists: false } },
+                { cohortId: null }
+            ];
+            if (ObjectId.isValid(cohortId)) {
+                orMatch.push({ cohortId: new ObjectId(cohortId) });
+            } else {
+                orMatch.push({ cohortId: cohortId });
+            }
+            match.$or = orMatch;
+        }
+
         const enrollment = await this.enrollmentCollection.findOne(
-            {
-                userId: new ObjectId(studentId),
-                courseId: new ObjectId(courseId),
-                courseVersionId: new ObjectId(courseVersionId),
-                isDeleted: { $ne: true },
-                $or: [
-                    { cohortId: { $exists: false } },
-                    { cohortId: null },
-                    { cohortId: new ObjectId(cohortId) }
-                ]
-            },
+            match,
             { session }
         );
 
@@ -893,6 +1035,8 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
 
     async getCourseVersionNameById(versionId: string): Promise<string> {
         await this.init();
+
+        if (!ObjectId.isValid(versionId)) return versionId;
 
         const doc = await this.courseVersionCollection.findOne(
             { _id: new ObjectId(versionId) },
@@ -904,5 +1048,239 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
         }
 
         return doc.version;
+    }
+
+    async resetHpforCohort(
+    courseVersionId: string,
+    cohortId: string,
+    cohortName:string,
+    targetHp: number,
+    mode: HpResetMode,
+    triggeredByUserId: string,
+    session?: ClientSession,
+    ): Promise<number> {
+
+    const orVersionMatch: any[] = [{ courseVersionId }];
+    if (ObjectId.isValid(courseVersionId)) {
+      orVersionMatch.push({ courseVersionId: new ObjectId(courseVersionId) });
+    }
+
+    const orCohortMatch: any[] = [];
+    if (cohortId && ObjectId.isValid(cohortId)) {
+      orCohortMatch.push({ cohortId: new ObjectId(cohortId) });
+      orCohortMatch.push({ cohortId: cohortId });
+    } else {
+      orCohortMatch.push({ cohortId: { $exists: false } });
+      orCohortMatch.push({ cohortId: null });
+    }
+
+    const filter: any = {
+      isDeleted: { $ne: true },
+      $or: orVersionMatch,
+      $and: [{ $or: orCohortMatch }],
+    };
+
+    if (mode === 'ONLY_ZERO_HP') {
+        filter.$or = [
+        {hpPoints: 0},
+        {hpPoints: {$exists: false}},
+        {hpPoints: null},
+        ];
+    } else if (mode === 'ONLY_WITH_HP') {
+        filter.hpPoints = {$gt: 0};
+    }
+
+    // ✅ STEP 1: Fetch students
+    const students = await this.enrollmentCollection
+        .find(filter, { session })
+        .toArray();
+
+    if (!students.length) return 0;
+
+    const userIds = students.map(s => s.userId.toString());
+
+    const users = await this.userRepo.getUsersByIds(userIds)
+
+    const userMap = new Map(users.map(u => [u._id.toString(), u.email]));
+
+    const bulkEnrollmentOps = [];
+    const ledgerDocs = [];
+    const modeTextMap = {
+        ALL: "all students in the cohort",
+        ONLY_ZERO_HP: "students with no HP",
+        ONLY_WITH_HP: "students with existing HP",
+    };
+
+    for (const student of students) {
+        if(student.isDeleted)
+            continue;
+        const currentHp = student.hpPoints ?? 0;
+        const diff = targetHp - currentHp;
+
+        // skip if no change
+        if (diff === 0) continue;
+
+        const direction = diff > 0 ? 'CREDIT' : 'DEBIT';
+
+        // ✅ Ledger entry
+        ledgerDocs.push({
+            courseId: student.courseId,
+            courseVersionId: student.courseVersionId,
+            cohort: cohortName,
+
+            studentId: student.userId,
+            studentEmail: userMap.get(student.userId.toString()),
+
+            activityId: null,
+            submissionId: null,
+
+            eventType: 'RESET',
+            direction,
+            amount: Math.abs(diff),
+
+            calc: {
+                ruleType: 'ABSOLUTE',
+                absolutePoints: targetHp,
+                baseHpAtTime: currentHp,
+                computedAmount: currentHp+diff,
+                reasonCode: 'HP_RESET',
+            },
+
+            links: null,
+
+            meta: {
+                triggeredBy: 'TEACHER',
+                triggeredByUserId: toObjectId(triggeredByUserId,"triggeredByUserId"),
+                operationId: getHpLedgerOperationId(mode),
+                note: `Instructor reset student's HP from ${currentHp} to ${targetHp} for ${modeTextMap[mode]}.`
+            },
+
+            createdAt: new Date(),
+        });
+
+        bulkEnrollmentOps.push({
+        updateOne: {
+            filter: { _id: student._id },
+            update: {
+            $set: {
+                hpPoints: targetHp,
+                updatedAt: new Date(),
+            },
+            },
+        },
+        });
+    }
+
+    if (ledgerDocs.length) {
+        await this.hpLedgerCollection.insertMany(ledgerDocs, { session });
+    }
+
+    if (bulkEnrollmentOps.length) {
+        await this.enrollmentCollection.bulkWrite(bulkEnrollmentOps, { session });
+    }
+
+    return bulkEnrollmentOps.length;
+    }
+
+    async resetHpForStudent(
+    courseVersionId: string,
+    cohortId: string,
+    cohortName: string,
+    studentId: string,
+    targetHp: number,
+    triggeredByUserId: string,
+    session?: ClientSession,
+    ): Promise<boolean> {
+
+    const orVersionMatch: any[] = [{ courseVersionId }];
+    if (ObjectId.isValid(courseVersionId)) {
+      orVersionMatch.push({ courseVersionId: new ObjectId(courseVersionId) });
+    }
+
+    const orCohortMatch: any[] = [];
+    if (cohortId && ObjectId.isValid(cohortId)) {
+      orCohortMatch.push({ cohortId: new ObjectId(cohortId) });
+      orCohortMatch.push({ cohortId: cohortId });
+    } else {
+      orCohortMatch.push({ cohortId: { $exists: false } });
+      orCohortMatch.push({ cohortId: null });
+    }
+
+    const filter: any = {
+      isDeleted: { $ne: true },
+      $or: orVersionMatch,
+      $and: [{ $or: orCohortMatch }],
+      userId: toObjectId(studentId, "studentId"),
+    };
+
+    const student = await this.enrollmentCollection.findOne(filter, { session });
+
+    if (!student) {
+        throw new NotFoundError('Student not found in this cohort');
+    }
+
+    const currentHp = student.hpPoints ?? 0;
+    const diff = targetHp - currentHp;
+
+    // No change case
+    if (diff === 0) return false;
+
+    const direction = diff > 0 ? 'CREDIT' : 'DEBIT';
+
+    const user = await this.userRepo.getUsersByIds([studentId]);
+    const studentEmail = user?.[0]?.email;
+
+    // ✅ Ledger entry
+    const ledgerDoc: HpLedger = {
+        courseId: student.courseId,
+        courseVersionId: student.courseVersionId,
+        cohortId: student.cohortId,
+        cohort: cohortName,
+
+        studentId: student.userId,
+        studentEmail:studentEmail,
+
+        activityId: null,
+        submissionId: null,
+
+        eventType: 'RESET',
+        direction: direction,
+        amount: Math.abs(diff),
+
+        calc: {
+            ruleType: 'ABSOLUTE',
+            absolutePoints: targetHp,
+            baseHpAtTime: currentHp,
+            computedAmount: currentHp+diff,
+            reasonCode: 'HP_RESET',
+        },
+
+        links: null,
+
+        meta: {
+            triggeredBy: "TEACHER",
+            triggeredByUserId: toObjectId(triggeredByUserId, "triggeredByUserId"),
+            operationId: getHpLedgerOperationId('RESET_HP_SINGLE_STUDENT'),
+            note: `Your HP was updated from ${currentHp} to ${targetHp}.`,
+        },
+
+        createdAt: new Date(),
+    };
+
+    await this.hpLedgerCollection.insertOne(ledgerDoc, { session });
+
+    // Update enrollment
+    await this.enrollmentCollection.updateOne(
+        { _id: student._id },
+        {
+            $set: {
+                hpPoints: targetHp,
+                updatedAt: new Date(),
+            },
+        },
+        { session },
+    );
+
+    return true;
     }
 }

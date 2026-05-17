@@ -2448,7 +2448,7 @@ export class EnrollmentRepository {
     const enrollmentMap = new Map<string, any>();
 
     enrollments.forEach(e => {
-      enrollmentMap.set(`${e.userId}_${e.courseId}_${e.courseVersionId}`, {
+      enrollmentMap.set(`${e.userId}_${e.courseId}_${e.courseVersionId}_${e.cohortId}`, {
         id: e._id,
         courseVersionId: e.courseVersionId.toString(),
       });
@@ -2461,10 +2461,12 @@ export class EnrollmentRepository {
             $match: {
               isDeleted: { $ne: true },
               isHidden: { $ne: true },
+              endTime: { $exists: true },
               $or: enrollments.map(e => ({
                 userId: e.userId,
                 courseId: e.courseId,
                 courseVersionId: e.courseVersionId,
+                ...(e.cohortId ? { cohortId: e.cohortId } : { cohortId: null }),
               })),
             },
           },
@@ -2474,6 +2476,7 @@ export class EnrollmentRepository {
                 userId: '$userId',
                 courseId: '$courseId',
                 courseVersionId: '$courseVersionId',
+                cohortId: '$cohortId',
               },
               completedItemsCount: { $addToSet: '$itemId' },
             },
@@ -2490,7 +2493,7 @@ export class EnrollmentRepository {
 
     const operations = completedCounts
       .map(c => {
-        const key = `${c._id.userId}_${c._id.courseId}_${c._id.courseVersionId}`;
+        const key = `${c._id.userId}_${c._id.courseId}_${c._id.courseVersionId}_${c._id.cohortId}`;
         const entry = enrollmentMap.get(key);
         if (!entry) return null;
 

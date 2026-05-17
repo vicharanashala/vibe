@@ -19,12 +19,12 @@ import {
 } from "lucide-react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { toast } from "sonner";
-import { CreateHpActivityPayload, HpRuleConfig, CourseWithVersions, CourseVersionStats, SubmissionField } from "@/lib/api/hp-system";
+import { CreateHpActivityPayload, HpRuleConfig, CourseWithVersions, CourseVersionStats, SubmissionField, getEffectiveIds } from "@/lib/api/hp-system";
 import { useCreateActivityWithRule, useCreateHpActivity, useCreateHpRuleConfig, useHpCourseVersions } from "@/hooks/hooks";
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal";
 
 export default function CreateHpActivityPage() {
-    const { courseVersionId, cohortName } = useParams({ strict: false });
+    const { courseVersionId, cohortId } = useParams({ strict: false });
     const navigate = useNavigate();
     // const { mutateAsync: createActivity, isPending: isSubmittingActivity } = useCreateHpActivity();
     // const { mutateAsync: createRuleConfig, isPending: isSubmittingRules } = useCreateHpRuleConfig();
@@ -279,12 +279,19 @@ export default function CreateHpActivityPage() {
             return;
         }
 
+        const { 
+            courseId: finalCourseId, 
+            courseVersionId: finalVersionId, 
+            cohortId: finalCohortId 
+        } = getEffectiveIds(cohortId || "", courseId || "", courseVersionId || "");
+
         // 1. Prepare activity payload (including some fields from ruleConfig that Activity needs)
         const activityPayload = {
             ...data,
-            courseId: courseId,
-            courseVersionId: courseVersionId,
-            cohort: cohortName || "",
+            courseId: finalCourseId,
+            courseVersionId: finalVersionId,
+            cohortId: finalCohortId,
+            cohort: cohortId || "", // Keep the name for human-readability as requested before
             attachments: data.attachments?.map(att => ({ ...att, kind: att.kind || "LINK" })),
             status,
             deadlineAt: ruleConfig.deadlineAt,
@@ -294,9 +301,9 @@ export default function CreateHpActivityPage() {
 
         // 2. Create the full Rule Config
         const rulePayload = {
-            courseId: courseId,
-            courseVersionId: courseVersionId,
-            submissionValidation: ruleConfig.submissionValidation,
+            courseId: finalCourseId,
+            courseVersionId: finalVersionId,
+            submissionValidation: isVibeMilestone ? [] : ruleConfig.submissionValidation,
             isMandatory: ruleConfig.isMandatory as boolean,
             deadlineAt: ruleConfig.deadlineAt as string | undefined,
             allowLateSubmission: ruleConfig.allowLateSubmission as boolean,
@@ -330,7 +337,7 @@ export default function CreateHpActivityPage() {
             toast.success("Activity created successfully");
 
             navigate({
-                to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/activities`,
+                to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortId || '')}/activities`,
                 state: { from }
             });
 
@@ -380,7 +387,7 @@ export default function CreateHpActivityPage() {
         };
     }
 
-    const backUrl = `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/activities`;
+    const backUrl = `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortId || '')}/activities`;
 
     if (isLoadingCourses) {
         return <div className="p-8 text-center text-muted-foreground">Loading course info...</div>;
@@ -391,7 +398,7 @@ export default function CreateHpActivityPage() {
             <div className="p-8 text-center bg-red-50 border border-red-200 rounded-lg text-red-600">
                 <h3 className="text-lg font-bold">Configuration Error</h3>
                 <p>Could not find the parent course for version ID: {courseVersionId}</p>
-                <Button variant="outline" className="mt-4" onClick={() => navigate({ to: '/teacher/hp-system/$courseVersionId/cohort/$cohortName/activities', state: { from } })}>Go Back</Button>
+                <Button variant="outline" className="mt-4" onClick={() => navigate({ to: '/teacher/hp-system/$courseVersionId/cohort/$cohortId/activities', state: { from } })}>Go Back</Button>
             </div>
         );
     }
@@ -406,7 +413,7 @@ export default function CreateHpActivityPage() {
                     </Button>
                     <div>
                         <h2 className="text-2xl font-bold tracking-tight">Create New Activity</h2>
-                        <p className="text-muted-foreground">Define a new HP rewarding activity for {decodeURIComponent(cohortName || '')}.</p>
+                        <p className="text-muted-foreground">Define a new HP rewarding activity for Dashboard.</p>
                     </div>
                 </div>
 
@@ -1060,72 +1067,59 @@ export default function CreateHpActivityPage() {
                                 </div>
                             )}
 
+                        {currentActivityType !== "VIBE_MILESTONE" &&  
                             <div className="space-y-4">
-                                <div className="flex items-center gap-2">
-                                    <h4 className="text-sm font-semibold uppercase tracking-wider text-foreground">
-                                        Submission Requirements
-                                    </h4>
-
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Info className="h-4 w-4 text-muted-foreground cursor-pointer" />
-                                            </TooltipTrigger>
-                                            <TooltipContent className="max-w-xs text-xs text-black">
-                                                These are the fields that will be shown to students when submitting this activity.
-                                                You can enable or disable the options to control whether each field is required
-                                                or optional for students during submission.
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                </div>
+                                <h4 className="text-sm font-semibold uppercase tracking-wider text-foreground">
+                                    Submission Requirements
+                                </h4>
 
                                 <div className="grid grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
-
+                                    
                                     {[
-                                        { label: "Text Response", value: SubmissionField.TEXT },
-                                        { label: "PDF Upload", value: SubmissionField.PDF },
-                                        { label: "Images", value: SubmissionField.IMAGE },
-                                        { label: "URL Links", value: SubmissionField.URL },
+                                    { label: "Text Response", value: SubmissionField.TEXT },
+                                    { label: "PDF Upload", value: SubmissionField.PDF },
+                                    { label: "Images", value: SubmissionField.IMAGE },
+                                    { label: "URL Links", value: SubmissionField.URL },
                                     ].map((item) => {
-                                        const selected = ruleConfig.submissionValidation || [];
+                                    const selected = ruleConfig.submissionValidation || [];
 
-                                        return (
-                                            <div key={item.value} className="flex items-center justify-between">
-                                                <Label>{item.label}</Label>
-                                                <Switch
-                                                    checked={selected.includes(item.value)}
-                                                    onCheckedChange={(checked) => {
-                                                        let updated = [...selected];
+                                    return (
+                                        <div key={item.value} className="flex items-center justify-between">
+                                        <Label>{item.label}</Label>
+                                        <Switch
+                                            checked={selected.includes(item.value)}
+                                            onCheckedChange={(checked) => {
+                                            let updated = [...selected];
 
-                                                        if (checked) {
-                                                            updated.push(item.value);
-                                                        } else {
-                                                            updated = updated.filter(v => v !== item.value);
-                                                        }
+                                            if (checked) {
+                                                updated.push(item.value);
+                                            } else {
+                                                updated = updated.filter(v => v !== item.value);
+                                            }
 
-                                                        if (updated.length === 0) {
-                                                            toast.error("At least one submission field must be required");
-                                                            return;
-                                                        }
+                                            if (updated.length === 0) {
+                                                toast.error("At least one submission field must be required");
+                                                return;
+                                            }
 
-                                                        setRuleConfig(prev => ({
-                                                            ...prev,
-                                                            submissionValidation: updated
-                                                        }));
-                                                    }}
-                                                />
-                                            </div>
-                                        );
+                                            setRuleConfig(prev => ({
+                                                ...prev,
+                                                submissionValidation: updated
+                                            }));
+                                            }}
+                                        />
+                                        </div>
+                                    );
                                     })}
                                 </div>
                             </div>
-                            {submitError && (
-                                <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-3 rounded-md flex items-start gap-2">
-                                    <span>{submitError}</span>
-                                </div>
-                            )}
-                        </div>
+                        }
+                        {submitError && (
+                            <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-3 rounded-md flex items-start gap-2">
+                                <span>{submitError}</span>
+                            </div>
+                        )}
+                    </div>
 
                         {/* Step 2 Actions */}
                         <div className="flex justify-end gap-4">

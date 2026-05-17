@@ -200,6 +200,11 @@ class CourseRegistrationController {
         if(cohortSetting?.registrationsAutoApproved){
           if (!cohortSetting.autoapproval_emails || cohortSetting.autoapproval_emails.length === 0) {
             await this.courseRegistrationService.updateStatus(result, "APPROVED", cohortId);
+            // Return with APPROVED status when auto-approved
+            return {
+              registrationId: result,
+              status: "APPROVED"
+            };
           } else {
             const userDetails = await this.userRepository.findById(userId);
             if (userDetails?.email) {
@@ -209,6 +214,11 @@ class CourseRegistrationController {
               );
               if (shouldAutoApprove) {
                 await this.courseRegistrationService.updateStatus(result, "APPROVED", cohortId);
+                // Return with APPROVED status when auto-approved
+                return {
+                  registrationId: result,
+                  status: "APPROVED"
+                };
               }
             }
           }
@@ -219,6 +229,11 @@ class CourseRegistrationController {
       if (!registrationSettings.autoapproval_emails || registrationSettings.autoapproval_emails.length === 0) {
         // No specific emails set - auto-approve all
         await this.courseRegistrationService.updateStatus(result, "APPROVED");
+        // Return with APPROVED status when auto-approved
+        return {
+          registrationId: result,
+          status: "APPROVED"
+        };
       } else {
         // Check if user email matches any of the specified patterns
         const userDetails = await this.userRepository.findById(userId);
@@ -231,12 +246,21 @@ class CourseRegistrationController {
 
           if (shouldAutoApprove) {
             await this.courseRegistrationService.updateStatus(result, "APPROVED");
+            // Return with APPROVED status when auto-approved
+            return {
+              registrationId: result,
+              status: "APPROVED"
+            };
           }
         }
       }
     }
 
-    return result;
+    // Return with PENDING status when not auto-approved
+    return {
+      registrationId: result,
+      status: "PENDING"
+    };
   }
 
   @OpenAPI({

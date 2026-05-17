@@ -19,14 +19,14 @@ import { Progress } from '@/components/ui/progress';
 
 
 
-interface UploadParams {
+export interface UploadParams {
   videoItemBaseName: string;
   quizItemBaseName: string;
   questionsPerQuiz: number | null;
   audioProvided: boolean;
 }
 
-interface CurrentJob {
+export interface CurrentJob {
   status: "COMPLETED" | "FAILED" | "PENDING" | "RUNNING" | "WAITING",
   task: string
 }
@@ -34,7 +34,7 @@ interface CurrentJob {
 
 
 
-const formatTime = (time: number | string): string => {
+export const formatTime = (time: number | string): string => {
   if (typeof time === 'string' && /^\d{2}:\d{2}:\d{3}$/.test(time)) {
     return time;
   }
@@ -1120,7 +1120,7 @@ const AiWorkflow = () => {
     </div>)
 }
 
-const parseTimeToSeconds = (time: string): number => {
+export const parseTimeToSeconds = (time: string): number => {
   if (!time) return 0;
   const cleaned = time.replace(/\[|\]/g, '').trim().replace(',', '.');
 
@@ -1178,7 +1178,7 @@ interface JobHeaderProps {
   handleRefreshStatus: () => void;
   aiJobId: boolean;
 }
-const JobHeader: React.FC<JobHeaderProps> = ({ currentJob, handleRefreshStatus, aiJobId }) => {
+export const JobHeader: React.FC<JobHeaderProps> = ({ currentJob, handleRefreshStatus, aiJobId }) => {
   const renderJobInfo = () => {
     switch (currentJob?.task) {
       case "SEGMENTATION":
@@ -1349,10 +1349,10 @@ const YoutubeIcon = () => (
   </svg>
 );
 
-const Stepper = React.memo(({ currentJobData, aiJobStatus }: { currentJobData: any; aiJobStatus: any }) => {
+export const Stepper = React.memo(({ currentJobData, aiJobStatus, firstStepLabel }: { currentJobData: any; aiJobStatus: any; firstStepLabel?: string }) => {
 
   const WORKFLOW_STEPS = [
-    { key: 'audioExtraction', label: 'Audio Extraction', icon: <UploadCloud className="w-5 h-5" /> },
+    { key: 'audioExtraction', label: firstStepLabel || 'Audio Extraction', icon: <UploadCloud className="w-5 h-5" /> },
     { key: 'transcriptGeneration', label: 'Transcription', icon: <FileText className="w-5 h-5" /> },
     { key: 'segmentation', label: 'Segmentation', icon: <ListChecks className="w-5 h-5" /> },
     { key: 'questionGeneration', label: 'Question Generation', icon: <MessageSquareText className="w-5 h-5" /> },
@@ -1589,7 +1589,7 @@ interface ProgressiveProgressBarProps {
   stepLabels?: string[]
 }
 
-const ProgressiveProgressBar = ({
+export const ProgressiveProgressBar = ({
   value = 0,
   className = "",
   showTooltip = true,
@@ -1704,7 +1704,7 @@ const ProgressiveProgressBar = ({
   )
 }
 
-export const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
+export const QuestionGenerationView = ({
   isLoading,
   isTaskResultLoading,
   error,
@@ -1726,7 +1726,7 @@ export const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = (
   isWaitingServer,
   isApprovingTask,
   setShowUploadContent
-}) => {
+}: any) => {
   useEffect(() => {
     if (questions && questions.length > 0) {
       const storedQuestions = sessionStorage.getItem('questions');
@@ -2784,7 +2784,7 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
   );
 };
 
-const QuestionEditForm = ({ question, onSave, onCancel }: {
+export const QuestionEditForm = ({ question, onSave, onCancel }: {
   question: any;
   onSave: (edited: any) => void;
   onCancel: () => void;

@@ -254,6 +254,14 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   const { data: courseVersionData, isLoading: versionLoading, error: versionError, refetch: refetchVersion } =
     useCourseVersionById(VERSION_ID, undefined, COHORT_ID);
 
+  const shouldRandomize = courseVersionData?.shouldRandomize || false;
+
+    console.log("******************")
+    console.log("******************")
+    console.log(courseVersionData)
+    console.log("******************")
+    console.log("******************")
+
   // Fetch user progress
   const { data: progressData, isLoading: progressLoading, error: progressError } =
     useUserProgress(COURSE_ID, VERSION_ID, COHORT_ID);
@@ -367,7 +375,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
       setSectionItems(prev => ({
         ...prev,
-        [activeSectionInfo.sectionId]: sortItemsByOrder(itemsArray),
+        [activeSectionInfo.sectionId]: shouldRandomize? itemsArray : sortItemsByOrder(itemsArray),
       }));
     }
   }, [
@@ -466,7 +474,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
         (Array.isArray(currentSectionItems) ? currentSectionItems : []);
 
       // Sort items by order property before storing
-      const sortedItems = sortItemsByOrder(itemsArray);
+      const sortedItems = shouldRandomize? itemsArray : sortItemsByOrder(itemsArray);
       setSectionItems(prev => ({
         ...prev,
         [activeSectionInfo.sectionId]: sortedItems
@@ -1761,7 +1769,10 @@ useEffect(() => {
                                               <Skeleton className="h-4 w-4/5 rounded" />
                                             </div>
                                           ) : sectionItems[sectionId] ? (
-                                            sortItemsByOrder(sectionItems[sectionId]).map((item: any) => {
+                                            (shouldRandomize
+                                              ? sectionItems[sectionId]
+                                              : sortItemsByOrder(sectionItems[sectionId])
+                                            ).map((item: any) => {
                                               const itemId = item._id;
                                               const isCurrentItem = itemId === selectedItemId;
 

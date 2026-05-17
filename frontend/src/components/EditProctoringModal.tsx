@@ -65,6 +65,7 @@ export function ProctoringModal({
   const [baseHp, setbaseHp] = useState<number>(0);
   const [isPublic, setIsPublic] = useState(false);
   const [isAdditionalSettingsExpanded, setIsAdditionalSettingsExpanded] = useState(false);
+  const [enableRandomize, setEnableRandomize] = useState<boolean>(false);
   const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(courseVersionId || "")
 
   useEffect(() => {
@@ -79,6 +80,7 @@ export function ProctoringModal({
           setIsPublic(result.settings?.isPublic ?? false)
           setHpSystemEnabled(result.settings?.hpSystem ?? false)
           setbaseHp(result.settings?.baseHp ?? 0)
+          setEnableRandomize(result.settings?.randomizeItems ?? false)
         }
       } catch (err) {
         console.error("Failed to fetch proctoring settings:", err)
@@ -100,7 +102,7 @@ export function ProctoringModal({
 
   const handleSubmit = async () => {
     try {
-      const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled, seekForwardEnabled, isPublic, hpSystemEnabled, baseHp)
+      const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled, seekForwardEnabled, isPublic, hpSystemEnabled, baseHp, enableRandomize)
       if (result != undefined) {
         onSuccess?.();
         onClose();
@@ -110,6 +112,12 @@ export function ProctoringModal({
       toast.error("Failed to update settings!")
     }
   }
+
+  useEffect(() => {
+    if (linearProgressionEnabled) {
+      setEnableRandomize(false);
+    }
+  }, [linearProgressionEnabled]);
 
   if (settingLoading) {
     return <div>Loading...</div>
@@ -211,8 +219,9 @@ export function ProctoringModal({
                       <p className="text-xs text-muted-foreground">Students must follow lessons sequentially</p>
                     </div>
                     <Switch checked={linearProgressionEnabled}
-                    //  onCheckedChange={()=>setLinearProgressionEnabled(prev=>!prev)}
-                     disabled />
+                     onCheckedChange={()=>setLinearProgressionEnabled(prev=>!prev)}
+                    //  disabled 
+                     />
                   </div>
 
                   <div className="flex items-center justify-between space-x-3">
@@ -258,6 +267,15 @@ export function ProctoringModal({
                       />
                     </div>
                   )}
+                  <div>
+                    <div className="flex items-center justify-between space-x-3">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">Randomize Content</Label>
+                        <p className="text-xs text-muted-foreground">Shuffle content order for a unique student experience.</p>
+                      </div>
+                      <Switch checked={enableRandomize} disabled={linearProgressionEnabled} onCheckedChange={() => setEnableRandomize(prev => !prev)} />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

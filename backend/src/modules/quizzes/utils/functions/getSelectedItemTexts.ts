@@ -39,9 +39,11 @@ export const getSelectedItemTexts = (
         ? [answer.lotItemId]
         : [];
 
+    const selectedLotIdsStr = selectedLotId.map(id => id.toString());
+
     // Map selected IDs to texts
     questionLotItems.forEach(lot => {
-      if (selectedLotId.includes(lot._id.toString())) {
+      if (selectedLotIdsStr.includes(lot._id.toString())) {
         selectedAnswerTexts.push(lot.text);
       }
     });

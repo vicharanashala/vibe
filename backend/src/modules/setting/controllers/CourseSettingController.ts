@@ -126,6 +126,7 @@ export class CourseSettingController {
       isPublic,
       hpSystem,
       baseHp,
+      randomizeItems,
     } = body;
     const userId = user._id.toString();
 
@@ -138,6 +139,7 @@ export class CourseSettingController {
       hpSystem,
       isPublic ?? false,
       baseHp,
+      randomizeItems,
       userId,
     );
 

@@ -1,20 +1,10 @@
 
-
-    // const onAccept = async (invite) => {
-    //     const { data, isLoading, error } = await useProcessInvites(invite.inviteId, 'ACCEPT');
-    //     if (!isLoading && !error) {
-    //         setStatus("ACCEPTED");
-    //         setIsExpanded(false);
-    //         window.location.reload();
-    //     }
-    // };
-    
-
 import { useState } from "react";
 import { Button } from "./ui/button";
-import { Mail, CheckCircle, XCircle } from "lucide-react";
+import { Mail } from "lucide-react";
 
-const InviteItem = ({ invite, onAcceptClick, onRejectClick }) => {
+
+const InviteItem = ({ invite, onAcceptClick, onRejectClick , hasPolicies}) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [status, setStatus] = useState(invite.inviteStatus);
 
@@ -27,7 +17,7 @@ const InviteItem = ({ invite, onAcceptClick, onRejectClick }) => {
 
   return (
     <li
-      className={`p-2 rounded transition-colors cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-950/30`}
+      className={`p-2 rounded hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors border border-transparent hover:border-primary/20 dark:hover:border-primary/30`}
       onClick={handleToggle}
     >
       <div className="flex items-start gap-2">
@@ -43,11 +33,22 @@ const InviteItem = ({ invite, onAcceptClick, onRejectClick }) => {
             <p className="text-sm font-semibold text-foreground leading-tight truncate">
               {invite?.course?.name || "Course Invite"}
             </p>
+            
 
             {status === "PENDING" && (
               <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0 mt-1" />
             )}
           </div>
+          {invite?.course?.description && (
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+              {invite.course.description}
+            </p>
+          )}
+          {invite?.cohortName && (
+            <p className="text-xs text-muted-foreground/70 mt-0.5">
+              Cohort: <span className="text-foreground font-medium">{invite.cohortName}</span>
+            </p>
+          )}
 
           {/* MESSAGE */}
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -70,20 +71,65 @@ const InviteItem = ({ invite, onAcceptClick, onRejectClick }) => {
             </span>
           </p>
 
-          {/* ACTIONS */}
-          {isExpanded && status === "PENDING" && (
-  <div className="mt-2">
-    <Button
+         
+{isExpanded && status === "PENDING" && (
+  <div className="-ml-2 flex gap-1 mt-2 max-w-min">
+    
+    {/* ✅ NO POLICIES → direct actions */}
+    {hasPolicies === false ? (
+      <>
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full text-[10px]"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRejectClick(invite);
+          }}
+          
+        >
+          Reject
+        </Button>
+
+        <Button
+         size="sm"
+         className="w-full text-[10px]"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAcceptClick(invite);
+          }}
+          
+        >
+          Accept
+        </Button>
+      </>
+    ) : (<div className="flex gap-0.5 min-w-max">
+      <Button
       size="sm"
-      variant="outline"
+      variant="destructive"
+      className="text-[10px]"
       onClick={(e) => {
         e.stopPropagation();
-        onAcceptClick(invite);
+        onRejectClick(invite);
       }}
-      className="h-6 px-2 text-xs hover:bg-yellow-50 hover:border-yellow-600 hover:text-yellow-600 dark:hover:border-yellow-400 dark:hover:text-yellow-400 "
     >
-      Check Course
+      Reject
     </Button>
+     
+      <Button
+        size="sm"
+      variant="default"
+      className=" text-[10px]"
+        onClick={(e) => {
+          e.stopPropagation();
+          onAcceptClick(invite);
+        }}
+        
+        >
+        Check Course
+      </Button>
+        </div>
+    )}
   </div>
 )}
         </div>

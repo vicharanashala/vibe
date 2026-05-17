@@ -424,6 +424,7 @@ class CourseSetting implements ICourseSetting {
     hpSystem?: boolean;
     isPublic?: boolean;
     baseHp?: number;
+    randomizeItems?: boolean;
     registration?: {
       jsonSchema?: any;
       uiSchema?: any;
@@ -457,6 +458,7 @@ class CourseSetting implements ICourseSetting {
       hpSystem: courseSettingsBody?.settings?.hpSystem ?? false,
       isPublic: courseSettingsBody?.settings?.isPublic ?? false,
       baseHp: courseSettingsBody?.settings?.baseHp ?? 0,
+      randomizeItems: courseSettingsBody?.settings?.randomizeItems ?? false,
       registration: {
         jsonSchema: courseSettingsBody?.settings?.registration?.jsonSchema,
         uiSchema: courseSettingsBody?.settings?.registration?.uiSchema,

@@ -74,7 +74,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
       lastUpdateTime: Date.now(),
       backendStatus: 'loading',
       ...updates,
-      lastUpdateTime: Date.now(),
+     
     };
 
     onDebugInfoUpdate?.(next);

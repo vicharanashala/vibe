@@ -25,10 +25,12 @@ import {
     Eye,
     Filter,
     FileSearch,
-    RefreshCw
+    RefreshCw,
+    ChartPie
 } from "lucide-react";
 import { HpActivity } from "@/lib/api/hp-system";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { OverviewTab } from "./OverviewTab";
 
 // Helper for character-count truncation
 const truncateText = (text: string | null | undefined, maxLength: number = 70) => {
@@ -105,7 +107,7 @@ const DeadlineCountdown = ({ deadline, allowLate }: { deadline: string; allowLat
 };
 
 export default function StudentActivities() {
-    const { courseVersionId, cohortName } = useParams({ strict: false });
+    const { courseVersionId, cohortId } = useParams({ strict: false });
     const navigate = useNavigate();
 
     const router = useRouterState();
@@ -118,10 +120,11 @@ export default function StudentActivities() {
     const ACTIVITY_TYPE_OPTIONS = ["ASSIGNMENT", "VIBE_MILESTONE"] as const;
 
     const [selectedActivityType, setSelectedActivityType] = useState<string>("ASSIGNMENT");
+    const [showOverview, setShowOverview] = useState(false);
 
     const { data: activities, isLoading, error, refetch, isRefetching } = useHpStudentActivities(
         courseVersionId as string,
-        cohortName as string
+        cohortId as string
     );
     const { mutateAsync: submitActivity, isPending: isSubmitting } = useSubmitActivity();
 
@@ -191,7 +194,7 @@ export default function StudentActivities() {
             await submitActivity({
                 courseId: selectedActivity.courseId,
                 courseVersionId: selectedActivity.courseVersionId,
-                cohort: selectedActivity.cohort,
+                cohortId: selectedActivity.cohortId,
                 activityId: selectedActivity._id!,
                 payload: {
                     textResponse: textResponse.trim() || undefined,
@@ -308,8 +311,7 @@ export default function StudentActivities() {
                     <div className="flex-1">
                         <h1 className="text-3xl font-bold tracking-tight">Activities</h1>
                         <p className="text-muted-foreground">
-                            {decodeURIComponent(cohortName as string)}
-                        </p>
+                            Dashboard</p>
                     </div>
                     <Button
                         variant="outline"
@@ -323,11 +325,26 @@ export default function StudentActivities() {
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button
+                                variant={showOverview ? "default" : "outline"}
+                                className="flex items-center gap-2"
+                                onClick={() => setShowOverview(!showOverview)}
+                            >
+                                <ChartPie className="h-4 w-4" />
+                                {showOverview ? "Back to Activities" : "Overview Stats"}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            {showOverview ? "Return to activities list" : "View your progress overview and statistics"}
+                        </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
                                 variant="outline"
                                 className="flex items-center gap-2"
                                 onClick={() =>
                                     navigate({
-                                        to: `/student/hp-system/${courseVersionId}/${cohortName}/submissions`,
+                                        to: `/student/hp-system/${courseVersionId}/${cohortId}/submissions`,
                                         state: { from }
                                     })
                                 }
@@ -342,7 +359,12 @@ export default function StudentActivities() {
                     </Tooltip>
                 </div>
 
-                {(!activities || activities.length === 0) ? (
+                {showOverview ? (
+                    <OverviewTab
+                        courseVersionId={courseVersionId as string}
+                        cohortId={cohortId as string}
+                    />
+                ) : (!activities || activities.length === 0) ? (
                     <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
                         <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
                         <h3 className="text-lg font-medium">No Activities Yet</h3>
@@ -549,7 +571,7 @@ export default function StudentActivities() {
                                                             className="w-full"
                                                             onClick={() =>
                                                                 navigate({
-                                                                    to: `/student/hp-system/${courseVersionId}/${cohortName}/activities/${activity._id}`,
+                                                                    to: `/student/hp-system/${courseVersionId}/${cohortId}/activities/${activity._id}`,
                                                                     state: { from }
                                                                 })
                                                             }
@@ -622,7 +644,7 @@ export default function StudentActivities() {
                                                                 variant="outline"
                                                                 onClick={() =>
                                                                     navigate({
-                                                                        to: `/student/hp-system/${courseVersionId}/${cohortName}/activities/${activity._id}`,
+                                                                        to: `/student/hp-system/${courseVersionId}/${cohortId}/activities/${activity._id}`,
                                                                         state: { from }
                                                                     })
                                                                 }

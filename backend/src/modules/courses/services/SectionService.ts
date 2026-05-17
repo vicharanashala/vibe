@@ -19,6 +19,8 @@ import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase
 import {ICourseVersion} from '#root/shared/interfaces/models.js';
 import {EnrollmentRepository, ProgressRepository} from '#root/shared/index.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import { CourseSettingService } from '#root/modules/setting/index.js';
 @injectable()
 export class SectionService extends BaseService {
   constructor(
@@ -30,6 +32,8 @@ export class SectionService extends BaseService {
     private readonly enrollmentRepo: EnrollmentRepository,
     @inject(USERS_TYPES.ProgressRepo)
     private readonly progressRepo: ProgressRepository,
+    @inject(SETTING_TYPES.CourseSettingService)
+    private readonly courseSettingService: CourseSettingService,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -168,11 +172,18 @@ export class SectionService extends BaseService {
     beforeSectionId: string,
   ): Promise<ICourseVersion> {
     return this._withTransaction(async session => {
-      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+      const [versionStatus,isLinearProgressionEnabled]=await Promise.all(
+        [this.courseRepo.getCourseVersionStatus(versionId,session),
+        this.courseSettingService.isLinearProgressionEnabledByVersionId(versionId,session)]
+      );
       
       if(versionStatus==="archived"){
           throw new ForbiddenError("This course version is archived and cannot be modified.");
         }
+      
+      if(isLinearProgressionEnabled){
+        throw new ForbiddenError("Cannot re-order sections, because Linear progression is enabled")
+      }
       const version = await this.courseRepo.readVersion(versionId, session);
 
       //Find Module

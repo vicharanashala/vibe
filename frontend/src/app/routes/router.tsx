@@ -443,31 +443,31 @@ const teacherHpSystemCohortsRoute = new Route({
 
 const teacherHpSystemDashboardRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
-  path: '/hp-system/$courseVersionId/cohort/$cohortName/activities',
+  path: '/hp-system/$courseVersionId/cohort/$cohortId/activities',
   component: HpSystemDashboard,
 })
 
 const teacherCreateHpActivityRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
-  path: '/hp-system/$courseVersionId/cohort/$cohortName/activities/create',
+  path: '/hp-system/$courseVersionId/cohort/$cohortId/activities/create',
   component: CreateHpActivityPage,
 })
 
 const teacherStudentLedgerRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
-  path: '/hp-system/$courseVersionId/cohort/$cohortName/student/$studentId/ledger',
+  path: '/hp-system/$courseVersionId/cohort/$cohortId/student/$studentId/ledger',
   component: StudentLedgerPage,
 })
 
 const teacherStudentSubmissionsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
-  path: '/hp-system/$courseVersionId/cohort/$cohortName/student/$studentId/submissions',
+  path: '/hp-system/$courseVersionId/cohort/$cohortId/student/$studentId/submissions',
   component: StudentSubmissionsPage,
 })
 
 const teacherSubmissionDetailsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
-  path: '/hp-system/$courseVersionId/cohort/$cohortName/student/$studentId/submission/$submissionId',
+  path: '/hp-system/$courseVersionId/cohort/$cohortId/student/$studentId/submission/$submissionId',
   component: SubmissionDetailsPage,
 })
 
@@ -531,13 +531,13 @@ const studentHpSystemCohortsRoute = new Route({
 // Student activities route
 const studentHpSystemActivitiesRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
-  path: '/hp-system/$courseVersionId/$cohortName/activities',
+  path: '/hp-system/$courseVersionId/$cohortId/activities',
   component: StudentActivities,
 });
 
 const studentHpSystemSubmissionsRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
-  path: '/hp-system/$courseVersionId/$cohortName/submissions',
+  path: '/hp-system/$courseVersionId/$cohortId/submissions',
   component: StudentSubmissions,
 });
 
@@ -549,7 +549,7 @@ const studentHpSystemLedgerRoute = new Route({
 
 const studentHpSystemActivitiesDetailRoute = new Route({
   getParentRoute: () =>studentLayoutRoute,
-  path: '/hp-system/$courseVersionId/$cohortName/activities/$activityId',
+  path: '/hp-system/$courseVersionId/$cohortId/activities/$activityId',
   component: StudentActivityDetail,
 });
 // export const studentCourseInviteRegistration = new Route({

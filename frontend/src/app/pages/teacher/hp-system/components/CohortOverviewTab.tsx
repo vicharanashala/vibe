@@ -10,11 +10,11 @@ import { ProgressChart } from "./dashboard/ProgressChart";
 
 interface CohortOverviewTabProps {
     courseVersionId: string;
-    cohortName: string;
+    cohortId: string;
 }
 
-export function CohortOverviewTab({ courseVersionId, cohortName }: CohortOverviewTabProps) {
-    const { data: stats, isLoading, error } = useHpCohortOverviewStats(courseVersionId, cohortName);
+export function CohortOverviewTab({ courseVersionId, cohortId }: CohortOverviewTabProps) {
+    const { data: stats, isLoading, error } = useHpCohortOverviewStats(courseVersionId, cohortId);
 
     // const [, setFilters] = useState<FilterState>({
     //     dateRange: '30days',
@@ -96,7 +96,7 @@ export function CohortOverviewTab({ courseVersionId, cohortName }: CohortOvervie
                     <Card>
                         <CardHeader>
                             <CardTitle>Activity Completion Rates</CardTitle>
-                            <CardDescription>Status breakdown per activity for {decodeURIComponent(cohortName)}</CardDescription>
+                            <CardDescription>Status breakdown per activity for Dashboard</CardDescription>
                         </CardHeader>
                         <CardContent className="pl-2">
                             <div className="h-[300px] w-full">

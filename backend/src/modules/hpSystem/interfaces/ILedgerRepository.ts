@@ -11,7 +11,7 @@ export interface ILedgerRepository {
     listByStudentId(
         studentId: string,
         filter: FilterQueryDto,
-        cohortName: string,
+        cohortId: string,
         role: EnrollmentRole,
     ): Promise<{
         data: HpLedgerTransformer[];
@@ -30,7 +30,7 @@ export interface ILedgerRepository {
     findBySubmissionIds(submissionIds: string[]): Promise<HpLedger[]>
 
     getHpDistributionForCohort(
-        cohortName: string,
+        cohortId: string,
         courseVersionId: string,
         session?: ClientSession
     ): Promise<{
@@ -39,6 +39,7 @@ export interface ILedgerRepository {
         high: number;
         veryHigh: number;
     }>;
-
+    findRestoreBySubmissionId(submissionId: string): Promise<HpLedger | null>;
+    findDebitBySubmissionId(submissionId: string): Promise<HpLedger | null>;
 
 }

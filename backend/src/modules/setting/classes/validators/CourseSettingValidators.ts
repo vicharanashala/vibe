@@ -179,6 +179,16 @@ export class SettingsDto {
     default: false,
   })
   isPublic?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether the course items can be randomized or not',
+    examples: [true, false],
+    default: false,
+  })
+  randomizeItems?: boolean;
+
   // jsonSchema?:any
   // uiSchema?:any
   @IsOptional()
@@ -397,6 +407,15 @@ export class AddCourseProctoringBody {
     default: 0,
   })
   baseHp?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether the course items can be randomized or not',
+    examples: [true, false],
+    default: false,
+  })
+  randomizeItems?: boolean;
 }
 
 // This class represents the validation schema of Parameters for removing proctoring from a course.

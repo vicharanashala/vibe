@@ -24,6 +24,8 @@ import {
 } from '#root/shared/database/interfaces/index.js';
 import { EnrollmentRepository } from '#root/shared/index.js';
 import { ObjectId } from 'mongodb';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import { CourseSettingService } from '#root/modules/setting/index.js';
 
 @injectable()
 export class ModuleService extends BaseService {
@@ -36,6 +38,9 @@ export class ModuleService extends BaseService {
 
     @inject(COURSES_TYPES.ItemRepo)
     private readonly itemRepo: IItemRepository,
+
+    @inject(SETTING_TYPES.CourseSettingService)
+    private readonly courseSettingService: CourseSettingService,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
@@ -153,10 +158,17 @@ export class ModuleService extends BaseService {
     body: MoveModuleBody,
   ) {
     return this._withTransaction(async session => {
-      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+      const [versionStatus,isLinearProgressionEnabled]=await Promise.all(
+        [this.courseRepo.getCourseVersionStatus(versionId,session),
+        this.courseSettingService.isLinearProgressionEnabledByVersionId(versionId,session)]
+      );
 
       if(versionStatus==="archived"){
         throw new ForbiddenError("This course version is archived and cannot be modified.");
+      }
+
+      if(isLinearProgressionEnabled){
+        throw new ForbiddenError("Cannot re-order modules, because Linear progression is enabled")
       }
       const { afterModuleId, beforeModuleId } = body;
       if (!afterModuleId && !beforeModuleId) {

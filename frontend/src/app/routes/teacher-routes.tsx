@@ -119,16 +119,16 @@ const teacherRoutes: RouteObject = {
       path: "hp-system/:courseVersionId/cohorts",
       element: <HpSystemCohorts />
     }, {
-      path: "hp-system/:courseVersionId/cohort/:cohortName/activities",
+      path: "hp-system/:courseVersionId/cohort/:cohortId/activities",
       element: <HpSystemDashboard />
     }, {
-      path: "hp-system/:courseVersionId/cohort/:cohortName/student/:studentId/ledger",
+      path: "hp-system/:courseVersionId/cohort/:cohortId/student/:studentId/ledger",
       element: <StudentLedgerPage />
     }, {
-      path: "hp-system/:courseVersionId/cohort/:cohortName/student/:studentId/submissions",
+      path: "hp-system/:courseVersionId/cohort/:cohortId/student/:studentId/submissions",
       element: <StudentSubmissionsPage />
     }, {
-      path: "hp-system/:courseVersionId/cohort/:cohortName/student/:studentId/submission/:submissionId",
+      path: "hp-system/:courseVersionId/cohort/:cohortId/student/:studentId/submission/:submissionId",
       element: <SubmissionDetailsPage />
     }
   ],

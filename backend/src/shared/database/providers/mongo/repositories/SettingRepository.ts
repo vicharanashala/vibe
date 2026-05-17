@@ -24,6 +24,7 @@ import {
 } from '#root/modules/setting/classes/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {NotFoundError} from 'routing-controllers';
+import { toObjectId } from '#root/modules/hpSystem/utils/toObjectId.js';
 
 /**
  * Implementation of the Settings Repository for MongoDB.
@@ -274,6 +275,7 @@ export class SettingRepository implements ISettingRepository {
     hpSystem: boolean,
     isPublic: boolean,
     baseHp: number,
+    randomizeItems: boolean,
     audit: AuditingDto,
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
@@ -332,6 +334,7 @@ export class SettingRepository implements ISettingRepository {
           'settings.hpSystem': hpSystem,
           'settings.isPublic': isPublic,
           'settings.baseHp': baseHp,
+          'settings.randomizeItems': randomizeItems,
         },
         $push: {
           'settings.audit': audit,
@@ -979,4 +982,23 @@ export class SettingRepository implements ISettingRepository {
     const result=await this.courseSettingsCollection.findOne({courseVersionId:courseVersionId});
     return result.settings?.hpSystem ?? false;
   }
+
+  async isLinearProgressionEnabledByVersionId(
+    courseVersionId: string,
+    session?: ClientSession
+  ): Promise<boolean>{
+    await this.init();
+    const versionId = toObjectId(courseVersionId,"versionId")
+    const result = await this.courseSettingsCollection.findOne({courseVersionId:versionId},{session});
+    return result.settings.linearProgressionEnabled;
+   }
+
+   async shouldRandomize(versionId:string): Promise<boolean>{
+    const courseVersionId = toObjectId(versionId,"courseVersionId");
+    const result = await this.courseSettingsCollection.findOne({courseVersionId:courseVersionId});
+    const randomizeItems = result?.settings?.randomizeItems ?? false;
+    const linearProgression = result?.settings?.linearProgressionEnabled ?? false;
+
+    return randomizeItems && !linearProgression;
+   }
 }

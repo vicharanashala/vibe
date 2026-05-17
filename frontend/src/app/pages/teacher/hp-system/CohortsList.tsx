@@ -63,12 +63,12 @@ export default function HpSystemCohorts() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {cohorts.map((c) => (
                     <Card
-                        key={c.cohortName}
+                        key={c.cohortId}
                         className="relative group overflow-hidden cursor-pointer hover:border-primary transition-all hover:shadow-lg"
                         onClick={() =>
                             navigate({
                                 to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(
-                                    c.cohortName
+                                    c.cohortId
                                 )}/activities`,
                                 state: { from }
                             })

@@ -20,10 +20,16 @@ export class CreateActivityBody {
     courseVersionId!: string;
 
     @IsString()
+    @IsOptional()
     courseId!: string;
 
     @IsString()
-    cohort!: string;
+    @IsOptional()
+    cohortId?: string;
+
+    @IsString()
+    @IsOptional()
+    cohort?: string;
 
     // Content
     @IsString()
@@ -69,10 +75,13 @@ export class CreateActivityBody {
 }
 
 export class CreateActivityWithRuleBody{
-    
-    activity: CreateActivityBody;
+    @ValidateNested()
+    @Type(() => CreateActivityBody)
+    activity!: CreateActivityBody;
 
-    ruleConfig: CreateHpRuleConfigBody
+    @ValidateNested()
+    @Type(() => CreateHpRuleConfigBody)
+    ruleConfig!: CreateHpRuleConfigBody;
 }
 
 export class UpdateActivityBody {
@@ -122,6 +131,10 @@ export class UpdateActivityBody {
 
     @IsOptional()
     @IsString()
+    cohortId?: string;
+
+    @IsOptional()
+    @IsString()
     cohort?: string;
 
     @IsOptional()
@@ -134,16 +147,16 @@ export class UpdateActivityBody {
 
 export class ListActivitiesQuery {
     @IsOptional()
-    @IsMongoId({ message: "courseId must be a valid MongoDB ObjectId" })
+    @IsString({ message: "courseId must be a string" })
     courseId?: string;
 
     @IsOptional()
-    @IsMongoId({ message: "courseVersionId must be a valid MongoDB ObjectId" })
+    @IsString({ message: "courseVersionId must be a string" })
     courseVersionId?: string;
 
     @IsOptional()
-    @IsString({ message: "cohort must be a string" })
-    cohort?: string;
+    @IsString({ message: "cohortId must be a string" })
+    cohortId?: string;
 
     @IsOptional()
     @IsEnum(["DRAFT", "PUBLISHED", "ARCHIVED"], {

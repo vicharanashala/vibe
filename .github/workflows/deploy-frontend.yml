@@ -1,11 +1,7 @@
 name: Deploy Frontend to Firebase (Staging & Optional Production)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "frontend/**"
-      - ".github/workflows/deploy-frontend.yml"
+
   workflow_dispatch:
     inputs:
       deploy_production:
@@ -114,15 +110,13 @@ jobs:
           path: ./frontend/dist
           retention-days: 1
 
-
-
   deploy-staging:
     name: Deploy to Firebase (Staging)
+    if: github.event_name == 'workflow_dispatch'   # ✅ KEY CHANGE
     needs: [build]
     runs-on: ubuntu-latest
     environment:
       name: staging
-      # url: https://your-staging-url.firebaseapp.com # TODO: (optional)
     steps:
       - uses: actions/checkout@v4
         with:
@@ -153,12 +147,11 @@ jobs:
 
   deploy-production:
     name: Deploy to Firebase (Production)
-    if: github.event.inputs.deploy_production == 'true'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_production == 'true'
     needs: [build]
     runs-on: ubuntu-latest
     environment:
       name: production
-      # url: https://your-production-url.firebaseapp.com # TODO: (optional)
     steps:
       - uses: actions/checkout@v4
         with:

@@ -474,17 +474,28 @@ export class GenAIService extends BaseService {
         throw new NotFoundError(`Task data for job ID ${jobId} not found`);
       }
 
-      // ✅ Default to last index if not specified
-      const resolvedIndex =
-        index !== undefined ? index : task.segmentation.length - 1;
+      // Initialize segmentation array if it doesn't exist 
+      if (!task.segmentation || task.segmentation.length === 0) {
+        const lastTranscript = task.transcriptGeneration?.[task.transcriptGeneration.length - 1];
+        task.segmentation = [
+          {
+            status: TaskStatus.COMPLETED,
+            segmentationMap: segmentMap,
+            transcriptFileUrl: lastTranscript?.fileUrl,
+          },
+        ];
+      } else {
+        const resolvedIndex =
+          index !== undefined ? index : task.segmentation.length - 1;
 
-      if (resolvedIndex < 0 || resolvedIndex >= task.segmentation.length) {
-        throw new BadRequestError(
-          `Invalid index: ${resolvedIndex}. Segmentation has ${task.segmentation.length} items.`,
-        );
+        if (resolvedIndex < 0 || resolvedIndex >= task.segmentation.length) {
+          throw new BadRequestError(
+            `Invalid index: ${resolvedIndex}. Segmentation has ${task.segmentation.length} items.`,
+          );
+        }
+
+        task.segmentation[resolvedIndex].segmentationMap = segmentMap;
       }
-
-      task.segmentation[resolvedIndex].segmentationMap = segmentMap;
 
       const updatedTask = await this.genAIRepository.updateTaskData(
         jobId,
@@ -495,6 +506,15 @@ export class GenAIService extends BaseService {
         throw new InternalServerError(
           `Failed to update task for job ID ${jobId}`,
         );
+      }
+      const job = await this.genAIRepository.getById(jobId, session);
+      if (job) {
+        job.jobStatus.segmentation = TaskStatus.COMPLETED;
+        // Optionally set the next task to WAITING if it was PENDING
+        if (job.jobStatus.questionGeneration === TaskStatus.PENDING) {
+          job.jobStatus.questionGeneration = TaskStatus.WAITING;
+        }
+        await this.genAIRepository.update(jobId, job, session);
       }
     });
   }

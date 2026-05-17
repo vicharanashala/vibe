@@ -237,6 +237,12 @@ export class HpActivitySubmission {
     courseVersionId: ID;
 
     @Expose()
+    @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+    @Transform(StringToObjectId.transformer, { toClassOnly: true })
+    @JSONSchema({ title: 'Cohort ID', type: 'string' })
+    cohortId: ID;
+
+    @Expose()
     @IsString()
     @JSONSchema({ title: 'Cohort', type: 'string', example: 'JAN-2026' })
     cohort: string;

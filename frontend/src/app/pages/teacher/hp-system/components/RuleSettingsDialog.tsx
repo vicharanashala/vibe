@@ -30,7 +30,7 @@ interface RuleSettingsDialogProps {
     onOpenChange: (open: boolean) => void;
     courseId: string;
     courseVersionId: string;
-    cohortName: string;
+    cohortId: string;
     activityId: string;
 }
 
@@ -39,7 +39,7 @@ export function RuleSettingsDialog({
     onOpenChange,
     courseId,
     courseVersionId,
-    cohortName,
+    cohortId,
     activityId,
 }: RuleSettingsDialogProps) {
     const [config, setConfig] = useState<Partial<HpRuleConfig> | null>(null);
@@ -52,7 +52,7 @@ export function RuleSettingsDialog({
 
     // Hooks
     const { data: existingConfig, isLoading: fetchLoading, refetch } = useHpRuleConfig(isOpen ? activityId : undefined);
-    const { data: activities = [] } = useHpActivities(courseVersionId, cohortName, "", "");
+    const { data: activities = [] } = useHpActivities(courseVersionId, cohortId, "", "");
     const activity = activities.find((a: HpActivity) => a._id === activityId);
     const { mutateAsync: createRuleConfig, isPending: isCreating } = useCreateHpRuleConfig();
     const { mutateAsync: updateRuleConfig, isPending: isUpdating } = useUpdateHpRuleConfig();
@@ -591,67 +591,54 @@ export function RuleSettingsDialog({
                                 </p>
                             </div>
                         )}
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-2">
-                                <h4 className="text-sm font-semibold uppercase tracking-wider text-foreground">
+                        {activity?.activityType !== "VIBE_MILESTONE" && 
+                            <div className="space-y-4">
+                                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                                     Submission Requirements
                                 </h4>
 
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Info className="h-4 w-4 text-muted-foreground cursor-pointer" />
-                                        </TooltipTrigger>
-                                        <TooltipContent className="max-w-xs text-xs text-black">
-                                            These are the fields that will be shown to students when submitting this activity.
-                                            You can enable or disable the options to control whether each field is required
-                                            or optional for students during submission.
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
-
-                                {[
+                                <div className="grid grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
+                                    
+                                    {[
                                     { label: "Text Response", value: SubmissionField.TEXT },
                                     { label: "PDF Upload", value: SubmissionField.PDF },
                                     { label: "Images", value: SubmissionField.IMAGE },
                                     { label: "URL Links", value: SubmissionField.URL },
-                                ].map((item) => {
+                                    ].map((item) => {
                                     const selected = config?.submissionValidation || [];
 
                                     return (
                                         <div key={item.value} className="flex items-center justify-between">
-                                            <Label>{item.label}</Label>
-                                            <Switch
-                                                checked={selected.includes(item.value)}
-                                                onCheckedChange={(checked) => {
-                                                    let updated = [...selected];
+                                        <Label>{item.label}</Label>
+                                        <Switch
+                                            checked={selected.includes(item.value)}
+                                            onCheckedChange={(checked) => {
+                                            let updated = [...selected];
 
-                                                    if (checked) {
-                                                        updated.push(item.value);
-                                                    } else {
-                                                        updated = updated.filter(v => v !== item.value);
-                                                    }
+                                            if (checked) {
+                                                updated.push(item.value);
+                                            } else {
+                                                updated = updated.filter(v => v !== item.value);
+                                            }
 
-                                                    // ❗ Prevent removing all
-                                                    if (updated.length === 0) {
-                                                        toast.error("At least one submission field must be required");
-                                                        return;
-                                                    }
+                                            // ❗ Prevent removing all
+                                            if (updated.length === 0) {
+                                                toast.error("At least one submission field must be required");
+                                                return;
+                                            }
 
-                                                    setConfig(prev => ({
-                                                        ...prev,
-                                                        submissionValidation: updated
-                                                    }));
-                                                }}
-                                            />
+                                            setConfig(prev => ({
+                                                ...prev,
+                                                submissionValidation: updated
+                                            }));
+                                            }}
+                                        />
                                         </div>
                                     );
-                                })}
+                                    })}
+                                </div>
                             </div>
-                        </div>
+                        }
                     </div>
                 )}
                 {saveError && (

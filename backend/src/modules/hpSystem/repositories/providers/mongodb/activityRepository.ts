@@ -91,7 +91,7 @@ export class ActivityRepository implements IActivityRepository {
     if (filters.courseId) q.courseId = new ObjectId(filters.courseId);
     if (filters.courseVersionId)
       q.courseVersionId = new ObjectId(filters.courseVersionId);
-    if (filters.cohort) q.cohort = filters.cohort;
+    if (filters.cohortId) q.cohortId = new ObjectId(filters.cohortId);
     if (filters.status) q.status = filters.status;
     if (filters.activity) q.activityType = filters.activity;
     if (filters.createdByTeacherId)
@@ -193,6 +193,7 @@ export class ActivityRepository implements IActivityRepository {
       activity._id = doc._id;
       activity.courseId = doc.courseId;
       activity.courseVersionId = doc.courseVersionId;
+      activity.cohortId = doc.cohortId;
       activity.cohort = doc.cohort;
       activity.title = doc.title;
       activity.description = doc.description;
@@ -328,58 +329,67 @@ export class ActivityRepository implements IActivityRepository {
     return { modifiedCount: res.modifiedCount ?? 0 };
   }
 
-  async getLatestActivityByCohortName(
-    cohortName: string,
+  async getLatestActivityByCohortId(
+    cohortId: string,
   ): Promise<HpActivity | null> {
     await this.init();
+
+    if (!ObjectId.isValid(cohortId)) return null;
+
     return await this.hpActivityCollection.findOne(
       {
-        cohort: cohortName,
+        cohortId: new ObjectId(cohortId),
       },
       { sort: { createdAt: -1 } },
     );
   }
 
-  async getDraftCountByCohortName(cohortName: string, courseVersionId?: string): Promise<number> {
+  async getDraftCountByCohortId(cohortId: string, courseVersionId?: string): Promise<number> {
     await this.init();
 
+    if (!ObjectId.isValid(cohortId)) return 0;
+
     const query: any = {
-      cohort: cohortName,
+      cohortId: new ObjectId(cohortId),
       status: "DRAFT",
       isDeleted: { $ne: true },
     };
 
-    if (courseVersionId) {
+    if (courseVersionId && ObjectId.isValid(courseVersionId)) {
       query.courseVersionId = new ObjectId(courseVersionId);
     }
 
     return await this.hpActivityCollection.countDocuments(query);
   }
-  async getPublishedCountByCohortName(cohortName: string, courseVersionId?: string): Promise<number> {
+  async getPublishedCountByCohortId(cohortId: string, courseVersionId?: string): Promise<number> {
     await this.init();
 
+    if (!ObjectId.isValid(cohortId)) return 0;
+
     const query: any = {
-      cohort: cohortName,
+      cohortId: new ObjectId(cohortId),
       status: "PUBLISHED",
       isDeleted: { $ne: true },
     };
 
-    if (courseVersionId) {
+    if (courseVersionId && ObjectId.isValid(courseVersionId)) {
       query.courseVersionId = new ObjectId(courseVersionId);
     }
 
     return await this.hpActivityCollection.countDocuments(query);
   }
 
-  async getCountByCohortName(cohortName: string, courseVersionId?: string, session?: ClientSession): Promise<number> {
+  async getCountByCohortId(cohortId: string, courseVersionId?: string, session?: ClientSession): Promise<number> {
     await this.init();
 
+    if (!ObjectId.isValid(cohortId)) return 0;
+
     const query: any = {
-      cohort: cohortName,
+      cohortId: new ObjectId(cohortId),
       isDeleted: { $ne: true },
     };
 
-    if (courseVersionId) {
+    if (courseVersionId && ObjectId.isValid(courseVersionId)) {
       query.courseVersionId = new ObjectId(courseVersionId);
     }
 
@@ -390,7 +400,7 @@ export class ActivityRepository implements IActivityRepository {
     studentId: string,
     courseId: string,
     courseVersionId: string,
-    cohortName: string,
+    cohortId: string,
   ): Promise<number> {
     await this.init();
 
@@ -401,7 +411,7 @@ export class ActivityRepository implements IActivityRepository {
             courseId: new ObjectId(courseId),
             courseVersionId: new ObjectId(courseVersionId),
             isDeleted: { $ne: true },
-            cohort: cohortName
+            cohortId: new ObjectId(cohortId)
           },
         },
         {
@@ -440,5 +450,123 @@ export class ActivityRepository implements IActivityRepository {
   async deleteById(activityId: string, session?: ClientSession): Promise<void> {
     await this.init()
     await this.hpActivityCollection.deleteOne({ _id: new ObjectId(activityId) }, { session })
+  }
+
+  
+  async getUpcomingDeadlinesForStudent(
+    studentId: string,
+    cohortIdOrName: string,
+    courseVersionId: string,
+    days: number = 7,
+    limit: number = 5,
+    session?: ClientSession
+  ): Promise<Array<{
+    activityTitle: string;
+    deadlineDate: string;
+    daysLeft: number;
+  }>> {
+    await this.init();
+
+    const today = new Date();
+    const futureDate = new Date(today);
+    futureDate.setDate(today.getDate() + days);
+
+    // Get activities with deadlines within the specified days
+    // Exclude activities where student already has approved submission
+    const pipeline = [
+      {
+        $match: {
+          cohortId: new ObjectId(cohortIdOrName),
+          courseVersionId: new ObjectId(courseVersionId),
+          status: "PUBLISHED",
+          isDeleted: { $ne: true }
+        }
+      },
+      {
+        $lookup: {
+          from: "hp_activity_rules",
+          let: { activityId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$activityId", "$$activityId"] },
+                    { $ne: ["$isDeleted", true] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: "rules"
+        }
+      },
+      {
+        $unwind: {
+          path: "$rules",
+          preserveNullAndEmptyArrays: false
+        }
+      },
+      {
+        $match: {
+          "rules.deadlineAt": {
+            $gte: today,
+            $lte: futureDate
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: "hp_activity_submissions",
+          let: { activityId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$activityId", "$$activityId"] },
+                    { $eq: ["$studentId", new ObjectId(studentId)] },
+                    { $eq: ["$status", "APPROVED"] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: "approvedSubmission"
+        }
+      },
+      {
+        $match: {
+          approvedSubmission: { $size: 0 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          activityTitle: "$title",
+          deadlineDate: { $toString: "$rules.deadlineAt" },
+          daysLeft: {
+            $ceil: {
+              $divide: [
+                { $subtract: ["$rules.deadlineAt", today] },
+                1000 * 60 * 60 * 24
+              ]
+            }
+          }
+        }
+      },
+      { $sort: { daysLeft: 1 } },
+      { $limit: limit }
+    ];
+
+    const result = await this.hpActivityCollection.aggregate(pipeline, { session }).toArray();
+
+    const mapped = result.map(r => ({
+      activityTitle: r.activityTitle,
+      deadlineDate: r.deadlineDate,
+      daysLeft: Math.max(0, r.daysLeft)
+    }));
+
+    return mapped;
   }
 }

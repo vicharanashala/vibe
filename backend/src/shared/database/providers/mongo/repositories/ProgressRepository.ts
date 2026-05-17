@@ -173,7 +173,7 @@ class ProgressRepository {
           userId: new ObjectId(userId),
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
-          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
           itemId: new ObjectId(itemId),
           endTime: { $exists: true, $ne: null },
           isDeleted: { $ne: true },

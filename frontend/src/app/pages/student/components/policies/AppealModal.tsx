@@ -1,5 +1,5 @@
 import {useState, useRef} from 'react';
-import {Dialog, DialogContent, DialogHeader, DialogTitle} from '@/components/ui/dialog';
+import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from '@/components/ui/dialog';
 import {Button} from '@/components/ui/button';
 import {Textarea} from '@/components/ui/textarea';
 import {ImagePlus, X} from 'lucide-react';
@@ -54,6 +54,9 @@ export function AppealModal({isOpen, onClose, onSubmit, enrollmentId}: Props) {
         <DialogHeader>
           <DialogTitle>Submit Appeal</DialogTitle>
         </DialogHeader>
+        <DialogDescription className='my-2'>
+          Submit an appeal here, in order to state the reason as to why you weren't able to successfully follow the course.
+        </DialogDescription>
 
         <div className="space-y-4 mt-4">
           <Textarea

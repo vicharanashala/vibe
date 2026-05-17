@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 
 export default function StudentLedgerPage() {
-    const { courseVersionId, cohortName, studentId } = useParams({ strict: false });
+    const { courseVersionId, cohortId, studentId } = useParams({ strict: false });
     const navigate = useNavigate();
     const [selectedEntry, setSelectedEntry] = useState<any>(null);
     
@@ -57,7 +57,7 @@ export default function StudentLedgerPage() {
 
     // 2. Resolve Effective IDs (Real DB IDs) for the API call
     const { courseId: effectiveCourseId, courseVersionId: effectiveVersionId } = getEffectiveIds(
-        cohortName || "",
+        cohortId || "",
         rawCourseId,
         courseVersionId || ""
     );
@@ -65,7 +65,7 @@ export default function StudentLedgerPage() {
     // 3. Fetch Ledger Data
     const { data: ledger = [], studentDetails, isLoading: isLoadingLedger, error, refetch, isRefetching } = useHpStudentLedger(
         studentId || "",
-        cohortName || "",
+        cohortId || "",
         effectiveCourseId,
         effectiveVersionId
     );
@@ -75,7 +75,7 @@ export default function StudentLedgerPage() {
     // 4. Fetch Activities to map IDs to Titles
     const { data: activities = [], isLoading: isLoadingActivities } = useHpActivities(
         effectiveVersionId,
-        cohortName || ""
+        cohortId || ""
     );
 
     const activityMap = useMemo(() => {
@@ -175,7 +175,7 @@ export default function StudentLedgerPage() {
                     variant="outline"
                     size="icon"
                     onClick={() => navigate({
-                        to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/activities`
+                        to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortId || '')}/activities`
                     })}
                 >
                     <ArrowLeft className="h-4 w-4" />
@@ -183,8 +183,7 @@ export default function StudentLedgerPage() {
                 <div className="flex-1">
                     <h2 className="text-2xl font-bold tracking-tight">HP History</h2>
                     <p className="text-muted-foreground">
-                        Transaction ledger for {decodeURIComponent(cohortName || '')}
-                    </p>
+                        Transaction ledger for Dashboard</p>
                 </div>
                 <Button
                     variant="outline"
@@ -461,12 +460,14 @@ export default function StudentLedgerPage() {
                             </div>
                         </div>
                     )}
-                    <Button className="w-full" onClick={() => navigate({ 
-                            to: selectedEntry?.submissionId 
-                                ? `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/student/${studentId}/submission/${selectedEntry.submissionId}`
-                                : `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/student/${studentId}/submissions`
-                        })}>View Submission
-                    </Button>
+                    {selectedEntry?.eventType!== "BASE_INIT" && selectedEntry?.eventType!=="RESET" &&
+                        <Button className="w-full" onClick={() => navigate({ 
+                                to: selectedEntry?.submissionId 
+                                    ? `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/student/${studentId}/submission/${selectedEntry.submissionId}`
+                                    : `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/student/${studentId}/submissions`
+                            })}>View Submission
+                        </Button>
+                    }
                 </DialogContent>
             </Dialog>
         </div>

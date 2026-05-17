@@ -29,6 +29,8 @@ const RESTRICTED_VERSION_IDS = [
   '697b4e262942654879011c57',
   '69903415e1930c015760a719',
   '69942dc6d6d99b252e3a54ff',
+  '69d2b1bc0744872b91ab54da',
+  '69d2b2e50744872b91ab641f',
 ];
 
 export default function ConfigureCohorts() {
@@ -66,6 +68,8 @@ export default function ConfigureCohorts() {
 
   const [baseHp, setBaseHp] = useState(0);
   const [safeHp, setSafeHp] = useState(0);
+  const [isHpEditEnabled, setIsHpEditEnabled] = useState(false);
+  const [isHpToggleConfirmOpen, setIsHpToggleConfirmOpen] = useState(false);
   const [baseHpError, setBaseHpError] = useState("");
   const [safeHpError, setSafeHpError] = useState("");
 
@@ -114,7 +118,7 @@ export default function ConfigureCohorts() {
         toast.error("Keep cohort name length below 50");
         return;
     }
-    const BLOCKED_COHORT_NAMES = ["euclideans", "dijkstrians", "kruskalians", "rsaians", "aksians"];
+    const BLOCKED_COHORT_NAMES = ["euclideans", "dijkstrians", "kruskalians", "rsaians", "aksians", "a", "b"];
     if (BLOCKED_COHORT_NAMES.includes(cohortName.trim().toLowerCase())) {
       setCohortError(`"${cohortName.trim()}" is a reserved cohort name and cannot be used.`);
       return;
@@ -151,11 +155,17 @@ export default function ConfigureCohorts() {
       return;
     }
 
-    if (baseHp < 0 || safeHp < 0) {
-    setBaseHpError(baseHp < 0 ? "Base HP cannot be negative" : "");
-    setSafeHpError(safeHp < 0 ? "Safe HP cannot be negative" : "");
-    return;
-  }
+    if (isHpEditEnabled) {
+      if (baseHp <= 0) {
+        setBaseHpError("Base HP must be greater than 0")
+        return
+      }
+
+      if (safeHp < 0) {
+        setSafeHpError("Safe HP cannot be negative")
+        return
+      }
+    }
 
     try{
         await updateMutation.mutateAsync({
@@ -168,8 +178,7 @@ export default function ConfigureCohorts() {
         },
         body: {
             newCohortName: cohortName.toLowerCase(),
-            baseHp,
-            safeHp
+           ...(isHpEditEnabled && { baseHp, safeHp })
           }
         })
         setIsEditOpen(false)
@@ -383,6 +392,11 @@ export default function ConfigureCohorts() {
                           setBaseHp(cohort.baseHp ?? 0)
                           setSafeHp(cohort.safeHp ?? 0)
                           setIsEditOpen(true)
+
+                          setIsHpEditEnabled(false)
+                          setBaseHpError("")
+                          setSafeHpError("")
+                          setCohortError("")
                         }}
                       >
                         <Pencil className="w-4 h-4"/>
@@ -524,14 +538,20 @@ export default function ConfigureCohorts() {
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-[500px] p-6">
+
+          {/* Header */}
           <DialogHeader className="space-y-1">
             <DialogTitle className="text-xl font-semibold">
               Edit Cohort Details
             </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Update cohort name and optionally modify HP configuration
+            </p>
           </DialogHeader>
 
           <div className="space-y-5 mt-4">
-            
+
+            {/* Cohort Name */}
             <div className="space-y-2">
               <Label>Cohort Name</Label>
               <Input
@@ -543,66 +563,100 @@ export default function ConfigureCohorts() {
               />
             </div>
 
-            <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+            {/* Toggle */}
+            <div className="flex items-center justify-between border rounded-lg p-3">
+              <div>
+                <p className="text-sm font-medium">Edit HP Configuration</p>
+                <p className="text-xs text-muted-foreground">
+                  Enable to modify Base HP and Safe HP
+                </p>
+              </div>
+
+              <Switch
+                checked={isHpEditEnabled}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setIsHpToggleConfirmOpen(true)
+                  } else {
+                    setIsHpEditEnabled(false)
+                    setBaseHpError("")
+                    setSafeHpError("")
+                  }
+                }}
+              />
+            </div>
+
+            {/* HP Section */}
+            <div
+              className={`border rounded-lg p-4 space-y-4 bg-muted/30 ${
+                !isHpEditEnabled ? "opacity-60" : ""
+              }`}
+            >
               <p className="text-sm font-medium text-muted-foreground">
                 HP Configuration
               </p>
 
               <div className="grid grid-cols-2 gap-4">
+
+                {/* Base HP */}
                 <div className="space-y-2">
                   <Label>Base HP</Label>
                   <Input
                     type="number"
                     value={baseHp}
+                    disabled={!isHpEditEnabled}
+                    className={baseHpError ? "border-red-500" : ""}
                     onChange={(e) => {
-                      const value = Number(e.target.value);
-                      setBaseHp(value);
+                      const value = Number(e.target.value)
+                      setBaseHp(value)
 
-                      if (value < 0) {
-                        setBaseHpError("Base HP cannot be negative");
+                      if (value <= 0) {
+                        setBaseHpError("Base HP must be greater than 0")
                       } else {
-                        setBaseHpError("");
+                        setBaseHpError("")
                       }
                     }}
                   />
-
                   {baseHpError && (
                     <p className="text-xs text-red-500">{baseHpError}</p>
                   )}
                 </div>
 
+                {/* Safe HP */}
                 <div className="space-y-2">
                   <Label>Safe HP</Label>
                   <Input
                     type="number"
                     value={safeHp}
+                    disabled={!isHpEditEnabled}
+                    className={safeHpError ? "border-red-500" : ""}
                     onChange={(e) => {
-                      const value = Number(e.target.value);
-                      setSafeHp(value);
+                      const value = Number(e.target.value)
+                      setSafeHp(value)
 
                       if (value < 0) {
-                        setSafeHpError("Safe HP cannot be negative");
-                      } else if (value > baseHp) {
-                        setSafeHpError("Safe HP cannot exceed Base HP");
+                        setSafeHpError("Safe HP cannot be negative")
                       } else {
-                        setSafeHpError("");
+                        setSafeHpError("")
                       }
                     }}
                   />
-
                   {safeHpError && (
                     <p className="text-xs text-red-500">{safeHpError}</p>
                   )}
                 </div>
+
               </div>
             </div>
 
+            {/* General Error */}
             {cohortError && (
               <p className="text-xs text-red-500 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" /> {cohortError}
               </p>
             )}
 
+            {/* Actions */}
             <div className="flex justify-end gap-3 pt-2">
               <Button
                 variant="outline"
@@ -619,6 +673,49 @@ export default function ConfigureCohorts() {
                   <Loader2 className="animate-spin mr-2" />
                 )}
                 Save Changes
+              </Button>
+            </div>
+
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isHpToggleConfirmOpen} onOpenChange={setIsHpToggleConfirmOpen}>
+        <DialogContent className="p-6">
+
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">Enable HP Editing?</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-3 text-sm">
+
+            <p>
+              You are about to modify HP configuration for{" "}
+              <strong>{selectedCohort?.name}</strong>.
+            </p>
+
+            <div className="bg-muted/30 p-3 rounded-md space-y-1">
+              <p>New students will receive updated Base HP on enrollment</p>
+              <p>Existing students will NOT receive additional Base HP</p>
+              <p>Safe HP determines whether a student is considered safe</p>
+              <p>Students below Safe HP are at risk</p>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3">
+              <Button
+                variant="outline"
+                onClick={() => setIsHpToggleConfirmOpen(false)}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                onClick={() => {
+                  setIsHpEditEnabled(true)
+                  setIsHpToggleConfirmOpen(false)
+                }}
+              >
+                Enable Editing
               </Button>
             </div>
 

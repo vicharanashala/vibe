@@ -3,8 +3,8 @@
 This directory contains end-to-end (E2E) tests for the frontend application
 using Playwright.
 
-The initial setup focuses on a single, fast smoke test that verifies the
-frontend application boots and renders its basic shell without crashing.
+Current coverage validates the student learning flow, including learner login,
+course traversal, lesson completion, and progress verification.
 
 ---
 
@@ -40,24 +40,37 @@ Run all E2E tests:
 pnpm --dir e2e test-e2e
 ```
 
-Run only the smoke test:
+Run only course playback + quiz traversal:
 
 ```
-pnpm --dir e2e exec  playwright test  e2e/tests/smoke.spec.ts
+pnpm --dir e2e exec playwright test tests/play-course-vidoes.test.ts
+```
+
+Note: the test file path contains a legacy typo (`vidoes`) and is kept as-is
+to avoid breaking existing references.
+
+Run progress status assertion (expects 100% completion):
+
+```
+pnpm --dir e2e exec playwright test tests/test-progress-status.test.ts
 ```
 
 ---
 
 ## Current Test Scope
 
-The current E2E coverage is intentionally minimal and limited to a smoke test:
+The current E2E coverage validates student course completion behavior:
 
-- Verifies the frontend application loads successfully
-- Confirms the application shell renders
-- Ensures the UI does not crash on startup
+- Learner authentication from the login flow
+- Course card discovery and course launch
+- Module/section/item traversal for supported lesson types
+- Video completion handling with robust playback waits
+- Quiz answering and submission loop
+- Project submission flow
+- Completion percentage assertion in progress-status scenario
 
-The smoke test does **not** validate business logic, API responses, or user
-flows. Additional E2E coverage will be added incrementally in future changes.
+The tests are UI-driven and exercise integrated behavior. They are not a full
+replacement for backend contract/API tests.
 
 ---
 
@@ -72,24 +85,39 @@ If the frontend is not running, start it with:
 vibe start frontend
 ```
 
-The following environment variables need to set in test application
+Set these environment variables for test authentication:
+
+```
 TEST_STUDENT_EMAIL=
 TEST_STUDENT_PASSWORD=
+```
 
-The following environment variables need to set in front end env file
+Optional variable for selecting a target course by title:
+
+```
+COURSE_NAME=
+```
+
+Set this in frontend env configuration for test-friendly behavior:
+
+```
 VITE_E2E_TESTING=true
+```
 
 ---
 
 ## Artifacts
 
 Playwright generates test artifacts such as screenshots, traces, and videos
-under the `e2e/` directory. These files are ignored via `.gitignore` and are
-not committed to the repository.
+under the `e2e/` directory (for example `test-results/` and
+`playwright-report/`). These files are ignored via `.gitignore` and are not
+committed to the repository.
 
 ---
 
 ## Notes
 
-- The Playwright setup is intentionally minimal to keep the smoke test fast and
-  reliable.
+- Tests run in a single worker to reduce cross-test interference for shared
+  learner/course state.
+- The course traversal helper contains resilience logic (polling and guarded
+  waits) to tolerate real-world UI/network timing variance.

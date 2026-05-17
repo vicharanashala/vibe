@@ -21,7 +21,7 @@ import {
   ICourseRepository,
 } from '#shared/index.js';
 import {getISTFormattedTimestamp} from '#root/utils/toISOFormat.js';
-import {ObjectId} from 'mongodb';
+import {ClientSession, ObjectId} from 'mongodb';
 
 /**
  * Service responsible for course settings operations.
@@ -131,6 +131,7 @@ class CourseSettingService extends BaseService {
         settings.registration = {isActive: true};
         settings.timeslots = {isActive: false, slots: []};
         settings.baseHp = 0;
+        settings.randomizeItems = false;
 
         const created = await this.createCourseSettings(
           new CourseSetting({
@@ -161,6 +162,7 @@ class CourseSettingService extends BaseService {
     hpSystem: boolean,
     isPublic: boolean,
     baseHp: number,
+    randomizeItems: boolean,
     userId: string,
   ): Promise<boolean> {
     return this._withTransaction(async session => {
@@ -188,6 +190,7 @@ class CourseSettingService extends BaseService {
         settings.isPublic = isPublic;
         settings.hpSystem = hpSystem;
         settings.baseHp = baseHp;
+        settings.randomizeItems = randomizeItems;
 
         settings.audit = [
           {
@@ -203,6 +206,7 @@ class CourseSettingService extends BaseService {
                 isPublic,
                 hpSystem,
                 baseHp,
+                randomizeItems,
               },
             },
           },
@@ -225,6 +229,8 @@ class CourseSettingService extends BaseService {
         }
         return result._id ? true : false;
       }
+      if(linearProgressionEnabled === true)
+        randomizeItems=false;
 
       const beforeState = {
         detectors: courseSettings.settings?.proctors?.detectors,
@@ -234,6 +240,7 @@ class CourseSettingService extends BaseService {
         isPublic: courseSettings.settings?.isPublic,
         hpSystem: courseSettings.settings?.hpSystem,
         baseHp: courseSettings.settings?.baseHp,
+        randomizeItems: courseSettings.settings?.randomizeItems,
       };
 
       const afterState = {
@@ -243,6 +250,7 @@ class CourseSettingService extends BaseService {
         isPublic,
         hpSystem,
         baseHp,
+        randomizeItems,
       };
 
       const audit: AuditingDto = {
@@ -264,6 +272,7 @@ class CourseSettingService extends BaseService {
         hpSystem,
         isPublic,
         baseHp,
+        randomizeItems,
         audit,
         session,
       );
@@ -348,6 +357,17 @@ class CourseSettingService extends BaseService {
       );
     });
   }
+
+  async isLinearProgressionEnabledByVersionId(
+      courseVersionId: string,
+      session?: ClientSession,
+    ): Promise<boolean> {
+      return this.settingsRepo.isLinearProgressionEnabledByVersionId(courseVersionId,session);
+    }
+
+    async shouldRandomize(versionId:string): Promise<boolean> {
+      return this.settingsRepo.shouldRandomize(versionId);
+    }
 }
 
 export {CourseSettingService};

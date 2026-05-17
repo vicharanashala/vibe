@@ -53,7 +53,7 @@ export default function StudentLedgerPage() {
     // Pick the first cohort for the API call (backend returns ALL transactions regardless)
     const firstCohort = cohorts[0];
     const { courseId: effectiveCourseId, courseVersionId: effectiveVersionId } = getEffectiveIds(
-        firstCohort?.cohortName || "",
+        firstCohort?.cohortId || "",
         firstCohort?.courseId || "",
         firstCohort?.courseVersionId || ""
     );
@@ -62,27 +62,27 @@ export default function StudentLedgerPage() {
     const { data: ledger = [], studentDetails, isLoading: isLoadingLedger, error, refetch, isRefetching } = useMyHpLedger(
         effectiveCourseId,
         effectiveVersionId,
-        firstCohort?.cohortName || ""
+        firstCohort?.cohortId || ""
     );
 
     // 3. Build a combined activity map from all cohorts for resolving activity names
     const cohortQueries = cohorts.map((c: any) => {
-        const { courseVersionId: evId } = getEffectiveIds(c.cohortName, c.courseId, c.courseVersionId);
-        return { versionId: evId, cohortName: c.cohortName };
+        const { courseVersionId: evId } = getEffectiveIds(c.cohortId, c.courseId, c.courseVersionId);
+        return { versionId: evId, cohortId: c.cohortId };
     });
 
     // Fetch activities from all cohorts to build complete activity map
     const activityQueries = useQueries({
         queries: cohortQueries.map((query) => ({
-            queryKey: ["hp-activities", query.versionId, query.cohortName],
+            queryKey: ["hp-activities", query.versionId, query.cohortId],
             queryFn: async () => {
-                const res = await hpApi.getActivities(query.versionId, query.cohortName);
+                const res = await hpApi.getActivities(query.versionId, query.cohortId);
                 if (!res.success) {
                     throw new Error(res.message || "Failed to load activities");
                 }
                 return res.data ?? [];
             },
-            enabled: !!query.versionId && !!query.cohortName,
+            enabled: !!query.versionId && !!query.cohortId,
         })),
     });
     // Combine all activities from all cohorts

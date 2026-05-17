@@ -67,11 +67,11 @@ export function AppSidebar() {
         url: "/teacher/hp-system",
         icon: SquareTerminal,
       },
-      {
-        title: "Notifications",
-        url: "/teacher/notifications",
-        icon: Bell,
-      },
+      // {
+      //   title: "Notifications",
+      //   url: "/teacher/notifications",
+      //   icon: Bell,
+      // },
     ],
   }
 

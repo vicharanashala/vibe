@@ -6,8 +6,26 @@ import { ClientSession, ObjectId } from "mongodb";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { ActivityRepository } from "../repositories/index.js";
-import { BadRequestError } from "routing-controllers";
+import { BadRequestError, NotFoundError } from "routing-controllers";
 import { IActivitySubmissionRepository } from "../interfaces/IActivitySubmissionRepository.js";
+import { HpResetMode } from "../models.js";
+
+
+const EXISTING_COHORTS_MAP: Record<string, Record<string, string>> = {
+    "000000000000000000000001": {
+        euclideans: "6968e12cbf2860d6e39051af",
+        dijkstrians: "6970f87e30644cbc74b67150",
+        kruskalians: "697b4e262942654879011c57",
+        scorchers: "69c77763b4ae917c56cf1343",
+        a: "69d2b1bc0744872b91ab54da",
+    },
+    "000000000000000000000002": {
+        rsaians: "69903415e1930c015760a719",
+        aksians: "69942dc6d6d99b252e3a54ff",
+        testians: "69c77812b4ae917c56cf227f",
+        b: "69d2b2e50744872b91ab641f",
+    },
+};
 
 
 @injectable()
@@ -42,13 +60,13 @@ export class CohortsService extends BaseService {
                     {
                         courseVersionId: "000000000000000000000001",
                         versionName: "Pinternship",
-                        totalCohorts: 3, // Euclideans, Dijkstrians, Kruskalians
+                        totalCohorts: 4, 
                         createdAt: "2025-12-18T07:52:42Z",
                     },
                     {
                         courseVersionId: "000000000000000000000002",
                         versionName: "Vinternship",
-                        totalCohorts: 2, // RSAians, AKSians
+                        totalCohorts: 3, 
                         createdAt: "2025-12-18T07:52:42Z",
                     }
                 ]
@@ -71,8 +89,12 @@ export class CohortsService extends BaseService {
                 { pseudoVersionId: "000000000000000000000001", cohortVersionId: "6968e12cbf2860d6e39051af" },
                 { pseudoVersionId: "000000000000000000000001", cohortVersionId: "6970f87e30644cbc74b67150" },
                 { pseudoVersionId: "000000000000000000000001", cohortVersionId: "697b4e262942654879011c57" },
+                { pseudoVersionId: "000000000000000000000001", cohortVersionId: "69c77763b4ae917c56cf1343" },
+                { pseudoVersionId: "000000000000000000000001", cohortVersionId: "69d2b1bc0744872b91ab54da" },
                 { pseudoVersionId: "000000000000000000000002", cohortVersionId: "69903415e1930c015760a719" },
                 { pseudoVersionId: "000000000000000000000002", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
+                { pseudoVersionId: "000000000000000000000002", cohortVersionId: "69c77812b4ae917c56cf227f" },
+                { pseudoVersionId: "000000000000000000000002", cohortVersionId: "69d2b2e50744872b91ab641f" },
             ];
 
             const enrolledPseudoIds = new Set<string>();
@@ -137,10 +159,14 @@ export class CohortsService extends BaseService {
                 { cohortName: "Euclideans", cohortVersionId: "6968e12cbf2860d6e39051af" },
                 { cohortName: "Dijkstrians", cohortVersionId: "6970f87e30644cbc74b67150" },
                 { cohortName: "Kruskalians", cohortVersionId: "697b4e262942654879011c57" },
+                { cohortName: "Scorchers", cohortVersionId: "69c77763b4ae917c56cf1343" },
+                { cohortName: "A", cohortVersionId: "69d2b1bc0744872b91ab54da" },
             ] as const;
 
             const results = await Promise.all(
                 cohorts.map(async (c) => {
+                    const cohortId = await this.cohortRepository.getCohortIdByCohortName(c.cohortName) ?? "";
+
                     const [
                         totalStudents,
                         totalActivities,
@@ -149,9 +175,9 @@ export class CohortsService extends BaseService {
                         totalHpDistributed,
                     ] = await Promise.all([
                         this.cohortRepository.getTotalStudentsCountForCourseVersion(c.cohortVersionId),
-                        this.activityRepository.getCountByCohortName(c.cohortName, versionId),
-                        this.activityRepository.getDraftCountByCohortName(c.cohortName, versionId),
-                        this.activityRepository.getPublishedCountByCohortName(c.cohortName, versionId),
+                        this.activityRepository.getCountByCohortId(cohortId, versionId),
+                        this.activityRepository.getDraftCountByCohortId(cohortId, versionId),
+                        this.activityRepository.getPublishedCountByCohortId(cohortId, versionId),
                         this.cohortRepository.getTotalHpDistributedByCohort(c.cohortVersionId)
                     ]);
 
@@ -161,6 +187,7 @@ export class CohortsService extends BaseService {
                     const overdueActivities = 0;
 
                     return {
+                        cohortId,
                         cohortName: c.cohortName,
                         courseVersionId: versionId,
                         courseId: "000000000000000000000001",
@@ -187,10 +214,14 @@ export class CohortsService extends BaseService {
             const cohorts = [
                 { cohortName: "RSAians", cohortVersionId: "69903415e1930c015760a719" },
                 { cohortName: "AKSians", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
+                { cohortName: "Testians", cohortVersionId: "69c77812b4ae917c56cf227f" },
+                { cohortName: "B", cohortVersionId: "69d2b2e50744872b91ab641f" },
             ] as const;
 
             const results = await Promise.all(
                 cohorts.map(async (c) => {
+
+                    const cohortId = await this.cohortRepository.getCohortIdByCohortName(c.cohortName) ?? "";
 
                     const [
                         totalStudents,
@@ -200,9 +231,9 @@ export class CohortsService extends BaseService {
                         totalHpDistributed,
                     ] = await Promise.all([
                         this.cohortRepository.getTotalStudentsCountForCourseVersion(c.cohortVersionId),
-                        this.activityRepository.getCountByCohortName(c.cohortName, versionId),
-                        this.activityRepository.getDraftCountByCohortName(c.cohortName, versionId),
-                        this.activityRepository.getPublishedCountByCohortName(c.cohortName, versionId),
+                        this.activityRepository.getCountByCohortId(cohortId, versionId),
+                        this.activityRepository.getDraftCountByCohortId(cohortId, versionId),
+                        this.activityRepository.getPublishedCountByCohortId(cohortId, versionId),
                         this.cohortRepository.getTotalHpDistributedByCohort(c.cohortVersionId)
                     ]);
 
@@ -212,6 +243,7 @@ export class CohortsService extends BaseService {
                     const overdueActivities = 0;
 
                     return {
+                        cohortId,
                         cohortName: c.cohortName,
                         courseVersionId: versionId,
                         courseId: "000000000000000000000001",
@@ -270,8 +302,12 @@ export class CohortsService extends BaseService {
                         { pseudoVersionId: "000000000000000000000001", cohortName: "Euclideans", cohortVersionId: "6968e12cbf2860d6e39051af" },
                         { pseudoVersionId: "000000000000000000000001", cohortName: "Dijkstrians", cohortVersionId: "6970f87e30644cbc74b67150" },
                         { pseudoVersionId: "000000000000000000000001", cohortName: "Kruskalians", cohortVersionId: "697b4e262942654879011c57" },
+                        { pseudoVersionId: "000000000000000000000001", cohortName: "Scorchers", cohortVersionId: "69c77763b4ae917c56cf1343" },
+                        { pseudoVersionId: "000000000000000000000001", cohortName: "A", cohortVersionId: "69d2b1bc0744872b91ab54da" },
                         { pseudoVersionId: "000000000000000000000002", cohortName: "RSAians", cohortVersionId: "69903415e1930c015760a719" },
                         { pseudoVersionId: "000000000000000000000002", cohortName: "AKSians", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
+                        { pseudoVersionId: "000000000000000000000002", cohortName: "Testians", cohortVersionId: "69c77812b4ae917c56cf227f" },
+                        { pseudoVersionId: "000000000000000000000002", cohortName: "B", cohortVersionId: "69d2b2e50744872b91ab641f" },
                     ];
 
 
@@ -337,13 +373,14 @@ export class CohortsService extends BaseService {
                 ] = await Promise.all([
                     this.cohortRepository.getTotalStudentsCountForCohort(courseVersionId, cohortId),
                     this.cohortRepository.getTotalHpDistributedByCohort(courseVersionId, cohortId),
-                    this.activityRepository.getCountByCohortName(cohort.name, courseVersionId),
-                    this.activityRepository.getDraftCountByCohortName(cohort.name, courseVersionId),
-                    this.activityRepository.getPublishedCountByCohortName(cohort.name, courseVersionId),
+                    this.activityRepository.getCountByCohortId(cohortId, courseVersionId),
+                    this.activityRepository.getDraftCountByCohortId(cohortId, courseVersionId),
+                    this.activityRepository.getPublishedCountByCohortId(cohortId, courseVersionId),
                 ]);
 
 
                 return {
+                    cohortId,
                     cohortName: cohort.name,
                     courseVersionId,
                     courseId: courseId,
@@ -372,29 +409,45 @@ export class CohortsService extends BaseService {
 
     private async _handleExisitingCohortStudents(
         versionId: string,
-        cohortName: string,
+        cohortId: string,
         query: CohortStudentsListQueryDto
     ): Promise<CohortStudentItemDto[] | null> {
-        // Map: parentVersionId -> cohortName -> actualCourseVersionId
-        const EXISTING_COHORTS_MAP: Record<string, Record<string, string>> = {
-            "000000000000000000000001": {
-                euclideans: "6968e12cbf2860d6e39051af",
-                dijkstrians: "6970f87e30644cbc74b67150",
-                kruskalians: "697b4e262942654879011c57",
-            },
-            "000000000000000000000002": {
-                rsaians: "69903415e1930c015760a719",
-                aksians: "69942dc6d6d99b252e3a54ff",
-            },
-        };
+        const cohortIdStr = cohortId?.trim().toLowerCase();
+        if (!cohortIdStr) return null;
 
-        const normalizedCohort = cohortName?.trim().toLowerCase();
-        if (!normalizedCohort) return null;
+        // In existing mappings, legacy pseudo-cohorts might still come in as name or just fallback to fetching their true version if cohortId matches their version.
+        // Wait, for backward compatibility, if the string isn't an ObjectId, we might need a lookup, but handleExisitingCohortStudents is only for pseudo versions.
+        // Let's rely on actual DB queries if cohortId is a MongoId.
+        
+        let actualVersionId: string | undefined;
 
-        const cohortMapForVersion = EXISTING_COHORTS_MAP[versionId];
-        if (!cohortMapForVersion) return null;
+        // Fallback for names if still passed
+        let cohortMapForVersionName = EXISTING_COHORTS_MAP[versionId]?.[cohortIdStr];
+        
+        // If not found by direct name mapping, it might be an ObjectId (i.e. resolving from DB)
+        if (!cohortMapForVersionName && ObjectId.isValid(cohortId)) {
+             const dbCohort = await this.cohortRepository.getCohortById(cohortId);
+             if (dbCohort?.name) {
+                  const dbCohortNameStr = dbCohort.name.trim().toLowerCase();
+                  cohortMapForVersionName = EXISTING_COHORTS_MAP[versionId]?.[dbCohortNameStr];
+             }
+        }
 
-        const actualVersionId = cohortMapForVersion[normalizedCohort];
+        if (cohortMapForVersionName) {
+             actualVersionId = cohortMapForVersionName;
+        }
+
+        if (!actualVersionId) {
+             // Find if cohortId is actually a versionId in our mappings
+             const versionsMap = EXISTING_COHORTS_MAP[versionId];
+             if (versionsMap) {
+                 const possibleMatchKey = Object.keys(versionsMap).find(k => versionsMap[k] === cohortId);
+                 if (possibleMatchKey) {
+                      actualVersionId = cohortId;
+                 }
+             }
+        }
+        
         if (!actualVersionId) return null;
 
         return this.cohortRepository.getStudentsForExistingCohortByVersionId(actualVersionId, query);
@@ -403,30 +456,26 @@ export class CohortsService extends BaseService {
 
     async listCohortStudents(input: {
         versionId: string;
-        cohortName: string;
+        cohortId: string;
         query?: CohortStudentsListQueryDto;
     }): Promise<CohortStudentsResponseDto> {
         return await this._withTransaction(async (session: ClientSession) => {
-            const { versionId, cohortName } = input;
+            const { versionId, cohortId } = input;
             const query = input.query ?? {};
 
             if (!versionId?.trim()) throw new BadRequestError("versionId is required");
-            if (!cohortName?.trim()) throw new BadRequestError("cohortName is required");
+            if (!cohortId?.trim()) throw new BadRequestError("cohortId is required");
 
             // 1. Try hardcoded cohorts first
-            let students = await this._handleExisitingCohortStudents(versionId, cohortName, query);
+            let students = await this._handleExisitingCohortStudents(versionId, cohortId, query);
 
             // 2. If not a hardcoded cohort, try dynamic DB cohort
             if (!students) {
-                const dbCohorts = await this.cohortRepository.getCohortsByVersionId(versionId);
-                const matchedCohort = dbCohorts.find(
-                    c => c.name.toLowerCase() === cohortName.trim().toLowerCase()
-                );
-
-                if (matchedCohort && matchedCohort._id) {
+                const resolved = await this.cohortRepository.resolveCohort(cohortId, undefined, versionId, session);
+                if (resolved) {
                     students = await this.cohortRepository.getStudentsForCohortByCohortId(
-                        versionId,
-                        matchedCohort._id.toString(),
+                        resolved.courseVersionId.toString(),
+                        resolved._id!.toString(),
                         query
                     );
                 }
@@ -460,8 +509,12 @@ export class CohortsService extends BaseService {
                 { pseudoVersionId: "000000000000000000000001", cohortName: "Euclideans", cohortVersionId: "6968e12cbf2860d6e39051af" },
                 { pseudoVersionId: "000000000000000000000001", cohortName: "Dijkstrians", cohortVersionId: "6970f87e30644cbc74b67150" },
                 { pseudoVersionId: "000000000000000000000001", cohortName: "Kruskalians", cohortVersionId: "697b4e262942654879011c57" },
+                { pseudoVersionId: "000000000000000000000001", cohortName: "Scorchers", cohortVersionId: "69c77763b4ae917c56cf1343" },
+                { pseudoVersionId: "000000000000000000000001", cohortName: "A", cohortVersionId: "69d2b1bc0744872b91ab54da" },
                 { pseudoVersionId: "000000000000000000000002", cohortName: "RSAians", cohortVersionId: "69903415e1930c015760a719" },
                 { pseudoVersionId: "000000000000000000000002", cohortName: "AKSians", cohortVersionId: "69942dc6d6d99b252e3a54ff" },
+                { pseudoVersionId: "000000000000000000000002", cohortName: "Testians", cohortVersionId: "69c77812b4ae917c56cf227f" },
+                { pseudoVersionId: "000000000000000000000002", cohortName: "B", cohortVersionId: "69d2b2e50744872b91ab641f" },
             ];
 
             for (const mapping of hardcodedMappings) {
@@ -490,8 +543,9 @@ export class CohortsService extends BaseService {
                 );
 
                 if (dynamicVersionIds.length > 0) {
+                    const validDynamicVersionIds = dynamicVersionIds.filter(id => ObjectId.isValid(id));
                     const courseSettings = await this.settingsRepository.getSettingsByVersionIds(
-                        dynamicVersionIds.map(id => new ObjectId(id))
+                        validDynamicVersionIds.map(id => new ObjectId(id))
                     );
 
                     const hpEnabledVersionIds = new Set(
@@ -596,6 +650,64 @@ export class CohortsService extends BaseService {
         success: true,
         data
     };
-}
+  }
+
+  async resetHpforCohort(
+    courseVersionId: string,
+    cohortName: string,
+    targetHp: number,
+    mode: HpResetMode,
+    triggeredByUserId: string,
+  ): Promise<number> {
+    return await this._withTransaction(async (session: ClientSession) => {
+      if (targetHp < 0) {
+        throw new BadRequestError('Target Hp can not be negative');
+      }
+
+      const resolved = await this.cohortRepository.resolveCohort(cohortName, undefined, courseVersionId, session);
+      if (!resolved) {
+        throw new NotFoundError('Cohort Not found');
+      }
+
+      return this.cohortRepository.resetHpforCohort(
+        resolved.courseVersionId.toString(),
+        resolved._id!.toString(),
+        resolved.name,
+        targetHp,
+        mode,
+        triggeredByUserId,
+        session,
+      );
+    });
+  }
+
+  async resetHpForStudent(
+    courseVersionId: string,
+    cohortName: string,
+    studentId: string,
+    targetHp: number,
+    triggeredByUserId: string,
+  ): Promise<boolean> {
+    return await this._withTransaction(async (session: ClientSession) => {
+        if (targetHp < 0) {
+        throw new BadRequestError('Target Hp can not be negative');
+        }
+
+        const resolved = await this.cohortRepository.resolveCohort(cohortName, undefined, courseVersionId, session);
+        if (!resolved) {
+            throw new NotFoundError('Cohort Not found');
+        }
+
+        return this.cohortRepository.resetHpForStudent(
+            resolved.courseVersionId.toString(),
+            resolved._id!.toString(),
+            resolved.name,
+            studentId,
+            targetHp,
+            triggeredByUserId,
+            session,
+        );
+    });
+  }
 }
 

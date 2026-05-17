@@ -87,6 +87,7 @@ class CourseService extends BaseService {
       const versionId = newVersion._id.toString();
 
       const cohortIds = await this.courseRepo.createCohorts(
+        courseId,
         versionId,
         cohorts,
         baseHp,
@@ -124,6 +125,7 @@ class CourseService extends BaseService {
           isPublic: false,
           hpSystem: hpSystem,
           baseHp: baseHp,
+          randomizeItems: false,
         },
       };
       const courseSettings = new CourseSetting(defaultSettingsPayload);

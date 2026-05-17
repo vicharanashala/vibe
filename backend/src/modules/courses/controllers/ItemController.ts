@@ -721,6 +721,7 @@ Access control logic:
             userId.toString(),
             courseId,
             versionId,
+            cohortId,
           );
 
         if (!timeSlotAccess.canAccess) {

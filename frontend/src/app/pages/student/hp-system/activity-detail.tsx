@@ -20,14 +20,14 @@ import { HpActivity, SubmissionField } from "@/lib/api/hp-system";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function StudentActivityDetail() {
-    const { courseVersionId, cohortName, activityId } = useParams({ strict: false });
+    const { courseVersionId, cohortId, activityId } = useParams({ strict: false });
     const navigate = useNavigate();
     const router = useRouterState();
     const from = router.location.state?.from;
 
     const { data: activities, isLoading, error, refetch } = useHpStudentActivities(
         courseVersionId as string,
-        cohortName as string
+        cohortId as string
     );
     const { mutateAsync: submitActivity, isPending: isSubmitting } = useSubmitActivity();
 
@@ -120,7 +120,7 @@ export default function StudentActivityDetail() {
             await submitActivity({
                 courseId: activity.courseId,
                 courseVersionId: activity.courseVersionId,
-                cohort: activity.cohort,
+                cohortId: activity.cohortId,
                 activityId: activity._id!,
                 payload: {
                     textResponse: textResponse.trim() || undefined,
@@ -132,7 +132,7 @@ export default function StudentActivityDetail() {
             } as any);
             setSubmitDialogOpen(false);
             refetch();
-            navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/activities`, state: { from } });
+            navigate({ to: `/student/hp-system/${courseVersionId}/${cohortId}/activities`, state: { from } });
         } catch (err: any) {
             setSubmitError(err.message || "Failed to submit activity");
         }
@@ -169,12 +169,12 @@ export default function StudentActivityDetail() {
 
         //         {/* Header */}
         //         <div className="flex items-center gap-4">
-        //             <Button variant="ghost" size="icon" onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/activities` , state:{from}})}>
+        //             <Button variant="ghost" size="icon" onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortId}/activities` , state:{from}})}>
         //                 <ArrowLeft className="h-5 w-5" />
         //             </Button>
         //             <div className="flex-1">
         //                 <h1 className="text-2xl font-bold tracking-tight">{activity.title}</h1>
-        //                 <p className="text-muted-foreground text-sm">{decodeURIComponent(cohortName as string)}</p>
+        //                 <p className="text-muted-foreground text-sm">Dashboard</p>
         //             </div>
         //         </div>
 
@@ -500,22 +500,22 @@ export default function StudentActivityDetail() {
 
                 {/* Header */}
                 {/* <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/activities`, state: { from } })}>
+                    <Button variant="ghost" size="icon" onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortId}/activities`, state: { from } })}>
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div className="flex-1 min-w-0">
                         <h1 className="text-xl font-medium tracking-tight truncate">{activity.title}</h1>
-                        <p className="text-muted-foreground text-sm mt-0.5">{decodeURIComponent(cohortName as string)}</p>
+                        <p className="text-muted-foreground text-sm mt-0.5">Dashboard</p>
                     </div>
                 </div> */}
 
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/activities`, state: { from } })}>
+                    <Button variant="ghost" size="icon" onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortId}/activities`, state: { from } })}>
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div className="flex-1 min-w-0">
                         <h1 className="text-xl font-medium tracking-tight truncate">{activity.title}</h1>
-                        <p className="text-muted-foreground text-sm mt-0.5">{decodeURIComponent(cohortName as string)}</p>
+                        <p className="text-muted-foreground text-sm mt-0.5">Dashboard</p>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                         {activity.isSubmitted ? (
@@ -651,7 +651,7 @@ export default function StudentActivityDetail() {
                                         </div>
                                         <div>
                                             <div className="text-xs text-green-600 dark:text-green-500 mb-1 uppercase tracking-wide">Apply When</div>
-                                            <div className="font-medium text-green-800 dark:text-green-200">{ruleConfig.reward.applyWhen.replace('_', ' ')}</div>
+                                            <div className="font-medium text-green-800 dark:text-green-200">{ruleConfig.reward.applyWhen?.replace('_', ' ') || 'N/A'}</div>
                                         </div>
                                     </div>
 
