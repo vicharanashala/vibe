@@ -1627,8 +1627,9 @@ export interface QuestionAnswersBodydto {
   courseVersionId?: string;
   watchItemId?: string;
   cohortId?: string;
+  moduleId?: string;
+  sectionId?: string;
 }
-
 
 export {
   CreateAttemptParams,

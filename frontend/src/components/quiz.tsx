@@ -713,7 +713,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           answers: answersForSubmission, isSkipped, courseId: currentCourse?.courseId,
           courseVersionId: currentCourse?.versionId,
           watchItemId: currentCourse?.watchItemId ?? undefined,
-          cohortId: currentCourse?.cohortId??''
+          cohortId: currentCourse?.cohortId??'',
+          moduleId: currentCourse?.moduleId ?? '',
+          sectionId: currentCourse?.sectionId ?? '',
         }
       };
 

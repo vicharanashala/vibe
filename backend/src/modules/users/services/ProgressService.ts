@@ -2033,6 +2033,30 @@ class ProgressService extends BaseService {
   //   }
   // }
 
+  public async validateItemAccess(
+    progress: IProgress,
+    courseVersion: any,
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    moduleId: string,
+    sectionId: string,
+    itemId: string,
+    cohortId?: string,
+  ): Promise<void> {
+    await this.validateProgressPositionOrPreviousCompleted(
+      progress,
+      courseVersion,
+      userId,
+      courseId,
+      courseVersionId,
+      moduleId,
+      sectionId,
+      itemId,
+      cohortId,
+    );
+  }
+  
   private async validateProgressPositionOrPreviousCompleted(
     progress: IProgress,
     courseVersion: any,

@@ -425,7 +425,9 @@ class AttemptService extends BaseService {
     courseId?: string,
     courseVersionId?: string,
     watchItemId?: string,
-    cohortId?: string
+    cohortId?: string,
+    moduleId?: string,
+    sectionId?: string,
   ): Promise<Partial<IGradingResult> | null> {
     /* -------------------- READS OUTSIDE TRANSACTION -------------------- */
 
@@ -455,6 +457,33 @@ class AttemptService extends BaseService {
       throw new BadRequestError(
         `Attempt with ID ${attemptId} has already been submitted`,
       );
+    }
+
+    // 3. Progress validation - check if current item matches progress or previous item is completed
+    if (courseId && courseVersionId && moduleId && sectionId) {
+      const [progress, courseVersion] = await Promise.all([
+        this.progressRepository.findProgress(
+          userId.toString(),
+          courseId,
+          courseVersionId,
+          cohortId,
+        ),
+        this.courseRepo.readVersion(courseVersionId),
+      ]);
+
+      if (progress && courseVersion) {
+        await this.progressService.validateItemAccess(
+          progress,
+          courseVersion,
+          userId.toString(),
+          courseId,
+          courseVersionId,
+          moduleId,
+          sectionId,
+          quizId,
+          cohortId,
+        );
+      }
     }
 
     /* -------------------- TRANSACTION (STATE MUTATION ONLY) -------------------- */
