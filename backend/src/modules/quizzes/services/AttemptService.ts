@@ -659,14 +659,30 @@ class AttemptService extends BaseService {
       const previousItemId = previousItem._id.toString();
       const previousItemType = previousItem.type;
 
-      // 4. Prevent feedback on feedback items
+      // 4. Check if previous video has been watched
+      if (previousItemType === 'VIDEO') {
+        const isPreviousWatched = await this.progressRepository.isItemCompleted(
+          userId,
+          courseId,
+          courseVersionId,
+          previousItemId,
+          cohortId,
+        );
+        if (!isPreviousWatched) {
+          throw new ForbiddenError(
+            'You must watch the previous video before submitting feedback.',
+          );
+        }
+      }
+
+      // 5. Prevent feedback on feedback items
       if (previousItemType === 'FEEDBACK') {
         throw new BadRequestError(
           'Feedback cannot be submitted for a previous feedback item.',
         );
       }
 
-      // 5. Validate the feedback form
+      // 6. Validate the feedback form
       const feedbackForm = await this.feedbackRepository.getFormById(
         feedbackFormId,
         session,
@@ -678,7 +694,7 @@ class AttemptService extends BaseService {
         );
       }
 
-      // 6. Check if the user already submitted feedback for this specific item
+      // 7. Check if the user already submitted feedback for this specific item
       const existingSubmission =
         await this.feedbackRepository.findByUserAndPreviousItem(
           userId.toString(),
@@ -693,7 +709,7 @@ class AttemptService extends BaseService {
       //   );
       // }
 
-      // 7. Create new feedback submission record
+      // 8. Create new feedback submission record
       const newFeedbackSubmission: FeedbackSubmissionItem = {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
