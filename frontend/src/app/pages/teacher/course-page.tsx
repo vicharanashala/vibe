@@ -1730,6 +1730,7 @@ function VersionCard({
                           setShowProctoringModal(true);
                         }}
                         disabled={isArchived}
+                        title={isArchived ? "Cannot open settings for archived version" : undefined}
                       >
                         <Settings2 className="mr-2 h-4 w-4" />
                         Settings
@@ -1737,17 +1738,6 @@ function VersionCard({
                       <DropdownMenuItem onClick={configureCohorts}>
                         <Layers className="mr-2 h-4 w-4" />
                         Configure Cohorts
-                      </DropdownMenuItem>
-
-                      <DropdownMenuItem onClick={(e) => {
-                        e.stopPropagation()
-                        setShowProctoringModal(true)
-                      }}
-                        disabled={isArchived}
-                        title={isArchived ? "Cannot open settings for archived version" : undefined}
-                      >
-                        <Settings2 className="h-4 w-4 mr-2" />
-                        Settings
                       </DropdownMenuItem>
 
                       <DropdownMenuItem onClick={viewAnomalies}>
