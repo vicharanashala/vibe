@@ -399,7 +399,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
     if (itemError && selectedItemId && itemErrorName === "ForbiddenError") {
 
-      toast.error(itemError);
+      // toast.error(itemError);
       // Clear loading state on error
       setIsNavigatingToNext(false);
       setIsItemForbidden(true);
@@ -2028,6 +2028,7 @@ useEffect(() => {
                           <AlertCircle className="h-16 w-16" />
                         </div>
                         <div className="flex-1 space-y-1">
+                          {/* 
                           <Badge variant="outline" className="border-red-50/30 bg-red-50/10 text-red-50 text-lg font-bold">
                             Access Restricted
                           </Badge>
@@ -2038,6 +2039,13 @@ useEffect(() => {
                                 ? "Returning to previous valid content."
                                 : "Complete current item first to access this content."
                             }
+                          </p>
+                          */}
+                          <Badge variant="outline" className="border-red-50/30 bg-red-50/10 text-red-50 text-lg font-bold">
+                            Lesson Locked
+                          </Badge>
+                          <p className="text-md font-medium leading-relaxed">
+                            ViBe lessons unlock in order, so you build each concept on the previous one. Please finish your current lesson to continue.
                           </p>
                         </div>
                         <Button
