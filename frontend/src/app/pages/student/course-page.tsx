@@ -1587,6 +1587,56 @@ useEffect(() => {
 
   const modules = (courseVersionData as any)?.modules || [];
 
+  const isLinearProgressionEnabled = proctoringData?.settings.linearProgressionEnabled ?? true;
+
+  const isItemLocked = (moduleId: string, sectionId: string, itemId: string): boolean => {
+    if (!isLinearProgressionEnabled) return false;
+    if (!progressData) return false;
+
+    const currentItemId = progressData.currentItem;
+    const currentSectionId = progressData.currentSection;
+    const currentModuleId = progressData.currentModule;
+
+    // Completed items are never locked
+    const sectionItemsList = sectionItems[sectionId] || [];
+    const item = sectionItemsList.find((i: any) => i._id === itemId) as any;
+    if (item?.isCompleted) return false;
+
+    // Current item is never locked
+    if (itemId === currentItemId) return false;
+
+    // Compare position in course structure
+    const allModules = (courseVersionData as any)?.modules || [];
+    const moduleIndex = allModules.findIndex((m: any) => m.moduleId === moduleId);
+    const currentModuleIndex = allModules.findIndex((m: any) => m.moduleId === currentModuleId);
+
+    if (moduleIndex > currentModuleIndex) return true;
+    if (moduleIndex < currentModuleIndex) return false;
+
+    const sections = allModules[moduleIndex]?.sections || [];
+    const sectionIndex = sections.findIndex((s: any) => s.sectionId === sectionId);
+    const currentSectionIndex = sections.findIndex((s: any) => s.sectionId === currentSectionId);
+
+    if (sectionIndex > currentSectionIndex) return true;
+    if (sectionIndex < currentSectionIndex) return false;
+
+    const itemIndex = sectionItemsList.findIndex((i: any) => i._id === itemId);
+  const currentItemIndex = sectionItemsList.findIndex((i: any) => i._id === currentItemId);
+
+  // Only unlock next item if it's a QUIZ paired with current VIDEO
+  if (itemIndex === currentItemIndex + 1) {
+    const currentItemInList = sectionItemsList[currentItemIndex] as any;
+    const thisItem = sectionItemsList[itemIndex] as any;
+    if (currentItemInList?.type === 'VIDEO' && thisItem?.type === 'QUIZ') {
+      return false; // unlock paired quiz
+    }
+    return true; // lock everything else
+  }
+
+  if (itemIndex > currentItemIndex + 1) return true;
+return false;
+  };
+
   return (
     <>
       <Dialog open={showProctorDialog} onOpenChange={(open) => {
@@ -1775,6 +1825,7 @@ useEffect(() => {
                                             ).map((item: any) => {
                                               const itemId = item._id;
                                               const isCurrentItem = itemId === selectedItemId;
+                                              const locked = isItemLocked(moduleId, sectionId, itemId);
 
                                               return (
                                                 <SidebarMenuSubItem 
@@ -1786,9 +1837,10 @@ useEffect(() => {
                                                 data-item-type={item.type?.toLowerCase()}
                                                 >
                                                   <SidebarMenuSubButton
-                                                    onClick={() => handleSelectItem(moduleId, sectionId, itemId)}
+                                                    disabled={locked}
+                                                    onClick={() => !locked && handleSelectItem(moduleId, sectionId, itemId)}
                                                     isActive={isCurrentItem}
-                                                    className="group relative h-8 px-3 w-full rounded-md transition-all duration-200 hover:bg-accent/10 dark:data-[state=active]:bg-primary/10 data-[state=active]:bg-primary/10 data-[state=active]:text-primary justify-start"
+                                                    className={`group relative h-8 px-3 w-full rounded-md transition-all duration-200 hover:bg-accent/10 dark:data-[state=active]:bg-primary/10 data-[state=active]:bg-primary/10 data-[state=active]:text-primary justify-start ${locked ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
                                                     // Assign ref only to the selected item for autoscroll
                                                     ref={isCurrentItem ? selectedItemRef : undefined}
                                                   >
@@ -1797,7 +1849,7 @@ useEffect(() => {
                                                         ? "dark:bg-primary/15 dark:text-primary bg-primary/50 text-white/80"
                                                         : "bg-accent/15 text-accent-foreground group-hover:bg-accent/25"
                                                         }`}>
-                                                        {getItemIcon(item.type)}
+                                                        {locked ? <span className="h-3 w-3">🔒</span> : getItemIcon(item.type)}
                                                       </div>
                                                       <div className="flex-1 text-left min-w-0">
                                                         <div className="text-xs font-medium truncate w-full " title={currentItem?.name || 'Loading...'}>
