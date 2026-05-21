@@ -168,19 +168,37 @@ class ProgressRepository {
     //   { session, limit: 1 },
     // );
     // } else{
-    const  existing = await this.watchTimeCollection.findOne(
+    let existing = await this.watchTimeCollection.findOne(
         {
           userId: new ObjectId(userId),
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
           itemId: new ObjectId(itemId),
           endTime: { $exists: true, $ne: null },
           isDeleted: { $ne: true },
         },
         { session, limit: 1 },
       );
-    // }
+
+    // Fallback: If not found with cohortId, try without cohortId in case of legacy progress
+    if (!existing && cohortId) {
+      existing = await this.watchTimeCollection.findOne(
+        {
+          userId: new ObjectId(userId),
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+          $or: [
+            { cohortId: null },
+            { cohortId: { $exists: false } }
+          ],
+          itemId: new ObjectId(itemId),
+          endTime: { $exists: true, $ne: null },
+          isDeleted: { $ne: true },
+        },
+        { session, limit: 1 },
+      );
+    }
 
     return existing !== null;
   }

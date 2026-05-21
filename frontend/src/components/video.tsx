@@ -404,7 +404,8 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         } catch (err: any) {
           console.error('Stop item failed:', err);
           progressStoppedRef.current = true; // Prevent infinite retries
-          toast.warning('Unable to save progress.');
+          // toast.warning('Unable to save progress.');
+          toast.warning(err.response?.data?.message || 'You must watch at least 30 seconds of this video to proceed.');
           setIsStopFailed(true);
           resolve(false);
 

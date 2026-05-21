@@ -766,6 +766,9 @@ class ProgressService extends BaseService {
     const itemsGroup = await this.itemRepo.readItemsGroup(
       itemsGroupId?.toString(),
     );
+    if (itemsGroup && itemsGroup.items) {
+      itemsGroup.items = itemsGroup.items.filter((i: any) => !i.isHidden && !i.isDeleted);
+    }
     const sortedItems = itemsGroup.items.sort((a, b) =>
       a.order.localeCompare(b.order),
     );
@@ -791,6 +794,9 @@ class ProgressService extends BaseService {
       const itemsGroup = await this.itemRepo.readItemsGroup(
         firstSection?.itemsGroupId.toString(),
       );
+      if (itemsGroup && itemsGroup.items) {
+        itemsGroup.items = itemsGroup.items.filter((i: any) => !i.isHidden && !i.isDeleted);
+      }
       const firstItem = itemsGroup.items.sort((a, b) =>
         a.order.localeCompare(b.order),
       )[0];
@@ -812,6 +818,9 @@ class ProgressService extends BaseService {
       const itemsGroup = await this.itemRepo.readItemsGroup(
         nextSection?.itemsGroupId.toString(),
       );
+      if (itemsGroup && itemsGroup.items) {
+        itemsGroup.items = itemsGroup.items.filter((i: any) => !i.isHidden && !i.isDeleted);
+      }
       const firstItem = itemsGroup.items.sort((a, b) =>
         a.order.localeCompare(b.order),
       )[0];
@@ -879,6 +888,9 @@ class ProgressService extends BaseService {
     const itemsGroup = await this.itemRepo.readItemsGroup(
       itemsGroupId?.toString(),
     );
+    if (itemsGroup && itemsGroup.items) {
+      itemsGroup.items = itemsGroup.items.filter((i: any) => !i.isHidden && !i.isDeleted);
+    }
     const sortedItems = itemsGroup.items.sort((a, b) =>
       a.order.localeCompare(b.order),
     );
@@ -902,6 +914,9 @@ class ProgressService extends BaseService {
       const itemsGroup = await this.itemRepo.readItemsGroup(
         lastSection?.itemsGroupId.toString(),
       );
+      if (itemsGroup && itemsGroup.items) {
+        itemsGroup.items = itemsGroup.items.filter((i: any) => !i.isHidden && !i.isDeleted);
+      }
       const lastItem = itemsGroup.items.sort((a, b) =>
         a.order.localeCompare(b.order),
       )[itemsGroup.items.length - 1];
@@ -921,6 +936,9 @@ class ProgressService extends BaseService {
       const itemsGroup = await this.itemRepo.readItemsGroup(
         prevSection?.itemsGroupId?.toString(),
       );
+      if (itemsGroup && itemsGroup.items) {
+        itemsGroup.items = itemsGroup.items.filter((i: any) => !i.isHidden && !i.isDeleted);
+      }
       const lastItem = itemsGroup?.items?.sort((a, b) =>
         a.order.localeCompare(b.order),
       )[itemsGroup.items.length - 1];
@@ -1015,6 +1033,8 @@ class ProgressService extends BaseService {
     );
 
     if (!itemsGroup?.items?.length) return null;
+    itemsGroup.items = itemsGroup.items.filter((i: any) => !i.isHidden && !i.isDeleted);
+    if (!itemsGroup.items.length) return null;
 
     const sortedItems = [...itemsGroup.items].sort((a, b) =>
       a.order.localeCompare(b.order),
@@ -2993,13 +3013,40 @@ class ProgressService extends BaseService {
     //  and as the stop item is not called for that quiz endtime will never be created
     // Only mark quiz as completed (set endTime) if it was actually passed
     if (isPassed) {
-      if (!watchItemId) {
-        throw new BadRequestError('Watch item ID is required to stop tracking');
+      let resolvedWatchItemId = watchItemId;
+
+      if (!resolvedWatchItemId) {
+        // Look up the most recent active watch time for this user and item
+        const activeWatchTimes = await this.progressRepository.getWatchTime(
+          userId.toString(),
+          quizId,
+          courseId,
+          courseVersionId,
+          cohortId,
+        );
+        
+        if (activeWatchTimes && activeWatchTimes.length > 0) {
+          // Find one that doesn't have an endTime
+          const active = activeWatchTimes.find(wt => !wt.endTime);
+          if (active) {
+            resolvedWatchItemId = active._id?.toString();
+          } else {
+             // If all are stopped, fallback to the latest one
+            resolvedWatchItemId = activeWatchTimes[activeWatchTimes.length - 1]._id?.toString();
+          }
+        }
       }
+
+      if (!resolvedWatchItemId) {
+        console.warn(`[handleQuizeProgressAfterSubmission] Could not resolve watchItemId for user ${userId} and quiz ${quizId}.`);
+        // If we really can't find it, we skip stopping the item.
+        return;
+      }
+
       const watchTime = await this.progressRepository.findWatchTimeById(
-        watchItemId
+        resolvedWatchItemId
       );
-      if (watchTime.itemId.toString() !== quizId) {
+      if (watchTime && watchTime.itemId.toString() !== quizId) {
         throw new BadRequestError('Watch item does not correspond to the quiz');
       }
       const isItemCompleted = await this.progressRepository.isItemCompleted(
@@ -3010,9 +3057,9 @@ class ProgressService extends BaseService {
         cohortId,
       )
 
-      if (!isItemCompleted && watchItemId) {
+      if (!isItemCompleted && resolvedWatchItemId) {
         await this.progressRepository.stopItemTracking(
-          watchItemId,
+          resolvedWatchItemId,
         );
       }
     }

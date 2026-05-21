@@ -155,8 +155,9 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
             }
 
             onNext?.(); //  only after stop succeeds
-        } catch (err) {
-            toast.error('Unable to save progress. Please try again.');
+        } catch (err: any) {
+            // toast.error('Unable to save progress. Please try again.');
+            toast.warning(err.response?.data?.message || 'You must spend more time reading this article to proceed.');
             console.error('Stop item failed:', err);
         } finally {
             setIsStopping(false);
