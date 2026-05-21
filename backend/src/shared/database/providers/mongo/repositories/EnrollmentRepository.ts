@@ -125,7 +125,7 @@ export class EnrollmentRepository {
         courseVersionId: {
           $in: [courseVersionId, new ObjectId(courseVersionId)],
         },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : { cohortId: null }),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
         isDeleted: { $ne: true },
       },
       { session },
@@ -204,7 +204,7 @@ export class EnrollmentRepository {
         courseVersionId: {
           $in: [courseVersionId, new ObjectId(courseVersionId)],
         },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : { cohortId: null }),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       { session },
     );
@@ -364,7 +364,7 @@ export class EnrollmentRepository {
         userId: { $in: userFilter },
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : { cohortId: null }),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       {
         $set: {
@@ -3844,7 +3844,7 @@ export class EnrollmentRepository {
         {
           userId: userObjectId,
           quizId: { $in: quizObjectIds },
-          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : { cohortId: null }),
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
         },
         {
           session,
