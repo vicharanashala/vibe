@@ -1096,12 +1096,14 @@ export class CourseRepository implements ICourseRepository {
 
           if (items) {
             // Delete watch time by item id
-            items.items.forEach(async item => {
-              await this.progressRepo.deleteWatchTimeByItemId(
-                item._id.toString(),
-                session,
-              );
-            });
+            await Promise.all(
+              items.items.map(item =>
+                this.progressRepo.deleteWatchTimeByItemId(
+                  item._id.toString(),
+                  session,
+                )
+              )
+            );
           }
         }
 

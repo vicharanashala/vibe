@@ -927,17 +927,9 @@ export class ItemService extends BaseService {
     body: MoveItemBody,
   ) {
     return this._withTransaction(async session => {
-      const [versionStatus,isLinearProgressionEnabled]=await Promise.all(
-        [this.courseRepo.getCourseVersionStatus(versionId,session),
-        this.courseSettingService.isLinearProgressionEnabledByVersionId(versionId,session)]);
-
-
-      if(versionStatus==="archived"){
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(versionId, session);
+      if (versionStatus === "archived") {
         throw new ForbiddenError("This course version is archived and cannot be modified.");
-      }
-
-      if(isLinearProgressionEnabled){
-        throw new ForbiddenError("Cannot re-order items, because Linear progression is enabled")
       }
       
       const { afterItemId, beforeItemId } = body;
