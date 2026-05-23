@@ -773,7 +773,7 @@ class ProgressService extends BaseService {
       a.order.localeCompare(b.order),
     );
     const lastItem = sortedItems[sortedItems.length - 1]._id;
-    if (lastItem === itemId) {
+    if (lastItem?.toString() === itemId) {
       isLastItem = true;
     }
 
@@ -895,7 +895,7 @@ class ProgressService extends BaseService {
       a.order.localeCompare(b.order),
     );
     const firstItem = sortedItems[0]._id;
-    if (firstItem === itemId) {
+    if (firstItem?.toString() === itemId) {
       isFirstItem = true;
     }
 
