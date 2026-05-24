@@ -164,6 +164,7 @@ class CourseSettingService extends BaseService {
     baseHp: number,
     randomizeItems: boolean,
     userId: string,
+    crowdsourcedQuestionSubmissionEnabled: boolean = false,
   ): Promise<boolean> {
     return this._withTransaction(async session => {
       const versionStatus =
@@ -191,6 +192,8 @@ class CourseSettingService extends BaseService {
         settings.hpSystem = hpSystem;
         settings.baseHp = baseHp;
         settings.randomizeItems = randomizeItems;
+        settings.crowdsourcedQuestionSubmissionEnabled =
+          crowdsourcedQuestionSubmissionEnabled;
 
         settings.audit = [
           {
@@ -207,6 +210,7 @@ class CourseSettingService extends BaseService {
                 hpSystem,
                 baseHp,
                 randomizeItems,
+                crowdsourcedQuestionSubmissionEnabled,
               },
             },
           },
@@ -241,6 +245,8 @@ class CourseSettingService extends BaseService {
         hpSystem: courseSettings.settings?.hpSystem,
         baseHp: courseSettings.settings?.baseHp,
         randomizeItems: courseSettings.settings?.randomizeItems,
+        crowdsourcedQuestionSubmissionEnabled:
+          courseSettings.settings?.crowdsourcedQuestionSubmissionEnabled,
       };
 
       const afterState = {
@@ -251,6 +257,7 @@ class CourseSettingService extends BaseService {
         hpSystem,
         baseHp,
         randomizeItems,
+        crowdsourcedQuestionSubmissionEnabled,
       };
 
       const audit: AuditingDto = {
@@ -275,6 +282,7 @@ class CourseSettingService extends BaseService {
         randomizeItems,
         audit,
         session,
+        crowdsourcedQuestionSubmissionEnabled,
       );
 
       if (!result) {

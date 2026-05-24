@@ -589,6 +589,7 @@ export interface ISettings {
   isPublic?: boolean;
   baseHp?: number;
   randomizeItems?: boolean;
+  crowdsourcedQuestionSubmissionEnabled?: boolean;
   // registration_settings?: IRegistrationSettings[];
   registration?: {
     jsonSchema?: any;

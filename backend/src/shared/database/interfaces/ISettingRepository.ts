@@ -67,6 +67,7 @@ export interface ISettingRepository {
     randomizeItems: boolean,
     audit: AuditingDto,
     session?: ClientSession,
+    crowdsourcedQuestionSubmissionEnabled?: boolean,
   ): Promise<UpdateResult | null>;
 
   updateRegistrationSchemas(

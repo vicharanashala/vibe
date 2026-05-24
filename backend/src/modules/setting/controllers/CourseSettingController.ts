@@ -127,6 +127,7 @@ export class CourseSettingController {
       hpSystem,
       baseHp,
       randomizeItems,
+      crowdsourcedQuestionSubmissionEnabled,
     } = body;
     const userId = user._id.toString();
 
@@ -141,6 +142,7 @@ export class CourseSettingController {
       baseHp,
       randomizeItems,
       userId,
+      crowdsourcedQuestionSubmissionEnabled ?? false,
     );
 
     setAuditTrail(req, {
@@ -161,6 +163,8 @@ export class CourseSettingController {
           dectors: detectors,
           linearProgressionEnabled: linearProgressionEnabled,
           seekForwardEnabled: seekForwardEnabled,
+          crowdsourcedQuestionSubmissionEnabled:
+            crowdsourcedQuestionSubmissionEnabled ?? false,
         },
       },
       outcome: {

@@ -1,4 +1,5 @@
 import type { questionBankRef } from './quiz.types';
+import type { PendingStudentQuestionContext } from './student-question.types';
 
 export interface Item {
   _id: string;
@@ -70,7 +71,9 @@ export interface ItemContainerProps {
   nextItem: {itemId:string};
   cohortId?: string;
   cohortname?: string;
-  previousItem?: object
+  previousItem?: object;
+  pendingStudentQuestionContext?: PendingStudentQuestionContext | null;
+  clearPendingStudentQuestionContext?: () => void;
 }
 
 export interface ItemContainerRef {

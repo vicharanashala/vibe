@@ -2139,6 +2139,7 @@ export function useEditProctoringSettings() {
     hpSystem: boolean,
     baseHp: number,
     randomizeItems: boolean,
+    crowdsourcedQuestionSubmissionEnabled: boolean = false,
   ) => {
     setLoading(true);
     setError(null);
@@ -2160,6 +2161,7 @@ export function useEditProctoringSettings() {
         hpSystem,
         baseHp,
         randomizeItems,
+        crowdsourcedQuestionSubmissionEnabled,
       };
 
       const res = await fetch(url, {
@@ -2182,6 +2184,63 @@ export function useEditProctoringSettings() {
   };
 
   return { editSettings, loading, error };
+}
+
+export function useSubmitStudentQuestion(): {
+  submitQuestion: (
+    courseId: string,
+    courseVersionId: string,
+    segmentId: string,
+    payload: import('@/types/student-question.types').StudentQuestionSubmissionPayload,
+  ) => Promise<{ questionId: string }>;
+  loading: boolean;
+  error: string | null;
+} {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submitQuestion = async (
+    courseId: string,
+    courseVersionId: string,
+    segmentId: string,
+    payload: import('@/types/student-question.types').StudentQuestionSubmissionPayload,
+  ): Promise<{ questionId: string }> => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/student-questions/courses/${courseId}/versions/${courseVersionId}/segments/${segmentId}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        let serverMessage = '';
+        try {
+          const errBody = await response.json();
+          serverMessage = errBody?.message || errBody?.error || '';
+        } catch {
+          /* response had no JSON body */
+        }
+        throw new Error(serverMessage || `Failed to submit question: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (err: any) {
+      const message = err?.message || 'Failed to submit student question';
+      setError(message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { submitQuestion, loading, error };
 }
 
 export function usePublicCourses(

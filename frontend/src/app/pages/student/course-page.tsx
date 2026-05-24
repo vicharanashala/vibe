@@ -20,6 +20,7 @@ import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
 import StudentProjectItem from "./components/StudentProjectItem";
 import type { Item, ItemContainerRef } from "@/types/item-container.types";
+import type { PendingStudentQuestionContext } from "@/types/student-question.types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuroraText } from "@/components/magicui/aurora-text";
 import confetti from "canvas-confetti";
@@ -222,6 +223,7 @@ export default function CoursePage() {
   const [isQuizSkipped, setIsQuizSkipped] = useState(false);
   const [readyToDetect, setReadyToDetect] = useState(false);
   const [isNavigatingToPrev, setIsNavigatingToPrev] = useState<boolean>(false);
+  const [pendingStudentQuestionContext, setPendingStudentQuestionContext] = useState<PendingStudentQuestionContext | null>(null);
   const completedItemIdsRef = useRef<Set<string>>(new Set());
   // State for sidebar visibility
   const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
@@ -485,6 +487,13 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
       sectionItems[waitingForNextSection.sectionId].length > 0) {
 
       const firstItem = sectionItems[waitingForNextSection.sectionId][0];
+
+      // If the first item of the newly-loaded section isn't a quiz, drop any
+      // pending pre-quiz prompt that was tentatively set before this section
+      // finished loading.
+      if (firstItem?.type?.toLowerCase() !== 'quiz') {
+        setPendingStudentQuestionContext(null);
+      }
 
       // Clear waiting state
       setWaitingForNextSection(null);
@@ -785,6 +794,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemId: string) => {
     enqueueNavigation(async () => {
       setIsNavigatingToNext(true);
+      // Sidebar navigation away cancels any pending pre-quiz prompt.
+      setPendingStudentQuestionContext(null);
 
       try {
         // Stop current item immediately
@@ -871,7 +882,13 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   };
 
   // Helper function to find the next item in the course structure
-  const findNextItem = useCallback(() => {
+  const findNextItem = useCallback((): {
+    moduleId: string;
+    sectionId: string;
+    itemId: string | null;
+    type?: string | null;
+    needsLoading?: boolean;
+  } | null => {
     if (!courseVersionData || !selectedModuleId || !selectedSectionId || !selectedItemId) {
       return null;
     }
@@ -901,7 +918,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
       return {
         moduleId: selectedModuleId,
         sectionId: selectedSectionId,
-        itemId: nextItem._id
+        itemId: nextItem._id,
+        type: nextItem.type?.toLowerCase() ?? null,
       };
     }
 
@@ -913,7 +931,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
         return {
           moduleId: selectedModuleId,
           sectionId: nextSection.sectionId,
-          itemId: nextSectionItems[0]._id
+          itemId: nextSectionItems[0]._id,
+          type: nextSectionItems[0].type?.toLowerCase() ?? null,
         };
       } else {
         // Next section exists but items not loaded - return section info to trigger loading
@@ -921,6 +940,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
           moduleId: selectedModuleId,
           sectionId: nextSection.sectionId,
           itemId: null, // Will be set after items are loaded
+          type: null,
           needsLoading: true
         };
       }
@@ -937,7 +957,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
           return {
             moduleId: nextModule.moduleId,
             sectionId: firstNextSection.sectionId,
-            itemId: nextModuleItems[0]._id
+            itemId: nextModuleItems[0]._id,
+            type: nextModuleItems[0].type?.toLowerCase() ?? null,
           };
         } else {
           // Next section exists but items not loaded - return section info to trigger loading
@@ -945,6 +966,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
             moduleId: nextModule.moduleId,
             sectionId: firstNextSection.sectionId,
             itemId: null, // Will be set after items are loaded
+            type: null,
             needsLoading: true
           };
         }
@@ -1159,7 +1181,30 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
         // 2️⃣ Determine next item
         const nextItem = findNextItem();
-       
+
+        // If a video just finished and the next item is a quiz, and the course
+        // version has crowdsourced question submission enabled, stage a pre-quiz
+        // prompt so the student can contribute an MCQ before the quiz auto-starts.
+        const justFinishedItem = sectionItems[selectedSectionId!]?.find(
+          (item: any) => item._id === selectedItemId,
+        );
+        const isVideoToQuizTransition =
+          justFinishedItem?.type?.toLowerCase() === 'video' &&
+          nextItem?.type === 'quiz';
+        if (
+          isVideoToQuizTransition &&
+          proctoringData?.settings?.crowdsourcedQuestionSubmissionEnabled === true &&
+          selectedItemId
+        ) {
+          setPendingStudentQuestionContext({
+            courseId: COURSE_ID,
+            courseVersionId: VERSION_ID,
+            segmentId: selectedItemId,
+          });
+        } else {
+          setPendingStudentQuestionContext(null);
+        }
+
         if (!nextItem) {
           console.log("🎉 Course complete");
           setIsNavigatingToNext(false);
@@ -2287,6 +2332,8 @@ return false;
                         nextItem={findNextItem()}
                         cohortId={COHORT_ID}
                         cohortName={COHORT_NAME}
+                        pendingStudentQuestionContext={pendingStudentQuestionContext}
+                        clearPendingStudentQuestionContext={() => setPendingStudentQuestionContext(null)}
                       />
                     )}
 

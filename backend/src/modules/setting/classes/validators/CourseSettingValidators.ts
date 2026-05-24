@@ -189,6 +189,15 @@ export class SettingsDto {
   })
   randomizeItems?: boolean;
 
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Enables student crowdsourced question submission after video completion',
+    examples: [true, false],
+    default: false,
+  })
+  crowdsourcedQuestionSubmissionEnabled?: boolean;
+
   // jsonSchema?:any
   // uiSchema?:any
   @IsOptional()
@@ -416,6 +425,15 @@ export class AddCourseProctoringBody {
     default: false,
   })
   randomizeItems?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Enables student crowdsourced question submission after video completion',
+    examples: [true, false],
+    default: false,
+  })
+  crowdsourcedQuestionSubmissionEnabled?: boolean;
 }
 
 // This class represents the validation schema of Parameters for removing proctoring from a course.

@@ -77,6 +77,8 @@ export interface QuizProps {
   isAlreadyWatched?: boolean;
   completedItemIdsRef: React.RefObject<Set<string>>;
   nextItemId?: string;
+  pendingStudentQuestionContext?: import('./student-question.types').PendingStudentQuestionContext | null;
+  clearPendingStudentQuestionContext?: () => void;
 }
 
 export interface QuizRef {

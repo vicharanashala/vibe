@@ -278,6 +278,7 @@ export class SettingRepository implements ISettingRepository {
     randomizeItems: boolean,
     audit: AuditingDto,
     session?: ClientSession,
+    crowdsourcedQuestionSubmissionEnabled: boolean = false,
   ): Promise<UpdateResult | null> {
     await this.init();
 
@@ -335,6 +336,8 @@ export class SettingRepository implements ISettingRepository {
           'settings.isPublic': isPublic,
           'settings.baseHp': baseHp,
           'settings.randomizeItems': randomizeItems,
+          'settings.crowdsourcedQuestionSubmissionEnabled':
+            crowdsourcedQuestionSubmissionEnabled,
         },
         $push: {
           'settings.audit': audit,

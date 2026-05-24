@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRe
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -10,7 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion, ChevronDown } from "lucide-react";
-import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, CreateAttemptResponse, SaveQuizResponse, useSkipOptionalItem } from '@/hooks/hooks';
+import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, CreateAttemptResponse, SaveQuizResponse, useSkipOptionalItem, useSubmitStudentQuestion } from '@/hooks/hooks';
+import StudentQuestionComposer from './StudentQuestionComposer';
+import type { StudentQuestionSubmissionPayload } from '@/types/student-question.types';
 import { useCourseStore } from "@/store/course-store";
 import MathRenderer from "./math-renderer";
 import { bufferToHex } from '@/utils/helpers';
@@ -55,7 +58,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   linearProgressionEnabled,
   isAlreadyWatched,
   completedItemIdsRef,
-  nextItemId
+  nextItemId,
+  pendingStudentQuestionContext,
+  clearPendingStudentQuestionContext,
 }, ref) => {
   // console.log('Quiz component rendered with props:', {});
   // ===== CORE STATE =====
@@ -83,6 +88,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [emptyQuizRedirectCountdown, setEmptyQuizRedirectCountdown] = useState<number | null>(null);
   const emptyQuizNextTimerRef = useRef<ReturnType<typeof window.setTimeout> | undefined>(undefined);
   const [finshingQuiz, setFinshingQuiz] = useState(false);
+  const [showQuestionModal, setShowQuestionModal] = useState(false);
 
   // ===== REFS AND CONSTANTS =====
   const itemStartedRef = useRef(false);
@@ -99,6 +105,38 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const stopItem = useStopItem();
   const isStopping = stopItem.isPending;
   const { mutateAsync: skipItemAsync } = useSkipOptionalItem();
+  const { submitQuestion, loading: isSubmittingQuestion } = useSubmitStudentQuestion();
+
+  const handleContinueToQuiz = useCallback(() => {
+    setShowQuestionModal(false);
+    clearPendingStudentQuestionContext?.();
+  }, [clearPendingStudentQuestionContext]);
+
+  const handleQuestionSubmit = useCallback(async (payload: StudentQuestionSubmissionPayload) => {
+    if (!pendingStudentQuestionContext) {
+      toast.error('Unable to submit question for this video.');
+      return;
+    }
+    try {
+      await submitQuestion(
+        pendingStudentQuestionContext.courseId,
+        pendingStudentQuestionContext.courseVersionId,
+        pendingStudentQuestionContext.segmentId,
+        payload,
+      );
+      toast.success('Question submitted successfully');
+      setShowQuestionModal(false);
+      clearPendingStudentQuestionContext?.();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to submit question');
+    }
+  }, [clearPendingStudentQuestionContext, pendingStudentQuestionContext, submitQuestion]);
+
+  useEffect(() => {
+    if (!pendingStudentQuestionContext) {
+      setShowQuestionModal(false);
+    }
+  }, [pendingStudentQuestionContext]);
 
   const handleSkipItem = async () => {
     if (!currentCourse?.itemId) return;
@@ -566,6 +604,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       return;
     }
 
+    // If the pre-quiz crowd-question prompt is still open, clicking "Start Quiz"
+    // implicitly skips it.
+    clearPendingStudentQuestionContext?.();
+
     quizAttemptedRef.current = true;
 
     try {
@@ -670,7 +712,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       quizAttemptedRef.current = false;
       toast.error('Failed to start quiz: ' + errorMessage);
     }
-  }, [attemptQuiz, processedQuizId, setAttemptId, convertBackendQuestions, handleSendStartItem, stopItem, currentCourse, attemptId, nextItemId, quizStarted, isPending]);
+  }, [attemptQuiz, processedQuizId, setAttemptId, convertBackendQuestions, handleSendStartItem, stopItem, currentCourse, attemptId, nextItemId, quizStarted, isPending, clearPendingStudentQuestionContext]);
 
   const completeQuiz = useCallback(async (isSkipped?: boolean) => {
     if (!attemptId) {
@@ -1034,9 +1076,11 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     setShowHint(false);
   }, [currentQuestionIndex]);
 
-  // Auto-start quiz for NO_DEADLINE type, but first check if quiz is empty
+  // Auto-start quiz for NO_DEADLINE type, but first check if quiz is empty.
+  // Hold off auto-start while a pre-quiz crowd-question prompt is pending so the
+  // student gets a chance to submit (or skip) before the quiz takes over.
   useEffect(() => {
-    if (!quizStarted && !quizCompleted && !isEmptyQuiz && !noAttemptsLeft && quizType === 'NO_DEADLINE' && quizQuestions.length === 0 && !isPending && !quizAttemptedRef.current && !dontStart) {
+    if (!quizStarted && !quizCompleted && !isEmptyQuiz && !noAttemptsLeft && quizType === 'NO_DEADLINE' && quizQuestions.length === 0 && !isPending && !quizAttemptedRef.current && !dontStart && !pendingStudentQuestionContext) {
       // Check if quiz has any question banks first to detect empty quizzes early
       if (!questionBankRefs || questionBankRefs.length === 0) {
         handleEmptyQuiz();
@@ -1045,7 +1089,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       }
       setDontStart(true);
     }
-  }, [quizType, quizStarted, quizCompleted, isEmptyQuiz, noAttemptsLeft, quizQuestions.length, isPending, dontStart, startQuiz, questionBankRefs]);
+  }, [quizType, quizStarted, quizCompleted, isEmptyQuiz, noAttemptsLeft, quizQuestions.length, isPending, dontStart, startQuiz, questionBankRefs, pendingStudentQuestionContext]);
 
 
   useEffect(() => {
@@ -1178,6 +1222,69 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   // Quiz not started
 
   if (!quizStarted) {
+    if (pendingStudentQuestionContext && !noAttemptsLeft && !isEmptyQuiz) {
+      return (
+        <div className="mx-auto space-y-8">
+          <Card className="border-2 border-primary/20 bg-gradient-to-br from-background to-muted/40">
+            <CardHeader className="pb-4">
+              <div className="space-y-3">
+                <CardTitle className="text-2xl font-bold">
+                  Before the Quiz, Submit an MCQ for This Video
+                </CardTitle>
+                <CardDescription className="text-base text-muted-foreground">
+                  You just completed the video segment. Please submit one MCQ for this segment before proceeding to the quiz.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  onClick={() => setShowQuestionModal(true)}
+                  disabled={isSubmittingQuestion}
+                >
+                  Submit MCQ Question
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleContinueToQuiz}
+                  disabled={isSubmittingQuestion}
+                >
+                  Skip and Continue to Quiz
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Single-answer MCQ, 2 to 8 options, 10 to 300 character prompt.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Dialog
+            open={showQuestionModal}
+            onOpenChange={(open) => {
+              if (!isSubmittingQuestion) {
+                setShowQuestionModal(open);
+              }
+            }}
+          >
+            <DialogContent
+              className="sm:max-w-[760px] max-h-[90vh] overflow-y-auto"
+              onInteractOutside={e => e.preventDefault()}
+              onEscapeKeyDown={e => e.preventDefault()}
+            >
+              <DialogHeader>
+                <DialogTitle>Submit an MCQ Question</DialogTitle>
+              </DialogHeader>
+              <StudentQuestionComposer
+                isOpen={showQuestionModal}
+                isSubmitting={isSubmittingQuestion}
+                onCancel={() => setShowQuestionModal(false)}
+                onSubmit={handleQuestionSubmit}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
+      );
+    }
     if (quizType === 'DEADLINE') {
       return (
         <div className="mx-auto space-y-8">
