@@ -21,6 +21,10 @@ interface QuestionUploadDialogProps {
   onUploadComplete: (youtubeURL: string,  csvFile:File) => Promise<void>
   moduleId?: string;
   sectionId?: string;
+  // "video-segments" (default): existing flow that pairs a YouTube URL with a segmented CSV.
+  // "quiz-questions": upload a CSV of questions to populate a single quiz; hides the YouTube URL
+  // field, the Smart Upload button, and uses the quiz-questions CSV template + help text.
+  mode?: "video-segments" | "quiz-questions";
 }
 
 const processingMessages = [
@@ -39,8 +43,10 @@ type Step = "input" | "generating" | "response" | "csv-preview" | "csv-confirm" 
 export const QuestionUploadDialog = ({
   open,
   onOpenChange,
-  onUploadComplete
+  onUploadComplete,
+  mode = "video-segments",
 }: QuestionUploadDialogProps) => {
+  const isQuizQuestionsMode = mode === "quiz-questions";
   const [step, setStep] = useState<Step>("input");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [urlError, setUrlError] = useState("");
@@ -354,23 +360,25 @@ const handleGenerateLLMResponse = async () => {
           (<DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Upload Questions</DialogTitle>
-                
+
               </DialogHeader>
 
               <div className="grid gap-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="youtube-url">YouTube Video URL</Label>
-                  <Input
-                    id="youtube-url"
-                    placeholder="https://www.youtube.com/watch?v=..."
-                    value={youtubeUrl}
-                    onChange={(e) => setYoutubeUrl(e.target.value)}
-                    disabled={step=="uploading"}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    The video that these questions are based on
-                  </p>
-                </div>
+                {!isQuizQuestionsMode && (
+                  <div className="space-y-2">
+                    <Label htmlFor="youtube-url">YouTube Video URL</Label>
+                    <Input
+                      id="youtube-url"
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      value={youtubeUrl}
+                      onChange={(e) => setYoutubeUrl(e.target.value)}
+                      disabled={step=="uploading"}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      The video that these questions are based on
+                    </p>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label>Questions CSV File</Label>
@@ -426,7 +434,12 @@ const handleGenerateLLMResponse = async () => {
 
                   <Button
                   variant="secondary"
-                  onClick={() => window.open("/templates/QB - template_Sheet1.csv", "_blank")}
+                  onClick={() => window.open(
+                    isQuizQuestionsMode
+                      ? "/templates/quiz-questions-template.csv"
+                      : "/templates/QB - template_Sheet1.csv",
+                    "_blank"
+                  )}
                   className="flex items-center gap-2"
                  >
                   <Download className="w-4 h-4" />
@@ -434,31 +447,42 @@ const handleGenerateLLMResponse = async () => {
                   </Button>
                 <div className="text-xs text-muted-foreground">
                   <p className="font-medium mb-1">CSV Format:</p>
-                  <ul className="list-disc pl-5 space-y-1">
-                    <li>First row should be the header with column names</li>
-                    <li>Required columns: Segment, Question, Option A, Option B, Option C, Option D, Correct Answer</li>
-                    <li>Segment: Numeric value to group questions</li>
-                    <li>Correct Answer: Should be A, B, C, or D</li>
-                  </ul>
+                  {isQuizQuestionsMode ? (
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li>First row should be the header with column names</li>
+                      <li>Required columns: Question, Option A, Option B, Option C, Option D, Correct Answer</li>
+                      <li>Optional columns: S.No., Hint, Expln-A, Expln-B, Expln-C, Expln-D</li>
+                      <li>Correct Answer: Should be A, B, C, or D</li>
+                    </ul>
+                  ) : (
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li>First row should be the header with column names</li>
+                      <li>Required columns: Segment, Question, Option A, Option B, Option C, Option D, Correct Answer</li>
+                      <li>Segment: Numeric value to group questions</li>
+                      <li>Correct Answer: Should be A, B, C, or D</li>
+                    </ul>
+                  )}
                 </div>
               </div>
 
-             <div className="flex justify-between gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setYoutubeUrl('');
-                  setCustomCSVFile(null);
-                  setShowAdvancedFlow(true); 
-                }}
-                disabled={step=="uploading"}
+             <div className={`flex gap-2 ${isQuizQuestionsMode ? "justify-end" : "justify-between"}`}>
+              {!isQuizQuestionsMode && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setYoutubeUrl('');
+                    setCustomCSVFile(null);
+                    setShowAdvancedFlow(true);
+                  }}
+                  disabled={step=="uploading"}
 
-              >
-                Smart Upload (Claude AI)
-              </Button>
+                >
+                  Smart Upload (Claude AI)
+                </Button>
+              )}
 
               <div className="flex gap-2">
-                
+
 
                 <Button
                   variant="outline"
@@ -474,7 +498,7 @@ const handleGenerateLLMResponse = async () => {
 
                 <Button
                   onClick={async () => {
-                    if (!youtubeUrl) {
+                    if (!isQuizQuestionsMode && !youtubeUrl) {
                       toast.error("Please enter a YouTube URL");
                       return;
                     }
@@ -496,7 +520,7 @@ const handleGenerateLLMResponse = async () => {
                       toast.error(error instanceof Error ? error.message : "Failed to process CSV");
                     }
                   }}
-                  disabled={!youtubeUrl || !customCSVFile || step=="uploading"}
+                  disabled={(!isQuizQuestionsMode && !youtubeUrl) || !customCSVFile || step=="uploading"}
                 >
                   {step =="uploading" ?"Uploading..." :"Upload"}
                 </Button>

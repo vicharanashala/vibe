@@ -150,6 +150,8 @@ function TeacherCourseContent() {
     navigate({ to: "/auth" });
   };
   const createQuestion = useCreateQuestion();
+  const createQuestionBank = useCreateQuestionBank();
+  const addQuestionBankToQuiz = useAddQuestionBankToQuiz();
   const user = useAuthStore().user;
   const { currentCourse, setCurrentCourse } = useCourseStore();
   // Use correct keys for course/version IDs
@@ -453,6 +455,15 @@ function TeacherCourseContent() {
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const userCSVtoItem = userParseCSVtoItems();
   const queryClient = useQueryClient()
+
+  // Quiz creation flow: after picking "Quiz" from the Add Item dropdown the user
+  // chooses between starting blank or uploading a CSV of questions.
+  const [quizChoiceOpen, setQuizChoiceOpen] = useState(false);
+  const [pendingQuizContext, setPendingQuizContext] = useState<{
+    moduleId: string;
+    sectionId: string;
+  } | null>(null);
+  const [quizCsvDialogOpen, setQuizCsvDialogOpen] = useState(false);
 
 
   const updateItemOptional = useUpdateItemOptional();
@@ -1234,6 +1245,157 @@ function TeacherCourseContent() {
     }
   };
 
+  type QuizCsvRow = {
+    Question?: string;
+    Hint?: string;
+    'Option A'?: string;
+    'Option B'?: string;
+    'Option C'?: string;
+    'Option D'?: string;
+    'Expln-A'?: string;
+    'Expln-B'?: string;
+    'Expln-C'?: string;
+    'Expln-D'?: string;
+    'Correct Answer'?: string;
+  };
+
+  // Creates the quiz item + populates its question bank from an uploaded CSV.
+  // Defers item creation until the file is actually being uploaded so cancelling
+  // the dialog doesn't leave an orphan empty quiz behind.
+  const handleQuizCsvUpload = async (file: File) => {
+    if (!versionId || !pendingQuizContext) {
+      throw new Error("Missing course/section context for quiz creation.");
+    }
+    const { moduleId, sectionId } = pendingQuizContext;
+
+    const parsed = (Papa as any).parse(await file.text(), {
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: (h: string) => h.trim(),
+    }) as { data: QuizCsvRow[]; errors: Array<{ message: string }> };
+    if (parsed.errors.length) {
+      throw new Error(`CSV parse error: ${parsed.errors[0].message}`);
+    }
+    const rows: QuizCsvRow[] = parsed.data.filter((r: QuizCsvRow) => (r.Question ?? '').trim().length > 0);
+    if (rows.length === 0) {
+      throw new Error("CSV has no question rows.");
+    }
+
+    const requiredCols = ['Question', 'Option A', 'Option B', 'Option C', 'Option D', 'Correct Answer'] as const;
+    rows.forEach((row: QuizCsvRow, i: number) => {
+      const missing = requiredCols.filter(c => !((row as any)[c]?.toString().trim()));
+      if (missing.length) {
+        throw new Error(`Row ${i + 1}: missing ${missing.join(', ')}.`);
+      }
+      const ans = (row['Correct Answer'] ?? '').toString().trim().toUpperCase();
+      if (!['A', 'B', 'C', 'D'].includes(ans)) {
+        throw new Error(`Row ${i + 1}: Correct Answer must be A, B, C, or D.`);
+      }
+    });
+
+    // 1. Create the quiz item now that we know we'll populate it.
+    // Backend requires a fully-populated quizDetails when type === 'QUIZ';
+    // we pick sensible defaults matched to the imported CSV. Teacher can edit
+    // these later in the quiz settings dialog.
+    const created = await createItemAsync({
+      params: { path: { versionId, moduleId, sectionId } },
+      body: {
+        type: 'QUIZ',
+        name: 'New QUIZ',
+        description: 'Imported from CSV',
+        quizDetails: {
+          passThreshold: 0.7,
+          maxAttempts: -1,
+          quizType: 'NO_DEADLINE',
+          approximateTimeToComplete: '00:30:00',
+          allowPartialGrading: true,
+          allowHint: true,
+          allowSkip: true,
+          showCorrectAnswersAfterSubmission: true,
+          showExplanationAfterSubmission: true,
+          showScoreAfterSubmission: true,
+          questionVisibility: rows.length,
+          releaseTime: new Date().toISOString(),
+          questionBankRefs: [],
+        },
+      },
+    });
+    const newQuiz: any =
+      (created as any)?.createdItem || (created as any)?.item || (created as any)?.data;
+    const newQuizId: string | undefined = newQuiz?._id || newQuiz?.itemId;
+    if (!newQuizId) {
+      throw new Error("Quiz was created but no ID was returned.");
+    }
+
+    // 2. Create one question per row.
+    const questionIds: string[] = [];
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const correct = (row['Correct Answer'] ?? '').toString().trim().toUpperCase() as 'A' | 'B' | 'C' | 'D';
+      const opts: Record<'A' | 'B' | 'C' | 'D', string> = {
+        A: row['Option A']!.toString(),
+        B: row['Option B']!.toString(),
+        C: row['Option C']!.toString(),
+        D: row['Option D']!.toString(),
+      };
+      // Backend requires non-empty explaination for every lot item; fall back
+      // when the CSV cell is blank or missing.
+      const explFallback = "No explanation provided.";
+      const expl: Record<'A' | 'B' | 'C' | 'D', string> = {
+        A: row['Expln-A']?.toString().trim() || explFallback,
+        B: row['Expln-B']?.toString().trim() || explFallback,
+        C: row['Expln-C']?.toString().trim() || explFallback,
+        D: row['Expln-D']?.toString().trim() || explFallback,
+      };
+      const incorrectKeys = (['A', 'B', 'C', 'D'] as const).filter(k => k !== correct);
+
+      const res = await createQuestion.mutateAsync({
+        body: {
+          question: {
+            text: row.Question!.toString(),
+            type: 'SELECT_ONE_IN_LOT',
+            isParameterized: false,
+            parameters: [],
+            hint: row.Hint?.toString() ?? '',
+            timeLimitSeconds: 60,
+            points: 1,
+            priority: 'MEDIUM',
+          },
+          solution: {
+            correctLotItem: { text: opts[correct], explaination: expl[correct] },
+            incorrectLotItems: incorrectKeys.map(k => ({
+              text: opts[k],
+              explaination: expl[k],
+            })),
+          },
+        },
+      });
+      questionIds.push(res.questionId);
+    }
+
+    // 3. Bundle the questions into a bank.
+    const bankRes = await createQuestionBank.mutateAsync({
+      body: {
+        courseId,
+        courseVersionId: versionId,
+        questions: questionIds,
+        title: 'Imported Questions',
+        description: 'Imported from CSV',
+      },
+    });
+
+    // 4. Attach the bank to the new quiz.
+    await addQuestionBankToQuiz.mutateAsync({
+      params: { path: { quizId: newQuizId } },
+      body: { bankId: bankRes.questionBankId, count: questionIds.length },
+    });
+
+    refetchVersion();
+    if (shouldFetchItems) refetchItems();
+    setActiveSectionInfo({ moduleId, sectionId });
+    setPendingQuizContext(null);
+  };
+
   const navigate = useNavigate();
 
   // Interim state of modules
@@ -1561,6 +1723,67 @@ function TeacherCourseContent() {
           }
         }}
       />
+
+      {/* Quiz creation: blank vs upload-CSV choice */}
+      <Dialog
+        open={quizChoiceOpen}
+        onOpenChange={(open) => {
+          setQuizChoiceOpen(open);
+          if (!open) setPendingQuizContext(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Add Quiz</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            How would you like to start this quiz?
+          </p>
+          <div className="grid gap-2 pt-2">
+            <Button
+              variant="default"
+              onClick={() => {
+                if (!pendingQuizContext) return;
+                const { moduleId, sectionId } = pendingQuizContext;
+                setQuizModuleId(moduleId);
+                setQuizSectionId(sectionId);
+                if (currentCourse) {
+                  setCurrentCourse({ ...currentCourse, moduleId, sectionId });
+                }
+                setQuizWizardOpen(true);
+                setQuizChoiceOpen(false);
+                setPendingQuizContext(null);
+              }}
+            >
+              Start blank
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setQuizChoiceOpen(false);
+                setQuizCsvDialogOpen(true);
+              }}
+              disabled={!pendingQuizContext}
+            >
+              Upload CSV to populate questions
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quiz-from-CSV upload (no YouTube URL, no Smart Upload) */}
+      <QuestionUploadDialog
+        open={quizCsvDialogOpen}
+        mode="quiz-questions"
+        onOpenChange={(open) => {
+          setQuizCsvDialogOpen(open);
+          if (!open) setPendingQuizContext(null);
+        }}
+        onUploadComplete={async (_youtubeUrl: string, csvFile: File) => {
+          await handleQuizCsvUpload(csvFile);
+        }}
+      />
+
       {/* Mobile Sidebar Overlay */}
       {/* {isMobileSidebarOpen && (
         <div
@@ -1892,28 +2115,10 @@ function TeacherCourseContent() {
 
                                                     } else if (type === "quiz") {
 
-                                                      setQuizModuleId(module.moduleId);
-
-                                                      setQuizSectionId(section.sectionId);
-
-                                                      // Update course store with current context
-
-                                                      if (currentCourse) {
-
-                                                        setCurrentCourse({
-
-                                                          ...currentCourse,
-
-                                                          moduleId: module.moduleId,
-
-                                                          sectionId: section.sectionId
-
-                                                        });
-
-                                                      }
-
-                                                      setQuizWizardOpen(true);
-
+                                                      // Defer creation until the teacher decides between starting
+                                                      // blank (existing wizard) and importing questions from a CSV.
+                                                      setPendingQuizContext({ moduleId: module.moduleId, sectionId: section.sectionId });
+                                                      setQuizChoiceOpen(true);
 
                                                     }
                                                     else if (type === "project") {
