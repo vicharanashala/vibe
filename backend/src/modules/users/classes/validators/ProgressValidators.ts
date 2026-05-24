@@ -10,7 +10,6 @@ import {
   IsNumber,
   IsEnum,
   ValidateNested,
-  IsEmail,
   Min,
   Max,
   IsArray,
@@ -83,14 +82,6 @@ export class LeaderboardNoAuthResponse {
   userName!: string;
 
   @JSONSchema({
-    description: 'User email address',
-    type: 'string',
-    format: 'email',
-  })
-  @IsEmail()
-  email!: string;
-
-  @JSONSchema({
     description: 'Completion percentage of the course',
     type: 'number',
     minimum: 0,
@@ -142,6 +133,54 @@ export class GetLeaderboardResponse {
   @ValidateNested({each: true})
   @Type(() => LeaderboardNoAuthResponse)
   data!: LeaderboardNoAuthResponse[];
+}
+
+export class PaginatedLeaderboardResponse {
+  @JSONSchema({
+    description: 'Leaderboard rows for the requested page',
+    type: 'array',
+    items: {$ref: '#/components/schemas/LeaderboardNoAuthResponse'},
+  })
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => LeaderboardNoAuthResponse)
+  data!: LeaderboardNoAuthResponse[];
+
+  @JSONSchema({
+    description: 'Total leaderboard rows available',
+    type: 'number',
+    minimum: 0,
+  })
+  @IsNumber()
+  @Min(0)
+  totalDocuments!: number;
+
+  @JSONSchema({
+    description: 'Total pages available for the requested page size',
+    type: 'number',
+    minimum: 0,
+  })
+  @IsNumber()
+  @Min(0)
+  totalPages!: number;
+
+  @JSONSchema({
+    description: 'Current page number',
+    type: 'number',
+    minimum: 1,
+  })
+  @IsNumber()
+  @Min(1)
+  currentPage!: number;
+
+  @JSONSchema({
+    description: 'Current user leaderboard stats, when available',
+    oneOf: [{$ref: '#/components/schemas/LeaderboardNoAuthResponse'}, {type: 'null'}],
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LeaderboardNoAuthResponse)
+  myStats!: LeaderboardNoAuthResponse | null;
 }
 
 export class StartItemBody {
