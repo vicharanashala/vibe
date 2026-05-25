@@ -62,6 +62,16 @@ import { USERS_TYPES } from '#root/modules/users/types.js';
 import { ProgressRepository } from '#root/shared/database/providers/mongo/repositories/ProgressRepository.js';
 import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
 import { ProgressService } from '#root/modules/users/services/ProgressService.js';
+import { StudentQuestionRepository } from '#root/modules/studentQuestions/repositories/providers/mongodb/StudentQuestionRepository.js';
+import {
+  IStudentQuestionOption,
+  IStudentSegmentQuestion,
+} from '#root/modules/studentQuestions/classes/transformers/StudentSegmentQuestion.js';
+import { STUDENT_QUESTION_TYPES } from '#root/modules/studentQuestions/types.js';
+
+const PEER_QUESTION_DEFAULT_POINTS = 0;
+const PEER_QUESTION_DEFAULT_TIME_LIMIT_SECONDS = 60;
+
 @injectable()
 class AttemptService extends BaseService {
   constructor(
@@ -100,6 +110,9 @@ class AttemptService extends BaseService {
 
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
+
+    @inject(STUDENT_QUESTION_TYPES.StudentQuestionRepo)
+    private readonly studentQuestionRepo: StudentQuestionRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
@@ -140,7 +153,94 @@ class AttemptService extends BaseService {
         new QuestionProcessor(question).render(questionDetail.parameterMap),
       );
     }
+
+    // Phase 3: append APPROVED student MCQs tied to the video segments
+    // immediately preceding this quiz (contiguous run, no other quiz in between).
+    // These are rendered as ungraded extras: points=0, skipped in grading.
+    if (quiz._id) {
+      const precedingSegmentIds = await this._findPrecedingVideoSegments(
+        quiz._id.toString(),
+      );
+      if (precedingSegmentIds.length > 0) {
+        const approved = await this.studentQuestionRepo.findApprovedForSegments(
+          precedingSegmentIds,
+        );
+        for (const sq of approved) {
+          questionDetails.push({
+            questionId: sq._id as ObjectId,
+            parameterMap: null,
+            source: 'STUDENT_GENERATED',
+          });
+          questionRenderViews.push(
+            this._adaptStudentQuestionToRenderView(sq),
+          );
+        }
+      }
+    }
+
     return { questionDetails, questionRenderViews };
+  }
+
+  /**
+   * Phase 3 helper. Returns the IDs of VIDEO items that immediately precede
+   * the given quiz item in its items group (contiguous run, stopping at any
+   * other QUIZ item). Hidden items are skipped.
+   */
+  private async _findPrecedingVideoSegments(
+    quizItemId: string,
+  ): Promise<string[]> {
+    const itemsGroup = await this.itemRepo.findItemsGroupByItemId(quizItemId);
+    if (!itemsGroup || !Array.isArray(itemsGroup.items)) return [];
+
+    const items = itemsGroup.items;
+    const quizIndex = items.findIndex(
+      it => it._id?.toString() === quizItemId.toString(),
+    );
+    if (quizIndex === -1) return [];
+
+    const videoIds: string[] = [];
+    for (let i = quizIndex - 1; i >= 0; i--) {
+      const it = items[i];
+      if (it.type === ItemType.QUIZ) break;
+      if (it.type === ItemType.VIDEO && !it.isHidden && it._id) {
+        videoIds.push(it._id.toString());
+      }
+    }
+    return videoIds;
+  }
+
+  /**
+   * Phase 3 adapter. Converts a single-answer student MCQ into a
+   * SOL-shaped render view marked as peer-contributed (ungraded).
+   */
+  private _adaptStudentQuestionToRenderView(
+    sq: IStudentSegmentQuestion,
+  ): IQuestionRenderView {
+    const lotItems: ILotItem[] = sq.options.map(
+      (option: IStudentQuestionOption) => ({
+        _id: new ObjectId(),
+        text: option.text,
+        explaination: '',
+      }),
+    );
+    // Shuffle so the correct option isn't always at the same index
+    for (let i = lotItems.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [lotItems[i], lotItems[j]] = [lotItems[j], lotItems[i]];
+    }
+    const renderView = {
+      _id: sq._id as ObjectId,
+      text: sq.questionText,
+      type: 'SELECT_ONE_IN_LOT' as QuestionType,
+      isParameterized: false,
+      parameters: [],
+      hint: undefined,
+      timeLimitSeconds: PEER_QUESTION_DEFAULT_TIME_LIMIT_SECONDS,
+      points: PEER_QUESTION_DEFAULT_POINTS,
+      lotItems,
+      isPeerContributed: true,
+    } as unknown as IQuestionRenderView;
+    return renderView;
   }
 
   private _buildGradingResult(
@@ -186,8 +286,17 @@ class AttemptService extends BaseService {
     let totalScore = 0;
     let totalMaxScore = 0;
 
-    // Calculate totalMaxScore from ALL questions in the attempt, not just answered ones
+    // Phase 3: peer-contributed (STUDENT_GENERATED) questions are ungraded.
+    // Pre-compute their ids so we can skip them everywhere below.
+    const peerQuestionIds = new Set(
+      attempt.questionDetails
+        .filter(qd => qd.source === 'STUDENT_GENERATED')
+        .map(qd => qd.questionId.toString()),
+    );
+
+    // Calculate totalMaxScore from graded questions in the attempt only
     for (const questionDetail of attempt.questionDetails) {
+      if (questionDetail.source === 'STUDENT_GENERATED') continue;
       const question = await this.questionService.getById(
         questionDetail.questionId.toString(),
         true,
@@ -196,8 +305,9 @@ class AttemptService extends BaseService {
     }
 
 
-    // Now grade only the answered questions
+    // Now grade only the answered, graded (non-peer) questions
     for (const answer of answers) {
+      if (peerQuestionIds.has(answer.questionId.toString())) continue;
       const question = await this.questionService.getById(
         answer.questionId.toString(),
         true,
@@ -220,7 +330,14 @@ class AttemptService extends BaseService {
       totalScore += feedback.score;
     }
 
-    if (answers.length != attempt.questionDetails.length) {
+    // Completion check: every graded (non-peer) question must have an answer.
+    // Peer-contributed questions are optional and don't affect completion.
+    const requiredAnswerCount =
+      attempt.questionDetails.length - peerQuestionIds.size;
+    const submittedNonPeerAnswers = answers.filter(
+      a => !peerQuestionIds.has(a.questionId.toString()),
+    ).length;
+    if (submittedNonPeerAnswers != requiredAnswerCount) {
       const result: IGradingResult = {
         gradingStatus: 'FAILED',
         overallFeedback: feedbacks,
@@ -235,12 +352,13 @@ class AttemptService extends BaseService {
     const effectivePassThreshold =
       process.env.E2E_TESTING === 'true'?
       0 : quiz.details.passThreshold;
-    
+
+    // If totalMaxScore is zero (e.g. quiz with only peer questions), treat as PASSED.
+    const passed =
+      totalMaxScore === 0 ||
+      totalScore / totalMaxScore >= effectivePassThreshold;
     const result: IGradingResult = {
-      gradingStatus:
-        totalScore / totalMaxScore >= effectivePassThreshold
-          ? 'PASSED'
-          : 'FAILED',
+      gradingStatus: passed ? 'PASSED' : 'FAILED',
       overallFeedback: feedbacks,
       totalMaxScore,
       totalScore,

@@ -29,6 +29,8 @@ export interface QuizQuestion {
   decimalPrecision?: number;
   expression?: string;
   lotItems?: Array<{ text: string; explaination: string; _id: { buffer: { type: string; data: number[] } } | string }>;
+  // Phase 3: marker for peer-contributed (student-submitted) MCQs surfaced ungraded.
+  isPeerContributed?: boolean;
 }
 
 export interface BufferLike {

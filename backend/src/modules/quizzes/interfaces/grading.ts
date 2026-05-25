@@ -103,6 +103,11 @@ interface IQuizSubmissionExport {
 interface IQuestionDetails {
   questionId: string | ObjectId;
   parameterMap?: ParameterMap;
+  /**
+   * Marks where the question originated. Defaults to bank-sourced (undefined).
+   * STUDENT_GENERATED entries are rendered ungraded; grading skips them.
+   */
+  source?: 'STUDENT_GENERATED';
 }
 
 interface IQuestionAnswerFeedback {

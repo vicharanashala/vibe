@@ -273,7 +273,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         question: question.text,
         points: question.points,
         timeLimit: question.timeLimitSeconds,
-        hint: question.hint
+        hint: question.hint,
+        // Phase 3: peer-contributed (student-submitted) MCQs are surfaced ungraded.
+        isPeerContributed: (question as { isPeerContributed?: boolean }).isPeerContributed === true,
       };
 
       // Add type-specific properties
@@ -1961,6 +1963,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               <Trophy className="mr-1 h-3 w-3" />
               {currentQuestion.points} points
             </Badge>
+            {currentQuestion.isPeerContributed && (
+              <Badge variant="secondary" className="border border-primary/30 bg-primary/5 text-primary">
+                <Users className="mr-1 h-3 w-3" />
+                Peer-contributed — ungraded
+              </Badge>
+            )}
           </div>
           <h2 className="text-2xl font-semibold leading-tight">
             {/* <MathRenderer>
