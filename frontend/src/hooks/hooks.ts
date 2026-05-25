@@ -2243,6 +2243,196 @@ export function useSubmitStudentQuestion(): {
   return { submitQuestion, loading, error };
 }
 
+export function useListStudentQuestions(): {
+  listForCourseVersion: (
+    courseId: string,
+    courseVersionId: string,
+    status?: import('@/types/student-question.types').StudentQuestionStatusFilter,
+    limit?: number,
+  ) => Promise<import('@/types/student-question.types').StudentQuestionListResponse>;
+  listForSegment: (
+    courseId: string,
+    courseVersionId: string,
+    segmentId: string,
+    limit?: number,
+  ) => Promise<import('@/types/student-question.types').StudentQuestionListResponse>;
+  loading: boolean;
+  error: string | null;
+} {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const request = async (url: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+      });
+      if (!response.ok) {
+        let serverMessage = '';
+        try {
+          const errBody = await response.json();
+          serverMessage = errBody?.message || errBody?.error || '';
+        } catch {
+          /* response had no JSON body */
+        }
+        throw new Error(serverMessage || `Failed to load student questions: ${response.status}`);
+      }
+      return await response.json();
+    } catch (err: any) {
+      const message = err?.message || 'Failed to load student questions';
+      setError(message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const listForCourseVersion = async (
+    courseId: string,
+    courseVersionId: string,
+    status: import('@/types/student-question.types').StudentQuestionStatusFilter = 'ALL',
+    limit = 100,
+  ) => {
+    const params = new URLSearchParams();
+    if (status && status !== 'ALL') params.set('status', status);
+    params.set('limit', String(limit));
+    const url = `${import.meta.env.VITE_BASE_URL}/student-questions/courses/${courseId}/versions/${courseVersionId}?${params.toString()}`;
+    return await request(url);
+  };
+
+  const listForSegment = async (
+    courseId: string,
+    courseVersionId: string,
+    segmentId: string,
+    limit = 100,
+  ) => {
+    const params = new URLSearchParams();
+    params.set('limit', String(limit));
+    const url = `${import.meta.env.VITE_BASE_URL}/student-questions/courses/${courseId}/versions/${courseVersionId}/segments/${segmentId}?${params.toString()}`;
+    return await request(url);
+  };
+
+  return { listForCourseVersion, listForSegment, loading, error };
+}
+
+export function useUpdateStudentQuestionStatus(): {
+  updateStatus: (
+    courseId: string,
+    courseVersionId: string,
+    segmentId: string,
+    questionId: string,
+    status: import('@/types/student-question.types').StudentQuestionStatus,
+    reason?: string,
+  ) => Promise<void>;
+  loading: boolean;
+  error: string | null;
+} {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const updateStatus = async (
+    courseId: string,
+    courseVersionId: string,
+    segmentId: string,
+    questionId: string,
+    status: import('@/types/student-question.types').StudentQuestionStatus,
+    reason?: string,
+  ): Promise<void> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/student-questions/courses/${courseId}/versions/${courseVersionId}/segments/${segmentId}/questions/${questionId}/status`;
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+        body: JSON.stringify({ status, reason }),
+      });
+      if (!response.ok) {
+        let serverMessage = '';
+        try {
+          const errBody = await response.json();
+          serverMessage = errBody?.message || errBody?.error || '';
+        } catch {
+          /* response had no JSON body */
+        }
+        throw new Error(serverMessage || `Failed to update status: ${response.status}`);
+      }
+    } catch (err: any) {
+      const message = err?.message || 'Failed to update student question status';
+      setError(message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { updateStatus, loading, error };
+}
+
+export function useUpdateStudentQuestionContent(): {
+  updateContent: (
+    courseId: string,
+    courseVersionId: string,
+    segmentId: string,
+    questionId: string,
+    payload: import('@/types/student-question.types').UpdateStudentQuestionPayload,
+  ) => Promise<void>;
+  loading: boolean;
+  error: string | null;
+} {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const updateContent = async (
+    courseId: string,
+    courseVersionId: string,
+    segmentId: string,
+    questionId: string,
+    payload: import('@/types/student-question.types').UpdateStudentQuestionPayload,
+  ): Promise<void> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/student-questions/courses/${courseId}/versions/${courseVersionId}/segments/${segmentId}/questions/${questionId}`;
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        let serverMessage = '';
+        try {
+          const errBody = await response.json();
+          serverMessage = errBody?.message || errBody?.error || '';
+        } catch {
+          /* response had no JSON body */
+        }
+        throw new Error(serverMessage || `Failed to update question: ${response.status}`);
+      }
+    } catch (err: any) {
+      const message = err?.message || 'Failed to update student question';
+      setError(message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { updateContent, loading, error };
+}
+
 export function usePublicCourses(
   page: number,
   limit: number,

@@ -19,6 +19,8 @@ const QUESTION_TYPES = ['SELECT_ONE_IN_LOT'] as const;
 type QuestionTypeLiteral = (typeof QUESTION_TYPES)[number];
 const STATUS_VALUES = ['PENDING', 'APPROVED', 'REJECTED'] as const;
 type StatusLiteral = (typeof STATUS_VALUES)[number];
+const STATUS_FILTER_VALUES = ['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as const;
+type StatusFilterLiteral = (typeof STATUS_FILTER_VALUES)[number];
 
 export class StudentQuestionOptionDto {
   @IsString()
@@ -132,6 +134,9 @@ export class StudentQuestionListItemResponse {
   _id!: string;
 
   @IsString()
+  segmentId!: string;
+
+  @IsString()
   questionText!: string;
 
   @IsArray()
@@ -170,4 +175,76 @@ export class StudentQuestionListResponse {
   @ValidateNested({each: true})
   @Type(() => StudentQuestionListItemResponse)
   items!: StudentQuestionListItemResponse[];
+}
+
+export class CourseVersionStudentQuestionPathParams {
+  @IsMongoId()
+  courseId!: string;
+
+  @IsMongoId()
+  courseVersionId!: string;
+}
+
+export class CourseVersionStudentQuestionListQuery {
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    enum: [...STATUS_FILTER_VALUES],
+    description: 'Status filter. Defaults to ALL.',
+  })
+  status?: StatusFilterLiteral;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @Type(() => Number)
+  limit?: number;
+}
+
+export class UpdateStudentQuestionBody {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @Length(10, 300)
+  @JSONSchema({
+    description: 'Updated question prompt (10-300 characters). Required only if changing content.',
+  })
+  questionText?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(2)
+  @ArrayMaxSize(8)
+  @ValidateNested({each: true})
+  @Type(() => StudentQuestionOptionDto)
+  @JSONSchema({
+    description: 'Updated options (2-8). Required only if changing content.',
+  })
+  options?: StudentQuestionOptionDto[];
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(7)
+  @JSONSchema({
+    description: 'Zero-based index of the correct option (0-7). Required only if changing content.',
+  })
+  correctOptionIndex?: number;
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    enum: [...STATUS_VALUES],
+    description: 'Optional concurrent status transition. REJECTED requires `reason`.',
+  })
+  status?: StatusLiteral;
+
+  @IsOptional()
+  @IsString()
+  @Length(3, 500)
+  @JSONSchema({
+    description: 'Required when status is REJECTED. 3-500 characters.',
+  })
+  reason?: string;
 }

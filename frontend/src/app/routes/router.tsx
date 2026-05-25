@@ -41,6 +41,7 @@ import AiWorkflow from '../pages/teacher/AiWorkflow'
 import AnomaliesList from '../pages/teacher/AnomaliesList'
 // import CourseInstructors from '../pages/teacher/course-instructors'
 import RegisteredUsers from '../pages/teacher/CourseRegistrationRequests'
+import StudentQuestionReview from '../pages/teacher/StudentQuestionReview'
 import CourseRegistration from '../pages/student/CourseRegistration'
 import CourseIssueReports from '../pages/student/FlagResponse'
 // import LoginPage from '../pages/LoginPage'
@@ -356,6 +357,12 @@ const teacherCourseRegistrationRequests = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/courses/registration-requests',
   component: RegisteredUsers
+})
+
+const teacherStudentQuestionsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/student-questions',
+  component: StudentQuestionReview,
 })
 
 
@@ -679,6 +686,7 @@ const routeTree = rootRoute.addChildren([
     teacherCourseAnomaliesRoute,
     // teacherCourseInstructorsRoute,
     teacherCourseRegistrationRequests,
+    teacherStudentQuestionsRoute,
     teacherFeedBackEditorRoute,
     teacherAnnouncementsRoute,
     teacherAuditRoute,

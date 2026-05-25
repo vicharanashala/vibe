@@ -173,6 +173,138 @@ export class StudentQuestionService {
     return await this.repository.listBySegment(input);
   }
 
+  async listCourseVersionQuestions(input: {
+    courseId: string;
+    courseVersionId: string;
+    status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
+    limit: number;
+  }) {
+    const repoStatus =
+      input.status && input.status !== 'ALL' ? input.status : undefined;
+    return await this.repository.listByCourseVersion({
+      courseId: input.courseId,
+      courseVersionId: input.courseVersionId,
+      status: repoStatus,
+      limit: input.limit,
+    });
+  }
+
+  async updateQuestion(input: {
+    courseId: string;
+    courseVersionId: string;
+    segmentId: string;
+    questionId: string;
+    questionText?: string;
+    options?: {text: string}[];
+    correctOptionIndex?: number;
+    status?: StudentQuestionStatus;
+    reason?: string;
+    reviewedBy: string;
+  }): Promise<void> {
+    const existing = await this.repository.findById({
+      courseId: input.courseId,
+      courseVersionId: input.courseVersionId,
+      segmentId: input.segmentId,
+      questionId: input.questionId,
+    });
+    if (!existing) {
+      throw new NotFoundError('Student question not found for the given segment.');
+    }
+    if (existing.status !== 'PENDING') {
+      throw new ForbiddenError(
+        'Only PENDING questions can be edited.',
+      );
+    }
+
+    const hasContentChange =
+      input.questionText !== undefined ||
+      input.options !== undefined ||
+      input.correctOptionIndex !== undefined;
+
+    if (!hasContentChange && !input.status) {
+      throw new BadRequestError(
+        'Nothing to update. Provide question content fields and/or a status.',
+      );
+    }
+
+    const nextQuestionText = this.validateQuestionText(
+      input.questionText ?? existing.questionText,
+    );
+    const nextOptions = this.validateOptions(
+      input.options ?? existing.options,
+    );
+    const nextCorrectIndex =
+      input.correctOptionIndex !== undefined
+        ? input.correctOptionIndex
+        : existing.correctOptionIndex;
+    if (
+      !Number.isInteger(nextCorrectIndex) ||
+      nextCorrectIndex < 0 ||
+      nextCorrectIndex >= nextOptions.length
+    ) {
+      throw new BadRequestError('Correct option index is out of range.');
+    }
+
+    const nextSignature = this.buildSignature({
+      questionText: nextQuestionText,
+      options: nextOptions,
+      correctOptionIndex: nextCorrectIndex,
+    });
+
+    if (nextSignature !== existing.normalizedSignature) {
+      const duplicate = await this.repository.findDuplicateExcluding({
+        courseVersionId: input.courseVersionId,
+        segmentId: input.segmentId,
+        normalizedSignature: nextSignature,
+        excludeQuestionId: input.questionId,
+      });
+      if (duplicate) {
+        throw new BadRequestError(
+          'A similar question already exists for this segment.',
+        );
+      }
+    }
+
+    let statusTransition:
+      | {status: StudentQuestionStatus; reviewedBy: string; rejectionReason?: string}
+      | undefined;
+    if (input.status) {
+      if (input.status === 'REJECTED') {
+        const reason = input.reason?.trim();
+        if (!reason || reason.length < 3 || reason.length > 500) {
+          throw new BadRequestError(
+            'A rejection reason of 3 to 500 characters is required.',
+          );
+        }
+        statusTransition = {
+          status: 'REJECTED',
+          reviewedBy: input.reviewedBy,
+          rejectionReason: reason,
+        };
+      } else {
+        statusTransition = {
+          status: input.status,
+          reviewedBy: input.reviewedBy,
+        };
+      }
+    }
+
+    const matched = await this.repository.updateContent({
+      courseId: input.courseId,
+      courseVersionId: input.courseVersionId,
+      segmentId: input.segmentId,
+      questionId: input.questionId,
+      questionText: nextQuestionText,
+      options: nextOptions,
+      correctOptionIndex: nextCorrectIndex,
+      normalizedSignature: nextSignature,
+      statusTransition,
+    });
+    if (!matched) {
+      throw new NotFoundError('Student question not found for the given segment.');
+    }
+  }
+
   async updateQuestionStatus(input: {
     courseId: string;
     courseVersionId: string;

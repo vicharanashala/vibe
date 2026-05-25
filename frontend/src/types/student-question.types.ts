@@ -21,6 +21,7 @@ export type StudentQuestionStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface StudentQuestionListItem {
   _id: string;
+  segmentId: string;
   questionText: string;
   options: {text: string}[];
   correctOptionIndex: number;
@@ -35,4 +36,18 @@ export interface StudentQuestionListItem {
 
 export interface StudentQuestionListResponse {
   items: StudentQuestionListItem[];
+}
+
+export type StudentQuestionStatusFilter =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'ALL';
+
+export interface UpdateStudentQuestionPayload {
+  questionText?: string;
+  options?: {text: string}[];
+  correctOptionIndex?: number;
+  status?: StudentQuestionStatus;
+  reason?: string;
 }

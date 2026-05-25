@@ -6,12 +6,15 @@ import {authContainerModule} from '../auth/container.js';
 import {studentQuestionsContainerModule} from './container.js';
 import {StudentQuestionController} from './controllers/StudentQuestionController.js';
 import {
+  CourseVersionStudentQuestionListQuery,
+  CourseVersionStudentQuestionPathParams,
   CreateStudentQuestionBody,
   StudentQuestionListQuery,
   StudentQuestionListResponse,
   StudentQuestionOptionDto,
   StudentQuestionPathParams,
   StudentQuestionStatusPathParams,
+  UpdateStudentQuestionBody,
   UpdateStudentQuestionStatusBody,
 } from './classes/validators/StudentQuestionValidator.js';
 
@@ -50,6 +53,9 @@ export const studentQuestionsModuleValidators: Function[] = [
   StudentQuestionListQuery,
   StudentQuestionListResponse,
   UpdateStudentQuestionStatusBody,
+  CourseVersionStudentQuestionPathParams,
+  CourseVersionStudentQuestionListQuery,
+  UpdateStudentQuestionBody,
 ];
 
 export * from './classes/index.js';

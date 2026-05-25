@@ -36,7 +36,8 @@ import {
   Loader2,
   ArrowUp,
   ArrowDown,
-  Pencil
+  Pencil,
+  MessageSquareQuote,
 } from "lucide-react";
 
 import { useNavigate } from "@tanstack/react-router";
@@ -47,6 +48,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults, useMoveModule, useMoveSection, useMoveItem, useUpdateCourseItem, useCourseById, useHideModule, useHideSection } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import VideoModal from "./components/Video-modal";
+import StudentQuestionPanel from "./components/StudentQuestionPanel";
 import EnhancedQuizEditor from "./components/enhanced-quiz-editor";
 import EnhancedBlogEditor from "./components/enhanced-blog-editor";
 import QuizWizardModal from "./components/quiz-wizard";
@@ -282,6 +284,10 @@ function TeacherCourseContent() {
     parentIds?: { moduleId: string; sectionId?: string; itemsGroupId?: string };
   } | null>(null);
   const [isEditingItem, setIsEditingItem] = useState(false);
+  const [studentQuestionSegment, setStudentQuestionSegment] = useState<{
+    segmentId: string;
+    segmentTitle?: string;
+  } | null>(null);
 
   // Add this state for the add video modal
   const [showAddVideoModal, setShowAddVideoModal] = useState<{
@@ -1861,6 +1867,28 @@ function TeacherCourseContent() {
                                                       )}
                                                       <span className="sr-only">Hide Item</span>
                                                     </Button>
+                                                    {item.type === 'VIDEO' && (
+                                                      <Button
+                                                        className="absolute top-0 right-8"
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        title="View student questions for this video"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          setStudentQuestionSegment({
+                                                            segmentId: item._id,
+                                                            segmentTitle: item.name,
+                                                          });
+                                                        }}
+                                                      >
+                                                        <MessageSquareQuote
+                                                          className={`h-4 w-4 ${selectedItem.id == item._id
+                                                            ? "text-gray-200"
+                                                            : "text-muted-foreground"}`}
+                                                        />
+                                                        <span className="sr-only">View student questions</span>
+                                                      </Button>
+                                                    )}
                                                   </SidebarMenuSubItem>
                                                 </Reorder.Item>
                                               ))}
@@ -3389,6 +3417,19 @@ function TeacherCourseContent() {
         quizWizardOpen={quizWizardOpen}
         setQuizWizardOpen={setQuizWizardOpen}
       />
+
+      {studentQuestionSegment && courseId && versionId && (
+        <StudentQuestionPanel
+          isOpen={studentQuestionSegment !== null}
+          onOpenChange={(open) => {
+            if (!open) setStudentQuestionSegment(null);
+          }}
+          courseId={courseId}
+          courseVersionId={versionId}
+          segmentId={studentQuestionSegment.segmentId}
+          segmentTitle={studentQuestionSegment.segmentTitle}
+        />
+      )}
 
     </ResizablePanelGroup>
   );

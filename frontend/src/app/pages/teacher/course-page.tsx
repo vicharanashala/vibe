@@ -41,6 +41,7 @@ import {
   Activity,
   MoreVertical,
   MoreVerticalIcon,
+  MessageSquareQuote,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -1437,6 +1438,18 @@ function VersionCard({
     storePageAndNavigate("/teacher/courses/registration-requests")
   }
 
+  const goToStudentQuestions = () => {
+    setCurrentCourse({
+      courseId: courseId,
+      versionId: selectedVersionId ? selectedVersionId : null,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null,
+    })
+    storePageAndNavigate("/teacher/courses/student-questions")
+  }
+
   const viewInstructors = () => {
     // Set course info in store and navigate to instructors page
     setCurrentCourse({
@@ -1734,6 +1747,15 @@ function VersionCard({
                       >
                         <Settings2 className="mr-2 h-4 w-4" />
                         Settings
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          goToStudentQuestions();
+                        }}
+                      >
+                        <MessageSquareQuote className="mr-2 h-4 w-4" />
+                        Student Questions
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={configureCohorts}>
                         <Layers className="mr-2 h-4 w-4" />
