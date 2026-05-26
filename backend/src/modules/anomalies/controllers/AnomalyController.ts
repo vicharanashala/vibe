@@ -19,7 +19,10 @@ import { BadRequestErrorResponse, InternalServerErrorResponse } from '#shared/mi
 import { ANOMALIES_TYPES } from '../types.js';
 import { audioUploadOptions, imageUploadOptions } from '../classes/validators/fileUploadOptions.js';
 import { AnomalyData, AnomalyIdParams, CourseAnomaliesQuery, DeleteAnomalyBody, GetAnomalyParams, GetCourseAnomalyParams, GetItemAnomalyParams, GetUserAnomalyParams, NewAnomalyData, StatsQueryParams } from '../classes/validators/AnomalyValidators.js';
-import { AnomalyDataResponse, AnomalyStats, FileType } from '../classes/transformers/Anomaly.js';
+import { AnomalyDataResponse, AnomalyStats, AnomalyType, FileType } from '../classes/transformers/Anomaly.js';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import { CourseSettingService } from '#root/modules/setting/services/CourseSettingService.js';
+import { ProctoringComponent } from '#root/shared/database/interfaces/ISettingRepository.js';
 import { PaginationQuery } from '#root/shared/index.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { getAnomalyAbility } from '../abilities/anomalyAbilities.js';
@@ -36,6 +39,7 @@ import { UserNotFoundErrorResponse } from '#root/modules/users/classes/index.js'
 export class AnomalyController {
   constructor(
     @inject(ANOMALIES_TYPES.AnomalyService) private anomalyService: AnomalyService,
+    @inject(SETTING_TYPES.CourseSettingService) private courseSettingService: CourseSettingService,
   ) {}
 
   @OpenAPI({
@@ -68,7 +72,20 @@ export class AnomalyController {
     // if (!ability.can('create', anomalyRes)) {
     //   throw new ForbiddenError('You do not have permission to create an anomaly');
     // }
-    
+
+    if (body.type === AnomalyType.FACE_RECOGNITION) {
+      const courseSetting = await this.courseSettingService.readCourseSettings(
+        courseId.toString(),
+        versionId.toString(),
+      );
+      const detector = courseSetting?.settings?.proctors?.detectors?.find(
+        d => d.detectorName === ProctoringComponent.FACERECOGNITION,
+      );
+      if (!detector?.settings?.enabled) {
+        throw new ForbiddenError('Face recognition is disabled for this course');
+      }
+    }
+
     return this.anomalyService.recordAnomaly(userId, body, file, FileType.IMAGE);
   }
 

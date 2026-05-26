@@ -68,6 +68,7 @@ export interface FaceRecognitionComponentProps {
   onRecognitionResult?: (recognitions: FaceRecognition[]) => void;
   onDebugInfoUpdate?: (debugInfo: FaceRecognitionDebugInfo) => void;
   onMismatchChange?: (hasMismatch: boolean) => void;
+  enabled?: boolean;
 }
 
 export interface FaceRecognitionOverlayProps {

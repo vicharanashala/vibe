@@ -1301,7 +1301,7 @@ const lastCalledRef = useRef<number>(0);
           </div>
         )} */}
         {/* )} */}
-        {!isCollapsed && recognizedFaces.length > 0 && (
+        {isFaceRecognitionEnabled && !isCollapsed && recognizedFaces.length > 0 && (
           <FaceRecognitionOverlay
             recognitions={recognizedFaces}
             videoRef={videoRef}
@@ -1379,7 +1379,7 @@ const lastCalledRef = useRef<number>(0);
                         )}
 
                         {/* Face Recognition Results */}
-                        {recognizedFaces.length > 0 && (
+                        {isFaceRecognitionEnabled && recognizedFaces.length > 0 && (
                           <div>Recognized:
                             {recognizedFaces.map((face, index) => (
                               <span key={index} className={face.isMatch ? "text-green-400" : "text-yellow-400"}>

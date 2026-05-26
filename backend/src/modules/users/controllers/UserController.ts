@@ -14,6 +14,7 @@ import {
   Patch,
   Authorized,
   CurrentUser,
+  QueryParam,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import {
@@ -27,6 +28,9 @@ import { EnrollmentService } from '#users/services/EnrollmentService.js';
 import { AUTH_TYPES } from '#root/modules/auth/types.js';
 import { IAuthService } from '#root/modules/auth/interfaces/IAuthService.js';
 import { IUser } from '#root/shared/interfaces/models.js';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import { CourseSettingService } from '#root/modules/setting/services/CourseSettingService.js';
+import { ProctoringComponent } from '#root/shared/database/interfaces/ISettingRepository.js';
 
 @OpenAPI({
   tags: ['Users'],
@@ -43,6 +47,9 @@ export class UserController {
 
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+
+    @inject(SETTING_TYPES.CourseSettingService)
+    private readonly courseSettingService: CourseSettingService,
   ) { }
 
   @OpenAPI({
@@ -105,12 +112,16 @@ export class UserController {
 
   @OpenAPI({
     summary: 'Get the current user face reference',
-    description: 'Returns the authenticated user label and stored profile image for face comparison.',
+    description: 'Returns the authenticated user label and stored profile image for face comparison. When courseId and versionId are supplied, the face embedding is only returned if the course has face recognition enabled.',
   })
   @Authorized()
   @Get('/me/face-reference')
   @HttpCode(200)
-  async getCurrentUserFaceReference(@Req() req: any): Promise<{
+  async getCurrentUserFaceReference(
+    @Req() req: any,
+    @QueryParam('courseId') courseId?: string,
+    @QueryParam('versionId') versionId?: string,
+  ): Promise<{
     label: string;
     profileImage: string | null;
     faceEmbedding: number[] | null;
@@ -118,10 +129,22 @@ export class UserController {
     const token = req.headers.authorization?.split(' ')[1];
     const user = await this.authService.getCurrentUserFromToken(token);
 
+    let faceRecognitionAllowed = true;
+    if (courseId && versionId) {
+      const courseSetting = await this.courseSettingService.readCourseSettings(
+        courseId,
+        versionId,
+      );
+      const detector = courseSetting?.settings?.proctors?.detectors?.find(
+        d => d.detectorName === ProctoringComponent.FACERECOGNITION,
+      );
+      faceRecognitionAllowed = detector?.settings?.enabled ?? false;
+    }
+
     return {
       label: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
       profileImage: user.profileImage || null,
-      faceEmbedding: user.faceEmbedding || null,
+      faceEmbedding: faceRecognitionAllowed ? (user.faceEmbedding || null) : null,
     };
   }
 
