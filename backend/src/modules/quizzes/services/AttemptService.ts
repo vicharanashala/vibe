@@ -572,36 +572,9 @@ class AttemptService extends BaseService {
       cohortId
     );
     if (existingSubmission) {
-      throw new BadRequestError(
-        `Attempt with ID ${attemptId} has already been submitted`,
-      );
-    }
-
-    // 3. Progress validation - check if current item matches progress or previous item is completed
-    if (courseId && courseVersionId && moduleId && sectionId) {
-      const [progress, courseVersion] = await Promise.all([
-        this.progressRepository.findProgress(
-          userId.toString(),
-          courseId,
-          courseVersionId,
-          cohortId,
-        ),
-        this.courseRepo.readVersion(courseVersionId),
-      ]);
-
-      if (progress && courseVersion) {
-        await this.progressService.validateItemAccess(
-          progress,
-          courseVersion,
-          userId.toString(),
-          courseId,
-          courseVersionId,
-          moduleId,
-          sectionId,
-          quizId,
-          cohortId,
-        );
-      }
+      return existingSubmission.gradingResult
+        ? this._buildGradingResult(quiz, existingSubmission.gradingResult)
+        : null;
     }
 
     /* -------------------- TRANSACTION (STATE MUTATION ONLY) -------------------- */
