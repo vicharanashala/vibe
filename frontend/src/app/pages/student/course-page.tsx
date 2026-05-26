@@ -296,7 +296,13 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
   // Fetch individual item details when an item is selected
   // Don't fetch during navigation to prevent race condition with stopItem
-  const shouldFetchItem = Boolean(selectedItemId && COURSE_ID && VERSION_ID && !isNavigatingToNext);
+  // Bind the item fetch to the IDs that actually identify the selected item.
+  // activeSectionInfo drifts when the user expands another section in the sidebar
+  // (toggleSection) — using it here sent mismatched (moduleId, sectionId, itemId)
+  // triples that made the backend's previous-item check fail with ForbiddenError.
+  const shouldFetchItem = Boolean(
+    selectedItemId && selectedModuleId && selectedSectionId && COURSE_ID && VERSION_ID && !isNavigatingToNext
+  );
   const {
     data: itemData,
     isLoading: itemLoading,
@@ -306,8 +312,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     shouldFetchItem ? COURSE_ID : '',
     shouldFetchItem ? VERSION_ID : '',
     shouldFetchItem ? selectedItemId! : '',
-    shouldFetchItem ? activeSectionInfo!.moduleId : '',
-    shouldFetchItem ? activeSectionInfo!.sectionId : '',
+    shouldFetchItem ? selectedModuleId! : '',
+    shouldFetchItem ? selectedSectionId! : '',
     shouldFetchItem ? COHORT_ID : ''
   );
   // State to track previous valid item for reverting
