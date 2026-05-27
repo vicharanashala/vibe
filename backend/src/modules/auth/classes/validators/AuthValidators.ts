@@ -132,6 +132,39 @@ class GoogleSignUpBody {
   })
   @IsOptional()
   lastName?: string;
+
+  @JSONSchema({
+    title: 'Role',
+    description: 'Selected role at signup time. Students must also provide profileImage and faceEmbedding for proctoring.',
+    example: 'student',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  role?: string;
+
+  @JSONSchema({
+    title: 'Profile Image',
+    description: 'Student profile image as a data URL or remote URL. Required for student role.',
+    example: 'data:image/jpeg;base64,/9j/4AAQSk...',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  profileImage?: string;
+
+  @JSONSchema({
+    title: 'Face Embedding',
+    description: '128-length face embedding generated from the registration image. Required for student role.',
+    type: 'array',
+    items: {
+      type: 'number',
+    },
+  })
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, {each: true})
+  faceEmbedding?: number[];
 }
 
 class VerifySignUpProviderBody {

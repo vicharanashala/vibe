@@ -1,4 +1,4 @@
-import { loginWithGoogle, loginWithEmail } from "@/lib/firebase";
+import { loginWithGoogle, loginWithEmail, auth } from "@/lib/firebase";
 import { useAuthStore } from "@/store/auth-store";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,13 @@ export default function AuthPage({ role }: AuthPageProps) {
   const [studentPhotoFile, setStudentPhotoFile] = useState<File | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState("");
+  const [googleSignupPending, setGoogleSignupPending] = useState<{
+    idToken: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  } | null>(null);
+
   const videoCaptureRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -276,23 +283,40 @@ export default function AuthPage({ role }: AuthPageProps) {
       setLoading(true);
       setFormErrors({});
       const result = await loginWithGoogle();
-      // Check if the user is new
+      const chosenRole = activeRole;
+
       if (result._tokenResponse.isNewUser) {
-        // If new user, set the default role to student
-        setActiveRole("student");
+        if (chosenRole === "student") {
+          // Students need a face photo for proctoring. Defer the backend POST
+          // until they've captured or uploaded one.
+          resetStudentPhoto();
+          setGoogleSignupPending({
+            idToken: result._tokenResponse.idToken,
+            email: result.user.email || "",
+            firstName: result._tokenResponse.firstName || "",
+            lastName: result._tokenResponse.lastName || "",
+          });
+          return;
+        }
+
+        // Non-student roles (teacher) skip the photo step.
         const backendUrl = `${import.meta.env.VITE_BASE_URL}/auth/signup/google/`;
         const response = await fetch(backendUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${result._tokenResponse.idToken}`,
-            'Content-Type': 'application/json'
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             email: result.user.email,
             firstName: result._tokenResponse.firstName,
             lastName: result._tokenResponse.lastName,
+            role: chosenRole,
           }),
         });
+        if (!response.ok) {
+          throw new Error(`Signup failed with status ${response.status}`);
+        }
       }
 
       // Set user in store
@@ -300,7 +324,7 @@ export default function AuthPage({ role }: AuthPageProps) {
         uid: result.user.uid,
         email: result.user.email || "",
         name: result.user.displayName || "",
-        role: activeRole, // Use the selected role from tabs
+        role: chosenRole,
         avatar: result.user.photoURL || "",
       });
 
@@ -311,7 +335,7 @@ export default function AuthPage({ role }: AuthPageProps) {
       if (redirectUrl) {
         navigate({ to: redirectUrl });
       } else {
-        navigate({ to: `/${activeRole}` });
+        navigate({ to: `/${chosenRole}` });
       }
     } catch (error) {
       console.error("Google Login Failed", error);
@@ -319,6 +343,88 @@ export default function AuthPage({ role }: AuthPageProps) {
         ...formErrors,
         auth: "Failed to sign in with Google. Please try again."
       });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const finishGoogleSignup = async (
+    profileImage?: string,
+    faceEmbedding?: number[],
+  ) => {
+    if (!googleSignupPending) return;
+
+    const backendUrl = `${import.meta.env.VITE_BASE_URL}/auth/signup/google/`;
+    const response = await fetch(backendUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${googleSignupPending.idToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: googleSignupPending.email,
+        firstName: googleSignupPending.firstName,
+        lastName: googleSignupPending.lastName,
+        role: "student",
+        ...(profileImage ? { profileImage } : {}),
+        ...(faceEmbedding ? { faceEmbedding } : {}),
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`Signup failed with status ${response.status}`);
+    }
+
+    const fbUser = auth.currentUser;
+    setUser({
+      uid: fbUser?.uid || "",
+      email: fbUser?.email || googleSignupPending.email,
+      name:
+        fbUser?.displayName ||
+        `${googleSignupPending.firstName} ${googleSignupPending.lastName}`.trim(),
+      role: "student",
+      avatar: fbUser?.photoURL || "",
+    });
+
+    setGoogleSignupPending(null);
+    resetStudentPhoto();
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const redirectUrl = searchParams.get("redirect");
+    navigate({ to: redirectUrl || "/student" });
+  };
+
+  const skipGoogleSignupPhoto = async () => {
+    try {
+      setLoading(true);
+      setCameraError("");
+      await finishGoogleSignup();
+    } catch (error: any) {
+      console.error("Google signup (skip photo) failed", error);
+      setCameraError(error?.message || "Unable to complete signup. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const completeGoogleSignup = async () => {
+    if (!googleSignupPending) return;
+    if (!studentPhotoFile) {
+      setCameraError("Please capture or upload a clear face photo, or use Skip for now.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setCameraError("");
+
+      const profileImage = await convertFileToDataUrl(studentPhotoFile);
+      const faceEmbedding = await generateFaceEmbedding(studentPhotoFile);
+      await finishGoogleSignup(profileImage, faceEmbedding);
+    } catch (error: any) {
+      console.error("Google signup completion failed", error);
+      setCameraError(
+        error?.message || "Unable to complete signup. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -435,18 +541,12 @@ export default function AuthPage({ role }: AuthPageProps) {
       return;
     }
 
-    if (activeRole === "student" && !studentPhotoFile) {
-      setFormErrors({
-        ...formErrors,
-        auth: "Student registration requires a clear face photo for verification.",
-      });
-      return;
-    }
-
     try {
       setLoading(true);
       setFormErrors({});
 
+      // Face photo is optional at signup; students can add it later when
+      // they enter a course that requires face recognition.
       const profileImage =
         activeRole === "student" && studentPhotoFile
           ? await convertFileToDataUrl(studentPhotoFile)
@@ -944,9 +1044,10 @@ export default function AuthPage({ role }: AuthPageProps) {
                       {activeRole === "student" && (
                         <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
                           <div className="space-y-1">
-                            <Label className="font-medium">Student Photo</Label>
+                            <Label className="font-medium">Student Photo (optional)</Label>
                             <p className="text-xs text-muted-foreground">
-                              Add a clear face photo using your webcam or by uploading an image.
+                              Optional now. You can add a face photo here, or do it later
+                              when entering a proctored course that requires it.
                             </p>
                           </div>
 
@@ -1114,6 +1215,130 @@ export default function AuthPage({ role }: AuthPageProps) {
           </div>
         </div>
       </div>
+
+      {googleSignupPending && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <Card className="w-full max-w-lg">
+            <CardHeader>
+              <CardTitle>Add a face photo (optional)</CardTitle>
+              <CardDescription>
+                Hi {googleSignupPending.firstName || googleSignupPending.email}. You can
+                add a face photo now for proctored courses, or skip and add it later
+                when you enter a course that requires it.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
+                {!studentPhotoPreview ? (
+                  <div className="space-y-3">
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button type="button" className="flex-1" onClick={openCamera}>
+                        <Camera className="mr-2 h-4 w-4" />
+                        Use webcam
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload photo
+                      </Button>
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleStudentPhotoUpload}
+                    />
+                    {isCameraOpen && (
+                      <div className="space-y-3 rounded-lg border border-border p-3">
+                        <video
+                          ref={videoCaptureRef}
+                          autoPlay
+                          muted
+                          playsInline
+                          className="h-56 w-full rounded-lg bg-slate-950 object-cover"
+                        />
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <Button type="button" className="flex-1" onClick={capturePhoto}>
+                            <Camera className="mr-2 h-4 w-4" />
+                            Capture photo
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="flex-1"
+                            onClick={() => {
+                              setIsCameraOpen(false);
+                              stopCameraStream();
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <img
+                      src={studentPhotoPreview}
+                      alt="Student preview"
+                      className="h-56 w-full rounded-lg object-cover"
+                    />
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={openCamera}
+                      >
+                        <RefreshCcw className="mr-2 h-4 w-4" />
+                        Retake
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="flex-1 text-red-600 hover:text-red-700"
+                        onClick={resetStudentPhoto}
+                      >
+                        <X className="mr-2 h-4 w-4" />
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {cameraError && (
+                  <p className="text-xs text-destructive">{cameraError}</p>
+                )}
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={skipGoogleSignupPhoto}
+                disabled={loading}
+              >
+                Skip for now
+              </Button>
+              <Button
+                type="button"
+                className="flex-1"
+                onClick={completeGoogleSignup}
+                disabled={loading || !studentPhotoFile}
+              >
+                {loading ? "Finishing…" : "Submit and continue"}
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      )}
+
     </div>
   );
 }
