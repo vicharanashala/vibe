@@ -56,6 +56,9 @@ export default function AuthPage({ role }: AuthPageProps) {
     lastName: string;
   } | null>(null);
 
+  const completeFaceMode =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("completeFace") === "1";
   const videoCaptureRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -406,6 +409,51 @@ export default function AuthPage({ role }: AuthPageProps) {
     }
   };
 
+  const saveFaceReference = async () => {
+    if (!studentPhotoFile) {
+      setCameraError("Please capture or upload a clear face photo to continue.");
+      return;
+    }
+    try {
+      setLoading(true);
+      setCameraError("");
+
+      const profileImage = await convertFileToDataUrl(studentPhotoFile);
+      const faceEmbedding = await generateFaceEmbedding(studentPhotoFile);
+
+      const authToken = localStorage.getItem("firebase-auth-token");
+      if (!authToken) {
+        throw new Error("Please sign in again to save your face photo.");
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_BASE_URL}/users/me/face-reference`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ profileImage, faceEmbedding }),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to save face photo (status ${response.status})`);
+      }
+
+      resetStudentPhoto();
+
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectUrl = searchParams.get("redirect");
+      navigate({ to: redirectUrl || `/${user?.role || "student"}` });
+    } catch (error: any) {
+      console.error("Failed to save face reference", error);
+      setCameraError(error?.message || "Unable to save your face photo. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const completeGoogleSignup = async () => {
     if (!googleSignupPending) return;
     if (!studentPhotoFile) {
@@ -627,6 +675,11 @@ export default function AuthPage({ role }: AuthPageProps) {
     const searchParams = new URLSearchParams(window.location.search);
     const redirectUrl = searchParams.get("redirect");
 
+    if (completeFaceMode) {
+      // Stay on the page so the logged-in user can add their face photo.
+      return;
+    }
+
     if (isAuthenticated && user) {
       if (redirectUrl) {
         navigate({ to: redirectUrl });
@@ -639,7 +692,7 @@ export default function AuthPage({ role }: AuthPageProps) {
         }
       }
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, navigate, completeFaceMode]);
 
   useEffect(() => {
     if (!isCameraOpen || !mediaStreamRef.current || !videoCaptureRef.current) {
@@ -1339,6 +1392,118 @@ export default function AuthPage({ role }: AuthPageProps) {
         </div>
       )}
 
+      {completeFaceMode && isAuthenticated && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <Card className="w-full max-w-lg">
+            <CardHeader>
+              <CardTitle>Face photo required</CardTitle>
+              <CardDescription>
+                The course you are entering requires face recognition. Please capture
+                or upload a clear face photo to continue.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
+                {!studentPhotoPreview ? (
+                  <div className="space-y-3">
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button type="button" className="flex-1" onClick={openCamera}>
+                        <Camera className="mr-2 h-4 w-4" />
+                        Use webcam
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload photo
+                      </Button>
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleStudentPhotoUpload}
+                    />
+                    {isCameraOpen && (
+                      <div className="space-y-3 rounded-lg border border-border p-3">
+                        <video
+                          ref={videoCaptureRef}
+                          autoPlay
+                          muted
+                          playsInline
+                          className="h-56 w-full rounded-lg bg-slate-950 object-cover"
+                        />
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <Button type="button" className="flex-1" onClick={capturePhoto}>
+                            <Camera className="mr-2 h-4 w-4" />
+                            Capture photo
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="flex-1"
+                            onClick={() => {
+                              setIsCameraOpen(false);
+                              stopCameraStream();
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <img
+                      src={studentPhotoPreview}
+                      alt="Student preview"
+                      className="h-56 w-full rounded-lg object-cover"
+                    />
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={openCamera}
+                      >
+                        <RefreshCcw className="mr-2 h-4 w-4" />
+                        Retake
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="flex-1 text-red-600 hover:text-red-700"
+                        onClick={resetStudentPhoto}
+                      >
+                        <X className="mr-2 h-4 w-4" />
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {cameraError && (
+                  <p className="text-xs text-destructive">{cameraError}</p>
+                )}
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button
+                type="button"
+                className="w-full"
+                onClick={saveFaceReference}
+                disabled={loading || !studentPhotoFile}
+              >
+                {loading ? "Saving…" : "Save and continue"}
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
