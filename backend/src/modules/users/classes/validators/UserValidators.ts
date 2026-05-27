@@ -1,5 +1,5 @@
 import { IUser } from '#root/shared/interfaces/models.js';
-import {IsNotEmpty, IsString, IsEmail, IsOptional} from 'class-validator';
+import {IsNotEmpty, IsString, IsEmail, IsOptional, IsArray, IsNumber, ArrayMinSize, ArrayMaxSize} from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import { ObjectId } from 'mongodb';
 
@@ -163,6 +163,28 @@ export class EditUserBody{
   @IsString()
   @IsOptional()
   city?: string;
+}
+
+export class UpdateFaceReferenceBody {
+  @JSONSchema({
+    description: 'Profile image as a data URL or remote URL',
+    example: 'data:image/jpeg;base64,/9j/4AAQSk...',
+    type: 'string',
+  })
+  @IsString()
+  @IsNotEmpty()
+  profileImage: string;
+
+  @JSONSchema({
+    description: '128-length face embedding generated from the registration image',
+    type: 'array',
+    items: {type: 'number'},
+  })
+  @IsArray()
+  @ArrayMinSize(128)
+  @ArrayMaxSize(128)
+  @IsNumber({}, {each: true})
+  faceEmbedding: number[];
 }
 
 /**

@@ -21,6 +21,7 @@ import {
   EditUserBody,
   GetUserParams,
   GetUserResponse,
+  UpdateFaceReferenceBody,
   UserNotFoundErrorResponse,
 } from '../classes/validators/UserValidators.js';
 import { UserEnrollmentStatisticsResponse } from '../classes/validators/EnrollmentValidators.js';
@@ -146,6 +147,25 @@ export class UserController {
       profileImage: user.profileImage || null,
       faceEmbedding: faceRecognitionAllowed ? (user.faceEmbedding || null) : null,
     };
+  }
+
+  @OpenAPI({
+    summary: 'Set or replace the current user face reference',
+    description: 'Stores a profile image and 128-length face embedding on the current user. Used when a student adds their face after initial signup.',
+  })
+  @Authorized()
+  @Patch('/me/face-reference')
+  @OnUndefined(200)
+  async updateCurrentUserFaceReference(
+    @Req() req: any,
+    @Body() body: UpdateFaceReferenceBody,
+  ): Promise<void> {
+    const token = req.headers.authorization?.split(' ')[1];
+    const user = await this.authService.getCurrentUserFromToken(token);
+    await this.userService.editUser(user._id!.toString(), {
+      profileImage: body.profileImage,
+      faceEmbedding: body.faceEmbedding,
+    });
   }
 
   @OpenAPI({
