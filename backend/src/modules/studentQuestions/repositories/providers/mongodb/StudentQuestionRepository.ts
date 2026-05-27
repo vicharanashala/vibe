@@ -101,6 +101,20 @@ export class StudentQuestionRepository {
       .toArray();
   }
 
+  async findApprovedForSegments(
+    segmentIds: string[],
+  ): Promise<IStudentSegmentQuestion[]> {
+    await this.init();
+    if (segmentIds.length === 0) return [];
+    return await this.collection
+      .find({
+        segmentId: {$in: segmentIds.map(id => new ObjectId(id))},
+        status: 'APPROVED',
+        isDeleted: {$ne: true},
+      })
+      .toArray();
+  }
+
   async findById(input: {
     courseId: string;
     courseVersionId: string;
