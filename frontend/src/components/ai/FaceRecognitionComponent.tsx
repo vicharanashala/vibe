@@ -49,6 +49,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
   onRecognitionResult,
   onDebugInfoUpdate,
   onMismatchChange,
+  enabled = true,
 }) => {
   const [isReady, setIsReady] = useState(false);
 
@@ -86,7 +87,13 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
       throw new Error('No auth token available for face reference lookup.');
     }
 
-    const response = await fetch(`${import.meta.env.VITE_BASE_URL}/users/me/face-reference`, {
+    const course = courseStore.currentCourse;
+    const params = new URLSearchParams();
+    if (course?.courseId) params.set('courseId', course.courseId);
+    if (course?.versionId) params.set('versionId', course.versionId);
+    const query = params.toString() ? `?${params.toString()}` : '';
+
+    const response = await fetch(`${import.meta.env.VITE_BASE_URL}/users/me/face-reference${query}`, {
       headers: {
         Authorization: `Bearer ${authToken}`,
       },
@@ -97,7 +104,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     }
 
     return response.json();
-  }, []);
+  }, [courseStore.currentCourse]);
 
   const createMismatchSnapshot = useCallback(async () => {
     const video = videoRef.current;
@@ -156,6 +163,10 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
   }, []);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     let isMounted = true;
 
     const initialize = async () => {
@@ -222,7 +233,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [fetchFaceReference, updateDebugInfo]);
+  }, [enabled, fetchFaceReference, updateDebugInfo]);
 
   const processRecognition = useCallback(async () => {
     const referenceEmbedding = referenceEmbeddingRef.current;
@@ -354,7 +365,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
   ]);
 
   useEffect(() => {
-    if (!isReady) {
+    if (!enabled || !isReady) {
       return;
     }
 
@@ -363,7 +374,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     }, VERIFY_INTERVAL_MS);
 
     return () => clearInterval(intervalId);
-  }, [isReady, processRecognition]);
+  }, [enabled, isReady, processRecognition]);
 
   return null;
 };
