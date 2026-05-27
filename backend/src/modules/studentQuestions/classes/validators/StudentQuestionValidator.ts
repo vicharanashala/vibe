@@ -136,6 +136,14 @@ export class StudentQuestionListItemResponse {
   @IsString()
   segmentId!: string;
 
+  @IsOptional()
+  @IsString()
+  courseId?: string;
+
+  @IsOptional()
+  @IsString()
+  courseVersionId?: string;
+
   @IsString()
   questionText!: string;
 
@@ -191,6 +199,23 @@ export class CourseVersionStudentQuestionListQuery {
   @JSONSchema({
     enum: [...STATUS_FILTER_VALUES],
     description: 'Status filter. Defaults to ALL.',
+  })
+  status?: StatusFilterLiteral;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @Type(() => Number)
+  limit?: number;
+}
+
+export class MyStudentQuestionsListQuery {
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    enum: [...STATUS_FILTER_VALUES],
+    description: 'Status filter for the current user\'s submissions. Defaults to ALL.',
   })
   status?: StatusFilterLiteral;
 

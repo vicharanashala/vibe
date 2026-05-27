@@ -3,12 +3,14 @@ import {RoutingControllersOptions, useContainer} from 'routing-controllers';
 import {sharedContainerModule} from '#root/container.js';
 import {InversifyAdapter} from '#root/inversify-adapter.js';
 import {authContainerModule} from '../auth/container.js';
+import {notificationsContainerModule} from '../notifications/container.js';
 import {studentQuestionsContainerModule} from './container.js';
 import {StudentQuestionController} from './controllers/StudentQuestionController.js';
 import {
   CourseVersionStudentQuestionListQuery,
   CourseVersionStudentQuestionPathParams,
   CreateStudentQuestionBody,
+  MyStudentQuestionsListQuery,
   StudentQuestionListQuery,
   StudentQuestionListResponse,
   StudentQuestionOptionDto,
@@ -22,6 +24,7 @@ export const studentQuestionsContainerModules: ContainerModule[] = [
   studentQuestionsContainerModule,
   sharedContainerModule,
   authContainerModule,
+  notificationsContainerModule,
 ];
 
 export const studentQuestionsModuleControllers: Function[] = [
@@ -56,6 +59,7 @@ export const studentQuestionsModuleValidators: Function[] = [
   CourseVersionStudentQuestionPathParams,
   CourseVersionStudentQuestionListQuery,
   UpdateStudentQuestionBody,
+  MyStudentQuestionsListQuery,
 ];
 
 export * from './classes/index.js';

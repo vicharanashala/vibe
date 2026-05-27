@@ -2321,6 +2321,58 @@ export function useListStudentQuestions(): {
   return { listForCourseVersion, listForSegment, loading, error };
 }
 
+export function useListMyStudentQuestions(): {
+  listMine: (
+    status?: import('@/types/student-question.types').StudentQuestionStatusFilter,
+    limit?: number,
+  ) => Promise<import('@/types/student-question.types').StudentQuestionListResponse>;
+  loading: boolean;
+  error: string | null;
+} {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const listMine = async (
+    status: import('@/types/student-question.types').StudentQuestionStatusFilter = 'ALL',
+    limit = 100,
+  ) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (status && status !== 'ALL') params.set('status', status);
+      params.set('limit', String(limit));
+      const url = `${import.meta.env.VITE_BASE_URL}/student-questions/me?${params.toString()}`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+      });
+      if (!response.ok) {
+        let serverMessage = '';
+        try {
+          const errBody = await response.json();
+          serverMessage = errBody?.message || errBody?.error || '';
+        } catch {
+          /* response had no JSON body */
+        }
+        throw new Error(serverMessage || `Failed to load my submissions: ${response.status}`);
+      }
+      return await response.json();
+    } catch (err: any) {
+      const message = err?.message || 'Failed to load my submissions';
+      setError(message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { listMine, loading, error };
+}
+
 export function useUpdateStudentQuestionStatus(): {
   updateStatus: (
     courseId: string,

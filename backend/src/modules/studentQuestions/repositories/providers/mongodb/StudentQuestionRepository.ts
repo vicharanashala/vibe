@@ -101,6 +101,26 @@ export class StudentQuestionRepository {
       .toArray();
   }
 
+  async listByUserId(input: {
+    userId: string;
+    status?: StudentQuestionStatus;
+    limit: number;
+  }): Promise<IStudentSegmentQuestion[]> {
+    await this.init();
+    const filter: Record<string, unknown> = {
+      createdBy: new ObjectId(input.userId),
+      isDeleted: {$ne: true},
+    };
+    if (input.status) {
+      filter.status = input.status;
+    }
+    return await this.collection
+      .find(filter)
+      .sort({createdAt: -1})
+      .limit(input.limit)
+      .toArray();
+  }
+
   async findApprovedForSegments(
     segmentIds: string[],
   ): Promise<IStudentSegmentQuestion[]> {

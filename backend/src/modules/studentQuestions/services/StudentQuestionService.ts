@@ -1,19 +1,24 @@
 import {inject, injectable} from 'inversify';
+import {ObjectId} from 'mongodb';
 import {BadRequestError, ForbiddenError, NotFoundError} from 'routing-controllers';
 import {STUDENT_QUESTION_TYPES} from '../types.js';
 import {StudentQuestionRepository} from '../repositories/providers/mongodb/StudentQuestionRepository.js';
 import {
   IStudentQuestionOption,
+  IStudentSegmentQuestion,
   StudentQuestionStatus,
   StudentQuestionType,
   StudentSegmentQuestion,
 } from '../classes/transformers/StudentSegmentQuestion.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {ISettingRepository} from '#shared/database/index.js';
+import {NOTIFICATIONS_TYPES} from '../../notifications/types.js';
+import {NotificationService} from '../../notifications/services/NotificationService.js';
 
 const REPEATED_CHAR_PATTERN = /(.)\1{7,}/;
 const REPEATED_WORD_PATTERN = /(\b\w+\b)(\s+\1){4,}/;
 const URL_TOKEN_PATTERN = /^https?:\/\/\S+$/i;
+const NOTIFICATION_QUESTION_PREVIEW_CHARS = 80;
 
 @injectable()
 export class StudentQuestionService {
@@ -22,7 +27,60 @@ export class StudentQuestionService {
     private readonly repository: StudentQuestionRepository,
     @inject(GLOBAL_TYPES.SettingRepo)
     private readonly settingRepo: ISettingRepository,
+    @inject(NOTIFICATIONS_TYPES.NotificationService)
+    private readonly notificationService: NotificationService,
   ) {}
+
+  /**
+   * Phase 4: emit an in-app notification to the question's author when a
+   * teacher transitions status to APPROVED or REJECTED. Best-effort: errors
+   * are logged but do not block the status update.
+   */
+  private async _notifyStatusChange(
+    question: IStudentSegmentQuestion,
+    nextStatus: StudentQuestionStatus,
+    rejectionReason?: string,
+  ): Promise<void> {
+    if (nextStatus !== 'APPROVED' && nextStatus !== 'REJECTED') return;
+    try {
+      const preview = question.questionText.slice(
+        0,
+        NOTIFICATION_QUESTION_PREVIEW_CHARS,
+      );
+      const ellipsis =
+        question.questionText.length > NOTIFICATION_QUESTION_PREVIEW_CHARS
+          ? '...'
+          : '';
+      await this.notificationService.createNotification({
+        userId: new ObjectId(question.createdBy.toString()),
+        type:
+          nextStatus === 'APPROVED'
+            ? 'mcq_submission_approved'
+            : 'mcq_submission_rejected',
+        title:
+          nextStatus === 'APPROVED'
+            ? 'Your MCQ submission was approved'
+            : 'Your MCQ submission was reviewed',
+        message: `"${preview}${ellipsis}" — ${
+          nextStatus === 'APPROVED' ? 'approved' : 'rejected'
+        }`,
+        courseId: new ObjectId(question.courseId.toString()),
+        courseVersionId: new ObjectId(question.courseVersionId.toString()),
+        read: false,
+        createdAt: new Date(),
+        extra: {
+          studentQuestionId: question._id?.toString(),
+          segmentId: question.segmentId.toString(),
+          ...(nextStatus === 'REJECTED' && rejectionReason
+            ? {rejectionReason}
+            : {}),
+        },
+      });
+    } catch (err) {
+      // Best-effort: don't fail the status update if notification fails.
+      console.error('Failed to emit student question notification', err);
+    }
+  }
 
   private normalize(text: string): string {
     return text.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -303,6 +361,14 @@ export class StudentQuestionService {
     if (!matched) {
       throw new NotFoundError('Student question not found for the given segment.');
     }
+
+    if (statusTransition) {
+      await this._notifyStatusChange(
+        existing,
+        statusTransition.status,
+        statusTransition.rejectionReason,
+      );
+    }
   }
 
   async updateQuestionStatus(input: {
@@ -335,5 +401,37 @@ export class StudentQuestionService {
     if (!matched) {
       throw new NotFoundError('Student question not found for the given segment.');
     }
+
+    // Notify the student author on APPROVED / REJECTED. Fetch fresh so we
+    // have createdBy / segmentId / courseId for the notification payload.
+    if (input.status === 'APPROVED' || input.status === 'REJECTED') {
+      const question = await this.repository.findById({
+        courseId: input.courseId,
+        courseVersionId: input.courseVersionId,
+        segmentId: input.segmentId,
+        questionId: input.questionId,
+      });
+      if (question) {
+        await this._notifyStatusChange(
+          question,
+          input.status,
+          input.reason?.trim(),
+        );
+      }
+    }
+  }
+
+  async listMyQuestions(input: {
+    userId: string;
+    status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
+    limit: number;
+  }) {
+    const repoStatus =
+      input.status && input.status !== 'ALL' ? input.status : undefined;
+    return await this.repository.listByUserId({
+      userId: input.userId,
+      status: repoStatus,
+      limit: input.limit,
+    });
   }
 }

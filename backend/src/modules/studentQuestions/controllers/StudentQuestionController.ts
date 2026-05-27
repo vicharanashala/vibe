@@ -20,6 +20,7 @@ import {
   CourseVersionStudentQuestionListQuery,
   CourseVersionStudentQuestionPathParams,
   CreateStudentQuestionBody,
+  MyStudentQuestionsListQuery,
   StudentQuestionCreateResponse,
   StudentQuestionListQuery,
   StudentQuestionListResponse,
@@ -39,6 +40,43 @@ export class StudentQuestionController {
     @inject(STUDENT_QUESTION_TYPES.StudentQuestionService)
     private readonly service: StudentQuestionService,
   ) {}
+
+  @Authorized()
+  @Get('/me')
+  @HttpCode(200)
+  @ResponseSchema(StudentQuestionListResponse)
+  async listMine(
+    @QueryParams() query: MyStudentQuestionsListQuery,
+    @CurrentUser() user: IUser,
+  ): Promise<StudentQuestionListResponse> {
+    const userId = user._id?.toString();
+    if (!userId) {
+      throw new ForbiddenError('Unable to resolve authenticated user.');
+    }
+    const questions = await this.service.listMyQuestions({
+      userId,
+      status: query.status,
+      limit: query.limit ?? 100,
+    });
+    return {
+      items: questions.map(q => ({
+        _id: q._id?.toString() || '',
+        segmentId: q.segmentId.toString(),
+        courseId: q.courseId.toString(),
+        courseVersionId: q.courseVersionId.toString(),
+        questionText: q.questionText,
+        options: q.options.map(o => ({text: o.text})),
+        correctOptionIndex: q.correctOptionIndex,
+        status: q.status,
+        source: q.source,
+        createdBy: q.createdBy.toString(),
+        createdAt: q.createdAt.toISOString(),
+        reviewedBy: q.reviewedBy?.toString(),
+        reviewedAt: q.reviewedAt?.toISOString(),
+        rejectionReason: q.rejectionReason,
+      })),
+    };
+  }
 
   @Authorized()
   @Post('/courses/:courseId/versions/:courseVersionId/segments/:segmentId')
@@ -84,6 +122,8 @@ export class StudentQuestionController {
       items: questions.map(q => ({
         _id: q._id?.toString() || '',
         segmentId: q.segmentId.toString(),
+        courseId: q.courseId.toString(),
+        courseVersionId: q.courseVersionId.toString(),
         questionText: q.questionText,
         options: q.options.map(o => ({text: o.text})),
         correctOptionIndex: q.correctOptionIndex,
@@ -116,6 +156,8 @@ export class StudentQuestionController {
       items: questions.map(q => ({
         _id: q._id?.toString() || '',
         segmentId: q.segmentId.toString(),
+        courseId: q.courseId.toString(),
+        courseVersionId: q.courseVersionId.toString(),
         questionText: q.questionText,
         options: q.options.map(o => ({text: o.text})),
         correctOptionIndex: q.correctOptionIndex,

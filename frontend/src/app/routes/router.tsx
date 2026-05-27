@@ -20,6 +20,7 @@ import StudentDashboard from "@/app/pages/student/dashboard";
 import StudentCourses from "@/app/pages/student/courses";
 import StudentProfile from "@/app/pages/student/profile";
 import StudentAnnouncements from "../pages/student/announcements/StudentAnnouncements";
+import StudentMySubmissions from "../pages/student/StudentMySubmissions";
 import AddCoursePage from '@/app/pages/teacher/AddCoursePage';
 import TeacherProfile from "@/app/pages/teacher/profile";
 import { AudioTranscripter } from '@/app/pages/teacher/AudioTranscripter'
@@ -528,6 +529,13 @@ const studentAnnouncementsRoute = new Route({
   component: StudentAnnouncements,
 });
 
+// Student "my MCQ submissions" route
+const studentMySubmissionsRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/submissions',
+  component: StudentMySubmissions,
+});
+
 // Student cohorts route
 const studentHpSystemCohortsRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -709,6 +717,7 @@ const routeTree = rootRoute.addChildren([
     studentIssuesRoute,
     studentLeaderboardRoute,
     studentAnnouncementsRoute,
+    studentMySubmissionsRoute,
     studentHpSystemCohortsRoute,
     studentHpSystemActivitiesRoute,
     studentHpSystemActivitiesDetailRoute,

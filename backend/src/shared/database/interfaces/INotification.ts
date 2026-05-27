@@ -8,7 +8,9 @@ export type NotificationType =
   | 'inactivity_warning'
   | 'appeal_submitted'
   | 'appeal_approved'
-  | 'appeal_rejected';
+  | 'appeal_rejected'
+  | 'mcq_submission_approved'
+  | 'mcq_submission_rejected';
 
 export interface INotification {
   _id?: ObjectId | string;

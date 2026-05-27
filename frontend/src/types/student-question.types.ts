@@ -22,6 +22,8 @@ export type StudentQuestionStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export interface StudentQuestionListItem {
   _id: string;
   segmentId: string;
+  courseId?: string;
+  courseVersionId?: string;
   questionText: string;
   options: {text: string}[];
   correctOptionIndex: number;

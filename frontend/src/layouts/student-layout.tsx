@@ -274,6 +274,21 @@ percentCompleted !== 100){
                 </Link>
               </Button>
 
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary ${isActive("/student/submissions")
+                  ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-md"
+                  : ""
+                  }`}
+                asChild
+              >
+                {/* @ts-ignore */}
+                <Link to="/student/submissions">
+                  <span className="relative z-10">My Submissions</span>
+                </Link>
+              </Button>
+
             </div>
           </div>
 
