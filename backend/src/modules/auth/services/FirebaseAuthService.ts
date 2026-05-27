@@ -7,7 +7,7 @@ import {
 import {IAuthService} from '#auth/interfaces/IAuthService.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
-import {InternalServerError} from 'routing-controllers';
+import {BadRequestError, InternalServerError} from 'routing-controllers';
 import admin from 'firebase-admin';
 import {IUser} from '#root/shared/interfaces/models.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
@@ -249,11 +249,22 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       };
     }
 
+    // Face photo is optional at signup. Students who enter a course that
+    // requires face recognition will be redirected to complete their face
+    // registration before proctoring can start.
+    if (body.faceEmbedding && body.faceEmbedding.length !== 128) {
+      throw new BadRequestError(
+        'Face embedding must be exactly 128 numbers.',
+      );
+    }
+
     const user: Partial<IUser> = {
       firebaseUID: firebaseUID,
       email: body.email,
       firstName: body.firstName,
       lastName: body.lastName,
+      profileImage: body.profileImage,
+      faceEmbedding: body.faceEmbedding,
       roles: 'user',
     };
 
