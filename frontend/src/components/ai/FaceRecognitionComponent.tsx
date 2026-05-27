@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as faceapi from '@vladmandic/face-api';
+import { useNavigate } from '@tanstack/react-router';
+import { toast } from 'sonner';
 
 import { useReportAnomalyImage } from '@/hooks/hooks';
 import { useCourseStore } from '@/store/course-store';
@@ -55,6 +57,8 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
 
   const reportImage = useReportAnomalyImage();
   const courseStore = useCourseStore();
+  const navigate = useNavigate();
+  const missingEmbeddingRedirectedRef = useRef(false);
   const referenceEmbeddingRef = useRef<number[] | null>(null);
   const referenceLabelRef = useRef('registered-user');
   const matchCountRef = useRef(0);
@@ -198,7 +202,16 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
         const normalizedEmbedding = normalizeEmbedding(reference.faceEmbedding);
 
         if (!normalizedEmbedding || normalizedEmbedding.length !== EMBEDDING_LENGTH) {
-          throw new Error('Stored face embedding is invalid. Please register again.');
+          if (!missingEmbeddingRedirectedRef.current) {
+            missingEmbeddingRedirectedRef.current = true;
+            const redirectTo = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/';
+            toast.error('This course requires a face photo. Please add one to continue.');
+            navigate({
+              to: '/auth',
+              search: { completeFace: '1', redirect: redirectTo } as any,
+            });
+          }
+          return;
         }
 
         referenceEmbeddingRef.current = normalizedEmbedding;
@@ -233,7 +246,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [enabled, fetchFaceReference, updateDebugInfo]);
+  }, [enabled, fetchFaceReference, navigate, updateDebugInfo]);
 
   const processRecognition = useCallback(async () => {
     const referenceEmbedding = referenceEmbeddingRef.current;
