@@ -517,6 +517,7 @@ const handleGenerateLLMResponse = async () => {
                       }, 1500);
                     } catch (error) {
                       console.error("Error processing CSV:", error);
+                      setStep("input");
                       toast.error(error instanceof Error ? error.message : "Failed to process CSV");
                     }
                   }}

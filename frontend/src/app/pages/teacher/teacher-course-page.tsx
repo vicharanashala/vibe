@@ -939,20 +939,20 @@ function TeacherCourseContent() {
       const result = Papa.parse<CSVRow>(text, {
         header: true,
         skipEmptyLines: true,
-        transformHeader: (h) => h.trim()
+        // Collapse internal whitespace and trim so headers match the backend's
+        // normalizeKey (e.g. "Correct  Answer" -> "Correct Answer").
+        transformHeader: (h) => h.replace(/\s+/g, ' ').trim()
       });
 
       // Validate CSV structure
       if (!result.data.length) {
-        toast.error('CSV file is empty');
-        return;
+        throw new Error('CSV file is empty');
       }
 
       // Validate YouTube URL format
       const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/;
       if (!youtubeRegex.test(youtubeUrl)) {
-        toast.error('Please provide a valid YouTube URL (e.g., https://www.youtube.com/watch?v=... or https://youtu.be/...)');
-        return;
+        throw new Error('Please provide a valid YouTube URL (e.g., https://www.youtube.com/watch?v=... or https://youtu.be/...)');
       }
 
       // Validate required columns
@@ -961,25 +961,30 @@ function TeacherCourseContent() {
       const missingColumns = requiredColumns.filter(col => !(col in firstRow));
 
       if (missingColumns.length > 0) {
-        toast.error(`Missing required columns: ${missingColumns.join(', ')}`);
-        return;
+        throw new Error(
+          `Missing required columns: ${missingColumns.join(', ')}. ` +
+          `Found columns: ${Object.keys(firstRow).join(', ')}`
+        );
       }
 
 
-      const response = await userCSVtoItem.mutateAsync({
+      await userCSVtoItem.mutateAsync({
         params: { path: { courseId: courseId!, versionId: versionId!, moduleId, sectionId } },
         body: { youtubeurl: youtubeUrl, data: result.data }
       });
 
-      if (response.success) {
-        toast.success('Successfully created items from CSV');
-      }
-
+      // Success toast is shown by the upload dialog; just refresh the data here.
       await invalidateAllQueries();
       setIsProcessingCSV(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing CSV:', error);
-      toast.error(`Failed to process CSV: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Surface the real failure to the caller instead of swallowing it, so the
+      // upload dialog can show the error (and not a false "uploaded" success).
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        (error instanceof Error ? error.message : 'Failed to process CSV');
+      throw new Error(message);
     } finally {
       setIsProcessingCSV(false);
     }
@@ -1711,22 +1716,14 @@ function TeacherCourseContent() {
         open={showCSVUpload}
         onOpenChange={setShowCSVUpload}
         onUploadComplete={async (youtubeUrl: string, csvFile: File) => {
-          try {
-            await processCSV(
-              csvFile,
-              activeSectionInfo?.moduleId,
-              activeSectionInfo?.sectionId,
-              youtubeUrl
-            );
-          } catch (error: any) {
-            console.error("CSV Processing Error:", error);
-
-            const message =
-              error?.response?.data?.error ||
-              error?.message ||
-              "Failed to process uploaded data. Please try again.";
-            toast.error(message);
-          }
+          // Let errors propagate so QuestionUploadDialog can report the real
+          // failure rather than showing a false "Content uploaded" success.
+          await processCSV(
+            csvFile,
+            activeSectionInfo?.moduleId,
+            activeSectionInfo?.sectionId,
+            youtubeUrl
+          );
         }}
       />
 
