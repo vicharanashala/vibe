@@ -24,6 +24,8 @@ import {
   BulkUnenrollResponse,
   ChangeEnrollmentStatusBody,
   BulkChangeEnrollmentStatusBody,
+  EthicsConsentBody,
+  EthicsConsentStatusResponse,
 } from '#users/classes/validators/EnrollmentValidators.js';
 import {QuizScoresExportResponseDto} from '../dtos/QuizScoresExportDto.js';
 import {EnrollmentService} from '#users/services/EnrollmentService.js';
@@ -1173,5 +1175,51 @@ export class EnrollmentController {
       cohortId,
     );
     return {message: 'Policy acknowledged'};
+  }
+
+  @OpenAPI({
+    summary: 'Get the current user ethics consent status for a course version',
+    description:
+      'Returns whether the authenticated student has signed the ethics consent for the given course version.',
+  })
+  @Authorized()
+  @Get('/enrollments/courses/:courseId/versions/:versionId/ethics-consent')
+  @HttpCode(200)
+  @ResponseSchema(EthicsConsentStatusResponse)
+  async getEthicsConsent(
+    @Param('courseId') courseId: string,
+    @Param('versionId') versionId: string,
+    @CurrentUser() user: IUser,
+  ): Promise<EthicsConsentStatusResponse> {
+    return this.enrollmentService.getEthicsConsent(
+      user._id.toString(),
+      courseId,
+      versionId,
+    );
+  }
+
+  @OpenAPI({
+    summary: 'Sign the ethics consent for a course version',
+    description:
+      'Records the authenticated student signed ethics consent (typed-name signature, timestamp, and optional additional-image consent) for the given course version.',
+  })
+  @Authorized()
+  @Post('/enrollments/courses/:courseId/versions/:versionId/ethics-consent')
+  @HttpCode(200)
+  @ResponseSchema(EthicsConsentStatusResponse)
+  @ResponseSchema(BadRequestErrorResponse, {statusCode: 400})
+  async signEthicsConsent(
+    @Param('courseId') courseId: string,
+    @Param('versionId') versionId: string,
+    @Body() body: EthicsConsentBody,
+    @CurrentUser() user: IUser,
+  ): Promise<EthicsConsentStatusResponse> {
+    return this.enrollmentService.recordEthicsConsent(
+      user._id.toString(),
+      courseId,
+      versionId,
+      body.signature,
+      body.additionalImageConsent,
+    );
   }
 }

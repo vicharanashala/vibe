@@ -175,3 +175,41 @@ export function useAcknowledgePolicyUpdate() {
     }
   );
 }
+
+const ETHICS_CONSENT_PATH =
+  '/users/enrollments/courses/{courseId}/versions/{versionId}/ethics-consent';
+
+export type EthicsConsentStatus = {
+  signed: boolean;
+  signedAt?: string;
+  signature?: string;
+  additionalImageConsent?: boolean;
+};
+
+// GET ethics consent status for the current user in a course version
+export function useGetEthicsConsent(courseId?: string, versionId?: string) {
+  const result = api.useQuery(
+    'get',
+    ETHICS_CONSENT_PATH as any,
+    {
+      params: { path: { courseId, versionId } },
+    },
+    { enabled: !!courseId && !!versionId },
+  );
+  return {
+    status: (result.data as EthicsConsentStatus) ?? undefined,
+    signed: Boolean((result.data as EthicsConsentStatus)?.signed),
+    isLoading: result.isLoading,
+    error: result.error,
+    refetch: result.refetch,
+  };
+}
+
+// POST the signed ethics consent
+export function useSignEthicsConsent() {
+  return api.useMutation('post', ETHICS_CONSENT_PATH as any, {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['get', ETHICS_CONSENT_PATH] });
+    },
+  });
+}

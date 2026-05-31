@@ -61,6 +61,8 @@ import { EmotionSelector, EmotionType } from "@/components/EmotionSelector";
 import { useSubmitEmotion } from "@/hooks/use-emotion";
 
 import { runProctoringChecks } from "@/utils/proctoring/proctoringGuard";
+import { EthicsConsentModal } from "./components/policies/EthicsConsentModal";
+import { useGetEthicsConsent } from "@/hooks/system-notification-hooks";
 // Helper function to get icon for item type
 const getItemIcon = (type: string) => {
   switch (type.toLowerCase()) {
@@ -104,6 +106,11 @@ export default function CoursePage() {
   const VERSION_ID = currentCourse?.versionId || "";
   const COHORT_ID = currentCourse?.cohortId || "";
   const COHORT_NAME = currentCourse?.cohortName || "";
+  // Ethics consent gate: must be signed once per course before entering content
+  const { signed: ethicsConsentSigned, isLoading: ethicsConsentLoading } =
+    useGetEthicsConsent(COURSE_ID, VERSION_ID);
+  const [ethicsConsentSignedLocal, setEthicsConsentSignedLocal] = useState(false);
+  const consentSatisfied = ethicsConsentSigned || ethicsConsentSignedLocal;
   const { getSettings, settingLoading: proctoringLoading } = useGetProcotoringSettings();
 
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
@@ -1586,7 +1593,7 @@ const handleGoToNextItem = async () => {
     refetchVersion();
   }, [courseVersionData]);
 
-  if (versionLoading || progressLoading || proctoringLoading) {
+  if (versionLoading || progressLoading || proctoringLoading || ethicsConsentLoading) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
         <div className="flex items-center space-x-4">
@@ -1680,7 +1687,16 @@ return false;
 
   return (
     <>
-      <Dialog open={showProctorDialog} onOpenChange={(open) => {
+      {!consentSatisfied && (
+        <EthicsConsentModal
+          open={!consentSatisfied}
+          courseId={COURSE_ID}
+          versionId={VERSION_ID}
+          onSigned={() => setEthicsConsentSignedLocal(true)}
+          onCancel={() => router.navigate({ to: '/student' })}
+        />
+      )}
+      <Dialog open={consentSatisfied && showProctorDialog} onOpenChange={(open) => {
         if (!open) {
           router.navigate({ to: '/student' });
         }
@@ -2323,7 +2339,7 @@ return false;
                         setAttemptId={setAttemptId}
                         rewindVid={rewindVid}
                         readyToDetect={readyToDetect}
-                        pauseVid={pauseVid}
+                        pauseVid={pauseVid || !consentSatisfied || showProctorDialog}
                         displayNextLesson={false}
                         setQuizPassed={setQuizPassed}
                         anomalies={anomalies}

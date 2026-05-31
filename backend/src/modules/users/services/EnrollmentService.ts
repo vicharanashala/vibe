@@ -2682,6 +2682,68 @@ export class EnrollmentService extends BaseService {
       cohortId,
     );
   }
+
+  async getEthicsConsent(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<{
+    signed: boolean;
+    signedAt?: Date;
+    signature?: string;
+    additionalImageConsent?: boolean;
+    consentVersion?: string;
+  }> {
+    const enrollment = await this.enrollmentRepo.findEnrollment(
+      userId,
+      courseId,
+      courseVersionId,
+    );
+    if (!enrollment) {
+      throw new NotFoundError('Enrollment not found for this course version');
+    }
+    return {
+      signed: Boolean(enrollment.ethicsConsentSignedAt),
+      signedAt: enrollment.ethicsConsentSignedAt,
+      signature: enrollment.ethicsConsentSignature,
+      additionalImageConsent: enrollment.ethicsAdditionalImageConsent,
+      consentVersion: enrollment.ethicsConsentVersion,
+    };
+  }
+
+  async recordEthicsConsent(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    signature: string,
+    additionalImageConsent?: boolean,
+    consentVersion?: string,
+  ): Promise<{ signed: boolean; signedAt: Date; signature: string }> {
+    if (!signature || !signature.trim()) {
+      throw new BadRequestError('A signature (your full name) is required.');
+    }
+    const enrollment = await this.enrollmentRepo.findEnrollment(
+      userId,
+      courseId,
+      courseVersionId,
+    );
+    if (!enrollment) {
+      throw new NotFoundError('Enrollment not found for this course version');
+    }
+    await this.enrollmentRepo.recordEthicsConsent(
+      userId,
+      courseId,
+      courseVersionId,
+      signature.trim(),
+      consentVersion,
+      additionalImageConsent ?? false,
+    );
+    return {
+      signed: true,
+      signedAt: new Date(),
+      signature: signature.trim(),
+    };
+  }
   async partialReinstateUser(
     userId: string,
     courseId: string,

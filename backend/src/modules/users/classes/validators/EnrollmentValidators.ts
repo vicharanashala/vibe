@@ -12,6 +12,7 @@ import {
   IsOptional,
   IsNumber,
   ArrayMaxSize,
+  IsBoolean,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ProgressDataResponse} from './ProgressValidators.js';
@@ -614,6 +615,48 @@ export class UserEnrollmentStatisticsResponse {
   overallProgress: number;
 }
 
+export class EthicsConsentBody {
+  @JSONSchema({
+    description: 'Full name typed by the student as their signature',
+    type: 'string',
+  })
+  @IsString()
+  @IsNotEmpty()
+  signature: string;
+
+  @JSONSchema({
+    description:
+      'Optional consent for use of anonymized images/audio in future research or demonstrations',
+    type: 'boolean',
+  })
+  @IsOptional()
+  @IsBoolean()
+  additionalImageConsent?: boolean;
+}
+
+export class EthicsConsentStatusResponse {
+  @JSONSchema({
+    description: 'Whether the student has signed the ethics consent',
+    type: 'boolean',
+  })
+  @IsBoolean()
+  signed: boolean;
+
+  @JSONSchema({type: 'string', format: 'date-time'})
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  signedAt?: Date;
+
+  @IsOptional()
+  @IsString()
+  signature?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  additionalImageConsent?: boolean;
+}
+
 export const ENROLLMENT_VALIDATORS = [
   EnrollUserResponseData,
   EnrolledUserResponseData,
@@ -629,4 +672,6 @@ export const ENROLLMENT_VALIDATORS = [
   BulkChangeEnrollmentStatusBody,
   EnrollmentStatisticsResponse,
   UserEnrollmentStatisticsResponse,
+  EthicsConsentBody,
+  EthicsConsentStatusResponse,
 ];

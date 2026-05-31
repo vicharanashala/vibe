@@ -5496,6 +5496,37 @@ export class EnrollmentRepository {
       { $set: update },
     );
   }
+
+  async recordEthicsConsent(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    signature: string,
+    consentVersion?: string,
+    additionalImageConsent?: boolean,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    await this.enrollmentCollection.updateOne(
+      {
+        userId: { $in: [userId, new ObjectId(userId)] },
+        courseId: { $in: [courseId, new ObjectId(courseId)] },
+        courseVersionId: {
+          $in: [courseVersionId, new ObjectId(courseVersionId)],
+        },
+        isDeleted: { $ne: true },
+      },
+      {
+        $set: {
+          ethicsConsentSignedAt: new Date(),
+          ethicsConsentSignature: signature,
+          ethicsConsentVersion: consentVersion,
+          ethicsAdditionalImageConsent: additionalImageConsent ?? false,
+        },
+      },
+      { session },
+    );
+  }
   async findActiveStudentsForPolicy(
     courseId?: ObjectId,
     courseVersionId?: ObjectId,
