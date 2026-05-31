@@ -75,7 +75,10 @@ export function EthicsConsentModal({
   };
 
   const canReview =
-    hasScrolledToEnd && agreeDeclaration && signature.trim().length > 0;
+    hasScrolledToEnd &&
+    agreeDeclaration &&
+    agreeAdditional &&
+    signature.trim().length > 0;
 
   const handleSubmit = async () => {
     if (!canReview) return;
@@ -157,7 +160,7 @@ export function EthicsConsentModal({
               </Label>
             </div>
 
-            {/* Optional additional consent */}
+            {/* Additional consent (required) */}
             <div className="flex items-start gap-2">
               <Checkbox
                 id="ethics-additional"
@@ -168,7 +171,7 @@ export function EthicsConsentModal({
               />
               <Label
                 htmlFor="ethics-additional"
-                className="text-sm font-normal leading-snug cursor-pointer text-muted-foreground"
+                className="text-sm font-normal leading-snug cursor-pointer"
               >
                 {ETHICS_CONSENT_ADDITIONAL}
               </Label>
