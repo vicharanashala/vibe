@@ -121,7 +121,7 @@ export function EthicsConsentBody(): ReactNode {
       </section>
 
       <section className="space-y-1">
-        <h3 className="font-semibold">Additional Consent — Use of Images for Future Research / Demonstration</h3>
+        <h3 className="font-semibold">Additional Consent includes use of Images for Future Research / Demonstration</h3>
       </section>
 
       <section className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3">
