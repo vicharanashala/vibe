@@ -305,7 +305,11 @@ import {
 } from '#shared/constants/transformerConstants.js';
 import {ID} from '#shared/index.js';
 import {ProctoringComponent} from '#shared/database/index.js';
-import {ICourseSetting, IDetectorSettings} from '#shared/interfaces/models.js';
+import {
+  ICourseSetting,
+  IDetectorSettings,
+  EnrollmentRole,
+} from '#shared/interfaces/models.js';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {CreateCourseSettingBody} from '../index.js';
 import {ObjectId} from 'mongodb';
@@ -430,6 +434,13 @@ class CourseSetting implements ICourseSetting {
       uiSchema?: any;
       isActive?: boolean;
     };
+    followUpInvite?: {
+      enabled: boolean;
+      courseId?: ID;
+      courseVersionId?: ID;
+      cohortId?: ID;
+      role?: EnrollmentRole;
+    };
   };
 
   constructor(courseSettingsBody?: CreateCourseSettingBody) {
@@ -464,6 +475,17 @@ class CourseSetting implements ICourseSetting {
         uiSchema: courseSettingsBody?.settings?.registration?.uiSchema,
         isActive: courseSettingsBody?.settings?.registration?.isActive ?? true,
       },
+      followUpInvite: courseSettingsBody?.settings?.followUpInvite
+        ? {
+            enabled:
+              courseSettingsBody.settings.followUpInvite.enabled ?? false,
+            courseId: courseSettingsBody.settings.followUpInvite.courseId,
+            courseVersionId:
+              courseSettingsBody.settings.followUpInvite.courseVersionId,
+            cohortId: courseSettingsBody.settings.followUpInvite.cohortId,
+            role: courseSettingsBody.settings.followUpInvite.role,
+          }
+        : {enabled: false, courseId: undefined, courseVersionId: undefined},
     };
   }
 }

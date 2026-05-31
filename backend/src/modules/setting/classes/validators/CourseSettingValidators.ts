@@ -28,6 +28,7 @@ import {
   ISettings,
   IUserSetting,
   ITimeSlot,
+  EnrollmentRole,
 } from '#shared/interfaces/models.js';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ProctoringComponent} from '#root/shared/database/interfaces/ISettingRepository.js';
@@ -132,6 +133,38 @@ export class AuditingDto {
   timestamp: string;
 }
 
+export class FollowUpInviteSchema {
+  @IsBoolean()
+  @JSONSchema({
+    description:
+      'Whether completing this course auto-creates an invite to the follow-up course',
+  })
+  enabled: boolean;
+
+  @IsOptional()
+  @IsMongoId()
+  @IsString()
+  @JSONSchema({description: 'Follow-up course ID'})
+  courseId?: ID;
+
+  @IsOptional()
+  @IsMongoId()
+  @IsString()
+  @JSONSchema({description: 'Follow-up course version ID'})
+  courseVersionId?: ID;
+
+  @IsOptional()
+  @IsMongoId()
+  @IsString()
+  @JSONSchema({description: 'Optional cohort within the follow-up course'})
+  cohortId?: ID;
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({description: 'Role to enroll the student as (defaults to STUDENT)'})
+  role?: EnrollmentRole;
+}
+
 export class SettingsDto {
   @ValidateNested()
   @Type(() => ProctoringSettingsDto)
@@ -217,6 +250,16 @@ export class SettingsDto {
     type: 'object',
   })
   timeslots?: TimeSlotSchema;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => FollowUpInviteSchema)
+  @JSONSchema({
+    description:
+      'Follow-up invite: course the student is invited to on completion',
+    type: 'object',
+  })
+  followUpInvite?: FollowUpInviteSchema;
 
   @IsOptional()
   @ValidateNested({each: true})
@@ -472,6 +515,57 @@ export class RemoveCourseProctoringBody {
   @IsNotEmpty()
   @IsEnum(ProctoringComponent)
   detectorName: ProctoringComponent;
+}
+
+// Body for configuring the follow-up invite on a course version. When a
+// student completes this course version, an exclusive invite to the configured
+// follow-up course is created automatically.
+export class UpdateFollowUpInviteBody {
+  @IsDefined()
+  @IsBoolean()
+  @JSONSchema({
+    description:
+      'Whether completing this course should auto-create an invite to the follow-up course',
+  })
+  enabled: boolean;
+
+  @IsOptional()
+  @IsMongoId()
+  @IsString()
+  @JSONSchema({
+    title: 'Follow-up Course ID',
+    description: 'ID of the course to invite the student to on completion',
+    example: '60d5ec49b3f1c8e4a8f8b8c3',
+  })
+  courseId?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  @IsString()
+  @JSONSchema({
+    title: 'Follow-up Course Version ID',
+    description: 'ID of the follow-up course version',
+    example: '60d5ec49b3f1c8e4a8f8b8c1',
+  })
+  courseVersionId?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  @IsString()
+  @JSONSchema({
+    title: 'Follow-up Cohort ID',
+    description: 'Optional cohort within the follow-up course',
+    example: '60d5ec49b3f1c8e4a8f8b8c2',
+  })
+  cohortId?: string;
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Role to enroll the student as (defaults to STUDENT)',
+    example: 'STUDENT',
+  })
+  role?: string;
 }
 
 // This class represents the validation schema for creating user settings.

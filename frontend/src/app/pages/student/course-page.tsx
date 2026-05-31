@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem, useRecalculateStudentProgress } from "@/hooks/hooks";
+import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem, useRecalculateStudentProgress, useInvites, useAcceptInvite } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
@@ -110,6 +110,10 @@ export default function CoursePage() {
   const [isFlagSubmitted, setIsFlagSubmitted] = useState(false);
   const [isSkippingItem, setIsSkippingItem] = useState(false);
   const [courseJustCompleted, setCourseJustCompleted] = useState(false);
+  // Follow-up invite unlocked by completing this course (shown as a claim card).
+  const [followUpInvite, setFollowUpInvite] = useState<any | null>(null);
+  const { getInvites: getPendingInvites } = useInvites();
+  const { acceptInvite: acceptFollowUpInvite } = useAcceptInvite();
   const { mutateAsync: submitFlagAsyncMutate, isPending } = useSubmitFlag();
   const { mutateAsync: skipItemAsync, isPending: isSkipping } = useSkipOptionalItem();
   const { mutateAsync: recalculateStudentProgressAsync } = useRecalculateStudentProgress();
@@ -1263,7 +1267,26 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
               requestAnimationFrame(frame);
             };
             frame();
-            setTimeout(() => router.navigate({ to: "/student" }), 3500);
+
+            // Check for an exclusive follow-up invite unlocked by completing
+            // this course. If one exists, show a claim card instead of the
+            // usual auto-redirect so the student can act on it.
+            try {
+              const inviteRes = await getPendingInvites();
+              const invites = inviteRes?.invites ?? [];
+              const unlocked = invites.find(
+                (inv: any) =>
+                  inv?.inviteStatus === "PENDING" &&
+                  inv?.courseId?.toString() !== COURSE_ID?.toString(),
+              );
+              if (unlocked) {
+                setFollowUpInvite(unlocked);
+              } else {
+                setTimeout(() => router.navigate({ to: "/student" }), 3500);
+              }
+            } catch {
+              setTimeout(() => router.navigate({ to: "/student" }), 3500);
+            }
           }
 
           // Recalcualate and update the progress % and completed items count properly
@@ -1574,13 +1597,15 @@ const handleGoToNextItem = async () => {
 
   useEffect(() => {
   if (!courseJustCompleted) return;
+  // Don't auto-redirect when there's a follow-up invite to claim.
+  if (followUpInvite) return;
 
   const timer = setTimeout(() => {
     router.navigate({ to: "/student" });
   }, 3500);
 
   return () => clearTimeout(timer);
-}, [courseJustCompleted, router]);
+}, [courseJustCompleted, followUpInvite, router]);
 
   useEffect(() => {
     refetchVersion();
@@ -1680,6 +1705,58 @@ return false;
 
   return (
     <>
+      {/* Exclusive follow-up invite unlocked by completing this course */}
+      <Dialog
+        open={!!followUpInvite}
+        onOpenChange={(open) => {
+          if (!open) {
+            setFollowUpInvite(null);
+            router.navigate({ to: "/student" });
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg w-[calc(100%-2rem)] max-w-full text-center">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold">
+              🎉 You've unlocked a new course!
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-base text-foreground mt-2 mb-6">
+            Congratulations on completing this course. You've earned an exclusive
+            spot in{" "}
+            <span className="font-semibold">
+              {followUpInvite?.course?.name ?? "the next course"}
+            </span>
+            . Claim it now to get started.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button
+              className="font-semibold"
+              onClick={async () => {
+                const inviteId = followUpInvite?.inviteId?.toString();
+                if (!inviteId) return;
+                try {
+                  await acceptFollowUpInvite(inviteId, "ACCEPT");
+                  window.location.assign("/student");
+                } catch {
+                  /* keep the card open so they can retry */
+                }
+              }}
+            >
+              Claim my spot
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setFollowUpInvite(null);
+                router.navigate({ to: "/student" });
+              }}
+            >
+              Maybe later
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={showProctorDialog} onOpenChange={(open) => {
         if (!open) {
           router.navigate({ to: '/student' });

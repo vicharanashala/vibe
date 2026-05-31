@@ -23,6 +23,7 @@ import {
   ReadCourseSettingParams,
   SettingNotFoundErrorResponse,
   UpdateCourseSettingResponse,
+  UpdateFollowUpInviteBody,
 } from '../classes/index.js';
 import {BadRequestErrorResponse, IUser} from '#root/shared/index.js';
 import {AuditTrailsHandler} from '#root/shared/middleware/auditTrails.js';
@@ -171,6 +172,43 @@ export class CourseSettingController {
         status: OutComeStatus.SUCCESS,
       },
     });
+
+    return {success: result};
+  }
+
+  @Authorized()
+  @Put('/:courseId/:versionId/follow-up-invite')
+  @HttpCode(200)
+  @ResponseSchema(UpdateCourseSettingResponse, {
+    description: 'Follow-up invite settings updated successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(SettingNotFoundErrorResponse, {
+    description: 'Setting Not Found Error',
+    statusCode: 404,
+  })
+  async updateFollowUpInvite(
+    @Params() params: ReadCourseSettingParams,
+    @Body() body: UpdateFollowUpInviteBody,
+  ): Promise<{success: boolean}> {
+    // Configures which follow-up course a student is invited to when they
+    // complete this (source) course version.
+    const {courseId, versionId} = params;
+
+    const result = await this.courseSettingService.updateFollowUpInvite(
+      courseId,
+      versionId,
+      {
+        enabled: body.enabled,
+        courseId: body.courseId,
+        courseVersionId: body.courseVersionId,
+        cohortId: body.cohortId,
+        role: body.role,
+      },
+    );
 
     return {success: result};
   }

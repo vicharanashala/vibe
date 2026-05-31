@@ -418,6 +418,10 @@ export interface IEnrollment {
   cohortId?: ID;
   policyAcknowledgedAt?: Date;
   policyReacknowledgementRequired?: boolean;
+  ethicsConsentSignedAt?: Date; // doubles as the "Date" on the consent form
+  ethicsConsentSignature?: string; // the participant name the student typed
+  ethicsConsentVersion?: string; // lets us force re-consent if the text changes
+  ethicsAdditionalImageConsent?: boolean; // optional "use for future research" checkbox
   isEjected?: boolean;
   ejectionHistory?: Array<{
     ejectedAt: Date;
@@ -602,6 +606,15 @@ export interface ISettings {
   timeslots?: {
     isActive: boolean;
     slots: ITimeSlot[];
+  };
+  // When a student completes this course version, automatically create an
+  // exclusive invite to the configured follow-up course.
+  followUpInvite?: {
+    enabled: boolean;
+    courseId?: string | ObjectId; // target (follow-up) course
+    courseVersionId?: string | ObjectId; // target course version
+    cohortId?: string | ObjectId; // optional cohort in the target course
+    role?: EnrollmentRole; // defaults to 'STUDENT'
   };
   // jsonSchema?: any;
   // uiSchema?: any;

@@ -123,6 +123,23 @@ export interface ISettingRepository {
   ): Promise<UpdateResult | null>;
 
   /**
+   * Sets the follow-up invite configuration for a course version. When a student
+   * completes this course version, an exclusive invite to the configured
+   * follow-up course is created automatically.
+   * @param courseId - The ID of the (source) course
+   * @param courseVersionId - The ID of the (source) course version
+   * @param followUpInvite - The follow-up invite configuration
+   * @param session - Optional MongoDB session for transactions
+   * @returns Update result or null if update failed
+   */
+  updateFollowUpInvite(
+    courseId: string,
+    courseVersionId: string,
+    followUpInvite: ISettings['followUpInvite'],
+    session?: ClientSession,
+  ): Promise<UpdateResult | null>;
+
+  /**
    * Creates new user settings.
    * @param userSettings - The user settings to create
    * @param session - Optional MongoDB session for transactions

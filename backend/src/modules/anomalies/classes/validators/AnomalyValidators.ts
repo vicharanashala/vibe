@@ -7,7 +7,10 @@ import {
   IsString,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
-import {AnomalyType, FileType, IAnomalyData} from '../../index.js';
+// Import directly from the defining transformer rather than the module barrel
+// to avoid a circular dependency (the barrel re-exports controllers that pull
+// these validators back in, leaving AnomalyType undefined at eval time).
+import {AnomalyType, FileType, IAnomalyData} from '../transformers/Anomaly.js';
 import {ObjectId} from 'mongodb';
 import {
   SortOrder,

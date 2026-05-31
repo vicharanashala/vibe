@@ -461,6 +461,45 @@ export class SettingRepository implements ISettingRepository {
     return result;
   }
 
+  async updateFollowUpInvite(
+    courseId: string,
+    courseVersionId: string,
+    followUpInvite: ISettings['followUpInvite'],
+    session?: ClientSession,
+  ): Promise<UpdateResult | null> {
+    await this.init();
+
+    const normalized = followUpInvite
+      ? {
+          enabled: !!followUpInvite.enabled,
+          courseId: followUpInvite.courseId
+            ? new ObjectId(followUpInvite.courseId.toString())
+            : undefined,
+          courseVersionId: followUpInvite.courseVersionId
+            ? new ObjectId(followUpInvite.courseVersionId.toString())
+            : undefined,
+          cohortId: followUpInvite.cohortId
+            ? new ObjectId(followUpInvite.cohortId.toString())
+            : undefined,
+          role: followUpInvite.role,
+        }
+      : {enabled: false};
+
+    const result = await this.courseSettingsCollection.updateOne(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      {
+        $set: {
+          'settings.followUpInvite': normalized,
+        },
+      },
+      {upsert: true, session},
+    );
+    return result;
+  }
+
   async updateRegistrationSchemas(
     courseId: string,
     versionId: string,

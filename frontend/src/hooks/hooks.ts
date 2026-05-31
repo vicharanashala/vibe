@@ -2186,6 +2186,95 @@ export function useEditProctoringSettings() {
   return { editSettings, loading, error };
 }
 
+// PUT /setting/course-setting/{courseId}/{versionId}/follow-up-invite
+// Configures the exclusive follow-up course a student is invited to when they
+// complete this (source) course version.
+export function useUpdateFollowUpInvite() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const updateFollowUpInvite = async (
+    courseId: string,
+    versionId: string,
+    followUpInvite: {
+      enabled: boolean;
+      courseId?: string;
+      courseVersionId?: string;
+      cohortId?: string;
+      role?: string;
+    },
+  ) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/setting/course-setting/${courseId}/${versionId}/follow-up-invite`;
+
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+        body: JSON.stringify(followUpInvite),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        // Surface the backend's actionable message (e.g. "please select a cohort").
+        throw new Error(data?.message || `Failed to update follow-up invite: ${res.status}`);
+      }
+
+      return data;
+    } catch (err: any) {
+      setError(err.message || 'Unknown error');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { updateFollowUpInvite, loading, error };
+}
+
+// Accept (or reject) a course invite from within the app. Hits the local
+// backend accept endpoint (the backend-provided acceptUrl points at APP_URL,
+// which may be a different/staging host, so we build it from our own base).
+export function useAcceptInvite() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const acceptInvite = async (
+    inviteId: string,
+    action: 'ACCEPT' | 'REJECTED' = 'ACCEPT',
+  ) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/notifications/invite/${inviteId}?action=${action}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to process invite: ${res.status}`);
+      }
+      return true;
+    } catch (err: any) {
+      setError(err.message || 'Unknown error');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { acceptInvite, loading, error };
+}
+
 export function useSubmitStudentQuestion(): {
   submitQuestion: (
     courseId: string,

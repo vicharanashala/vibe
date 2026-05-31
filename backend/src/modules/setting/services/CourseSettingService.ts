@@ -20,6 +20,7 @@ import {
   ISettingRepository,
   ICourseRepository,
 } from '#shared/index.js';
+import {ISettings} from '#shared/interfaces/models.js';
 import {getISTFormattedTimestamp} from '#root/utils/toISOFormat.js';
 import {ClientSession, ObjectId} from 'mongodb';
 
@@ -340,6 +341,124 @@ class CourseSettingService extends BaseService {
    * @param courseVersionId - The ID of the course version
    * @returns False if linear progression field is false, true otherwise
    */
+  /**
+   * Configures the follow-up invite for a course version. When a student
+   * completes this (source) course version, an exclusive invite to the
+   * configured follow-up course is created automatically.
+   * @param courseId - The source course ID
+   * @param courseVersionId - The source course version ID
+   * @param followUpInvite - The follow-up invite configuration
+   * @returns True if the update was acknowledged
+   * @throws NotFoundError if the target course/version doesn't exist
+   * @throws ForbiddenError if the target course version is archived
+   */
+  async updateFollowUpInvite(
+    courseId: string,
+    courseVersionId: string,
+    followUpInvite: {
+      enabled: boolean;
+      courseId?: string;
+      courseVersionId?: string;
+      cohortId?: string;
+      role?: string;
+    },
+  ): Promise<boolean> {
+    // Ensure a fully-formed settings document exists for the source version
+    // (runs in its own transaction) before we patch the follow-up field.
+    await this.readCourseSettings(courseId, courseVersionId);
+
+    return this._withTransaction(async session => {
+      const sourceVersionStatus =
+        await this.courseRepo.getCourseVersionStatus(courseVersionId);
+      if (sourceVersionStatus === 'archived') {
+        throw new ForbiddenError(
+          "This course version is inactive, you can't update settings",
+        );
+      }
+
+      // Validate the target (follow-up) course/version when enabling.
+      if (followUpInvite.enabled) {
+        if (!followUpInvite.courseId || !followUpInvite.courseVersionId) {
+          throw new BadRequestError(
+            'Follow-up course and version are required when enabling the follow-up invite.',
+          );
+        }
+
+        const targetCourse = await this.courseRepo.read(
+          followUpInvite.courseId,
+          session,
+        );
+        if (!targetCourse) {
+          throw new NotFoundError(
+            `Follow-up course with ID ${followUpInvite.courseId} not found.`,
+          );
+        }
+
+        const targetVersion = await this.courseRepo.readVersion(
+          followUpInvite.courseVersionId,
+          session,
+        );
+        if (!targetVersion) {
+          throw new NotFoundError(
+            `Follow-up course version with ID ${followUpInvite.courseVersionId} not found.`,
+          );
+        }
+
+        const targetVersionStatus =
+          await this.courseRepo.getCourseVersionStatus(
+            followUpInvite.courseVersionId,
+          );
+        if (targetVersionStatus === 'archived') {
+          throw new ForbiddenError(
+            "Can't set an archived course version as the follow-up course.",
+          );
+        }
+
+        // If the follow-up version uses cohorts, a cohort is required so
+        // students can be enrolled into one. Surface this at configuration
+        // time (prompt the instructor) rather than failing silently on
+        // completion. Mirrors InviteService.inviteUserToCourse.
+        const targetCohorts = targetVersion.cohorts ?? [];
+        if (targetCohorts.length > 0) {
+          if (!followUpInvite.cohortId) {
+            throw new BadRequestError(
+              'The follow-up course version has cohorts. Please select a cohort for students to be enrolled into.',
+            );
+          }
+          const isValidCohort = targetCohorts.some(
+            c => c.toString() === followUpInvite.cohortId!.toString(),
+          );
+          if (!isValidCohort) {
+            throw new BadRequestError(
+              'Invalid cohort. The selected cohort does not exist in the follow-up course version.',
+            );
+          }
+        }
+      }
+
+      const result = await this.settingsRepo.updateFollowUpInvite(
+        courseId,
+        courseVersionId,
+        {
+          enabled: followUpInvite.enabled,
+          courseId: followUpInvite.courseId,
+          courseVersionId: followUpInvite.courseVersionId,
+          cohortId: followUpInvite.cohortId,
+          role: followUpInvite.role as ISettings['followUpInvite']['role'],
+        },
+        session,
+      );
+
+      if (!result) {
+        throw new InternalServerError(
+          'Failed to update follow-up invite settings. Please try again later.',
+        );
+      }
+
+      return result.acknowledged || false;
+    });
+  }
+
   async isLinearProgressionEnabled(
     courseId: string,
     courseVersionId: string,

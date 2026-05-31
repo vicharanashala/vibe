@@ -1,4 +1,5 @@
 import {Course} from '#root/modules/courses/classes/index.js';
+import {appConfig} from '#root/config/app.js';
 import {
   EnrollmentRole,
   ID,
@@ -272,6 +273,17 @@ class InviteResult {
   @ValidateNested()
   course?: Course;
 
+  @JSONSchema({
+    description:
+      'Exclusive link the user can open to accept this invite and enrol',
+    type: 'string',
+    example:
+      'https://app.example.com/api/notifications/invite/60c72b2f9b1e8d3f4c8b4567',
+  })
+  @IsString()
+  @IsOptional()
+  acceptUrl?: string;
+
   constructor(
     inviteId: ObjectId | string,
     email: string,
@@ -291,6 +303,9 @@ class InviteResult {
     this.courseId = courseId;
     this.courseVersionId = courseVersionId;
     this.cohortId = cohortId;
+    if (inviteId) {
+      this.acceptUrl = `${appConfig.url}${appConfig.routePrefix}/notifications/invite/${inviteId.toString()}`;
+    }
     if (inviteStatus == 'ACCEPTED' && acceptedAt) {
       this.acceptedAt = acceptedAt;
     }

@@ -13,6 +13,7 @@ import {
   IBlogDetails,
   ICurrentProgressPath,
   IEnrollment,
+  EnrollmentRole,
 } from '#root/shared/interfaces/models.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { ProgressRepository } from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
@@ -47,6 +48,8 @@ import { GetCurrentProgressPathResponse } from '../classes/dtos/GetCurrentProgre
 import { SETTING_TYPES } from '#root/modules/setting/types.js';
 import { CourseSettingService } from '#root/modules/setting/index.js';
 import { getContainer } from '#root/bootstrap/loadModules.js';
+import { NOTIFICATIONS_TYPES } from '#root/modules/notifications/types.js';
+import type { InviteService } from '#root/modules/notifications/services/InviteService.js';
 
 const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
 const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
@@ -2292,6 +2295,12 @@ class ProgressService extends BaseService {
       );
     }
 
+    // Whether the course was already completed before this call, so we only
+    // fire the follow-up invite on the false->true transition (not on replays
+    // of the last item).
+    const wasAlreadyCompleted = progress.completed === true;
+    let justCompleted = false;
+
     await this._withTransaction(async session => {
       let shouldCountCurrentItemAsCompleted = false;
       let stoppedWatchTime: any = null;
@@ -2573,7 +2582,71 @@ class ProgressService extends BaseService {
         cohortId,
         session,
       );
+
+      justCompleted = newProgress.completed === true && !wasAlreadyCompleted;
     });
+
+    // Best-effort: when the student just completed this course, create an
+    // exclusive invite to the configured follow-up course. Runs outside the
+    // completion transaction and must never break completion.
+    if (justCompleted) {
+      await this.triggerFollowUpInvite(userId, courseId, courseVersionId);
+    }
+  }
+
+  /**
+   * If this course version has a follow-up invite configured, create an
+   * exclusive invite to the target course for the completing student. The
+   * underlying invite creation dedupes pending invites and skips already-
+   * enrolled users, so this is safe to call on every completion.
+   */
+  private async triggerFollowUpInvite(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<void> {
+    try {
+      const courseSettings = await this.getCourseSettingService().readCourseSettings(
+        courseId,
+        courseVersionId,
+      );
+
+      const followUp = courseSettings?.settings?.followUpInvite;
+      if (
+        !followUp ||
+        !followUp.enabled ||
+        !followUp.courseId ||
+        !followUp.courseVersionId
+      ) {
+        return;
+      }
+
+      const user = await this.userRepo.findById(userId);
+      if (!user?.email) {
+        return;
+      }
+
+      const inviteService = getContainer().get<InviteService>(
+        NOTIFICATIONS_TYPES.InviteService,
+      );
+
+      // The created invite is automatically surfaced to the student as an
+      // actionable notification card in their notification bell (InviteDropdown
+      // lists pending invites), in addition to the completion-screen card and
+      // the dashboard banner — so no separate notification record is needed.
+      await inviteService.inviteUserToCourse(
+        [{email: user.email, role: (followUp.role as EnrollmentRole) ?? 'STUDENT'}],
+        followUp.courseId.toString(),
+        followUp.courseVersionId.toString(),
+        followUp.cohortId?.toString(),
+      );
+    } catch (error) {
+      // Never let follow-up invite failures break course completion.
+      console.error(
+        `Failed to create follow-up invite for user ${userId} after completing course ${courseId}/${courseVersionId}:`,
+        error,
+      );
+    }
   }
 
   private validateProgressPosition(

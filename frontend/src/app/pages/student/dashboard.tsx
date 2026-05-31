@@ -15,6 +15,8 @@ import { cn } from "@/utils/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CourseCard } from "@/components/course/CourseCard";
 import { CourseListCard } from "@/components/course/CourseListCard";
+import { FollowUpInvitesBanner } from "@/components/course/FollowUpInvitesBanner";
+import { NewAnnouncementsPopup } from "@/components/announcements/NewAnnouncementsPopup";
 import { BookOpen, TrendingUp, LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -147,6 +149,8 @@ function DashboardContent() {
 
   return (
     <>
+      {/* Auto-popup any announcements the student hasn't seen yet */}
+      <NewAnnouncementsPopup />
       <div className="container mx-auto px-0 sm:px-6 lg:px-8 xl:px-0 py-6 flex flex-col lg:flex-row gap-6 transition-all duration-300">
         <main className="flex-1 w-full space-y-8">
           {/* Greeting and Stat Cards Section */}
@@ -171,6 +175,9 @@ function DashboardContent() {
               />
             </div>
           </div>
+
+          {/* Exclusive follow-up course invites unlocked by completing a course */}
+          <FollowUpInvitesBanner />
 
           <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6 w-full">
             <TabsList className="w-full md:w-fit flex h-auto p-1 bg-slate-100/80 dark:bg-slate-800/50 rounded-full border border-slate-200/50 dark:border-slate-700/50 overflow-x-auto scrollbar-hide">
