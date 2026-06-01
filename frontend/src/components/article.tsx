@@ -43,7 +43,7 @@ const TOOLS = {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, Star, ChevronRight } from "lucide-react";
-import { useStartItem, useStopItem} from "@/hooks/hooks";
+import { useStartItem, useStopItem, useUpsertWatchTime } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 
 
@@ -77,6 +77,7 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     const { currentCourse, setWatchItemId } = useCourseStore();
     const startItem = useStartItem();
     const stopItem = useStopItem();
+    const upsertWatchTime = useUpsertWatchTime();
     const [isStopping, setIsStopping] = useState(false);
 
     // ✅ Track if item has been started and if start request has been sent
@@ -176,6 +177,23 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
             itemStartedRef.current = true;
         }
     }, [startItem.data?.watchItemId, setWatchItemId]);
+
+    // ✅ Call upsert watch time API every 10 seconds while article is being read
+    useEffect(() => {
+        if (!currentCourse?.watchItemId || !itemStartedRef.current) return;
+
+        const interval = setInterval(() => {
+            upsertWatchTime.mutate({
+                body: {
+                    watchItemId: currentCourse.watchItemId!,
+                    itemId: currentCourse.itemId!,
+                    cohortId: currentCourse.cohortId ?? undefined,
+                }
+            } as any);
+        }, 15000); // every 15 seconds
+
+        return () => clearInterval(interval); // cleanup on unmount
+    }, [currentCourse?.watchItemId]);
 
     // ✅ Load content from prop when component mounts or content changes
     useEffect(() => {

@@ -2021,6 +2021,19 @@ export function useStopItem() {
   };
 }
 
+export function useUpsertWatchTime() {
+  const result = api.useMutation(
+    "post",
+    "/users/watchtime/upsert" as any,
+  );
+  return {
+    ...result,
+    error: result.error
+      ? result.error.message || 'Failed to upsert watch time'
+      : null,
+  };
+}
+
 export function useSkipOptionalItem(): {
   mutate: (variables: { params: { path: { itemId: String }, query: { cohortId?: string } } }) => void,
   mutateAsync: (variables: { params: { path: { itemId: String }, query: { cohortId?: string } } }) => Promise<unknown>,

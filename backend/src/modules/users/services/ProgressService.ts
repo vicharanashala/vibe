@@ -2306,7 +2306,7 @@ class ProgressService extends BaseService {
            * stopItemTracking should ideally be idempotent.
            * If already stopped, do not hard-fail unless your business logic requires it.
            */
-          stoppedWatchTime = await this.progressRepository.stopItemTracking(
+          stoppedWatchTime = await this.progressRepository.getWatchTimeById(
             watchItemId,
             session,
           );
@@ -2322,7 +2322,7 @@ class ProgressService extends BaseService {
              *
              * For now, keeping compatibility:
              */
-            throw new NotFoundError('Watch time not found or already stopped');
+            throw new NotFoundError('Watch time record not found');
           }
 
           await this.validateItemStopEligibility(
@@ -3560,6 +3560,29 @@ class ProgressService extends BaseService {
       throw new NotFoundError('Watch time not found');
     }
     return watchTime;
+  }
+
+  async upsertWatchTime(
+    userId: string,
+    watchItemId: string,
+    itemId: string,
+    cohortId?: string,
+  ): Promise<string> {
+    // Step 1 — check if watch time record exists
+    const existingWatchTime = await this.progressRepository.getWatchTimeById(
+      watchItemId,
+    );
+
+    if (existingWatchTime) {
+      // Step 2 — record exists, update endTime to now
+      await this.progressRepository.stopItemTracking(watchItemId);
+      return watchItemId;
+    } else {
+      // Step 3 — record does not exist, this should not happen
+      // because start API creates the record
+      // but just in case, throw an error
+      throw new NotFoundError('Watch time record not found');
+    }
   }
 
   // In ProgressService.ts

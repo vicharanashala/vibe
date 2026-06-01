@@ -17,6 +17,8 @@ import {
   CompletedProgressResponse,
   WatchTimeResponse,
   TotalWatchTimeResponse,
+  UpsertWatchTimeBody,
+  UpsertWatchTimeResponse,
   ItemIdparams,
   GetLeaderboardQuery,
   LeaderboardNoAuthResponse,
@@ -669,6 +671,41 @@ It returns an empty body with a 200 status code.
     return { watchTime };
   }
 
+  @OpenAPI({
+    summary: 'Upsert Watch Time',
+    description: 'Creates a watch time record if not exists or updates the existing one',
+  })
+  @Authorized()
+  @Post('/watchtime/upsert')
+  @HttpCode(200)
+  @ResponseSchema(UpsertWatchTimeResponse, {
+    description: 'Watch time upserted successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid request body',
+    statusCode: 400,
+  })
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Failed to upsert watch time',
+    statusCode: 500,
+  })
+  async upsertWatchTime(
+    @Body() body: UpsertWatchTimeBody,
+    @Ability(getProgressAbility) { user },
+  ): Promise<UpsertWatchTimeResponse> {
+    const userId = String(user._id);
+    const { watchItemId, itemId, cohortId } = body;
+
+    const result = await this.progressService.upsertWatchTime(
+      userId,
+      watchItemId,
+      itemId,
+      cohortId,
+    );
+
+    return { watchItemId: result };
+  }
   @OpenAPI({
     summary: 'Get Total Watch Time of User',
     description: `Gets the Total Watch Time of the User`,
