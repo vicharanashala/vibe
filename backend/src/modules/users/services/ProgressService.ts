@@ -10,7 +10,6 @@ import {
   IWatchTime,
   IProgress,
   IVideoDetails,
-  IBlogDetails,
   ICurrentProgressPath,
   IEnrollment,
   EnrollmentRole,
@@ -1433,16 +1432,9 @@ class ProgressService extends BaseService {
         return adjustedDuration >= minimumRequired;
 
       case 'BLOG':
-        const blogDetails = item.details as IBlogDetails;
-        // Estimated read time is in minutes
-        const readTimeSeconds =
-          (blogDetails.estimatedReadTimeInMinutes || 1) * 60;
-
-        // Require at least 10% of estimated time OR 10 seconds
-        // This stops instant click-throughs but doesn't punish fast readers
-        const minReadTime = Math.min(readTimeSeconds * 0.1, 10);
-
-        return adjustedDuration >= minReadTime;
+        // No minimum reading time for articles. Students can proceed to the
+        // next lesson whenever they click Next, and the item is marked complete.
+        return true;
 
       default:
         return true;
