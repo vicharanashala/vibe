@@ -4,7 +4,7 @@ import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, Loader2, XCircle, Maximize, Minimize, FastForward } from 'lucide-react';
-import { useSkipOptionalItem, useStartItem, useStopItem, useStoreWatchTimeTrack, } from '../hooks/hooks';
+import { useSkipOptionalItem, useStartItem, useStopItem, useStoreWatchTimeTrack, useUpsertWatchTime } from '../hooks/hooks';
 
 
 import { useCourseStore } from '../store/course-store';
@@ -63,6 +63,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const { currentCourse, setWatchItemId } = useCourseStore();
   const startItem = useStartItem();
   const stopItem = useStopItem();
+  const upsertWatchTime = useUpsertWatchTime();
   const isStopping = stopItem.isPending;
   const stopError = stopItem.error;
   const { mutateAsync: storeWatchTimeTrack } = useStoreWatchTimeTrack();
@@ -610,6 +611,23 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
       setWatchItemId(startItem.data.watchItemId);
     }
   }, [startItem.data?.watchItemId, setWatchItemId]);
+
+  // ✅ Call upsert watch time API every 10 seconds while video is playing
+  useEffect(() => {
+    if (!watchItemIdRef.current) return;
+
+    const interval = setInterval(() => {
+      upsertWatchTime.mutate({
+        body: {
+          watchItemId: watchItemIdRef.current!,
+          itemId: currentCourse?.itemId!,
+          cohortId: currentCourse?.cohortId ?? undefined,
+        }
+      } as any);
+    }, 15000); // every 15 seconds
+
+    return () => clearInterval(interval); // cleanup on unmount
+  }, [watchItemIdRef.current]);
 
 
   const forceHighestQuality = (player: YTPlayerInstance) => {

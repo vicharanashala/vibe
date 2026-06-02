@@ -719,6 +719,48 @@ export class TotalWatchTimeResponse {
   totalWatchTime: number;
 }
 
+export class UpsertWatchTimeBody {
+  @JSONSchema({
+    description: 'Watch item ID used for tracking progress',
+    example: '60d5ec49b3f1c8e4a8f8b8c7',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsMongoId()
+  watchItemId: string;
+
+  @JSONSchema({
+    description: 'ID of the course item being watched',
+    example: '60d5ec49b3f1c8e4a8f8b8c4',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsMongoId()
+  itemId: string;
+
+  @JSONSchema({
+    description: 'ID of the cohort if applicable',
+    example: '60d5ec49b3f1c8e4a8f8b8c8',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  cohortId?: string;
+}
+
+export class UpsertWatchTimeResponse {
+  @JSONSchema({
+    description: 'Watch item ID of the upserted record',
+    example: '60d5ec49b3f1c8e4a8f8b8c7',
+    type: 'string',
+  })
+  @IsString()
+  watchItemId: string;
+}
+
 export const PROGRESS_VALIDATORS = [
   GetUserProgressParams,
   StartItemBody,
@@ -735,4 +777,6 @@ export const PROGRESS_VALIDATORS = [
   ProgressNotFoundErrorResponse,
   WatchTimeParams,
   WatchTimeResponse,
+  UpsertWatchTimeBody,
+  UpsertWatchTimeResponse,
 ];
