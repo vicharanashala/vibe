@@ -2307,7 +2307,7 @@ class ProgressService extends BaseService {
            * stopItemTracking should ideally be idempotent.
            * If already stopped, do not hard-fail unless your business logic requires it.
            */
-          stoppedWatchTime = await this.progressRepository.getWatchTimeById(
+          stoppedWatchTime = await this.progressRepository.stopItemTracking(
             watchItemId,
             session,
           );
