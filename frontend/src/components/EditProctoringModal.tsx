@@ -163,9 +163,13 @@ export function ProctoringModal({
           )
           const followUp = result.settings?.followUpInvite;
           setFollowUpEnabled(followUp?.enabled ?? false)
-          setFollowUpCourseId(followUp?.courseId ? followUp.courseId.toString() : "")
-          setFollowUpVersionId(followUp?.courseVersionId ? followUp.courseVersionId.toString() : "")
-          setFollowUpCohortId(followUp?.cohortId ? followUp.cohortId.toString() : "")
+          // ObjectIds arrive from the API as buffer objects, so normalize them
+          // the same way the dropdown options are (normalizeId/bufferToHex).
+          // Using a raw .toString() here yields "[object Object]", which never
+          // matches a <SelectItem> value, leaving the dropdowns blank on reload.
+          setFollowUpCourseId(normalizeId(followUp?.courseId))
+          setFollowUpVersionId(normalizeId(followUp?.courseVersionId))
+          setFollowUpCohortId(normalizeId(followUp?.cohortId))
         }
       } catch (err) {
         console.error("Failed to fetch proctoring settings:", err)
