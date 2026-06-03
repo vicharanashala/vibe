@@ -1545,6 +1545,12 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                               </div>
 
                             ) : <></>}
+                            
+                            {anomalies?.includes("cameraIntegrity") ? (
+                              <div style={{ marginBottom: 6 }}>
+                                <strong>Camera issue detected. Please check your camera.</strong>
+                              </div>
+                            ) : <></>}
 
                           </span>
 

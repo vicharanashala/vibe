@@ -590,7 +590,6 @@ const lastCalledRef = useRef<number>(0);
 
       // Condition 1: If speaking is detected (only if voice detection is enabled)
       if (isSpeaking === "Yes" && isVoiceDetectionEnabled) {
-        setPauseVid(true);
         setAnomalies([...anomalies, "voiceDetection"]);
         newPenaltyType = "Speaking";
         newPenaltyPoints += 1;
@@ -602,7 +601,6 @@ const lastCalledRef = useRef<number>(0);
           // No faces detected - this might be normal during initialization
           // Only penalize if we're sure the camera is active and should see a face
           if (isVideoActive && readyToDetect) {
-            setPauseVid(true); // Just pause, don't rewind
             setAnomalies([...anomalies, "faceCountDetection"]);
             newPenaltyType = "No Face Detected";
             newPenaltyPoints += 1;
@@ -634,7 +632,6 @@ const lastCalledRef = useRef<number>(0);
 
       // Condition 5: Registered face does not match current camera frame
       if (hasFaceRecognitionMismatch && isFaceRecognitionEnabled) {
-        setPauseVid(true);
         setAnomalies([...anomalies, "faceRecognition"]);
         newPenaltyType = "Face Recognition";
         newPenaltyPoints += 2;
