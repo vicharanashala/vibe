@@ -2143,9 +2143,9 @@ return false;
           {/* {isDesktopSidebarVisible &&  */}
           <ResizableHandle className="hidden md:flex h-screen" />
           {/* } */}
-          <ResizablePanel defaultSize={80} className="min-w-0 min-h-screen">
+          <ResizablePanel defaultSize={80} className="min-w-0 h-full overflow-hidden">
             {/* Main Content Area */}
-            <SidebarInset className="flex-1  bg-gradient-to-br from-background via-background to-background/95 peer-data-[variant=inset]:!m-0">
+            <SidebarInset className="flex-1 h-full bg-gradient-to-br from-background via-background to-background/95 peer-data-[variant=inset]:!m-0">
               <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/20 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-4">
                 {/* <Button
                   variant="ghost"
@@ -2191,7 +2191,7 @@ return false;
                 </div>
               )}
 
-              <div className="flex-1 overflow-hidden relative">
+              <div className="flex-1 overflow-y-auto relative">
                 {/* Ambient background effect */}
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.01] via-transparent to-secondary/[0.01] pointer-events-none" />
 
