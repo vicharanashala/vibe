@@ -771,6 +771,31 @@ class ProgressRepository {
       currentItem: progress.currentItem?.toString(),
     }));
   }
+  /**
+   * Returns the distinct user IDs that have *completed* a given course version,
+   * across all cohorts. Used to backfill follow-up invites for students who
+   * finished the source course before the follow-up invite was configured.
+   */
+  async getCompletedUserIdsForCourseVersion(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<string[]> {
+    await this.init();
+    const userIds = await this.progressCollection.distinct(
+      'userId',
+      {
+        courseId: { $in: [new ObjectId(courseId), courseId] },
+        courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
+        completed: true,
+      },
+      { session },
+    );
+    return userIds
+      .map((id: unknown) => (id ? id.toString() : ''))
+      .filter((id): id is string => id.length > 0);
+  }
+
   async deleteUserProgressByVersionIds(
     courseVersionIds: ObjectId[],
     session?: ClientSession,

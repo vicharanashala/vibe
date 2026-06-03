@@ -69,3 +69,12 @@ export const getContainer = (): Container => {
   }
   return container;
 };
+
+/**
+ * Test seam: register an externally-built container as the global one so that
+ * service-locator lookups via getContainer() resolve against it. Only intended
+ * for tests that assemble their own container instead of loadAppModules('all').
+ */
+export const setContainer = (testContainer: Container): void => {
+  container = testContainer;
+};

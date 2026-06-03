@@ -2641,6 +2641,104 @@ class ProgressService extends BaseService {
     }
   }
 
+  /**
+   * Backfill the follow-up invite for every student who already *completed* the
+   * source course version but never received the invite (because they finished
+   * before it was configured). Invites are only sent to students who are not
+   * already actively enrolled in the target course; pending-invite de-duplication
+   * is handled by InviteService, so this is safe to re-run.
+   *
+   * @returns a summary of how many completers were found, skipped, and invited.
+   */
+  async backfillFollowUpInvites(
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<{
+    completed: number;
+    alreadyEnrolled: number;
+    missingEmail: number;
+    invited: number;
+  }> {
+    const courseSettings =
+      await this.getCourseSettingService().readCourseSettings(
+        courseId,
+        courseVersionId,
+      );
+
+    const followUp = courseSettings?.settings?.followUpInvite;
+    if (
+      !followUp ||
+      !followUp.enabled ||
+      !followUp.courseId ||
+      !followUp.courseVersionId
+    ) {
+      throw new BadRequestError(
+        'This course version has no enabled follow-up invite to backfill.',
+      );
+    }
+
+    const targetCourseId = followUp.courseId.toString();
+    const targetVersionId = followUp.courseVersionId.toString();
+    const targetCohortId = followUp.cohortId?.toString();
+    const role = (followUp.role as EnrollmentRole) ?? 'STUDENT';
+
+    const completedUserIds =
+      await this.progressRepository.getCompletedUserIdsForCourseVersion(
+        courseId,
+        courseVersionId,
+      );
+
+    let alreadyEnrolled = 0;
+    let missingEmail = 0;
+    const emailSet = new Set<string>();
+
+    for (const userId of completedUserIds) {
+      // Skip students who are already onboarded to the target course version.
+      const enrollment = await this.enrollmentRepo.findActiveEnrollment(
+        userId,
+        targetCourseId,
+        targetVersionId,
+        targetCohortId,
+      );
+      if (enrollment) {
+        alreadyEnrolled++;
+        continue;
+      }
+
+      const user = await this.userRepo.findById(userId);
+      if (!user?.email) {
+        missingEmail++;
+        continue;
+      }
+      emailSet.add(user.email.toLowerCase().trim());
+    }
+
+    const summary = {
+      completed: completedUserIds.length,
+      alreadyEnrolled,
+      missingEmail,
+      invited: emailSet.size,
+    };
+
+    if (emailSet.size === 0) {
+      return summary;
+    }
+
+    const inviteService = getContainer().get<InviteService>(
+      NOTIFICATIONS_TYPES.InviteService,
+    );
+
+    // InviteService de-dupes pending invites internally, so re-runs are safe.
+    await inviteService.inviteUserToCourse(
+      Array.from(emailSet).map(email => ({email, role})),
+      targetCourseId,
+      targetVersionId,
+      targetCohortId,
+    );
+
+    return summary;
+  }
+
   private validateProgressPosition(
     progress: IProgress,
     moduleId: string,
