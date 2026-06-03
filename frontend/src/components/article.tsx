@@ -42,11 +42,29 @@ const TOOLS = {
 // Import ShadCN UI Components
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Star, ChevronRight } from "lucide-react";
+import { Clock, Star, ChevronRight, ExternalLink, Link as LinkIcon, X, Maximize2 } from "lucide-react";
 import { useStartItem, useStopItem, useUpsertWatchTime } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 
-
+// Helper function to convert Google Docs/Sheets URLs to embeddable format
+const convertToEmbedUrl = (url: string): string | null => {
+  // Google Docs
+  if (url.includes('docs.google.com/document')) {
+    const docId = url.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1];
+    if (docId) return `https://docs.google.com/document/d/${docId}/preview`;
+  }
+  // Google Sheets
+  if (url.includes('docs.google.com/spreadsheets')) {
+    const sheetId = url.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1];
+    if (sheetId) return `https://docs.google.com/spreadsheets/d/${sheetId}/preview`;
+  }
+  // Google Slides
+  if (url.includes('docs.google.com/presentation')) {
+    const slideId = url.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1];
+    if (slideId) return `https://docs.google.com/presentation/d/${slideId}/preview`;
+  }
+  return null;
+};
 
 // ✅ PLUGINS for Yoopta Editor (read-only display)
 const plugins = [
@@ -72,6 +90,9 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     // ✅ Initialize Yoopta Editor
     const editor = useMemo(() => createYooptaEditor(), []);
     const [value, setValue] = useState<YooptaContentValue>();
+    const [extractedLinks, setExtractedLinks] = useState<Array<{ text: string; href: string }>>([]);
+    const [selectedLink, setSelectedLink] = useState<{ text: string; href: string; embedUrl: string } | null>(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
     
     // ✅ Get user and course data from stores
     const { currentCourse, setWatchItemId } = useCourseStore();
@@ -225,6 +246,29 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editor, content]);
 
+    // ✅ Extract links from article content to display in Resources section
+    useEffect(() => {
+        const contentDiv = document.querySelector('.prose');
+        if (!contentDiv) return;
+
+        const links = Array.from(contentDiv.querySelectorAll('a'))
+            .map(a => ({
+                text: a.textContent || 'Link',
+                href: a.getAttribute('href') || ''
+            }))
+            .filter(link => link.href && (
+                link.href.includes('docs.google.com') ||
+                link.href.includes('dropbox.com') ||
+                link.href.includes('onedrive.live.com') ||
+                link.href.includes('http') ||
+                link.href.startsWith('//')
+            ));
+
+        // Remove duplicates
+        const uniqueLinks = Array.from(new Map(links.map(l => [l.href, l])).values());
+        setExtractedLinks(uniqueLinks);
+    }, [value]);
+
     // ✅ Clean up on unmount - but don't send stop request here
     useEffect(() => {
         return () => {
@@ -255,6 +299,17 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
             document.head.removeChild(style);
         };
     }, []);
+
+    // Handle link click - prevent default and open in viewer
+    const handleLinkClick = (link: { text: string; href: string }) => {
+        const embedUrl = convertToEmbedUrl(link.href);
+        if (embedUrl) {
+            setSelectedLink({ ...link, embedUrl });
+        } else {
+            // For non-embeddable links, open in new tab
+            window.open(link.href, '_blank', 'noopener,noreferrer');
+        }
+    };
 
 
     return (
@@ -312,14 +367,111 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                     />
                 </div>
 
+                {/* Resources/Links Section - Click to embed in viewer below */}
+                {extractedLinks.length > 0 && !selectedLink && (
+                    <div className="border-t border-border/20 bg-background/50 px-4 py-4">
+                        <div className="max-h-32 overflow-y-auto">
+                            <div className="flex items-center gap-2 mb-3">
+                                <LinkIcon className="h-4 w-4 text-primary" />
+                                <h3 className="font-semibold text-sm">Resources & Links</h3>
+                                <Badge variant="secondary" className="text-xs">{extractedLinks.length}</Badge>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {extractedLinks.map((link, index) => (
+                                    <Button
+                                        key={index}
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleLinkClick(link)}
+                                        className="gap-2 bg-primary/5 hover:bg-primary/10 border-primary/20 hover:border-primary/40 text-xs"
+                                        title={link.href}
+                                    >
+                                        <ExternalLink className="h-3 w-3" />
+                                        <span className="truncate max-w-[150px]">
+                                            {link.text.length > 20 ? link.text.substring(0, 20) + '...' : link.text}
+                                        </span>
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Embedded Document Viewer */}
+                {selectedLink && (
+                    <div className={`border-t border-border/20 bg-background/50 flex flex-col ${isFullscreen ? 'fixed inset-0 z-50 p-4' : 'h-96'}`}>
+                        {/* Viewer Header */}
+                        <div className="flex items-center justify-between p-3 bg-muted/50 border-b border-border/20 rounded-t">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <LinkIcon className="h-4 w-4 text-primary flex-shrink-0" />
+                                <h3 className="font-semibold text-sm truncate">{selectedLink.text}</h3>
+                            </div>
+                            <div className="flex gap-2 flex-shrink-0">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setIsFullscreen(!isFullscreen)}
+                                    title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                                >
+                                    <Maximize2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                        setSelectedLink(null);
+                                        setIsFullscreen(false);
+                                    }}
+                                    title="Close Viewer"
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Embedded Document */}
+                        <div className="flex-1 overflow-hidden rounded-b">
+                            <iframe
+                                src={selectedLink.embedUrl}
+                                className="w-full h-full border-0"
+                                title={selectedLink.text}
+                                allowFullScreen
+                            />
+                        </div>
+
+                        {/* Back to links button */}
+                        {!isFullscreen && (
+                            <div className="p-3 border-t border-border/20 bg-muted/30 flex gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setSelectedLink(null)}
+                                    className="text-xs"
+                                >
+                                    ← Back to Links
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => window.open(selectedLink.href, '_blank', 'noopener,noreferrer')}
+                                    className="text-xs"
+                                >
+                                    <ExternalLink className="h-3 w-3 mr-1" />
+                                    Open in New Tab
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* Next Lesson Button */}
-                {onNext && (
+                {onNext && !selectedLink && (
                     <div className="p-4 border-t border-border/20 bg-background/50 backdrop-blur-sm">
                         <div className="flex justify-end">
                             <Button
                                 onClick={handleNextClick}
                                 disabled={isProgressUpdating || isStopping}
-                                className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
+                                className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80"
                                 size="lg"
                             >
                                 {isProgressUpdating || isStopping ? (
