@@ -180,7 +180,7 @@ export default function CoursePage() {
         }
       }
     }
-    if (!showProctorDialog && !allProctorsDisabled) {
+    if (consentSatisfied && !showProctorDialog && !allProctorsDisabled) {
       checkMediaPermissions();
     }
     return () => {
@@ -191,7 +191,7 @@ export default function CoursePage() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showProctorDialog]);
+  }, [showProctorDialog, consentSatisfied]);
 
   // Get the setCurrentCourse function from the store
   const { setCurrentCourse } = useCourseStore();
@@ -1712,6 +1712,16 @@ return false;
 
   return (
     <>
+      {/* Ethical consent gate — must be signed once per course before any content */}
+      {!consentSatisfied && (
+        <EthicsConsentModal
+          open={!consentSatisfied}
+          courseId={COURSE_ID}
+          versionId={VERSION_ID}
+          onSigned={() => setEthicsConsentSignedLocal(true)}
+          onCancel={() => router.navigate({ to: "/student" })}
+        />
+      )}
       {/* Exclusive follow-up invite unlocked by completing this course */}
       <Dialog
         open={!!followUpInvite}
@@ -1764,7 +1774,7 @@ return false;
           </div>
         </DialogContent>
       </Dialog>
-      <Dialog open={showProctorDialog} onOpenChange={(open) => {
+      <Dialog open={consentSatisfied && showProctorDialog} onOpenChange={(open) => {
         if (!open) {
           router.navigate({ to: '/student' });
         }
