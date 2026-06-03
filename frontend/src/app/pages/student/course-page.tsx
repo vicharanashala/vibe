@@ -2407,7 +2407,7 @@ return false;
                         setAttemptId={setAttemptId}
                         rewindVid={rewindVid}
                         readyToDetect={readyToDetect}
-                        pauseVid={pauseVid || !consentSatisfied || showProctorDialog}
+                        pauseVid={pauseVid || showProctorDialog}
                         displayNextLesson={false}
                         setQuizPassed={setQuizPassed}
                         anomalies={anomalies}
