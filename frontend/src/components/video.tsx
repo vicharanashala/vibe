@@ -391,7 +391,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 sectionId: currentCourse!.sectionId ?? '',
                 seekForwardEnabled,
                 nextItemId,
-                cohortId: currentCourse!.cohortId ?? '',
+                cohortId: currentCourse!.cohortId || undefined,
               },
             });
           }
@@ -598,7 +598,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           itemId: currentCourse.itemId,
           moduleId: currentCourse.moduleId ?? '',
           sectionId: currentCourse.sectionId ?? '',
-          cohortId: currentCourse.cohortId ?? '',
+          cohortId: currentCourse.cohortId || undefined,
         }
       });
     }
@@ -621,7 +621,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         body: {
           watchItemId: watchItemIdRef.current!,
           itemId: currentCourse?.itemId!,
-          cohortId: currentCourse?.cohortId ?? undefined,
+          cohortId: currentCourse?.cohortId || undefined,
         }
       } as any);
     }, 15000); // every 15 seconds
