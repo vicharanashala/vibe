@@ -48,6 +48,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
     switch (itemType) {
       case 'video':
         return <Video
+          key={item._id.toString()}
           URL={item.details?.URL ? item.details.URL : ''}
           startTime={item.details?.startTime ? item.details.startTime : ''}
           endTime={item.details?.endTime ? item.details.endTime : ''}
@@ -72,6 +73,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
 
       case 'quiz':
         return <Quiz
+          key={item._id.toString()}
           ref={quizRef}
           questionBankRefs={item.details?.questionBankRefs || []}
           passThreshold={item.details?.passThreshold || 0}
@@ -110,6 +112,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
       case 'article':
       case 'blog':
         return <Article
+          key={item._id.toString()}
           ref={articleRef}
           content={item.details?.content || ''}
           estimatedReadTimeInMinutes={item.details?.estimatedReadTimeInMinutes || ''}
@@ -123,6 +126,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
 
       case 'project':
         return <ProjectItem
+          key={item._id.toString()}
           item={{
             _id: item._id,
             name: item.name,
@@ -137,6 +141,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
         />;
       case 'feedback':
         return <FeedbackForm
+          key={item._id.toString()}
           title={item.name}
           description={item.description}
           isOptional={item.isOptional}
@@ -148,7 +153,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           isAlreadyWatched={item.isAlreadyWatched || false}
           completedItemIdsRef={completedItemIdsRef}
           previousItem = {previousItem}
-        />
+        />;
 
       default:
         return (

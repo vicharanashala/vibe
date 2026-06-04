@@ -100,7 +100,7 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                     itemId: currentCourse.itemId,
                     moduleId: currentCourse.moduleId ?? '',
                     sectionId: currentCourse.sectionId ?? '',
-                    cohortId: currentCourse.cohortId ?? '',
+                    cohortId: currentCourse.cohortId || undefined,
                 }
             });
         }
@@ -123,7 +123,7 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                         itemId: currentCourse.itemId,
                         moduleId: currentCourse.moduleId ?? '',
                         sectionId: currentCourse.sectionId ?? '',
-                        cohortId: currentCourse.cohortId ?? '',
+                        cohortId: currentCourse.cohortId || undefined,
                     }
                 });
             }
@@ -187,7 +187,7 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                 body: {
                     watchItemId: currentCourse.watchItemId!,
                     itemId: currentCourse.itemId!,
-                    cohortId: currentCourse.cohortId ?? undefined,
+                    cohortId: currentCourse.cohortId || undefined,
                 }
             } as any);
         }, 15000); // every 15 seconds

@@ -32,7 +32,7 @@ interface EthicsConsentModalProps {
   onCancel: () => void;
 }
 
-type Step = "form" | "preview";
+type Step = "form" | "preview" | "declined";
 
 export function EthicsConsentModal({
   open,
@@ -105,7 +105,9 @@ export function EthicsConsentModal({
     <Dialog
       open={open}
       onOpenChange={(isOpen) => {
-        if (!isOpen) onCancel();
+        // Don't let the learner slip out silently — surface the friendly
+        // reminder that signing is essential before leaving the course.
+        if (!isOpen) setStep("declined");
       }}
     >
       <DialogContent
@@ -116,12 +118,18 @@ export function EthicsConsentModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-primary" />
-            {step === "form" ? ETHICS_CONSENT_TITLE : "Review & Sign"}
+            {step === "form"
+              ? ETHICS_CONSENT_TITLE
+              : step === "preview"
+                ? "Review & Sign"
+                : "Just one quick step to get started"}
           </DialogTitle>
           <DialogDescription>
             {step === "form"
               ? "Please read the full consent below. Scroll to the end to enable signing."
-              : "Confirm the details below are correct, then accept to sign."}
+              : step === "preview"
+                ? "Confirm the details below are correct, then accept to sign."
+                : "Completing this consent is essential to begin your course on ViBe."}
           </DialogDescription>
         </DialogHeader>
 
@@ -192,7 +200,11 @@ export function EthicsConsentModal({
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
+              <Button
+                variant="outline"
+                onClick={() => setStep("declined")}
+                disabled={isSubmitting}
+              >
                 Decline
               </Button>
               <Button disabled={!canReview} onClick={() => setStep("preview")}>
@@ -200,7 +212,7 @@ export function EthicsConsentModal({
               </Button>
             </div>
           </>
-        ) : (
+        ) : step === "preview" ? (
           <>
             {/* Signed-form preview */}
             <div className="rounded-md border border-border/60 bg-muted/20 p-5">
@@ -258,6 +270,33 @@ export function EthicsConsentModal({
               </Button>
               <Button onClick={handleSubmit} disabled={isSubmitting}>
                 {isSubmitting ? "Recording…" : "Accept & Sign"}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Friendly re-prompt when the learner tries to decline / dismiss */}
+            <div className="rounded-md border border-border/60 bg-muted/20 p-6 text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                <ShieldCheck className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="mb-2 text-base font-semibold">
+                Just one quick step before you dive in
+              </h3>
+              <p className="mx-auto max-w-md text-sm text-muted-foreground">
+                Signing the ethical consent form is an essential step to start any
+                course on the ViBe platform. It only takes a moment, and it helps us
+                keep your learning experience safe, fair, and respectful for everyone.
+                We&apos;d love to have you on board — shall we finish it together?
+              </p>
+            </div>
+
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-between">
+              <Button variant="ghost" onClick={onCancel} disabled={isSubmitting}>
+                Leave course
+              </Button>
+              <Button onClick={() => setStep("form")} disabled={isSubmitting}>
+                Review &amp; complete consent
               </Button>
             </div>
           </>

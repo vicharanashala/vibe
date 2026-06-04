@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useCourseVersionById, useEditProctoringSettings, useGetProcotoringSettings, useUpdateFollowUpInvite, useUserEnrollments } from "@/hooks/hooks"
+import { useBackfillFollowUpInvites, useCourseVersionById, useEditProctoringSettings, useGetProcotoringSettings, useUpdateFollowUpInvite, useUserEnrollments } from "@/hooks/hooks"
 import { bufferToHex } from "@/utils/helpers"
 import { useEffect, useMemo, useState } from "react"
 import { Label } from "./ui/label"
@@ -85,6 +85,7 @@ export function ProctoringModal({
   const { editSettings, loading, error } = useEditProctoringSettings()
   const { getSettings, settingLoading, settingError } = useGetProcotoringSettings();
   const { updateFollowUpInvite, loading: followUpLoading } = useUpdateFollowUpInvite();
+  const { backfillFollowUpInvites, loading: backfillLoading } = useBackfillFollowUpInvites();
 
   const allComponents = Object.values(ProctoringComponent)
   const [detectors, setDetectors] = useState(
@@ -163,9 +164,13 @@ export function ProctoringModal({
           )
           const followUp = result.settings?.followUpInvite;
           setFollowUpEnabled(followUp?.enabled ?? false)
-          setFollowUpCourseId(followUp?.courseId ? followUp.courseId.toString() : "")
-          setFollowUpVersionId(followUp?.courseVersionId ? followUp.courseVersionId.toString() : "")
-          setFollowUpCohortId(followUp?.cohortId ? followUp.cohortId.toString() : "")
+          // ObjectIds arrive from the API as buffer objects, so normalize them
+          // the same way the dropdown options are (normalizeId/bufferToHex).
+          // Using a raw .toString() here yields "[object Object]", which never
+          // matches a <SelectItem> value, leaving the dropdowns blank on reload.
+          setFollowUpCourseId(normalizeId(followUp?.courseId))
+          setFollowUpVersionId(normalizeId(followUp?.courseVersionId))
+          setFollowUpCohortId(normalizeId(followUp?.cohortId))
         }
       } catch (err) {
         console.error("Failed to fetch proctoring settings:", err)
@@ -218,6 +223,22 @@ export function ProctoringModal({
     } catch(error: any) {
       // Show the backend's actionable message when available (e.g. cohort prompt).
       toast.error(error?.message || "Failed to update settings!")
+    }
+  }
+
+  // Re-send the follow-up invite to students who already completed this course
+  // before the invite was configured. Uses the *saved* follow-up config, so the
+  // instructor should save any pending changes first.
+  const handleBackfill = async () => {
+    try {
+      const summary = await backfillFollowUpInvites(courseId, courseVersionId)
+      const skipped = summary.alreadyEnrolled + summary.missingEmail
+      toast.success(
+        `Invited ${summary.invited} past completer${summary.invited === 1 ? "" : "s"}.` +
+          (skipped > 0 ? ` Skipped ${skipped} (already enrolled or no email).` : ""),
+      )
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to send invites to past completers.")
     }
   }
 
@@ -491,6 +512,32 @@ export function ProctoringModal({
                                 ))}
                               </SelectContent>
                             </Select>
+                          </div>
+                        )}
+
+                        {/* Backfill: invite students who already completed this
+                            course before the follow-up invite was configured. */}
+                        {!isNew && (
+                          <div className="space-y-1 pt-1">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className="w-full"
+                              disabled={backfillLoading}
+                              onClick={handleBackfill}
+                            >
+                              {backfillLoading ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 animate-spin" /> Sending invites…
+                                </>
+                              ) : (
+                                "Invite past completers"
+                              )}
+                            </Button>
+                            <p className="text-xs text-muted-foreground">
+                              Sends the saved follow-up invite to students who already finished this course and aren't enrolled yet. Save any changes first.
+                            </p>
                           </div>
                         )}
                       </div>
