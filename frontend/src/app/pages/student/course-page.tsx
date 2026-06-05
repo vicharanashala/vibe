@@ -815,12 +815,22 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
       setPendingStudentQuestionContext(null);
 
       try {
-        // Stop current item immediately
-        if (itemContainerRef.current) {
-          // await itemContainerRef.current.stopCurrentItem();
-          // Small delay for API/callback cleanup
-          await new Promise(resolve => setTimeout(resolve, 50));
+        // Record completion for the current item before leaving.
+        // Documents (BLOG) only get their completion recorded by an explicit stop
+        // call; unlike video/quiz/project they don't auto-complete on their own
+        // event. Without this, leaving a document via the sidebar (instead of the
+        // "Next Lesson" button) left it un-ticked and stuck students below 100%.
+        // Scoped to BLOG so half-watched videos / unfinished quizzes are untouched,
+        // and wrapped so a stop failure can never block navigation.
+        if (itemContainerRef.current && currentItem?.type === 'BLOG') {
+          try {
+            await itemContainerRef.current.stopCurrentItem();
+          } catch (e) {
+            console.error('Failed to record document completion on sidebar nav:', e);
+          }
         }
+        // Small delay for API/callback cleanup
+        await new Promise(resolve => setTimeout(resolve, 50));
 
         // Store previous valid for fallback (only if not forbidden)
         if (selectedItemId && selectedSectionId && selectedModuleId && !isItemForbidden) {
@@ -866,6 +876,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     isItemForbidden,
     updateCourseNavigation,
     itemContainerRef,
+    currentItem,
   ]);
 
   const handleSkipItem = async () => {

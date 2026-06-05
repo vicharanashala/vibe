@@ -170,6 +170,11 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
         stopItem: handleStopItem
     }));
 
+    // Keep a ref to the latest stop fn so the unmount cleanup can call it
+    // without closing over a stale `currentCourse`.
+    const handleStopItemRef = useRef(handleStopItem);
+    handleStopItemRef.current = handleStopItem;
+
     // ✅ Watch for start request completion and update watchItemId
     useEffect(() => {
         if (startItem.data?.watchItemId && startRequestSentRef.current && !itemStartedRef.current) {
@@ -225,9 +230,16 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editor, content]);
 
-    // ✅ Clean up on unmount - but don't send stop request here
+    // ✅ Clean up on unmount
     useEffect(() => {
         return () => {
+            // Defense in depth: if this document was opened but is being left by a
+            // path that didn't explicitly stop it (e.g. browser back / tab change),
+            // record its completion so it still gets ticked. No-op if already stopped
+            // (itemStartedRef is cleared by handleStopItem), so this never double-fires.
+            if (itemStartedRef.current) {
+                void handleStopItemRef.current?.();
+            }
             // Reset refs on unmount
             itemStartedRef.current = false;
             startRequestSentRef.current = false;
