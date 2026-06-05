@@ -78,7 +78,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     const decodedToken = await this.auth.verifyIdToken(token);
     const firebaseUID = decodedToken.uid;
     // Retrieve the user from our database using the Firebase UID
-    const user = await this.userRepository.findByFirebaseUID(firebaseUID);
+    let user = await this.userRepository.findByFirebaseUID(firebaseUID);
     if (!user) {
       // get user data from Firebase
       try {
@@ -92,8 +92,9 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
           firstName: firebaseUser.displayName?.split(' ')[0] || '',
           lastName: firebaseUser.displayName?.split(' ')[1] || '',
         };
-        const createdUser = await this.googleSignup(userData, token);
-        if (!createdUser) {
+        await this.googleSignup(userData, token);
+        user = await this.userRepository.findByFirebaseUID(firebaseUID);
+        if (!user) {
           throw new InternalServerError('Failed to create the user');
         }
       } catch (error) {
