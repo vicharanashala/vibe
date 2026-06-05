@@ -2251,6 +2251,55 @@ export function useUpdateFollowUpInvite() {
   return { updateFollowUpInvite, loading, error };
 }
 
+// POST /setting/course-setting/{courseId}/{versionId}/follow-up-invite/backfill
+// Re-sends the configured follow-up invite to every student who already
+// completed this (source) course version but isn't yet enrolled in the target
+// course — e.g. students who finished before the follow-up invite was set up.
+export function useBackfillFollowUpInvites() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const backfillFollowUpInvites = async (
+    courseId: string,
+    versionId: string,
+  ): Promise<{
+    completed: number;
+    alreadyEnrolled: number;
+    missingEmail: number;
+    invited: number;
+  }> => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/setting/course-setting/${courseId}/${versionId}/follow-up-invite/backfill`;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data?.message || `Failed to backfill follow-up invites: ${res.status}`);
+      }
+
+      return data;
+    } catch (err: any) {
+      setError(err.message || 'Unknown error');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { backfillFollowUpInvites, loading, error };
+}
+
 // Accept (or reject) a course invite from within the app. Hits the local
 // backend accept endpoint (the backend-provided acceptUrl points at APP_URL,
 // which may be a different/staging host, so we build it from our own base).

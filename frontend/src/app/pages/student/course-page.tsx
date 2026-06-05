@@ -212,7 +212,8 @@ export default function CoursePage() {
         sectionId,
         itemId,
         cohortId: COHORT_ID,
-        cohortName: COHORT_NAME
+        cohortName: COHORT_NAME,
+        watchItemId: null
       });
     }
   }, [setCurrentCourse]);

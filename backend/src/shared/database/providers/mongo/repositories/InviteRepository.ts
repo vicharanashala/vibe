@@ -128,7 +128,7 @@ export class InviteRepository {
     await this.init(); // Ensure collection is initialized
 
     const invites = await this.inviteCollection
-      .find({email}, {session})
+      .find({email: email.toLowerCase().trim()}, {session})
       .toArray();
 
     return invites.map(invite => ({
@@ -146,7 +146,7 @@ export class InviteRepository {
     await this.init();
 
     await this.inviteCollection.updateMany(
-      {email: email, isNewUser: true},
+      {email: email.toLowerCase().trim(), isNewUser: true},
       {$set: {isNewUser: false}},
       {session},
     );
@@ -159,7 +159,7 @@ export class InviteRepository {
     await this.init(); // Ensure collection is initialized
 
     const invites = await this.inviteCollection
-      .find({email, inviteStatus: 'PENDING'}, {session})
+      .find({email: email.toLowerCase().trim(), inviteStatus: 'PENDING'}, {session})
       .toArray();
 
     return invites.map(invite => ({
