@@ -2816,4 +2816,44 @@ export class EnrollmentService extends BaseService {
     const stats = await this.enrollmentRepo.getUserEnrollmentStatistics(userId);
     return stats;
   }
+
+  /**
+   * Returns a paginated roster of every learner on the platform along with the
+   * courses each has completed. Backs the server-to-server integration endpoint.
+   */
+  async getLearnersWithCompletedCourses(
+    page: number,
+    limit: number,
+  ): Promise<{
+    page: number;
+    limit: number;
+    totalLearners: number;
+    totalPages: number;
+    learners: Array<{
+      userId: string;
+      email: string;
+      name: string;
+      completedCourses: Array<{
+        courseId: string;
+        courseVersionId: string;
+        courseName?: string;
+        completedAt?: Date;
+      }>;
+    }>;
+  }> {
+    const safePage = Math.max(1, Math.floor(page) || 1);
+    const safeLimit = Math.min(Math.max(1, Math.floor(limit) || 50), 200);
+    const skip = (safePage - 1) * safeLimit;
+
+    const { total, learners } =
+      await this.enrollmentRepo.getLearnersWithCompletedCourses(skip, safeLimit);
+
+    return {
+      page: safePage,
+      limit: safeLimit,
+      totalLearners: total,
+      totalPages: Math.ceil(total / safeLimit),
+      learners,
+    };
+  }
 }

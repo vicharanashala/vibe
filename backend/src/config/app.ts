@@ -39,5 +39,9 @@ export const appConfig = {
     environment: env('NODE_ENV') || 'development',
     sendDefaultPii: true,
   },
+  // Server-to-server integration API (e.g. external apps querying learner completions)
+  integration: {
+    apiKey: env('INTEGRATION_API_KEY') || undefined,
+  },
 };
 console.log(appConfig.url)
