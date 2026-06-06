@@ -210,3 +210,48 @@ describe('CourseSettingService.updateFollowUpInvite', () => {
     ).rejects.toThrowError(ForbiddenError);
   });
 });
+
+describe('CourseSettingService.getCourseVersionsWithFollowUpInviteEnabled', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function makeListService(
+    rows: Array<{ courseId: string; courseVersionId: string }>,
+  ) {
+    const settingsRepo = {
+      getCourseVersionsWithFollowUpInviteEnabled: vi
+        .fn()
+        .mockResolvedValue(rows),
+    };
+    const svc = new CourseSettingService(
+      settingsRepo as any,
+      {} as any,
+      {} as any,
+    );
+    return { svc, settingsRepo };
+  }
+
+  it('returns the enabled source course versions from the repo', async () => {
+    const rows = [
+      { courseId: 'c1', courseVersionId: 'v1' },
+      { courseId: 'c2', courseVersionId: 'v2' },
+    ];
+    const { svc, settingsRepo } = makeListService(rows);
+
+    const result = await svc.getCourseVersionsWithFollowUpInviteEnabled();
+
+    expect(result).toEqual(rows);
+    expect(
+      settingsRepo.getCourseVersionsWithFollowUpInviteEnabled,
+    ).toHaveBeenCalledOnce();
+  });
+
+  it('returns an empty list when no course version has it enabled', async () => {
+    const { svc } = makeListService([]);
+
+    const result = await svc.getCourseVersionsWithFollowUpInviteEnabled();
+
+    expect(result).toEqual([]);
+  });
+});

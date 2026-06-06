@@ -495,6 +495,16 @@ class CourseSettingService extends BaseService {
     async shouldRandomize(versionId:string): Promise<boolean> {
       return this.settingsRepo.shouldRandomize(versionId);
     }
+
+  /**
+   * Lists every course version that has an enabled follow-up invite configured.
+   * Used by the daily reconciliation job to backfill follow-up invites.
+   */
+  async getCourseVersionsWithFollowUpInviteEnabled(): Promise<
+    Array<{courseId: string; courseVersionId: string}>
+  > {
+    return this.settingsRepo.getCourseVersionsWithFollowUpInviteEnabled();
+  }
 }
 
 export {CourseSettingService};

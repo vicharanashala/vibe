@@ -53,6 +53,12 @@ import type { InviteService } from '#root/modules/notifications/services/InviteS
 const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
 const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
 
+// Progress (percent) at or above which the configured follow-up course is made
+// available to the student. This is intentionally decoupled from course
+// completion: the follow-up invite is offered once the student crosses this
+// threshold, without requiring every item to be marked complete.
+const FOLLOW_UP_INVITE_THRESHOLD = 98;
+
 @injectable()
 class ProgressService extends BaseService {
   private getCourseSettingService(): CourseSettingService {
@@ -2292,6 +2298,10 @@ class ProgressService extends BaseService {
     // of the last item).
     const wasAlreadyCompleted = progress.completed === true;
     let justCompleted = false;
+    // Whether this update pushes the student across the follow-up threshold for
+    // the first time, so the follow-up invite is offered once (not on every
+    // subsequent progress event above the threshold).
+    let crossedFollowUpThreshold = false;
 
     await this._withTransaction(async session => {
       let shouldCountCurrentItemAsCompleted = false;
@@ -2554,6 +2564,14 @@ class ProgressService extends BaseService {
         cohortId,
       );
 
+      // Detect the first time the student reaches the follow-up threshold so we
+      // can offer the next course once. Based purely on percent progress; the
+      // course `completed` flag is left untouched.
+      const previousPercent = enrollment.percentCompleted ?? 0;
+      crossedFollowUpThreshold =
+        previousPercent < FOLLOW_UP_INVITE_THRESHOLD &&
+        percentCompleted >= FOLLOW_UP_INVITE_THRESHOLD;
+
       if (percentCompleted > 99) {
         await this.recalculateStudentProgress(
           userId,
@@ -2578,10 +2596,12 @@ class ProgressService extends BaseService {
       justCompleted = newProgress.completed === true && !wasAlreadyCompleted;
     });
 
-    // Best-effort: when the student just completed this course, create an
-    // exclusive invite to the configured follow-up course. Runs outside the
-    // completion transaction and must never break completion.
-    if (justCompleted) {
+    // Best-effort: when the student crosses the follow-up threshold (>=98%) or
+    // just completed this course, create an exclusive invite to the configured
+    // follow-up course. Runs outside the completion transaction and must never
+    // break completion. InviteService de-dupes pending invites and skips
+    // already-enrolled users, so the overlap at 100% is harmless.
+    if (justCompleted || crossedFollowUpThreshold) {
       await this.triggerFollowUpInvite(userId, courseId, courseVersionId);
     }
   }
@@ -2682,10 +2702,14 @@ class ProgressService extends BaseService {
     const targetCohortId = followUp.cohortId?.toString();
     const role = (followUp.role as EnrollmentRole) ?? 'STUDENT';
 
+    // Select students by percent progress (>= threshold), not the `completed`
+    // flag, so the follow-up course is made available to everyone who reached
+    // the threshold — including those whose completion flag never flipped.
     const completedUserIds =
-      await this.progressRepository.getCompletedUserIdsForCourseVersion(
+      await this.enrollmentRepo.getUserIdsAtOrAbovePercentForCourseVersion(
         courseId,
         courseVersionId,
+        FOLLOW_UP_INVITE_THRESHOLD,
       );
 
     let alreadyEnrolled = 0;

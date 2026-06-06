@@ -231,9 +231,11 @@ export class CourseSettingController {
     missingEmail: number;
     invited: number;
   }> {
-    // Re-sends the configured follow-up invite to every student who already
-    // completed this (source) course version but isn't yet enrolled in the
-    // target course — e.g. students who finished before the invite was set up.
+    // Re-sends the configured follow-up invite to every student whose progress
+    // in this (source) course version is at or above the follow-up threshold
+    // (>=98%) but isn't yet enrolled in the target course — e.g. students who
+    // reached the threshold before the invite was set up, or whose completion
+    // flag never flipped.
     const {courseId, versionId} = params;
 
     const progressService = getContainer().get<ProgressService>(

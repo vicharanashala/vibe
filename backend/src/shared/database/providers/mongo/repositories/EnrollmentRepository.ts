@@ -3661,6 +3661,37 @@ export class EnrollmentRepository {
     }
   }
 
+  /**
+   * Returns the distinct student user IDs whose progress for a given course
+   * version is at or above `minPercent`, across all cohorts. Used to backfill
+   * follow-up invites for students who reached the threshold but never received
+   * the invite. Based purely on percent progress; the `completed` flag is not
+   * considered.
+   */
+  async getUserIdsAtOrAbovePercentForCourseVersion(
+    courseId: string,
+    courseVersionId: string,
+    minPercent: number,
+    session?: ClientSession,
+  ): Promise<string[]> {
+    await this.init();
+    const userIds = await this.enrollmentCollection.distinct(
+      'userId',
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        role: 'STUDENT',
+        status: { $regex: /^active$/i },
+        isDeleted: { $ne: true },
+        percentCompleted: { $gte: minPercent },
+      },
+      { session },
+    );
+    return userIds
+      .map((id: unknown) => (id ? id.toString() : ''))
+      .filter((id): id is string => id.length > 0);
+  }
+
   async deleteEnrollmentByVersionId(
     versionId: string,
     session?: ClientSession,
