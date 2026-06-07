@@ -392,10 +392,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 console.warn(`[quiz] Could not resolve _id for lotItem at index ${index}. Answer may be incorrect.`);
                 return null;
               });
-              if (resolvedIds.every(id => id !== null)) {
-                saveAnswer.lotItemIds = resolvedIds as string[];
-              } else {
-                console.error(`[quiz] One or more selected answers could not be resolved for question ${question.id}. Skipping submission for this question.`);
+              const validIds = resolvedIds.filter((id): id is string => id !== null);
+              if (validIds.length > 0) {
+                saveAnswer.lotItemIds = validIds;
+                if (validIds.length < resolvedIds.length) {
+                  console.warn(`[quiz] Some answers could not be resolved for question ${question.id}. Submitting ${validIds.length} of ${resolvedIds.length} selected answers.`);
+                }
               }
             }
             break;

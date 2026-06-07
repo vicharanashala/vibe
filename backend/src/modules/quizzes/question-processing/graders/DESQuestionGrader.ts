@@ -42,7 +42,7 @@ class DESQuestionGrader implements IGrader {
   ): Promise<{...}> {
     // TODO: Integrate with LLM-based evaluation engine later
     return {
-      status: 'PARTIAL',
+      status: 'INCORRECT',
       score: 0, // award 0 until real LLM grading is in place — no arbitrary points
       feedback: 'Your answer has been recorded and is pending manual or AI review.',
       };
