@@ -30,25 +30,23 @@ class DESQuestionGrader implements IGrader {
   }
 
   /**
-   * Placeholder for LLM-based grading.
-   * Replace this logic with a call to your LLM service in the future.
-   */
+  /**
+ * Placeholder for LLM-based grading.
+ * Replace this logic with a call to your LLM service in the future.
+ * Until LLM grading is integrated, descriptive answers are marked PARTIAL
+ * with 0 score so students are not incorrectly rewarded or penalised.
+ */
   private async evaluateAnswerWithLLM(
     answerText: string,
     solutionText: string,
-  ): Promise<{
-    status: 'CORRECT' | 'PARTIAL' | 'INCORRECT';
-    score: number;
-    feedback?: string;
-  }> {
+  ): Promise<{...}> {
     // TODO: Integrate with LLM-based evaluation engine later
-    // This is a dummy placeholder response
     return {
       status: 'PARTIAL',
-      score: Math.round(this.question.points), // temporary arbitrary logic
-      feedback: 'Your answer was partially correct. LLM evaluation pending.',
-    };
-  }
+      score: 0, // award 0 until real LLM grading is in place — no arbitrary points
+      feedback: 'Your answer has been recorded and is pending manual or AI review.',
+      };
+    }
 }
 
 export {DESQuestionGrader};
