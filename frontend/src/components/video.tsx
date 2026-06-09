@@ -612,20 +612,21 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     }
   }, [startItem.data?.watchItemId, setWatchItemId]);
 
- // ✅ Call upsert watch time API every 15 seconds while video is playing
+  // ✅ Call upsert watch time API every 15 seconds while video is playing
   useEffect(() => {
-    if (!startItem.data?.watchItemId || !playing) return;
+    const watchItemId = startItem.data?.watchItemId || currentCourse?.watchItemId;
+    if (!watchItemId || !playing) return;
     const interval = setInterval(() => {
       upsertWatchTime.mutate({
         body: {
-          watchItemId: watchItemIdRef.current!,
+          watchItemId,
           itemId: currentCourse?.itemId!,
           cohortId: currentCourse?.cohortId || undefined,
         }
       } as any);
     }, 15000); // every 15 seconds
     return () => clearInterval(interval); // cleanup on unmount
-  }, [startItem.data?.watchItemId, playing]);
+  }, [startItem.data?.watchItemId, playing, currentCourse?.watchItemId]);
 
 
   const forceHighestQuality = (player: YTPlayerInstance) => {

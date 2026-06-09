@@ -82,6 +82,16 @@ export const FaceRegistrationModal: React.FC<FaceRegistrationModalProps> = ({
     }
   };
 
+  const handleRetake = () => {
+    setStudentPhotoPreview("");
+    setStudentPhotoFile(null);
+    setCameraError("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    void openCamera();
+  };
+
   const openCamera = async () => {
     try {
       setCameraError("");
@@ -366,7 +376,7 @@ export const FaceRegistrationModal: React.FC<FaceRegistrationModalProps> = ({
                     type="button"
                     variant="outline"
                     className="flex-1"
-                    onClick={openCamera}
+                    onClick={handleRetake}
                   >
                     <RefreshCcw className="mr-2 h-4 w-4" />
                     Retake
