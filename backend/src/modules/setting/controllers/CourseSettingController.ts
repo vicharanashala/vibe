@@ -228,6 +228,7 @@ export class CourseSettingController {
   ): Promise<{
     completed: number;
     alreadyEnrolled: number;
+    alreadyInvited: number;
     missingEmail: number;
     invited: number;
   }> {
