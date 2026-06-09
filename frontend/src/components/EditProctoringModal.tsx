@@ -232,10 +232,13 @@ export function ProctoringModal({
   const handleBackfill = async () => {
     try {
       const summary = await backfillFollowUpInvites(courseId, courseVersionId)
-      const skipped = summary.alreadyEnrolled + summary.missingEmail
+      const skipped =
+        summary.alreadyEnrolled + summary.alreadyInvited + summary.missingEmail
       toast.success(
         `Invited ${summary.invited} past completer${summary.invited === 1 ? "" : "s"}.` +
-          (skipped > 0 ? ` Skipped ${skipped} (already enrolled or no email).` : ""),
+          (skipped > 0
+            ? ` Skipped ${skipped} (already enrolled, already invited, or no email).`
+            : ""),
       )
     } catch (error: any) {
       toast.error(error?.message || "Failed to send invites to past completers.")
