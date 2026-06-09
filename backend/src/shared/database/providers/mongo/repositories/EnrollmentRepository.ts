@@ -3661,6 +3661,37 @@ export class EnrollmentRepository {
     }
   }
 
+  /**
+   * Returns the distinct student user IDs whose progress for a given course
+   * version is at or above `minPercent`, across all cohorts. Used to backfill
+   * follow-up invites for students who reached the threshold but never received
+   * the invite. Based purely on percent progress; the `completed` flag is not
+   * considered.
+   */
+  async getUserIdsAtOrAbovePercentForCourseVersion(
+    courseId: string,
+    courseVersionId: string,
+    minPercent: number,
+    session?: ClientSession,
+  ): Promise<string[]> {
+    await this.init();
+    const userIds = await this.enrollmentCollection.distinct(
+      'userId',
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        role: 'STUDENT',
+        status: { $regex: /^active$/i },
+        isDeleted: { $ne: true },
+        percentCompleted: { $gte: minPercent },
+      },
+      { session },
+    );
+    return userIds
+      .map((id: unknown) => (id ? id.toString() : ''))
+      .filter((id): id is string => id.length > 0);
+  }
+
   async deleteEnrollmentByVersionId(
     versionId: string,
     session?: ClientSession,
@@ -5610,5 +5641,130 @@ export class EnrollmentRepository {
         overallProgress: 0,
       }
     );
+  }
+
+  /**
+   * Returns every learner (a user with a STUDENT enrollment) on the platform,
+   * each with the list of courses they have completed (reached the finish line:
+   * a progress record with `completed: true`). Paginated by learner.
+   *
+   * Used by the server-to-server integration endpoint so external applications
+   * can pull a roster of learners and their completed courses.
+   */
+  async getLearnersWithCompletedCourses(
+    skip: number,
+    limit: number,
+  ): Promise<{
+    total: number;
+    learners: Array<{
+      userId: string;
+      email: string;
+      name: string;
+      completedCourses: Array<{
+        courseId: string;
+        courseVersionId: string;
+        courseName?: string;
+        completedAt?: Date;
+      }>;
+    }>;
+  }> {
+    await this.init();
+
+    // Learners = distinct users with an active STUDENT enrollment.
+    const learnerMatch = {
+      role: { $regex: /^student$/i },
+      status: { $regex: /^active$/i },
+      isDeleted: { $ne: true },
+    };
+
+    const [countResult] = await this.enrollmentCollection
+      .aggregate([
+        { $match: learnerMatch },
+        { $group: { _id: '$userId' } },
+        { $count: 'total' },
+      ])
+      .toArray();
+    const total: number = countResult?.total ?? 0;
+
+    const learners = await this.enrollmentCollection
+      .aggregate([
+        { $match: learnerMatch },
+        { $group: { _id: '$userId' } },
+        { $sort: { _id: 1 } },
+        { $skip: skip },
+        { $limit: limit },
+        // attach user identity
+        {
+          $lookup: {
+            from: 'users',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'user',
+          },
+        },
+        { $unwind: '$user' },
+        // attach the courses this learner has completed
+        {
+          $lookup: {
+            from: 'progress',
+            let: { uid: '$_id' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ['$userId', '$$uid'] },
+                  completed: true,
+                  isDeleted: { $ne: true },
+                },
+              },
+              {
+                $lookup: {
+                  from: 'newCourse',
+                  localField: 'courseId',
+                  foreignField: '_id',
+                  as: 'course',
+                },
+              },
+              {
+                $unwind: {
+                  path: '$course',
+                  preserveNullAndEmptyArrays: true,
+                },
+              },
+              {
+                $project: {
+                  _id: 0,
+                  courseId: { $toString: '$courseId' },
+                  courseVersionId: { $toString: '$courseVersionId' },
+                  courseName: '$course.name',
+                  completedAt: '$completedAt',
+                },
+              },
+            ],
+            as: 'completedCourses',
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            userId: { $toString: '$_id' },
+            email: '$user.email',
+            name: {
+              $trim: {
+                input: {
+                  $concat: [
+                    { $ifNull: ['$user.firstName', ''] },
+                    ' ',
+                    { $ifNull: ['$user.lastName', ''] },
+                  ],
+                },
+              },
+            },
+            completedCourses: 1,
+          },
+        },
+      ])
+      .toArray();
+
+    return { total, learners: learners as any };
   }
 }
