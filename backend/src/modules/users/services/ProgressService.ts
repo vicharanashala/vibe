@@ -33,7 +33,6 @@ import { ISettingRepository } from '#shared/index.js';
 import {
   CompletedProgressResponse,
   GetLeaderboardResponse,
-  LeaderboardNoAuthResponse,
 } from '../classes/index.js';
 import {
   QuizRepository,
@@ -4572,7 +4571,7 @@ class ProgressService extends BaseService {
         const fullName =
           `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
           'Unknown User';
-        userMap.set(user._id?.toString(), { name: fullName, email: user.email });
+        userMap.set(user._id?.toString(), { name: fullName });
       }
     }
 
@@ -4600,7 +4599,6 @@ class ProgressService extends BaseService {
       return {
         userId,
         userName: user?.name || 'Unknown User',
-        email: user?.email || 'No email',
 
         completionPercentage: Math.min(100, enrollment?.completionPercentage) ?? 0,
 

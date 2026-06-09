@@ -21,8 +21,7 @@ import {
   UpsertWatchTimeResponse,
   ItemIdparams,
   GetLeaderboardQuery,
-  LeaderboardNoAuthResponse,
-  GetLeaderboardResponse,
+  PaginatedLeaderboardResponse,
 } from '#users/classes/validators/ProgressValidators.js';
 import { ProgressService } from '#users/services/ProgressService.js';
 import { USERS_TYPES } from '#users/types.js';
@@ -772,9 +771,8 @@ It returns an empty body with a 200 status code.
     description:
       'Returns ranked list of students based on completion percentage and time',
   })
-  @ResponseSchema(ProgressDataResponse, {
+  @ResponseSchema(PaginatedLeaderboardResponse, {
     description: 'Leaderboard retrieved successfully',
-    isArray: true,
   })
   @Authorized()
   @ResponseSchema(InternalServerErrorResponse, {
@@ -785,6 +783,7 @@ It returns an empty body with a 200 status code.
     @Params() params: GetUserProgressParams,
     @QueryParams() query: GetLeaderboardQuery,
     @CurrentUser() user: IUser,
+    @Ability(getProgressAbility) { ability },
   ): Promise<{
     data: Array<{
       userId: string;
@@ -796,10 +795,26 @@ It returns an empty body with a 200 status code.
     totalDocuments: number;
     totalPages: number;
     currentPage: number;
+    myStats: {
+      userId: string;
+      userName: string;
+      completionPercentage: number;
+      completedAt: Date | null;
+      rank: number;
+    } | null;
   }> {
     const { courseId, versionId } = params;
     const { page = 1, limit = 10, cohortId } = query;
     const userId = user._id?.toString();
+
+    const progressResource = subject('Progress', {userId, courseId, versionId});
+    if (
+      !ability.can(ProgressActions.View, progressResource) &&
+      !ability.can('manage', progressResource)
+    ) {
+      throw new ForbiddenError('You do not have permission to view this leaderboard');
+    }
+
     return await this.progressService.getLeaderboard(
       userId,
       courseId,
@@ -961,19 +976,40 @@ It returns an empty body with a 200 status code.
   }
 
   ///////////////////////////////////////////////////// TO CORRECT THE WATCHTIME DOC COUNT OF STUDENTS ////////////////////////////////////////////
+  @Authorized()
   @Post('/progress/watch-time/bulk')
   @HttpCode(201)
   @OpenAPI({
     summary: 'Create bulk watch-time records',
     description:
-      'Creates multiple watch-time entries in a single request for better performance',
+      'Admin/instructor maintenance endpoint that backfills missing watch-time entries after validating course-level progress permissions.',
   })
   @ResponseSchema(InternalServerErrorResponse, {
     description: 'Failed to create watch-time records',
     statusCode: 500,
   })
-  async createBulkWatchiTimeDocs(@Body() body: any): Promise<any> {
+  async createBulkWatchiTimeDocs(
+    @Body() body: any,
+    @Ability(getProgressAbility) { ability },
+  ): Promise<any> {
     const { courseId, versionId, userId } = body;
+
+    if (!courseId || !versionId) {
+      throw new BadRequestError('courseId and versionId are required');
+    }
+
+    const progressResource = subject('Progress', {
+      ...(userId ? { userId } : {}),
+      courseId,
+      versionId,
+    });
+
+    if (!ability.can('manage', progressResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to backfill watch-time records',
+      );
+    }
+
     return this.progressService.createBulkWatchiTimeDocs(
       courseId,
       versionId,
@@ -981,14 +1017,15 @@ It returns an empty body with a 200 status code.
     );
   }
 
-  /////////////////////////////// TEMP ENDPOINT WITHOUT AUTH //////////////////////////////////
+  /////////////////////////////// DEPRECATED AUTHENTICATED ALIAS //////////////////////////////////
+  @Authorized()
   @Get('/progress/courses/:courseId/versions/:versionId/leaderboard/no-auth')
   @OpenAPI({
-    summary: 'Get course leaderboard without authorization',
+    summary: 'Get course leaderboard (deprecated authenticated alias)',
     description:
-      'Returns ranked list of students based on completion percentage and time',
+      'Deprecated alias retained for compatibility. Authentication is required and private fields such as email are not returned.',
   })
-  @ResponseSchema(GetLeaderboardResponse, {
+  @ResponseSchema(PaginatedLeaderboardResponse, {
     description: 'Leaderboard retrieved successfully',
     statusCode: 200,
   })
@@ -998,15 +1035,47 @@ It returns an empty body with a 200 status code.
   })
   async getNoAuthLeaderboard(
     @Params() params: GetUserProgressParams,
-  ): Promise<GetLeaderboardResponse> {
+    @QueryParams() query: GetLeaderboardQuery,
+    @CurrentUser() user: IUser,
+    @Ability(getProgressAbility) { ability },
+  ): Promise<{
+    data: Array<{
+      userId: string;
+      userName: string;
+      completionPercentage: number;
+      completedAt: Date | null;
+      rank: number;
+    }>;
+    totalDocuments: number;
+    totalPages: number;
+    currentPage: number;
+    myStats: {
+      userId: string;
+      userName: string;
+      completionPercentage: number;
+      completedAt: Date | null;
+      rank: number;
+    } | null;
+  }> {
     const { courseId, versionId } = params;
-    // const {page = 1, limit = 10} = query;
+    const { page = 1, limit = 10, cohortId } = query;
+    const userId = user._id?.toString();
 
-    return await this.progressService.getLeaderboardNoAuth(
+    const progressResource = subject('Progress', {userId, courseId, versionId});
+    if (
+      !ability.can(ProgressActions.View, progressResource) &&
+      !ability.can('manage', progressResource)
+    ) {
+      throw new ForbiddenError('You do not have permission to view this leaderboard');
+    }
+
+    return await this.progressService.getLeaderboard(
+      userId,
       courseId,
       versionId,
-      // page,
-      // limit,
+      page,
+      limit,
+      cohortId,
     );
   }
 }
