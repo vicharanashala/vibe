@@ -218,6 +218,13 @@ class QuestionService extends BaseService {
     });
   }
 
+  public async setReviewStatus(
+    questionId: string,
+    status: 'PENDING_REVIEW' | 'APPROVED',
+  ): Promise<void> {
+    await this.questionRepository.update(questionId, {reviewStatus: status} as any);
+  }
+
   public async delete(questionId: string): Promise<void> {
     return this._withTransaction(async session => {
       const question = await this.questionRepository.getById(

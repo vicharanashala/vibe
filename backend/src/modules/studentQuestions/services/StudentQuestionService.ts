@@ -14,6 +14,14 @@ import {GLOBAL_TYPES} from '#root/types.js';
 import {ISettingRepository} from '#shared/database/index.js';
 import {NOTIFICATIONS_TYPES} from '../../notifications/types.js';
 import {NotificationService} from '../../notifications/services/NotificationService.js';
+import {QUIZZES_TYPES} from '../../quizzes/types.js';
+import {QuestionService} from '../../quizzes/services/QuestionService.js';
+import {QuestionBankService} from '../../quizzes/services/QuestionBankService.js';
+import {ItemRepository} from '#root/shared/database/providers/mongo/repositories/ItemRepository.js';
+import {COURSES_TYPES} from '../../courses/types.js';
+import {SOLQuestion} from '../../quizzes/classes/transformers/Question.js';
+import {IQuizDetails, ItemType} from '#root/shared/interfaces/models.js';
+import {ISOLSolution} from '#root/shared/interfaces/quiz.js';
 
 const REPEATED_CHAR_PATTERN = /(.)\1{7,}/;
 const REPEATED_WORD_PATTERN = /(\b\w+\b)(\s+\1){4,}/;
@@ -29,7 +37,62 @@ export class StudentQuestionService {
     private readonly settingRepo: ISettingRepository,
     @inject(NOTIFICATIONS_TYPES.NotificationService)
     private readonly notificationService: NotificationService,
+    @inject(QUIZZES_TYPES.QuestionService)
+    private readonly questionService: QuestionService,
+    @inject(QUIZZES_TYPES.QuestionBankService)
+    private readonly questionBankService: QuestionBankService,
+    @inject(COURSES_TYPES.ItemRepo)
+    private readonly itemRepo: ItemRepository,
   ) {}
+
+  private async _promoteToQuestionBank(
+    studentQuestionId: string,
+    input: {
+      segmentId: string;
+      questionText: string;
+      options: IStudentQuestionOption[];
+      correctOptionIndex: number;
+      createdBy: string;
+    },
+  ): Promise<void> {
+    try {
+      const item = await this.itemRepo.readItemById(input.segmentId).catch(() => null);
+      if (!item || (item as any).type !== ItemType.QUIZ) return;
+
+      const bankId = ((item as any).details as IQuizDetails | undefined)
+        ?.questionBankRefs?.[0]?.bankId?.toString();
+      if (!bankId) return;
+
+      const solution: ISOLSolution = {
+        correctLotItem: {
+          text: input.options[input.correctOptionIndex].text,
+          explaination: '',
+        },
+        incorrectLotItems: input.options
+          .filter((_, i) => i !== input.correctOptionIndex)
+          .map(opt => ({text: opt.text, explaination: ''})),
+      };
+
+      const solQuestion = new SOLQuestion(input.createdBy, {
+        text: input.questionText,
+        type: 'SELECT_ONE_IN_LOT',
+        isParameterized: false,
+        timeLimitSeconds: 60,
+        priority: 'LOW',
+        source: 'STUDENT_GENERATED',
+        reviewStatus: 'PENDING_REVIEW',
+        studentQuestionId,
+      }, solution);
+
+      const promotedId = await this.questionService.create(solQuestion);
+      await this.questionBankService.addQuestion(bankId, promotedId).catch(e =>
+        console.warn('crowd-q: failed to add to bank', e),
+      );
+      await this.repository.setPromotedQuestionId(studentQuestionId, promotedId).catch(() => {});
+    } catch (err) {
+      console.warn('crowd-q: promotion failed (non-fatal)', err);
+    }
+  }
 
   /**
    * Phase 4: emit an in-app notification to the question's author when a
@@ -219,7 +282,17 @@ export class StudentQuestionService {
       createdBy: input.createdBy,
     });
 
-    return await this.repository.create(question);
+    const createdId = await this.repository.create(question);
+
+    await this._promoteToQuestionBank(createdId, {
+      segmentId: input.segmentId,
+      questionText,
+      options,
+      correctOptionIndex: input.correctOptionIndex,
+      createdBy: input.createdBy,
+    });
+
+    return createdId;
   }
 
   async listSegmentQuestions(input: {
@@ -402,8 +475,7 @@ export class StudentQuestionService {
       throw new NotFoundError('Student question not found for the given segment.');
     }
 
-    // Notify the student author on APPROVED / REJECTED. Fetch fresh so we
-    // have createdBy / segmentId / courseId for the notification payload.
+    // Fetch fresh doc for notifications and promotion sync.
     if (input.status === 'APPROVED' || input.status === 'REJECTED') {
       const question = await this.repository.findById({
         courseId: input.courseId,
@@ -417,6 +489,19 @@ export class StudentQuestionService {
           input.status,
           input.reason?.trim(),
         );
+        // Sync the promoted quiz Question's reviewStatus.
+        if (question.promotedQuestionId) {
+          const promotedId = question.promotedQuestionId.toString();
+          if (input.status === 'APPROVED') {
+            await this.questionService.setReviewStatus(promotedId, 'APPROVED').catch(e =>
+              console.warn('crowd-q: failed to approve quiz question', e),
+            );
+          } else {
+            await this.questionService.delete(promotedId).catch(e =>
+              console.warn('crowd-q: failed to delete quiz question', e),
+            );
+          }
+        }
       }
     }
   }
