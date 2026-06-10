@@ -49,9 +49,16 @@ import { CourseSettingService } from '#root/modules/setting/index.js';
 import { getContainer } from '#root/bootstrap/loadModules.js';
 import { NOTIFICATIONS_TYPES } from '#root/modules/notifications/types.js';
 import type { InviteService } from '#root/modules/notifications/services/InviteService.js';
+import type { InviteRepository } from '#shared/database/providers/mongo/repositories/InviteRepository.js';
 
 const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
 const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
+
+// Progress (percent) at or above which the configured follow-up course is made
+// available to the student. This is intentionally decoupled from course
+// completion: the follow-up invite is offered once the student crosses this
+// threshold, without requiring every item to be marked complete.
+const FOLLOW_UP_INVITE_THRESHOLD = 98;
 
 @injectable()
 class ProgressService extends BaseService {
@@ -2292,6 +2299,10 @@ class ProgressService extends BaseService {
     // of the last item).
     const wasAlreadyCompleted = progress.completed === true;
     let justCompleted = false;
+    // Whether this update pushes the student across the follow-up threshold for
+    // the first time, so the follow-up invite is offered once (not on every
+    // subsequent progress event above the threshold).
+    let crossedFollowUpThreshold = false;
 
     await this._withTransaction(async session => {
       let shouldCountCurrentItemAsCompleted = false;
@@ -2554,6 +2565,14 @@ class ProgressService extends BaseService {
         cohortId,
       );
 
+      // Detect the first time the student reaches the follow-up threshold so we
+      // can offer the next course once. Based purely on percent progress; the
+      // course `completed` flag is left untouched.
+      const previousPercent = enrollment.percentCompleted ?? 0;
+      crossedFollowUpThreshold =
+        previousPercent < FOLLOW_UP_INVITE_THRESHOLD &&
+        percentCompleted >= FOLLOW_UP_INVITE_THRESHOLD;
+
       if (percentCompleted > 99) {
         await this.recalculateStudentProgress(
           userId,
@@ -2578,10 +2597,12 @@ class ProgressService extends BaseService {
       justCompleted = newProgress.completed === true && !wasAlreadyCompleted;
     });
 
-    // Best-effort: when the student just completed this course, create an
-    // exclusive invite to the configured follow-up course. Runs outside the
-    // completion transaction and must never break completion.
-    if (justCompleted) {
+    // Best-effort: when the student crosses the follow-up threshold (>=98%) or
+    // just completed this course, create an exclusive invite to the configured
+    // follow-up course. Runs outside the completion transaction and must never
+    // break completion. InviteService de-dupes pending invites and skips
+    // already-enrolled users, so the overlap at 100% is harmless.
+    if (justCompleted || crossedFollowUpThreshold) {
       await this.triggerFollowUpInvite(userId, courseId, courseVersionId);
     }
   }
@@ -2639,6 +2660,135 @@ class ProgressService extends BaseService {
         error,
       );
     }
+  }
+
+  /**
+   * Backfill the follow-up invite for every student who already *completed* the
+   * source course version but never received the invite (because they finished
+   * before it was configured). Invites are only sent to students who are not
+   * already actively enrolled in the target course; pending-invite de-duplication
+   * is handled by InviteService, so this is safe to re-run.
+   *
+   * @returns a summary of how many completers were found, skipped, and invited.
+   */
+  async backfillFollowUpInvites(
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<{
+    completed: number;
+    alreadyEnrolled: number;
+    alreadyInvited: number;
+    missingEmail: number;
+    invited: number;
+  }> {
+    const courseSettings =
+      await this.getCourseSettingService().readCourseSettings(
+        courseId,
+        courseVersionId,
+      );
+
+    const followUp = courseSettings?.settings?.followUpInvite;
+    if (
+      !followUp ||
+      !followUp.enabled ||
+      !followUp.courseId ||
+      !followUp.courseVersionId
+    ) {
+      throw new BadRequestError(
+        'This course version has no enabled follow-up invite to backfill.',
+      );
+    }
+
+    const targetCourseId = followUp.courseId.toString();
+    const targetVersionId = followUp.courseVersionId.toString();
+    const targetCohortId = followUp.cohortId?.toString();
+    const role = (followUp.role as EnrollmentRole) ?? 'STUDENT';
+
+    // Select students by percent progress (>= threshold), not the `completed`
+    // flag, so the follow-up course is made available to everyone who reached
+    // the threshold — including those whose completion flag never flipped.
+    const completedUserIds =
+      await this.enrollmentRepo.getUserIdsAtOrAbovePercentForCourseVersion(
+        courseId,
+        courseVersionId,
+        FOLLOW_UP_INVITE_THRESHOLD,
+      );
+
+    let alreadyEnrolled = 0;
+    let alreadyInvited = 0;
+    let missingEmail = 0;
+    const emailSet = new Set<string>();
+
+    const inviteRepo = getContainer().get<InviteRepository>(
+      NOTIFICATIONS_TYPES.InviteRepo,
+    );
+
+    for (const userId of completedUserIds) {
+      // Skip students who are already onboarded to the target course version.
+      // COHORT-AGNOSTIC on purpose: anyone already actively enrolled in the target
+      // course must not be re-invited, no matter which cohort they're in (or if the
+      // configured follow-up cohort no longer exists). Passing the configured cohort
+      // here is what re-invited already-enrolled learners when that cohort had been
+      // deleted and their live enrollment was cohortless.
+      const enrollment = await this.enrollmentRepo.findActiveEnrollment(
+        userId,
+        targetCourseId,
+        targetVersionId,
+      );
+      if (enrollment) {
+        alreadyEnrolled++;
+        continue;
+      }
+
+      const user = await this.userRepo.findById(userId);
+      if (!user?.email) {
+        missingEmail++;
+        continue;
+      }
+      const normalizedEmail = user.email.toLowerCase().trim();
+
+      // Skip students who were already invited to the target course — a
+      // still-pending invite or one they already accepted. Cohort-agnostic for the
+      // same reason as the enrollment check above: a duplicate invite to the same
+      // course must never be created just because the configured cohort differs.
+      const existingInvite = await inviteRepo.findActiveInviteByEmailAndCourse(
+        normalizedEmail,
+        targetCourseId,
+        targetVersionId,
+      );
+      if (existingInvite) {
+        alreadyInvited++;
+        continue;
+      }
+
+      emailSet.add(normalizedEmail);
+    }
+
+    const summary = {
+      completed: completedUserIds.length,
+      alreadyEnrolled,
+      alreadyInvited,
+      missingEmail,
+      invited: emailSet.size,
+    };
+
+    if (emailSet.size === 0) {
+      return summary;
+    }
+
+    const inviteService = getContainer().get<InviteService>(
+      NOTIFICATIONS_TYPES.InviteService,
+    );
+
+    // InviteService de-dupes pending invites internally, so re-runs are safe.
+    await inviteService.inviteUserToCourse(
+      Array.from(emailSet).map(email => ({email, role})),
+      targetCourseId,
+      targetVersionId,
+      targetCohortId,
+    );
+
+    return summary;
   }
 
   private validateProgressPosition(

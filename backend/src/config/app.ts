@@ -23,6 +23,10 @@ export const appConfig = {
   adminPassword: env('ADMIN_PASSWORD') || 'admin123',
   ENABLE_DB_BACKUP: env('ENABLE_DB_BACKUP') === 'true',
   ENABLE_HP_JOB: env('ENABLE_HP_JOB') === 'true',
+  // Default ON: the follow-up invite reconciliation cron self-activates on deploy
+  // so it never silently sits idle waiting for an env var to be set. Set
+  // ENABLE_FOLLOWUP_INVITE_JOB='false' as a kill switch if it ever needs stopping.
+  ENABLE_FOLLOWUP_INVITE_JOB: env('ENABLE_FOLLOWUP_INVITE_JOB') !== 'false',
   GOOGLE_APPLICATION_CREDENTIALS: env('GOOGLE_APPLICATION_CREDENTIALS'),
   GCP_BACKUP_BUCKET: env('GCP_BACKUP_BUCKET'),
   GCP_BACKUP_ACTIVITY_BUCKET: env('GCP_BACKUP_ACTIVITY_BUCKET'),
@@ -38,6 +42,10 @@ export const appConfig = {
     dsn: env('SENTRY_DSN') || undefined,
     environment: env('NODE_ENV') || 'development',
     sendDefaultPii: true,
+  },
+  // Server-to-server integration API (e.g. external apps querying learner completions)
+  integration: {
+    apiKey: env('INTEGRATION_API_KEY') || undefined,
   },
 };
 console.log(appConfig.url)

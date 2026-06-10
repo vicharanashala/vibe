@@ -391,7 +391,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 sectionId: currentCourse!.sectionId ?? '',
                 seekForwardEnabled,
                 nextItemId,
-                cohortId: currentCourse!.cohortId ?? '',
+                cohortId: currentCourse!.cohortId || undefined,
               },
             });
           }
@@ -598,7 +598,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           itemId: currentCourse.itemId,
           moduleId: currentCourse.moduleId ?? '',
           sectionId: currentCourse.sectionId ?? '',
-          cohortId: currentCourse.cohortId ?? '',
+          cohortId: currentCourse.cohortId || undefined,
         }
       });
     }
@@ -612,22 +612,20 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     }
   }, [startItem.data?.watchItemId, setWatchItemId]);
 
-  // ✅ Call upsert watch time API every 10 seconds while video is playing
+ // ✅ Call upsert watch time API every 15 seconds while video is playing
   useEffect(() => {
-    if (!watchItemIdRef.current) return;
-
+    if (!startItem.data?.watchItemId || !playing) return;
     const interval = setInterval(() => {
       upsertWatchTime.mutate({
         body: {
           watchItemId: watchItemIdRef.current!,
           itemId: currentCourse?.itemId!,
-          cohortId: currentCourse?.cohortId ?? undefined,
+          cohortId: currentCourse?.cohortId || undefined,
         }
       } as any);
     }, 15000); // every 15 seconds
-
     return () => clearInterval(interval); // cleanup on unmount
-  }, [watchItemIdRef.current]);
+  }, [startItem.data?.watchItemId, playing]);
 
 
   const forceHighestQuality = (player: YTPlayerInstance) => {

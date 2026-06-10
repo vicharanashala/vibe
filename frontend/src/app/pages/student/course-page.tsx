@@ -180,7 +180,7 @@ export default function CoursePage() {
         }
       }
     }
-    if (!showProctorDialog && !allProctorsDisabled) {
+    if (consentSatisfied && !showProctorDialog && !allProctorsDisabled) {
       checkMediaPermissions();
     }
     return () => {
@@ -191,7 +191,7 @@ export default function CoursePage() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showProctorDialog]);
+  }, [showProctorDialog, consentSatisfied]);
 
   // Get the setCurrentCourse function from the store
   const { setCurrentCourse } = useCourseStore();
@@ -212,7 +212,8 @@ export default function CoursePage() {
         sectionId,
         itemId,
         cohortId: COHORT_ID,
-        cohortName: COHORT_NAME
+        cohortName: COHORT_NAME,
+        watchItemId: null
       });
     }
   }, [setCurrentCourse]);
@@ -815,12 +816,22 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
       setPendingStudentQuestionContext(null);
 
       try {
-        // Stop current item immediately
-        if (itemContainerRef.current) {
-          // await itemContainerRef.current.stopCurrentItem();
-          // Small delay for API/callback cleanup
-          await new Promise(resolve => setTimeout(resolve, 50));
+        // Record completion for the current item before leaving.
+        // Documents (BLOG) only get their completion recorded by an explicit stop
+        // call; unlike video/quiz/project they don't auto-complete on their own
+        // event. Without this, leaving a document via the sidebar (instead of the
+        // "Next Lesson" button) left it un-ticked and stuck students below 100%.
+        // Scoped to BLOG so half-watched videos / unfinished quizzes are untouched,
+        // and wrapped so a stop failure can never block navigation.
+        if (itemContainerRef.current && currentItem?.type === 'BLOG') {
+          try {
+            await itemContainerRef.current.stopCurrentItem();
+          } catch (e) {
+            console.error('Failed to record document completion on sidebar nav:', e);
+          }
         }
+        // Small delay for API/callback cleanup
+        await new Promise(resolve => setTimeout(resolve, 50));
 
         // Store previous valid for fallback (only if not forbidden)
         if (selectedItemId && selectedSectionId && selectedModuleId && !isItemForbidden) {
@@ -866,6 +877,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     isItemForbidden,
     updateCourseNavigation,
     itemContainerRef,
+    currentItem,
   ]);
 
   const handleSkipItem = async () => {
@@ -1712,6 +1724,16 @@ return false;
 
   return (
     <>
+      {/* Ethical consent gate — must be signed once per course before any content */}
+      {!consentSatisfied && (
+        <EthicsConsentModal
+          open={!consentSatisfied}
+          courseId={COURSE_ID}
+          versionId={VERSION_ID}
+          onSigned={() => setEthicsConsentSignedLocal(true)}
+          onCancel={() => router.navigate({ to: "/student" })}
+        />
+      )}
       {/* Exclusive follow-up invite unlocked by completing this course */}
       <Dialog
         open={!!followUpInvite}
@@ -1764,7 +1786,7 @@ return false;
           </div>
         </DialogContent>
       </Dialog>
-      <Dialog open={showProctorDialog} onOpenChange={(open) => {
+      <Dialog open={consentSatisfied && showProctorDialog} onOpenChange={(open) => {
         if (!open) {
           router.navigate({ to: '/student' });
         }
