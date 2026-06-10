@@ -117,11 +117,18 @@ export class EnrollmentService extends BaseService {
         );
       }
 
+      // For invite acceptance, the duplicate check is COHORT-AGNOSTIC: a learner
+      // who is already actively enrolled in this course version must not be
+      // enrolled again, no matter which cohort the invite targeted. This is what
+      // enforces "however many invites a learner has, only one acceptance ever
+      // results in an enrollment" — duplicate invites with differing cohortIds
+      // would otherwise each create a separate enrollment. Direct (non-invite)
+      // enrollment keeps its cohort-scoped check.
       const existingEnrollment = await this.enrollmentRepo.findActiveEnrollment(
         userId,
         courseId,
         courseVersionId,
-        cohort,
+        throughInvite ? undefined : cohort,
         session,
       );
       // if (existingEnrollment && !throughInvite) {
