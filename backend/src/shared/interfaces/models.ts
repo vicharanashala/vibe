@@ -461,6 +461,7 @@ export interface IWatchTime {
   itemId: string | ObjectId;
   startTime: Date;
   endTime?: Date;
+  lastSeenAt?: Date;
   cohortId?: ID;
 }
 

@@ -3789,8 +3789,9 @@ class ProgressService extends BaseService {
     );
 
     if (existingWatchTime) {
-      // Step 2 — record exists, update endTime to now
-      await this.progressRepository.stopItemTracking(watchItemId);
+      // Step 2 — record exists, update lastSeenAt to now
+      // endTime is exclusively owned by stop API to signal completion
+      await this.progressRepository.updateLastSeen(watchItemId);
       return watchItemId;
     } else {
       // Step 3 — record does not exist, this should not happen

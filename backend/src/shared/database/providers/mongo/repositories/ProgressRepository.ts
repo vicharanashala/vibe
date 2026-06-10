@@ -617,6 +617,21 @@ class ProgressRepository {
     return result;
   }
 
+  async updateLastSeen(
+    watchTimeId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    await this.watchTimeCollection.findOneAndUpdate(
+      {
+        _id: new ObjectId(watchTimeId),
+        isDeleted: { $ne: true },
+      },
+      { $set: { lastSeenAt: new Date() } },
+      { session },
+    );
+  }
+
   async getWatchTime(
     userId: string | ObjectId,
     itemId: string | string[],
