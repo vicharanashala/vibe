@@ -39,7 +39,7 @@ export class TimeSlotService extends BaseService {
    */
   private isTimeslotFull(timeSlot: ITimeSlot): boolean {
     if (!timeSlot.maxStudents) return false; // No limit set
-    return timeSlot.studentIds.length > timeSlot.maxStudents;
+    return timeSlot.studentIds.length >= timeSlot.maxStudents;
   }
 
   /**
@@ -660,6 +660,28 @@ export class TimeSlotService extends BaseService {
   }
 
   /**
+   * Same gate as canStudentAccessCourse, but for callers that only have the
+   * course version id (e.g. the section-items endpoint, whose route has no
+   * courseId). Resolves the owning courseId from the version, then delegates.
+   */
+  async canStudentAccessCourseByVersion(
+    userId: string,
+    courseVersionId: string,
+    cohortId?: string,
+  ): Promise<{ canAccess: boolean; message?: string }> {
+    const version = await this.courseRepo.readVersion(courseVersionId);
+    if (!version) {
+      return { canAccess: false, message: 'Course version not found.' };
+    }
+    return this.canStudentAccessCourse(
+      userId,
+      version.courseId.toString(),
+      courseVersionId,
+      cohortId,
+    );
+  }
+
+  /**
    * Check if student can access course based on time slot
    */
   async canStudentAccessCourse(
@@ -693,7 +715,17 @@ export class TimeSlotService extends BaseService {
       }
 
       if (!enrollment.assignedTimeSlots || enrollment.assignedTimeSlots.length === 0) {
-        return { canAccess: true, message: 'No time slot assigned to this student.' };
+        // Feature is active (checked above). If no slots exist to book yet, don't lock
+        // everyone out — that would be a misconfiguration footgun the moment the toggle flips.
+        if (!timeslots.slots || timeslots.slots.length === 0) {
+          return { canAccess: true };
+        }
+        // Active course with bookable slots, but the student has no booking → restrict.
+        return {
+          canAccess: false,
+          message:
+            'You must book a time slot to access this course. Please choose a slot to continue.',
+        };
       }
 
       // Check if current time is within any of the assigned slots

@@ -1348,6 +1348,7 @@ export function useItemsBySectionId(versionId: string, moduleId: string, section
   data: components['schemas']['ItemDataResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
+  errorName: string | null,
   refetch: () => void
 } {
   const isEnabled: boolean | null =
@@ -1371,6 +1372,7 @@ export function useItemsBySectionId(versionId: string, moduleId: string, section
     data: result.data,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch items') : null,
+    errorName: result.error ? ((result.error as any).name || null) : null,
     refetch: result.refetch
   };
 }
