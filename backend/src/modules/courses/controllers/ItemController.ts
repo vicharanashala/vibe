@@ -67,6 +67,20 @@ import {SETTING_TYPES} from '#root/modules/setting/types.js';
 import {TimeSlotService} from '#root/modules/setting/services/TimeSlotService.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
+
+/**
+ * Distinct 403 for the time-slot / commitment gate so the frontend can tell it apart
+ * from a generic ForbiddenError (e.g. linear-progression locks) and surface the right
+ * "book a time slot" message + CTA instead of the generic "lesson locked" notice.
+ */
+export class TimeSlotAccessError extends ForbiddenError {
+  constructor(message?: string) {
+    super(message);
+    this.name = 'TimeSlotAccessDenied';
+    Object.setPrototypeOf(this, TimeSlotAccessError.prototype);
+  }
+}
+
 @OpenAPI({
   tags: ['Course Items'],
 })
@@ -209,6 +223,29 @@ export class ItemController {
         'You do not have permission to view items in this section',
       );
     }
+
+    // Time-slot ("commitment") gate: a student may only load section content
+    // during a booked window. Instructors/managers/TAs bypass. This mirrors the
+    // gate on getItem — without it, the player can fetch full item content here
+    // and skip the per-item check entirely.
+    const canManageGate = ability.can(
+      ItemActions.Modify,
+      subject('Item', {versionId}),
+    );
+    if (!canManageGate) {
+      const access =
+        await this.timeSlotService.canStudentAccessCourseByVersion(
+          user._id.toString(),
+          versionId,
+          cohortId,
+        );
+      if (!access.canAccess) {
+        throw new TimeSlotAccessError(
+          access.message || 'Time slot access denied',
+        );
+      }
+    }
+
     const items = await this.itemService.readAllItems(
       versionId,
       moduleId,
@@ -725,13 +762,17 @@ Access control logic:
           );
 
         if (!timeSlotAccess.canAccess) {
-          throw new ForbiddenError(
+          throw new TimeSlotAccessError(
             timeSlotAccess.message || 'Time slot access denied',
           );
         }
       } catch (error) {
-        // If it's already a ForbiddenError, re-throw it
-        if (error.name === 'ForbiddenError') {
+        // Re-throw our intended 403s (time-slot block or any ForbiddenError) untouched
+        // so the frontend can distinguish them by name.
+        if (
+          error.name === 'TimeSlotAccessDenied' ||
+          error.name === 'ForbiddenError'
+        ) {
           throw error;
         }
         throw new ForbiddenError('Time slot access check failed');

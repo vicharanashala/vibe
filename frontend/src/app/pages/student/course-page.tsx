@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react"; ExternalLink
+import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from "react"; ExternalLink
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -19,6 +19,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
 import StudentProjectItem from "./components/StudentProjectItem";
+const LazyStudentTimeslotModal = lazy(() => import("@/components/course/StudentTimeslotModal"));
 import type { Item, ItemContainerRef } from "@/types/item-container.types";
 import type { PendingStudentQuestionContext } from "@/types/student-question.types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -227,6 +228,9 @@ export default function CoursePage() {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [doGesture, setDoGesture] = useState<boolean>(false);
   const [isItemForbidden, setIsItemForbidden] = useState<boolean>(false);
+  // Time-slot / commitment gate block (distinct from linear-progression ForbiddenError).
+  const [timeSlotBlock, setTimeSlotBlock] = useState<string | null>(null);
+  const [showTimeslotPicker, setShowTimeslotPicker] = useState<boolean>(false);
   const [isNavigatingToNext, setIsNavigatingToNext] = useState<boolean>(false);
   const [rewindVid, setRewindVid] = useState<boolean>(false);
   const [pauseVid, setPauseVid] = useState<boolean>(false);
@@ -299,7 +303,9 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
   const {
     data: currentSectionItems,
-    isLoading: itemsLoading
+    isLoading: itemsLoading,
+    error: sectionItemsError,
+    errorName: sectionItemsErrorName
   } = useItemsBySectionId(
     shouldFetchItems ? VERSION_ID : '',
     shouldFetchItems ? activeSectionInfo!.moduleId : '',
@@ -401,6 +407,14 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   ]);
 
 
+  // The section-items endpoint is the other (ungated-until-now) content path.
+  // If it returns the time-slot block, surface the same persistent notice.
+  useEffect(() => {
+    if (sectionItemsErrorName === "TimeSlotAccessDenied" && sectionItemsError) {
+      setTimeSlotBlock(sectionItemsError);
+    }
+  }, [sectionItemsErrorName, sectionItemsError]);
+
   // Separate effect for handling item errors - prevents circular dependencies
   useEffect(() => {
     if (!itemError) return;
@@ -409,6 +423,34 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     if (itemError.includes("auth/id-token-expired")) {
       logout();
       Navigate({ to: '/auth' });
+      return;
+    }
+
+    // Time-slot / commitment gate — distinct from a linear-progression ForbiddenError.
+    // Show a persistent, actionable notice instead of the generic "lesson locked" card.
+    if (itemError && selectedItemId && itemErrorName === "TimeSlotAccessDenied") {
+      setIsNavigatingToNext(false);
+      setIsItemForbidden(false);
+      setTimeSlotBlock(itemError);
+
+      // Revert to the last valid item so the player isn't stuck on a blocked item.
+      if (previousValidItem) {
+        setSelectedModuleId(previousValidItem.moduleId);
+        setSelectedSectionId(previousValidItem.sectionId);
+        setSelectedItemId(previousValidItem.itemId);
+        if (!sectionItems[previousValidItem.sectionId]) {
+          setActiveSectionInfo({
+            moduleId: previousValidItem.moduleId,
+            sectionId: previousValidItem.sectionId,
+          });
+        }
+        updateCourseNavigation(
+          previousValidItem.moduleId,
+          previousValidItem.sectionId,
+          previousValidItem.itemId,
+        );
+      }
+      // Persistent on purpose — the student must book a slot or wait for their window.
       return;
     }
 
@@ -2257,6 +2299,55 @@ return false;
                         </Button>
                       </CardContent>
                     </Card>
+                  )}
+
+                  {/* ⏰ Time-slot / commitment gate notice */}
+                  {timeSlotBlock && (
+                    <Card className="border border-amber-400/40 bg-amber-600/95 text-amber-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
+                      <CardContent className="flex items-start gap-3 px-4 py-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-amber-50/10 p-2">
+                          <AlertCircle className="h-7 w-7" />
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <Badge variant="outline" className="border-amber-50/30 bg-amber-50/10 text-amber-50 text-base font-bold">
+                            {/book a time slot|choose a slot/i.test(timeSlotBlock) ? 'Book a time slot' : 'Outside your study window'}
+                          </Badge>
+                          <p className="text-sm font-medium leading-relaxed">{timeSlotBlock}</p>
+                          <div className="flex gap-2 pt-1">
+                            {/book a time slot|choose a slot/i.test(timeSlotBlock) && (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => setShowTimeslotPicker(true)}
+                              >
+                                Pick a slot
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-amber-50 hover:bg-amber-50/10"
+                              onClick={() => setTimeSlotBlock(null)}
+                            >
+                              Dismiss
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {showTimeslotPicker && (
+                    <Suspense fallback={null}>
+                      <LazyStudentTimeslotModal
+                        isOpen={showTimeslotPicker}
+                        onClose={() => { setShowTimeslotPicker(false); setTimeSlotBlock(null); }}
+                        courseId={COURSE_ID}
+                        courseVersionId={VERSION_ID}
+                        currentUserId={""}
+                        hasAssignedTimeslot={false}
+                      />
+                    </Suspense>
                   )}
 
                   {/* Gesture Notification */}

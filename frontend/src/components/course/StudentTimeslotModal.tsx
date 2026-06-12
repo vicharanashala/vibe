@@ -268,7 +268,7 @@ export default function StudentTimeslotModal({
           <div className="text-xs text-muted-foreground">
             <p>• You can only choose one time slot per course.</p>
             <p>• Once selected, contact your instructor to make changes.</p>
-            <p>• Time slots are shown in your local timezone.</p>
+            <p>• Time slots are in IST (Indian Standard Time, UTC+5:30).</p>
           </div>
         </div>
       </DialogContent>

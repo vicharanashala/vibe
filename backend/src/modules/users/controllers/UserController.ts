@@ -158,7 +158,7 @@ export class UserController {
   @OnUndefined(200)
   async updateCurrentUserFaceReference(
     @Req() req: any,
-    @Body() body: UpdateFaceReferenceBody,
+    @Body({ options: { limit: '10mb' } }) body: UpdateFaceReferenceBody,
   ): Promise<void> {
     const token = req.headers.authorization?.split(' ')[1];
     const user = await this.authService.getCurrentUserFromToken(token);

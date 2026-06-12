@@ -51,6 +51,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
   onRecognitionResult,
   onDebugInfoUpdate,
   onMismatchChange,
+  onMissingEmbedding,
   enabled = true,
 }) => {
   const [isReady, setIsReady] = useState(false);
@@ -202,14 +203,18 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
         const normalizedEmbedding = normalizeEmbedding(reference.faceEmbedding);
 
         if (!normalizedEmbedding || normalizedEmbedding.length !== EMBEDDING_LENGTH) {
-          if (!missingEmbeddingRedirectedRef.current) {
-            missingEmbeddingRedirectedRef.current = true;
-            const redirectTo = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/';
-            toast.error('This course requires a face photo. Please add one to continue.');
-            navigate({
-              to: '/auth',
-              search: { completeFace: '1', redirect: redirectTo } as any,
-            });
+          if (onMissingEmbedding) {
+            onMissingEmbedding();
+          } else {
+            if (!missingEmbeddingRedirectedRef.current) {
+              missingEmbeddingRedirectedRef.current = true;
+              const redirectTo = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/';
+              toast.error('This course requires a face photo. Please add one to continue.');
+              navigate({
+                to: '/auth',
+                search: { completeFace: '1', redirect: redirectTo } as any,
+              });
+            }
           }
           return;
         }
