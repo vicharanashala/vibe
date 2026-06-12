@@ -190,16 +190,14 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
       return;
     }
 
-    // If toggling off and there are students assigned, show confirmation
+    // If toggling off, confirm. Disabling is non-destructive: slots and
+    // bookings are preserved and restored when re-enabled.
     if (enableSlotAssignment && timeSlots.length > 0) {
-      const totalAssignedStudents = timeSlots.reduce((total, slot) => total + (slot.studentIds?.length || 0), 0);
-      
-      if (totalAssignedStudents > 0) {
-        const message = `Are you sure you want to disable time slots? This will remove all time slot assignments for ${totalAssignedStudents} student(s) and delete all existing time slots.`;
-        
-        if (!window.confirm(message)) {
-          return; // User cancelled
-        }
+      const message =
+        'Disable time slots for this course? Students will not be time-restricted while it is off. Your slots and student bookings are kept and restored when you re-enable.';
+
+      if (!window.confirm(message)) {
+        return; // User cancelled
       }
     }
 
