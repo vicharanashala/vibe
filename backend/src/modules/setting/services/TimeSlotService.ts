@@ -13,6 +13,10 @@ import {
   ISlotBookingRepository,
   ITimeSlot,
 } from '#shared/index.js';
+import {
+  SlotBookingKind,
+  SlotBookingStatus,
+} from '#shared/interfaces/models.js';
 import { EnrollmentService } from '#users/services/EnrollmentService.js';
 import { USERS_TYPES } from '#users/types.js';
 
@@ -603,11 +607,39 @@ export class TimeSlotService extends BaseService {
         throw new InternalServerError('Failed to update enrollment.');
       }
 
+      // Dual-write (migration): also record the choice as a slot booking so the
+      // bookings collection and the demand view stay accurate while the legacy
+      // assignedTimeSlots path is retired.
+      const { date } = this.getISTDateParts();
+      const fromMin = this.toMinutes(timeSlot.from);
+      const toMin = this.toMinutes(timeSlot.to);
+      let durationMin = toMin - fromMin;
+      if (durationMin <= 0) durationMin += 24 * 60; // overnight wrap
+      const now = new Date();
+      await this.slotBookingRepo.createBooking(
+        {
+          userId: studentUserId,
+          enrollmentId: enrollment._id,
+          courseId,
+          courseVersionId,
+          date,
+          from: timeSlot.from,
+          to: timeSlot.to,
+          overnight: fromMin >= toMin,
+          kind: SlotBookingKind.BASE,
+          status: SlotBookingStatus.BOOKED,
+          hoursReserved: Math.round((durationMin / 60) * 100) / 100,
+          createdAt: now,
+          updatedAt: now,
+        },
+        session,
+      );
+
       return true;
     });
   }
 
-  
+
   /**
    * Teacher removes a student from a specific time slot
    */

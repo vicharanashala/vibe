@@ -1,6 +1,10 @@
 import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TimeSlotService } from '../services/TimeSlotService.js';
+import {
+  SlotBookingKind,
+  SlotBookingStatus,
+} from '#shared/interfaces/models.js';
 
 /**
  * Unit tests for TimeSlotService.canStudentAccessCourse — the access gate that
@@ -26,7 +30,10 @@ const VERSION = 'version-1';
 function makeService(
   opts: {
     timeslots?: { isActive: boolean; slots: any[] } | null;
-    enrollment?: { assignedTimeSlots?: { from: string; to: string }[] } | null;
+    enrollment?: {
+      _id?: string;
+      assignedTimeSlots?: { from: string; to: string }[];
+    } | null;
     version?: { courseId: string } | null;
     bookings?: { date: string; from: string; to: string }[];
   } = {},
@@ -40,12 +47,14 @@ function makeService(
 
   const settingsRepo = {
     readTimeslotsSettings: vi.fn().mockResolvedValue(timeslots),
+    updateTimeslotsSettings: vi.fn().mockResolvedValue({acknowledged: true}),
   };
   const courseRepo = {
     readVersion: vi.fn().mockResolvedValue(version),
   };
   const enrollmentService = {
     findEnrollment: vi.fn().mockResolvedValue(enrollment),
+    addMultipleTimeSlotsToStudent: vi.fn().mockResolvedValue(true),
   };
   const slotBookingRepo = {
     // Date-aware: return only the bookings whose date matches the queried day.
@@ -54,6 +63,7 @@ function makeService(
       .mockImplementation((_u: string, _c: string, _v: string, date?: string) =>
         Promise.resolve(bookings.filter(b => !date || b.date === date)),
       ),
+    createBooking: vi.fn().mockResolvedValue({_id: 'booking-new'}),
   };
   const db = {} as any;
 
@@ -308,5 +318,58 @@ describe('TimeSlotService.canStudentAccessCourseByVersion', () => {
     expect(res.canAccess).toBe(false);
     expect(res.message).toMatch(/version not found/i);
     expect(settingsRepo.readTimeslotsSettings).not.toHaveBeenCalled();
+  });
+});
+
+describe('TimeSlotService.chooseTimeSlot (dual-write)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('records a slot booking when a student chooses a slot', async () => {
+    setNowToIST(14, 0);
+    const { svc, slotBookingRepo } = makeService({
+      timeslots: { isActive: true, slots: [slot('13:00', '15:00')] },
+      enrollment: { _id: 'enroll-1' }, // no assignedTimeSlots yet
+    });
+
+    const ok = await svc.chooseTimeSlot(
+      COURSE,
+      VERSION,
+      { from: '13:00', to: '15:00' },
+      USER,
+    );
+
+    expect(ok).toBe(true);
+    expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+    expect(slotBookingRepo.createBooking.mock.calls[0][0]).toMatchObject({
+      userId: USER,
+      enrollmentId: 'enroll-1',
+      from: '13:00',
+      to: '15:00',
+      kind: SlotBookingKind.BASE,
+      status: SlotBookingStatus.BOOKED,
+      hoursReserved: 2,
+      overnight: false,
+    });
+  });
+
+  it('does not write a booking when the student already has a slot', async () => {
+    const { svc, slotBookingRepo } = makeService({
+      timeslots: { isActive: true, slots: [slot('13:00', '15:00')] },
+      enrollment: {
+        _id: 'enroll-1',
+        assignedTimeSlots: [{ from: '13:00', to: '15:00' }],
+      },
+    });
+
+    await expect(
+      svc.chooseTimeSlot(COURSE, VERSION, { from: '13:00', to: '15:00' }, USER),
+    ).rejects.toThrowError(/already have a time slot/i);
+    expect(slotBookingRepo.createBooking).not.toHaveBeenCalled();
   });
 });
