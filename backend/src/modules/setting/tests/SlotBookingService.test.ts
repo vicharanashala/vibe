@@ -199,3 +199,38 @@ describe('SlotBookingService.cancelBooking', () => {
     expect(slotBookingRepo.cancelBooking).toHaveBeenCalledWith('b1', {});
   });
 });
+
+describe('SlotBookingService.getSlotDemand', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('reports booked load and remaining capacity per window', async () => {
+    const {svc, slotBookingRepo} = makeService({
+      timeslots: {
+        isActive: true,
+        slots: [
+          {from: '09:00', to: '10:00', studentIds: [], maxStudents: 30},
+          {from: '13:00', to: '15:00', studentIds: []}, // uncapped
+        ],
+        dailyBaseAllowance: 1,
+      },
+    });
+    slotBookingRepo.countActiveInSlot
+      .mockResolvedValueOnce(5)
+      .mockResolvedValueOnce(12);
+
+    const demand = await svc.getSlotDemand(COURSE, VERSION, '2026-01-15');
+
+    expect(demand.date).toBe('2026-01-15');
+    expect(demand.isActive).toBe(true);
+    expect(demand.slots).toEqual([
+      {from: '09:00', to: '10:00', maxStudents: 30, booked: 5, remaining: 25},
+      {from: '13:00', to: '15:00', maxStudents: null, booked: 12, remaining: null},
+    ]);
+  });
+
+  it('returns an empty schedule when no config exists', async () => {
+    const {svc} = makeService({timeslots: null});
+    const demand = await svc.getSlotDemand(COURSE, VERSION, '2026-01-15');
+    expect(demand).toEqual({date: '2026-01-15', isActive: false, slots: []});
+  });
+});

@@ -208,4 +208,54 @@ export class SlotBookingService extends BaseService {
       date,
     );
   }
+
+  /**
+   * Booked load per window for an IST day — the "demand schedule" that lets ops
+   * size capacity per window and scale down off-peak. Defaults to today.
+   */
+  async getSlotDemand(
+    courseId: string,
+    courseVersionId: string,
+    date?: string,
+  ): Promise<{
+    date: string;
+    isActive: boolean;
+    slots: Array<{
+      from: string;
+      to: string;
+      maxStudents: number | null;
+      booked: number;
+      remaining: number | null;
+    }>;
+  }> {
+    const day = date ?? this.getCurrentISTDate();
+    const timeslots = await this.settingsRepo.readTimeslotsSettings(
+      courseId,
+      courseVersionId,
+    );
+    if (!timeslots) {
+      return {date: day, isActive: false, slots: []};
+    }
+
+    const slots = await Promise.all(
+      timeslots.slots.map(async s => {
+        const booked = await this.slotBookingRepo.countActiveInSlot(
+          courseId,
+          courseVersionId,
+          day,
+          {from: s.from, to: s.to},
+        );
+        return {
+          from: s.from,
+          to: s.to,
+          maxStudents: s.maxStudents ?? null,
+          booked,
+          remaining:
+            s.maxStudents != null ? Math.max(0, s.maxStudents - booked) : null,
+        };
+      }),
+    );
+
+    return {date: day, isActive: timeslots.isActive, slots};
+  }
 }
