@@ -4980,9 +4980,25 @@ export interface LeaderboardEntry {
   userName: string;
   completionPercentage: number;
   completedAt: Date | null;
+  enrollmentDate?: Date | null;
+  weeklyItems?: number;
+  weeklyMinutes?: number;
+  daysToComplete?: number | null;
+  league?: 'finishers' | 'active';
   rank: number;
   completedCount?: number;
   score?: number;
+}
+
+export interface LeaderboardResponse {
+  finishers: { data: LeaderboardEntry[]; total: number };
+  active: {
+    data: LeaderboardEntry[];
+    total: number;
+    totalPages: number;
+    currentPage: number;
+  };
+  myStats: LeaderboardEntry | null;
 }
 
 export const useLeaderboard = (
@@ -5014,23 +5030,78 @@ export const useLeaderboard = (
         throw new Error('Failed to fetch leaderboard');
       }
 
-      return response.json() as Promise<{
-        data: LeaderboardEntry[];
-        totalDocuments: number;
-        totalPages: number;
-        currentPage: number;
-        myStats: LeaderboardEntry | null;
-      }>;
+      // Shape is normalized below — accept either the new or legacy backend.
+      return response.json() as Promise<any>;
     },
     enabled: enabled && !!courseId && !!versionId,
   });
 
+  const raw: any = result.data;
+  // New backend returns { finishers, active, myStats }; legacy returns { data, myStats }.
+  const isNewShape =
+    !!raw && (raw.finishers !== undefined || raw.active !== undefined);
+
+  let finishers: LeaderboardEntry[];
+  let active: LeaderboardEntry[];
+  let finishersTotal: number;
+  let activeTotal: number;
+  let currentPage: number;
+  let totalPages: number;
+  let combined: LeaderboardEntry[];
+  let totalDocuments: number;
+
+  if (isNewShape) {
+    finishers = raw.finishers?.data ?? [];
+    active = raw.active?.data ?? [];
+    finishersTotal = raw.finishers?.total ?? finishers.length;
+    activeTotal = raw.active?.total ?? active.length;
+    currentPage = raw.active?.currentPage ?? page;
+    totalPages = raw.active?.totalPages ?? 0;
+    // Flat list for compact previews: finishers first (page 1 only), then active.
+    combined = (currentPage === 1 ? [...finishers, ...active] : active).map(
+      (entry, index) => ({ ...entry, rank: index + 1 }),
+    );
+    totalDocuments = finishersTotal + activeTotal;
+  } else {
+    // Legacy backend (pre-two-league deploy): derive the leagues from the flat
+    // `data` array so the UI still renders. New metrics (daysToComplete /
+    // weeklyItems) are absent here and fall back to placeholders until deploy.
+    const data: LeaderboardEntry[] = raw?.data ?? [];
+    finishers = data
+      .filter((e) => Math.round(e.completionPercentage) >= 100)
+      .map((e, i) => ({ ...e, league: 'finishers' as const, rank: i + 1 }));
+    active = data
+      .filter((e) => Math.round(e.completionPercentage) < 100)
+      .map((e, i) => ({ ...e, league: 'active' as const, rank: i + 1 }));
+    finishersTotal = finishers.length;
+    activeTotal = active.length;
+    currentPage = raw?.currentPage ?? page;
+    totalPages = raw?.totalPages ?? 0;
+    combined = data; // already ranked/sorted by the legacy backend
+    totalDocuments = raw?.totalDocuments ?? data.length;
+  }
+
+  // Tag myStats with a league if the backend didn't (legacy shape).
+  let myStats: LeaderboardEntry | null = raw?.myStats ?? null;
+  if (myStats && !myStats.league) {
+    myStats = {
+      ...myStats,
+      league:
+        Math.round(myStats.completionPercentage) >= 100 ? 'finishers' : 'active',
+    };
+  }
+
   return {
-    leaderboard: result.data?.data ?? [],
-    totalDocuments: result.data?.totalDocuments ?? 0,
-    totalPages: result.data?.totalPages ?? 0,
-    currentPage: result.data?.currentPage ?? page,
-    myStats: result.data?.myStats ?? null,
+    finishers,
+    finishersTotal,
+    active,
+    activeTotal,
+    totalPages,
+    currentPage,
+    myStats,
+    // Backward-compatible aliases for compact previews
+    leaderboard: combined,
+    totalDocuments,
     isLoading: result.isLoading,
     isFetching: result.isFetching,
     error: result.isError
