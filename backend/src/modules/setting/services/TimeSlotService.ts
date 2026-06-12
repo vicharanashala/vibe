@@ -358,57 +358,13 @@ export class TimeSlotService extends BaseService {
         session,
       );
 
-      // Initialize timeslots if not exists
-      if (!existingTimeslots) {
-        const newTimeslots = {
-          isActive,
-          slots: [],
-        };
-        
-        const result = await this.settingsRepo.updateTimeslotsSettings(
-          courseId,
-          courseVersionId,
-          newTimeslots,
-          session,
-        );
-        
-        return !!result;
-      }
-
-      // If toggling off, delete all slots and remove assigned slots from enrollments
-      if (!isActive && existingTimeslots.slots && existingTimeslots.slots.length > 0) {
-        // Remove time slot from all student enrollments
-        for (const slot of existingTimeslots.slots) {
-          // Find students assigned to this time slot
-          const enrollments = await this.enrollmentService.findEnrollmentsByTimeSlot(
-            courseId,
-            courseVersionId,
-            { from: slot.from, to: slot.to },
-            session,
-          );
-
-          // Remove time slot from each student's enrollment
-          for (const enrollment of enrollments) {
-            const studentUserId = typeof enrollment.userId === 'string' 
-              ? enrollment.userId 
-              : enrollment.userId.toString();
-            
-            await this.enrollmentService.removeSpecificTimeSlotFromStudent(
-              studentUserId,
-              courseId,
-              courseVersionId,
-              { from: slot.from, to: slot.to },
-              session,
-            );
-          }
-      }
-    }
-
-    // Update existing timeslots with new isActive value and empty slots if toggling off
-    const updatedTimeslots = {
-        isActive,
-        slots: isActive ? (existingTimeslots.slots || []) : []
-      };
+      // Preserve the configured slots, allowance, and existing bookings —
+      // toggling off only flips the flag so the whole setup can be restored
+      // intact by re-enabling. (Bookings live in their own collection and are
+      // untouched here.)
+      const updatedTimeslots = existingTimeslots
+        ? { ...existingTimeslots, isActive }
+        : { isActive, slots: [] };
 
       const result = await this.settingsRepo.updateTimeslotsSettings(
         courseId,
