@@ -29,7 +29,7 @@ const VERSION = 'version-1';
 
 function makeService(
   opts: {
-    timeslots?: { isActive: boolean; slots: any[] } | null;
+    timeslots?: { isActive: boolean; slots: any[]; dailyBaseAllowance?: number } | null;
     enrollment?: {
       _id?: string;
       assignedTimeSlots?: { from: string; to: string }[];
@@ -371,5 +371,39 @@ describe('TimeSlotService.chooseTimeSlot (dual-write)', () => {
       svc.chooseTimeSlot(COURSE, VERSION, { from: '13:00', to: '15:00' }, USER),
     ).rejects.toThrowError(/already have a time slot/i);
     expect(slotBookingRepo.createBooking).not.toHaveBeenCalled();
+  });
+});
+
+describe('TimeSlotService.toggleTimeSlots (preserve)', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('preserves slots and allowance when toggling off', async () => {
+    const { svc, settingsRepo } = makeService({
+      timeslots: {
+        isActive: true,
+        slots: [slot('13:00', '15:00')],
+        dailyBaseAllowance: 2,
+      },
+    });
+
+    const ok = await svc.toggleTimeSlots(COURSE, VERSION, false, 'teacher-1');
+
+    expect(ok).toBe(true);
+    const saved = settingsRepo.updateTimeslotsSettings.mock.calls[0][2];
+    expect(saved.isActive).toBe(false);
+    expect(saved.slots).toHaveLength(1); // preserved, not cleared
+    expect(saved.dailyBaseAllowance).toBe(2); // preserved
+  });
+
+  it('initializes an empty config when none exists', async () => {
+    const { svc, settingsRepo } = makeService({ timeslots: null });
+
+    const ok = await svc.toggleTimeSlots(COURSE, VERSION, true, 'teacher-1');
+
+    expect(ok).toBe(true);
+    expect(settingsRepo.updateTimeslotsSettings.mock.calls[0][2]).toMatchObject({
+      isActive: true,
+      slots: [],
+    });
   });
 });
