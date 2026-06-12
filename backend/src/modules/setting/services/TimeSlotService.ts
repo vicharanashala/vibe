@@ -10,6 +10,7 @@ import {
   MongoDatabase,
   ISettingRepository,
   ICourseRepository,
+  ISlotBookingRepository,
   ITimeSlot,
 } from '#shared/index.js';
 import { EnrollmentService } from '#users/services/EnrollmentService.js';
@@ -30,8 +31,52 @@ export class TimeSlotService extends BaseService {
 
     @inject(GLOBAL_TYPES.Database)
     private readonly mongoDatabase: MongoDatabase,
+
+    @inject(GLOBAL_TYPES.SlotBookingRepo)
+    private readonly slotBookingRepo: ISlotBookingRepository,
   ) {
     super(mongoDatabase);
+  }
+
+  /** Current IST date (YYYY-MM-DD), the previous IST date, and minutes-since-midnight. */
+  private getISTDateParts(): {date: string; prevDate: string; minutes: number} {
+    const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+    const fmt = (d: Date) =>
+      `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+    const prev = new Date(istNow.getTime() - 24 * 60 * 60 * 1000);
+    return {
+      date: fmt(istNow),
+      prevDate: fmt(prev),
+      minutes: istNow.getUTCHours() * 60 + istNow.getUTCMinutes(),
+    };
+  }
+
+  /**
+   * Whether a booking covers the current IST minute, accounting for overnight
+   * windows that span two calendar days (a same-day booking only matches on its
+   * own date; an overnight booking matches its evening tail on its date and its
+   * morning tail on the next date).
+   */
+  private bookingCoversNow(
+    booking: {from: string; to: string; date: string},
+    todayDate: string,
+    nowMinutes: number,
+  ): boolean {
+    const fromMin = this.toMinutes(booking.from);
+    const toMin = this.toMinutes(booking.to);
+    const overnight = fromMin >= toMin;
+    if (booking.date === todayDate) {
+      return overnight
+        ? nowMinutes >= fromMin
+        : nowMinutes >= fromMin && nowMinutes <= toMin;
+    }
+    // booking.date is the previous day — only an overnight morning tail applies
+    return overnight ? nowMinutes <= toMin : false;
+  }
+
+  private toMinutes(time: string): number {
+    const [h, m] = time.split(':').map(Number);
+    return h * 60 + m;
   }
 
   /**
@@ -714,13 +759,51 @@ export class TimeSlotService extends BaseService {
         return { canAccess: false, message: 'Student not enrolled in this course.' };
       }
 
-      if (!enrollment.assignedTimeSlots || enrollment.assignedTimeSlots.length === 0) {
-        // Feature is active (checked above). If no slots exist to book yet, don't lock
-        // everyone out — that would be a misconfiguration footgun the moment the toggle flips.
-        if (!timeslots.slots || timeslots.slots.length === 0) {
-          return { canAccess: true };
-        }
-        // Active course with bookable slots, but the student has no booking → restrict.
+      // Feature active but no slots configured yet → don't lock everyone out
+      // the moment the toggle flips.
+      if (!timeslots.slots || timeslots.slots.length === 0) {
+        return { canAccess: true };
+      }
+
+      const { date, prevDate, minutes } = this.getISTDateParts();
+
+      // NEW source of truth: per-day slot bookings (today + yesterday, so an
+      // overnight window that spills past midnight still grants access).
+      const [todayBookings, prevBookings] = await Promise.all([
+        this.slotBookingRepo.findActiveForStudent(
+          userId,
+          courseId,
+          courseVersionId,
+          date,
+          session,
+        ),
+        this.slotBookingRepo.findActiveForStudent(
+          userId,
+          courseId,
+          courseVersionId,
+          prevDate,
+          session,
+        ),
+      ]);
+      const bookingCovers = [...todayBookings, ...prevBookings].some(b =>
+        this.bookingCoversNow(b, date, minutes),
+      );
+
+      // LEGACY source during the transition: enrollment.assignedTimeSlots.
+      const legacySlots = enrollment.assignedTimeSlots ?? [];
+      const legacyCovers = legacySlots.some(slot =>
+        this.isCurrentTimeInSlot(slot),
+      );
+
+      if (bookingCovers || legacyCovers) {
+        return { canAccess: true };
+      }
+
+      // Nothing covers the current time. No commitment at all → they haven't
+      // booked; otherwise they're simply outside their window.
+      const hasAnyCommitment =
+        todayBookings.length > 0 || legacySlots.length > 0;
+      if (!hasAnyCommitment) {
         return {
           canAccess: false,
           message:
@@ -728,23 +811,14 @@ export class TimeSlotService extends BaseService {
         };
       }
 
-      // Check if current time is within any of the assigned slots
-      const currentTime = this.getCurrentISTTime();
-      const hasAccess = enrollment.assignedTimeSlots.some(timeSlot => 
-        this.isCurrentTimeInSlot(timeSlot)
-      );
-      
-      if (!hasAccess) {
-        const timeSlotsStr = enrollment.assignedTimeSlots
-          .map(slot => `${slot.from} to ${slot.to}`)
-          .join(', ');
-        return {
-          canAccess: false,
-          message: `Course access is only allowed during these time slots: ${timeSlotsStr} IST. Current time: ${currentTime}`,
-        };
-      }
-
-      return { canAccess: true };
+      const windows = [
+        ...todayBookings.map(b => `${b.from} to ${b.to}`),
+        ...legacySlots.map(s => `${s.from} to ${s.to}`),
+      ].join(', ');
+      return {
+        canAccess: false,
+        message: `Course access is only allowed during your booked time slots: ${windows} IST. Current time: ${this.getCurrentISTTime()}`,
+      };
     });
   }
 }
