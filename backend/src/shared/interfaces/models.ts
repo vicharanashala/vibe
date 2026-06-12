@@ -586,6 +586,47 @@ export interface ITimeSlot {
   maxStudents?: number; // Maximum number of students allowed in this timeslot
 }
 
+// How a slot booking was obtained.
+export enum SlotBookingKind {
+  BASE = 'BASE', // part of the student's daily base allowance
+  BONUS = 'BONUS', // earned by fully using a prior booking (Phase 3)
+}
+
+// Lifecycle of a single booking, evaluated at the window's end.
+export enum SlotBookingStatus {
+  BOOKED = 'BOOKED', // reserved, window not yet evaluated
+  FULFILLED = 'FULFILLED', // student was active for >= the required share of the window (Phase 3)
+  UNFULFILLED = 'UNFULFILLED', // window passed without being fully used (Phase 3)
+  CANCELLED = 'CANCELLED', // released by the student (re-book) or removed by the instructor
+}
+
+/**
+ * A single per-day commitment: a student booking one recurring time window of a
+ * course for a specific date (IST). Replaces the flat enrollment.assignedTimeSlots
+ * array — each booking is its own document with a lifecycle, so we can track
+ * fulfillment, bonuses, and an hours budget in later phases.
+ */
+export interface ISlotBooking {
+  _id?: ID;
+  userId: ID;
+  enrollmentId: ID;
+  courseId: ID;
+  courseVersionId: ID;
+  cohortId?: ID;
+  date: string; // YYYY-MM-DD in IST — the day this booking applies to
+  from: string; // HH:MM IST
+  to: string; // HH:MM IST
+  overnight: boolean; // window crosses midnight (from > to)
+  kind: SlotBookingKind;
+  status: SlotBookingStatus;
+  hoursReserved: number; // window length in hours, charged to the course budget (Phase 2)
+  activePct?: number; // share of the window the student was active (set at fulfillment, Phase 3)
+  fulfilledAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  isDeleted?: boolean;
+}
+
 export interface ISettings {
   proctors: IProctoringSettings;
   linearProgressionEnabled: boolean;
@@ -607,6 +648,9 @@ export interface ISettings {
   timeslots?: {
     isActive: boolean;
     slots: ITimeSlot[];
+    // How many base bookings a student gets per day (default 1). Bonuses add on
+    // top via fulfillment in later phases.
+    dailyBaseAllowance?: number;
   };
   // When a student completes this course version, automatically create an
   // exclusive invite to the configured follow-up course.
