@@ -5,6 +5,7 @@ import { UserSettingController } from './controllers/UserSettingController.js';
 import { UserSettingService } from './services/UserSettingService.js';
 import { TimeSlotController } from './controllers/TimeSlotController.js';
 import { TimeSlotService } from './services/TimeSlotService.js';
+import { SlotBookingService } from './services/SlotBookingService.js';
 import { SettingRepository } from '#root/shared/index.js';
 
 export const settingContainerModule = new ContainerModule(options => {
@@ -14,6 +15,7 @@ export const settingContainerModule = new ContainerModule(options => {
   
   options.bind(SETTING_TYPES.UserSettingService).to(UserSettingService);
   options.bind(SETTING_TYPES.TimeSlotService).to(TimeSlotService);
+  options.bind(SETTING_TYPES.SlotBookingService).to(SlotBookingService);
 
   // Controllers
   options.bind(CourseSettingController).toSelf().inSingletonScope();

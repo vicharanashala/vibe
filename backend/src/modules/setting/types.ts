@@ -3,6 +3,7 @@ const TYPES = {
   CourseSettingService: Symbol.for('CourseSettingService'),
   UserSettingService: Symbol.for('UserSettingService'),
   TimeSlotService: Symbol.for('TimeSlotService'),
+  SlotBookingService: Symbol.for('SlotBookingService'),
 
   // Repositories
   SettingRepo: Symbol.for('SettingRepo'),

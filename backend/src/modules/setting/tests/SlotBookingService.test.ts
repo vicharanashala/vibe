@@ -1,0 +1,201 @@
+import 'reflect-metadata';
+import {describe, it, expect, vi, beforeEach} from 'vitest';
+import {SlotBookingService} from '../services/SlotBookingService.js';
+import {
+  SlotBookingKind,
+  SlotBookingStatus,
+} from '#shared/interfaces/models.js';
+
+/**
+ * Unit tests for SlotBookingService.bookSlot / cancelBooking — the
+ * commitment-scheme booking logic. The hard capacity cap (per-window
+ * concurrency ceiling) and the per-student daily allowance are the load-control
+ * knobs and get the most coverage.
+ *
+ * The DB is bypassed by stubbing BaseService._withTransaction.
+ */
+
+const USER = 'student-1';
+const COURSE = 'course-1';
+const VERSION = 'version-1';
+
+const SLOT = {from: '13:00', to: '15:00'}; // 2h, same-day
+
+function makeService(
+  opts: {
+    timeslots?: any;
+    enrollment?: any;
+    myBookings?: any[];
+    slotCount?: number;
+    bookingById?: any;
+  } = {},
+) {
+  const {
+    timeslots = {
+      isActive: true,
+      slots: [{from: '13:00', to: '15:00', studentIds: [], maxStudents: 2}],
+      dailyBaseAllowance: 1,
+    },
+    enrollment = {_id: 'enroll-1'},
+    myBookings = [],
+    slotCount = 0,
+    bookingById = null,
+  } = opts;
+
+  const slotBookingRepo = {
+    findActiveForStudent: vi.fn().mockResolvedValue(myBookings),
+    countActiveInSlot: vi.fn().mockResolvedValue(slotCount),
+    createBooking: vi
+      .fn()
+      .mockImplementation((b: any) => Promise.resolve({...b, _id: 'booking-new'})),
+    findById: vi.fn().mockResolvedValue(bookingById),
+    cancelBooking: vi.fn().mockResolvedValue(true),
+  };
+  const settingsRepo = {
+    readTimeslotsSettings: vi.fn().mockResolvedValue(timeslots),
+  };
+  const enrollmentService = {
+    findEnrollment: vi.fn().mockResolvedValue(enrollment),
+  };
+  const db = {} as any;
+
+  const svc = new SlotBookingService(
+    slotBookingRepo as any,
+    settingsRepo as any,
+    enrollmentService as any,
+    db,
+  );
+  vi.spyOn(svc as any, '_withTransaction').mockImplementation((fn: any) =>
+    fn({}),
+  );
+
+  return {svc, slotBookingRepo, settingsRepo, enrollmentService};
+}
+
+describe('SlotBookingService.bookSlot', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('rejects when the time-slot feature is inactive', async () => {
+    const {svc} = makeService({timeslots: {isActive: false, slots: []}});
+    await expect(
+      svc.bookSlot(USER, COURSE, VERSION, SLOT),
+    ).rejects.toThrowError(/not enabled/i);
+  });
+
+  it('rejects a slot that the course does not offer', async () => {
+    const {svc} = makeService();
+    await expect(
+      svc.bookSlot(USER, COURSE, VERSION, {from: '08:00', to: '09:00'}),
+    ).rejects.toThrowError(/not offered/i);
+  });
+
+  it('rejects when the student is not enrolled', async () => {
+    const {svc} = makeService({enrollment: null});
+    await expect(
+      svc.bookSlot(USER, COURSE, VERSION, SLOT),
+    ).rejects.toThrowError(/not enrolled/i);
+  });
+
+  it('rejects double-booking the same slot', async () => {
+    const {svc} = makeService({myBookings: [{from: '13:00', to: '15:00'}]});
+    await expect(
+      svc.bookSlot(USER, COURSE, VERSION, SLOT),
+    ).rejects.toThrowError(/already booked/i);
+  });
+
+  it('rejects when the daily allowance is used up', async () => {
+    // One booking already today (a different slot), allowance = 1.
+    const {svc} = makeService({myBookings: [{from: '09:00', to: '10:00'}]});
+    await expect(
+      svc.bookSlot(USER, COURSE, VERSION, SLOT),
+    ).rejects.toThrowError(/booking\(s\) for today/i);
+  });
+
+  it('enforces the hard capacity cap (slot full)', async () => {
+    const {svc} = makeService({slotCount: 2}); // maxStudents = 2
+    await expect(
+      svc.bookSlot(USER, COURSE, VERSION, SLOT),
+    ).rejects.toThrowError(/full/i);
+  });
+
+  it('books a same-day slot and records BASE/BOOKED with correct hours', async () => {
+    const {svc, slotBookingRepo} = makeService();
+    const result = await svc.bookSlot(USER, COURSE, VERSION, SLOT);
+
+    expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+    const saved = slotBookingRepo.createBooking.mock.calls[0][0];
+    expect(saved).toMatchObject({
+      userId: USER,
+      enrollmentId: 'enroll-1',
+      courseId: COURSE,
+      courseVersionId: VERSION,
+      from: '13:00',
+      to: '15:00',
+      overnight: false,
+      kind: SlotBookingKind.BASE,
+      status: SlotBookingStatus.BOOKED,
+      hoursReserved: 2,
+    });
+    expect(result._id).toBe('booking-new');
+  });
+
+  it('supports overnight windows (from > to) with wrapped duration', async () => {
+    const {svc, slotBookingRepo} = makeService({
+      timeslots: {
+        isActive: true,
+        slots: [{from: '22:00', to: '01:00', studentIds: []}],
+        dailyBaseAllowance: 1,
+      },
+    });
+
+    await svc.bookSlot(USER, COURSE, VERSION, {from: '22:00', to: '01:00'});
+
+    const saved = slotBookingRepo.createBooking.mock.calls[0][0];
+    expect(saved.overnight).toBe(true);
+    expect(saved.hoursReserved).toBe(3); // 22:00 -> 01:00 = 3h
+  });
+
+  it('respects a higher daily allowance (books a second, different slot)', async () => {
+    const {svc, slotBookingRepo} = makeService({
+      timeslots: {
+        isActive: true,
+        slots: [
+          {from: '09:00', to: '10:00', studentIds: []},
+          {from: '13:00', to: '15:00', studentIds: []},
+        ],
+        dailyBaseAllowance: 2,
+      },
+      myBookings: [{from: '09:00', to: '10:00'}], // already has 1 of 2
+    });
+
+    await svc.bookSlot(USER, COURSE, VERSION, SLOT);
+    expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+  });
+});
+
+describe('SlotBookingService.cancelBooking', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('rejects cancelling a non-existent booking', async () => {
+    const {svc} = makeService({bookingById: null});
+    await expect(svc.cancelBooking(USER, 'b1')).rejects.toThrowError(
+      /not found/i,
+    );
+  });
+
+  it("rejects cancelling someone else's booking", async () => {
+    const {svc} = makeService({bookingById: {userId: 'other-user'}});
+    await expect(svc.cancelBooking(USER, 'b1')).rejects.toThrowError(
+      /your own/i,
+    );
+  });
+
+  it('cancels the student own booking', async () => {
+    const {svc, slotBookingRepo} = makeService({
+      bookingById: {userId: USER},
+    });
+    const ok = await svc.cancelBooking(USER, 'b1');
+    expect(ok).toBe(true);
+    expect(slotBookingRepo.cancelBooking).toHaveBeenCalledWith('b1', {});
+  });
+});

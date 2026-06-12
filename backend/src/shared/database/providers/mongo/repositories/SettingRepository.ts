@@ -820,7 +820,7 @@ export class SettingRepository implements ISettingRepository {
   async updateTimeslotsSettings(
     courseId: string,
     courseVersionId: string,
-    timeslots: {isActive: boolean; slots: ITimeSlot[]},
+    timeslots: {isActive: boolean; slots: ITimeSlot[]; dailyBaseAllowance?: number},
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
     await this.init();
@@ -845,7 +845,7 @@ export class SettingRepository implements ISettingRepository {
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
-  ): Promise<{isActive: boolean; slots: ITimeSlot[]} | null> {
+  ): Promise<{isActive: boolean; slots: ITimeSlot[]; dailyBaseAllowance?: number} | null> {
     await this.init();
 
     const courseSettings = await this.courseSettingsCollection.findOne(
