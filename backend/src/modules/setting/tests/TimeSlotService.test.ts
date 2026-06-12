@@ -50,11 +50,13 @@ function makeService(
     updateTimeslotsSettings: vi.fn().mockResolvedValue({acknowledged: true}),
   };
   const courseRepo = {
+    read: vi.fn().mockResolvedValue({ _id: COURSE }),
     readVersion: vi.fn().mockResolvedValue(version),
   };
   const enrollmentService = {
     findEnrollment: vi.fn().mockResolvedValue(enrollment),
     addMultipleTimeSlotsToStudent: vi.fn().mockResolvedValue(true),
+    updateStudentTimeSlot: vi.fn().mockResolvedValue(true),
   };
   const slotBookingRepo = {
     // Date-aware: return only the bookings whose date matches the queried day.
@@ -404,6 +406,43 @@ describe('TimeSlotService.toggleTimeSlots (preserve)', () => {
     expect(settingsRepo.updateTimeslotsSettings.mock.calls[0][2]).toMatchObject({
       isActive: true,
       slots: [],
+    });
+  });
+});
+
+describe('TimeSlotService.addTimeSlots (teacher dual-write)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('mirrors a teacher slot assignment into a slot booking per student', async () => {
+    setNowToIST(10, 0);
+    const { svc, slotBookingRepo, enrollmentService } = makeService({
+      timeslots: { isActive: true, slots: [] },
+      enrollment: { _id: 'enroll-1' },
+    });
+
+    const ok = await svc.addTimeSlots(
+      COURSE,
+      VERSION,
+      [{ from: '13:00', to: '15:00', studentIds: [USER], maxStudents: 30 }],
+      'teacher-1',
+    );
+
+    expect(ok).toBe(true);
+    expect(enrollmentService.updateStudentTimeSlot).toHaveBeenCalledOnce();
+    expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+    expect(slotBookingRepo.createBooking.mock.calls[0][0]).toMatchObject({
+      userId: USER,
+      enrollmentId: 'enroll-1',
+      from: '13:00',
+      to: '15:00',
+      kind: SlotBookingKind.BASE,
+      status: SlotBookingStatus.BOOKED,
     });
   });
 });
