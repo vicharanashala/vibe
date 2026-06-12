@@ -4,3 +4,4 @@ export * from './ICourseRepository.js';
 export * from './IItemRepository.js';
 export * from './IInviteRepository.js';
 export * from './ISettingRepository.js';
+export * from './ISlotBookingRepository.js';
