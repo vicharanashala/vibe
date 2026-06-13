@@ -690,8 +690,8 @@ class AttemptService extends BaseService {
     /* -------------------- UPDATE SUBMISSION (SMALL WRITE) -------------------- */
 
     await this.submissionRepository.update(submissionId, { gradingResult });
-    if (!isSkipped && !isItemCompleted) {
-      const isPassed = gradingResult.gradingStatus === "PASSED"
+    const isPassed = gradingResult.gradingStatus === "PASSED"
+    if (!isSkipped && (!isItemCompleted || isPassed)) {
       await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed, watchItemId, cohortId);
     }
 

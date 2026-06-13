@@ -3140,10 +3140,11 @@ class ProgressService extends BaseService {
     watchItemId?: string,
     cohortId?: string,
   ) {
-    // Fetch progress and course version in parallel
-    const [progress, courseVersion] = await Promise.all([
-      this.progressRepository.findProgress(userId, courseId, courseVersionId, cohortId),
-      this.courseRepo.readVersion(courseVersionId),
+    return this._withTransaction(async session => {
+      // Fetch progress and course version in parallel
+      const [progress, courseVersion] = await Promise.all([
+        this.progressRepository.findProgress(userId, courseId, courseVersionId, cohortId, session),
+        this.courseRepo.readVersion(courseVersionId),
     ]);
 
     if (!progress || !courseVersion) {
@@ -3184,6 +3185,7 @@ class ProgressService extends BaseService {
           courseVersionId,
           newProgress,
           cohortId,
+          session,
         );
       } else {
         const newProgress = {
@@ -3198,6 +3200,7 @@ class ProgressService extends BaseService {
           courseVersionId,
           newProgress,
           cohortId,
+          session,
         );
       }
     } else {
@@ -3221,6 +3224,7 @@ class ProgressService extends BaseService {
           courseVersionId,
           previousProgress,
           cohortId,
+          session,
         );
       }
     }
@@ -3238,6 +3242,7 @@ class ProgressService extends BaseService {
           courseId,
           courseVersionId,
           cohortId,
+          session,
         );
         
         if (activeWatchTimes && activeWatchTimes.length > 0) {
@@ -3272,12 +3277,14 @@ class ProgressService extends BaseService {
         cohortId,
       )
 
-      if (!isItemCompleted && resolvedWatchItemId) {
-        await this.progressRepository.stopItemTracking(
-          resolvedWatchItemId,
-        );
+        if (!isItemCompleted && resolvedWatchItemId) {
+          await this.progressRepository.stopItemTracking(
+            resolvedWatchItemId,
+            session,
+          );
+        }
       }
-    }
+    }); // close transaction
   }
 
   // Admin Level Endpoint
