@@ -344,7 +344,13 @@ export default function AuthPage({ role }: AuthPageProps) {
       console.error("Google Login Failed", error);
       setFormErrors({
         ...formErrors,
-        auth: "Failed to sign in with Google. Please try again."
+        auth: (() => {
+          const code = (error as any)?.code;
+          if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") return "Sign-in was cancelled. Please try again.";
+          if (code === "auth/network-request-failed") return "Network error. Please check your connection and try again.";
+          if (code === "auth/user-disabled") return "Your account has been disabled. Please contact support.";
+          return "Failed to sign in with Google. Please try again.";
+        })()
       });
     } finally {
       setLoading(false);
@@ -545,7 +551,14 @@ export default function AuthPage({ role }: AuthPageProps) {
 
       setFormErrors({
         ...formErrors,
-        auth: error.message || "Invalid email or password. Please try again."
+        auth: (() => {
+          const code = (error as any)?.code;
+          if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") return "Incorrect email or password. Please try again.";
+          if (code === "auth/too-many-requests") return "Too many failed attempts. Please try again later.";
+          if (code === "auth/user-disabled") return "Your account has been disabled. Please contact support.";
+          if (code === "auth/network-request-failed") return "Network error. Please check your connection and try again.";
+          return "Login failed. Please try again.";
+        })()
       });
     } finally {
       setLoading(false);

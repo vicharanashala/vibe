@@ -254,6 +254,29 @@ export class SettingRepository implements ISettingRepository {
     return Object.assign(new CourseSetting(), courseSettings) as CourseSetting;
   }
 
+  /**
+   * Returns the {courseId, courseVersionId} of every course version that has an
+   * enabled follow-up invite configured. Used by the reconciliation job.
+   */
+  async getCourseVersionsWithFollowUpInviteEnabled(
+    session?: ClientSession,
+  ): Promise<Array<{courseId: string; courseVersionId: string}>> {
+    await this.init();
+    const docs = await this.courseSettingsCollection
+      .find(
+        {'settings.followUpInvite.enabled': true},
+        {projection: {courseId: 1, courseVersionId: 1}, session},
+      )
+      .toArray();
+
+    return docs
+      .filter(d => d.courseId && d.courseVersionId)
+      .map(d => ({
+        courseId: d.courseId.toString(),
+        courseVersionId: d.courseVersionId.toString(),
+      }));
+  }
+
   // Rename this method (previously addCourseProctoring)
   /**
    * Updates course settings for a specific detector.

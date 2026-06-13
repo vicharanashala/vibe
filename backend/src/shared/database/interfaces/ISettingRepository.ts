@@ -282,4 +282,13 @@ export interface ISettingRepository {
   ): Promise<boolean>;
 
   shouldRandomize(versionId: string):Promise<boolean>;
+
+  /**
+   * Returns the {courseId, courseVersionId} of every course version that has an
+   * enabled follow-up invite configured. Used by the reconciliation job to
+   * backfill follow-up invites for source courses.
+   */
+  getCourseVersionsWithFollowUpInviteEnabled(
+    session?: ClientSession,
+  ): Promise<Array<{courseId: string; courseVersionId: string}>>;
 }

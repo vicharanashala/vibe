@@ -1079,6 +1079,12 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
                       <Badge variant="outline" className="font-medium text-xs sm:text-sm flex-shrink-0">
                         {question?.type?.replace(/_/g, ' ') || 'Unknown'}
                       </Badge>
+                      {(question as any)?.source === 'STUDENT_GENERATED' &&
+                        (question as any)?.reviewStatus === 'PENDING_REVIEW' && (
+                          <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-xs flex-shrink-0">
+                            Pending Review
+                          </Badge>
+                        )}
                     </div>
                     <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded self-start flex-shrink-0">
                       ID: {questionId.slice(-6)}

@@ -34,6 +34,9 @@ import {
   OutComeStatus,
 } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 import {ObjectId} from 'mongodb';
+import {getContainer} from '#root/bootstrap/loadModules.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
+import type {ProgressService} from '#root/modules/users/services/ProgressService.js';
 
 @OpenAPI({
   tags: ['Course Setting'],
@@ -211,6 +214,36 @@ export class CourseSettingController {
     );
 
     return {success: result};
+  }
+
+  @Authorized()
+  @Post('/:courseId/:versionId/follow-up-invite/backfill')
+  @HttpCode(200)
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async backfillFollowUpInvites(
+    @Params() params: ReadCourseSettingParams,
+  ): Promise<{
+    completed: number;
+    alreadyEnrolled: number;
+    alreadyInvited: number;
+    missingEmail: number;
+    invited: number;
+  }> {
+    // Re-sends the configured follow-up invite to every student whose progress
+    // in this (source) course version is at or above the follow-up threshold
+    // (>=98%) but isn't yet enrolled in the target course — e.g. students who
+    // reached the threshold before the invite was set up, or whose completion
+    // flag never flipped.
+    const {courseId, versionId} = params;
+
+    const progressService = getContainer().get<ProgressService>(
+      USERS_TYPES.ProgressService,
+    );
+
+    return progressService.backfillFollowUpInvites(courseId, versionId);
   }
 
   // This method removes proctoring settings for a course version.

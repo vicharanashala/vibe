@@ -16,6 +16,9 @@ import type { FloatingVideoProps } from '@/types/video.types';
 import { useReportAnomalyAudio, useReportAnomalyImage } from '@/hooks/hooks';
 import {registerStream, unRegisterStream} from "@/lib/MediaRegistry";
 import { runProctoringChecks } from "@/utils/proctoring/proctoringGuard";
+import { useNavigate } from '@tanstack/react-router';
+import { toast } from 'sonner';
+import { FaceRegistrationModal } from './ai/FaceRegistrationModal';
 
 // let flag = 0;
 function FloatingVideo({
@@ -70,6 +73,7 @@ function FloatingVideo({
   const [facesCount, setFacesCount] = useState(0);
   const [recognizedFaces, setRecognizedFaces] = useState<any[]>([]);
   const [hasFaceRecognitionMismatch, setHasFaceRecognitionMismatch] = useState(false);
+  const [showFaceRegisterModal, setShowFaceRegisterModal] = useState(false);
   const [penaltyPoints, setPenaltyPoints] = useState(0);
   const [penaltyType, setPenaltyType] = useState("");
   const [contiguousAnomalyPoints, setContiguousAnomalyPoints] = useState(0);
@@ -470,6 +474,21 @@ const lastCalledRef = useRef<number>(0);
       console.error('[FloatingVideo] Error restarting video:', error);
     }
   }, [videoRef, currentStream]);
+
+  const navigate = useNavigate();
+
+  const handleFaceRegistrationSuccess = useCallback(() => {
+    setShowFaceRegisterModal(false);
+    toast.success("Identity verified! Resuming course...");
+    void restartVideo();
+    setPauseVid(false);
+    setReadyToDetect(true);
+  }, [restartVideo, setPauseVid, setReadyToDetect]);
+
+  const handleFaceRegistrationClose = useCallback(() => {
+    setShowFaceRegisterModal(false);
+    navigate({ to: '/student' });
+  }, [navigate]);
 
   useEffect(() => {
   if (!currentStream || !readyToDetect || !isVideoActive) return;
@@ -1447,6 +1466,11 @@ const lastCalledRef = useRef<number>(0);
             videoRef={videoRef}
             onRecognitionResult={handleFaceRecognitionResult}
             onMismatchChange={handleFaceRecognitionMismatchChange}
+            onMissingEmbedding={() => {
+              setPauseVid(true);
+              setReadyToDetect(false);
+              setShowFaceRegisterModal(true);
+            }}
             settings={{
               isFaceCountDetectionEnabled,
               isFaceRecognitionEnabled, 
@@ -1484,12 +1508,31 @@ const lastCalledRef = useRef<number>(0);
     </div>
   );
 
+  const modalPortal = (showFaceRegisterModal && typeof window !== 'undefined') ? ReactDOM.createPortal(
+    <FaceRegistrationModal
+      isOpen={showFaceRegisterModal}
+      onSuccess={handleFaceRegistrationSuccess}
+      onClose={handleFaceRegistrationClose}
+    />,
+    document.body
+  ) : null;
+
   // Use portal to render floating video at the end of body if popped out
   if (isPoppedOut && typeof window !== 'undefined') {
-    return ReactDOM.createPortal(floatingVideoContent, document.body);
+    return (
+      <>
+        {ReactDOM.createPortal(floatingVideoContent, document.body)}
+        {modalPortal}
+      </>
+    );
   }
   // Otherwise render in place (sidebar)
-  return floatingVideoContent;
+  return (
+    <>
+      {floatingVideoContent}
+      {modalPortal}
+    </>
+  );
 };
 
 export default FloatingVideo;
