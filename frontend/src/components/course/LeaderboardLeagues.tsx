@@ -1,6 +1,6 @@
 import { Trophy, Flame, Crown, Medal, Award, Zap, Clock } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { cn } from "@/utils/utils";
+import { cn, formatCompletionTime } from "@/utils/utils";
 import type { LeaderboardEntry } from "@/hooks/hooks";
 import { FinisherMarquee } from "@/components/course/FinisherMarquee";
 
@@ -98,41 +98,31 @@ function Row({
           {isFinisher ? (
             <>
               <span className="text-emerald-600 font-medium">✓ Completed</span>
-              {days != null && <span>· in {days} days</span>}
+              {days != null && <span>· in {formatCompletionTime(days)}</span>}
             </>
-          ) : Math.round(entry.completionPercentage) >= 100 ? (
-            <span className="text-emerald-600 font-medium">✓ Completed</span>
           ) : (
             <>
               <Zap className="h-3 w-3 text-orange-500 shrink-0" />
-              In progress · {Math.round(entry.completionPercentage)}%
+              In progress · {Math.floor(entry.completionPercentage)}%
             </>
           )}
         </p>
       </div>
 
-      {/* Metric — active w/ no recent activity falls back to % (or ✓ at 100%) */}
+      {/* Metric — active w/ no recent activity falls back to % progress */}
       {(() => {
-        const done = !isFinisher && Math.round(entry.completionPercentage) >= 100;
-        const tone =
-          isFinisher || done
-            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
-            : week > 0
-            ? "bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300"
-            : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
+        const tone = isFinisher
+          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+          : week > 0
+          ? "bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300"
+          : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
         const value = isFinisher
-          ? days != null
-            ? `${days}d`
-            : "✓"
-          : done
-          ? "100%"
+          ? formatCompletionTime(days, true)
           : week > 0
           ? `${week}`
-          : `${Math.round(entry.completionPercentage)}%`;
+          : `${Math.floor(entry.completionPercentage)}%`;
         const caption = isFinisher
           ? "to finish"
-          : done
-          ? "complete"
           : week > 0
           ? "this week"
           : "progress";

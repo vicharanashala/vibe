@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useLeaderboard, useUserEnrollments, type LeaderboardEntry } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/utils/utils";
+import { cn, formatCompletionTime } from "@/utils/utils";
 import {
   Select,
   SelectContent,
@@ -96,8 +96,8 @@ const metricOf = (
 ): { value: string; unit: string; caption: string; tone: Tone } => {
   if (league === "finishers") {
     return {
-      value: entry.daysToComplete != null ? `${entry.daysToComplete}` : "—",
-      unit: entry.daysToComplete === 1 ? "day" : "days",
+      value: formatCompletionTime(entry.daysToComplete, true),
+      unit: "",
       caption: "to finish",
       tone: "emerald",
     };
@@ -111,12 +111,8 @@ const metricOf = (
       tone: "orange",
     };
   }
-  // Reached 100% but not yet in the Finishers league (no recorded finish date)
-  if (Math.round(entry.completionPercentage) >= 100) {
-    return { value: "100%", unit: "", caption: "complete", tone: "emerald" };
-  }
   return {
-    value: `${Math.round(entry.completionPercentage)}%`,
+    value: `${Math.floor(entry.completionPercentage)}%`,
     unit: "",
     caption: "progress",
     tone: "slate",
@@ -633,17 +629,13 @@ function LeaderRow({
             <>
               <span className="text-emerald-600 font-medium">✓ Completed</span>
               {entry.daysToComplete != null && (
-                <span>· in {entry.daysToComplete} days</span>
+                <span>· in {formatCompletionTime(entry.daysToComplete)}</span>
               )}
-            </>
-          ) : Math.round(entry.completionPercentage) >= 100 ? (
-            <>
-              <span className="text-emerald-600 font-medium">✓ Completed</span>
             </>
           ) : (
             <>
               <Zap className="h-3 w-3 text-orange-500" />
-              In progress · {entry.completionPercentage}%
+              In progress · {Math.floor(entry.completionPercentage)}%
             </>
           )}
         </p>

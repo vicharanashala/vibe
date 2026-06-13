@@ -1,6 +1,6 @@
 import { Crown, Medal, Award, Trophy } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { cn } from "@/utils/utils";
+import { cn, formatCompletionTime } from "@/utils/utils";
 import type { LeaderboardEntry } from "@/hooks/hooks";
 
 const getInitials = (name: string) => {
@@ -58,9 +58,7 @@ function FinisherChip({
           {isMe && <span className="text-primary"> (You)</span>}
         </p>
         <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
-          {entry.daysToComplete != null
-            ? `🏁 ${entry.daysToComplete} ${entry.daysToComplete === 1 ? "day" : "days"}`
-            : "🏁 Completed"}
+          🏁 {formatCompletionTime(entry.daysToComplete)}
         </p>
       </div>
     </div>

@@ -3894,6 +3894,16 @@ class ProgressService extends BaseService {
         cohortId,
       );
 
+    // Earliest watch-activity per learner — a reliable "start" fallback when
+    // enrollmentDate has been post-dated by a migration (which otherwise yields
+    // 0-day completions).
+    const firstActivityMap =
+      await this.progressRepository.getFirstActivityByCourseVersion(
+        courseId,
+        courseVersionId,
+        cohortId,
+      );
+
     // Get user names for all enrolled students
     const userIds = enrollments.map(e => e.userId?.toString());
     const users = await this.userRepo.getUsersByIds(userIds);
@@ -3901,42 +3911,71 @@ class ProgressService extends BaseService {
     const userMap = new Map();
     for (const user of users) {
       if (user) {
-        const fullName =
-          `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
-          'Unknown User';
-        userMap.set(user._id?.toString(), fullName);
+        // Fall back to the email local-part when no name is on the profile,
+        // so learners don't all show up as "Unknown User".
+        const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+        const emailName = user.email ? user.email.split('@')[0] : '';
+        userMap.set(user._id?.toString(), fullName || emailName || 'Unknown User');
       }
     }
 
     const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+    // Dedupe duplicate progress docs per learner — the data can contain more
+    // than one progress doc for the same user in a version, which otherwise
+    // makes them appear multiple times. Prefer a completed doc so finishers
+    // aren't lost to a stray in-progress duplicate.
+    const progressByUser = new Map<string, IProgress>();
+    for (const p of progressRecords) {
+      const uid = p.userId?.toString();
+      if (!uid) continue;
+      const existing = progressByUser.get(uid);
+      const pDone = !!(p.completed && p.completedAt);
+      const exDone = !!(existing && existing.completed && existing.completedAt);
+      if (!existing || (pDone && !exDone)) progressByUser.set(uid, p);
+    }
+
     // Combine progress, enrollment and effort data, split into two leagues
     const finishers: LeaderboardEntry[] = [];
     const active: LeaderboardEntry[] = [];
 
-    for (const progress of progressRecords) {
+    for (const progress of progressByUser.values()) {
       const id = progress.userId?.toString();
       const enrollment = enrollmentMap.get(id);
       const completionPercentage = Math.min(
         100,
         enrollment?.completionPercentage || 0,
       );
-      const completedAt =
-        progress.completed && progress.completedAt
-          ? progress.completedAt
-          : null;
+      // Use the finish timestamp regardless of the legacy `completed` flag.
+      const completedAt = progress.completedAt ?? null;
       const enrollmentDate = enrollment?.enrollmentDate ?? null;
       const effort = effortMap.get(id) || { weeklyItems: 0, weeklyMinutes: 0 };
 
-      const isFinisher = completionPercentage >= 100 && !!completedAt;
+      // Completed (100%) => Finishers (horizontal). Everyone else => active list.
+      // Don't require completedAt for league placement, so no completed learner
+      // leaks into the "last 7 days" vertical list.
+      const isFinisher = completionPercentage >= 100;
+
+      // True start = earliest signal of starting. enrollmentDate can be
+      // post-dated by migrations, so fall back to first watch-activity when it
+      // is earlier (avoids bogus 0-day completions).
+      const firstActivity = firstActivityMap.get(id) ?? null;
+      let startDate = enrollmentDate;
+      if (
+        firstActivity &&
+        (!startDate ||
+          new Date(firstActivity).getTime() < new Date(startDate).getTime())
+      ) {
+        startDate = firstActivity;
+      }
 
       // days-to-complete normalizes for different start dates
       const daysToComplete =
-        isFinisher && enrollmentDate
+        isFinisher && completedAt && startDate
           ? Math.max(
               0,
               (new Date(completedAt).getTime() -
-                new Date(enrollmentDate).getTime()) /
+                new Date(startDate).getTime()) /
                 MS_PER_DAY,
             )
           : null;
@@ -3949,8 +3988,9 @@ class ProgressService extends BaseService {
         enrollmentDate,
         weeklyItems: effort.weeklyItems,
         weeklyMinutes: Math.round(effort.weeklyMinutes),
+        // keep 2 decimals so sub-day completions can render as hours
         daysToComplete:
-          daysToComplete === null ? null : Math.round(daysToComplete * 10) / 10,
+          daysToComplete === null ? null : Math.round(daysToComplete * 100) / 100,
         league: isFinisher ? 'finishers' : 'active',
         rank: 0,
       };

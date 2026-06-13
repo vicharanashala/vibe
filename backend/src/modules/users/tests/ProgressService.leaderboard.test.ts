@@ -21,11 +21,14 @@ function makeService(opts: {
   enrollments: any[];
   effort: Map<string, { weeklyItems: number; weeklyMinutes: number }>;
   users: any[];
+  firstActivity?: Map<string, Date>;
 }) {
   const service: any = Object.create(ProgressService.prototype);
   service.progressRepository = {
     getAllProgressForCourseVersion: async () => opts.progress,
     getWeeklyEffortByCourseVersion: async () => opts.effort,
+    // Empty by default → days-to-complete falls back to enrollmentDate.
+    getFirstActivityByCourseVersion: async () => opts.firstActivity ?? new Map(),
   };
   service.enrollmentRepo = {
     getEnrollmentsByCourseVersion: async () => opts.enrollments,
@@ -89,9 +92,9 @@ describe('ProgressService.getLeaderboard — two-league ranking', () => {
     expect(res.active.data[0].weeklyItems).toBe(8);
   });
 
-  it('a 100% record without completedAt is not a finisher and cannot outrank real finishers', async () => {
-    // E: completed earlier WITH timestamp -> genuine finisher
-    // F: 100% but completedAt missing (legacy record) -> falls into active, not finishers
+  it('every 100% learner is a finisher; one without a finish date sorts last', async () => {
+    // E: 100% WITH a finish date -> ranked by days-to-complete
+    // F: 100% but completedAt missing -> still a finisher, sorts last (no days)
     const service = makeService({
       progress: [
         { userId: 'E', completed: true, completedAt: day(5) },
@@ -107,8 +110,10 @@ describe('ProgressService.getLeaderboard — two-league ranking', () => {
 
     const res = await service.getLeaderboard('E', COURSE_ID, VERSION_ID);
 
-    expect(res.finishers.data.map(e => e.userId)).toEqual(['E']);
-    expect(res.active.data.map(e => e.userId)).toEqual(['F']);
+    // Both are finishers; E (has days) ranks above F (no finish date -> last).
+    expect(res.finishers.data.map(e => e.userId)).toEqual(['E', 'F']);
+    expect(res.finishers.data[1].daysToComplete).toBeNull();
+    expect(res.active.data).toHaveLength(0);
   });
 
   it('paginates the active league and reports myStats with the right league', async () => {

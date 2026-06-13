@@ -798,6 +798,44 @@ class ProgressRepository {
     return effortMap;
   }
 
+  /**
+   * Earliest watch-activity (min startTime) per learner for a course version.
+   * Used as a fallback "start" for days-to-complete when enrollmentDate is
+   * unreliable (e.g. post-dated by a cohort migration) — the first time someone
+   * actually engaged is a truer start than a re-stamped enrollment date.
+   */
+  async getFirstActivityByCourseVersion(
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<Map<string, Date>> {
+    await this.init();
+    const results = await this.watchTimeCollection
+      .aggregate(
+        [
+          {
+            $match: {
+              courseId: new ObjectId(courseId),
+              courseVersionId: new ObjectId(courseVersionId),
+              ...(cohortId ? { cohortId: new ObjectId(cohortId) } : { cohortId: null }),
+              isDeleted: { $ne: true },
+              startTime: { $ne: null, $exists: true },
+            },
+          },
+          { $group: { _id: '$userId', firstStart: { $min: '$startTime' } } },
+        ],
+        { session },
+      )
+      .toArray();
+
+    const map = new Map<string, Date>();
+    for (const row of results) {
+      if (row.firstStart) map.set(row._id?.toString(), row.firstStart);
+    }
+    return map;
+  }
+
   async deleteProgressByVersionId(versionId: string, session?: ClientSession) {
     await this.init();
     await this.progressCollection.updateMany(
