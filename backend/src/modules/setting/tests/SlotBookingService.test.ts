@@ -208,6 +208,16 @@ describe('SlotBookingService.bookSlot', () => {
     expect(slotBookingRepo.createBooking).not.toHaveBeenCalled();
   });
 
+  it('counts instructor-granted extra hours toward the budget', async () => {
+    const {svc, slotBookingRepo} = makeService({
+      timeslots: {isActive: true, slots: budgetSlots, totalBudgetHours: 2},
+      enrollment: {_id: 'enroll-1', commitmentExtraHours: 2}, // budget = 2 + 2 = 4
+      reservedHours: 1, // 1 + 2 = 3 <= 4
+    });
+    await svc.bookSlot(USER, COURSE, VERSION, SLOT);
+    expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+  });
+
   it('does not enforce a budget when none is configured (unlimited)', async () => {
     const {svc, slotBookingRepo} = makeService({
       timeslots: {isActive: true, slots: budgetSlots}, // no totalBudgetHours

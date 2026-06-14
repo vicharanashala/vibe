@@ -57,6 +57,7 @@ function makeService(
     findEnrollment: vi.fn().mockResolvedValue(enrollment),
     addMultipleTimeSlotsToStudent: vi.fn().mockResolvedValue(true),
     updateStudentTimeSlot: vi.fn().mockResolvedValue(true),
+    grantCommitmentExtraHours: vi.fn().mockResolvedValue(5),
   };
   const slotBookingRepo = {
     // Date-aware: return only the bookings whose date matches the queried day.
@@ -501,5 +502,37 @@ describe('TimeSlotService.configureHoursBudget', () => {
     await expect(
       svc.configureHoursBudget(COURSE, VERSION, { VIDEO: 6 }, undefined, 't1'),
     ).rejects.toThrowError(/version not found/i);
+  });
+});
+
+describe('TimeSlotService.extendStudentHours', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('grants extra hours and returns the new total', async () => {
+    const { svc, enrollmentService } = makeService();
+
+    const res = await svc.extendStudentHours(
+      COURSE,
+      VERSION,
+      'student-9',
+      3,
+      'teacher-1',
+    );
+
+    expect(enrollmentService.grantCommitmentExtraHours).toHaveBeenCalledWith(
+      'student-9',
+      COURSE,
+      VERSION,
+      3,
+    );
+    expect(res.commitmentExtraHours).toBe(5);
+  });
+
+  it('rejects a non-positive amount', async () => {
+    const { svc, enrollmentService } = makeService();
+    await expect(
+      svc.extendStudentHours(COURSE, VERSION, 'student-9', 0, 'teacher-1'),
+    ).rejects.toThrowError(/greater than 0/i);
+    expect(enrollmentService.grantCommitmentExtraHours).not.toHaveBeenCalled();
   });
 });

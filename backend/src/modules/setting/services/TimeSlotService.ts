@@ -524,6 +524,30 @@ export class TimeSlotService extends BaseService {
   }
 
   /**
+   * Grant a student extra committed hours on top of the course budget
+   * (instructor action when a student has exhausted their hours).
+   */
+  async extendStudentHours(
+    courseId: string,
+    courseVersionId: string,
+    studentId: string,
+    extraHours: number,
+    userId: string,
+  ): Promise<{ commitmentExtraHours: number }> {
+    if (!extraHours || extraHours <= 0) {
+      throw new BadRequestError('extraHours must be greater than 0.');
+    }
+    const commitmentExtraHours =
+      await this.enrollmentService.grantCommitmentExtraHours(
+        studentId,
+        courseId,
+        courseVersionId,
+        extraHours,
+      );
+    return { commitmentExtraHours };
+  }
+
+  /**
    * Update existing time slot
    */
   async updateTimeSlot(
