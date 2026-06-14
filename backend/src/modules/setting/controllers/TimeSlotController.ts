@@ -76,6 +76,21 @@ class ToggleTimeSlotsRequestBody {
   isActive: boolean;
 }
 
+// Request body for configuring the per-course hours budget from the
+// instructor's per-category time estimates (minutes per item).
+class SetHoursBudgetRequestBody {
+  courseId: string;
+  courseVersionId: string;
+  estimatesMinutes: {
+    VIDEO?: number;
+    QUIZ?: number;
+    BLOG?: number;
+    PROJECT?: number;
+    FEEDBACK?: number;
+  };
+  hoursFactor?: number;
+}
+
 // Response for time slot operations
 class TimeSlotResponse {
   success: boolean;
@@ -360,6 +375,53 @@ class TimeSlotController {
         throw error;
       }
       throw new InternalServerError(`Failed to update time slot: ${error}`);
+    }
+  }
+
+  @OpenAPI({
+    summary: 'Set the per-course hours budget',
+    description:
+      "Computes and stores the students' committed-hours budget from the instructor's per-category time estimates (minutes per item) and the course's item counts. Captured when the feature is enabled.",
+  })
+  @Authorized()
+  @Put('/budget')
+  @HttpCode(200)
+  @ResponseSchema(TimeSlotResponse, {
+    description: 'Hours budget configured successfully',
+  })
+  async setHoursBudget(
+    @Body() body: SetHoursBudgetRequestBody,
+    @CurrentUser() user: IUser,
+    @Ability(getItemAbility) { ability },
+  ): Promise<TimeSlotResponse> {
+    const itemResource = subject('Item', { versionId: body.courseVersionId });
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
+    try {
+      const data = await this.timeSlotService.configureHoursBudget(
+        body.courseId,
+        body.courseVersionId,
+        body.estimatesMinutes ?? {},
+        body.hoursFactor,
+        user._id.toString(),
+      );
+      return {
+        success: true,
+        message: 'Hours budget configured successfully',
+        data,
+      };
+    } catch (error) {
+      if (
+        error instanceof BadRequestError ||
+        error instanceof NotFoundError
+      ) {
+        throw error;
+      }
+      throw new InternalServerError(`Failed to set hours budget: ${error}`);
     }
   }
 

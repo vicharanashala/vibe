@@ -130,6 +130,33 @@ export class SlotBookingRepository implements ISlotBookingRepository {
     );
   }
 
+  async sumReservedHoursForStudent(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    const result = await this.slotBookingsCollection
+      .aggregate(
+        [
+          {
+            $match: {
+              userId: new ObjectId(userId),
+              courseId: new ObjectId(courseId),
+              courseVersionId: new ObjectId(courseVersionId),
+              status: {$ne: SlotBookingStatus.CANCELLED},
+              isDeleted: {$ne: true},
+            },
+          },
+          {$group: {_id: null, total: {$sum: '$hoursReserved'}}},
+        ],
+        {session},
+      )
+      .toArray();
+    return result.length > 0 ? (result[0] as any).total ?? 0 : 0;
+  }
+
   async cancelBooking(
     bookingId: string,
     session?: ClientSession,
