@@ -410,6 +410,9 @@ export interface IEnrollment {
     from: string; // HH:MM format in IST
     to: string; // HH:MM format in IST
   }>;
+  // Extra committed hours granted to this student by an instructor, added on
+  // top of the course's totalBudgetHours when enforcing the hours budget.
+  commitmentExtraHours?: number;
   isDeleted?: boolean;
   deletedAt?: Date;
   unenrolledAt?: Date;

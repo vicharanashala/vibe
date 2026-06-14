@@ -91,6 +91,14 @@ class SetHoursBudgetRequestBody {
   hoursFactor?: number;
 }
 
+// Request body for granting a student extra committed hours.
+class ExtendStudentHoursRequestBody {
+  courseId: string;
+  courseVersionId: string;
+  studentId: string;
+  extraHours: number;
+}
+
 // Response for time slot operations
 class TimeSlotResponse {
   success: boolean;
@@ -422,6 +430,54 @@ class TimeSlotController {
         throw error;
       }
       throw new InternalServerError(`Failed to set hours budget: ${error}`);
+    }
+  }
+
+  @OpenAPI({
+    summary: 'Grant a student extra committed hours',
+    description:
+      "Adds extra hours to a student's committed-hours budget (instructor action when a student has used up their hours).",
+  })
+  @Authorized()
+  @Put('/extend')
+  @HttpCode(200)
+  @ResponseSchema(TimeSlotResponse, {
+    description: 'Extra hours granted successfully',
+  })
+  async extendStudentHours(
+    @Body() body: ExtendStudentHoursRequestBody,
+    @CurrentUser() user: IUser,
+    @Ability(getItemAbility) { ability },
+  ): Promise<TimeSlotResponse> {
+    const itemResource = subject('Item', { versionId: body.courseVersionId });
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
+    try {
+      const data = await this.timeSlotService.extendStudentHours(
+        body.courseId,
+        body.courseVersionId,
+        body.studentId,
+        body.extraHours,
+        user._id.toString(),
+      );
+      return {
+        success: true,
+        message: 'Extra hours granted successfully',
+        data,
+      };
+    } catch (error) {
+      if (
+        error instanceof BadRequestError ||
+        error instanceof NotFoundError ||
+        error instanceof ForbiddenError
+      ) {
+        throw error;
+      }
+      throw new InternalServerError(`Failed to grant extra hours: ${error}`);
     }
   }
 

@@ -2042,6 +2042,38 @@ export class EnrollmentService extends BaseService {
   }
 
   /**
+   * Grant a student extra committed hours (instructor action). Returns the
+   * enrollment's new total commitmentExtraHours.
+   */
+  async grantCommitmentExtraHours(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    extraHours: number,
+    session?: ClientSession,
+  ): Promise<number> {
+    const execute = async (session: ClientSession) => {
+      const enrollment = await this.enrollmentRepo.findActiveEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        null,
+        session,
+      );
+      if (!enrollment) {
+        throw new NotFoundError('Enrollment not found for this student.');
+      }
+      return this.enrollmentRepo.addCommitmentExtraHours(
+        enrollment._id?.toString(),
+        extraHours,
+        session,
+      );
+    };
+
+    return session ? execute(session) : this._withTransaction(execute);
+  }
+
+  /**
    * Remove assigned time slot from student enrollment
    */
   async removeStudentTimeSlot(
