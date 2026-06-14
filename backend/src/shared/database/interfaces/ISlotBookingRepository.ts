@@ -39,6 +39,17 @@ export interface ISlotBookingRepository {
     session?: ClientSession,
   ): Promise<number>;
 
+  /**
+   * Total `hoursReserved` across a student's active (non-cancelled) bookings on
+   * a course version — i.e. the hours they've consumed from their budget.
+   */
+  sumReservedHoursForStudent(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<number>;
+
   /** Mark a booking cancelled (student re-book or instructor removal). */
   cancelBooking(
     bookingId: string,

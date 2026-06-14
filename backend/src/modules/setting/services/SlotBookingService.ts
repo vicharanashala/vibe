@@ -151,6 +151,30 @@ export class SlotBookingService extends BaseService {
         }
       }
 
+      const hoursReserved = this.slotHours(slot.from, slot.to);
+
+      // Per-course hours budget — the "committed hours" ceiling. A booking
+      // reserves its hours; the student can't exceed their total budget.
+      // Undefined budget = unlimited.
+      if (timeslots.totalBudgetHours != null) {
+        const consumed = await this.slotBookingRepo.sumReservedHoursForStudent(
+          userId,
+          courseId,
+          courseVersionId,
+          session,
+        );
+        if (consumed + hoursReserved > timeslots.totalBudgetHours) {
+          const remaining = Math.max(
+            0,
+            Math.round((timeslots.totalBudgetHours - consumed) * 100) / 100,
+          );
+          throw new BadRequestError(
+            `This booking (${hoursReserved}h) exceeds your committed hours for this course. ` +
+              `You have ${remaining}h of ${timeslots.totalBudgetHours}h remaining.`,
+          );
+        }
+      }
+
       const now = new Date();
       const booking: ISlotBooking = {
         userId,
@@ -164,7 +188,7 @@ export class SlotBookingService extends BaseService {
         overnight: this.isOvernight(slot.from, slot.to),
         kind: SlotBookingKind.BASE,
         status: SlotBookingStatus.BOOKED,
-        hoursReserved: this.slotHours(slot.from, slot.to),
+        hoursReserved,
         createdAt: now,
         updatedAt: now,
       };

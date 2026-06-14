@@ -34,7 +34,7 @@ function makeService(
       _id?: string;
       assignedTimeSlots?: { from: string; to: string }[];
     } | null;
-    version?: { courseId: string } | null;
+    version?: { courseId: string; itemCounts?: Record<string, number> } | null;
     bookings?: { date: string; from: string; to: string }[];
   } = {},
 ) {
@@ -444,5 +444,62 @@ describe('TimeSlotService.addTimeSlots (teacher dual-write)', () => {
       kind: SlotBookingKind.BASE,
       status: SlotBookingStatus.BOOKED,
     });
+  });
+});
+
+describe('TimeSlotService.configureHoursBudget', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('computes the budget from per-category estimates × item counts', async () => {
+    const { svc, settingsRepo } = makeService({
+      version: {
+        courseId: COURSE,
+        itemCounts: { VIDEO: 10, QUIZ: 4, BLOG: 6, PROJECT: 1 },
+      },
+      timeslots: { isActive: true, slots: [] },
+    });
+
+    // 10*12 + 4*15 + 6*20 + 1*120 = 420 min = 7h
+    const res = await svc.configureHoursBudget(
+      COURSE,
+      VERSION,
+      { VIDEO: 12, QUIZ: 15, BLOG: 20, PROJECT: 120 },
+      undefined,
+      'teacher-1',
+    );
+
+    expect(res.estimatedEffortHours).toBe(7);
+    expect(res.totalBudgetHours).toBe(7);
+    const saved = settingsRepo.updateTimeslotsSettings.mock.calls[0][2];
+    expect(saved.totalBudgetHours).toBe(7);
+    expect(saved.categoryTimeEstimatesMinutes).toEqual({
+      VIDEO: 12,
+      QUIZ: 15,
+      BLOG: 20,
+      PROJECT: 120,
+    });
+  });
+
+  it('applies the hours factor', async () => {
+    const { svc } = makeService({
+      version: { courseId: COURSE, itemCounts: { VIDEO: 10 } },
+    });
+    // 10*6 = 60 min = 1h × 1.5 = 1.5h
+    const res = await svc.configureHoursBudget(
+      COURSE,
+      VERSION,
+      { VIDEO: 6 },
+      1.5,
+      'teacher-1',
+    );
+    expect(res.estimatedEffortHours).toBe(1);
+    expect(res.totalBudgetHours).toBe(1.5);
+  });
+
+  it('rejects when the course version is not found', async () => {
+    const { svc } = makeService({ version: null });
+    await expect(
+      svc.configureHoursBudget(COURSE, VERSION, { VIDEO: 6 }, undefined, 't1'),
+    ).rejects.toThrowError(/version not found/i);
   });
 });

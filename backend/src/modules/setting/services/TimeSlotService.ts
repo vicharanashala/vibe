@@ -447,6 +447,83 @@ export class TimeSlotService extends BaseService {
   }
 
   /**
+   * Set the per-course hours budget from the instructor's per-category time
+   * estimates (minutes per item), captured when the feature is enabled. The
+   * budget = Σ(itemCount[category] × estimate[category]) hours × factor.
+   */
+  async configureHoursBudget(
+    courseId: string,
+    courseVersionId: string,
+    estimatesMinutes: {
+      VIDEO?: number;
+      QUIZ?: number;
+      BLOG?: number;
+      PROJECT?: number;
+      FEEDBACK?: number;
+    },
+    hoursFactor: number | undefined,
+    userId: string,
+  ): Promise<{
+    totalBudgetHours: number;
+    estimatedEffortHours: number;
+    itemCounts: Record<string, number>;
+  }> {
+    return this._withTransaction(async (session) => {
+      const version = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!version) {
+        throw new NotFoundError('Course version not found.');
+      }
+
+      const counts = (version.itemCounts ?? {}) as Record<string, number>;
+      const categories = ['VIDEO', 'QUIZ', 'BLOG', 'PROJECT', 'FEEDBACK'] as const;
+
+      let totalMinutes = 0;
+      for (const cat of categories) {
+        const n = counts[cat] ?? 0;
+        const est = estimatesMinutes[cat] ?? 0;
+        if (est < 0) {
+          throw new BadRequestError(
+            `Invalid time estimate for ${cat}: ${est}. Must be >= 0.`,
+          );
+        }
+        totalMinutes += n * est;
+      }
+
+      const factor = hoursFactor && hoursFactor > 0 ? hoursFactor : 1;
+      const estimatedEffortHours = Math.round((totalMinutes / 60) * 100) / 100;
+      const totalBudgetHours =
+        Math.round(estimatedEffortHours * factor * 100) / 100;
+
+      const existing = await this.settingsRepo.readTimeslotsSettings(
+        courseId,
+        courseVersionId,
+        session,
+      );
+      const updated = {
+        ...(existing ?? { isActive: true, slots: [] }),
+        categoryTimeEstimatesMinutes: estimatesMinutes,
+        hoursFactor: factor,
+        totalBudgetHours,
+      };
+
+      const result = await this.settingsRepo.updateTimeslotsSettings(
+        courseId,
+        courseVersionId,
+        updated,
+        session,
+      );
+      if (!result) {
+        throw new InternalServerError('Failed to save the hours budget.');
+      }
+
+      return { totalBudgetHours, estimatedEffortHours, itemCounts: counts };
+    });
+  }
+
+  /**
    * Update existing time slot
    */
   async updateTimeSlot(
