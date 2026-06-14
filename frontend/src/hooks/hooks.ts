@@ -5644,6 +5644,58 @@ export function useGetTimeSlots(
   };
 }
 
+// PUT /timeslots/budget — configure the per-course hours budget from the
+// instructor's per-category time estimates (raw fetch: not in the typed schema).
+export type CategoryEstimatesMinutes = {
+  VIDEO?: number;
+  QUIZ?: number;
+  BLOG?: number;
+  PROJECT?: number;
+  FEEDBACK?: number;
+};
+
+export function useSetHoursBudget() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const setHoursBudget = async (
+    courseId: string,
+    courseVersionId: string,
+    estimatesMinutes: CategoryEstimatesMinutes,
+    hoursFactor?: number,
+  ): Promise<{
+    totalBudgetHours: number;
+    estimatedEffortHours: number;
+    itemCounts: Record<string, number>;
+  }> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/timeslots/budget`;
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+        body: JSON.stringify({ courseId, courseVersionId, estimatesMinutes, hoursFactor }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || `Failed to set hours budget: ${res.status}`);
+      }
+      return data?.data;
+    } catch (err: any) {
+      setError(err.message || 'Unknown error');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { setHoursBudget, loading, error };
+}
+
 // GET /timeslots/check-access/{courseId}/{courseVersionId}
 export function useCheckTimeSlotAccess(
   courseId: string | undefined,
