@@ -76,6 +76,29 @@ class ToggleTimeSlotsRequestBody {
   isActive: boolean;
 }
 
+// Request body for configuring the per-course hours budget from the
+// instructor's per-category time estimates (minutes per item).
+class SetHoursBudgetRequestBody {
+  courseId: string;
+  courseVersionId: string;
+  estimatesMinutes: {
+    VIDEO?: number;
+    QUIZ?: number;
+    BLOG?: number;
+    PROJECT?: number;
+    FEEDBACK?: number;
+  };
+  hoursFactor?: number;
+}
+
+// Request body for granting a student extra committed hours.
+class ExtendStudentHoursRequestBody {
+  courseId: string;
+  courseVersionId: string;
+  studentId: string;
+  extraHours: number;
+}
+
 // Response for time slot operations
 class TimeSlotResponse {
   success: boolean;
@@ -360,6 +383,125 @@ class TimeSlotController {
         throw error;
       }
       throw new InternalServerError(`Failed to update time slot: ${error}`);
+    }
+  }
+
+  @OpenAPI({
+    summary: 'Check time-slot access for the current student',
+    description:
+      "Returns whether the calling student can currently access the course under its time-slot rules. Used by the player to poll for a live cut-off when a booked window ends.",
+  })
+  @Authorized()
+  @Get('/check-access/:courseId/:courseVersionId')
+  @HttpCode(200)
+  async checkTimeSlotAccess(
+    @Param('courseId') courseId: string,
+    @Param('courseVersionId') courseVersionId: string,
+    @CurrentUser() user: IUser,
+  ): Promise<{ canAccess: boolean; message?: string }> {
+    try {
+      return await this.timeSlotService.canStudentAccessCourse(
+        user._id.toString(),
+        courseId,
+        courseVersionId,
+      );
+    } catch (error) {
+      throw new InternalServerError(`Failed to check time slot access: ${error}`);
+    }
+  }
+
+  @OpenAPI({
+    summary: 'Set the per-course hours budget',
+    description:
+      "Computes and stores the students' committed-hours budget from the instructor's per-category time estimates (minutes per item) and the course's item counts. Captured when the feature is enabled.",
+  })
+  @Authorized()
+  @Put('/budget')
+  @HttpCode(200)
+  @ResponseSchema(TimeSlotResponse, {
+    description: 'Hours budget configured successfully',
+  })
+  async setHoursBudget(
+    @Body() body: SetHoursBudgetRequestBody,
+    @CurrentUser() user: IUser,
+    @Ability(getItemAbility) { ability },
+  ): Promise<TimeSlotResponse> {
+    const itemResource = subject('Item', { versionId: body.courseVersionId });
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
+    try {
+      const data = await this.timeSlotService.configureHoursBudget(
+        body.courseId,
+        body.courseVersionId,
+        body.estimatesMinutes ?? {},
+        body.hoursFactor,
+        user._id.toString(),
+      );
+      return {
+        success: true,
+        message: 'Hours budget configured successfully',
+        data,
+      };
+    } catch (error) {
+      if (
+        error instanceof BadRequestError ||
+        error instanceof NotFoundError
+      ) {
+        throw error;
+      }
+      throw new InternalServerError(`Failed to set hours budget: ${error}`);
+    }
+  }
+
+  @OpenAPI({
+    summary: 'Grant a student extra committed hours',
+    description:
+      "Adds extra hours to a student's committed-hours budget (instructor action when a student has used up their hours).",
+  })
+  @Authorized()
+  @Put('/extend')
+  @HttpCode(200)
+  @ResponseSchema(TimeSlotResponse, {
+    description: 'Extra hours granted successfully',
+  })
+  async extendStudentHours(
+    @Body() body: ExtendStudentHoursRequestBody,
+    @CurrentUser() user: IUser,
+    @Ability(getItemAbility) { ability },
+  ): Promise<TimeSlotResponse> {
+    const itemResource = subject('Item', { versionId: body.courseVersionId });
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
+    try {
+      const data = await this.timeSlotService.extendStudentHours(
+        body.courseId,
+        body.courseVersionId,
+        body.studentId,
+        body.extraHours,
+        user._id.toString(),
+      );
+      return {
+        success: true,
+        message: 'Extra hours granted successfully',
+        data,
+      };
+    } catch (error) {
+      if (
+        error instanceof BadRequestError ||
+        error instanceof NotFoundError ||
+        error instanceof ForbiddenError
+      ) {
+        throw error;
+      }
+      throw new InternalServerError(`Failed to grant extra hours: ${error}`);
     }
   }
 

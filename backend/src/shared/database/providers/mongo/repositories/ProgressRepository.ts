@@ -748,6 +748,109 @@ class ProgressRepository {
     return result;
   }
 
+  /**
+   * Rolling-window "effort" per learner for the leaderboard's Active league.
+   * Counts distinct items each learner COMPLETED (endTime set) since `since`,
+   * plus the watch-minutes accrued in that window. This neutralizes start date:
+   * everyone is scored on the same trailing window, Duolingo-style.
+   *
+   * `since` is a trailing rolling boundary (e.g. now - 7d), computed by the
+   * caller. To switch to a Monday-reset calendar week, only change how the
+   * caller derives `since` — this aggregation stays the same.
+   */
+  async getWeeklyEffortByCourseVersion(
+    courseId: string,
+    courseVersionId: string,
+    since: Date,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<Map<string, { weeklyItems: number; weeklyMinutes: number }>> {
+    await this.init();
+    const results = await this.watchTimeCollection
+      .aggregate(
+        [
+          {
+            $match: {
+              courseId: new ObjectId(courseId),
+              courseVersionId: new ObjectId(courseVersionId),
+              ...(cohortId ? { cohortId: new ObjectId(cohortId) } : { cohortId: null }),
+              isDeleted: { $ne: true },
+              endTime: { $gte: since, $ne: null },
+            },
+          },
+          {
+            $group: {
+              _id: '$userId',
+              items: { $addToSet: '$itemId' },
+              minutes: {
+                $sum: {
+                  $divide: [{ $subtract: ['$endTime', '$startTime'] }, 60000],
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              weeklyItems: { $size: '$items' },
+              weeklyMinutes: '$minutes',
+            },
+          },
+        ],
+        { session },
+      )
+      .toArray();
+
+    const effortMap = new Map<
+      string,
+      { weeklyItems: number; weeklyMinutes: number }
+    >();
+    for (const row of results) {
+      effortMap.set(row._id?.toString(), {
+        weeklyItems: row.weeklyItems || 0,
+        weeklyMinutes: Math.max(0, row.weeklyMinutes || 0),
+      });
+    }
+    return effortMap;
+  }
+
+  /**
+   * Earliest watch-activity (min startTime) per learner for a course version.
+   * Used as a fallback "start" for days-to-complete when enrollmentDate is
+   * unreliable (e.g. post-dated by a cohort migration) — the first time someone
+   * actually engaged is a truer start than a re-stamped enrollment date.
+   */
+  async getFirstActivityByCourseVersion(
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<Map<string, Date>> {
+    await this.init();
+    const results = await this.watchTimeCollection
+      .aggregate(
+        [
+          {
+            $match: {
+              courseId: new ObjectId(courseId),
+              courseVersionId: new ObjectId(courseVersionId),
+              ...(cohortId ? { cohortId: new ObjectId(cohortId) } : { cohortId: null }),
+              isDeleted: { $ne: true },
+              startTime: { $ne: null, $exists: true },
+            },
+          },
+          { $group: { _id: '$userId', firstStart: { $min: '$startTime' } } },
+        ],
+        { session },
+      )
+      .toArray();
+
+    const map = new Map<string, Date>();
+    for (const row of results) {
+      if (row.firstStart) map.set(row._id?.toString(), row.firstStart);
+    }
+    return map;
+  }
+
   async deleteProgressByVersionId(versionId: string, session?: ClientSession) {
     await this.init();
     await this.progressCollection.updateMany(

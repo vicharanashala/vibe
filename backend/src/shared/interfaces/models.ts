@@ -410,6 +410,9 @@ export interface IEnrollment {
     from: string; // HH:MM format in IST
     to: string; // HH:MM format in IST
   }>;
+  // Extra committed hours granted to this student by an instructor, added on
+  // top of the course's totalBudgetHours when enforcing the hours budget.
+  commitmentExtraHours?: number;
   isDeleted?: boolean;
   deletedAt?: Date;
   unenrolledAt?: Date;
@@ -651,6 +654,22 @@ export interface ISettings {
     // How many base bookings a student gets per day (default 1). Bonuses add on
     // top via fulfillment in later phases.
     dailyBaseAllowance?: number;
+    // Total committed hours a student may book across this course (their hours
+    // budget). Bookings consume their `hoursReserved` against it; undefined =
+    // unlimited. Computed from the instructor's per-category estimates × counts.
+    totalBudgetHours?: number;
+    // Optional multiplier applied to the estimated effort (default 1).
+    hoursFactor?: number;
+    // Instructor's estimated time PER ITEM (minutes) for each item category,
+    // captured when the feature is enabled. Combined with the course version's
+    // item counts to compute totalBudgetHours.
+    categoryTimeEstimatesMinutes?: {
+      VIDEO?: number;
+      QUIZ?: number;
+      BLOG?: number;
+      PROJECT?: number;
+      FEEDBACK?: number;
+    };
   };
   // When a student completes this course version, automatically create an
   // exclusive invite to the configured follow-up course.

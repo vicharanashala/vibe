@@ -5,6 +5,26 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Format a days-to-complete value (may be fractional) into a human label.
+ * Sub-day completions render as hours so finishers never show a bare "0 days".
+ *   compact=false → "3 days" | "5 hours" | "under 1 hour"
+ *   compact=true  → "3d" | "5h" | "<1h"
+ */
+export function formatCompletionTime(
+  days: number | null | undefined,
+  compact = false
+): string {
+  if (days == null) return compact ? "✓" : "Completed";
+  if (days >= 1) {
+    const d = days % 1 === 0 ? days : Math.round(days * 10) / 10;
+    return compact ? `${d}d` : `${d} ${d === 1 ? "day" : "days"}`;
+  }
+  const hours = Math.round(days * 24);
+  if (hours < 1) return compact ? "<1h" : "under 1 hour";
+  return compact ? `${hours}h` : `${hours} ${hours === 1 ? "hour" : "hours"}`;
+}
+
 // Utility function to preprocess content for math rendering
 // export function preprocessMathContent(content: string): string {
 //   if (!content) return content;

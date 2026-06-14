@@ -28,6 +28,7 @@ function makeService(
     myBookings?: any[];
     slotCount?: number;
     bookingById?: any;
+    reservedHours?: number;
   } = {},
 ) {
   const {
@@ -40,11 +41,13 @@ function makeService(
     myBookings = [],
     slotCount = 0,
     bookingById = null,
+    reservedHours = 0,
   } = opts;
 
   const slotBookingRepo = {
     findActiveForStudent: vi.fn().mockResolvedValue(myBookings),
     countActiveInSlot: vi.fn().mockResolvedValue(slotCount),
+    sumReservedHoursForStudent: vi.fn().mockResolvedValue(reservedHours),
     createBooking: vi
       .fn()
       .mockImplementation((b: any) => Promise.resolve({...b, _id: 'booking-new'})),
@@ -170,6 +173,59 @@ describe('SlotBookingService.bookSlot', () => {
 
     await svc.bookSlot(USER, COURSE, VERSION, SLOT);
     expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+  });
+
+  // --- per-course hours budget (SLOT is 13:00–15:00 = 2h) ---
+
+  const budgetSlots = [{from: '13:00', to: '15:00', studentIds: []}];
+
+  it('books when within the committed hours budget', async () => {
+    const {svc, slotBookingRepo} = makeService({
+      timeslots: {isActive: true, slots: budgetSlots, totalBudgetHours: 4},
+      reservedHours: 1, // 1 + 2 = 3 <= 4
+    });
+    await svc.bookSlot(USER, COURSE, VERSION, SLOT);
+    expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+  });
+
+  it('allows booking that lands exactly on the budget', async () => {
+    const {svc, slotBookingRepo} = makeService({
+      timeslots: {isActive: true, slots: budgetSlots, totalBudgetHours: 2},
+      reservedHours: 0, // 0 + 2 = 2 <= 2
+    });
+    await svc.bookSlot(USER, COURSE, VERSION, SLOT);
+    expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+  });
+
+  it('rejects a booking that would exceed the committed hours budget', async () => {
+    const {svc, slotBookingRepo} = makeService({
+      timeslots: {isActive: true, slots: budgetSlots, totalBudgetHours: 2},
+      reservedHours: 1, // 1 + 2 = 3 > 2
+    });
+    await expect(
+      svc.bookSlot(USER, COURSE, VERSION, SLOT),
+    ).rejects.toThrowError(/committed hours/i);
+    expect(slotBookingRepo.createBooking).not.toHaveBeenCalled();
+  });
+
+  it('counts instructor-granted extra hours toward the budget', async () => {
+    const {svc, slotBookingRepo} = makeService({
+      timeslots: {isActive: true, slots: budgetSlots, totalBudgetHours: 2},
+      enrollment: {_id: 'enroll-1', commitmentExtraHours: 2}, // budget = 2 + 2 = 4
+      reservedHours: 1, // 1 + 2 = 3 <= 4
+    });
+    await svc.bookSlot(USER, COURSE, VERSION, SLOT);
+    expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+  });
+
+  it('does not enforce a budget when none is configured (unlimited)', async () => {
+    const {svc, slotBookingRepo} = makeService({
+      timeslots: {isActive: true, slots: budgetSlots}, // no totalBudgetHours
+      reservedHours: 999,
+    });
+    await svc.bookSlot(USER, COURSE, VERSION, SLOT);
+    expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+    expect(slotBookingRepo.sumReservedHoursForStudent).not.toHaveBeenCalled();
   });
 });
 

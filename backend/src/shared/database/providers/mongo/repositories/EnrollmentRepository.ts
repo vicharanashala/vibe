@@ -4270,6 +4270,29 @@ export class EnrollmentRepository {
   }
 
   /**
+   * Add (increment) extra committed hours on an enrollment and return the new
+   * total. Used when an instructor grants a student more hours budget.
+   */
+  async addCommitmentExtraHours(
+    enrollmentId: string,
+    extraHours: number,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+
+    const updated = await this.enrollmentCollection.findOneAndUpdate(
+      { _id: new ObjectId(enrollmentId) },
+      {
+        $inc: { commitmentExtraHours: extraHours },
+        $set: { updatedAt: new Date() },
+      },
+      { session, returnDocument: 'after' },
+    );
+
+    return (updated as any)?.commitmentExtraHours ?? 0;
+  }
+
+  /**
    * Remove a specific time slot from enrollment's assigned time slots
    */
   async removeEnrollmentTimeSlot(

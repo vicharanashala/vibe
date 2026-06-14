@@ -34,7 +34,7 @@ function makeService(
       _id?: string;
       assignedTimeSlots?: { from: string; to: string }[];
     } | null;
-    version?: { courseId: string } | null;
+    version?: { courseId: string; itemCounts?: Record<string, number> } | null;
     bookings?: { date: string; from: string; to: string }[];
   } = {},
 ) {
@@ -50,11 +50,14 @@ function makeService(
     updateTimeslotsSettings: vi.fn().mockResolvedValue({acknowledged: true}),
   };
   const courseRepo = {
+    read: vi.fn().mockResolvedValue({ _id: COURSE }),
     readVersion: vi.fn().mockResolvedValue(version),
   };
   const enrollmentService = {
     findEnrollment: vi.fn().mockResolvedValue(enrollment),
     addMultipleTimeSlotsToStudent: vi.fn().mockResolvedValue(true),
+    updateStudentTimeSlot: vi.fn().mockResolvedValue(true),
+    grantCommitmentExtraHours: vi.fn().mockResolvedValue(5),
   };
   const slotBookingRepo = {
     // Date-aware: return only the bookings whose date matches the queried day.
@@ -405,5 +408,131 @@ describe('TimeSlotService.toggleTimeSlots (preserve)', () => {
       isActive: true,
       slots: [],
     });
+  });
+});
+
+describe('TimeSlotService.addTimeSlots (teacher dual-write)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('mirrors a teacher slot assignment into a slot booking per student', async () => {
+    setNowToIST(10, 0);
+    const { svc, slotBookingRepo, enrollmentService } = makeService({
+      timeslots: { isActive: true, slots: [] },
+      enrollment: { _id: 'enroll-1' },
+    });
+
+    const ok = await svc.addTimeSlots(
+      COURSE,
+      VERSION,
+      [{ from: '13:00', to: '15:00', studentIds: [USER], maxStudents: 30 }],
+      'teacher-1',
+    );
+
+    expect(ok).toBe(true);
+    expect(enrollmentService.updateStudentTimeSlot).toHaveBeenCalledOnce();
+    expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+    expect(slotBookingRepo.createBooking.mock.calls[0][0]).toMatchObject({
+      userId: USER,
+      enrollmentId: 'enroll-1',
+      from: '13:00',
+      to: '15:00',
+      kind: SlotBookingKind.BASE,
+      status: SlotBookingStatus.BOOKED,
+    });
+  });
+});
+
+describe('TimeSlotService.configureHoursBudget', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('computes the budget from per-category estimates × item counts', async () => {
+    const { svc, settingsRepo } = makeService({
+      version: {
+        courseId: COURSE,
+        itemCounts: { VIDEO: 10, QUIZ: 4, BLOG: 6, PROJECT: 1 },
+      },
+      timeslots: { isActive: true, slots: [] },
+    });
+
+    // 10*12 + 4*15 + 6*20 + 1*120 = 420 min = 7h
+    const res = await svc.configureHoursBudget(
+      COURSE,
+      VERSION,
+      { VIDEO: 12, QUIZ: 15, BLOG: 20, PROJECT: 120 },
+      undefined,
+      'teacher-1',
+    );
+
+    expect(res.estimatedEffortHours).toBe(7);
+    expect(res.totalBudgetHours).toBe(7);
+    const saved = settingsRepo.updateTimeslotsSettings.mock.calls[0][2];
+    expect(saved.totalBudgetHours).toBe(7);
+    expect(saved.categoryTimeEstimatesMinutes).toEqual({
+      VIDEO: 12,
+      QUIZ: 15,
+      BLOG: 20,
+      PROJECT: 120,
+    });
+  });
+
+  it('applies the hours factor', async () => {
+    const { svc } = makeService({
+      version: { courseId: COURSE, itemCounts: { VIDEO: 10 } },
+    });
+    // 10*6 = 60 min = 1h × 1.5 = 1.5h
+    const res = await svc.configureHoursBudget(
+      COURSE,
+      VERSION,
+      { VIDEO: 6 },
+      1.5,
+      'teacher-1',
+    );
+    expect(res.estimatedEffortHours).toBe(1);
+    expect(res.totalBudgetHours).toBe(1.5);
+  });
+
+  it('rejects when the course version is not found', async () => {
+    const { svc } = makeService({ version: null });
+    await expect(
+      svc.configureHoursBudget(COURSE, VERSION, { VIDEO: 6 }, undefined, 't1'),
+    ).rejects.toThrowError(/version not found/i);
+  });
+});
+
+describe('TimeSlotService.extendStudentHours', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('grants extra hours and returns the new total', async () => {
+    const { svc, enrollmentService } = makeService();
+
+    const res = await svc.extendStudentHours(
+      COURSE,
+      VERSION,
+      'student-9',
+      3,
+      'teacher-1',
+    );
+
+    expect(enrollmentService.grantCommitmentExtraHours).toHaveBeenCalledWith(
+      'student-9',
+      COURSE,
+      VERSION,
+      3,
+    );
+    expect(res.commitmentExtraHours).toBe(5);
+  });
+
+  it('rejects a non-positive amount', async () => {
+    const { svc, enrollmentService } = makeService();
+    await expect(
+      svc.extendStudentHours(COURSE, VERSION, 'student-9', 0, 'teacher-1'),
+    ).rejects.toThrowError(/greater than 0/i);
+    expect(enrollmentService.grantCommitmentExtraHours).not.toHaveBeenCalled();
   });
 });

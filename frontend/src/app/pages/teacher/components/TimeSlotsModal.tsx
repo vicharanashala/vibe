@@ -15,7 +15,8 @@ import {
   useToggleTimeSlots,
   useUpdateTimeSlot,
   useCourseVersionEnrollments,
-  useRemoveStudentFromTimeSlot
+  useRemoveStudentFromTimeSlot,
+  useSetHoursBudget,
 } from "@/hooks/hooks";
 import { ClockTimePicker } from "./ClockTimePicker";
 
@@ -137,6 +138,18 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   const [currentSlotForStudents, setCurrentSlotForStudents] = useState<TimeSlot | null>(null);
   const [tempSelectedStudents, setTempSelectedStudents] = useState<Set<string>>(new Set());
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
+  // Hours budget: instructor's per-item time estimate (minutes) per category.
+  const [categoryEstimates, setCategoryEstimates] = useState<Record<string, number>>({
+    VIDEO: 10,
+    QUIZ: 15,
+    BLOG: 15,
+    PROJECT: 60,
+  });
+  const [budgetResult, setBudgetResult] = useState<{
+    totalBudgetHours: number;
+    estimatedEffortHours: number;
+    itemCounts: Record<string, number>;
+  } | null>(null);
 
   // Hooks
   const { data: timeSlotsData, refetch: refetchTimeSlots } = useGetTimeSlots(
@@ -153,6 +166,37 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   const toggleTimeSlotsMutation = useToggleTimeSlots();
   const updateTimeSlotMutation = useUpdateTimeSlot();
   const removeStudentFromTimeSlotMutation = useRemoveStudentFromTimeSlot();
+  const { setHoursBudget, loading: budgetLoading } = useSetHoursBudget();
+
+  // Seed any saved budget/estimates when the modal loads.
+  useEffect(() => {
+    const ts = timeSlotsData as any;
+    if (ts?.categoryTimeEstimatesMinutes) {
+      setCategoryEstimates(prev => ({ ...prev, ...ts.categoryTimeEstimatesMinutes }));
+    }
+    if (typeof ts?.totalBudgetHours === 'number') {
+      setBudgetResult(r => r ?? {
+        totalBudgetHours: ts.totalBudgetHours,
+        estimatedEffortHours: ts.totalBudgetHours,
+        itemCounts: {},
+      });
+    }
+  }, [timeSlotsData]);
+
+  const handleSaveBudget = async () => {
+    try {
+      const result = await setHoursBudget(courseId, courseVersionId, {
+        VIDEO: categoryEstimates.VIDEO,
+        QUIZ: categoryEstimates.QUIZ,
+        BLOG: categoryEstimates.BLOG,
+        PROJECT: categoryEstimates.PROJECT,
+      });
+      setBudgetResult(result);
+      toast.success(`Committed hours budget set: ${result.totalBudgetHours}h per student`);
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to set hours budget');
+    }
+  };
 
   // Get enrolled students for selection
   const { data: enrollmentsData } = useCourseVersionEnrollments(
@@ -190,16 +234,14 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
       return;
     }
 
-    // If toggling off and there are students assigned, show confirmation
+    // If toggling off, confirm. Disabling is non-destructive: slots and
+    // bookings are preserved and restored when re-enabled.
     if (enableSlotAssignment && timeSlots.length > 0) {
-      const totalAssignedStudents = timeSlots.reduce((total, slot) => total + (slot.studentIds?.length || 0), 0);
-      
-      if (totalAssignedStudents > 0) {
-        const message = `Are you sure you want to disable time slots? This will remove all time slot assignments for ${totalAssignedStudents} student(s) and delete all existing time slots.`;
-        
-        if (!window.confirm(message)) {
-          return; // User cancelled
-        }
+      const message =
+        'Disable time slots for this course? Students will not be time-restricted while it is off. Your slots and student bookings are kept and restored when you re-enable.';
+
+      if (!window.confirm(message)) {
+        return; // User cancelled
       }
     }
 
@@ -545,6 +587,60 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
 
               {enableSlotAssignment && (
                 <>
+                  {/* Committed hours budget */}
+                  <Card className="border shadow-sm">
+                    <CardContent className="p-4 space-y-3">
+                      <div>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Clock className="h-5 w-5" />
+                          Committed hours budget
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Estimate how long each kind of item takes (minutes per item). We multiply by the course&apos;s item counts to set each student&apos;s total committed hours.
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {([
+                          ["VIDEO", "Minutes per video"],
+                          ["QUIZ", "Minutes per quiz"],
+                          ["BLOG", "Minutes per reading"],
+                          ["PROJECT", "Minutes per project"],
+                        ] as const).map(([key, label]) => (
+                          <div key={key}>
+                            <Label className="text-xs">{label}</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              value={categoryEstimates[key] ?? ""}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                setCategoryEstimates(prev => ({
+                                  ...prev,
+                                  [key]: e.target.value === "" ? 0 : parseInt(e.target.value),
+                                }))
+                              }
+                              className="mt-1"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <Button size="sm" onClick={handleSaveBudget} disabled={budgetLoading}>
+                          {budgetLoading ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Save className="h-4 w-4 mr-2" />
+                          )}
+                          Save budget
+                        </Button>
+                        {budgetResult && (
+                          <span className="text-sm font-medium text-green-700">
+                            ≈ {budgetResult.totalBudgetHours}h committed / student
+                          </span>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
                   {/* Active Slots Section */}
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">

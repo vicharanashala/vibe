@@ -54,6 +54,19 @@ import type { InviteRepository } from '#shared/database/providers/mongo/reposito
 const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
 const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
 
+export interface LeaderboardEntry {
+  userId: string;
+  userName: string;
+  completionPercentage: number;
+  completedAt: Date | null;
+  enrollmentDate: Date | null;
+  weeklyItems: number;
+  weeklyMinutes: number;
+  daysToComplete: number | null;
+  league: 'finishers' | 'active';
+  rank: number;
+}
+
 // Progress (percent) at or above which the configured follow-up course is made
 // available to the student. This is intentionally decoupled from course
 // completion: the follow-up invite is offered once the student crosses this
@@ -3992,23 +4005,14 @@ class ProgressService extends BaseService {
     limit: number = 10,
     cohortId?: string,
   ): Promise<{
-    data: Array<{
-      userId: string;
-      userName: string;
-      completionPercentage: number;
-      completedAt: Date | null;
-      rank: number;
-    }>;
-    totalDocuments: number;
-    totalPages: number;
-    currentPage: number;
-    myStats: {
-      userId: string;
-      userName: string;
-      completionPercentage: number;
-      completedAt: Date | null;
-      rank: number;
-    } | null;
+    finishers: { data: LeaderboardEntry[]; total: number };
+    active: {
+      data: LeaderboardEntry[];
+      total: number;
+      totalPages: number;
+      currentPage: number;
+    };
+    myStats: LeaderboardEntry | null;
   }> {
     // Get all progress records for this course version
     const progressRecords =
@@ -4018,19 +4022,45 @@ class ProgressService extends BaseService {
         cohortId,
       );
 
-    // Get all enrollments to fetch completion percentages
+    // Get all enrollments to fetch completion percentages + start dates
     const enrollments = await this.enrollmentRepo.getEnrollmentsByCourseVersion(
       courseId,
       courseVersionId,
       cohortId,
     );
 
-    const enrollmentMap = new Map();
+    const enrollmentMap = new Map<
+      string,
+      { completionPercentage: number; enrollmentDate: Date | null }
+    >();
     for (const enrollment of enrollments) {
       enrollmentMap.set(enrollment.userId?.toString(), {
         completionPercentage: enrollment.percentCompleted || 0,
+        enrollmentDate: enrollment.enrollmentDate || null,
       });
     }
+
+    // Rolling 7-day effort per learner (Duolingo-style window) for the Active
+    // league. Trailing window — switch to Monday-reset by changing `since`.
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    const since = new Date(Date.now() - SEVEN_DAYS_MS);
+    const effortMap =
+      await this.progressRepository.getWeeklyEffortByCourseVersion(
+        courseId,
+        courseVersionId,
+        since,
+        cohortId,
+      );
+
+    // Earliest watch-activity per learner — a reliable "start" fallback when
+    // enrollmentDate has been post-dated by a migration (which otherwise yields
+    // 0-day completions).
+    const firstActivityMap =
+      await this.progressRepository.getFirstActivityByCourseVersion(
+        courseId,
+        courseVersionId,
+        cohortId,
+      );
 
     // Get user names for all enrolled students
     const userIds = enrollments.map(e => e.userId?.toString());
@@ -4039,75 +4069,149 @@ class ProgressService extends BaseService {
     const userMap = new Map();
     for (const user of users) {
       if (user) {
-        const fullName =
-          `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
-          'Unknown User';
-        userMap.set(user._id?.toString(), fullName);
+        // Fall back to the email local-part when no name is on the profile,
+        // so learners don't all show up as "Unknown User".
+        const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+        const emailName = user.email ? user.email.split('@')[0] : '';
+        userMap.set(user._id?.toString(), fullName || emailName || 'Unknown User');
       }
     }
 
-    // Combine progress and enrollment data
-    const leaderboardData = progressRecords.map(progress => ({
-      userId: progress.userId?.toString(),
-      userName: userMap.get(progress.userId?.toString()) || 'Unknown User',
-      completionPercentage:
-        Math.min(100, enrollmentMap.get(progress.userId?.toString())?.completionPercentage) ||
-        0,
-      completedAt:
-        progress.completed && progress.completedAt
-          ? progress.completedAt
-          : null,
-    }));
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-    // Sort by Progress % (highest first), then by Completion Date (earliest first) for ties
-    const sortedLeaderboard = leaderboardData.sort((a, b) => {
-      // Primary sort: by completion percentage (descending - highest first)
+    // Dedupe duplicate progress docs per learner — the data can contain more
+    // than one progress doc for the same user in a version, which otherwise
+    // makes them appear multiple times. Prefer a completed doc so finishers
+    // aren't lost to a stray in-progress duplicate.
+    const progressByUser = new Map<string, IProgress>();
+    for (const p of progressRecords) {
+      const uid = p.userId?.toString();
+      if (!uid) continue;
+      const existing = progressByUser.get(uid);
+      const pDone = !!(p.completed && p.completedAt);
+      const exDone = !!(existing && existing.completed && existing.completedAt);
+      if (!existing || (pDone && !exDone)) progressByUser.set(uid, p);
+    }
+
+    // Combine progress, enrollment and effort data, split into two leagues
+    const finishers: LeaderboardEntry[] = [];
+    const active: LeaderboardEntry[] = [];
+
+    for (const progress of progressByUser.values()) {
+      const id = progress.userId?.toString();
+      const enrollment = enrollmentMap.get(id);
+      const completionPercentage = Math.min(
+        100,
+        enrollment?.completionPercentage || 0,
+      );
+      // Use the finish timestamp regardless of the legacy `completed` flag.
+      const completedAt = progress.completedAt ?? null;
+      const enrollmentDate = enrollment?.enrollmentDate ?? null;
+      const effort = effortMap.get(id) || { weeklyItems: 0, weeklyMinutes: 0 };
+
+      // Completed (100%) => Finishers (horizontal). Everyone else => active list.
+      // Don't require completedAt for league placement, so no completed learner
+      // leaks into the "last 7 days" vertical list.
+      const isFinisher = completionPercentage >= 100;
+
+      // True start = earliest signal of starting. enrollmentDate can be
+      // post-dated by migrations, so fall back to first watch-activity when it
+      // is earlier (avoids bogus 0-day completions).
+      const firstActivity = firstActivityMap.get(id) ?? null;
+      let startDate = enrollmentDate;
+      if (
+        firstActivity &&
+        (!startDate ||
+          new Date(firstActivity).getTime() < new Date(startDate).getTime())
+      ) {
+        startDate = firstActivity;
+      }
+
+      // days-to-complete normalizes for different start dates
+      const daysToComplete =
+        isFinisher && completedAt && startDate
+          ? Math.max(
+              0,
+              (new Date(completedAt).getTime() -
+                new Date(startDate).getTime()) /
+                MS_PER_DAY,
+            )
+          : null;
+
+      const entry: LeaderboardEntry = {
+        userId: id,
+        userName: userMap.get(id) || 'Unknown User',
+        completionPercentage,
+        completedAt,
+        enrollmentDate,
+        weeklyItems: effort.weeklyItems,
+        weeklyMinutes: Math.round(effort.weeklyMinutes),
+        // keep 2 decimals so sub-day completions can render as hours
+        daysToComplete:
+          daysToComplete === null ? null : Math.round(daysToComplete * 100) / 100,
+        league: isFinisher ? 'finishers' : 'active',
+        rank: 0,
+      };
+
+      (isFinisher ? finishers : active).push(entry);
+    }
+
+    // Finishers: fastest (fewest days from their own enrollment) first.
+    // Entries missing daysToComplete (old records w/o timestamps) go last.
+    finishers.sort((a, b) => {
+      if (a.daysToComplete === null && b.daysToComplete === null) {
+        return 0;
+      }
+      if (a.daysToComplete === null) return 1;
+      if (b.daysToComplete === null) return -1;
+      if (a.daysToComplete !== b.daysToComplete) {
+        return a.daysToComplete - b.daysToComplete;
+      }
+      // tie-break: earlier absolute completion first
+      return (
+        new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime()
+      );
+    });
+
+    // Active: rolling-window effort first, then lifetime progress, then earlier start.
+    active.sort((a, b) => {
+      if (a.weeklyItems !== b.weeklyItems) {
+        return b.weeklyItems - a.weeklyItems;
+      }
+      if (a.weeklyMinutes !== b.weeklyMinutes) {
+        return b.weeklyMinutes - a.weeklyMinutes;
+      }
       if (a.completionPercentage !== b.completionPercentage) {
         return b.completionPercentage - a.completionPercentage;
       }
-
-      // Secondary sort: by completedAt (ascending - earliest first) for same percentage
-      if (a.completedAt && b.completedAt) {
-        return (
-          new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime()
-        );
-      }
-
-      // If one has completedAt and other doesn't, prioritize the one with completedAt
-      if (a.completedAt) return -1;
-      if (b.completedAt) return 1;
-
-      // Both don't have completedAt, maintain current order
-      return 0;
+      const aStart = a.enrollmentDate ? new Date(a.enrollmentDate).getTime() : 0;
+      const bStart = b.enrollmentDate ? new Date(b.enrollmentDate).getTime() : 0;
+      return aStart - bStart;
     });
 
-    // Assign ranks
-    // return sortedLeaderboard.map((student, index) => ({
-    //   ...student,
-    //   rank: index + 1,
-    // }));
-
-    const rankedLeaderboard = sortedLeaderboard.map((student, index) => ({
-      ...student,
-      rank: index + 1,
-    }));
-    console.log(rankedLeaderboard[0])
+    // Rank within each league (rank 1 per league)
+    finishers.forEach((entry, index) => (entry.rank = index + 1));
+    active.forEach((entry, index) => (entry.rank = index + 1));
 
     const myStats =
-      rankedLeaderboard.find(entry => entry.userId === userId) || null;
+      finishers.find(e => e.userId === userId) ||
+      active.find(e => e.userId === userId) ||
+      null;
 
-    const totalDocuments = rankedLeaderboard.length;
-    const totalPages = Math.ceil(totalDocuments / limit);
-
+    // Paginate the Active league (the one that grows); finishers returned whole.
+    const activeTotal = active.length;
+    const activeTotalPages = Math.max(1, Math.ceil(activeTotal / limit));
     const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
+    const activePage = active.slice(startIndex, startIndex + limit);
 
-    const paginatedData = rankedLeaderboard.slice(startIndex, endIndex);
     return {
-      data: paginatedData,
-      totalDocuments,
-      totalPages,
-      currentPage: page,
+      finishers: { data: finishers, total: finishers.length },
+      active: {
+        data: activePage,
+        total: activeTotal,
+        totalPages: activeTotalPages,
+        currentPage: page,
+      },
       myStats,
     };
   }

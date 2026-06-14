@@ -1,4 +1,5 @@
 import { injectable, inject } from 'inversify';
+import { ClientSession } from 'mongodb';
 import { GLOBAL_TYPES } from '#root/types.js';
 import {
   BadRequestError,
@@ -16,6 +17,7 @@ import {
 import {
   SlotBookingKind,
   SlotBookingStatus,
+  ID,
 } from '#shared/interfaces/models.js';
 import { EnrollmentService } from '#users/services/EnrollmentService.js';
 import { USERS_TYPES } from '#users/types.js';
@@ -81,6 +83,55 @@ export class TimeSlotService extends BaseService {
   private toMinutes(time: string): number {
     const [h, m] = time.split(':').map(Number);
     return h * 60 + m;
+  }
+
+  /**
+   * Migration dual-write: record a slot choice/assignment as a slotBooking for
+   * the current IST day. Idempotent — skips if the student already has an
+   * active booking for this slot today.
+   */
+  private async recordSlotBooking(
+    studentUserId: string,
+    enrollmentId: ID,
+    courseId: string,
+    courseVersionId: string,
+    timeSlot: { from: string; to: string },
+    session: ClientSession,
+  ): Promise<void> {
+    const { date } = this.getISTDateParts();
+    const existing = await this.slotBookingRepo.findActiveForStudent(
+      studentUserId,
+      courseId,
+      courseVersionId,
+      date,
+      session,
+    );
+    if (existing.some(b => b.from === timeSlot.from && b.to === timeSlot.to)) {
+      return;
+    }
+    const fromMin = this.toMinutes(timeSlot.from);
+    const toMin = this.toMinutes(timeSlot.to);
+    let durationMin = toMin - fromMin;
+    if (durationMin <= 0) durationMin += 24 * 60; // overnight wrap
+    const now = new Date();
+    await this.slotBookingRepo.createBooking(
+      {
+        userId: studentUserId,
+        enrollmentId,
+        courseId,
+        courseVersionId,
+        date,
+        from: timeSlot.from,
+        to: timeSlot.to,
+        overnight: fromMin >= toMin,
+        kind: SlotBookingKind.BASE,
+        status: SlotBookingStatus.BOOKED,
+        hoursReserved: Math.round((durationMin / 60) * 100) / 100,
+        createdAt: now,
+        updatedAt: now,
+      },
+      session,
+    );
   }
 
   /**
@@ -259,6 +310,24 @@ export class TimeSlotService extends BaseService {
             { from: slot.from, to: slot.to },
             session,
           );
+
+          // Dual-write (migration): mirror the teacher's assignment into the
+          // bookings collection so the demand view counts these students too.
+          const enr = await this.enrollmentService.findEnrollment(
+            studentId,
+            courseId,
+            courseVersionId,
+          );
+          if (enr) {
+            await this.recordSlotBooking(
+              studentId,
+              enr._id,
+              courseId,
+              courseVersionId,
+              { from: slot.from, to: slot.to },
+              session,
+            );
+          }
         }
       }
 
@@ -375,6 +444,107 @@ export class TimeSlotService extends BaseService {
 
       return !!result;
     });
+  }
+
+  /**
+   * Set the per-course hours budget from the instructor's per-category time
+   * estimates (minutes per item), captured when the feature is enabled. The
+   * budget = Σ(itemCount[category] × estimate[category]) hours × factor.
+   */
+  async configureHoursBudget(
+    courseId: string,
+    courseVersionId: string,
+    estimatesMinutes: {
+      VIDEO?: number;
+      QUIZ?: number;
+      BLOG?: number;
+      PROJECT?: number;
+      FEEDBACK?: number;
+    },
+    hoursFactor: number | undefined,
+    userId: string,
+  ): Promise<{
+    totalBudgetHours: number;
+    estimatedEffortHours: number;
+    itemCounts: Record<string, number>;
+  }> {
+    return this._withTransaction(async (session) => {
+      const version = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!version) {
+        throw new NotFoundError('Course version not found.');
+      }
+
+      const counts = (version.itemCounts ?? {}) as Record<string, number>;
+      const categories = ['VIDEO', 'QUIZ', 'BLOG', 'PROJECT', 'FEEDBACK'] as const;
+
+      let totalMinutes = 0;
+      for (const cat of categories) {
+        const n = counts[cat] ?? 0;
+        const est = estimatesMinutes[cat] ?? 0;
+        if (est < 0) {
+          throw new BadRequestError(
+            `Invalid time estimate for ${cat}: ${est}. Must be >= 0.`,
+          );
+        }
+        totalMinutes += n * est;
+      }
+
+      const factor = hoursFactor && hoursFactor > 0 ? hoursFactor : 1;
+      const estimatedEffortHours = Math.round((totalMinutes / 60) * 100) / 100;
+      const totalBudgetHours =
+        Math.round(estimatedEffortHours * factor * 100) / 100;
+
+      const existing = await this.settingsRepo.readTimeslotsSettings(
+        courseId,
+        courseVersionId,
+        session,
+      );
+      const updated = {
+        ...(existing ?? { isActive: true, slots: [] }),
+        categoryTimeEstimatesMinutes: estimatesMinutes,
+        hoursFactor: factor,
+        totalBudgetHours,
+      };
+
+      const result = await this.settingsRepo.updateTimeslotsSettings(
+        courseId,
+        courseVersionId,
+        updated,
+        session,
+      );
+      if (!result) {
+        throw new InternalServerError('Failed to save the hours budget.');
+      }
+
+      return { totalBudgetHours, estimatedEffortHours, itemCounts: counts };
+    });
+  }
+
+  /**
+   * Grant a student extra committed hours on top of the course budget
+   * (instructor action when a student has exhausted their hours).
+   */
+  async extendStudentHours(
+    courseId: string,
+    courseVersionId: string,
+    studentId: string,
+    extraHours: number,
+    userId: string,
+  ): Promise<{ commitmentExtraHours: number }> {
+    if (!extraHours || extraHours <= 0) {
+      throw new BadRequestError('extraHours must be greater than 0.');
+    }
+    const commitmentExtraHours =
+      await this.enrollmentService.grantCommitmentExtraHours(
+        studentId,
+        courseId,
+        courseVersionId,
+        extraHours,
+      );
+    return { commitmentExtraHours };
   }
 
   /**
@@ -566,28 +736,12 @@ export class TimeSlotService extends BaseService {
       // Dual-write (migration): also record the choice as a slot booking so the
       // bookings collection and the demand view stay accurate while the legacy
       // assignedTimeSlots path is retired.
-      const { date } = this.getISTDateParts();
-      const fromMin = this.toMinutes(timeSlot.from);
-      const toMin = this.toMinutes(timeSlot.to);
-      let durationMin = toMin - fromMin;
-      if (durationMin <= 0) durationMin += 24 * 60; // overnight wrap
-      const now = new Date();
-      await this.slotBookingRepo.createBooking(
-        {
-          userId: studentUserId,
-          enrollmentId: enrollment._id,
-          courseId,
-          courseVersionId,
-          date,
-          from: timeSlot.from,
-          to: timeSlot.to,
-          overnight: fromMin >= toMin,
-          kind: SlotBookingKind.BASE,
-          status: SlotBookingStatus.BOOKED,
-          hoursReserved: Math.round((durationMin / 60) * 100) / 100,
-          createdAt: now,
-          updatedAt: now,
-        },
+      await this.recordSlotBooking(
+        studentUserId,
+        enrollment._id,
+        courseId,
+        courseVersionId,
+        timeSlot,
         session,
       );
 
