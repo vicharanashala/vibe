@@ -5697,10 +5697,12 @@ export function useSetHoursBudget() {
 }
 
 // GET /timeslots/check-access/{courseId}/{courseVersionId}
+// Pass pollMs to poll for a live cut-off when a booked window ends.
 export function useCheckTimeSlotAccess(
   courseId: string | undefined,
   courseVersionId: string | undefined,
-  enabled: boolean = true
+  enabled: boolean = true,
+  pollMs: number = 0
 ): {
   data: { canAccess: boolean; message?: string } | undefined,
   isLoading: boolean,
@@ -5718,7 +5720,8 @@ export function useCheckTimeSlotAccess(
     {
       enabled: !!courseId && !!courseVersionId && enabled,
       retry: 1,
-      refetchOnWindowFocus: false
+      refetchOnWindowFocus: false,
+      refetchInterval: pollMs > 0 ? pollMs : false
     }
   );
 

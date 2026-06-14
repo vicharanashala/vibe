@@ -387,6 +387,30 @@ class TimeSlotController {
   }
 
   @OpenAPI({
+    summary: 'Check time-slot access for the current student',
+    description:
+      "Returns whether the calling student can currently access the course under its time-slot rules. Used by the player to poll for a live cut-off when a booked window ends.",
+  })
+  @Authorized()
+  @Get('/check-access/:courseId/:courseVersionId')
+  @HttpCode(200)
+  async checkTimeSlotAccess(
+    @Param('courseId') courseId: string,
+    @Param('courseVersionId') courseVersionId: string,
+    @CurrentUser() user: IUser,
+  ): Promise<{ canAccess: boolean; message?: string }> {
+    try {
+      return await this.timeSlotService.canStudentAccessCourse(
+        user._id.toString(),
+        courseId,
+        courseVersionId,
+      );
+    } catch (error) {
+      throw new InternalServerError(`Failed to check time slot access: ${error}`);
+    }
+  }
+
+  @OpenAPI({
     summary: 'Set the per-course hours budget',
     description:
       "Computes and stores the students' committed-hours budget from the instructor's per-category time estimates (minutes per item) and the course's item counts. Captured when the feature is enabled.",
