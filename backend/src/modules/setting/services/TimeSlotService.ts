@@ -890,12 +890,24 @@ export class TimeSlotService extends BaseService {
       }
 
       // Get student enrollment
-      const enrollment = await this.enrollmentService.findEnrollment(
+      let enrollment = await this.enrollmentService.findEnrollment(
         userId,
         courseId,
         courseVersionId,
         cohortId,
       );
+
+      // The enrollment row's cohortId may be null or differ from the course's
+      // cohortId, which makes the strict cohort match above miss an otherwise
+      // valid enrollment. We're verifying enrollment here, not the cohort, so
+      // retry cohort-agnostic before declaring the student "not enrolled".
+      if (!enrollment && cohortId) {
+        enrollment = await this.enrollmentService.findEnrollment(
+          userId,
+          courseId,
+          courseVersionId,
+        );
+      }
 
       if (!enrollment) {
         return { canAccess: false, message: 'Student not enrolled in this course.' };

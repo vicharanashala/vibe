@@ -5696,6 +5696,45 @@ export function useSetHoursBudget() {
   return { setHoursBudget, loading, error };
 }
 
+// PUT /timeslots/extend — grant a student extra committed hours (raw fetch).
+export function useGrantExtraHours() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const grantExtraHours = async (
+    courseId: string,
+    courseVersionId: string,
+    studentId: string,
+    extraHours: number,
+  ): Promise<{ commitmentExtraHours: number }> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/timeslots/extend`;
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+        body: JSON.stringify({ courseId, courseVersionId, studentId, extraHours }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || `Failed to grant extra hours: ${res.status}`);
+      }
+      return data?.data;
+    } catch (err: any) {
+      setError(err.message || 'Unknown error');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { grantExtraHours, loading, error };
+}
+
 // GET /timeslots/check-access/{courseId}/{courseVersionId}
 // Pass pollMs to poll for a live cut-off when a booked window ends.
 export function useCheckTimeSlotAccess(

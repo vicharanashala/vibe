@@ -17,6 +17,7 @@ import {
   useCourseVersionEnrollments,
   useRemoveStudentFromTimeSlot,
   useSetHoursBudget,
+  useGrantExtraHours,
 } from "@/hooks/hooks";
 import { ClockTimePicker } from "./ClockTimePicker";
 
@@ -150,6 +151,9 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
     estimatedEffortHours: number;
     itemCounts: Record<string, number>;
   } | null>(null);
+  // Grant extra committed hours to a specific student.
+  const [extendStudentId, setExtendStudentId] = useState<string>("");
+  const [extendHours, setExtendHours] = useState<number>(1);
 
   // Hooks
   const { data: timeSlotsData, refetch: refetchTimeSlots } = useGetTimeSlots(
@@ -167,6 +171,7 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   const updateTimeSlotMutation = useUpdateTimeSlot();
   const removeStudentFromTimeSlotMutation = useRemoveStudentFromTimeSlot();
   const { setHoursBudget, loading: budgetLoading } = useSetHoursBudget();
+  const { grantExtraHours, loading: extendLoading } = useGrantExtraHours();
 
   // Seed any saved budget/estimates when the modal loads.
   useEffect(() => {
@@ -195,6 +200,29 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
       toast.success(`Committed hours budget set: ${result.totalBudgetHours}h per student`);
     } catch (error: any) {
       toast.error(error?.message || 'Failed to set hours budget');
+    }
+  };
+
+  const handleGrantHours = async () => {
+    if (!extendStudentId) {
+      toast.error('Select a student first');
+      return;
+    }
+    if (!extendHours || extendHours <= 0) {
+      toast.error('Enter a positive number of hours');
+      return;
+    }
+    try {
+      const result = await grantExtraHours(
+        courseId,
+        courseVersionId,
+        extendStudentId,
+        extendHours,
+      );
+      toast.success(`Granted ${extendHours}h — student now has ${result.commitmentExtraHours}h extra`);
+      setExtendHours(1);
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to grant extra hours');
     }
   };
 
@@ -637,6 +665,60 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                             ≈ {budgetResult.totalBudgetHours}h committed / student
                           </span>
                         )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Grant extra hours to a student */}
+                  <Card className="border shadow-sm">
+                    <CardContent className="p-4 space-y-3">
+                      <div>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Clock className="h-5 w-5" />
+                          Grant extra hours
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Give a specific student more committed hours if they have used up their budget.
+                        </p>
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <div className="flex-1">
+                          <Label className="text-xs">Student</Label>
+                          <select
+                            value={extendStudentId}
+                            onChange={(e) => setExtendStudentId(e.target.value)}
+                            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          >
+                            <option value="">Select a student…</option>
+                            {enrolledStudents.map((enr: any) =>
+                              enr.user ? (
+                                <option key={enr.user._id} value={enr.user._id}>
+                                  {enr.user.firstName} {enr.user.lastName}
+                                </option>
+                              ) : null,
+                            )}
+                          </select>
+                        </div>
+                        <div className="w-24">
+                          <Label className="text-xs">Hours</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={extendHours}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                              setExtendHours(e.target.value === "" ? 0 : parseInt(e.target.value))
+                            }
+                            className="mt-1"
+                          />
+                        </div>
+                        <Button size="sm" onClick={handleGrantHours} disabled={extendLoading}>
+                          {extendLoading ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Plus className="h-4 w-4 mr-2" />
+                          )}
+                          Grant
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>

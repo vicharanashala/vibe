@@ -1979,6 +1979,13 @@ return false;
                                   const isSectionExpanded = expandedSections[sectionId];
                                   const isCurrentSection = sectionId === selectedSectionId;
                                   const isLoadingItems = activeSectionInfo?.sectionId === sectionId && itemsLoading;
+                                  // The items fetch is scoped to the active section, so a
+                                  // time-slot block only applies to that one section — never
+                                  // mislabel other expanded sections' empty state with it.
+                                  const isTimeSlotBlockedSection =
+                                    activeSectionInfo?.sectionId === sectionId &&
+                                    sectionItemsErrorName === "TimeSlotAccessDenied" &&
+                                    !sectionItems[sectionId];
 
                                   return (
                                     <SidebarMenuSubItem 
@@ -2079,6 +2086,12 @@ return false;
                                                 </SidebarMenuSubItem>
                                               );
                                             })
+                                          ) : isTimeSlotBlockedSection ? (
+                                            <div className="p-3 text-center">
+                                              <div className="text-xs text-muted-foreground">
+                                                {sectionItemsError || "Content is locked outside your booked time slot."}
+                                              </div>
+                                            </div>
                                           ) : (
                                             <div className="p-3 text-center">
                                               <div className="text-xs text-muted-foreground">No items found</div>
