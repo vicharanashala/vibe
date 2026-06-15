@@ -22,6 +22,55 @@ import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
 import {InviteService} from '#root/modules/notifications/services/InviteService.js';
 
 /**
+ * Derive display-safe first/last names for a new user.
+ *
+ * The signup validators enforce /^[A-Za-z ]+$/ on firstName (required) and
+ * lastName (optional), and every UI/leaderboard/export path falls back to
+ * "Unknown User" when firstName is blank. Firebase `displayName` is frequently
+ * absent (email/password accounts, some SSO), which previously produced empty
+ * names that BOTH render as "Unknown User" and fail validation on the next
+ * profile save. We therefore:
+ *   1. keep only alphabetic characters + spaces — this strips digits/dots from
+ *      an email local-part (e.g. "sghara200" -> "sghara", "john.doe" -> "john doe"),
+ *      so the result always satisfies the firstName regex;
+ *   2. fall back to the sanitized email local-part when no usable name is given;
+ *   3. fall back to "User" when even the email yields nothing alphabetic.
+ *
+ * Keep in sync with
+ * backend/src/modules/users/scripts/backfillEmptyUserNames.ts
+ *
+ * @category Auth
+ */
+export function deriveUserNames(
+  rawFirstName: string | undefined | null,
+  rawLastName: string | undefined | null,
+  email: string | undefined | null,
+): {firstName: string; lastName: string} {
+  const sanitize = (s: string | undefined | null): string =>
+    (s ?? '')
+      .replace(/[^A-Za-z ]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  let firstName = sanitize(rawFirstName);
+  const lastName = sanitize(rawLastName);
+
+  if (!firstName) {
+    const localPart = (email ?? '').split('@')[0];
+    firstName = sanitize(localPart);
+  }
+
+  // A single stray letter (e.g. "21f2000891" -> "f" for roll-number emails)
+  // is a meaningless name; persist the honest generic instead. firstName is
+  // required + validated, so unlike the backfill we cannot leave it blank.
+  if (firstName.replace(/ /g, '').length < 2) {
+    firstName = 'User';
+  }
+
+  return {firstName, lastName};
+}
+
+/**
  * Custom error thrown during password change operations.
  *
  * @category Auth/Errors
@@ -259,11 +308,20 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       );
     }
 
+    // Firebase displayName is often missing (email/password, some SSO), which
+    // would otherwise persist a blank firstName -> renders as "Unknown User"
+    // everywhere and fails the firstName regex on the next profile save.
+    const {firstName, lastName} = deriveUserNames(
+      body.firstName,
+      body.lastName,
+      body.email,
+    );
+
     const user: Partial<IUser> = {
       firebaseUID: firebaseUID,
       email: body.email,
-      firstName: body.firstName,
-      lastName: body.lastName,
+      firstName,
+      lastName,
       profileImage: body.profileImage,
       faceEmbedding: body.faceEmbedding,
       roles: 'user',
