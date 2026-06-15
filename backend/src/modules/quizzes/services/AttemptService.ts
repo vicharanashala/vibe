@@ -68,6 +68,8 @@ import {
   IStudentSegmentQuestion,
 } from '#root/modules/studentQuestions/classes/transformers/StudentSegmentQuestion.js';
 import { STUDENT_QUESTION_TYPES } from '#root/modules/studentQuestions/types.js';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import { TimeSlotService } from '#root/modules/setting/services/TimeSlotService.js';
 
 const PEER_QUESTION_DEFAULT_POINTS = 0;
 const PEER_QUESTION_DEFAULT_TIME_LIMIT_SECONDS = 60;
@@ -114,10 +116,42 @@ class AttemptService extends BaseService {
     @inject(STUDENT_QUESTION_TYPES.StudentQuestionRepo)
     private readonly studentQuestionRepo: StudentQuestionRepository,
 
+    @inject(SETTING_TYPES.TimeSlotService)
+    private readonly timeSlotService: TimeSlotService,
+
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
     super(database);
+  }
+
+  /**
+   * Time-slot ("commitment") gate for starting a quiz — a student may only
+   * enter a quiz during a booked window. Resolves the course version from the
+   * quiz (quiz → items-group → version) and applies the access gate. No-op when
+   * the feature is inactive or the version can't be resolved.
+   */
+  private async assertTimeSlotAccessForQuiz(
+    userId: string,
+    quizId: string,
+    cohortId?: string,
+  ): Promise<void> {
+    const itemsGroup = await this.itemRepo.findItemsGroupByItemId(quizId);
+    if (!itemsGroup?._id) return;
+    const version = await this.courseRepo.findVersionByItemGroupId(
+      itemsGroup._id.toString(),
+    );
+    if (!version?._id || !version.courseId) return;
+
+    const access = await this.timeSlotService.canStudentAccessCourse(
+      userId,
+      version.courseId.toString(),
+      version._id.toString(),
+      cohortId,
+    );
+    if (!access.canAccess) {
+      throw new ForbiddenError(access.message || 'Time slot access denied');
+    }
   }
 
   private async _getQuestionsForAttempt(quiz: QuizItem): Promise<{
@@ -424,6 +458,14 @@ class AttemptService extends BaseService {
     quizId: string,
     cohortId?: string
   ): Promise<{ attemptId: string; questionRenderViews: IQuestionRenderView[] }> {
+    // Gate quiz entry by the student's time-slot booking (does nothing when the
+    // feature is off). Runs before the transaction — it's a read-only check.
+    await this.assertTimeSlotAccessForQuiz(
+      userId.toString(),
+      quizId,
+      cohortId,
+    );
+
     return this._withTransaction(async session => {
 
 
