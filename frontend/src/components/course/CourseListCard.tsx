@@ -2,7 +2,8 @@ import { Clock, Info, Play, Trophy, Headphones, MessageCircle, ExternalLink, Use
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useCourseVersionById, useLeaderboard } from "@/hooks/hooks";
+import { useCourseVersionById, useLeaderboard, useCheckTimeSlotAccessOnDemand } from "@/hooks/hooks";
+import { toast } from "sonner";
 import { useCourseStore } from "@/store/course-store";
 import { useNavigate } from "@tanstack/react-router";
 import { useState, lazy, Suspense, useEffect } from "react";
@@ -54,6 +55,7 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
   const { data: courseVersionData } = useCourseVersionById(versionId, variant !== 'available', cohortId || undefined);
   const { setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
+  const { check: checkTimeSlotAccess } = useCheckTimeSlotAccessOnDemand();
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isTimeslotModalOpen, setIsTimeslotModalOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
@@ -79,10 +81,17 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
   const quizCount = Number((contentCounts as any).quizzes ?? itemCounts.QUIZ ?? versionItemCounts.QUIZ ?? 0);
 
 
-  const handleContinue = (e?: React.MouseEvent) => {
+  const handleContinue = async (e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (variant === 'available') {
       navigate({ to: "/student/course-registration/$versionId/{-$cohort}", params: { versionId, cohort: cohortId } });
+      return;
+    }
+    // Time-slot ("commitment") gate at entry: only let the student in during a
+    // booked window. The backend getItem gate is the safety net.
+    const access = await checkTimeSlotAccess(courseId, versionId);
+    if (!access.canAccess) {
+      toast.error(access.message || "You can only access this course during your booked time slot.");
       return;
     }
     setCurrentCourse({

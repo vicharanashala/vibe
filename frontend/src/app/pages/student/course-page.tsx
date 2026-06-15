@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem, useRecalculateStudentProgress, useInvites, useAcceptInvite, useCheckTimeSlotAccess } from "@/hooks/hooks";
+import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem, useRecalculateStudentProgress, useInvites, useAcceptInvite } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
@@ -234,20 +234,6 @@ export default function CoursePage() {
   const [isNavigatingToNext, setIsNavigatingToNext] = useState<boolean>(false);
   const [rewindVid, setRewindVid] = useState<boolean>(false);
   const [pauseVid, setPauseVid] = useState<boolean>(false);
-  // Live cut-off: poll the time-slot gate while an item is open so the student
-  // is blocked the moment their booked window ends (not just on the next fetch).
-  const { data: liveAccess } = useCheckTimeSlotAccess(
-    COURSE_ID || undefined,
-    VERSION_ID || undefined,
-    !!COURSE_ID && !!VERSION_ID && !!selectedItemId,
-    60000, // poll every 60s
-  );
-  useEffect(() => {
-    if (liveAccess && liveAccess.canAccess === false) {
-      setTimeSlotBlock(liveAccess.message || "Your booked time slot has ended.");
-      setPauseVid(true);
-    }
-  }, [liveAccess]);
   const [quizPassed, setQuizPassed] = useState(2);
   const [anomalies, setAnomalies] = useState<string[]>([]);
   const [isQuizSkipped, setIsQuizSkipped] = useState(false);

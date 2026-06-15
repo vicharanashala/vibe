@@ -5735,6 +5735,31 @@ export function useGrantExtraHours() {
   return { grantExtraHours, loading, error };
 }
 
+// Imperative check used to gate entry on the "Continue Learning" click.
+// Returns { canAccess, message }. Fails OPEN (allows) on any network/error so a
+// transient failure never locks a student out — the backend gate is the backstop.
+export function useCheckTimeSlotAccessOnDemand() {
+  const check = async (
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<{ canAccess: boolean; message?: string }> => {
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/timeslots/check-access/${courseId}/${courseVersionId}`;
+      const res = await fetch(url, {
+        headers: {
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+      });
+      if (!res.ok) return { canAccess: true };
+      const data = await res.json().catch(() => ({ canAccess: true }));
+      return { canAccess: data?.canAccess !== false, message: data?.message };
+    } catch {
+      return { canAccess: true };
+    }
+  };
+  return { check };
+}
+
 // GET /timeslots/check-access/{courseId}/{courseVersionId}
 // Pass pollMs to poll for a live cut-off when a booked window ends.
 export function useCheckTimeSlotAccess(

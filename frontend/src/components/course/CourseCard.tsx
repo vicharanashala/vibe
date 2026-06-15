@@ -8,7 +8,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLeaderboard, useCourseVersionById } from "@/hooks/hooks";
+import { useLeaderboard, useCourseVersionById, useCheckTimeSlotAccessOnDemand } from "@/hooks/hooks";
+import { toast } from "sonner";
 import { useCourseStore } from "@/store/course-store";
 import { useNavigate } from "@tanstack/react-router";
 import { useState, lazy, useEffect } from "react";
@@ -73,6 +74,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   const { setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
+  const { check: checkTimeSlotAccess } = useCheckTimeSlotAccessOnDemand();
   const [isFlipped, setIsFlipped] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isTimeslotModalOpen, setIsTimeslotModalOpen] = useState(false);
@@ -153,7 +155,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
    
   })
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (variant === 'available') {
       navigate({
         to: "/student/course-registration/$versionId/{-$cohort}",
@@ -162,7 +164,13 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       return;
     }
 
-   
+    // Time-slot ("commitment") gate at entry: only let the student in during a
+    // booked window. The backend getItem gate is the safety net.
+    const access = await checkTimeSlotAccess(courseId, versionId);
+    if (!access.canAccess) {
+      toast.error(access.message || "You can only access this course during your booked time slot.");
+      return;
+    }
 
     // Pass both courseId and versionId to the store
     setCurrentCourse({

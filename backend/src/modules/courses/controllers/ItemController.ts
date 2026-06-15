@@ -224,28 +224,6 @@ export class ItemController {
       );
     }
 
-    // Time-slot ("commitment") gate: a student may only load section content
-    // during a booked window. Instructors/managers/TAs bypass. This mirrors the
-    // gate on getItem — without it, the player can fetch full item content here
-    // and skip the per-item check entirely.
-    const canManageGate = ability.can(
-      ItemActions.Modify,
-      subject('Item', {versionId}),
-    );
-    if (!canManageGate) {
-      const access =
-        await this.timeSlotService.canStudentAccessCourseByVersion(
-          user._id.toString(),
-          versionId,
-          cohortId,
-        );
-      if (!access.canAccess) {
-        throw new TimeSlotAccessError(
-          access.message || 'Time slot access denied',
-        );
-      }
-    }
-
     const items = await this.itemService.readAllItems(
       versionId,
       moduleId,
