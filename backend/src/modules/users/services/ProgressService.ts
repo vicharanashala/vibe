@@ -1221,15 +1221,14 @@ class ProgressService extends BaseService {
 
       return {};
     } catch (error: any) {
+      // Best-effort only: this method just *widens* the allowed set so a student
+      // can move past an exhausted-attempt quiz. If the next item can't be
+      // resolved — e.g. an orphaned itemsGroup whose section can't be
+      // reverse-mapped (getItemGroupInfo -> null) — degrade to "no next item"
+      // instead of throwing. A failed next-item lookup must never 404 the whole
+      // course view (which surfaced to learners as "No items found").
       console.error('Error in next-item permission processing:', error);
-
-      if (error instanceof NotFoundError) {
-        throw error;
-      }
-
-      throw new InternalServerError(
-        'Failed to determine next allowed item: ' + error?.message,
-      );
+      return {};
     }
   }
   private async findNextPlayableItem(
