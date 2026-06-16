@@ -221,13 +221,25 @@ export class CourseVersionService extends BaseService {
 
       const courseId = readVersion.courseId.toString();
 
-      const enrollment =
+      let enrollment =
         await this.enrollmentService.getUserEnrollmentsByCourseVersion(
           userId,
           courseId,
           courseVersionId,
           cohortId,
         );
+
+      // The enrollment row's cohortId may be null or differ from the
+      // client-sent cohortId; identify the enrolled user, not the cohort, so
+      // retry cohort-agnostic before failing (mirrors #1081 / ItemService).
+      if (!enrollment && cohortId) {
+        enrollment =
+          await this.enrollmentService.getUserEnrollmentsByCourseVersion(
+            userId,
+            courseId,
+            courseVersionId,
+          );
+      }
 
       if (!enrollment) {
         throw new NotFoundError(

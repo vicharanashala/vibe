@@ -429,6 +429,38 @@ class ProgressService extends BaseService {
     );
   }
 
+  // Resolve the user's enrollment for identity. The enrollment row's cohortId
+  // may be null or differ from the client-sent cohortId; a strict cohort match
+  // then misses an otherwise valid enrollment and surfaces as "enrollment not
+  // found" (which breaks progress tracking and content access). We're
+  // identifying the enrolled user here, not validating the cohort, so retry
+  // cohort-agnostic before giving up (mirrors the gate fix in #1081).
+  private async resolveEnrollment(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment | null> {
+    let enrollment = await this.enrollmentRepo.findEnrollment(
+      userId,
+      courseId,
+      courseVersionId,
+      cohortId,
+      session,
+    );
+    if (!enrollment && cohortId) {
+      enrollment = await this.enrollmentRepo.findEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        undefined,
+        session,
+      );
+    }
+    return enrollment;
+  }
+
   async updateEnrollmentProgressPercent(
     userId: string,
     courseId: string,
@@ -439,12 +471,12 @@ class ProgressService extends BaseService {
     completedItemCount?: number,
     cohort?: string,
   ): Promise<void> {
-    let enrollment = await this.enrollmentRepo.findEnrollment(
+    let enrollment = await this.resolveEnrollment(
       userId,
       courseId,
       courseVersionId,
       cohort,
-      session
+      session,
     );
 
     if (!enrollment) {
@@ -1620,7 +1652,7 @@ class ProgressService extends BaseService {
           session,
         );
 
-      const enrollment = await this.enrollmentRepo.findEnrollment(
+      const enrollment = await this.resolveEnrollment(
         userId,
         courseId,
         courseVersionId,
@@ -1659,7 +1691,7 @@ class ProgressService extends BaseService {
 
       await this.verifyDetails(userId, courseId, courseVersionId);
 
-      const enrollment = await this.enrollmentRepo.findEnrollment(
+      const enrollment = await this.resolveEnrollment(
         userId,
         courseId,
         courseVersionId,
@@ -2490,7 +2522,7 @@ class ProgressService extends BaseService {
       // ----------------------------------------------------
       // 7. ENROLLMENT LOOKUP
       // ----------------------------------------------------
-      const enrollment = await this.enrollmentRepo.findEnrollment(
+      const enrollment = await this.resolveEnrollment(
         userId,
         courseId,
         courseVersionId,
@@ -4404,7 +4436,7 @@ class ProgressService extends BaseService {
     const [completedItemIds, courseVersion, enrollment] = await Promise.all([
       this.progressRepository.getCompletedItems(userId, courseId, versionId, cohortId),
       this.courseRepo.readVersion(versionId),
-      this.enrollmentRepo.findEnrollment(userId, courseId, versionId, cohortId),
+      this.resolveEnrollment(userId, courseId, versionId, cohortId),
     ]);
 
     if (!courseVersion) {
