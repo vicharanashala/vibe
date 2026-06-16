@@ -14,7 +14,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { useCourseStore } from '@/store/course-store';
 import type { FloatingVideoProps } from '@/types/video.types';
 import { useReportAnomalyAudio, useReportAnomalyImage } from '@/hooks/hooks';
-import {registerStream, unRegisterStream} from "@/lib/MediaRegistry";
+import {registerStream, unRegisterStream, getStream} from "@/lib/MediaRegistry";
 import { runProctoringChecks } from "@/utils/proctoring/proctoringGuard";
 import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
@@ -94,7 +94,7 @@ function FloatingVideo({
   }, [setRewindVid, setPauseVid]);
 
   // Get our videoRef and face data from the custom hook
-  const { videoRef, modelReady, faces } = useCameraProcessor(1);
+  const { videoRef, modelReady, faces } = useCameraProcessor(4);
 
   // Use refs to track initialization without causing re-renders
   const faceDetectorsKeyRef = useRef(0);
@@ -417,38 +417,17 @@ const lastCalledRef = useRef<number>(0);
     const video = videoRef.current;
     if (!video) return;
 
-
     try {
-      // Stop current stream if exists
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
-      }
-
       // Reset all AI components by incrementing their keys
       setAiComponentsKey(prev => prev + 1);
       faceDetectorsKeyRef.current += 1;
-      // setFaceDetectorsKey(prev => prev + 1);
 
-      // Get new stream with standard configuration
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          frameRate: { max: 30 },
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        }
-      });
-      // Runtime proctoring check: prevents switching to virtual camera mid-session
-      const violations = await runProctoringChecks(stream);
-
-      if (violations.length > 0) {
-        stream.getTracks().forEach(t => t.stop());
-
-        console.error("Proctoring violation:", violations[0]);
+      // Reuse the existing stream from CameraProcessor to avoid hardware conflict locks
+      const stream = getStream("CameraProcessor-stream");
+      if (!stream) {
+        console.warn("[FloatingVideo] CameraProcessor-stream not found in registry.");
         return;
       }
-
-      unRegisterStream("floating-video-restart-stream")
-      registerStream("floating-video-restart-stream", stream);
 
       video.srcObject = stream;
       setCurrentStream(stream);
@@ -473,7 +452,7 @@ const lastCalledRef = useRef<number>(0);
     } catch (error) {
       console.error('[FloatingVideo] Error restarting video:', error);
     }
-  }, [videoRef, currentStream]);
+  }, [videoRef]);
 
   const navigate = useNavigate();
 
@@ -603,32 +582,32 @@ const lastCalledRef = useRef<number>(0);
     }
       //  if (!readyToDetect){ return; // Skip anomaly detection until warmed up
       // }
+      const activeAnomalies: string[] = [];
       let newPenaltyPoints = 0;
       let newPenaltyType = "";
-      setAnomalies(['']);
 
       // Condition 1: If speaking is detected (only if voice detection is enabled)
       if (isSpeaking === "Yes" && isVoiceDetectionEnabled) {
-        setAnomalies([...anomalies, "voiceDetection"]);
+        activeAnomalies.push("voiceDetection");
         newPenaltyType = "Speaking";
         newPenaltyPoints += 1;
       }
 
       // Condition 2: Handle different face count scenarios separately (only if face count detection is enabled)
+      let hasMultipleFaces = false;
       if (isFaceCountDetectionEnabled && modelReady) {
         if (facesCount === 0) {
           // No faces detected - this might be normal during initialization
           // Only penalize if we're sure the camera is active and should see a face
           if (isVideoActive && readyToDetect) {
-            setAnomalies([...anomalies, "faceCountDetection"]);
+            activeAnomalies.push("faceCountDetection");
             newPenaltyType = "No Face Detected";
             newPenaltyPoints += 1;
           }
         } else if (facesCount > 1) {
           // Multiple faces detected - this is an anomaly
-          setRewindVid(true);
-          setPauseVid(true);
-          setAnomalies([...anomalies, "faceCountDetection"]);
+          hasMultipleFaces = true;
+          activeAnomalies.push("faceCountDetection");
           newPenaltyType = "Multiple Faces";
           newPenaltyPoints += 2; // More severe penalty for multiple faces
         }
@@ -637,76 +616,81 @@ const lastCalledRef = useRef<number>(0);
 
       // Condition 3: If the screen is blurred (only if blur detection is enabled)
       if (isBlur === "Yes" && isBlurDetectionEnabled) {
-        setAnomalies([...anomalies, "blurDetection"]);
+        activeAnomalies.push("blurDetection");
         newPenaltyType = "Blur";
         newPenaltyPoints += 1;
       }
 
       // Condition 4: If not focused (only if focus tracking is enabled)
       if (!isFocused && isFocusEnabled) {
-        setAnomalies([...anomalies, "focus"]);
+        activeAnomalies.push("focus");
         newPenaltyType = "Focus";
         newPenaltyPoints += 1;
       }
 
       // Condition 5: Registered face does not match current camera frame
+      let hasFaceMismatch = false;
       if (hasFaceRecognitionMismatch && isFaceRecognitionEnabled) {
-        setAnomalies([...anomalies, "faceRecognition"]);
+        hasFaceMismatch = true;
+        activeAnomalies.push("faceRecognition");
         newPenaltyType = "Face Recognition";
         newPenaltyPoints += 2;
       }
 
-      // // Condition 1: If speaking is detected (only if voice detection is enabled)
-      // if (isSpeaking === "Yes" && isVoiceDetectionEnabled) {
-      //   // setRewindVid(true);
-      //   setPauseVid(true);
-      //   setAnomalies([...anomalies, "voiceDetection"]);
-      //   newPenaltyType = "Speaking";
-      //   newPenaltyPoints += 1;
-      // }
+      setAnomalies(activeAnomalies);
 
-      // // Condition 2: If faces count is not exactly 1 (only if face count detection is enabled)
-      // if (facesCount !== 1 && isFaceCountDetectionEnabled && modelReady) {
-      //   setRewindVid(true);
-      //   setPauseVid(true);
-      //   setAnomalies([...anomalies, "faceCountDetection"]);
-      //   newPenaltyType = "Faces Count";
-      //   newPenaltyPoints += 1;
-      // }
+      // Determine if we need to pause or rewind immediately
+      let immediatePause = false;
+      let immediateRewind = false;
 
-      // // Condition 3: If the screen is blurred (only if blur detection is enabled)
-      // if (isBlur === "Yes" && isBlurDetectionEnabled) {
-      //   setAnomalies([...anomalies, "blurDetection"]);
-      //   newPenaltyType = "Blur";
-      //   newPenaltyPoints += 1;
-      // }
+      if (hasFaceMismatch) {
+        immediatePause = true;
+      }
 
-      // // Condition 4: If not focused (only if focus tracking is enabled)
-      // if (!isFocused && isFocusEnabled) {
-      //   setAnomalies([...anomalies, "focus"]);
-      //   newPenaltyType = "Focus";
-      //   newPenaltyPoints += 1;
-      // }
-      // console.log("[anomaly]",anomalies);
+      if (hasMultipleFaces) {
+        immediatePause = true;
+        immediateRewind = true;
+      }
 
       // If there are any new penalty points, increment the cumulative score
       if (newPenaltyPoints > 0) {
         setAnomaly(true);
-        // setAnomalies([]);
         setPenaltyPoints((prevPoints) => prevPoints + newPenaltyPoints);
         setPenaltyType(newPenaltyType);
-        setAnomalyType(newPenaltyType === "Focus" ? "focus": newPenaltyType === "Blur" ? "blurDetection" : newPenaltyType === "Faces Count" ? "faceCountDetection" : newPenaltyType === "Speaking" ? "voiceDetection" : newPenaltyType === "Pre-emptive Thumbs-Up" ? "handGestureDetection" : newPenaltyType === "Failed Thumbs-Up Challenge" ? "handGestureDetection" :  "faceRecognition");
+        setAnomalyType(
+          newPenaltyType === "Focus" ? "focus" :
+          newPenaltyType === "Blur" ? "blurDetection" :
+          newPenaltyType === "No Face Detected" || newPenaltyType === "Multiple Faces" ? "faceCountDetection" :
+          newPenaltyType === "Speaking" ? "voiceDetection" :
+          newPenaltyType === "Pre-emptive Thumbs-Up" || newPenaltyType === "Failed Thumbs-Up Challenge" ? "handGestureDetection" :
+          "faceRecognition"
+        );
         
-        // Increment contiguous anomaly points
-        setContiguousAnomalyPoints(prev => {
+        // Update contiguous points and handle pauses
+        setContiguousAnomalyPoints((prev) => {
           const newContiguous = prev + newPenaltyPoints;
-          // Check if we've reached 20 contiguous points
+          
           if (newContiguous >= 20) {
             console.log(`[FloatingVideo] Rewind triggered: 20 continuous anomaly points reached`);
             setRewindVid(true);
-            setPauseVid(true);  // Pause video after rewind
-            return 0; // Reset counter after triggering
+            setPauseVid(true);
+            return 0;
           }
+
+          if (immediatePause) {
+            setPauseVid(true);
+          }
+          if (immediateRewind) {
+            setRewindVid(true);
+          }
+
+          // If no immediate pause conditions are active and we are under the 20 points threshold,
+          // clear pause/rewind states if they were set by a previous face recognition mismatch.
+          if (!immediatePause && !immediateRewind && newContiguous < 20) {
+            setPauseVid(false);
+            setRewindVid(false);
+          }
+
           return newContiguous;
         });
       }
@@ -719,7 +703,9 @@ const lastCalledRef = useRef<number>(0);
           setPauseVid(false);  // Resume video when anomalies are cleared
         }
         // Reset contiguous anomaly points when no anomalies are detected
-        if(contiguousAnomalyPoints>0) setContiguousAnomalyPoints(0);
+        if (contiguousAnomalyPoints > 0) {
+          setContiguousAnomalyPoints(0);
+        }
       }
     }, 100); // Update every second
 

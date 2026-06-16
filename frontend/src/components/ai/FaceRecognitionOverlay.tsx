@@ -42,7 +42,7 @@ const FaceRecognitionOverlay: React.FC<FaceRecognitionOverlayProps> = ({
     >
       {recognitions.map((recognition, index) => {
         const scaledBox = {
-          x: recognition.box.x * overlayStyle.scaleX,
+          x: overlayStyle.videoWidth - (recognition.box.x * overlayStyle.scaleX) - (recognition.box.width * overlayStyle.scaleX),
           y: recognition.box.y * overlayStyle.scaleY,
           width: recognition.box.width * overlayStyle.scaleX,
           height: recognition.box.height * overlayStyle.scaleY
@@ -80,7 +80,7 @@ const FaceRecognitionOverlay: React.FC<FaceRecognitionOverlayProps> = ({
                 maxWidth: `${scaledBox.width * 2}px`
               }}
             >
-              {recognition.isMatch ? recognition.label : 'Unknown'}
+              {recognition.isMatch ? recognition.label : `Unknown (${Math.max(0, Math.round((1 - recognition.distance) * 100))}% match)`}
               {recognition.isMatch && (
                 <div className="text-xs opacity-90">
                   {Math.round((1 - recognition.distance) * 100)}%
