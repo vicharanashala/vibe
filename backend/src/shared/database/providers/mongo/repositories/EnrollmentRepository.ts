@@ -40,6 +40,11 @@ import { IQuestionBank } from '#root/shared/interfaces/quiz.js';
 import { IProjectSubmission } from '#root/modules/projects/repositories/model.js';
 import { IReport } from '#root/shared/interfaces/reports.js';
 import { UserEnrollmentStatisticsResponse } from '#root/modules/users/classes/index.js';
+import {
+  buildGuruSetuVideoListPipeline,
+  buildGuruSetuWatchAggPipeline,
+  buildGuruSetuFeedbackAggPipeline,
+} from './queries/guruSetuFeedbackExportPipeline.js';
 
 @injectable()
 export class EnrollmentRepository {
@@ -3763,6 +3768,178 @@ export class EnrollmentRepository {
         { session },
       )
       .next();
+  }
+
+  async getGuruSetuFeedbackRows(
+    courseId: string,
+    versionId: string,
+    cohortId?: string,
+  ): Promise<any[]> {
+    await this.init();
+
+    if (!ObjectId.isValid(courseId) || !ObjectId.isValid(versionId)) {
+      throw new BadRequestError('Invalid courseId or versionId');
+    }
+
+    const guruSetuCourseId = new ObjectId(courseId);
+    const guruSetuVersionId = new ObjectId(versionId);
+    const parsedCohortId = cohortId && ObjectId.isValid(cohortId)
+      ? new ObjectId(cohortId)
+      : null;
+
+    // The original single-aggregation approach did a correlated watchTime/feedback
+    // lookup per (student × video), which scanned each student's watch history once
+    // per video and timed out the remote connection. Instead we run a few bulk,
+    // index-friendly aggregations (once each) and assemble the rows in memory.
+
+    // 1. enrolled students
+    const enrollments = await this.enrollmentCollection
+      .find({
+        courseId: guruSetuCourseId,
+        courseVersionId: guruSetuVersionId,
+        role: 'STUDENT',
+        isDeleted: { $ne: true },
+        ...(parsedCohortId ? { cohortId: parsedCohortId } : {}),
+      })
+      .toArray();
+
+    if (!enrollments.length) {
+      return [];
+    }
+
+    const userIds = enrollments.map(e => e.userId as ObjectId);
+
+    const usersCollection = await this.db.getCollection<any>('users');
+    const feedbackFormCollection = await this.db.getCollection<any>(
+      'feedback_forms',
+    );
+
+    // 2. video list once (needed up front to clamp per-session watch time)
+    const videos = await this.courseVersionCollection
+      .aggregate(buildGuruSetuVideoListPipeline(guruSetuVersionId), {
+        allowDiskUse: true,
+        maxTimeMS: 60000,
+      })
+      .toArray();
+
+    const videoDurations = videos.map(v => ({
+      itemId: v.videoId as ObjectId,
+      durationSeconds: v.videoDurationSeconds as number,
+    }));
+
+    // 3. the rest in parallel: users, watch agg, feedback agg
+    const [users, watchAgg, feedbackAgg] = await Promise.all([
+      usersCollection
+        .find(
+          { _id: { $in: userIds } },
+          { projection: { email: 1, firstName: 1, lastName: 1 } },
+        )
+        .toArray(),
+      this.watchTimeCollection
+        .aggregate(
+          buildGuruSetuWatchAggPipeline(
+            guruSetuVersionId,
+            userIds,
+            videoDurations,
+          ),
+          { allowDiskUse: true, maxTimeMS: 120000 },
+        )
+        .toArray(),
+      this.feedbackCollection
+        .aggregate(
+          buildGuruSetuFeedbackAggPipeline(guruSetuVersionId, userIds),
+          { allowDiskUse: true, maxTimeMS: 120000 },
+        )
+        .toArray(),
+    ]);
+
+    // 3. resolve feedback form names (one query)
+    const formIds = Array.from(
+      new Set(
+        feedbackAgg
+          .map(f => f.feedbackFormId)
+          .filter(Boolean)
+          .map((id: any) => id.toString()),
+      ),
+    ).map(id => new ObjectId(id));
+    const forms = formIds.length
+      ? await feedbackFormCollection
+          .find(
+            { _id: { $in: formIds } },
+            { projection: { name: 1 } },
+          )
+          .toArray()
+      : [];
+
+    // 4. build lookup maps
+    const userMap = new Map(users.map(u => [u._id.toString(), u]));
+    const formMap = new Map(forms.map(f => [f._id.toString(), f.name]));
+    const watchMap = new Map(
+      watchAgg.map(w => [`${w._id.userId}|${w._id.itemId}`, w]),
+    );
+    const feedbackMap = new Map(
+      feedbackAgg.map(f => [`${f._id.userId}|${f._id.itemId}`, f]),
+    );
+
+    // 5. assemble one row per (enrolled student × video)
+    const rows: any[] = [];
+    for (const enrollment of enrollments) {
+      const uid = (enrollment.userId as ObjectId).toString();
+      const user = userMap.get(uid) || {};
+
+      for (const video of videos) {
+        const vid = video.videoId.toString();
+        const watch = watchMap.get(`${uid}|${vid}`);
+        const feedback = feedbackMap.get(`${uid}|${vid}`);
+
+        // cap the total at the video duration so watch % maxes out at 100%
+        const summedSeconds = watch?.rawWatchedSeconds || 0;
+        const cappedSeconds =
+          video.videoDurationSeconds > 0
+            ? Math.min(summedSeconds, video.videoDurationSeconds)
+            : summedSeconds;
+        const rawWatchedSeconds = Math.round(cappedSeconds * 100) / 100;
+        const watchPercentage =
+          video.videoDurationSeconds > 0
+            ? Math.round(
+                (rawWatchedSeconds / video.videoDurationSeconds) * 100 * 100,
+              ) / 100
+            : 0;
+
+        const details = feedback?.details || {};
+        const { Name, Email, ...feedbackAnswers } = details as Record<
+          string,
+          unknown
+        >;
+
+        rows.push({
+          userId: uid,
+          userEmail: user.email,
+          userFirstName: user.firstName,
+          userLastName: user.lastName,
+          videoName: video.videoName,
+          videoDurationSeconds: video.videoDurationSeconds,
+          rawWatchedSeconds,
+          watchPercentage,
+          watchSessionCount: watch?.watchSessionCount || 0,
+          firstWatchAt: watch?.firstWatchAt,
+          lastWatchAt: watch?.lastWatchAt,
+          feedbackFormName: feedback
+            ? formMap.get(feedback.feedbackFormId?.toString())
+            : undefined,
+          ...feedbackAnswers,
+          feedbackSubmittedAt: feedback?.createdAt,
+        });
+      }
+    }
+
+    rows.sort((a, b) => {
+      const byEmail = (a.userEmail || '').localeCompare(b.userEmail || '');
+      if (byEmail !== 0) return byEmail;
+      return (a.videoName || '').localeCompare(b.videoName || '');
+    });
+
+    return rows;
   }
 
   async setWatchTimeVisibility(
