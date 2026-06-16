@@ -18,6 +18,7 @@ import {
   useRemoveStudentFromTimeSlot,
   useSetHoursBudget,
   useGrantExtraHours,
+  useSlotDemand,
 } from "@/hooks/hooks";
 import { ClockTimePicker } from "./ClockTimePicker";
 
@@ -241,6 +242,18 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   );
 
   const enrolledStudents = enrollmentsData?.enrollments || [];
+
+  // Demand schedule for today (booked load per window) — the capacity-planning view.
+  const {
+    data: slotDemand,
+    isLoading: demandLoading,
+    refetch: refetchDemand,
+  } = useSlotDemand(
+    courseId && courseId.length === 24 ? courseId : undefined,
+    courseVersionId && courseVersionId.length === 24 ? courseVersionId : undefined,
+    undefined,
+    isOpen && enableSlotAssignment,
+  );
 
   // Initialize data when modal opens
   useEffect(() => {
@@ -720,6 +733,92 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                           Grant
                         </Button>
                       </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Demand schedule — booked load per window for today */}
+                  <Card className="border shadow-sm">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h3 className="text-lg font-semibold flex items-center gap-2">
+                            <Calendar className="h-5 w-5" />
+                            Demand schedule — today
+                          </h3>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Booked load per window (IST). Spot near-full slots and balance capacity.
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => refetchDemand()}
+                          disabled={demandLoading}
+                        >
+                          {demandLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            "Refresh"
+                          )}
+                        </Button>
+                      </div>
+                      {demandLoading && !slotDemand ? (
+                        <p className="text-sm text-muted-foreground">Loading demand…</p>
+                      ) : !slotDemand?.slots?.length ? (
+                        <p className="text-sm text-muted-foreground">
+                          No slots defined yet — create a slot below to start collecting bookings.
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {slotDemand.slots.map((s, i) => {
+                            const cap = s.maxStudents;
+                            const pct =
+                              cap && cap > 0 ? Math.min(100, (s.booked / cap) * 100) : 0;
+                            const isFull = cap != null && s.booked >= cap;
+                            const nearFull = cap != null && !isFull && pct >= 80;
+                            return (
+                              <div
+                                key={`${s.from}-${s.to}-${i}`}
+                                className="flex items-center gap-3"
+                              >
+                                <div className="w-28 shrink-0 text-sm font-medium tabular-nums">
+                                  <TimeDisplay time={s.from} /> – <TimeDisplay time={s.to} />
+                                </div>
+                                <div className="flex-1">
+                                  {cap != null ? (
+                                    <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full ${
+                                          isFull
+                                            ? "bg-red-500"
+                                            : nearFull
+                                              ? "bg-yellow-500"
+                                              : "bg-green-500"
+                                        }`}
+                                        style={{ width: `${pct}%` }}
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="h-2 w-full rounded-full bg-muted" />
+                                  )}
+                                </div>
+                                <div className="w-28 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
+                                  {cap != null ? (
+                                    <>
+                                      {s.booked}/{cap} booked
+                                      {isFull ? (
+                                        <Badge variant="destructive" className="ml-1">Full</Badge>
+                                      ) : null}
+                                    </>
+                                  ) : (
+                                    <>{s.booked} booked · no cap</>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
 
