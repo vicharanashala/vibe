@@ -304,8 +304,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   const {
     data: currentSectionItems,
     isLoading: itemsLoading,
-    error: sectionItemsError,
-    errorName: sectionItemsErrorName
   } = useItemsBySectionId(
     shouldFetchItems ? VERSION_ID : '',
     shouldFetchItems ? activeSectionInfo!.moduleId : '',
@@ -407,14 +405,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   ]);
 
 
-  // The section-items endpoint is the other (ungated-until-now) content path.
-  // If it returns the time-slot block, surface the same persistent notice.
-  useEffect(() => {
-    if (sectionItemsErrorName === "TimeSlotAccessDenied" && sectionItemsError) {
-      setTimeSlotBlock(sectionItemsError);
-    }
-  }, [sectionItemsErrorName, sectionItemsError]);
-
   // Separate effect for handling item errors - prevents circular dependencies
   useEffect(() => {
     if (!itemError) return;
@@ -423,34 +413,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     if (itemError.includes("auth/id-token-expired")) {
       logout();
       Navigate({ to: '/auth' });
-      return;
-    }
-
-    // Time-slot / commitment gate — distinct from a linear-progression ForbiddenError.
-    // Show a persistent, actionable notice instead of the generic "lesson locked" card.
-    if (itemError && selectedItemId && itemErrorName === "TimeSlotAccessDenied") {
-      setIsNavigatingToNext(false);
-      setIsItemForbidden(false);
-      setTimeSlotBlock(itemError);
-
-      // Revert to the last valid item so the player isn't stuck on a blocked item.
-      if (previousValidItem) {
-        setSelectedModuleId(previousValidItem.moduleId);
-        setSelectedSectionId(previousValidItem.sectionId);
-        setSelectedItemId(previousValidItem.itemId);
-        if (!sectionItems[previousValidItem.sectionId]) {
-          setActiveSectionInfo({
-            moduleId: previousValidItem.moduleId,
-            sectionId: previousValidItem.sectionId,
-          });
-        }
-        updateCourseNavigation(
-          previousValidItem.moduleId,
-          previousValidItem.sectionId,
-          previousValidItem.itemId,
-        );
-      }
-      // Persistent on purpose — the student must book a slot or wait for their window.
       return;
     }
 
@@ -1965,13 +1927,6 @@ return false;
                                   const isSectionExpanded = expandedSections[sectionId];
                                   const isCurrentSection = sectionId === selectedSectionId;
                                   const isLoadingItems = activeSectionInfo?.sectionId === sectionId && itemsLoading;
-                                  // The items fetch is scoped to the active section, so a
-                                  // time-slot block only applies to that one section — never
-                                  // mislabel other expanded sections' empty state with it.
-                                  const isTimeSlotBlockedSection =
-                                    activeSectionInfo?.sectionId === sectionId &&
-                                    sectionItemsErrorName === "TimeSlotAccessDenied" &&
-                                    !sectionItems[sectionId];
 
                                   return (
                                     <SidebarMenuSubItem 
@@ -2072,12 +2027,6 @@ return false;
                                                 </SidebarMenuSubItem>
                                               );
                                             })
-                                          ) : isTimeSlotBlockedSection ? (
-                                            <div className="p-3 text-center">
-                                              <div className="text-xs text-muted-foreground">
-                                                {sectionItemsError || "Content is locked outside your booked time slot."}
-                                              </div>
-                                            </div>
                                           ) : (
                                             <div className="p-3 text-center">
                                               <div className="text-xs text-muted-foreground">No items found</div>
