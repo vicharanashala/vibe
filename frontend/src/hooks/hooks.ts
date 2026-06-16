@@ -5735,6 +5735,65 @@ export function useGrantExtraHours() {
   return { grantExtraHours, loading, error };
 }
 
+export interface SlotDemandData {
+  date: string;
+  isActive: boolean;
+  slots: Array<{
+    from: string;
+    to: string;
+    maxStudents: number | null;
+    booked: number;
+    remaining: number | null;
+  }>;
+}
+
+// GET /slot-bookings/demand/course/{courseId}/version/{courseVersionId}
+// Booked load per window for an IST day (the "demand schedule" for capacity
+// planning). Instructors/managers only. Raw fetch via react-query.
+export function useSlotDemand(
+  courseId: string | undefined,
+  courseVersionId: string | undefined,
+  date?: string,
+  enabled: boolean = true,
+): {
+  data: SlotDemandData | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const valid =
+    !!courseId &&
+    courseId.length === 24 &&
+    !!courseVersionId &&
+    courseVersionId.length === 24;
+  const result = useQuery({
+    queryKey: ['slot-demand', courseId, courseVersionId, date ?? 'today'],
+    enabled: enabled && valid,
+    queryFn: async (): Promise<SlotDemandData> => {
+      const q = date ? `?date=${encodeURIComponent(date)}` : '';
+      const url = `${import.meta.env.VITE_BASE_URL}/slot-bookings/demand/course/${courseId}/version/${courseVersionId}${q}`;
+      const res = await fetch(url, {
+        headers: {
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || `Failed to load slot demand: ${res.status}`);
+      }
+      return data?.data as SlotDemandData;
+    },
+  });
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error as Error).message : null,
+    refetch: () => {
+      void result.refetch();
+    },
+  };
+}
+
 // Imperative check used to gate entry on the "Continue Learning" click.
 // Returns { canAccess, message }. Fails OPEN (allows) on any network/error so a
 // transient failure never locks a student out — the backend gate is the backstop.
