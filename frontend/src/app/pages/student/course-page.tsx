@@ -43,8 +43,7 @@ import {
   X,
   CircleCheckIcon,
   Headphones,
-  ExternalLink, Menu,
-  Maximize2, PanelLeftOpen
+  ExternalLink, Menu
 } from "lucide-react";
 import FloatingVideo, { FloatingVideoPlaceholder } from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
@@ -244,33 +243,15 @@ export default function CoursePage() {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [doGesture, setDoGesture] = useState<boolean>(false);
   // Focus mode: video plays maximized with the sidebar + surrounding chrome hidden.
-  // Auto-engages for VIDEO items; a small restore arrow brings the default view back.
+  // Single control model: the immersive view is driven entirely by the video's
+  // fullscreen button (bottom-right). focusMode simply mirrors native fullscreen,
+  // so entering/leaving fullscreen (or pressing Esc) is the one way in and out.
   const [focusMode, setFocusMode] = useState<boolean>(false);
-  // Default to focus mode whenever a VIDEO item becomes active; leave it for other types.
   useEffect(() => {
-    setFocusMode(currentItem?.type === 'VIDEO');
-  }, [currentItem?._id, currentItem?.type]);
-  // Escape returns to the normal view from focus mode.
-  useEffect(() => {
-    if (!focusMode) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setFocusMode(false);
-        try { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); } catch { /* noop */ }
-      }
-    };
-    // When in browser fullscreen, the Esc that exits fullscreen is swallowed by the
-    // browser (no keydown), so also exit focus mode when fullscreen turns off.
-    const onFsChange = () => {
-      if (!document.fullscreenElement) setFocusMode(false);
-    };
-    window.addEventListener('keydown', onKey);
+    const onFsChange = () => setFocusMode(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', onFsChange);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.removeEventListener('fullscreenchange', onFsChange);
-    };
-  }, [focusMode]);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
   const [isItemForbidden, setIsItemForbidden] = useState<boolean>(false);
   // Time-slot / commitment gate block (distinct from linear-progression ForbiddenError).
   const [timeSlotBlock, setTimeSlotBlock] = useState<string | null>(null);
@@ -2247,22 +2228,6 @@ return false;
                   </div>
                 </div>
                 <div className="flex items-center gap-2 ml-auto">
-                  {currentItem?.type === 'VIDEO' && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setFocusMode(true);
-                        // User gesture → request true browser fullscreen (hides the
-                        // address/title bar). Best-effort; ignored if the browser blocks it.
-                        try { document.documentElement.requestFullscreen?.().catch(() => {}); } catch { /* noop */ }
-                      }}
-                      title="Focus mode (fullscreen video)"
-                      className="h-9 w-9"
-                    >
-                      <Maximize2 className="h-4 w-4" />
-                    </Button>
-                  )}
                   <ThemeToggle />
                 </div>
               </header>
@@ -2283,22 +2248,6 @@ return false;
               <div className="flex-1 overflow-hidden relative">
                 {/* Ambient background effect */}
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.01] via-transparent to-secondary/[0.01] pointer-events-none" />
-
-                {/* Focus-mode restore arrow — brings back the sidebar and surrounding chrome */}
-                {focusMode && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFocusMode(false);
-                      try { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); } catch { /* noop */ }
-                    }}
-                    title="Exit focus mode"
-                    aria-label="Exit focus mode"
-                    className="fixed top-2 left-2 z-[70] flex h-7 w-7 items-center justify-center rounded-md bg-background/60 text-foreground/70 opacity-40 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-background/90 hover:text-foreground hover:opacity-100"
-                  >
-                    <PanelLeftOpen className="h-4 w-4" />
-                  </button>
-                )}
 
                 {/* Notification Stack */}
                 <div className="fixed top-6 right-6 z-50 flex flex-col gap-2 w-90 ">

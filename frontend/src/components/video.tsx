@@ -67,7 +67,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const [duration, setDuration] = useState(0);
   // const [volume, setVolume] = useState(100);
   // Use the stored playback rate from the player store
-  const { playbackRate, setPlaybackRate, volume, setVolume } = usePlayerStore();
+  const { playbackRate, setPlaybackRate, volume, setVolume, subtitlesEnabled, setSubtitlesEnabled } = usePlayerStore();
   const [maxTime, setMaxTime] = useState(0);
   const [, setIsHovering] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
@@ -98,7 +98,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const watchItemIdRef = useRef<string | null>(null);
   const stopInFlightRef = useRef(false);
 
-  const [subtitlesEnabled, setSubtitlesEnabled] = useState(false);
+  // subtitlesEnabled is persisted in the player store (see usePlayerStore above).
   const [subtitlesAvailable, setSubtitlesAvailable] = useState(false);
 
   // const [videoEnded, setVideoEnded] = useState(false);
@@ -231,6 +231,11 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
+
+    // Sync once on mount: if the player mounts while the browser is already in
+    // fullscreen (e.g. navigating between videos without leaving fullscreen),
+    // no change event fires, so the button would otherwise show the wrong state.
+    handleFullscreenChange();
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => {
@@ -708,6 +713,14 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
             setDuration(dur);
             // setVolume(event.target.getVolume());
             event.target.setVolume(volume);
+            // Re-apply the persisted subtitle preference on a fresh player.
+            if (subtitlesEnabled) {
+              try {
+                const p = event.target as any;
+                p.loadModule?.('captions');
+                p.setOption?.('captions', 'track', { languageCode: 'en' });
+              } catch { /* captions module unavailable — non-fatal */ }
+            }
             setMaxTime(startTimeSeconds);
             event.target.seekTo(startTimeSeconds, true);
             onDurationChange?.(dur);
@@ -1009,20 +1022,18 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
 
   const handleToggleSubtitles = () => {
-    setSubtitlesEnabled((prev) => {
-      const newState = !prev;
+    const newState = !subtitlesEnabled;
 
-      if (playerRef.current) {
-        if (newState) {
-          playerRef.current.loadModule('captions');
-          playerRef.current.setOption('captions', 'track', { languageCode: 'en' });
-        } else {
-          playerRef.current.setOption('captions', 'track', {});
-        }
+    if (playerRef.current) {
+      if (newState) {
+        playerRef.current.loadModule('captions');
+        playerRef.current.setOption('captions', 'track', { languageCode: 'en' });
+      } else {
+        playerRef.current.setOption('captions', 'track', {});
       }
+    }
 
-      return newState;
-    });
+    setSubtitlesEnabled(newState);
   };
 
   const formatTime = (seconds: number): string => {
