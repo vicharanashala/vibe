@@ -5747,6 +5747,53 @@ export interface SlotDemandData {
   }>;
 }
 
+// GET /slot-bookings/availability/course/{courseId}/version/{courseVersionId}
+// Seats remaining + booked count per window for an IST day (default today), so
+// an enrolled student can see capacity while picking a slot. Counts only.
+export function useSlotAvailability(
+  courseId: string | undefined,
+  courseVersionId: string | undefined,
+  date?: string,
+  enabled: boolean = true,
+): {
+  data: SlotDemandData | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const day = date ?? istToday();
+  const valid =
+    !!courseId &&
+    courseId.length === 24 &&
+    !!courseVersionId &&
+    courseVersionId.length === 24;
+  const result = useQuery({
+    queryKey: ['slot-availability', courseId, courseVersionId, day],
+    enabled: enabled && valid,
+    queryFn: async (): Promise<SlotDemandData> => {
+      const url = `${import.meta.env.VITE_BASE_URL}/slot-bookings/availability/course/${courseId}/version/${courseVersionId}?date=${encodeURIComponent(day)}`;
+      const res = await fetch(url, {
+        headers: {
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || `Failed to load availability: ${res.status}`);
+      }
+      return data?.data as SlotDemandData;
+    },
+  });
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error as Error).message : null,
+    refetch: () => {
+      void result.refetch();
+    },
+  };
+}
+
 // GET /slot-bookings/demand/course/{courseId}/version/{courseVersionId}
 // Booked load per window for an IST day (the "demand schedule" for capacity
 // planning). Instructors/managers only. Raw fetch via react-query.
