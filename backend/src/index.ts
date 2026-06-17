@@ -19,6 +19,9 @@ import { authorizationChecker } from './shared/functions/authorizationChecker.js
 import { currentUserChecker } from './shared/functions/currentUserChecker.js';
 import { startCron } from './utils/startCron.js';
 import { GLOBAL_TYPES } from './types.js';
+import dns from 'dns';
+
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 const app = express();
 const globalRateLimiter = createRateLimiter();

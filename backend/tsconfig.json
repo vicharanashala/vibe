@@ -30,7 +30,7 @@
       "#courses/*": ["./modules/courses/*"],
       "#users/*": ["./modules/users/*"],
       "#quizzes/*": ["./modules/quizzes/*"],
-      "#settings/*": ["./modules/settings/*"],
+      "#setting/*": ["./modules/setting/*"],
       "#ejectionPolicy/*": ["./modules/ejectionPolicy/*"]
     },
 

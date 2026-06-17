@@ -7,3 +7,5 @@ packages:
   - mcp
   - e2e
   
+onlyBuiltDependencies:
+  - "routing-controllers-openapi"
