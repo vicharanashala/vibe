@@ -62,6 +62,7 @@ export interface ItemContainerProps {
   anomalies?: string[];
   readyToDetect: boolean;
   keyboardLockEnabled?: boolean;
+  focusMode?: boolean;
   setIsQuizSkipped: React.Dispatch<React.SetStateAction<boolean>>;
   linearProgressionEnabled: boolean;
   seekForwardEnabled: boolean;

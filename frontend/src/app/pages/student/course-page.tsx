@@ -4,7 +4,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
-  SidebarInset, SidebarProvider, SidebarTrigger, SidebarFooter
+  SidebarInset, SidebarProvider, SidebarTrigger, SidebarFooter, useSidebar
 } from "@/components/ui/sidebar";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup, SidebarResizablePanel } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,8 @@ import {
   X,
   CircleCheckIcon,
   Headphones,
-  ExternalLink, Menu
+  ExternalLink, Menu,
+  Maximize2, PanelLeftOpen
 } from "lucide-react";
 import FloatingVideo, { FloatingVideoPlaceholder } from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
@@ -90,6 +91,21 @@ const sortItemsByOrder = (items: any[]) => {
     return orderA.localeCompare(orderB);
   });
 };
+
+/**
+ * Keeps the navigation sidebar collapsed while focus mode is active.
+ * Collapsing (rather than unmounting) the sidebar keeps the proctoring
+ * camera (FloatingVideo in the sidebar footer) mounted and decoding, so
+ * detection keeps running even though the camera is not shown.
+ */
+function SidebarFocusSync({ focusMode }: { focusMode: boolean }) {
+  const { setOpen } = useSidebar();
+  useEffect(() => {
+    setOpen(!focusMode);
+  }, [focusMode, setOpen]);
+  return null;
+}
+
 export default function CoursePage() {
   useEffect(() => {
     return () => {
@@ -227,6 +243,34 @@ export default function CoursePage() {
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [doGesture, setDoGesture] = useState<boolean>(false);
+  // Focus mode: video plays maximized with the sidebar + surrounding chrome hidden.
+  // Auto-engages for VIDEO items; a small restore arrow brings the default view back.
+  const [focusMode, setFocusMode] = useState<boolean>(false);
+  // Default to focus mode whenever a VIDEO item becomes active; leave it for other types.
+  useEffect(() => {
+    setFocusMode(currentItem?.type === 'VIDEO');
+  }, [currentItem?._id, currentItem?.type]);
+  // Escape returns to the normal view from focus mode.
+  useEffect(() => {
+    if (!focusMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setFocusMode(false);
+        try { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); } catch { /* noop */ }
+      }
+    };
+    // When in browser fullscreen, the Esc that exits fullscreen is swallowed by the
+    // browser (no keydown), so also exit focus mode when fullscreen turns off.
+    const onFsChange = () => {
+      if (!document.fullscreenElement) setFocusMode(false);
+    };
+    window.addEventListener('keydown', onKey);
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('fullscreenchange', onFsChange);
+    };
+  }, [focusMode]);
   const [isItemForbidden, setIsItemForbidden] = useState<boolean>(false);
   // Time-slot / commitment gate block (distinct from linear-progression ForbiddenError).
   const [timeSlotBlock, setTimeSlotBlock] = useState<string | null>(null);
@@ -304,8 +348,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   const {
     data: currentSectionItems,
     isLoading: itemsLoading,
-    error: sectionItemsError,
-    errorName: sectionItemsErrorName
   } = useItemsBySectionId(
     shouldFetchItems ? VERSION_ID : '',
     shouldFetchItems ? activeSectionInfo!.moduleId : '',
@@ -407,14 +449,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   ]);
 
 
-  // The section-items endpoint is the other (ungated-until-now) content path.
-  // If it returns the time-slot block, surface the same persistent notice.
-  useEffect(() => {
-    if (sectionItemsErrorName === "TimeSlotAccessDenied" && sectionItemsError) {
-      setTimeSlotBlock(sectionItemsError);
-    }
-  }, [sectionItemsErrorName, sectionItemsError]);
-
   // Separate effect for handling item errors - prevents circular dependencies
   useEffect(() => {
     if (!itemError) return;
@@ -423,34 +457,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     if (itemError.includes("auth/id-token-expired")) {
       logout();
       Navigate({ to: '/auth' });
-      return;
-    }
-
-    // Time-slot / commitment gate — distinct from a linear-progression ForbiddenError.
-    // Show a persistent, actionable notice instead of the generic "lesson locked" card.
-    if (itemError && selectedItemId && itemErrorName === "TimeSlotAccessDenied") {
-      setIsNavigatingToNext(false);
-      setIsItemForbidden(false);
-      setTimeSlotBlock(itemError);
-
-      // Revert to the last valid item so the player isn't stuck on a blocked item.
-      if (previousValidItem) {
-        setSelectedModuleId(previousValidItem.moduleId);
-        setSelectedSectionId(previousValidItem.sectionId);
-        setSelectedItemId(previousValidItem.itemId);
-        if (!sectionItems[previousValidItem.sectionId]) {
-          setActiveSectionInfo({
-            moduleId: previousValidItem.moduleId,
-            sectionId: previousValidItem.sectionId,
-          });
-        }
-        updateCourseNavigation(
-          previousValidItem.moduleId,
-          previousValidItem.sectionId,
-          previousValidItem.itemId,
-        );
-      }
-      // Persistent on purpose — the student must book a slot or wait for their window.
       return;
     }
 
@@ -1855,6 +1861,7 @@ return false;
       </Dialog>
 
       <SidebarProvider defaultOpen={true}>
+        <SidebarFocusSync focusMode={focusMode} />
         <ResizablePanelGroup direction="horizontal" className="h-screen w-full">
           {/* Enhanced Course Navigation Sidebar */}
           {/* {isDesktopSidebarVisible && ( */}
@@ -1965,13 +1972,6 @@ return false;
                                   const isSectionExpanded = expandedSections[sectionId];
                                   const isCurrentSection = sectionId === selectedSectionId;
                                   const isLoadingItems = activeSectionInfo?.sectionId === sectionId && itemsLoading;
-                                  // The items fetch is scoped to the active section, so a
-                                  // time-slot block only applies to that one section — never
-                                  // mislabel other expanded sections' empty state with it.
-                                  const isTimeSlotBlockedSection =
-                                    activeSectionInfo?.sectionId === sectionId &&
-                                    sectionItemsErrorName === "TimeSlotAccessDenied" &&
-                                    !sectionItems[sectionId];
 
                                   return (
                                     <SidebarMenuSubItem 
@@ -2072,12 +2072,6 @@ return false;
                                                 </SidebarMenuSubItem>
                                               );
                                             })
-                                          ) : isTimeSlotBlockedSection ? (
-                                            <div className="p-3 text-center">
-                                              <div className="text-xs text-muted-foreground">
-                                                {sectionItemsError || "Content is locked outside your booked time slot."}
-                                              </div>
-                                            </div>
                                           ) : (
                                             <div className="p-3 text-center">
                                               <div className="text-xs text-muted-foreground">No items found</div>
@@ -2218,11 +2212,12 @@ return false;
           </SidebarResizablePanel>
           {/* // )} */}
           {/* {isDesktopSidebarVisible &&  */}
-          <ResizableHandle className="hidden md:flex h-screen" />
+          <ResizableHandle className={`${focusMode ? 'hidden' : 'hidden md:flex'} h-screen`} />
           {/* } */}
           <ResizablePanel defaultSize={80} className="min-w-0 min-h-screen">
             {/* Main Content Area */}
             <SidebarInset className="flex-1  bg-gradient-to-br from-background via-background to-background/95 peer-data-[variant=inset]:!m-0">
+              {!focusMode && (
               <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/20 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-4">
                 {/* <Button
                   variant="ghost"
@@ -2252,12 +2247,29 @@ return false;
                   </div>
                 </div>
                 <div className="flex items-center gap-2 ml-auto">
+                  {currentItem?.type === 'VIDEO' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setFocusMode(true);
+                        // User gesture → request true browser fullscreen (hides the
+                        // address/title bar). Best-effort; ignored if the browser blocks it.
+                        try { document.documentElement.requestFullscreen?.().catch(() => {}); } catch { /* noop */ }
+                      }}
+                      title="Focus mode (fullscreen video)"
+                      className="h-9 w-9"
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  )}
                   <ThemeToggle />
                 </div>
               </header>
+              )}
 
               {/* Emotion Selector Bar */}
-              {currentItem && (
+              {currentItem && !focusMode && (
                 <div className="border-b border-border/20 bg-background/50 backdrop-blur-sm px-4 py-2">
                   <EmotionSelector
                     itemId={currentItem._id}
@@ -2271,6 +2283,22 @@ return false;
               <div className="flex-1 overflow-hidden relative">
                 {/* Ambient background effect */}
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.01] via-transparent to-secondary/[0.01] pointer-events-none" />
+
+                {/* Focus-mode restore arrow — brings back the sidebar and surrounding chrome */}
+                {focusMode && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFocusMode(false);
+                      try { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); } catch { /* noop */ }
+                    }}
+                    title="Exit focus mode"
+                    aria-label="Exit focus mode"
+                    className="fixed top-2 left-2 z-[70] flex h-7 w-7 items-center justify-center rounded-md bg-background/60 text-foreground/70 opacity-40 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-background/90 hover:text-foreground hover:opacity-100"
+                  >
+                    <PanelLeftOpen className="h-4 w-4" />
+                  </button>
+                )}
 
                 {/* Notification Stack */}
                 <div className="fixed top-6 right-6 z-50 flex flex-col gap-2 w-90 ">
@@ -2363,8 +2391,9 @@ return false;
                     </Suspense>
                   )}
 
-                  {/* Gesture Notification */}
-                  {doGesture && currentItem?.type !== 'VIDEO' && (
+                  {/* Gesture Notification — also shown for VIDEO in focus mode,
+                      since the in-sidebar camera (which normally shows this) is hidden. */}
+                  {doGesture && (currentItem?.type !== 'VIDEO' || focusMode) && (
                     <Card className="border border-amber-400/20 bg-amber-600/90 text-amber-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
                       <CardContent className="flex items-center gap-3 px-4 py-0">
                         <div className="flex h-22 w-22 items-center justify-center rounded-lg bg-white text-4xl p-4">
@@ -2465,7 +2494,26 @@ return false;
                 />
                 {currentItem ? (
                   <div className="relative z-10 h-full flex flex-col mb-2  sm:mb-1">
-                    <div className="flex justify-end mb-1 me-10 gap-2 ">
+                    {anomalies.includes("faceRecognition") && (
+                      <div className="absolute inset-0 bg-black/85 backdrop-blur-md z-[9999] flex flex-col items-center justify-center p-6 text-center select-none rounded-lg border border-red-500/20">
+                        <div className="max-w-md space-y-6 animate-in fade-in zoom-in duration-300">
+                          <div className="mx-auto w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/30">
+                            <AlertCircle className="w-10 h-10 text-red-500 animate-pulse" />
+                          </div>
+                          <div className="space-y-2">
+                            <h2 className="text-2xl font-bold text-red-500">Identity Mismatch Paused</h2>
+                            <p className="text-gray-300 text-sm leading-relaxed">
+                              The camera detects a different face or an unknown person. Please ensure the registered student is watching the course to continue.
+                            </p>
+                          </div>
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20">
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                            <span className="text-xs font-semibold text-red-400">Verifying live via camera...</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div className={`${focusMode ? 'hidden' : 'flex'} justify-end mb-1 me-10 gap-2 `}>
                       {!isFlagSubmitted &&
                         <Button
                           size="sm"
@@ -2524,6 +2572,7 @@ return false;
                       <ItemContainer
                         ref={itemContainerRef}
                         item={currentItem}
+                        focusMode={focusMode}
                         doGesture={doGesture}
                         onNext={handleNext}
                         onPrevVideo={handlePrevVideo}

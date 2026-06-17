@@ -4,6 +4,10 @@ export function registerStream(id: string, stream: MediaStream) {
   mediaRegister.set(id, stream);
 }
 
+export function getStream(id: string): MediaStream | undefined {
+  return mediaRegister.get(id);
+}
+
 export function unRegisterStream(id: string) {
   mediaRegister.get(id)?.getTracks().forEach(t => t.stop());
   mediaRegister.delete(id);

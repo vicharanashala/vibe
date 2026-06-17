@@ -99,6 +99,23 @@ describe('SlotBookingService.bookSlot', () => {
     ).rejects.toThrowError(/not enrolled/i);
   });
 
+  it('falls back to a cohort-agnostic enrollment lookup on a cohortId mismatch', async () => {
+    const {svc, enrollmentService, slotBookingRepo} = makeService();
+    // The strict (cohortId) lookup misses — e.g. the enrollment row's cohortId
+    // is null or different — but the cohort-agnostic retry finds the enrollment,
+    // so the booking still succeeds (mirrors the #1081 / ItemService fix).
+    enrollmentService.findEnrollment
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({_id: 'enroll-1'});
+
+    await svc.bookSlot(USER, COURSE, VERSION, SLOT, 'cohort-x');
+
+    expect(enrollmentService.findEnrollment).toHaveBeenCalledTimes(2);
+    // The retry drops the cohortId (4th arg) to match on identity alone.
+    expect(enrollmentService.findEnrollment.mock.calls[1][3]).toBeUndefined();
+    expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+  });
+
   it('rejects double-booking the same slot', async () => {
     const {svc} = makeService({myBookings: [{from: '13:00', to: '15:00'}]});
     await expect(
@@ -253,6 +270,27 @@ describe('SlotBookingService.cancelBooking', () => {
     const ok = await svc.cancelBooking(USER, 'b1');
     expect(ok).toBe(true);
     expect(slotBookingRepo.cancelBooking).toHaveBeenCalledWith('b1', {});
+  });
+});
+
+describe('SlotBookingService.getStudentBookings', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns the student's active bookings for a given IST day", async () => {
+    const mine = [
+      {_id: 'b1', from: '13:00', to: '15:00', status: SlotBookingStatus.BOOKED},
+    ];
+    const {svc, slotBookingRepo} = makeService({myBookings: mine});
+
+    const res = await svc.getStudentBookings(USER, COURSE, VERSION, '2026-06-17');
+
+    expect(res).toEqual(mine);
+    expect(slotBookingRepo.findActiveForStudent).toHaveBeenCalledWith(
+      USER,
+      COURSE,
+      VERSION,
+      '2026-06-17',
+    );
   });
 });
 
