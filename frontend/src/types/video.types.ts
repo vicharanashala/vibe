@@ -13,6 +13,7 @@ export interface VideoProps {
   pauseVid: boolean;
   onDurationChange?: (duration: number) => void;
   keyboardLockEnabled?: boolean;
+  focusMode?: boolean;
   linearProgressionEnabled: boolean;
   seekForwardEnabled: boolean;
   isCompleted?: boolean;

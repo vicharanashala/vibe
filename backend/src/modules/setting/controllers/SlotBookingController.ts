@@ -148,6 +148,33 @@ class SlotBookingController {
   }
 
   @OpenAPI({
+    summary: 'Slot availability (for booking)',
+    description:
+      'Booked load and seats remaining per window for an IST day (default today), so an enrolled student can see capacity while picking a slot. Returns counts only — no learner identities.',
+  })
+  @Authorized()
+  @Get('/availability/course/:courseId/version/:courseVersionId')
+  @HttpCode(200)
+  async getAvailability(
+    @Param('courseId') courseId: string,
+    @Param('courseVersionId') courseVersionId: string,
+    @QueryParam('date') date?: string,
+  ): Promise<BookingResponse> {
+    try {
+      const data = await this.slotBookingService.getSlotDemand(
+        courseId,
+        courseVersionId,
+        date,
+      );
+      return {success: true, data};
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed to get slot availability: ${error}`,
+      );
+    }
+  }
+
+  @OpenAPI({
     summary: 'Slot demand schedule',
     description:
       'Booked load per window for an IST day (default today) — the demand schedule for capacity planning. Instructors/managers only.',

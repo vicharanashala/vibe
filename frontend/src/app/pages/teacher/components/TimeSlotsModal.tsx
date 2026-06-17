@@ -140,17 +140,16 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   const [currentSlotForStudents, setCurrentSlotForStudents] = useState<TimeSlot | null>(null);
   const [tempSelectedStudents, setTempSelectedStudents] = useState<Set<string>>(new Set());
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
-  // Hours budget: instructor's per-item time estimate (minutes) per category.
-  const [categoryEstimates, setCategoryEstimates] = useState<Record<string, number>>({
+  // Hours budget: instructor's TOTAL estimated hours for all items of each
+  // category together (all videos, all quizzes, all readings, all projects).
+  const [categoryHours, setCategoryHours] = useState<Record<string, number>>({
     VIDEO: 10,
-    QUIZ: 15,
-    BLOG: 15,
-    PROJECT: 60,
+    QUIZ: 3,
+    BLOG: 2,
+    PROJECT: 2,
   });
   const [budgetResult, setBudgetResult] = useState<{
     totalBudgetHours: number;
-    estimatedEffortHours: number;
-    itemCounts: Record<string, number>;
   } | null>(null);
   // Grant extra committed hours to a specific student.
   const [extendStudentId, setExtendStudentId] = useState<string>("");
@@ -177,25 +176,21 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   // Seed any saved budget/estimates when the modal loads.
   useEffect(() => {
     const ts = timeSlotsData as any;
-    if (ts?.categoryTimeEstimatesMinutes) {
-      setCategoryEstimates(prev => ({ ...prev, ...ts.categoryTimeEstimatesMinutes }));
+    if (ts?.categoryBudgetHours) {
+      setCategoryHours(prev => ({ ...prev, ...ts.categoryBudgetHours }));
     }
     if (typeof ts?.totalBudgetHours === 'number') {
-      setBudgetResult(r => r ?? {
-        totalBudgetHours: ts.totalBudgetHours,
-        estimatedEffortHours: ts.totalBudgetHours,
-        itemCounts: {},
-      });
+      setBudgetResult(r => r ?? { totalBudgetHours: ts.totalBudgetHours });
     }
   }, [timeSlotsData]);
 
   const handleSaveBudget = async () => {
     try {
       const result = await setHoursBudget(courseId, courseVersionId, {
-        VIDEO: categoryEstimates.VIDEO,
-        QUIZ: categoryEstimates.QUIZ,
-        BLOG: categoryEstimates.BLOG,
-        PROJECT: categoryEstimates.PROJECT,
+        VIDEO: categoryHours.VIDEO,
+        QUIZ: categoryHours.QUIZ,
+        BLOG: categoryHours.BLOG,
+        PROJECT: categoryHours.PROJECT,
       });
       setBudgetResult(result);
       toast.success(`Committed hours budget set: ${result.totalBudgetHours}h per student`);
@@ -637,26 +632,27 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                           Committed hours budget
                         </h3>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Estimate how long each kind of item takes (minutes per item). We multiply by the course&apos;s item counts to set each student&apos;s total committed hours.
+                          Roughly how many hours of each kind of work does the whole course take in total? We add them up to set each student&apos;s committed-hours budget. (e.g. ~10h of video, a 2h project.)
                         </p>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         {([
-                          ["VIDEO", "Minutes per video"],
-                          ["QUIZ", "Minutes per quiz"],
-                          ["BLOG", "Minutes per reading"],
-                          ["PROJECT", "Minutes per project"],
+                          ["VIDEO", "Total hours — all videos"],
+                          ["QUIZ", "Total hours — all quizzes"],
+                          ["BLOG", "Total hours — all readings"],
+                          ["PROJECT", "Total hours — all projects & assignments"],
                         ] as const).map(([key, label]) => (
                           <div key={key}>
                             <Label className="text-xs">{label}</Label>
                             <Input
                               type="number"
                               min="0"
-                              value={categoryEstimates[key] ?? ""}
+                              step="0.5"
+                              value={categoryHours[key] ?? ""}
                               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                setCategoryEstimates(prev => ({
+                                setCategoryHours(prev => ({
                                   ...prev,
-                                  [key]: e.target.value === "" ? 0 : parseInt(e.target.value),
+                                  [key]: e.target.value === "" ? 0 : parseFloat(e.target.value),
                                 }))
                               }
                               className="mt-1"
@@ -673,11 +669,19 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                           )}
                           Save budget
                         </Button>
-                        {budgetResult && (
-                          <span className="text-sm font-medium text-green-700">
-                            ≈ {budgetResult.totalBudgetHours}h committed / student
-                          </span>
-                        )}
+                        <span className="text-sm font-medium">
+                          Total:{' '}
+                          {Math.round(
+                            (['VIDEO', 'QUIZ', 'BLOG', 'PROJECT'].reduce(
+                              (s, k) => s + (Number(categoryHours[k]) || 0),
+                              0,
+                            )) * 100,
+                          ) / 100}
+                          h / student
+                          {budgetResult ? (
+                            <span className="text-green-700"> · saved {budgetResult.totalBudgetHours}h</span>
+                          ) : null}
+                        </span>
                       </div>
                     </CardContent>
                   </Card>

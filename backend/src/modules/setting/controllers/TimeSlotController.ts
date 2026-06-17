@@ -77,11 +77,12 @@ class ToggleTimeSlotsRequestBody {
 }
 
 // Request body for configuring the per-course hours budget from the
-// instructor's per-category time estimates (minutes per item).
+// instructor's total estimated hours per category (all videos together, all
+// quizzes together, all projects together, etc.).
 class SetHoursBudgetRequestBody {
   courseId: string;
   courseVersionId: string;
-  estimatesMinutes: {
+  categoryHours: {
     VIDEO?: number;
     QUIZ?: number;
     BLOG?: number;
@@ -413,7 +414,7 @@ class TimeSlotController {
   @OpenAPI({
     summary: 'Set the per-course hours budget',
     description:
-      "Computes and stores the students' committed-hours budget from the instructor's per-category time estimates (minutes per item) and the course's item counts. Captured when the feature is enabled.",
+      "Stores the students' committed-hours budget as the sum of the instructor's total estimated hours per category (all videos together, all quizzes together, all projects together, etc.). Captured when the feature is enabled.",
   })
   @Authorized()
   @Put('/budget')
@@ -437,7 +438,7 @@ class TimeSlotController {
       const data = await this.timeSlotService.configureHoursBudget(
         body.courseId,
         body.courseVersionId,
-        body.estimatesMinutes ?? {},
+        body.categoryHours ?? {},
         body.hoursFactor,
         user._id.toString(),
       );

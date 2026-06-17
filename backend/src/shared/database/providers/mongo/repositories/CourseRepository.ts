@@ -548,19 +548,28 @@ export class CourseRepository implements ICourseRepository {
     itemGroupId: ID,
     session?: ClientSession,
   ): Promise<IItemGroupInfo | null> {
+    if (!itemGroupId) return null;
+    // section.itemsGroupId is stored as an ObjectId (SectionService), but callers
+    // pass the id as a string and a Mongo $match does NOT coerce string<->ObjectId.
+    // A string-only match silently returned null here, which 404'd the next-item
+    // resolver ("Module/Section not found for itemGroupId"). Match both forms.
+    const idStr = itemGroupId.toString();
+    const idVariants: (string | ObjectId)[] = ObjectId.isValid(idStr)
+      ? [idStr, new ObjectId(idStr)]
+      : [idStr];
     const result = await this.courseVersionCollection
       .aggregate<IItemGroupInfo>(
         [
           {
             $match: {
-              'modules.sections.itemsGroupId': itemGroupId,
+              'modules.sections.itemsGroupId': { $in: idVariants },
             },
           },
           { $unwind: '$modules' },
           { $unwind: '$modules.sections' },
           {
             $match: {
-              'modules.sections.itemsGroupId': itemGroupId,
+              'modules.sections.itemsGroupId': { $in: idVariants },
             },
           },
           {
