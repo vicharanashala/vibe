@@ -656,13 +656,22 @@ export interface ISettings {
     dailyBaseAllowance?: number;
     // Total committed hours a student may book across this course (their hours
     // budget). Bookings consume their `hoursReserved` against it; undefined =
-    // unlimited. Computed from the instructor's per-category estimates × counts.
+    // unlimited. Equals the sum of categoryBudgetHours × hoursFactor.
     totalBudgetHours?: number;
-    // Optional multiplier applied to the estimated effort (default 1).
+    // Optional multiplier applied to the summed category hours (default 1).
     hoursFactor?: number;
-    // Instructor's estimated time PER ITEM (minutes) for each item category,
-    // captured when the feature is enabled. Combined with the course version's
-    // item counts to compute totalBudgetHours.
+    // Instructor's estimated TOTAL hours for all items of each category together
+    // (e.g. all videos ~10h, all quizzes ~3h, the project 2h). Summed to compute
+    // totalBudgetHours. Captured when the feature is enabled.
+    categoryBudgetHours?: {
+      VIDEO?: number;
+      QUIZ?: number;
+      BLOG?: number;
+      PROJECT?: number;
+      FEEDBACK?: number;
+    };
+    // Legacy (pre-2026-06-17): per-item minute estimates × item counts. Kept for
+    // reading old settings; no longer written. Superseded by categoryBudgetHours.
     categoryTimeEstimatesMinutes?: {
       VIDEO?: number;
       QUIZ?: number;

@@ -454,7 +454,7 @@ export class TimeSlotService extends BaseService {
   async configureHoursBudget(
     courseId: string,
     courseVersionId: string,
-    estimatesMinutes: {
+    categoryHours: {
       VIDEO?: number;
       QUIZ?: number;
       BLOG?: number;
@@ -465,8 +465,7 @@ export class TimeSlotService extends BaseService {
     userId: string,
   ): Promise<{
     totalBudgetHours: number;
-    estimatedEffortHours: number;
-    itemCounts: Record<string, number>;
+    totalCategoryHours: number;
   }> {
     return this._withTransaction(async (session) => {
       const version = await this.courseRepo.readVersion(
@@ -477,25 +476,26 @@ export class TimeSlotService extends BaseService {
         throw new NotFoundError('Course version not found.');
       }
 
-      const counts = (version.itemCounts ?? {}) as Record<string, number>;
+      // The instructor estimates the TOTAL hours for all items of each kind
+      // together (e.g. "~10h of video across the course, a 2h project") — not a
+      // per-item rate. The committed-hours budget is simply their sum.
       const categories = ['VIDEO', 'QUIZ', 'BLOG', 'PROJECT', 'FEEDBACK'] as const;
 
-      let totalMinutes = 0;
+      let totalCategoryHours = 0;
       for (const cat of categories) {
-        const n = counts[cat] ?? 0;
-        const est = estimatesMinutes[cat] ?? 0;
-        if (est < 0) {
+        const h = categoryHours[cat] ?? 0;
+        if (h < 0) {
           throw new BadRequestError(
-            `Invalid time estimate for ${cat}: ${est}. Must be >= 0.`,
+            `Invalid hours for ${cat}: ${h}. Must be >= 0.`,
           );
         }
-        totalMinutes += n * est;
+        totalCategoryHours += h;
       }
+      totalCategoryHours = Math.round(totalCategoryHours * 100) / 100;
 
       const factor = hoursFactor && hoursFactor > 0 ? hoursFactor : 1;
-      const estimatedEffortHours = Math.round((totalMinutes / 60) * 100) / 100;
       const totalBudgetHours =
-        Math.round(estimatedEffortHours * factor * 100) / 100;
+        Math.round(totalCategoryHours * factor * 100) / 100;
 
       const existing = await this.settingsRepo.readTimeslotsSettings(
         courseId,
@@ -504,7 +504,7 @@ export class TimeSlotService extends BaseService {
       );
       const updated = {
         ...(existing ?? { isActive: true, slots: [] }),
-        categoryTimeEstimatesMinutes: estimatesMinutes,
+        categoryBudgetHours: categoryHours,
         hoursFactor: factor,
         totalBudgetHours,
       };
@@ -519,7 +519,7 @@ export class TimeSlotService extends BaseService {
         throw new InternalServerError('Failed to save the hours budget.');
       }
 
-      return { totalBudgetHours, estimatedEffortHours, itemCounts: counts };
+      return { totalBudgetHours, totalCategoryHours };
     });
   }
 
