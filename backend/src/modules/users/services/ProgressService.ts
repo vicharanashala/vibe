@@ -3183,6 +3183,8 @@ class ProgressService extends BaseService {
     isPassed: boolean,
     watchItemId?: string,
     cohortId?: string,
+    quizModuleId?: string,
+    quizSectionId?: string,
   ) {
     return this._withTransaction(async session => {
       // Fetch progress and course version in parallel
@@ -3197,13 +3199,18 @@ class ProgressService extends BaseService {
 
     // const courseVersion = await this.courseRepo.readVersion(courseVersionId);
 
-    if (isPassed) {
-      const nextItemDetails = await this.getNextItemInSequence(
-        courseVersion,
-        progress.currentModule.toString(),
-        progress.currentSection.toString(),
-        quizId,
-      );
+      if (isPassed) {
+        // Prefer the quiz's actual module/section over the cursor's current
+        // position — the cursor can be stale if it drifted ahead via optimistic
+        // UI, which would make getNextItemInSequence check "is this the last
+        // item" against the wrong section and silently fail to roll over into
+        // the next module.
+        const nextItemDetails = await this.getNextItemInSequence(
+          courseVersion,
+          quizModuleId || progress.currentModule.toString(),
+          quizSectionId || progress.currentSection.toString(),
+          quizId,
+        );
 
       if (!nextItemDetails) {
         // Course completed → reset to first item

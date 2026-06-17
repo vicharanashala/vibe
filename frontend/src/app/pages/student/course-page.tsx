@@ -2494,6 +2494,25 @@ return false;
                 />
                 {currentItem ? (
                   <div className="relative z-10 h-full flex flex-col mb-2  sm:mb-1">
+                    {anomalies.includes("faceRecognition") && (
+                      <div className="absolute inset-0 bg-black/85 backdrop-blur-md z-[9999] flex flex-col items-center justify-center p-6 text-center select-none rounded-lg border border-red-500/20">
+                        <div className="max-w-md space-y-6 animate-in fade-in zoom-in duration-300">
+                          <div className="mx-auto w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/30">
+                            <AlertCircle className="w-10 h-10 text-red-500 animate-pulse" />
+                          </div>
+                          <div className="space-y-2">
+                            <h2 className="text-2xl font-bold text-red-500">Identity Mismatch Paused</h2>
+                            <p className="text-gray-300 text-sm leading-relaxed">
+                              The camera detects a different face or an unknown person. Please ensure the registered student is watching the course to continue.
+                            </p>
+                          </div>
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20">
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                            <span className="text-xs font-semibold text-red-400">Verifying live via camera...</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <div className={`${focusMode ? 'hidden' : 'flex'} justify-end mb-1 me-10 gap-2 `}>
                       {!isFlagSubmitted &&
                         <Button
