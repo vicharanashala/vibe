@@ -620,15 +620,18 @@ const lastCalledRef = useRef<number>(0);
           // No faces detected - this might be normal during initialization
           // Only penalize if we're sure the camera is active and should see a face
           if (isVideoActive && readyToDetect) {
-            setAnomalies([...anomalies, "faceCountDetection"]);
+            // Tag with "noFace" so the alert can say "Please stay in frame"
+            setAnomalies([...anomalies, "faceCountDetection", "noFace"]);
             newPenaltyType = "No Face Detected";
             newPenaltyPoints += 1;
+            // Surface the live camera frame so the learner can reposition
+            setIsCollapsed(false);
           }
         } else if (facesCount > 1) {
           // Multiple faces detected - this is an anomaly
           setRewindVid(true);
           setPauseVid(true);
-          setAnomalies([...anomalies, "faceCountDetection"]);
+          setAnomalies([...anomalies, "faceCountDetection", "multipleFaces"]);
           newPenaltyType = "Multiple Faces";
           newPenaltyPoints += 2; // More severe penalty for multiple faces
         }
@@ -1236,6 +1239,11 @@ const lastCalledRef = useRef<number>(0);
 {!modelReady && (
   <div className="absolute inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 text-white text-sm font-medium">
     Preparing environment...
+  </div>
+)}
+{modelReady && isFaceCountDetectionEnabled && facesCount === 0 && !isCollapsed && (
+  <div className="absolute inset-x-0 bottom-0 z-40 bg-black bg-opacity-70 text-white text-sm font-medium text-center py-2 px-2">
+    Please stay in frame
   </div>
 )}
         {/* Enhanced Face Recognition Debug Overlay */}

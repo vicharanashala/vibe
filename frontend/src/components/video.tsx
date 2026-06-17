@@ -1562,7 +1562,15 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
                             ) : <></>}
 
-                            {anomalies?.includes("faceCountDetection") ? (
+                            {anomalies?.includes("noFace") ? (
+
+                              <div style={{ marginBottom: 6 }}>
+
+                                <strong>Please stay in frame</strong>
+
+                              </div>
+
+                            ) : anomalies?.includes("faceCountDetection") ? (
 
                               <div style={{ marginBottom: 6 }}>
 
