@@ -681,18 +681,42 @@ class AttemptService extends BaseService {
     };
 
     const isItemCompleted = await this.progressRepository.isItemCompleted(
-        userId.toString(),
-        courseId,
-        courseVersionId,
-        quizId,
-        cohortId,
-      )
+      userId.toString(),
+      courseId,
+      courseVersionId,
+      quizId,
+      cohortId,
+    )
     /* -------------------- UPDATE SUBMISSION (SMALL WRITE) -------------------- */
-
     await this.submissionRepository.update(submissionId, { gradingResult });
     const isPassed = gradingResult.gradingStatus === "PASSED"
     if (!isSkipped && (!isItemCompleted || isPassed)) {
-      await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed, watchItemId, cohortId);
+      // Resolve the quiz's actual moduleId/sectionId rather than trusting
+      // progress.currentModule/currentSection, which can be stale if the
+      // student's cursor has drifted ahead via optimistic UI. Without this,
+      // getNextItemInSequence checks "is this the last item" against the
+      // wrong section and never rolls over into the next module.
+      let quizModuleId: string | undefined;
+      let quizSectionId: string | undefined;
+      const quizItemsGroup = await this.itemRepo.findItemsGroupByItemId(quizId);
+      if (quizItemsGroup?._id) {
+        const quizVersion = await this.courseRepo.findVersionByItemGroupId(
+          quizItemsGroup._id.toString(),
+        );
+        if (quizVersion) {
+          for (const mod of quizVersion.modules) {
+            const sec = mod.sections.find(
+              s => s.itemsGroupId?.toString() === quizItemsGroup._id.toString(),
+            );
+            if (sec) {
+              quizModuleId = mod.moduleId?.toString();
+              quizSectionId = sec.sectionId?.toString();
+              break;
+            }
+          }
+        }
+      }
+      await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed, watchItemId, cohortId, quizModuleId, quizSectionId);
     }
 
     /* -------------------- RETURN BASED ON QUIZ SETTINGS -------------------- */
