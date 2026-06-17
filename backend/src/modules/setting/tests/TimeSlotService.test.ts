@@ -451,50 +451,47 @@ describe('TimeSlotService.addTimeSlots (teacher dual-write)', () => {
 describe('TimeSlotService.configureHoursBudget', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('computes the budget from per-category estimates × item counts', async () => {
+  it('sums the instructor\'s total category hours into the budget', async () => {
     const { svc, settingsRepo } = makeService({
-      version: {
-        courseId: COURSE,
-        itemCounts: { VIDEO: 10, QUIZ: 4, BLOG: 6, PROJECT: 1 },
-      },
+      version: { courseId: COURSE },
       timeslots: { isActive: true, slots: [] },
     });
 
-    // 10*12 + 4*15 + 6*20 + 1*120 = 420 min = 7h
+    // 10h video + 3h quiz + 2h reading + 2h project = 17h
     const res = await svc.configureHoursBudget(
       COURSE,
       VERSION,
-      { VIDEO: 12, QUIZ: 15, BLOG: 20, PROJECT: 120 },
+      { VIDEO: 10, QUIZ: 3, BLOG: 2, PROJECT: 2 },
       undefined,
       'teacher-1',
     );
 
-    expect(res.estimatedEffortHours).toBe(7);
-    expect(res.totalBudgetHours).toBe(7);
+    expect(res.totalCategoryHours).toBe(17);
+    expect(res.totalBudgetHours).toBe(17);
     const saved = settingsRepo.updateTimeslotsSettings.mock.calls[0][2];
-    expect(saved.totalBudgetHours).toBe(7);
-    expect(saved.categoryTimeEstimatesMinutes).toEqual({
-      VIDEO: 12,
-      QUIZ: 15,
-      BLOG: 20,
-      PROJECT: 120,
+    expect(saved.totalBudgetHours).toBe(17);
+    expect(saved.categoryBudgetHours).toEqual({
+      VIDEO: 10,
+      QUIZ: 3,
+      BLOG: 2,
+      PROJECT: 2,
     });
   });
 
   it('applies the hours factor', async () => {
     const { svc } = makeService({
-      version: { courseId: COURSE, itemCounts: { VIDEO: 10 } },
+      version: { courseId: COURSE },
     });
-    // 10*6 = 60 min = 1h × 1.5 = 1.5h
+    // (4h + 0 + 0 + 0) × 1.5 = 6h
     const res = await svc.configureHoursBudget(
       COURSE,
       VERSION,
-      { VIDEO: 6 },
+      { VIDEO: 4 },
       1.5,
       'teacher-1',
     );
-    expect(res.estimatedEffortHours).toBe(1);
-    expect(res.totalBudgetHours).toBe(1.5);
+    expect(res.totalCategoryHours).toBe(4);
+    expect(res.totalBudgetHours).toBe(6);
   });
 
   it('rejects when the course version is not found', async () => {

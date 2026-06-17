@@ -5646,7 +5646,9 @@ export function useGetTimeSlots(
 
 // PUT /timeslots/budget — configure the per-course hours budget from the
 // instructor's per-category time estimates (raw fetch: not in the typed schema).
-export type CategoryEstimatesMinutes = {
+// Instructor's TOTAL estimated hours for all items of each category together
+// (all videos, all quizzes, all readings, all projects) — not a per-item rate.
+export type CategoryHours = {
   VIDEO?: number;
   QUIZ?: number;
   BLOG?: number;
@@ -5661,12 +5663,11 @@ export function useSetHoursBudget() {
   const setHoursBudget = async (
     courseId: string,
     courseVersionId: string,
-    estimatesMinutes: CategoryEstimatesMinutes,
+    categoryHours: CategoryHours,
     hoursFactor?: number,
   ): Promise<{
     totalBudgetHours: number;
-    estimatedEffortHours: number;
-    itemCounts: Record<string, number>;
+    totalCategoryHours: number;
   }> => {
     setLoading(true);
     setError(null);
@@ -5678,7 +5679,7 @@ export function useSetHoursBudget() {
           'Content-Type': 'application/json',
           authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
         },
-        body: JSON.stringify({ courseId, courseVersionId, estimatesMinutes, hoursFactor }),
+        body: JSON.stringify({ courseId, courseVersionId, categoryHours, hoursFactor }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
