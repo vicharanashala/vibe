@@ -97,6 +97,10 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const progressStoppedRef = useRef(false);
   const watchItemIdRef = useRef<string | null>(null);
   const stopInFlightRef = useRef(false);
+   const nextItemIdRef = useRef(nextItemId);
+  useEffect(() => {
+    nextItemIdRef.current = nextItemId;
+  }, [nextItemId]);
 
   // subtitlesEnabled is persisted in the player store (see usePlayerStore above).
   const [subtitlesAvailable, setSubtitlesAvailable] = useState(false);
@@ -416,7 +420,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 moduleId: currentCourse!.moduleId ?? '',
                 sectionId: currentCourse!.sectionId ?? '',
                 seekForwardEnabled,
-                nextItemId,
+                nextItemId: nextItemIdRef.current,
                 cohortId: currentCourse!.cohortId || undefined,
               },
             });

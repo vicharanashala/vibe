@@ -93,6 +93,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   // ===== REFS AND CONSTANTS =====
   const itemStartedRef = useRef(false);
   const quizAttemptedRef = useRef(false);
+  const nextItemIdRef = useRef(nextItemId);
+  useEffect(() => {
+    nextItemIdRef.current = nextItemId;
+  }, [nextItemId]);
   const processedQuizId = bufferToHex(quizId);
 
   // ===== HOOKS =====
@@ -506,13 +510,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         sectionId: currentCourse.sectionId ?? '',
         attemptId,
         isSkipped,
-        nextItemId,
+        nextItemId: nextItemIdRef.current,
         cohortId: currentCourse.cohortId ?? '',
       }
     });
     completedItemIdsRef.current.add(currentCourse.itemId);
     itemStartedRef.current = false;
-  }, [currentCourse, stopItem, attemptId, isAlreadyWatched, completedItemIdsRef]);
+  }, [currentCourse, stopItem, attemptId, isAlreadyWatched, completedItemIdsRef, nextItemId]);
 
 
   const stopItemAsync = useCallback(
@@ -540,14 +544,14 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           sectionId: currentCourse.sectionId ?? '',
           attemptId,
           isSkipped,
-          nextItemId,
+          nextItemId: nextItemIdRef.current,
           cohortId: currentCourse.cohortId ?? '',
         },
       });
 
       itemStartedRef.current = false;
     },
-    [currentCourse, stopItem, attemptId]
+    [currentCourse, stopItem, attemptId, nextItemId]
   );
 
   useEffect(() => {
@@ -1197,7 +1201,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             sectionId: currentCourse.sectionId ?? '',
             attemptId,
             isSkipped: false,
-            nextItemId,
+            nextItemId: nextItemIdRef.current,
             cohortId: currentCourse.cohortId ?? '',
           }
         });
@@ -1216,7 +1220,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         questionId: currentQuestion?.id
       };
     }
-  }), [stopItem, currentCourse, attemptId, resetQuiz, currentQuestion]);
+  }), [stopItem, currentCourse, attemptId, resetQuiz, currentQuestion, nextItemId]);
 
   // ===== RENDER LOGIC =====
 
