@@ -56,10 +56,13 @@ export class StudentQuestionService {
     },
   ): Promise<void> {
     try {
-      const item = await this.itemRepo.readItemById(input.segmentId).catch(() => null);
-      if (!item || (item as any).type !== ItemType.QUIZ) return;
+      // `segmentId` is the VIDEO item the student just finished. The question
+      // belongs in the quiz that immediately follows that video in the same
+      // section, so resolve that quiz's question bank.
+      const quizItem = await this._resolveTargetQuiz(input.segmentId);
+      if (!quizItem) return;
 
-      const bankId = ((item as any).details as IQuizDetails | undefined)
+      const bankId = ((quizItem as any).details as IQuizDetails | undefined)
         ?.questionBankRefs?.[0]?.bankId?.toString();
       if (!bankId) return;
 
@@ -92,6 +95,44 @@ export class StudentQuestionService {
     } catch (err) {
       console.warn('crowd-q: promotion failed (non-fatal)', err);
     }
+  }
+
+  /**
+   * Resolve the quiz whose question bank should receive a submission.
+   *
+   * Student questions are submitted at a video→quiz transition and stored
+   * against the VIDEO item's id (`segmentId`). The target quiz is the item
+   * immediately after that video in the same section's ordered item list.
+   * If `segmentId` already points at a quiz, that quiz is used directly
+   * (defensive: covers any caller that passes the quiz id).
+   */
+  private async _resolveTargetQuiz(segmentId: string): Promise<unknown | null> {
+    const segmentItem = await this.itemRepo
+      .readItemById(segmentId)
+      .catch(() => null);
+    if (!segmentItem) return null;
+    if ((segmentItem as any).type === ItemType.QUIZ) return segmentItem;
+
+    const group = await this.itemRepo
+      .findItemsGroupByItemId(segmentId)
+      .catch(() => null);
+    const items = (group as any)?.items;
+    if (!Array.isArray(items) || items.length === 0) return null;
+
+    const ordered = [...items].sort((a, b) =>
+      String(a.order).localeCompare(String(b.order)),
+    );
+    const index = ordered.findIndex(i => i?._id?.toString() === segmentId);
+    if (index === -1 || index + 1 >= ordered.length) return null;
+
+    const next = ordered[index + 1];
+    if (!next || next.type !== ItemType.QUIZ) return null;
+
+    const quizItem = await this.itemRepo
+      .readItemById(next._id.toString())
+      .catch(() => null);
+    if (!quizItem || (quizItem as any).type !== ItemType.QUIZ) return null;
+    return quizItem;
   }
 
   /**
