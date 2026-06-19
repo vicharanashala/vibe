@@ -5697,6 +5697,53 @@ export function useSetHoursBudget() {
   return { setHoursBudget, loading, error };
 }
 
+// PUT /timeslots/fulfillment — configure the Phase 3 fulfillment threshold and
+// whether fulfilling a window grants a same-day bonus booking (raw fetch).
+export function useSetFulfillmentConfig() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const setFulfillmentConfig = async (
+    courseId: string,
+    courseVersionId: string,
+    fulfillmentThresholdPct: number,
+    bonusOnFulfillment: boolean,
+  ): Promise<{ fulfillmentThresholdPct: number; bonusOnFulfillment: boolean }> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/timeslots/fulfillment`;
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+        body: JSON.stringify({
+          courseId,
+          courseVersionId,
+          fulfillmentThresholdPct,
+          bonusOnFulfillment,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          data?.message || `Failed to set fulfillment settings: ${res.status}`,
+        );
+      }
+      return data?.data;
+    } catch (err: any) {
+      setError(err.message || 'Unknown error');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { setFulfillmentConfig, loading, error };
+}
+
 // PUT /timeslots/extend — grant a student extra committed hours (raw fetch).
 export function useGrantExtraHours() {
   const [loading, setLoading] = useState(false);

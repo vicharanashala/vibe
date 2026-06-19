@@ -524,6 +524,59 @@ export class TimeSlotService extends BaseService {
   }
 
   /**
+   * Configure the Phase 3 fulfillment + bonus rules: the active-share threshold
+   * a booked window must clear to count as FULFILLED (0–100, default 90), and
+   * whether fulfilling a window grants a same-day bonus booking. Preserves the
+   * rest of the timeslots config.
+   */
+  async configureFulfillment(
+    courseId: string,
+    courseVersionId: string,
+    fulfillmentThresholdPct: number | undefined,
+    bonusOnFulfillment: boolean,
+  ): Promise<{fulfillmentThresholdPct: number; bonusOnFulfillment: boolean}> {
+    return this._withTransaction(async (session) => {
+      const threshold = fulfillmentThresholdPct ?? 90;
+      if (
+        typeof threshold !== 'number' ||
+        Number.isNaN(threshold) ||
+        threshold < 0 ||
+        threshold > 100
+      ) {
+        throw new BadRequestError(
+          `Invalid fulfillment threshold: ${fulfillmentThresholdPct}. Must be between 0 and 100.`,
+        );
+      }
+
+      const existing = await this.settingsRepo.readTimeslotsSettings(
+        courseId,
+        courseVersionId,
+        session,
+      );
+      const updated = {
+        ...(existing ?? {isActive: true, slots: []}),
+        fulfillmentThresholdPct: threshold,
+        bonusOnFulfillment: !!bonusOnFulfillment,
+      };
+
+      const result = await this.settingsRepo.updateTimeslotsSettings(
+        courseId,
+        courseVersionId,
+        updated,
+        session,
+      );
+      if (!result) {
+        throw new InternalServerError('Failed to save the fulfillment settings.');
+      }
+
+      return {
+        fulfillmentThresholdPct: threshold,
+        bonusOnFulfillment: !!bonusOnFulfillment,
+      };
+    });
+  }
+
+  /**
    * Grant a student extra committed hours on top of the course budget
    * (instructor action when a student has exhausted their hours).
    */

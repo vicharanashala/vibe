@@ -92,6 +92,14 @@ class SetHoursBudgetRequestBody {
   hoursFactor?: number;
 }
 
+// Request body for the Phase 3 fulfillment + bonus rules.
+class SetFulfillmentConfigRequestBody {
+  courseId: string;
+  courseVersionId: string;
+  fulfillmentThresholdPct?: number; // 0–100, default 90
+  bonusOnFulfillment?: boolean;
+}
+
 // Request body for granting a student extra committed hours.
 class ExtendStudentHoursRequestBody {
   courseId: string;
@@ -455,6 +463,50 @@ class TimeSlotController {
         throw error;
       }
       throw new InternalServerError(`Failed to set hours budget: ${error}`);
+    }
+  }
+
+  @OpenAPI({
+    summary: 'Set the fulfillment & bonus rules',
+    description:
+      'Stores the Phase 3 fulfillment threshold (active share of a window, 0–100, default 90) and whether fulfilling a window grants a same-day bonus booking.',
+  })
+  @Authorized()
+  @Put('/fulfillment')
+  @HttpCode(200)
+  @ResponseSchema(TimeSlotResponse, {
+    description: 'Fulfillment settings configured successfully',
+  })
+  async setFulfillmentConfig(
+    @Body() body: SetFulfillmentConfigRequestBody,
+    @Ability(getItemAbility) { ability },
+  ): Promise<TimeSlotResponse> {
+    const itemResource = subject('Item', { versionId: body.courseVersionId });
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
+    try {
+      const data = await this.timeSlotService.configureFulfillment(
+        body.courseId,
+        body.courseVersionId,
+        body.fulfillmentThresholdPct,
+        body.bonusOnFulfillment ?? false,
+      );
+      return {
+        success: true,
+        message: 'Fulfillment settings configured successfully',
+        data,
+      };
+    } catch (error) {
+      if (error instanceof BadRequestError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new InternalServerError(
+        `Failed to set fulfillment settings: ${error}`,
+      );
     }
   }
 

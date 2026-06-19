@@ -502,6 +502,42 @@ describe('TimeSlotService.configureHoursBudget', () => {
   });
 });
 
+describe('TimeSlotService.configureFulfillment', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('writes the threshold + bonus and preserves the rest of the config', async () => {
+    const { svc, settingsRepo } = makeService({
+      timeslots: { isActive: true, slots: [{ from: '09:00', to: '10:00' }], dailyBaseAllowance: 2 },
+    });
+
+    const res = await svc.configureFulfillment(COURSE, VERSION, 80, true);
+
+    expect(res).toEqual({ fulfillmentThresholdPct: 80, bonusOnFulfillment: true });
+    const saved = settingsRepo.updateTimeslotsSettings.mock.calls[0][2];
+    expect(saved).toMatchObject({
+      isActive: true,
+      dailyBaseAllowance: 2,
+      fulfillmentThresholdPct: 80,
+      bonusOnFulfillment: true,
+    });
+    expect(saved.slots).toHaveLength(1); // preserved
+  });
+
+  it('defaults the threshold to 90 when not provided', async () => {
+    const { svc, settingsRepo } = makeService({ timeslots: { isActive: true, slots: [] } });
+    const res = await svc.configureFulfillment(COURSE, VERSION, undefined, false);
+    expect(res.fulfillmentThresholdPct).toBe(90);
+    expect(settingsRepo.updateTimeslotsSettings.mock.calls[0][2].bonusOnFulfillment).toBe(false);
+  });
+
+  it('rejects a threshold outside 0–100', async () => {
+    const { svc } = makeService({ timeslots: { isActive: true, slots: [] } });
+    await expect(
+      svc.configureFulfillment(COURSE, VERSION, 150, true),
+    ).rejects.toThrowError(/between 0 and 100/i);
+  });
+});
+
 describe('TimeSlotService.extendStudentHours', () => {
   beforeEach(() => vi.clearAllMocks());
 

@@ -18,6 +18,7 @@ import {
   useRemoveStudentFromTimeSlot,
   useSetHoursBudget,
   useGrantExtraHours,
+  useSetFulfillmentConfig,
   useSlotDemand,
 } from "@/hooks/hooks";
 import { ClockTimePicker } from "./ClockTimePicker";
@@ -154,6 +155,9 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   // Grant extra committed hours to a specific student.
   const [extendStudentId, setExtendStudentId] = useState<string>("");
   const [extendHours, setExtendHours] = useState<number>(1);
+  // Phase 3: fulfillment threshold (active share of a window) + bonus toggle.
+  const [fulfillmentThresholdPct, setFulfillmentThresholdPct] = useState<number>(90);
+  const [bonusOnFulfillment, setBonusOnFulfillment] = useState<boolean>(false);
 
   // Hooks
   const { data: timeSlotsData, refetch: refetchTimeSlots } = useGetTimeSlots(
@@ -172,6 +176,7 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   const removeStudentFromTimeSlotMutation = useRemoveStudentFromTimeSlot();
   const { setHoursBudget, loading: budgetLoading } = useSetHoursBudget();
   const { grantExtraHours, loading: extendLoading } = useGrantExtraHours();
+  const { setFulfillmentConfig, loading: fulfillmentLoading } = useSetFulfillmentConfig();
 
   // Seed any saved budget/estimates when the modal loads.
   useEffect(() => {
@@ -182,7 +187,32 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
     if (typeof ts?.totalBudgetHours === 'number') {
       setBudgetResult(r => r ?? { totalBudgetHours: ts.totalBudgetHours });
     }
+    if (typeof ts?.fulfillmentThresholdPct === 'number') {
+      setFulfillmentThresholdPct(ts.fulfillmentThresholdPct);
+    }
+    if (typeof ts?.bonusOnFulfillment === 'boolean') {
+      setBonusOnFulfillment(ts.bonusOnFulfillment);
+    }
   }, [timeSlotsData]);
+
+  const handleSaveFulfillment = async () => {
+    try {
+      const result = await setFulfillmentConfig(
+        courseId,
+        courseVersionId,
+        fulfillmentThresholdPct,
+        bonusOnFulfillment,
+      );
+      setFulfillmentThresholdPct(result.fulfillmentThresholdPct);
+      setBonusOnFulfillment(result.bonusOnFulfillment);
+      toast.success(
+        `Fulfillment set: ${result.fulfillmentThresholdPct}% active` +
+          (result.bonusOnFulfillment ? ', bonus on' : ', bonus off'),
+      );
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to set fulfillment settings');
+    }
+  };
 
   const handleSaveBudget = async () => {
     try {
@@ -682,6 +712,57 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                             <span className="text-green-700"> · saved {budgetResult.totalBudgetHours}h</span>
                           ) : null}
                         </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Fulfillment & bonus (Phase 3) */}
+                  <Card className="border shadow-sm">
+                    <CardContent className="p-4 space-y-3">
+                      <div>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Clock className="h-5 w-5" />
+                          Fulfillment &amp; bonus
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          A booked window counts as <span className="font-medium">fulfilled</span> when the student is active for at least this share of it. Optionally reward a fulfilled window with one extra booking the same day.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-end gap-4">
+                        <div className="w-40">
+                          <Label className="text-xs">Active threshold (%)</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={fulfillmentThresholdPct}
+                            onChange={(e) =>
+                              setFulfillmentThresholdPct(
+                                Math.max(0, Math.min(100, Number(e.target.value))),
+                              )
+                            }
+                            className="mt-1"
+                          />
+                        </div>
+                        <label className="flex items-center gap-2 text-sm select-none pb-2">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            checked={bonusOnFulfillment}
+                            onChange={(e) => setBonusOnFulfillment(e.target.checked)}
+                          />
+                          Grant a bonus booking on fulfillment
+                        </label>
+                      </div>
+                      <div>
+                        <Button size="sm" onClick={handleSaveFulfillment} disabled={fulfillmentLoading}>
+                          {fulfillmentLoading ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Save className="h-4 w-4 mr-2" />
+                          )}
+                          Save fulfillment
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
