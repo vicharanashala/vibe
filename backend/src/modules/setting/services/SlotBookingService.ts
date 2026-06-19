@@ -46,13 +46,56 @@ export class SlotBookingService extends BaseService {
     super(mongoDatabase);
   }
 
+  /** How many days before the study day booking opens. */
+  private static readonly BOOKING_OPEN_LEAD_DAYS = 2;
+  /** Hour (IST) at which booking opens on D-2 and closes on D. */
+  private static readonly BOOKING_CUTOFF_HOUR = 9;
+
+  /** IST "now" as epoch ms whose UTC fields read as the IST wall clock. */
+  private getISTNowMs(): number {
+    return Date.now() + 5.5 * 60 * 60 * 1000;
+  }
+
+  /** Format an IST-space epoch ms (UTC fields = IST wall clock) as YYYY-MM-DD. */
+  private formatISTDate(istMs: number): string {
+    const ist = new Date(istMs);
+    const y = ist.getUTCFullYear();
+    const m = String(ist.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(ist.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
   /** Current calendar date in IST as YYYY-MM-DD. */
   private getCurrentISTDate(): string {
-    const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
-    const y = istNow.getUTCFullYear();
-    const m = String(istNow.getUTCMonth() + 1).padStart(2, '0');
-    const d = String(istNow.getUTCDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
+    return this.formatISTDate(this.getISTNowMs());
+  }
+
+  /** The IST calendar date a Date was created on (for the per-day allowance). */
+  private istDateOf(d: Date): string {
+    return this.formatISTDate(d.getTime() + 5.5 * 60 * 60 * 1000);
+  }
+
+  /**
+   * Booking window for study day D: opens at 09:00 IST on D-2 and closes at
+   * 09:00 IST on D. So at any moment a student may book today (only before
+   * 9 AM), tomorrow (all day), and the day after tomorrow (only from 9 AM).
+   * Returns the open/close instants as IST-space epoch ms.
+   */
+  private bookingWindowForDate(date: string): {openMs: number; closeMs: number} {
+    const [y, m, d] = date.split('-').map(Number);
+    const closeMs = Date.UTC(
+      y,
+      m - 1,
+      d,
+      SlotBookingService.BOOKING_CUTOFF_HOUR,
+      0,
+      0,
+      0,
+    );
+    const openMs =
+      closeMs -
+      SlotBookingService.BOOKING_OPEN_LEAD_DAYS * 24 * 60 * 60 * 1000;
+    return {openMs, closeMs};
   }
 
   private toMinutes(time: string): number {
@@ -73,9 +116,11 @@ export class SlotBookingService extends BaseService {
   }
 
   /**
-   * Book a time slot for the current IST day. Enforces: feature active, the slot
-   * is offered, no duplicate, the student's daily allowance, and the slot's hard
-   * capacity cap.
+   * Book a time slot for a study day (defaults to today). A booking for day D is
+   * only accepted inside D's booking window — 09:00 IST on D-2 through 09:00 IST
+   * on D. Enforces: feature active, the slot is offered, the booking window, no
+   * duplicate, the student's per-day allowance, the slot's hard capacity cap, and
+   * the course hours budget.
    */
   async bookSlot(
     userId: string,
@@ -83,6 +128,7 @@ export class SlotBookingService extends BaseService {
     courseVersionId: string,
     slot: {from: string; to: string},
     cohortId?: string,
+    targetDate?: string,
   ): Promise<ISlotBooking> {
     return this._withTransaction(async (session) => {
       const timeslots = await this.settingsRepo.readTimeslotsSettings(
@@ -125,21 +171,56 @@ export class SlotBookingService extends BaseService {
         throw new NotFoundError('You are not enrolled in this course.');
       }
 
-      const date = this.getCurrentISTDate();
-      const myBookings = await this.slotBookingRepo.findActiveForStudent(
+      const today = this.getCurrentISTDate();
+      const date = targetDate ?? today;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        throw new BadRequestError('Invalid booking date.');
+      }
+
+      // The booking window: opens 09:00 IST on D-2, closes 09:00 IST on D.
+      const {openMs, closeMs} = this.bookingWindowForDate(date);
+      const nowMs = this.getISTNowMs();
+      if (nowMs < openMs) {
+        throw new BadRequestError(
+          `Booking for ${date} hasn't opened yet. ` +
+            `It opens at 9:00 AM IST on ${this.formatISTDate(openMs)}.`,
+        );
+      }
+      if (nowMs >= closeMs) {
+        throw new BadRequestError(
+          `Booking for ${date} has closed. ` +
+            'Bookings close at 9:00 AM IST on the study day.',
+        );
+      }
+
+      // All of the student's active bookings on this course (any study day).
+      const allBookings = await this.slotBookingRepo.findActiveForStudent(
         userId,
         courseId,
         courseVersionId,
-        date,
+        undefined,
         session,
       );
 
-      if (myBookings.some(b => b.from === slot.from && b.to === slot.to)) {
-        throw new BadRequestError('You have already booked this slot today.');
+      if (
+        allBookings.some(
+          b => b.date === date && b.from === slot.from && b.to === slot.to,
+        )
+      ) {
+        throw new BadRequestError(
+          'You have already booked this slot for that day.',
+        );
       }
 
+      // Allowance is per CALENDAR DAY the booking is made (not per study day):
+      // every booking a student creates today shares one daily allowance.
       const allowance = timeslots.dailyBaseAllowance ?? 1;
-      if (myBookings.length >= allowance) {
+      const madeToday = allBookings.filter(
+        b =>
+          (b.bookedOnDate ??
+            (b.createdAt ? this.istDateOf(b.createdAt) : undefined)) === today,
+      );
+      if (madeToday.length >= allowance) {
         throw new BadRequestError(
           `You have used your ${allowance} booking(s) for today.`,
         );
@@ -197,6 +278,7 @@ export class SlotBookingService extends BaseService {
         courseVersionId,
         cohortId: cohortId ?? undefined,
         date,
+        bookedOnDate: today,
         from: slot.from,
         to: slot.to,
         overnight: this.isOvernight(slot.from, slot.to),

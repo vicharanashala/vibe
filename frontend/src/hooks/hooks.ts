@@ -5845,6 +5845,7 @@ export function useSlotDemand(
 export interface MyBooking {
   _id: string;
   date: string;
+  bookedOnDate?: string;
   from: string;
   to: string;
   kind?: string;
@@ -5856,6 +5857,44 @@ export interface MyBooking {
 // daily-allowance math lines up regardless of the viewer's local timezone.
 export function istToday(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+}
+
+// Current hour (0-23) in IST, used to gate which study days are bookable now.
+export function istHour(): number {
+  return parseInt(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      hour12: false,
+    }).format(new Date()),
+    10,
+  ) % 24;
+}
+
+// Add `days` calendar days to a YYYY-MM-DD date string (UTC-safe arithmetic).
+export function addDays(date: string, days: number): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const ms = Date.UTC(y, m - 1, d) + days * 24 * 60 * 60 * 1000;
+  const dt = new Date(ms);
+  const yy = dt.getUTCFullYear();
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(dt.getUTCDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
+// The study days a student may book *right now*, given the rule that booking for
+// day D opens 9 AM IST on D-2 and closes 9 AM IST on D:
+//   • today        — only before 9 AM IST
+//   • tomorrow     — all day
+//   • day-after    — only from 9 AM IST
+export function bookableStudyDates(): string[] {
+  const today = istToday();
+  const hour = istHour();
+  const dates: string[] = [];
+  if (hour < 9) dates.push(today); // today, before the 9 AM cutoff
+  dates.push(addDays(today, 1)); // tomorrow, always open
+  if (hour >= 9) dates.push(addDays(today, 2)); // day-after, opens at 9 AM
+  return dates;
 }
 
 // GET /slot-bookings/my/course/{courseId}/version/{courseVersionId}?date=
@@ -5914,6 +5953,7 @@ export function useBookSlot() {
     courseVersionId: string,
     timeSlot: { from: string; to: string },
     cohortId?: string,
+    date?: string,
   ): Promise<{ success: boolean; message?: string }> => {
     setLoading(true);
     try {
@@ -5924,7 +5964,7 @@ export function useBookSlot() {
           'Content-Type': 'application/json',
           authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
         },
-        body: JSON.stringify({ courseId, courseVersionId, timeSlot, cohortId }),
+        body: JSON.stringify({ courseId, courseVersionId, timeSlot, cohortId, date }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {

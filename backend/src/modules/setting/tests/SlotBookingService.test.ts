@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import {describe, it, expect, vi, beforeEach} from 'vitest';
+import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
 import {SlotBookingService} from '../services/SlotBookingService.js';
 import {
   SlotBookingKind,
@@ -20,6 +20,12 @@ const COURSE = 'course-1';
 const VERSION = 'version-1';
 
 const SLOT = {from: '13:00', to: '15:00'}; // 2h, same-day
+
+// Frozen clock: 2026-06-20 08:00 IST (= 02:30 UTC), before the 9 AM cutoff, so
+// booking for "today" is inside its window. Keeps the booking-window check
+// deterministic regardless of when the suite runs.
+const FROZEN_UTC = '2026-06-20T02:30:00.000Z';
+const TODAY = '2026-06-20';
 
 function makeService(
   opts: {
@@ -76,7 +82,12 @@ function makeService(
 }
 
 describe('SlotBookingService.bookSlot', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(FROZEN_UTC));
+  });
+  afterEach(() => vi.useRealTimers());
 
   it('rejects when the time-slot feature is inactive', async () => {
     const {svc} = makeService({timeslots: {isActive: false, slots: []}});
@@ -117,15 +128,19 @@ describe('SlotBookingService.bookSlot', () => {
   });
 
   it('rejects double-booking the same slot', async () => {
-    const {svc} = makeService({myBookings: [{from: '13:00', to: '15:00'}]});
+    const {svc} = makeService({
+      myBookings: [{date: TODAY, from: '13:00', to: '15:00'}],
+    });
     await expect(
       svc.bookSlot(USER, COURSE, VERSION, SLOT),
     ).rejects.toThrowError(/already booked/i);
   });
 
   it('rejects when the daily allowance is used up', async () => {
-    // One booking already today (a different slot), allowance = 1.
-    const {svc} = makeService({myBookings: [{from: '09:00', to: '10:00'}]});
+    // One booking already made today (a different slot), allowance = 1.
+    const {svc} = makeService({
+      myBookings: [{bookedOnDate: TODAY, from: '09:00', to: '10:00'}],
+    });
     await expect(
       svc.bookSlot(USER, COURSE, VERSION, SLOT),
     ).rejects.toThrowError(/booking\(s\) for today/i);
@@ -185,7 +200,8 @@ describe('SlotBookingService.bookSlot', () => {
         ],
         dailyBaseAllowance: 2,
       },
-      myBookings: [{from: '09:00', to: '10:00'}], // already has 1 of 2
+      // already made 1 of 2 bookings today
+      myBookings: [{bookedOnDate: TODAY, from: '09:00', to: '10:00'}],
     });
 
     await svc.bookSlot(USER, COURSE, VERSION, SLOT);
@@ -243,6 +259,65 @@ describe('SlotBookingService.bookSlot', () => {
     await svc.bookSlot(USER, COURSE, VERSION, SLOT);
     expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
     expect(slotBookingRepo.sumReservedHoursForStudent).not.toHaveBeenCalled();
+  });
+});
+
+describe('SlotBookingService.bookSlot — booking window (D-2 9AM → D 9AM IST)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  // 2026-06-20 08:00 IST — before the 9 AM cutoff.
+  const at = (utc: string) => vi.setSystemTime(new Date(utc));
+
+  it('books tomorrow at any time of day', async () => {
+    at('2026-06-20T08:30:00.000Z'); // 14:00 IST on 06-20
+    const {svc, slotBookingRepo} = makeService();
+    await svc.bookSlot(USER, COURSE, VERSION, SLOT, undefined, '2026-06-21');
+    expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+    const saved = slotBookingRepo.createBooking.mock.calls[0][0];
+    expect(saved.date).toBe('2026-06-21'); // study day
+    expect(saved.bookedOnDate).toBe('2026-06-20'); // calendar day booked
+  });
+
+  it('rejects booking for today once past the 9 AM cutoff', async () => {
+    at('2026-06-20T04:30:00.000Z'); // 10:00 IST on 06-20
+    const {svc} = makeService();
+    await expect(
+      svc.bookSlot(USER, COURSE, VERSION, SLOT, undefined, '2026-06-20'),
+    ).rejects.toThrowError(/has closed/i);
+  });
+
+  it('allows booking for today before the 9 AM cutoff', async () => {
+    at('2026-06-20T02:30:00.000Z'); // 08:00 IST on 06-20
+    const {svc, slotBookingRepo} = makeService();
+    await svc.bookSlot(USER, COURSE, VERSION, SLOT, undefined, '2026-06-20');
+    expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+  });
+
+  it('rejects the day-after-tomorrow before its 9 AM open time', async () => {
+    at('2026-06-20T02:30:00.000Z'); // 08:00 IST on 06-20 — D-2 window opens at 09:00
+    const {svc} = makeService();
+    await expect(
+      svc.bookSlot(USER, COURSE, VERSION, SLOT, undefined, '2026-06-22'),
+    ).rejects.toThrowError(/hasn't opened/i);
+  });
+
+  it('allows the day-after-tomorrow from its 9 AM open time', async () => {
+    at('2026-06-20T03:30:00.000Z'); // 09:00 IST on 06-20 — D-2 window just opened
+    const {svc, slotBookingRepo} = makeService();
+    await svc.bookSlot(USER, COURSE, VERSION, SLOT, undefined, '2026-06-22');
+    expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+  });
+
+  it('rejects a day too far in the future (outside the window)', async () => {
+    at('2026-06-20T02:30:00.000Z');
+    const {svc} = makeService();
+    await expect(
+      svc.bookSlot(USER, COURSE, VERSION, SLOT, undefined, '2026-06-25'),
+    ).rejects.toThrowError(/hasn't opened/i);
   });
 });
 

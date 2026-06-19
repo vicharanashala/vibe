@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,9 +10,31 @@ import {
   useSlotAvailability,
   useBookSlot,
   useCancelBooking,
+  bookableStudyDates,
+  istToday,
   type MyBooking,
 } from "@/hooks/hooks";
 import { cn } from "@/utils/utils";
+
+// Friendly label for a YYYY-MM-DD study day relative to IST today.
+const dayLabel = (date: string): string => {
+  const today = istToday();
+  if (date === today) return "Today";
+  const [y, m, d] = date.split("-").map(Number);
+  const ms = Date.UTC(y, m - 1, d);
+  const todayMs = (() => {
+    const [ty, tm, td] = today.split("-").map(Number);
+    return Date.UTC(ty, tm - 1, td);
+  })();
+  const diff = Math.round((ms - todayMs) / (24 * 60 * 60 * 1000));
+  if (diff === 1) return "Tomorrow";
+  return new Date(ms).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+};
 
 interface StudentTimeslotModalProps {
   isOpen: boolean;
@@ -41,6 +64,15 @@ export default function StudentTimeslotModal({
   cohortId,
 }: StudentTimeslotModalProps) {
   const { data: timeSlotsData, isLoading } = useGetTimeSlots(courseId, courseVersionId, isOpen);
+
+  // Study days a student may book right now (today before 9 AM / tomorrow /
+  // day-after from 9 AM IST). The first open day is selected by default.
+  const studyDates = bookableStudyDates();
+  const [selectedDate, setSelectedDate] = useState<string>(studyDates[0]);
+  const activeDate = studyDates.includes(selectedDate) ? selectedDate : studyDates[0];
+
+  // All of the student's active bookings (any study day) — drives both the
+  // per-booking-day allowance meter and the per-date "Booked" state.
   const {
     data: myBookings,
     isLoading: bookingsLoading,
@@ -49,7 +81,7 @@ export default function StudentTimeslotModal({
   const { data: availability, refetch: refetchAvailability } = useSlotAvailability(
     courseId,
     courseVersionId,
-    undefined,
+    activeDate,
     isOpen,
   );
   const { book, loading: booking } = useBookSlot();
@@ -66,15 +98,17 @@ export default function StudentTimeslotModal({
   const allowance = (timeSlotsData as { dailyBaseAllowance?: number } | null | undefined)
     ?.dailyBaseAllowance ?? 1;
   const bookings: MyBooking[] = myBookings ?? [];
-  const bookedCount = bookings.length;
+  // Allowance is per calendar day the booking is MADE — count bookings created today.
+  const today = istToday();
+  const bookedCount = bookings.filter(b => (b.bookedOnDate ?? b.date) === today).length;
 
   const bookingFor = (slot: { from: string; to: string }): MyBooking | undefined =>
-    bookings.find(b => b.from === slot.from && b.to === slot.to);
+    bookings.find(b => b.date === activeDate && b.from === slot.from && b.to === slot.to);
 
   const handleBook = async (slot: { from: string; to: string }) => {
-    const res = await book(courseId, courseVersionId, { from: slot.from, to: slot.to }, cohortId);
+    const res = await book(courseId, courseVersionId, { from: slot.from, to: slot.to }, cohortId, activeDate);
     if (res.success) {
-      toast.success('Slot booked for today.');
+      toast.success(`Slot booked for ${dayLabel(activeDate)}.`);
       refresh();
     } else {
       toast.error(res.message || 'Could not book this slot.');
@@ -131,13 +165,25 @@ export default function StudentTimeslotModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-full max-w-2xl mx-auto max-h-[80vh] overflow-y-auto">
         <DialogHeader className="pb-2">
-          <DialogTitle className="text-lg font-semibold">Book your study time — today</DialogTitle>
+          <DialogTitle className="text-lg font-semibold">Book your study time</DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Pick when you'll study today. You can open the course <span className="font-medium text-foreground">only during a window you've booked</span>.
+            Pick a day and when you'll study. You can open the course <span className="font-medium text-foreground">only during a window you've booked</span>.
           </p>
-          <div className="mt-1">
+          <div className="mt-2 flex flex-wrap gap-2">
+            {studyDates.map(d => (
+              <Button
+                key={d}
+                size="sm"
+                variant={d === activeDate ? "default" : "outline"}
+                onClick={() => setSelectedDate(d)}
+              >
+                {dayLabel(d)}
+              </Button>
+            ))}
+          </div>
+          <div className="mt-2">
             <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-medium">
-              {bookedCount} of {allowance} daily booking{allowance !== 1 ? 's' : ''} used
+              {bookedCount} of {allowance} booking{allowance !== 1 ? 's' : ''} used today
             </span>
           </div>
         </DialogHeader>
@@ -256,7 +302,8 @@ export default function StudentTimeslotModal({
 
         <div className="mt-4 pt-4 border-t">
           <div className="text-xs text-muted-foreground space-y-0.5">
-            <p>• Bookings are per day — your allowance resets each day.</p>
+            <p>• Booking for a day opens at 9:00 AM IST two days before, and closes at 9:00 AM IST on the day itself.</p>
+            <p>• Your booking allowance resets each calendar day — it counts every booking you make today, for any day.</p>
             <p>• Need a different window? Cancel a booking to free up your allowance, then book another.</p>
             <p>• Access to the course is allowed during a window you've booked.</p>
             <p>• Time slots are in IST (Indian Standard Time, UTC+5:30).</p>

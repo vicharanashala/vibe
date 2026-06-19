@@ -616,7 +616,8 @@ export interface ISlotBooking {
   courseId: ID;
   courseVersionId: ID;
   cohortId?: ID;
-  date: string; // YYYY-MM-DD in IST — the day this booking applies to
+  date: string; // YYYY-MM-DD in IST — the study day this booking applies to
+  bookedOnDate?: string; // YYYY-MM-DD IST — the calendar day the booking was MADE (drives the per-day allowance, which is counted per booking-day, not per study day)
   from: string; // HH:MM IST
   to: string; // HH:MM IST
   overnight: boolean; // window crosses midnight (from > to)
