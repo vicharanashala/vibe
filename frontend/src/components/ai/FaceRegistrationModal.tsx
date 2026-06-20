@@ -179,7 +179,7 @@ export const FaceRegistrationModal: React.FC<FaceRegistrationModalProps> = ({
             if (studentPhotoFile && uploadEmbeddingRef.current) {
               const liveEmbedding = Array.from(detection.descriptor);
               const distance = faceapi.euclideanDistance(uploadEmbeddingRef.current, liveEmbedding);
-              const isMatch = distance < 0.55;
+              const isMatch = distance < 0.45;
 
               setUploadChecks((prev) => ({
                 ...prev,
@@ -645,7 +645,7 @@ export const FaceRegistrationModal: React.FC<FaceRegistrationModalProps> = ({
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <Button type="button" className="flex-1" onClick={openCamera}>
                       <Camera className="mr-2 h-4 w-4" />
-                      Use Webcam
+                      Use Webcam (Recommended)
                     </Button>
                     <Button
                       type="button"

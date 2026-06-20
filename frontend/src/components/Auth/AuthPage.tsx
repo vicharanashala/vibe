@@ -215,7 +215,7 @@ export default function AuthPage({ role }: AuthPageProps) {
             if (studentPhotoFile && uploadEmbeddingRef.current) {
               const liveEmbedding = Array.from(detection.descriptor);
               const distance = faceapi.euclideanDistance(uploadEmbeddingRef.current, liveEmbedding);
-              const isMatch = distance < 0.55;
+              const isMatch = distance < 0.45;
 
               setUploadChecks((prev) => ({
                 ...prev,
@@ -1055,7 +1055,7 @@ export default function AuthPage({ role }: AuthPageProps) {
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button type="button" className="flex-1 text-xs" onClick={openCamera}>
                 <Camera className="mr-1.5 h-3.5 w-3.5" />
-                Use Webcam
+                Use Webcam (Recommended)
               </Button>
               <Button
                 type="button"
