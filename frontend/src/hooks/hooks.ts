@@ -5744,6 +5744,60 @@ export function useSetFulfillmentConfig() {
   return { setFulfillmentConfig, loading, error };
 }
 
+// PUT /timeslots/capacity — derive each slot's maxStudents from a single
+// capacity knob (total students the backend is provisioned for) so per-slot
+// caps stay within the infra budget (raw fetch).
+export function useSetCapacityConfig() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const setCapacityConfig = async (
+    courseId: string,
+    courseVersionId: string,
+    targetConcurrentStudents: number,
+    headroomFactor: number,
+  ): Promise<{
+    targetConcurrentStudents: number;
+    capacityHeadroomFactor: number;
+    maxOverlappingWindows: number;
+    derivedPerSlotCap: number;
+    slots: { from: string; to: string; maxStudents: number }[];
+  }> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/timeslots/capacity`;
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+        body: JSON.stringify({
+          courseId,
+          courseVersionId,
+          targetConcurrentStudents,
+          headroomFactor,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          data?.message || `Failed to set capacity settings: ${res.status}`,
+        );
+      }
+      return data?.data;
+    } catch (err: any) {
+      setError(err.message || 'Unknown error');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { setCapacityConfig, loading, error };
+}
+
 // PUT /timeslots/extend — grant a student extra committed hours (raw fetch).
 export function useGrantExtraHours() {
   const [loading, setLoading] = useState(false);

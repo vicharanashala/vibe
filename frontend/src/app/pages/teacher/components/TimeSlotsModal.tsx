@@ -19,6 +19,7 @@ import {
   useSetHoursBudget,
   useGrantExtraHours,
   useSetFulfillmentConfig,
+  useSetCapacityConfig,
   useSlotDemand,
 } from "@/hooks/hooks";
 import { ClockTimePicker } from "./ClockTimePicker";
@@ -158,6 +159,15 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   // Phase 3: fulfillment threshold (active share of a window) + bonus toggle.
   const [fulfillmentThresholdPct, setFulfillmentThresholdPct] = useState<number>(90);
   const [bonusOnFulfillment, setBonusOnFulfillment] = useState<boolean>(false);
+  // Capacity planning (Option A): one knob — total students the backend is
+  // provisioned to serve at once — from which each slot's seat cap is derived.
+  // Headroom is shown as a percent to the instructor; sent as a 0–1 factor.
+  const [targetConcurrentStudents, setTargetConcurrentStudents] = useState<number>(0);
+  const [headroomPct, setHeadroomPct] = useState<number>(70);
+  const [capacityResult, setCapacityResult] = useState<{
+    maxOverlappingWindows: number;
+    derivedPerSlotCap: number;
+  } | null>(null);
 
   // Hooks
   const { data: timeSlotsData, refetch: refetchTimeSlots } = useGetTimeSlots(
@@ -177,6 +187,7 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   const { setHoursBudget, loading: budgetLoading } = useSetHoursBudget();
   const { grantExtraHours, loading: extendLoading } = useGrantExtraHours();
   const { setFulfillmentConfig, loading: fulfillmentLoading } = useSetFulfillmentConfig();
+  const { setCapacityConfig, loading: capacityLoading } = useSetCapacityConfig();
 
   // Seed any saved budget/estimates when the modal loads.
   useEffect(() => {
@@ -192,6 +203,12 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
     }
     if (typeof ts?.bonusOnFulfillment === 'boolean') {
       setBonusOnFulfillment(ts.bonusOnFulfillment);
+    }
+    if (typeof ts?.targetConcurrentStudents === 'number') {
+      setTargetConcurrentStudents(ts.targetConcurrentStudents);
+    }
+    if (typeof ts?.capacityHeadroomFactor === 'number') {
+      setHeadroomPct(Math.round(ts.capacityHeadroomFactor * 100));
     }
   }, [timeSlotsData]);
 
@@ -211,6 +228,31 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
       );
     } catch (error: any) {
       toast.error(error?.message || 'Failed to set fulfillment settings');
+    }
+  };
+
+  const handleSaveCapacity = async () => {
+    try {
+      const result = await setCapacityConfig(
+        courseId,
+        courseVersionId,
+        targetConcurrentStudents,
+        Math.max(0.01, Math.min(1, headroomPct / 100)),
+      );
+      setTargetConcurrentStudents(result.targetConcurrentStudents);
+      setHeadroomPct(Math.round(result.capacityHeadroomFactor * 100));
+      setCapacityResult({
+        maxOverlappingWindows: result.maxOverlappingWindows,
+        derivedPerSlotCap: result.derivedPerSlotCap,
+      });
+      toast.success(
+        `Capacity set: ${result.derivedPerSlotCap} seats/slot ` +
+          `(${result.maxOverlappingWindows} overlapping window${
+            result.maxOverlappingWindows === 1 ? '' : 's'
+          })`,
+      );
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to set capacity settings');
     }
   };
 
@@ -762,6 +804,80 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                             <Save className="h-4 w-4 mr-2" />
                           )}
                           Save fulfillment
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Booking capacity (Option A: capacity-derived seat caps) */}
+                  <Card className="border shadow-sm">
+                    <CardContent className="p-4 space-y-3">
+                      <div>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Clock className="h-5 w-5" />
+                          Booking capacity
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Set how many students the backend can serve at once. Each slot's seat cap is derived automatically as <span className="font-medium">target × headroom ÷ overlapping windows</span>, so concurrent load stays within budget. Headroom reserves room for booking rushes and other traffic.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-end gap-4">
+                        <div className="w-48">
+                          <Label className="text-xs">Target concurrent students</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={targetConcurrentStudents || ""}
+                            onChange={(e) =>
+                              setTargetConcurrentStudents(
+                                Math.max(0, Number(e.target.value)),
+                              )
+                            }
+                            className="mt-1"
+                            placeholder="e.g. 1000"
+                          />
+                        </div>
+                        <div className="w-32">
+                          <Label className="text-xs">Headroom (%)</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={100}
+                            value={headroomPct}
+                            onChange={(e) =>
+                              setHeadroomPct(
+                                Math.max(1, Math.min(100, Number(e.target.value))),
+                              )
+                            }
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                      {capacityResult && (
+                        <p className="text-xs text-muted-foreground">
+                          Derived:{" "}
+                          <span className="font-medium text-foreground">
+                            {capacityResult.derivedPerSlotCap}
+                          </span>{" "}
+                          seats per slot across{" "}
+                          {capacityResult.maxOverlappingWindows} overlapping
+                          window
+                          {capacityResult.maxOverlappingWindows === 1 ? "" : "s"}.
+                          Slots already fuller than this keep their booked count.
+                        </p>
+                      )}
+                      <div>
+                        <Button
+                          size="sm"
+                          onClick={handleSaveCapacity}
+                          disabled={capacityLoading || !targetConcurrentStudents}
+                        >
+                          {capacityLoading ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Save className="h-4 w-4 mr-2" />
+                          )}
+                          Apply capacity
                         </Button>
                       </div>
                     </CardContent>

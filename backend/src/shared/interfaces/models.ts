@@ -652,6 +652,19 @@ export interface ISettings {
   timeslots?: {
     isActive: boolean;
     slots: ITimeSlot[];
+    // Capacity planning (Option A): the single knob ops sets — the total number
+    // of students the backend is provisioned to serve at once. Each slot's
+    // maxStudents is DERIVED from this at config time (not hand-set):
+    //   perSlotCap = floor(targetConcurrentStudents × capacityHeadroomFactor
+    //                      ÷ maxOverlappingWindows)
+    // so the sum of caps over any set of overlapping windows stays within the
+    // provisioned budget. Undefined = no capacity-derived cap (slots fall back
+    // to any manually-set maxStudents, else unlimited).
+    targetConcurrentStudents?: number;
+    // Fraction of targetConcurrentStudents actually offered as bookable seats,
+    // reserving headroom for the booking rush, slot-boundary pile-up, non-slot
+    // and cron traffic, and per-student cost variance. Default 0.7.
+    capacityHeadroomFactor?: number;
     // How many base bookings a student gets per day (default 1). Bonuses add on
     // top via fulfillment (Phase 3) when bonusOnFulfillment is enabled.
     dailyBaseAllowance?: number;
