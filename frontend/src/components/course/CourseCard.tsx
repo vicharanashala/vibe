@@ -30,24 +30,6 @@ const StudentTimeslotModal = lazy(() =>
 );
 
 // Helper function to check if current time is within assigned time slot
-const isCurrentTimeInTimeSlot = (timeSlotData?: any) => {
-  if (!timeSlotData) return true; // No time slot restriction
-
-  // Handle array or object
-  const timeSlot = Array.isArray(timeSlotData) ? timeSlotData[0] : timeSlotData;
-  if (!timeSlot || !timeSlot.from || !timeSlot.to) return true;
-
-  const now = new Date();
-  const currentTime = now.getHours() * 60 + now.getMinutes(); // Convert to minutes since midnight
-
-  const [fromHours, fromMinutes] = timeSlot.from.split(':').map(Number);
-  const [toHours, toMinutes] = timeSlot.to.split(':').map(Number);
-  const fromTime = fromHours * 60 + fromMinutes;
-  const toTime = toHours * 60 + toMinutes;
-
-  return currentTime >= fromTime && currentTime <= toTime;
-};
-
 export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className }: CourseCardProps) => {
   // Add null checks to prevent errors when enrollment data is incomplete
   if (!enrollment || !enrollment.courseId || !enrollment.courseVersionId) {
@@ -269,7 +251,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   <div className="grid grid-cols-1 gap-3 pt-2">
                     <Button
                       onClick={(e) => { e.stopPropagation(); handleContinue(); }}
-                      disabled={!isCurrentTimeInTimeSlot(enrollment.assignedTimeSlot)}
                       className={cn(
                         "w-full h-12 rounded-xl text-lg font-bold transition-all duration-300 shadow-md active:scale-95 flex items-center justify-center gap-2",
                         variant === 'available' ? "bg-primary text-primary-foreground" : isStart ? "bg-[#22C55E] text-white" : "bg-[#FACC15] text-black"
@@ -531,7 +512,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                         variant="outline"
                         className="w-full rounded-lg h-9 text-[10px] font-bold border-2"
                         onClick={() => setIsTimeslotModalOpen(true)}
-                        disabled={hasAssignedTimeslot}
                       >
                         <Clock className="h-3.5 w-3.5 mr-1 text-green-500" />
                         {hasAssignedTimeslot ? 'Timeslot' : 'Pick Slot'}
@@ -543,7 +523,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
               <Button
                 onClick={(e) => { e.stopPropagation(); handleContinue(); }}
-                disabled={!isCurrentTimeInTimeSlot(enrollment.assignedTimeSlot)}
                 className={cn(
                   "w-full h-10 rounded-xl text-xs font-bold transition-all duration-300 shadow-md active:scale-95 flex items-center justify-center gap-2",
                   variant === 'available' ? "bg-primary text-primary-foreground" : isStart ? "bg-[#22C55E] text-white" : "bg-[#FACC15] text-black"
@@ -635,7 +614,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           </div>
 
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button onClick={handleContinue} className="flex-1" disabled={!isCurrentTimeInTimeSlot(enrollment.assignedTimeSlot)}>
+            <Button onClick={handleContinue} className="flex-1">
               {isStart ? 'Start Course' : 'Continue Learning'}
             </Button>
             <div className="flex gap-2 w-full sm:w-auto">

@@ -26,22 +26,6 @@ const StudentTimeslotModal = lazy(() =>
   }))
 );
 
-const isCurrentTimeInTimeSlot = (timeSlotData?: any) => {
-  if (!timeSlotData) return true;
-  const timeSlot = Array.isArray(timeSlotData) ? timeSlotData[0] : timeSlotData;
-  if (!timeSlot || !timeSlot.from || !timeSlot.to) return true;
-
-  const now = new Date();
-  const currentTime = now.getHours() * 60 + now.getMinutes();
-
-  const [fromHours, fromMinutes] = timeSlot.from.split(':').map(Number);
-  const [toHours, toMinutes] = timeSlot.to.split(':').map(Number);
-  const fromTime = fromHours * 60 + fromMinutes;
-  const toTime = toHours * 60 + toMinutes;
-
-  return currentTime >= fromTime && currentTime <= toTime;
-};
-
 export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, variant = 'dashboard', className }: CourseCardProps) => {
   if (!enrollment || !enrollment.courseId || !enrollment.courseVersionId) return null;
 
@@ -173,7 +157,6 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
           <Button
             className={cn("w-full sm:w-auto h-9 rounded-xl font-bold transition-all duration-200", variant === 'available' ? "bg-primary text-primary-foreground" : progress === 0 ? "bg-green-600 hover:bg-green-700 text-white shadow-md border-0" : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md")}
             onClick={handleContinue}
-            disabled={!isCurrentTimeInTimeSlot(enrollment.assignedTimeSlot)}
           >
             {variant === 'available' ? 'Register' : progress === 0 ? 'Start' : isCompleted ? 'Completed' : 'Continue'}
             <Play className="h-3.5 w-3.5 ml-2 fill-current" />
