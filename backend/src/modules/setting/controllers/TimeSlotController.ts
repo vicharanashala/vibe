@@ -100,6 +100,14 @@ class SetFulfillmentConfigRequestBody {
   bonusOnFulfillment?: boolean;
 }
 
+// Request body for capacity-derived per-slot caps (Option A).
+class SetCapacityConfigRequestBody {
+  courseId: string;
+  courseVersionId: string;
+  targetConcurrentStudents: number; // total students the backend is provisioned for
+  headroomFactor?: number; // 0 < x <= 1, default 0.7
+}
+
 // Request body for granting a student extra committed hours.
 class ExtendStudentHoursRequestBody {
   courseId: string;
@@ -507,6 +515,48 @@ class TimeSlotController {
       throw new InternalServerError(
         `Failed to set fulfillment settings: ${error}`,
       );
+    }
+  }
+
+  @OpenAPI({
+    summary: 'Set the booking capacity budget',
+    description:
+      "Derives each time slot's maxStudents from a single capacity knob — the total students the backend is provisioned to serve at once — so per-slot caps stay within the infra budget. perSlotCap = floor(targetConcurrentStudents × headroomFactor ÷ maxOverlappingWindows). A slot is never capped below its already-booked count.",
+  })
+  @Authorized()
+  @Put('/capacity')
+  @HttpCode(200)
+  @ResponseSchema(TimeSlotResponse, {
+    description: 'Capacity settings configured successfully',
+  })
+  async setCapacityConfig(
+    @Body() body: SetCapacityConfigRequestBody,
+    @Ability(getItemAbility) { ability },
+  ): Promise<TimeSlotResponse> {
+    const itemResource = subject('Item', { versionId: body.courseVersionId });
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
+    try {
+      const data = await this.timeSlotService.configureCapacity(
+        body.courseId,
+        body.courseVersionId,
+        body.targetConcurrentStudents,
+        body.headroomFactor,
+      );
+      return {
+        success: true,
+        message: 'Capacity settings configured successfully',
+        data,
+      };
+    } catch (error) {
+      if (error instanceof BadRequestError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new InternalServerError(`Failed to set capacity settings: ${error}`);
     }
   }
 

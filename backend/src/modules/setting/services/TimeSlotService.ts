@@ -86,6 +86,60 @@ export class TimeSlotService extends BaseService {
   }
 
   /**
+   * Maximum number of slots simultaneously active at any instant on a 24-hour
+   * IST clock, treating each slot as a half-open [from, to) minute interval.
+   * Overnight slots (to <= from) wrap past midnight, covering [from, 24:00) and
+   * [00:00, to) — so they correctly overlap early-morning slots. This is the
+   * divisor for capacity planning: real peak concurrency is the SUM of the caps
+   * of all windows overlapping at the same clock time, so dividing the budget by
+   * this keeps that sum within budget. Half-open intervals mean back-to-back
+   * slots (one ending exactly when the next starts) do NOT overlap. At least 1.
+   */
+  private computeMaxOverlappingWindows(
+    slots: {from: string; to: string}[],
+  ): number {
+    if (!slots || slots.length === 0) return 1;
+    const coverage = new Array<number>(24 * 60).fill(0);
+    const mark = (a: number, b: number) => {
+      for (let i = a; i < b; i++) coverage[i] += 1;
+    };
+    for (const s of slots) {
+      const start = this.toMinutes(s.from);
+      const end = this.toMinutes(s.to);
+      if (end > start) {
+        mark(start, end);
+      } else {
+        // Overnight (or full-day when equal): wraps across midnight.
+        mark(start, 24 * 60);
+        mark(0, end);
+      }
+    }
+    let max = 0;
+    for (const c of coverage) if (c > max) max = c;
+    return Math.max(1, max);
+  }
+
+  /** Per-slot booking cap derived from the capacity budget. At least 1. */
+  private deriveSlotCapacity(
+    targetConcurrentStudents: number,
+    headroomFactor: number,
+    maxOverlappingWindows: number,
+  ): number {
+    const bookable = targetConcurrentStudents * headroomFactor;
+    return Math.max(1, Math.floor(bookable / maxOverlappingWindows));
+  }
+
+  /** IST study dates currently inside the advance-booking window (today..+2). */
+  private openBookingDates(): string[] {
+    const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+    const fmt = (d: Date) =>
+      `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+    return [0, 1, 2].map((n) =>
+      fmt(new Date(istNow.getTime() + n * 24 * 60 * 60 * 1000)),
+    );
+  }
+
+  /**
    * Migration dual-write: record a slot choice/assignment as a slotBooking for
    * the current IST day. Idempotent — skips if the student already has an
    * active booking for this slot today.
@@ -572,6 +626,118 @@ export class TimeSlotService extends BaseService {
       return {
         fulfillmentThresholdPct: threshold,
         bonusOnFulfillment: !!bonusOnFulfillment,
+      };
+    });
+  }
+
+  /**
+   * Capacity planning (Option A): derive each slot's maxStudents from a single
+   * knob — the total students the backend is provisioned to serve at once —
+   * instead of hand-setting caps. perSlotCap = floor(target × headroom ÷
+   * maxOverlappingWindows), so the sum of caps over any overlapping set stays
+   * within budget. A slot's cap is never lowered below the count it has ALREADY
+   * committed across the open booking window (today..+2), so live bookings are
+   * never invalidated.
+   */
+  async configureCapacity(
+    courseId: string,
+    courseVersionId: string,
+    targetConcurrentStudents: number,
+    headroomFactor: number | undefined,
+  ): Promise<{
+    targetConcurrentStudents: number;
+    capacityHeadroomFactor: number;
+    maxOverlappingWindows: number;
+    derivedPerSlotCap: number;
+    slots: {from: string; to: string; maxStudents: number}[];
+  }> {
+    return this._withTransaction(async (session) => {
+      if (
+        typeof targetConcurrentStudents !== 'number' ||
+        Number.isNaN(targetConcurrentStudents) ||
+        targetConcurrentStudents <= 0
+      ) {
+        throw new BadRequestError(
+          `Invalid targetConcurrentStudents: ${targetConcurrentStudents}. Must be greater than 0.`,
+        );
+      }
+      const headroom = headroomFactor ?? 0.7;
+      if (
+        typeof headroom !== 'number' ||
+        Number.isNaN(headroom) ||
+        headroom <= 0 ||
+        headroom > 1
+      ) {
+        throw new BadRequestError(
+          `Invalid headroom factor: ${headroomFactor}. Must be between 0 (exclusive) and 1 (inclusive).`,
+        );
+      }
+
+      const existing = await this.settingsRepo.readTimeslotsSettings(
+        courseId,
+        courseVersionId,
+        session,
+      );
+      if (!existing || !existing.slots || existing.slots.length === 0) {
+        throw new NotFoundError(
+          'No time slots are defined for this course; add slots before configuring capacity.',
+        );
+      }
+
+      const maxOverlap = this.computeMaxOverlappingWindows(existing.slots);
+      const derivedCap = this.deriveSlotCapacity(
+        targetConcurrentStudents,
+        headroom,
+        maxOverlap,
+      );
+
+      // Guard: never set a slot's cap below what it has already committed across
+      // the open booking window, or live bookings would exceed the new cap.
+      const openDates = this.openBookingDates();
+      const slots = await Promise.all(
+        existing.slots.map(async (slot) => {
+          let booked = 0;
+          for (const date of openDates) {
+            const n = await this.slotBookingRepo.countActiveInSlot(
+              courseId,
+              courseVersionId,
+              date,
+              {from: slot.from, to: slot.to},
+              session,
+            );
+            if (n > booked) booked = n;
+          }
+          return {...slot, maxStudents: Math.max(derivedCap, booked)};
+        }),
+      );
+
+      const updated = {
+        ...existing,
+        slots,
+        targetConcurrentStudents,
+        capacityHeadroomFactor: headroom,
+      };
+
+      const result = await this.settingsRepo.updateTimeslotsSettings(
+        courseId,
+        courseVersionId,
+        updated,
+        session,
+      );
+      if (!result) {
+        throw new InternalServerError('Failed to save the capacity settings.');
+      }
+
+      return {
+        targetConcurrentStudents,
+        capacityHeadroomFactor: headroom,
+        maxOverlappingWindows: maxOverlap,
+        derivedPerSlotCap: derivedCap,
+        slots: slots.map((s) => ({
+          from: s.from,
+          to: s.to,
+          maxStudents: s.maxStudents as number,
+        })),
       };
     });
   }
