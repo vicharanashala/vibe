@@ -179,7 +179,7 @@ export const FaceRegistrationModal: React.FC<FaceRegistrationModalProps> = ({
             if (studentPhotoFile && uploadEmbeddingRef.current) {
               const liveEmbedding = Array.from(detection.descriptor);
               const distance = faceapi.euclideanDistance(uploadEmbeddingRef.current, liveEmbedding);
-              const isMatch = distance < 0.45;
+              const isMatch = distance < 0.40;
 
               setUploadChecks((prev) => ({
                 ...prev,
