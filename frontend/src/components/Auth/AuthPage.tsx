@@ -263,8 +263,9 @@ export default function AuthPage({ role }: AuthPageProps) {
     // else if (!/^[A-Za-z ]+$/.test(fullName)) errors.fullName = "Name can only contain letters and spaces";
 
     if (isSignUp) {
-      if (!fullName) errors.fullName = "Name is required";
-      else if (!/^[A-Za-z ]+$/.test(fullName)) {
+      if (!fullName || !fullName.trim()) {
+        errors.fullName = "Name is required";
+      } else if (!/^[A-Za-z ]+$/.test(fullName.trim())) {
         errors.fullName = "Name can only contain letters and spaces";
       }
     }
@@ -275,7 +276,7 @@ export default function AuthPage({ role }: AuthPageProps) {
     if (!password) errors.password = "Password is required";
     else if (isSignUp && password.length < 8) errors.password = "Password must be at least 8 characters";
 
-    if (isSignUp && !fullName) errors.fullName = "Full name is required";
+    if (isSignUp && (!fullName || !fullName.trim())) errors.fullName = "Full name is required";
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
