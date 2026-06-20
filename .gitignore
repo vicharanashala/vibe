@@ -81,7 +81,5 @@ e2e/*.txt
 # Local Claude agents
 .github/agents/debugger.agent.md
 
-# Lovable prototype folder
-frontend/loveable/
 frontend/protype/
 pnpm-lock.yaml
