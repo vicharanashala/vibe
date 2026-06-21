@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Camera, Upload, RefreshCcw, X, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { safeImagePreviewSrc } from "@/lib/imagePreview";
 
 interface FaceRegistrationModalProps {
   isOpen: boolean;
@@ -367,7 +368,7 @@ export const FaceRegistrationModal: React.FC<FaceRegistrationModalProps> = ({
             ) : (
               <div className="space-y-3">
                 <img
-                  src={studentPhotoPreview}
+                  src={safeImagePreviewSrc(studentPhotoPreview)}
                   alt="Student preview"
                   className="h-56 w-full rounded-lg object-cover"
                 />

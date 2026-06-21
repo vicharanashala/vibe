@@ -15,6 +15,7 @@ import { cn } from "@/utils/utils";
 import { useSignup } from "@/hooks/hooks.ts";
 import ReCAPTCHA from "react-google-recaptcha";
 import { LeftHeroSection } from "@/components/Auth/LeftHeroSection";
+import { safeImagePreviewSrc } from "@/lib/imagePreview";
 
 type AuthPageProps = {
   role?: "teacher" | "student";
@@ -1183,7 +1184,7 @@ export default function AuthPage({ role }: AuthPageProps) {
                           ) : (
                             <div className="space-y-3">
                               <img
-                                src={studentPhotoPreview}
+                                src={safeImagePreviewSrc(studentPhotoPreview)}
                                 alt="Student preview"
                                 className="h-56 w-full rounded-lg object-cover"
                               />
@@ -1351,7 +1352,7 @@ export default function AuthPage({ role }: AuthPageProps) {
                 ) : (
                   <div className="space-y-3">
                     <img
-                      src={studentPhotoPreview}
+                      src={safeImagePreviewSrc(studentPhotoPreview)}
                       alt="Student preview"
                       className="h-56 w-full rounded-lg object-cover"
                     />
@@ -1473,7 +1474,7 @@ export default function AuthPage({ role }: AuthPageProps) {
                 ) : (
                   <div className="space-y-3">
                     <img
-                      src={studentPhotoPreview}
+                      src={safeImagePreviewSrc(studentPhotoPreview)}
                       alt="Student preview"
                       className="h-56 w-full rounded-lg object-cover"
                     />
