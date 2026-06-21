@@ -20,7 +20,6 @@ export const appConfig = {
   module: env('APP_MODULE') || 'all',
   routePrefix: env('APP_ROUTE_PREFIX') || '/api',
   frontendUrl: env('FRONTEND_URL') || 'http://localhost:5173',
-  adminPassword: env('ADMIN_PASSWORD') || 'admin123',
   ENABLE_DB_BACKUP: env('ENABLE_DB_BACKUP') === 'true',
   ENABLE_HP_JOB: env('ENABLE_HP_JOB') === 'true',
   // Default ON: the follow-up invite reconciliation cron self-activates on deploy
