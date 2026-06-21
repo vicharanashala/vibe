@@ -6,8 +6,29 @@
  * `<img src={...}>` photo previews.
  */
 export function safeImagePreviewSrc(url: string | null | undefined): string {
-  if (typeof url === "string" && (url.startsWith("data:image/") || url.startsWith("blob:"))) {
-    return url;
+  if (typeof url !== "string" || url.trim() === "") return "";
+
+  try {
+    const parsed = new URL(url, window.location.origin);
+
+    // Object URLs created by URL.createObjectURL(file)
+    if (parsed.protocol === "blob:") {
+      return url;
+    }
+
+    // Data URLs from canvas.toDataURL("image/jpeg", ...)
+    if (parsed.protocol === "data:") {
+      const commaIndex = url.indexOf(",");
+      if (commaIndex <= 5) return "";
+      const metadata = url.slice(5, commaIndex).toLowerCase(); // strip "data:"
+      const mimeType = metadata.split(";")[0].trim();
+      if (mimeType.startsWith("image/")) {
+        return url;
+      }
+    }
+  } catch {
+    return "";
   }
+
   return "";
 }
