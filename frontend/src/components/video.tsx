@@ -97,6 +97,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const progressStoppedRef = useRef(false);
   const watchItemIdRef = useRef<string | null>(null);
   const stopInFlightRef = useRef(false);
+  const stopFailCountRef = useRef(0);
    const nextItemIdRef = useRef(nextItemId);
   useEffect(() => {
     nextItemIdRef.current = nextItemId;
@@ -291,6 +292,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     setGracePeriodCompleted(false);
     hasAutoPlayedRef.current = false; // Reset autoplay flag for new video
     maxTimeRef.current = startTimeSeconds; // Reset maxTime ref
+    stopFailCountRef.current = 0; // Reset stop-failure retry counter
 
     // Update watchTimeTrack with course info when video changes
     if (currentCourse?.itemId) {
@@ -424,20 +426,24 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 cohortId: currentCourse!.cohortId || undefined,
               },
             });
+            if (currentCourse?.itemId) {
+              completedItemIdsRef.current.add(currentCourse!.itemId);
+            }
           }
-
           if (!currentCourse?.itemId) return;
-          completedItemIdsRef.current.add(currentCourse!.itemId);
-
           progressStoppedRef.current = true;
           resolve(true);
 
-        } catch (err: any) {
+       } catch (err: any) {
           console.error('Stop item failed:', err);
-          progressStoppedRef.current = true; // Prevent infinite retries
-          // toast.warning('Unable to save progress.');
-          toast.warning(err.response?.data?.message || 'You must watch at least 30 seconds of this video to proceed.');
-          setIsStopFailed(true);
+          stopFailCountRef.current += 1;
+          // Let the polling interval retry a few times before giving up, so a
+          // transient/slow failure on a genuinely-watched video can still complete.
+          if (stopFailCountRef.current >= 3) {
+            progressStoppedRef.current = true;
+            toast.warning(err.response?.data?.message || 'You must watch at least 30 seconds of this video to proceed.');
+            setIsStopFailed(true);
+          }
           resolve(false);
 
         } finally {

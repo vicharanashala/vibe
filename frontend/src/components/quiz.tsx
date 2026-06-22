@@ -850,7 +850,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           console.error('Failed to update progress after quiz pass:', stopError);
         }
       }
-      completedItemIdsRef.current.add(processedQuizId);
 
       setQuizCompleted(true);
       setFinshingQuiz(false);

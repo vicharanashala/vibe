@@ -214,6 +214,7 @@ export default function CoursePage() {
 
   // ✅ Add the missing ref declaration
   const itemContainerRef = useRef<ItemContainerRef>(null);
+  const navInFlightRef = useRef(false);
 
   // Ref for autoscroll to selected sidebar item
   const selectedItemRef = useRef<HTMLButtonElement | null>(null);
@@ -1180,10 +1181,10 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
 
   const handleNext = useCallback(() => {
+    if (navInFlightRef.current || itemLoading) return;
+    navInFlightRef.current = true;
     enqueueNavigation(async () => {
-
       setIsNavigatingToNext(true);
-
       try {
         // 1️⃣ Stop current item (clean + API)
         if (itemContainerRef.current) {
@@ -1413,6 +1414,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
         console.error('Error navigating to next item:', error);
         // Clear loading state on error
         setIsNavigatingToNext(false);
+      } finally {
+        navInFlightRef.current = false;
       }
     });
   }, [
@@ -1428,6 +1431,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     recalculateStudentProgressAsync,
     COURSE_ID,
     VERSION_ID,
+    itemLoading,
   ]);
 
 
@@ -2512,7 +2516,7 @@ return false;
                       <StudentProjectItem
                         item={currentItem}
                         onNext={handleNext}
-                        isProgressUpdating={isNavigatingToNext}
+                        isProgressUpdating={isNavigatingToNext || itemLoading}
                         completedItemIdsRef={completedItemIdsRef}
                         isAlreadyWatched={currentItem.isAlreadyWatched}
                       />
@@ -2525,7 +2529,7 @@ return false;
                         doGesture={doGesture}
                         onNext={handleNext}
                         onPrevVideo={handlePrevVideo}
-                        isProgressUpdating={isNavigatingToNext}
+                        isProgressUpdating={isNavigatingToNext || itemLoading}
                         isNavigatingToPrev={isNavigatingToPrev}
                         attemptId={attemptId || undefined}
                         setAttemptId={setAttemptId}
