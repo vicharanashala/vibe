@@ -4,9 +4,13 @@ import {injectable, inject} from 'inversify';
 import {MongoDatabase} from '../MongoDatabase.js';
 import {
   ISlotBooking,
+  IWatchTime,
   SlotBookingStatus,
 } from '#shared/interfaces/models.js';
-import {ISlotBookingRepository} from '#shared/database/index.js';
+import {
+  ISlotBookingRepository,
+  IWatchSession,
+} from '#shared/database/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 
 /** Accepts a string or ObjectId and returns an ObjectId. */
@@ -20,6 +24,7 @@ const oid = (value: string | ObjectId | null | undefined): ObjectId =>
 @injectable()
 export class SlotBookingRepository implements ISlotBookingRepository {
   private slotBookingsCollection: Collection<ISlotBooking>;
+  private watchTimeCollection: Collection<IWatchTime>;
   private initialized = false;
 
   constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
@@ -28,6 +33,8 @@ export class SlotBookingRepository implements ISlotBookingRepository {
     if (!this.initialized) {
       this.slotBookingsCollection =
         await this.db.getCollection<ISlotBooking>('slotBookings');
+      this.watchTimeCollection =
+        await this.db.getCollection<IWatchTime>('watchTime');
       this.initialized = true;
 
       // Look up a student's bookings for a course/day fast.
@@ -168,5 +175,71 @@ export class SlotBookingRepository implements ISlotBookingRepository {
       {session},
     );
     return result.modifiedCount > 0;
+  }
+
+  async findBookingsToEvaluate(
+    onOrBeforeDate: string,
+    session?: ClientSession,
+  ): Promise<ISlotBooking[]> {
+    await this.init();
+    return this.slotBookingsCollection
+      .find(
+        {
+          status: SlotBookingStatus.BOOKED,
+          date: {$lte: onOrBeforeDate},
+          isDeleted: {$ne: true},
+        } as any,
+        {session},
+      )
+      .toArray();
+  }
+
+  async setFulfillment(
+    bookingId: string,
+    status: SlotBookingStatus,
+    activePct: number,
+    fulfilledAt: Date,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+    const result = await this.slotBookingsCollection.updateOne(
+      {_id: new ObjectId(bookingId)} as any,
+      {$set: {status, activePct, fulfilledAt, updatedAt: new Date()}},
+      {session},
+    );
+    return result.modifiedCount > 0;
+  }
+
+  async findWatchSessionsOverlapping(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    startUTC: Date,
+    endUTC: Date,
+    session?: ClientSession,
+  ): Promise<IWatchSession[]> {
+    await this.init();
+    // A session overlaps [startUTC, endUTC) when it begins before the window
+    // ends and its last known activity is at/after the window start. endTime may
+    // be absent for a session that never cleanly stopped — lastSeenAt is the
+    // fallback for "still active as of".
+    const docs = await this.watchTimeCollection
+      .find(
+        {
+          userId: new ObjectId(userId),
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+          startTime: {$lt: endUTC},
+          $or: [{endTime: {$gte: startUTC}}, {lastSeenAt: {$gte: startUTC}}],
+          isDeleted: {$ne: true},
+        } as any,
+        {session},
+      )
+      .toArray();
+    return docs.map(d => ({
+      startTime: d.startTime,
+      endTime: d.endTime,
+      lastSeenAt: d.lastSeenAt,
+    }));
   }
 }

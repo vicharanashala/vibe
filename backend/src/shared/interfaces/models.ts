@@ -616,7 +616,8 @@ export interface ISlotBooking {
   courseId: ID;
   courseVersionId: ID;
   cohortId?: ID;
-  date: string; // YYYY-MM-DD in IST — the day this booking applies to
+  date: string; // YYYY-MM-DD in IST — the study day this booking applies to
+  bookedOnDate?: string; // YYYY-MM-DD IST — the calendar day the booking was MADE (drives the per-day allowance, which is counted per booking-day, not per study day)
   from: string; // HH:MM IST
   to: string; // HH:MM IST
   overnight: boolean; // window crosses midnight (from > to)
@@ -651,9 +652,31 @@ export interface ISettings {
   timeslots?: {
     isActive: boolean;
     slots: ITimeSlot[];
+    // Capacity planning (Option A): the single knob ops sets — the total number
+    // of students the backend is provisioned to serve at once. Each slot's
+    // maxStudents is DERIVED from this at config time (not hand-set):
+    //   perSlotCap = floor(targetConcurrentStudents × capacityHeadroomFactor
+    //                      ÷ maxOverlappingWindows)
+    // so the sum of caps over any set of overlapping windows stays within the
+    // provisioned budget. Undefined = no capacity-derived cap (slots fall back
+    // to any manually-set maxStudents, else unlimited).
+    targetConcurrentStudents?: number;
+    // Fraction of targetConcurrentStudents actually offered as bookable seats,
+    // reserving headroom for the booking rush, slot-boundary pile-up, non-slot
+    // and cron traffic, and per-student cost variance. Default 0.7.
+    capacityHeadroomFactor?: number;
     // How many base bookings a student gets per day (default 1). Bonuses add on
-    // top via fulfillment in later phases.
+    // top via fulfillment (Phase 3) when bonusOnFulfillment is enabled.
     dailyBaseAllowance?: number;
+    // Phase 3 (fulfillment): the share of a booked window a student must be
+    // active for the booking to count as FULFILLED (default 90). Evaluated at
+    // the window's end from watchTime pings.
+    fulfillmentThresholdPct?: number;
+    // Phase 3 (bonus): when true, each window the student FULFILLS today raises
+    // that calendar day's booking allowance by one (a BONUS booking). Bonuses
+    // expire daily because the allowance is recomputed per booking-day. Default
+    // false — fulfillment is still recorded, but grants no extra bookings.
+    bonusOnFulfillment?: boolean;
     // Total committed hours a student may book across this course (their hours
     // budget). Bookings consume their `hoursReserved` against it; undefined =
     // unlimited. Equals the sum of categoryBudgetHours × hoursFactor.

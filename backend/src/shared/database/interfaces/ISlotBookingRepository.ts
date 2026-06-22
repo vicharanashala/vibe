@@ -1,5 +1,12 @@
 import {ClientSession} from 'mongodb';
-import {ISlotBooking} from '../../interfaces/models.js';
+import {ISlotBooking, SlotBookingStatus} from '../../interfaces/models.js';
+
+/** A watch-time session reduced to the fields the fulfillment evaluator needs. */
+export interface IWatchSession {
+  startTime: Date;
+  endTime?: Date;
+  lastSeenAt?: Date;
+}
 
 /**
  * Repository for per-day slot bookings (the commitment-scheme booking records).
@@ -55,4 +62,40 @@ export interface ISlotBookingRepository {
     bookingId: string,
     session?: ClientSession,
   ): Promise<boolean>;
+
+  /**
+   * Still-BOOKED bookings whose study day is on or before `onOrBeforeDate`
+   * (YYYY-MM-DD IST) — the candidates whose window may have ended and so are
+   * due for fulfillment evaluation (Phase 3).
+   */
+  findBookingsToEvaluate(
+    onOrBeforeDate: string,
+    session?: ClientSession,
+  ): Promise<ISlotBooking[]>;
+
+  /**
+   * Record a fulfillment verdict on a booking: set status
+   * (FULFILLED/UNFULFILLED), the measured `activePct`, and `fulfilledAt`.
+   */
+  setFulfillment(
+    bookingId: string,
+    status: SlotBookingStatus,
+    activePct: number,
+    fulfilledAt: Date,
+    session?: ClientSession,
+  ): Promise<boolean>;
+
+  /**
+   * Watch-time sessions for a student on a course version that overlap the
+   * [startUTC, endUTC) instant range — used to measure how long the student was
+   * active during a booked window.
+   */
+  findWatchSessionsOverlapping(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    startUTC: Date,
+    endUTC: Date,
+    session?: ClientSession,
+  ): Promise<IWatchSession[]>;
 }

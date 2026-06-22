@@ -30,6 +30,9 @@ class BookSlotRequestBody {
   courseVersionId: string;
   timeSlot: {from: string; to: string};
   cohortId?: string;
+  // Study day to book (YYYY-MM-DD IST). Defaults to today. Must fall inside the
+  // booking window: opens 9 AM IST on D-2, closes 9 AM IST on D.
+  date?: string;
 }
 
 class CancelBookingRequestBody {
@@ -54,7 +57,7 @@ class SlotBookingController {
   @OpenAPI({
     summary: 'Book a time slot',
     description:
-      'A student books a time slot for the current IST day, subject to the slot capacity cap and their daily allowance.',
+      'A student books a time slot for a study day (default today). Booking for day D is open from 9 AM IST on D-2 until 9 AM IST on D, subject to the slot capacity cap and their per-day allowance.',
   })
   @Authorized()
   @Post('/book')
@@ -70,6 +73,7 @@ class SlotBookingController {
         body.courseVersionId,
         body.timeSlot,
         body.cohortId,
+        body.date,
       );
       return {
         success: true,

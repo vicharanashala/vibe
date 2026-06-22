@@ -27,6 +27,9 @@ export const appConfig = {
   // so it never silently sits idle waiting for an env var to be set. Set
   // ENABLE_FOLLOWUP_INVITE_JOB='false' as a kill switch if it ever needs stopping.
   ENABLE_FOLLOWUP_INVITE_JOB: env('ENABLE_FOLLOWUP_INVITE_JOB') !== 'false',
+  // Default ON: the slot-booking fulfillment evaluator (Phase 3) annotates ended
+  // windows as FULFILLED/UNFULFILLED. Set ENABLE_FULFILLMENT_JOB='false' to stop.
+  ENABLE_FULFILLMENT_JOB: env('ENABLE_FULFILLMENT_JOB') !== 'false',
   GOOGLE_APPLICATION_CREDENTIALS: env('GOOGLE_APPLICATION_CREDENTIALS'),
   GCP_BACKUP_BUCKET: env('GCP_BACKUP_BUCKET'),
   GCP_BACKUP_ACTIVITY_BUCKET: env('GCP_BACKUP_ACTIVITY_BUCKET'),

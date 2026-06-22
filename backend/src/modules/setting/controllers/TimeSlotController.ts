@@ -92,6 +92,22 @@ class SetHoursBudgetRequestBody {
   hoursFactor?: number;
 }
 
+// Request body for the Phase 3 fulfillment + bonus rules.
+class SetFulfillmentConfigRequestBody {
+  courseId: string;
+  courseVersionId: string;
+  fulfillmentThresholdPct?: number; // 0–100, default 90
+  bonusOnFulfillment?: boolean;
+}
+
+// Request body for capacity-derived per-slot caps (Option A).
+class SetCapacityConfigRequestBody {
+  courseId: string;
+  courseVersionId: string;
+  targetConcurrentStudents: number; // total students the backend is provisioned for
+  headroomFactor?: number; // 0 < x <= 1, default 0.7
+}
+
 // Request body for granting a student extra committed hours.
 class ExtendStudentHoursRequestBody {
   courseId: string;
@@ -455,6 +471,92 @@ class TimeSlotController {
         throw error;
       }
       throw new InternalServerError(`Failed to set hours budget: ${error}`);
+    }
+  }
+
+  @OpenAPI({
+    summary: 'Set the fulfillment & bonus rules',
+    description:
+      'Stores the Phase 3 fulfillment threshold (active share of a window, 0–100, default 90) and whether fulfilling a window grants a same-day bonus booking.',
+  })
+  @Authorized()
+  @Put('/fulfillment')
+  @HttpCode(200)
+  @ResponseSchema(TimeSlotResponse, {
+    description: 'Fulfillment settings configured successfully',
+  })
+  async setFulfillmentConfig(
+    @Body() body: SetFulfillmentConfigRequestBody,
+    @Ability(getItemAbility) { ability },
+  ): Promise<TimeSlotResponse> {
+    const itemResource = subject('Item', { versionId: body.courseVersionId });
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
+    try {
+      const data = await this.timeSlotService.configureFulfillment(
+        body.courseId,
+        body.courseVersionId,
+        body.fulfillmentThresholdPct,
+        body.bonusOnFulfillment ?? false,
+      );
+      return {
+        success: true,
+        message: 'Fulfillment settings configured successfully',
+        data,
+      };
+    } catch (error) {
+      if (error instanceof BadRequestError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new InternalServerError(
+        `Failed to set fulfillment settings: ${error}`,
+      );
+    }
+  }
+
+  @OpenAPI({
+    summary: 'Set the booking capacity budget',
+    description:
+      "Derives each time slot's maxStudents from a single capacity knob — the total students the backend is provisioned to serve at once — so per-slot caps stay within the infra budget. perSlotCap = floor(targetConcurrentStudents × headroomFactor ÷ maxOverlappingWindows). A slot is never capped below its already-booked count.",
+  })
+  @Authorized()
+  @Put('/capacity')
+  @HttpCode(200)
+  @ResponseSchema(TimeSlotResponse, {
+    description: 'Capacity settings configured successfully',
+  })
+  async setCapacityConfig(
+    @Body() body: SetCapacityConfigRequestBody,
+    @Ability(getItemAbility) { ability },
+  ): Promise<TimeSlotResponse> {
+    const itemResource = subject('Item', { versionId: body.courseVersionId });
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
+    try {
+      const data = await this.timeSlotService.configureCapacity(
+        body.courseId,
+        body.courseVersionId,
+        body.targetConcurrentStudents,
+        body.headroomFactor,
+      );
+      return {
+        success: true,
+        message: 'Capacity settings configured successfully',
+        data,
+      };
+    } catch (error) {
+      if (error instanceof BadRequestError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new InternalServerError(`Failed to set capacity settings: ${error}`);
     }
   }
 

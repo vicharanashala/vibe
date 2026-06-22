@@ -5697,6 +5697,107 @@ export function useSetHoursBudget() {
   return { setHoursBudget, loading, error };
 }
 
+// PUT /timeslots/fulfillment — configure the Phase 3 fulfillment threshold and
+// whether fulfilling a window grants a same-day bonus booking (raw fetch).
+export function useSetFulfillmentConfig() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const setFulfillmentConfig = async (
+    courseId: string,
+    courseVersionId: string,
+    fulfillmentThresholdPct: number,
+    bonusOnFulfillment: boolean,
+  ): Promise<{ fulfillmentThresholdPct: number; bonusOnFulfillment: boolean }> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/timeslots/fulfillment`;
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+        body: JSON.stringify({
+          courseId,
+          courseVersionId,
+          fulfillmentThresholdPct,
+          bonusOnFulfillment,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          data?.message || `Failed to set fulfillment settings: ${res.status}`,
+        );
+      }
+      return data?.data;
+    } catch (err: any) {
+      setError(err.message || 'Unknown error');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { setFulfillmentConfig, loading, error };
+}
+
+// PUT /timeslots/capacity — derive each slot's maxStudents from a single
+// capacity knob (total students the backend is provisioned for) so per-slot
+// caps stay within the infra budget (raw fetch).
+export function useSetCapacityConfig() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const setCapacityConfig = async (
+    courseId: string,
+    courseVersionId: string,
+    targetConcurrentStudents: number,
+    headroomFactor: number,
+  ): Promise<{
+    targetConcurrentStudents: number;
+    capacityHeadroomFactor: number;
+    maxOverlappingWindows: number;
+    derivedPerSlotCap: number;
+    slots: { from: string; to: string; maxStudents: number }[];
+  }> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/timeslots/capacity`;
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+        body: JSON.stringify({
+          courseId,
+          courseVersionId,
+          targetConcurrentStudents,
+          headroomFactor,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          data?.message || `Failed to set capacity settings: ${res.status}`,
+        );
+      }
+      return data?.data;
+    } catch (err: any) {
+      setError(err.message || 'Unknown error');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { setCapacityConfig, loading, error };
+}
+
 // PUT /timeslots/extend — grant a student extra committed hours (raw fetch).
 export function useGrantExtraHours() {
   const [loading, setLoading] = useState(false);
@@ -5845,17 +5946,57 @@ export function useSlotDemand(
 export interface MyBooking {
   _id: string;
   date: string;
+  bookedOnDate?: string;
   from: string;
   to: string;
   kind?: string;
   status?: string;
   hoursReserved?: number;
+  fulfilledAt?: string;
 }
 
 // IST "today" as YYYY-MM-DD — matches the backend's getCurrentISTDate so the
 // daily-allowance math lines up regardless of the viewer's local timezone.
 export function istToday(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+}
+
+// Current hour (0-23) in IST, used to gate which study days are bookable now.
+export function istHour(): number {
+  return parseInt(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      hour12: false,
+    }).format(new Date()),
+    10,
+  ) % 24;
+}
+
+// Add `days` calendar days to a YYYY-MM-DD date string (UTC-safe arithmetic).
+export function addDays(date: string, days: number): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const ms = Date.UTC(y, m - 1, d) + days * 24 * 60 * 60 * 1000;
+  const dt = new Date(ms);
+  const yy = dt.getUTCFullYear();
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(dt.getUTCDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
+// The study days a student may book *right now*, given the rule that booking for
+// day D opens 9 AM IST on D-2 and closes 9 AM IST on D:
+//   • today        — only before 9 AM IST
+//   • tomorrow     — all day
+//   • day-after    — only from 9 AM IST
+export function bookableStudyDates(): string[] {
+  const today = istToday();
+  const hour = istHour();
+  const dates: string[] = [];
+  if (hour < 9) dates.push(today); // today, before the 9 AM cutoff
+  dates.push(addDays(today, 1)); // tomorrow, always open
+  if (hour >= 9) dates.push(addDays(today, 2)); // day-after, opens at 9 AM
+  return dates;
 }
 
 // GET /slot-bookings/my/course/{courseId}/version/{courseVersionId}?date=
@@ -5914,6 +6055,7 @@ export function useBookSlot() {
     courseVersionId: string,
     timeSlot: { from: string; to: string },
     cohortId?: string,
+    date?: string,
   ): Promise<{ success: boolean; message?: string }> => {
     setLoading(true);
     try {
@@ -5924,7 +6066,7 @@ export function useBookSlot() {
           'Content-Type': 'application/json',
           authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
         },
-        body: JSON.stringify({ courseId, courseVersionId, timeSlot, cohortId }),
+        body: JSON.stringify({ courseId, courseVersionId, timeSlot, cohortId, date }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
