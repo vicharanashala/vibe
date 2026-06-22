@@ -61,7 +61,7 @@ export class AuthController {
     description: 'Auth Error',
     statusCode: 401,
   })
-  async signup(@Body() body: SignUpBody, @Req() req: any) {
+  async signup(@Body({ options: { limit: '10mb' } }) body: SignUpBody, @Req() req: any) {
     const { recaptchaToken, ...signUpData } = body;
 
     // Verify reCAPTCHA token
@@ -109,7 +109,7 @@ export class AuthController {
     description: 'Auth Error',
     statusCode: 401,
   })
-  async googleSignup(@Body() body: GoogleSignUpBody, @Req() req: any) {
+  async googleSignup(@Body({ options: { limit: '10mb' } }) body: GoogleSignUpBody, @Req() req: any) {
     const acknowledgedInvites = await this.authService.googleSignup(
       body,
       req.headers.authorization?.split(' ')[1],

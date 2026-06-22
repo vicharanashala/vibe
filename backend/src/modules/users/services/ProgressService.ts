@@ -49,9 +49,29 @@ import { CourseSettingService } from '#root/modules/setting/index.js';
 import { getContainer } from '#root/bootstrap/loadModules.js';
 import { NOTIFICATIONS_TYPES } from '#root/modules/notifications/types.js';
 import type { InviteService } from '#root/modules/notifications/services/InviteService.js';
+import type { InviteRepository } from '#shared/database/providers/mongo/repositories/InviteRepository.js';
 
 const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
 const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
+
+export interface LeaderboardEntry {
+  userId: string;
+  userName: string;
+  completionPercentage: number;
+  completedAt: Date | null;
+  enrollmentDate: Date | null;
+  weeklyItems: number;
+  weeklyMinutes: number;
+  daysToComplete: number | null;
+  league: 'finishers' | 'active';
+  rank: number;
+}
+
+// Progress (percent) at or above which the configured follow-up course is made
+// available to the student. This is intentionally decoupled from course
+// completion: the follow-up invite is offered once the student crosses this
+// threshold, without requiring every item to be marked complete.
+const FOLLOW_UP_INVITE_THRESHOLD = 98;
 
 @injectable()
 class ProgressService extends BaseService {
@@ -409,6 +429,38 @@ class ProgressService extends BaseService {
     );
   }
 
+  // Resolve the user's enrollment for identity. The enrollment row's cohortId
+  // may be null or differ from the client-sent cohortId; a strict cohort match
+  // then misses an otherwise valid enrollment and surfaces as "enrollment not
+  // found" (which breaks progress tracking and content access). We're
+  // identifying the enrolled user here, not validating the cohort, so retry
+  // cohort-agnostic before giving up (mirrors the gate fix in #1081).
+  private async resolveEnrollment(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment | null> {
+    let enrollment = await this.enrollmentRepo.findEnrollment(
+      userId,
+      courseId,
+      courseVersionId,
+      cohortId,
+      session,
+    );
+    if (!enrollment && cohortId) {
+      enrollment = await this.enrollmentRepo.findEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        undefined,
+        session,
+      );
+    }
+    return enrollment;
+  }
+
   async updateEnrollmentProgressPercent(
     userId: string,
     courseId: string,
@@ -419,12 +471,12 @@ class ProgressService extends BaseService {
     completedItemCount?: number,
     cohort?: string,
   ): Promise<void> {
-    let enrollment = await this.enrollmentRepo.findEnrollment(
+    let enrollment = await this.resolveEnrollment(
       userId,
       courseId,
       courseVersionId,
       cohort,
-      session
+      session,
     );
 
     if (!enrollment) {
@@ -1169,15 +1221,14 @@ class ProgressService extends BaseService {
 
       return {};
     } catch (error: any) {
+      // Best-effort only: this method just *widens* the allowed set so a student
+      // can move past an exhausted-attempt quiz. If the next item can't be
+      // resolved — e.g. an orphaned itemsGroup whose section can't be
+      // reverse-mapped (getItemGroupInfo -> null) — degrade to "no next item"
+      // instead of throwing. A failed next-item lookup must never 404 the whole
+      // course view (which surfaced to learners as "No items found").
       console.error('Error in next-item permission processing:', error);
-
-      if (error instanceof NotFoundError) {
-        throw error;
-      }
-
-      throw new InternalServerError(
-        'Failed to determine next allowed item: ' + error?.message,
-      );
+      return {};
     }
   }
   private async findNextPlayableItem(
@@ -1600,7 +1651,7 @@ class ProgressService extends BaseService {
           session,
         );
 
-      const enrollment = await this.enrollmentRepo.findEnrollment(
+      const enrollment = await this.resolveEnrollment(
         userId,
         courseId,
         courseVersionId,
@@ -1639,7 +1690,7 @@ class ProgressService extends BaseService {
 
       await this.verifyDetails(userId, courseId, courseVersionId);
 
-      const enrollment = await this.enrollmentRepo.findEnrollment(
+      const enrollment = await this.resolveEnrollment(
         userId,
         courseId,
         courseVersionId,
@@ -2292,6 +2343,10 @@ class ProgressService extends BaseService {
     // of the last item).
     const wasAlreadyCompleted = progress.completed === true;
     let justCompleted = false;
+    // Whether this update pushes the student across the follow-up threshold for
+    // the first time, so the follow-up invite is offered once (not on every
+    // subsequent progress event above the threshold).
+    let crossedFollowUpThreshold = false;
 
     await this._withTransaction(async session => {
       let shouldCountCurrentItemAsCompleted = false;
@@ -2466,7 +2521,7 @@ class ProgressService extends BaseService {
       // ----------------------------------------------------
       // 7. ENROLLMENT LOOKUP
       // ----------------------------------------------------
-      const enrollment = await this.enrollmentRepo.findEnrollment(
+      const enrollment = await this.resolveEnrollment(
         userId,
         courseId,
         courseVersionId,
@@ -2554,6 +2609,14 @@ class ProgressService extends BaseService {
         cohortId,
       );
 
+      // Detect the first time the student reaches the follow-up threshold so we
+      // can offer the next course once. Based purely on percent progress; the
+      // course `completed` flag is left untouched.
+      const previousPercent = enrollment.percentCompleted ?? 0;
+      crossedFollowUpThreshold =
+        previousPercent < FOLLOW_UP_INVITE_THRESHOLD &&
+        percentCompleted >= FOLLOW_UP_INVITE_THRESHOLD;
+
       if (percentCompleted > 99) {
         await this.recalculateStudentProgress(
           userId,
@@ -2578,10 +2641,12 @@ class ProgressService extends BaseService {
       justCompleted = newProgress.completed === true && !wasAlreadyCompleted;
     });
 
-    // Best-effort: when the student just completed this course, create an
-    // exclusive invite to the configured follow-up course. Runs outside the
-    // completion transaction and must never break completion.
-    if (justCompleted) {
+    // Best-effort: when the student crosses the follow-up threshold (>=98%) or
+    // just completed this course, create an exclusive invite to the configured
+    // follow-up course. Runs outside the completion transaction and must never
+    // break completion. InviteService de-dupes pending invites and skips
+    // already-enrolled users, so the overlap at 100% is harmless.
+    if (justCompleted || crossedFollowUpThreshold) {
       await this.triggerFollowUpInvite(userId, courseId, courseVersionId);
     }
   }
@@ -2639,6 +2704,135 @@ class ProgressService extends BaseService {
         error,
       );
     }
+  }
+
+  /**
+   * Backfill the follow-up invite for every student who already *completed* the
+   * source course version but never received the invite (because they finished
+   * before it was configured). Invites are only sent to students who are not
+   * already actively enrolled in the target course; pending-invite de-duplication
+   * is handled by InviteService, so this is safe to re-run.
+   *
+   * @returns a summary of how many completers were found, skipped, and invited.
+   */
+  async backfillFollowUpInvites(
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<{
+    completed: number;
+    alreadyEnrolled: number;
+    alreadyInvited: number;
+    missingEmail: number;
+    invited: number;
+  }> {
+    const courseSettings =
+      await this.getCourseSettingService().readCourseSettings(
+        courseId,
+        courseVersionId,
+      );
+
+    const followUp = courseSettings?.settings?.followUpInvite;
+    if (
+      !followUp ||
+      !followUp.enabled ||
+      !followUp.courseId ||
+      !followUp.courseVersionId
+    ) {
+      throw new BadRequestError(
+        'This course version has no enabled follow-up invite to backfill.',
+      );
+    }
+
+    const targetCourseId = followUp.courseId.toString();
+    const targetVersionId = followUp.courseVersionId.toString();
+    const targetCohortId = followUp.cohortId?.toString();
+    const role = (followUp.role as EnrollmentRole) ?? 'STUDENT';
+
+    // Select students by percent progress (>= threshold), not the `completed`
+    // flag, so the follow-up course is made available to everyone who reached
+    // the threshold — including those whose completion flag never flipped.
+    const completedUserIds =
+      await this.enrollmentRepo.getUserIdsAtOrAbovePercentForCourseVersion(
+        courseId,
+        courseVersionId,
+        FOLLOW_UP_INVITE_THRESHOLD,
+      );
+
+    let alreadyEnrolled = 0;
+    let alreadyInvited = 0;
+    let missingEmail = 0;
+    const emailSet = new Set<string>();
+
+    const inviteRepo = getContainer().get<InviteRepository>(
+      NOTIFICATIONS_TYPES.InviteRepo,
+    );
+
+    for (const userId of completedUserIds) {
+      // Skip students who are already onboarded to the target course version.
+      // COHORT-AGNOSTIC on purpose: anyone already actively enrolled in the target
+      // course must not be re-invited, no matter which cohort they're in (or if the
+      // configured follow-up cohort no longer exists). Passing the configured cohort
+      // here is what re-invited already-enrolled learners when that cohort had been
+      // deleted and their live enrollment was cohortless.
+      const enrollment = await this.enrollmentRepo.findActiveEnrollment(
+        userId,
+        targetCourseId,
+        targetVersionId,
+      );
+      if (enrollment) {
+        alreadyEnrolled++;
+        continue;
+      }
+
+      const user = await this.userRepo.findById(userId);
+      if (!user?.email) {
+        missingEmail++;
+        continue;
+      }
+      const normalizedEmail = user.email.toLowerCase().trim();
+
+      // Skip students who were already invited to the target course — a
+      // still-pending invite or one they already accepted. Cohort-agnostic for the
+      // same reason as the enrollment check above: a duplicate invite to the same
+      // course must never be created just because the configured cohort differs.
+      const existingInvite = await inviteRepo.findActiveInviteByEmailAndCourse(
+        normalizedEmail,
+        targetCourseId,
+        targetVersionId,
+      );
+      if (existingInvite) {
+        alreadyInvited++;
+        continue;
+      }
+
+      emailSet.add(normalizedEmail);
+    }
+
+    const summary = {
+      completed: completedUserIds.length,
+      alreadyEnrolled,
+      alreadyInvited,
+      missingEmail,
+      invited: emailSet.size,
+    };
+
+    if (emailSet.size === 0) {
+      return summary;
+    }
+
+    const inviteService = getContainer().get<InviteService>(
+      NOTIFICATIONS_TYPES.InviteService,
+    );
+
+    // InviteService de-dupes pending invites internally, so re-runs are safe.
+    await inviteService.inviteUserToCourse(
+      Array.from(emailSet).map(email => ({email, role})),
+      targetCourseId,
+      targetVersionId,
+      targetCohortId,
+    );
+
+    return summary;
   }
 
   private validateProgressPosition(
@@ -2989,11 +3183,14 @@ class ProgressService extends BaseService {
     isPassed: boolean,
     watchItemId?: string,
     cohortId?: string,
+    quizModuleId?: string,
+    quizSectionId?: string,
   ) {
-    // Fetch progress and course version in parallel
-    const [progress, courseVersion] = await Promise.all([
-      this.progressRepository.findProgress(userId, courseId, courseVersionId, cohortId),
-      this.courseRepo.readVersion(courseVersionId),
+    return this._withTransaction(async session => {
+      // Fetch progress and course version in parallel
+      const [progress, courseVersion] = await Promise.all([
+        this.progressRepository.findProgress(userId, courseId, courseVersionId, cohortId, session),
+        this.courseRepo.readVersion(courseVersionId),
     ]);
 
     if (!progress || !courseVersion) {
@@ -3002,13 +3199,18 @@ class ProgressService extends BaseService {
 
     // const courseVersion = await this.courseRepo.readVersion(courseVersionId);
 
-    if (isPassed) {
-      const nextItemDetails = await this.getNextItemInSequence(
-        courseVersion,
-        progress.currentModule.toString(),
-        progress.currentSection.toString(),
-        quizId,
-      );
+      if (isPassed) {
+        // Prefer the quiz's actual module/section over the cursor's current
+        // position — the cursor can be stale if it drifted ahead via optimistic
+        // UI, which would make getNextItemInSequence check "is this the last
+        // item" against the wrong section and silently fail to roll over into
+        // the next module.
+        const nextItemDetails = await this.getNextItemInSequence(
+          courseVersion,
+          quizModuleId || progress.currentModule.toString(),
+          quizSectionId || progress.currentSection.toString(),
+          quizId,
+        );
 
       if (!nextItemDetails) {
         // Course completed → reset to first item
@@ -3034,6 +3236,7 @@ class ProgressService extends BaseService {
           courseVersionId,
           newProgress,
           cohortId,
+          session,
         );
       } else {
         const newProgress = {
@@ -3048,6 +3251,7 @@ class ProgressService extends BaseService {
           courseVersionId,
           newProgress,
           cohortId,
+          session,
         );
       }
     } else {
@@ -3071,6 +3275,7 @@ class ProgressService extends BaseService {
           courseVersionId,
           previousProgress,
           cohortId,
+          session,
         );
       }
     }
@@ -3088,6 +3293,7 @@ class ProgressService extends BaseService {
           courseId,
           courseVersionId,
           cohortId,
+          session,
         );
         
         if (activeWatchTimes && activeWatchTimes.length > 0) {
@@ -3122,12 +3328,14 @@ class ProgressService extends BaseService {
         cohortId,
       )
 
-      if (!isItemCompleted && resolvedWatchItemId) {
-        await this.progressRepository.stopItemTracking(
-          resolvedWatchItemId,
-        );
+        if (!isItemCompleted && resolvedWatchItemId) {
+          await this.progressRepository.stopItemTracking(
+            resolvedWatchItemId,
+            session,
+          );
+        }
       }
-    }
+    }); // close transaction
   }
 
   // Admin Level Endpoint
@@ -3639,8 +3847,9 @@ class ProgressService extends BaseService {
     );
 
     if (existingWatchTime) {
-      // Step 2 — record exists, update endTime to now
-      await this.progressRepository.stopItemTracking(watchItemId);
+      // Step 2 — record exists, update lastSeenAt to now
+      // endTime is exclusively owned by stop API to signal completion
+      await this.progressRepository.updateLastSeen(watchItemId);
       return watchItemId;
     } else {
       // Step 3 — record does not exist, this should not happen
@@ -3834,23 +4043,14 @@ class ProgressService extends BaseService {
     limit: number = 10,
     cohortId?: string,
   ): Promise<{
-    data: Array<{
-      userId: string;
-      userName: string;
-      completionPercentage: number;
-      completedAt: Date | null;
-      rank: number;
-    }>;
-    totalDocuments: number;
-    totalPages: number;
-    currentPage: number;
-    myStats: {
-      userId: string;
-      userName: string;
-      completionPercentage: number;
-      completedAt: Date | null;
-      rank: number;
-    } | null;
+    finishers: { data: LeaderboardEntry[]; total: number };
+    active: {
+      data: LeaderboardEntry[];
+      total: number;
+      totalPages: number;
+      currentPage: number;
+    };
+    myStats: LeaderboardEntry | null;
   }> {
     // Get all progress records for this course version
     const progressRecords =
@@ -3860,19 +4060,45 @@ class ProgressService extends BaseService {
         cohortId,
       );
 
-    // Get all enrollments to fetch completion percentages
+    // Get all enrollments to fetch completion percentages + start dates
     const enrollments = await this.enrollmentRepo.getEnrollmentsByCourseVersion(
       courseId,
       courseVersionId,
       cohortId,
     );
 
-    const enrollmentMap = new Map();
+    const enrollmentMap = new Map<
+      string,
+      { completionPercentage: number; enrollmentDate: Date | null }
+    >();
     for (const enrollment of enrollments) {
       enrollmentMap.set(enrollment.userId?.toString(), {
         completionPercentage: enrollment.percentCompleted || 0,
+        enrollmentDate: enrollment.enrollmentDate || null,
       });
     }
+
+    // Rolling 7-day effort per learner (Duolingo-style window) for the Active
+    // league. Trailing window — switch to Monday-reset by changing `since`.
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    const since = new Date(Date.now() - SEVEN_DAYS_MS);
+    const effortMap =
+      await this.progressRepository.getWeeklyEffortByCourseVersion(
+        courseId,
+        courseVersionId,
+        since,
+        cohortId,
+      );
+
+    // Earliest watch-activity per learner — a reliable "start" fallback when
+    // enrollmentDate has been post-dated by a migration (which otherwise yields
+    // 0-day completions).
+    const firstActivityMap =
+      await this.progressRepository.getFirstActivityByCourseVersion(
+        courseId,
+        courseVersionId,
+        cohortId,
+      );
 
     // Get user names for all enrolled students
     const userIds = enrollments.map(e => e.userId?.toString());
@@ -3881,75 +4107,149 @@ class ProgressService extends BaseService {
     const userMap = new Map();
     for (const user of users) {
       if (user) {
-        const fullName =
-          `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
-          'Unknown User';
-        userMap.set(user._id?.toString(), fullName);
+        // Fall back to the email local-part when no name is on the profile,
+        // so learners don't all show up as "Unknown User".
+        const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+        const emailName = user.email ? user.email.split('@')[0] : '';
+        userMap.set(user._id?.toString(), fullName || emailName || 'Unknown User');
       }
     }
 
-    // Combine progress and enrollment data
-    const leaderboardData = progressRecords.map(progress => ({
-      userId: progress.userId?.toString(),
-      userName: userMap.get(progress.userId?.toString()) || 'Unknown User',
-      completionPercentage:
-        Math.min(100, enrollmentMap.get(progress.userId?.toString())?.completionPercentage) ||
-        0,
-      completedAt:
-        progress.completed && progress.completedAt
-          ? progress.completedAt
-          : null,
-    }));
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-    // Sort by Progress % (highest first), then by Completion Date (earliest first) for ties
-    const sortedLeaderboard = leaderboardData.sort((a, b) => {
-      // Primary sort: by completion percentage (descending - highest first)
+    // Dedupe duplicate progress docs per learner — the data can contain more
+    // than one progress doc for the same user in a version, which otherwise
+    // makes them appear multiple times. Prefer a completed doc so finishers
+    // aren't lost to a stray in-progress duplicate.
+    const progressByUser = new Map<string, IProgress>();
+    for (const p of progressRecords) {
+      const uid = p.userId?.toString();
+      if (!uid) continue;
+      const existing = progressByUser.get(uid);
+      const pDone = !!(p.completed && p.completedAt);
+      const exDone = !!(existing && existing.completed && existing.completedAt);
+      if (!existing || (pDone && !exDone)) progressByUser.set(uid, p);
+    }
+
+    // Combine progress, enrollment and effort data, split into two leagues
+    const finishers: LeaderboardEntry[] = [];
+    const active: LeaderboardEntry[] = [];
+
+    for (const progress of progressByUser.values()) {
+      const id = progress.userId?.toString();
+      const enrollment = enrollmentMap.get(id);
+      const completionPercentage = Math.min(
+        100,
+        enrollment?.completionPercentage || 0,
+      );
+      // Use the finish timestamp regardless of the legacy `completed` flag.
+      const completedAt = progress.completedAt ?? null;
+      const enrollmentDate = enrollment?.enrollmentDate ?? null;
+      const effort = effortMap.get(id) || { weeklyItems: 0, weeklyMinutes: 0 };
+
+      // Completed (100%) => Finishers (horizontal). Everyone else => active list.
+      // Don't require completedAt for league placement, so no completed learner
+      // leaks into the "last 7 days" vertical list.
+      const isFinisher = completionPercentage >= 100;
+
+      // True start = earliest signal of starting. enrollmentDate can be
+      // post-dated by migrations, so fall back to first watch-activity when it
+      // is earlier (avoids bogus 0-day completions).
+      const firstActivity = firstActivityMap.get(id) ?? null;
+      let startDate = enrollmentDate;
+      if (
+        firstActivity &&
+        (!startDate ||
+          new Date(firstActivity).getTime() < new Date(startDate).getTime())
+      ) {
+        startDate = firstActivity;
+      }
+
+      // days-to-complete normalizes for different start dates
+      const daysToComplete =
+        isFinisher && completedAt && startDate
+          ? Math.max(
+              0,
+              (new Date(completedAt).getTime() -
+                new Date(startDate).getTime()) /
+                MS_PER_DAY,
+            )
+          : null;
+
+      const entry: LeaderboardEntry = {
+        userId: id,
+        userName: userMap.get(id) || 'Unknown User',
+        completionPercentage,
+        completedAt,
+        enrollmentDate,
+        weeklyItems: effort.weeklyItems,
+        weeklyMinutes: Math.round(effort.weeklyMinutes),
+        // keep 2 decimals so sub-day completions can render as hours
+        daysToComplete:
+          daysToComplete === null ? null : Math.round(daysToComplete * 100) / 100,
+        league: isFinisher ? 'finishers' : 'active',
+        rank: 0,
+      };
+
+      (isFinisher ? finishers : active).push(entry);
+    }
+
+    // Finishers: fastest (fewest days from their own enrollment) first.
+    // Entries missing daysToComplete (old records w/o timestamps) go last.
+    finishers.sort((a, b) => {
+      if (a.daysToComplete === null && b.daysToComplete === null) {
+        return 0;
+      }
+      if (a.daysToComplete === null) return 1;
+      if (b.daysToComplete === null) return -1;
+      if (a.daysToComplete !== b.daysToComplete) {
+        return a.daysToComplete - b.daysToComplete;
+      }
+      // tie-break: earlier absolute completion first
+      return (
+        new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime()
+      );
+    });
+
+    // Active: rolling-window effort first, then lifetime progress, then earlier start.
+    active.sort((a, b) => {
+      if (a.weeklyItems !== b.weeklyItems) {
+        return b.weeklyItems - a.weeklyItems;
+      }
+      if (a.weeklyMinutes !== b.weeklyMinutes) {
+        return b.weeklyMinutes - a.weeklyMinutes;
+      }
       if (a.completionPercentage !== b.completionPercentage) {
         return b.completionPercentage - a.completionPercentage;
       }
-
-      // Secondary sort: by completedAt (ascending - earliest first) for same percentage
-      if (a.completedAt && b.completedAt) {
-        return (
-          new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime()
-        );
-      }
-
-      // If one has completedAt and other doesn't, prioritize the one with completedAt
-      if (a.completedAt) return -1;
-      if (b.completedAt) return 1;
-
-      // Both don't have completedAt, maintain current order
-      return 0;
+      const aStart = a.enrollmentDate ? new Date(a.enrollmentDate).getTime() : 0;
+      const bStart = b.enrollmentDate ? new Date(b.enrollmentDate).getTime() : 0;
+      return aStart - bStart;
     });
 
-    // Assign ranks
-    // return sortedLeaderboard.map((student, index) => ({
-    //   ...student,
-    //   rank: index + 1,
-    // }));
-
-    const rankedLeaderboard = sortedLeaderboard.map((student, index) => ({
-      ...student,
-      rank: index + 1,
-    }));
-    console.log(rankedLeaderboard[0])
+    // Rank within each league (rank 1 per league)
+    finishers.forEach((entry, index) => (entry.rank = index + 1));
+    active.forEach((entry, index) => (entry.rank = index + 1));
 
     const myStats =
-      rankedLeaderboard.find(entry => entry.userId === userId) || null;
+      finishers.find(e => e.userId === userId) ||
+      active.find(e => e.userId === userId) ||
+      null;
 
-    const totalDocuments = rankedLeaderboard.length;
-    const totalPages = Math.ceil(totalDocuments / limit);
-
+    // Paginate the Active league (the one that grows); finishers returned whole.
+    const activeTotal = active.length;
+    const activeTotalPages = Math.max(1, Math.ceil(activeTotal / limit));
     const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
+    const activePage = active.slice(startIndex, startIndex + limit);
 
-    const paginatedData = rankedLeaderboard.slice(startIndex, endIndex);
     return {
-      data: paginatedData,
-      totalDocuments,
-      totalPages,
-      currentPage: page,
+      finishers: { data: finishers, total: finishers.length },
+      active: {
+        data: activePage,
+        total: activeTotal,
+        totalPages: activeTotalPages,
+        currentPage: page,
+      },
       myStats,
     };
   }
@@ -4142,7 +4442,7 @@ class ProgressService extends BaseService {
     const [completedItemIds, courseVersion, enrollment] = await Promise.all([
       this.progressRepository.getCompletedItems(userId, courseId, versionId, cohortId),
       this.courseRepo.readVersion(versionId),
-      this.enrollmentRepo.findEnrollment(userId, courseId, versionId, cohortId),
+      this.resolveEnrollment(userId, courseId, versionId, cohortId),
     ]);
 
     if (!courseVersion) {

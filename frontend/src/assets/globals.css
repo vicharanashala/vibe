@@ -228,3 +228,27 @@
     transform: scale(1) translateX(0);
   }
 }
+
+/* Leaderboard finishers marquee (seamless loop — content is duplicated once) */
+@keyframes lbMarquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.lb-marquee-track {
+  animation: lbMarquee var(--lb-marquee-duration, 30s) linear infinite;
+}
+
+.lb-marquee:hover .lb-marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lb-marquee-track {
+    animation: none;
+  }
+}

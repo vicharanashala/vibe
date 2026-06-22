@@ -24,6 +24,18 @@ function formatSecondsToTime(seconds: number): string {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
+// Short, encouraging lines shown while the player + proctoring environment load.
+const LOADING_QUOTES: string[] = [
+  "The beautiful thing about learning is that no one can take it away from you.",
+  "Every expert was once a beginner.",
+  "Small steps every day add up to big results.",
+  "Learning never exhausts the mind — it only lights it up.",
+  "Focus on the step in front of you, not the whole staircase.",
+  "Curiosity is the engine of achievement.",
+  "Mistakes are proof that you are trying.",
+  "An investment in knowledge pays the best interest.",
+];
+
 // Helper to extract YouTube video ID from URL
 function getYouTubeId(url: string): string | null {
   const match = url.match(/(?:v=|youtu.be\/?)([\w-]{11})/);
@@ -43,7 +55,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef }: VideoProps) {
+export default function Video({ URL, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, focusMode = false, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -55,10 +67,19 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const [duration, setDuration] = useState(0);
   // const [volume, setVolume] = useState(100);
   // Use the stored playback rate from the player store
-  const { playbackRate, setPlaybackRate, volume, setVolume } = usePlayerStore();
+  const { playbackRate, setPlaybackRate, volume, setVolume, subtitlesEnabled, setSubtitlesEnabled } = usePlayerStore();
   const [maxTime, setMaxTime] = useState(0);
   const [, setIsHovering] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
+  // Rotating quote shown during the "preparing environment" delay.
+  const [quoteIndex, setQuoteIndex] = useState(0);
+  useEffect(() => {
+    if (readyToDetect) return;
+    const id = setInterval(() => {
+      setQuoteIndex((i) => (i + 1) % LOADING_QUOTES.length);
+    }, 4000);
+    return () => clearInterval(id);
+  }, [readyToDetect]);
   const videoId = getYouTubeId(URL);
   const { currentCourse, setWatchItemId } = useCourseStore();
   const startItem = useStartItem();
@@ -76,8 +97,12 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const progressStoppedRef = useRef(false);
   const watchItemIdRef = useRef<string | null>(null);
   const stopInFlightRef = useRef(false);
+   const nextItemIdRef = useRef(nextItemId);
+  useEffect(() => {
+    nextItemIdRef.current = nextItemId;
+  }, [nextItemId]);
 
-  const [subtitlesEnabled, setSubtitlesEnabled] = useState(false);
+  // subtitlesEnabled is persisted in the player store (see usePlayerStore above).
   const [subtitlesAvailable, setSubtitlesAvailable] = useState(false);
 
   // const [videoEnded, setVideoEnded] = useState(false);
@@ -210,6 +235,11 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
+
+    // Sync once on mount: if the player mounts while the browser is already in
+    // fullscreen (e.g. navigating between videos without leaving fullscreen),
+    // no change event fires, so the button would otherwise show the wrong state.
+    handleFullscreenChange();
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => {
@@ -390,8 +420,8 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 moduleId: currentCourse!.moduleId ?? '',
                 sectionId: currentCourse!.sectionId ?? '',
                 seekForwardEnabled,
-                nextItemId,
-                cohortId: currentCourse!.cohortId ?? '',
+                nextItemId: nextItemIdRef.current,
+                cohortId: currentCourse!.cohortId || undefined,
               },
             });
           }
@@ -598,7 +628,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           itemId: currentCourse.itemId,
           moduleId: currentCourse.moduleId ?? '',
           sectionId: currentCourse.sectionId ?? '',
-          cohortId: currentCourse.cohortId ?? '',
+          cohortId: currentCourse.cohortId || undefined,
         }
       });
     }
@@ -612,22 +642,21 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     }
   }, [startItem.data?.watchItemId, setWatchItemId]);
 
-  // ✅ Call upsert watch time API every 10 seconds while video is playing
+  // ✅ Call upsert watch time API every 15 seconds while video is playing
   useEffect(() => {
-    if (!watchItemIdRef.current) return;
-
+    const watchItemId = startItem.data?.watchItemId || currentCourse?.watchItemId;
+    if (!watchItemId || !playing) return;
     const interval = setInterval(() => {
       upsertWatchTime.mutate({
         body: {
-          watchItemId: watchItemIdRef.current!,
+          watchItemId,
           itemId: currentCourse?.itemId!,
-          cohortId: currentCourse?.cohortId ?? undefined,
+          cohortId: currentCourse?.cohortId || undefined,
         }
       } as any);
     }, 15000); // every 15 seconds
-
     return () => clearInterval(interval); // cleanup on unmount
-  }, [watchItemIdRef.current]);
+  }, [startItem.data?.watchItemId, playing, currentCourse?.watchItemId]);
 
 
   const forceHighestQuality = (player: YTPlayerInstance) => {
@@ -673,11 +702,29 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         },
         events: {
           onReady: (event: { target: YTPlayerInstance }) => {
+            // YouTube injects the iframe with a fixed default size (640x360);
+            // force it to fill its container so the video scales with the panel.
+            try {
+              const iframeEl = (event.target as any).getIframe?.() as HTMLIFrameElement | undefined;
+              if (iframeEl) {
+                iframeEl.style.width = '100%';
+                iframeEl.style.height = '100%';
+                iframeEl.style.display = 'block';
+              }
+            } catch { /* getIframe unavailable — non-fatal */ }
             const dur = event.target.getDuration();
             setPlayerReady(true);
             setDuration(dur);
             // setVolume(event.target.getVolume());
             event.target.setVolume(volume);
+            // Re-apply the persisted subtitle preference on a fresh player.
+            if (subtitlesEnabled) {
+              try {
+                const p = event.target as any;
+                p.loadModule?.('captions');
+                p.setOption?.('captions', 'track', { languageCode: 'en' });
+              } catch { /* captions module unavailable — non-fatal */ }
+            }
             setMaxTime(startTimeSeconds);
             event.target.seekTo(startTimeSeconds, true);
             onDurationChange?.(dur);
@@ -979,20 +1026,18 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
 
   const handleToggleSubtitles = () => {
-    setSubtitlesEnabled((prev) => {
-      const newState = !prev;
+    const newState = !subtitlesEnabled;
 
-      if (playerRef.current) {
-        if (newState) {
-          playerRef.current.loadModule('captions');
-          playerRef.current.setOption('captions', 'track', { languageCode: 'en' });
-        } else {
-          playerRef.current.setOption('captions', 'track', {});
-        }
+    if (playerRef.current) {
+      if (newState) {
+        playerRef.current.loadModule('captions');
+        playerRef.current.setOption('captions', 'track', { languageCode: 'en' });
+      } else {
+        playerRef.current.setOption('captions', 'track', {});
       }
+    }
 
-      return newState;
-    });
+    setSubtitlesEnabled(newState);
   };
 
   const formatTime = (seconds: number): string => {
@@ -1076,9 +1121,9 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           maxHeight: '100%',
           display: 'flex',
           flexDirection: 'column',
-          borderRadius: '12px',
+          borderRadius: (focusMode || isFullscreen) ? '0' : '12px',
           overflow: 'hidden',
-
+          position: 'relative',
         }}>
         {/* Video Container */}
         <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
@@ -1096,24 +1141,40 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 borderRadius: '12px 12px 0 0',
               }}
             >
+              <Loader2
+                className="animate-spin"
+                style={{
+                  width: 40,
+                  height: 40,
+                  color: 'hsl(var(--primary))',
+                  marginBottom: 18,
+                }}
+              />
               <div
                 style={{
                   fontSize: 18,
                   fontWeight: 600,
                   color: 'hsl(var(--foreground))',
-                  marginBottom: 8,
+                  marginBottom: 14,
                 }}
               >
-                Preparing environment...
+                Preparing your environment...
               </div>
               <div
+                key={quoteIndex}
+                className="animate-in fade-in duration-700"
                 style={{
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: 400,
-                  opacity: 0.7,
+                  fontStyle: 'italic',
+                  opacity: 0.75,
+                  maxWidth: 460,
+                  textAlign: 'center',
+                  lineHeight: 1.5,
+                  padding: '0 16px',
                 }}
               >
-                Please wait while we get things ready.
+                “{LOADING_QUOTES[quoteIndex]}”
               </div>
             </div>
           ) : (
@@ -1516,7 +1577,15 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
                             ) : <></>}
 
-                            {anomalies?.includes("faceCountDetection") ? (
+                            {anomalies?.includes("noFace") ? (
+
+                              <div style={{ marginBottom: 6 }}>
+
+                                <strong>Please stay in frame</strong>
+
+                              </div>
+
+                            ) : anomalies?.includes("faceCountDetection") ? (
 
                               <div style={{ marginBottom: 6 }}>
 
@@ -1541,6 +1610,16 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                               <div style={{ marginBottom: 6 }}>
 
                                 <strong>Stay focused!</strong>
+
+                              </div>
+
+                            ) : <></>}
+
+                            {anomalies?.includes("faceRecognition") ? (
+
+                              <div style={{ marginBottom: 6 }}>
+
+                                <strong>Identity mismatch! Please ensure the registered student is watching.</strong>
 
                               </div>
 
@@ -1602,19 +1681,34 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         </div>
 
 
-        {/* Custom Controls Below Video */}
+        {/* Custom Controls — below the video normally, overlaid inside it in focus/fullscreen */}
 
         <div
           style={{
-            background: 'hsl(var(--card))',
             padding: '8px 16px',
             borderTop: '1px solid hsl(var(--primary) / 0.2)',
-            borderRadius: '0 0 12px 12px',
             userSelect: 'none',
             WebkitUserSelect: 'none',
             MozUserSelect: 'none',
             msUserSelect: 'none',
             flexShrink: 0,
+            ...((focusMode || isFullscreen)
+              ? {
+                  // Float the bar over the bottom of the video.
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: 20,
+                  background: 'hsl(var(--card) / 0.82)',
+                  backdropFilter: 'blur(10px)',
+                  WebkitBackdropFilter: 'blur(10px)',
+                  borderRadius: 0,
+                }
+              : {
+                  background: 'hsl(var(--card))',
+                  borderRadius: '0 0 12px 12px',
+                }),
           }}
           onClick={(e) => e.stopPropagation()}
         >

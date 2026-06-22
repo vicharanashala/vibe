@@ -477,12 +477,17 @@ export class InviteService extends BaseService {
       for (const {email, role} of uniqueInviteData) {
         const normalizedEmail = email.toLowerCase().trim();
 
+        // Always check the already-invited list before sending a new invite.
+        // Cohort-agnostic and covers PENDING (awaiting action) + ACCEPTED, so a
+        // learner already invited to this course is never sent a duplicate —
+        // regardless of which cohort the existing invite targeted. (Scoping this
+        // to a specific cohort is what let duplicates slip through when the
+        // configured follow-up cohort differed from the learner's existing one.)
         const existingInvite =
-          await this.inviteRepo.findPendingInviteByEmailAndCourse(
+          await this.inviteRepo.findActiveInviteByEmailAndCourse(
             normalizedEmail,
             courseId,
             courseVersionId,
-            cohortId,
             session,
           );
         if (existingInvite) {

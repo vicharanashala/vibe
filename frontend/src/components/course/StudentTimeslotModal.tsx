@@ -1,26 +1,50 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Clock, Users, Loader2 } from "lucide-react";
-import { useChooseTimeSlot, useGetTimeSlots } from "@/hooks/hooks";
+import { Clock, Users, Loader2, Check, Gift } from "lucide-react";
+import {
+  useGetTimeSlots,
+  useMyBookings,
+  useSlotAvailability,
+  useBookSlot,
+  useCancelBooking,
+  bookableStudyDates,
+  istToday,
+  type MyBooking,
+} from "@/hooks/hooks";
 import { cn } from "@/utils/utils";
 
-interface TimeSlot {
-  from: string;
-  to: string;
-  studentIds: string[];
-  maxStudents?: number;
-}
+// Friendly label for a YYYY-MM-DD study day relative to IST today.
+const dayLabel = (date: string): string => {
+  const today = istToday();
+  if (date === today) return "Today";
+  const [y, m, d] = date.split("-").map(Number);
+  const ms = Date.UTC(y, m - 1, d);
+  const todayMs = (() => {
+    const [ty, tm, td] = today.split("-").map(Number);
+    return Date.UTC(ty, tm - 1, td);
+  })();
+  const diff = Math.round((ms - todayMs) / (24 * 60 * 60 * 1000));
+  if (diff === 1) return "Tomorrow";
+  return new Date(ms).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+};
 
 interface StudentTimeslotModalProps {
   isOpen: boolean;
   onClose: () => void;
   courseId: string;
   courseVersionId: string;
-  currentUserId: string;
-  hasAssignedTimeslot: boolean;
+  cohortId?: string;
+  // Accepted for call-site compatibility; no longer used (self-service booking).
+  currentUserId?: string;
+  hasAssignedTimeslot?: boolean;
 }
 
 // Helper component for time display
@@ -32,77 +56,90 @@ const TimeDisplay = ({ time }: { time: string }) => {
   return `${displayHour}:${minute} ${suffix}`;
 };
 
-export default function StudentTimeslotModal({ 
-  isOpen, 
-  onClose, 
-  courseId, 
-  courseVersionId, 
-  currentUserId,
-  hasAssignedTimeslot 
+export default function StudentTimeslotModal({
+  isOpen,
+  onClose,
+  courseId,
+  courseVersionId,
+  cohortId,
 }: StudentTimeslotModalProps) {
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const { data: timeSlotsData, isLoading, refetch } = useGetTimeSlots(courseId, courseVersionId, isOpen);
-  const chooseTimeSlotMutation = useChooseTimeSlot();
+  const { data: timeSlotsData, isLoading } = useGetTimeSlots(courseId, courseVersionId, isOpen);
 
-  // Check if a timeslot is at capacity
-  const isTimeslotFull = (slot: TimeSlot) => {
-    if (!slot.maxStudents) return false;
-    return slot.studentIds.length >= slot.maxStudents;
+  // Study days a student may book right now (today before 9 AM / tomorrow /
+  // day-after from 9 AM IST). The first open day is selected by default.
+  const studyDates = bookableStudyDates();
+  const [selectedDate, setSelectedDate] = useState<string>(studyDates[0]);
+  const activeDate = studyDates.includes(selectedDate) ? selectedDate : studyDates[0];
+
+  // All of the student's active bookings (any study day) — drives both the
+  // per-booking-day allowance meter and the per-date "Booked" state.
+  const {
+    data: myBookings,
+    isLoading: bookingsLoading,
+    refetch: refetchBookings,
+  } = useMyBookings(courseId, courseVersionId, undefined, isOpen);
+  const { data: availability, refetch: refetchAvailability } = useSlotAvailability(
+    courseId,
+    courseVersionId,
+    activeDate,
+    isOpen,
+  );
+  const { book, loading: booking } = useBookSlot();
+  const { cancel, loading: cancelling } = useCancelBooking();
+
+  const availabilityFor = (slot: { from: string; to: string }) =>
+    availability?.slots.find(s => s.from === slot.from && s.to === slot.to);
+
+  const refresh = () => {
+    refetchBookings();
+    refetchAvailability();
   };
 
-  // Handle timeslot selection
-  const handleChooseTimeSlot = async (slot: TimeSlot) => {
-    if (isTimeslotFull(slot)) {
-      toast.error('This time slot is full. Please choose another time slot.');
-      return;
-    }
+  const tsSettings = timeSlotsData as
+    | { dailyBaseAllowance?: number; bonusOnFulfillment?: boolean }
+    | null
+    | undefined;
+  const baseAllowance = tsSettings?.dailyBaseAllowance ?? 1;
+  const bonusEnabled = !!tsSettings?.bonusOnFulfillment;
+  const bookings: MyBooking[] = myBookings ?? [];
+  // Allowance is per calendar day the booking is MADE — count bookings created today.
+  const today = istToday();
+  const bookedCount = bookings.filter(b => (b.bookedOnDate ?? b.date) === today).length;
+  // Bonus: each window FULFILLED today (when bonuses are enabled) grants one
+  // extra booking today — mirrors the backend's effective-allowance math.
+  const istDateOfIso = (iso: string) =>
+    new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const bonusEarnedToday = bonusEnabled
+    ? bookings.filter(
+        b => b.status === 'FULFILLED' && b.fulfilledAt && istDateOfIso(b.fulfilledAt) === today,
+      ).length
+    : 0;
+  const allowance = baseAllowance + bonusEarnedToday;
 
-    setSelectedTimeSlot(slot);
-  };
+  const bookingFor = (slot: { from: string; to: string }): MyBooking | undefined =>
+    bookings.find(b => b.date === activeDate && b.from === slot.from && b.to === slot.to);
 
-  // Handle save selection
-  const handleSaveSelection = async () => {
-    if (!selectedTimeSlot) {
-      toast.error('Please select a time slot first.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await chooseTimeSlotMutation.mutateAsync({
-        body: {
-          courseId,
-          courseVersionId,
-          timeSlot: { from: selectedTimeSlot.from, to: selectedTimeSlot.to }
-        }
-      });
-      
-      toast.success('Time slot chosen successfully');
-      refetch();
-      onClose();
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to choose time slot');
-    } finally {
-      setIsSubmitting(false);
+  const handleBook = async (slot: { from: string; to: string }) => {
+    const res = await book(courseId, courseVersionId, { from: slot.from, to: slot.to }, cohortId, activeDate);
+    if (res.success) {
+      toast.success(`Slot booked for ${dayLabel(activeDate)}.`);
+      refresh();
+    } else {
+      toast.error(res.message || 'Could not book this slot.');
     }
   };
 
-  // Handle cancel
-  const handleCancel = () => {
-    setSelectedTimeSlot(null);
-    onClose();
+  const handleCancel = async (bookingId: string) => {
+    const res = await cancel(bookingId);
+    if (res.success) {
+      toast.success('Booking cancelled.');
+      refresh();
+    } else {
+      toast.error(res.message || 'Could not cancel this booking.');
+    }
   };
 
-  // Reset state when modal closes
-  useEffect(() => {
-    if (!isOpen) {
-      setSelectedTimeSlot(null);
-    }
-  }, [isOpen]);
-
-  if (isLoading) {
+  if (isLoading || bookingsLoading) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="w-full max-w-md mx-auto">
@@ -135,140 +172,176 @@ export default function StudentTimeslotModal({
     );
   }
 
+  const busy = booking || cancelling;
+  const slots = timeSlotsData.slots ?? [];
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-full max-w-2xl mx-auto max-h-[80vh] overflow-y-auto">
-        <DialogHeader className="pb-4">
-          <DialogTitle className="text-lg font-semibold">Choose Your Time Slot</DialogTitle>
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-lg font-semibold">Book your study time</DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            Pick a day and when you'll study. You can open the course <span className="font-medium text-foreground">only during a window you've booked</span>.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {studyDates.map(d => (
+              <Button
+                key={d}
+                size="sm"
+                variant={d === activeDate ? "default" : "outline"}
+                onClick={() => setSelectedDate(d)}
+              >
+                {dayLabel(d)}
+              </Button>
+            ))}
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-medium">
+              {bookedCount} of {allowance} booking{allowance !== 1 ? 's' : ''} used today
+            </span>
+            {bonusEarnedToday > 0 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2.5 py-0.5 text-xs font-medium">
+                <Gift className="h-3.5 w-3.5" />
+                +{bonusEarnedToday} bonus earned
+              </span>
+            ) : null}
+          </div>
+          {bonusEarnedToday > 0 ? (
+            <p className="mt-1 text-xs text-amber-700">
+              🎉 You stayed active in {bonusEarnedToday} of your booked window
+              {bonusEarnedToday !== 1 ? 's' : ''} today — that earned you{' '}
+              {bonusEarnedToday} extra booking{bonusEarnedToday !== 1 ? 's' : ''}. Book another window below.
+            </p>
+          ) : null}
         </DialogHeader>
 
-        {hasAssignedTimeslot ? (
-          <div className="text-center py-8">
-            <div className="mb-4">
-              <div className="bg-yellow-100 border border-yellow-200 text-yellow-800 rounded-lg p-4">
-                <p className="font-medium mb-2">You already have a time slot assigned</p>
-                <p className="text-sm">Contact your instructor if you need to change your time slot.</p>
-              </div>
+        <div className="space-y-4">
+          {slots.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">
+                No time slots are available for this course.
+              </p>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {timeSlotsData.slots.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">
-                  No time slots are available for this course.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {timeSlotsData.slots.map((slot, index) => {
-                  const isFull = isTimeslotFull(slot);
-                  const isSelected = selectedTimeSlot?.from === slot.from && selectedTimeSlot?.to === slot.to;
-                  
-                  return (
-                    <Card 
-                      key={index} 
-                      className={cn(
-                        "border transition-all cursor-pointer",
-                        isFull 
-                          ? "opacity-60 cursor-not-allowed border-red-200 bg-red-50/30" 
-                          : isSelected
-                          ? "border-primary bg-primary/5 shadow-md"
+          ) : (
+            <div className="space-y-2">
+              {slots.map((slot, index) => {
+                const avail = availabilityFor(slot);
+                const cap = avail?.maxStudents ?? (slot as { maxStudents?: number }).maxStudents ?? null;
+                const bookedSeats = avail?.booked ?? 0;
+                const remaining = avail?.remaining ?? null;
+                const isFull = remaining !== null && remaining <= 0;
+                const booked = bookingFor(slot);
+                const atLimit = !booked && bookedCount >= allowance;
+                const pct = cap && cap > 0 ? Math.min(100, (bookedSeats / cap) * 100) : 0;
+                const nearFull = cap !== null && !isFull && pct >= 80;
+
+                return (
+                  <Card
+                    key={index}
+                    className={cn(
+                      "border transition-all",
+                      booked
+                        ? "border-green-300 bg-green-50/40"
+                        : isFull || atLimit
+                          ? "opacity-70 border-muted"
                           : "hover:border-primary hover:shadow-sm"
-                      )}
-                      onClick={() => !isFull && handleChooseTimeSlot(slot)}
-                    >
-                      <CardContent>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <Clock className="h-4 w-4 text-primary" />
-                            <div>
-                              <div className="font-medium text-l">
-                                <TimeDisplay time={slot.from} /> - <TimeDisplay time={slot.to} />
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {slot.studentIds.length} student{slot.studentIds.length !== 1 ? 's' : ''} enrolled
-                              </div>
-                            </div>
-                          </div>
-                          {slot.maxStudents && (
-                            <div className={cn(
-                              "flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium",
-                              isFull 
-                                ? 'bg-red-100 text-red-700 border border-red-200' 
-                                : slot.studentIds.length >= slot.maxStudents * 0.8
-                                ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
-                                : 'bg-green-100 text-green-700 border border-green-200'
-                            )}>
-                              <Users className="h-3 w-3" />
-                              <span>{slot.studentIds.length}/{slot.maxStudents}</span>
-                              {isFull ? ' Full' : 
-                               slot.studentIds.length >= slot.maxStudents * 0.8 ? ' Almost Full' : ''}
-                            </div>
-                          )}
-                          
-                          {/* Radio button */}
-                          <div className="flex items-center">
-                            <div className={cn(
-                              "w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors",
-                              isFull
-                                ? "border-gray-300 bg-gray-100 cursor-not-allowed"
-                                : isSelected
-                                ? "border-primary bg-primary"
-                                : "border-gray-300 bg-white hover:border-primary"
-                            )}>
-                              {isSelected && (
-                                <div className="w-1.5 h-1.5 rounded-full bg-white" />
-                              )}
-                            </div>
+                    )}
+                  >
+                    <CardContent className="py-3 space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <Clock className="h-4 w-4 text-primary shrink-0" />
+                          <div className="font-medium">
+                            <TimeDisplay time={slot.from} /> – <TimeDisplay time={slot.to} />
                           </div>
                         </div>
-                        
-                        {isFull && (
-                          <div className="mt-2 text-xs text-red-600 font-medium">
-                            This time slot is full. Please choose another time slot.
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-            
-            {/* Action buttons */}
-            <div className="flex gap-3 pt-4 border-t">
-              <Button 
-                onClick={handleSaveSelection}
-                disabled={!selectedTimeSlot || isSubmitting}
-                className="flex-1"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Selection'
-                )}
-              </Button>
-              <Button 
-                onClick={handleCancel}
-                variant="outline"
-                disabled={isSubmitting}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        )}
 
-        <div className="mt-6 pt-4 border-t">
-          <div className="text-xs text-muted-foreground">
-            <p>• You can only choose one time slot per course.</p>
-            <p>• Once selected, contact your instructor to make changes.</p>
-            <p>• Time slots are shown in your local timezone.</p>
+                        {booked ? (
+                          <div className="flex items-center gap-2">
+                            <span className="flex items-center gap-1 text-xs font-medium text-green-700">
+                              <Check className="h-4 w-4" /> Booked
+                            </span>
+                            {booked.kind === 'BONUS' ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[11px] font-medium">
+                                <Gift className="h-3 w-3" /> Bonus
+                              </span>
+                            ) : null}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={busy}
+                              onClick={() => handleCancel(booked._id)}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            disabled={busy || atLimit || isFull}
+                            onClick={() => handleBook(slot)}
+                          >
+                            {busy ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : isFull ? (
+                              'Full'
+                            ) : atLimit ? (
+                              'Daily limit reached'
+                            ) : (
+                              'Book'
+                            )}
+                          </Button>
+                        )}
+                      </div>
+
+                      {cap !== null ? (
+                        <div className="space-y-1">
+                          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                            <div
+                              className={cn(
+                                "h-full rounded-full transition-all",
+                                isFull ? "bg-red-500" : nearFull ? "bg-yellow-500" : "bg-green-500"
+                              )}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Users className="h-3 w-3" />
+                            {isFull
+                              ? 'Full — choose another window'
+                              : `${remaining} seat${remaining === 1 ? '' : 's'} left`}
+                            <span className="opacity-70">· {bookedSeats}/{cap} booked</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Users className="h-3 w-3" /> No capacity limit
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex pt-2 border-t">
+            <Button onClick={onClose} variant="outline" className="ml-auto" disabled={busy}>
+              Done
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-4 pt-4 border-t">
+          <div className="text-xs text-muted-foreground space-y-0.5">
+            <p>• Booking for a day opens at 9:00 AM IST two days before, and closes at 9:00 AM IST on the day itself.</p>
+            <p>• Your booking allowance resets each calendar day — it counts every booking you make today, for any day.</p>
+            {bonusEnabled ? (
+              <p>• Stay active for most of a booked window and you'll earn a bonus booking to use the same day.</p>
+            ) : null}
+            <p>• Need a different window? Cancel a booking to free up your allowance, then book another.</p>
+            <p>• Access to the course is allowed during a window you've booked.</p>
+            <p>• Time slots are in IST (Indian Standard Time, UTC+5:30).</p>
           </div>
         </div>
       </DialogContent>

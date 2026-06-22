@@ -11,6 +11,8 @@ import {
   IDESSolution,
   Priority,
   BloomLevel,
+  QuestionSource,
+  QuestionReviewStatus,
 } from '#shared/interfaces/quiz.js';
 import {ObjectId} from 'mongodb';
 import {QuestionBody} from '../validators/QuestionValidator.js';
@@ -27,6 +29,9 @@ abstract class BaseQuestion implements IQuestion {
   timeLimitSeconds: number;
   points?: number;
   priority: Priority;
+  source?: QuestionSource;
+  reviewStatus?: QuestionReviewStatus;
+  studentQuestionId?: string | ObjectId;
   isDeleted?: boolean;
   deletedAt?: Date;
 
@@ -42,6 +47,11 @@ abstract class BaseQuestion implements IQuestion {
     this.timeLimitSeconds = question.timeLimitSeconds;
     this.points = question.points;
     this.priority = question.priority;
+    this.source = question.source;
+    this.reviewStatus = question.reviewStatus;
+    this.studentQuestionId = question.studentQuestionId
+      ? new ObjectId(question.studentQuestionId.toString())
+      : undefined;
     this.isDeleted = false;
     this.deletedAt = undefined;
   }

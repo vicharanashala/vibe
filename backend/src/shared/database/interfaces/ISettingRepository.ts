@@ -250,7 +250,7 @@ export interface ISettingRepository {
   updateTimeslotsSettings(
     courseId: string,
     courseVersionId: string,
-    timeslots: {isActive: boolean; slots: ITimeSlot[]},
+    timeslots: NonNullable<ISettings['timeslots']>,
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
 
@@ -265,7 +265,7 @@ export interface ISettingRepository {
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
-  ): Promise<{isActive: boolean; slots: ITimeSlot[]} | null>;
+  ): Promise<NonNullable<ISettings['timeslots']> | null>;
 
   getSettingsByVersionIds(
     courseVersionIds: ObjectId[],
@@ -282,4 +282,13 @@ export interface ISettingRepository {
   ): Promise<boolean>;
 
   shouldRandomize(versionId: string):Promise<boolean>;
+
+  /**
+   * Returns the {courseId, courseVersionId} of every course version that has an
+   * enabled follow-up invite configured. Used by the reconciliation job to
+   * backfill follow-up invites for source courses.
+   */
+  getCourseVersionsWithFollowUpInviteEnabled(
+    session?: ClientSession,
+  ): Promise<Array<{courseId: string; courseVersionId: string}>>;
 }

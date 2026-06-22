@@ -84,10 +84,9 @@ export function NewAnnouncementsPopup() {
                   </Badge>
                 )}
               </div>
-              <div
-                className="text-sm text-muted-foreground prose prose-sm max-w-none dark:prose-invert"
-                dangerouslySetInnerHTML={{ __html: a.content }}
-              />
+              <div className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground">
+                {a.content}
+              </div>
               <p className="text-[11px] text-muted-foreground/70">
                 {a.instructorName ? `${a.instructorName} · ` : ""}
                 {new Date(a.createdAt).toLocaleString()}

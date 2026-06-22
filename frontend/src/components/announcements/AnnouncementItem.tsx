@@ -115,7 +115,7 @@ export function AnnouncementItem({ announcement, isInstructor, isAdmin, onEdit, 
             </CardHeader>
 
             <CardContent className="pb-3 text-sm leading-relaxed whitespace-pre-line text-muted-foreground/90">
-                <div dangerouslySetInnerHTML={{ __html: announcement.content }} />
+                <div>{announcement.content}</div>
             </CardContent>
 
             {announcement.attachments && announcement.attachments.length > 0 && (

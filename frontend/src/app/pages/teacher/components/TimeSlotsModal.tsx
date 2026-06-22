@@ -15,7 +15,12 @@ import {
   useToggleTimeSlots,
   useUpdateTimeSlot,
   useCourseVersionEnrollments,
-  useRemoveStudentFromTimeSlot
+  useRemoveStudentFromTimeSlot,
+  useSetHoursBudget,
+  useGrantExtraHours,
+  useSetFulfillmentConfig,
+  useSetCapacityConfig,
+  useSlotDemand,
 } from "@/hooks/hooks";
 import { ClockTimePicker } from "./ClockTimePicker";
 
@@ -137,6 +142,32 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   const [currentSlotForStudents, setCurrentSlotForStudents] = useState<TimeSlot | null>(null);
   const [tempSelectedStudents, setTempSelectedStudents] = useState<Set<string>>(new Set());
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
+  // Hours budget: instructor's TOTAL estimated hours for all items of each
+  // category together (all videos, all quizzes, all readings, all projects).
+  const [categoryHours, setCategoryHours] = useState<Record<string, number>>({
+    VIDEO: 10,
+    QUIZ: 3,
+    BLOG: 2,
+    PROJECT: 2,
+  });
+  const [budgetResult, setBudgetResult] = useState<{
+    totalBudgetHours: number;
+  } | null>(null);
+  // Grant extra committed hours to a specific student.
+  const [extendStudentId, setExtendStudentId] = useState<string>("");
+  const [extendHours, setExtendHours] = useState<number>(1);
+  // Phase 3: fulfillment threshold (active share of a window) + bonus toggle.
+  const [fulfillmentThresholdPct, setFulfillmentThresholdPct] = useState<number>(90);
+  const [bonusOnFulfillment, setBonusOnFulfillment] = useState<boolean>(false);
+  // Capacity planning (Option A): one knob — total students the backend is
+  // provisioned to serve at once — from which each slot's seat cap is derived.
+  // Headroom is shown as a percent to the instructor; sent as a 0–1 factor.
+  const [targetConcurrentStudents, setTargetConcurrentStudents] = useState<number>(0);
+  const [headroomPct, setHeadroomPct] = useState<number>(70);
+  const [capacityResult, setCapacityResult] = useState<{
+    maxOverlappingWindows: number;
+    derivedPerSlotCap: number;
+  } | null>(null);
 
   // Hooks
   const { data: timeSlotsData, refetch: refetchTimeSlots } = useGetTimeSlots(
@@ -153,6 +184,115 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   const toggleTimeSlotsMutation = useToggleTimeSlots();
   const updateTimeSlotMutation = useUpdateTimeSlot();
   const removeStudentFromTimeSlotMutation = useRemoveStudentFromTimeSlot();
+  const { setHoursBudget, loading: budgetLoading } = useSetHoursBudget();
+  const { grantExtraHours, loading: extendLoading } = useGrantExtraHours();
+  const { setFulfillmentConfig, loading: fulfillmentLoading } = useSetFulfillmentConfig();
+  const { setCapacityConfig, loading: capacityLoading } = useSetCapacityConfig();
+
+  // Seed any saved budget/estimates when the modal loads.
+  useEffect(() => {
+    const ts = timeSlotsData as any;
+    if (ts?.categoryBudgetHours) {
+      setCategoryHours(prev => ({ ...prev, ...ts.categoryBudgetHours }));
+    }
+    if (typeof ts?.totalBudgetHours === 'number') {
+      setBudgetResult(r => r ?? { totalBudgetHours: ts.totalBudgetHours });
+    }
+    if (typeof ts?.fulfillmentThresholdPct === 'number') {
+      setFulfillmentThresholdPct(ts.fulfillmentThresholdPct);
+    }
+    if (typeof ts?.bonusOnFulfillment === 'boolean') {
+      setBonusOnFulfillment(ts.bonusOnFulfillment);
+    }
+    if (typeof ts?.targetConcurrentStudents === 'number') {
+      setTargetConcurrentStudents(ts.targetConcurrentStudents);
+    }
+    if (typeof ts?.capacityHeadroomFactor === 'number') {
+      setHeadroomPct(Math.round(ts.capacityHeadroomFactor * 100));
+    }
+  }, [timeSlotsData]);
+
+  const handleSaveFulfillment = async () => {
+    try {
+      const result = await setFulfillmentConfig(
+        courseId,
+        courseVersionId,
+        fulfillmentThresholdPct,
+        bonusOnFulfillment,
+      );
+      setFulfillmentThresholdPct(result.fulfillmentThresholdPct);
+      setBonusOnFulfillment(result.bonusOnFulfillment);
+      toast.success(
+        `Fulfillment set: ${result.fulfillmentThresholdPct}% active` +
+          (result.bonusOnFulfillment ? ', bonus on' : ', bonus off'),
+      );
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to set fulfillment settings');
+    }
+  };
+
+  const handleSaveCapacity = async () => {
+    try {
+      const result = await setCapacityConfig(
+        courseId,
+        courseVersionId,
+        targetConcurrentStudents,
+        Math.max(0.01, Math.min(1, headroomPct / 100)),
+      );
+      setTargetConcurrentStudents(result.targetConcurrentStudents);
+      setHeadroomPct(Math.round(result.capacityHeadroomFactor * 100));
+      setCapacityResult({
+        maxOverlappingWindows: result.maxOverlappingWindows,
+        derivedPerSlotCap: result.derivedPerSlotCap,
+      });
+      toast.success(
+        `Capacity set: ${result.derivedPerSlotCap} seats/slot ` +
+          `(${result.maxOverlappingWindows} overlapping window${
+            result.maxOverlappingWindows === 1 ? '' : 's'
+          })`,
+      );
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to set capacity settings');
+    }
+  };
+
+  const handleSaveBudget = async () => {
+    try {
+      const result = await setHoursBudget(courseId, courseVersionId, {
+        VIDEO: categoryHours.VIDEO,
+        QUIZ: categoryHours.QUIZ,
+        BLOG: categoryHours.BLOG,
+        PROJECT: categoryHours.PROJECT,
+      });
+      setBudgetResult(result);
+      toast.success(`Committed hours budget set: ${result.totalBudgetHours}h per student`);
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to set hours budget');
+    }
+  };
+
+  const handleGrantHours = async () => {
+    if (!extendStudentId) {
+      toast.error('Select a student first');
+      return;
+    }
+    if (!extendHours || extendHours <= 0) {
+      toast.error('Enter a positive number of hours');
+      return;
+    }
+    try {
+      const result = await grantExtraHours(
+        courseId,
+        courseVersionId,
+        extendStudentId,
+        extendHours,
+      );
+      toast.success(`Granted ${extendHours}h — student now has ${result.commitmentExtraHours}h extra`);
+      setExtendHours(1);
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to grant extra hours');
+    }
+  };
 
   // Get enrolled students for selection
   const { data: enrollmentsData } = useCourseVersionEnrollments(
@@ -169,6 +309,18 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   );
 
   const enrolledStudents = enrollmentsData?.enrollments || [];
+
+  // Demand schedule for today (booked load per window) — the capacity-planning view.
+  const {
+    data: slotDemand,
+    isLoading: demandLoading,
+    refetch: refetchDemand,
+  } = useSlotDemand(
+    courseId && courseId.length === 24 ? courseId : undefined,
+    courseVersionId && courseVersionId.length === 24 ? courseVersionId : undefined,
+    undefined,
+    isOpen && enableSlotAssignment,
+  );
 
   // Initialize data when modal opens
   useEffect(() => {
@@ -190,16 +342,14 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
       return;
     }
 
-    // If toggling off and there are students assigned, show confirmation
+    // If toggling off, confirm. Disabling is non-destructive: slots and
+    // bookings are preserved and restored when re-enabled.
     if (enableSlotAssignment && timeSlots.length > 0) {
-      const totalAssignedStudents = timeSlots.reduce((total, slot) => total + (slot.studentIds?.length || 0), 0);
-      
-      if (totalAssignedStudents > 0) {
-        const message = `Are you sure you want to disable time slots? This will remove all time slot assignments for ${totalAssignedStudents} student(s) and delete all existing time slots.`;
-        
-        if (!window.confirm(message)) {
-          return; // User cancelled
-        }
+      const message =
+        'Disable time slots for this course? Students will not be time-restricted while it is off. Your slots and student bookings are kept and restored when you re-enable.';
+
+      if (!window.confirm(message)) {
+        return; // User cancelled
       }
     }
 
@@ -545,6 +695,334 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
 
               {enableSlotAssignment && (
                 <>
+                  {/* Committed hours budget */}
+                  <Card className="border shadow-sm">
+                    <CardContent className="p-4 space-y-3">
+                      <div>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Clock className="h-5 w-5" />
+                          Committed hours budget
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Roughly how many hours of each kind of work does the whole course take in total? We add them up to set each student&apos;s committed-hours budget. (e.g. ~10h of video, a 2h project.)
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {([
+                          ["VIDEO", "Total hours — all videos"],
+                          ["QUIZ", "Total hours — all quizzes"],
+                          ["BLOG", "Total hours — all readings"],
+                          ["PROJECT", "Total hours — all projects & assignments"],
+                        ] as const).map(([key, label]) => (
+                          <div key={key}>
+                            <Label className="text-xs">{label}</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              value={categoryHours[key] ?? ""}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                setCategoryHours(prev => ({
+                                  ...prev,
+                                  [key]: e.target.value === "" ? 0 : parseFloat(e.target.value),
+                                }))
+                              }
+                              className="mt-1"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <Button size="sm" onClick={handleSaveBudget} disabled={budgetLoading}>
+                          {budgetLoading ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Save className="h-4 w-4 mr-2" />
+                          )}
+                          Save budget
+                        </Button>
+                        <span className="text-sm font-medium">
+                          Total:{' '}
+                          {Math.round(
+                            (['VIDEO', 'QUIZ', 'BLOG', 'PROJECT'].reduce(
+                              (s, k) => s + (Number(categoryHours[k]) || 0),
+                              0,
+                            )) * 100,
+                          ) / 100}
+                          h / student
+                          {budgetResult ? (
+                            <span className="text-green-700"> · saved {budgetResult.totalBudgetHours}h</span>
+                          ) : null}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Fulfillment & bonus (Phase 3) */}
+                  <Card className="border shadow-sm">
+                    <CardContent className="p-4 space-y-3">
+                      <div>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Clock className="h-5 w-5" />
+                          Fulfillment &amp; bonus
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          A booked window counts as <span className="font-medium">fulfilled</span> when the student is active for at least this share of it. Optionally reward a fulfilled window with one extra booking the same day.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-end gap-4">
+                        <div className="w-40">
+                          <Label className="text-xs">Active threshold (%)</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={fulfillmentThresholdPct}
+                            onChange={(e) =>
+                              setFulfillmentThresholdPct(
+                                Math.max(0, Math.min(100, Number(e.target.value))),
+                              )
+                            }
+                            className="mt-1"
+                          />
+                        </div>
+                        <label className="flex items-center gap-2 text-sm select-none pb-2">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            checked={bonusOnFulfillment}
+                            onChange={(e) => setBonusOnFulfillment(e.target.checked)}
+                          />
+                          Grant a bonus booking on fulfillment
+                        </label>
+                      </div>
+                      <div>
+                        <Button size="sm" onClick={handleSaveFulfillment} disabled={fulfillmentLoading}>
+                          {fulfillmentLoading ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Save className="h-4 w-4 mr-2" />
+                          )}
+                          Save fulfillment
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Booking capacity (Option A: capacity-derived seat caps) */}
+                  <Card className="border shadow-sm">
+                    <CardContent className="p-4 space-y-3">
+                      <div>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Clock className="h-5 w-5" />
+                          Booking capacity
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Set how many students the backend can serve at once. Each slot's seat cap is derived automatically as <span className="font-medium">target × headroom ÷ overlapping windows</span>, so concurrent load stays within budget. Headroom reserves room for booking rushes and other traffic.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-end gap-4">
+                        <div className="w-48">
+                          <Label className="text-xs">Target concurrent students</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={targetConcurrentStudents || ""}
+                            onChange={(e) =>
+                              setTargetConcurrentStudents(
+                                Math.max(0, Number(e.target.value)),
+                              )
+                            }
+                            className="mt-1"
+                            placeholder="e.g. 1000"
+                          />
+                        </div>
+                        <div className="w-32">
+                          <Label className="text-xs">Headroom (%)</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={100}
+                            value={headroomPct}
+                            onChange={(e) =>
+                              setHeadroomPct(
+                                Math.max(1, Math.min(100, Number(e.target.value))),
+                              )
+                            }
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                      {capacityResult && (
+                        <p className="text-xs text-muted-foreground">
+                          Derived:{" "}
+                          <span className="font-medium text-foreground">
+                            {capacityResult.derivedPerSlotCap}
+                          </span>{" "}
+                          seats per slot across{" "}
+                          {capacityResult.maxOverlappingWindows} overlapping
+                          window
+                          {capacityResult.maxOverlappingWindows === 1 ? "" : "s"}.
+                          Slots already fuller than this keep their booked count.
+                        </p>
+                      )}
+                      <div>
+                        <Button
+                          size="sm"
+                          onClick={handleSaveCapacity}
+                          disabled={capacityLoading || !targetConcurrentStudents}
+                        >
+                          {capacityLoading ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Save className="h-4 w-4 mr-2" />
+                          )}
+                          Apply capacity
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Grant extra hours to a student */}
+                  <Card className="border shadow-sm">
+                    <CardContent className="p-4 space-y-3">
+                      <div>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Clock className="h-5 w-5" />
+                          Grant extra hours
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Give a specific student more committed hours if they have used up their budget.
+                        </p>
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <div className="flex-1">
+                          <Label className="text-xs">Student</Label>
+                          <select
+                            value={extendStudentId}
+                            onChange={(e) => setExtendStudentId(e.target.value)}
+                            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          >
+                            <option value="">Select a student…</option>
+                            {enrolledStudents.map((enr: any) =>
+                              enr.user ? (
+                                <option key={enr.user._id} value={enr.user._id}>
+                                  {enr.user.firstName} {enr.user.lastName}
+                                </option>
+                              ) : null,
+                            )}
+                          </select>
+                        </div>
+                        <div className="w-24">
+                          <Label className="text-xs">Hours</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={extendHours}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                              setExtendHours(e.target.value === "" ? 0 : parseInt(e.target.value))
+                            }
+                            className="mt-1"
+                          />
+                        </div>
+                        <Button size="sm" onClick={handleGrantHours} disabled={extendLoading}>
+                          {extendLoading ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Plus className="h-4 w-4 mr-2" />
+                          )}
+                          Grant
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Demand schedule — booked load per window for today */}
+                  <Card className="border shadow-sm">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h3 className="text-lg font-semibold flex items-center gap-2">
+                            <Calendar className="h-5 w-5" />
+                            Demand schedule — today
+                          </h3>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Booked load per window (IST). Spot near-full slots and balance capacity.
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => refetchDemand()}
+                          disabled={demandLoading}
+                        >
+                          {demandLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            "Refresh"
+                          )}
+                        </Button>
+                      </div>
+                      {demandLoading && !slotDemand ? (
+                        <p className="text-sm text-muted-foreground">Loading demand…</p>
+                      ) : !slotDemand?.slots?.length ? (
+                        <p className="text-sm text-muted-foreground">
+                          No slots defined yet — create a slot below to start collecting bookings.
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {slotDemand.slots.map((s, i) => {
+                            const cap = s.maxStudents;
+                            const pct =
+                              cap && cap > 0 ? Math.min(100, (s.booked / cap) * 100) : 0;
+                            const isFull = cap != null && s.booked >= cap;
+                            const nearFull = cap != null && !isFull && pct >= 80;
+                            return (
+                              <div
+                                key={`${s.from}-${s.to}-${i}`}
+                                className="flex items-center gap-3"
+                              >
+                                <div className="w-28 shrink-0 text-sm font-medium tabular-nums">
+                                  <TimeDisplay time={s.from} /> – <TimeDisplay time={s.to} />
+                                </div>
+                                <div className="flex-1">
+                                  {cap != null ? (
+                                    <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full ${
+                                          isFull
+                                            ? "bg-red-500"
+                                            : nearFull
+                                              ? "bg-yellow-500"
+                                              : "bg-green-500"
+                                        }`}
+                                        style={{ width: `${pct}%` }}
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="h-2 w-full rounded-full bg-muted" />
+                                  )}
+                                </div>
+                                <div className="w-28 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
+                                  {cap != null ? (
+                                    <>
+                                      {s.booked}/{cap} booked
+                                      {isFull ? (
+                                        <Badge variant="destructive" className="ml-1">Full</Badge>
+                                      ) : null}
+                                    </>
+                                  ) : (
+                                    <>{s.booked} booked · no cap</>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
                   {/* Active Slots Section */}
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">

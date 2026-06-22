@@ -13,7 +13,7 @@ import type {
 
 const EMBEDDING_LENGTH = 128;
 const VERIFY_INTERVAL_MS = 1000;
-const MATCH_THRESHOLD = 0.6;
+const MATCH_THRESHOLD = 0.55;
 const REQUIRED_MATCHES = 3;
 const REQUIRED_MISMATCHES = 2;
 
@@ -51,6 +51,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
   onRecognitionResult,
   onDebugInfoUpdate,
   onMismatchChange,
+  onMissingEmbedding,
   enabled = true,
 }) => {
   const [isReady, setIsReady] = useState(false);
@@ -202,14 +203,18 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
         const normalizedEmbedding = normalizeEmbedding(reference.faceEmbedding);
 
         if (!normalizedEmbedding || normalizedEmbedding.length !== EMBEDDING_LENGTH) {
-          if (!missingEmbeddingRedirectedRef.current) {
-            missingEmbeddingRedirectedRef.current = true;
-            const redirectTo = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/';
-            toast.error('This course requires a face photo. Please add one to continue.');
-            navigate({
-              to: '/auth',
-              search: { completeFace: '1', redirect: redirectTo } as any,
-            });
+          if (onMissingEmbedding) {
+            onMissingEmbedding();
+          } else {
+            if (!missingEmbeddingRedirectedRef.current) {
+              missingEmbeddingRedirectedRef.current = true;
+              const redirectTo = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/';
+              toast.error('This course requires a face photo. Please add one to continue.');
+              navigate({
+                to: '/auth',
+                search: { completeFace: '1', redirect: redirectTo } as any,
+              });
+            }
           }
           return;
         }
@@ -266,11 +271,12 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     try {
       // Keep verification focused on the single student face, just like the simpler working sample.
       const detection = await faceapi
-        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.45 }))
         .withFaceLandmarks()
         .withFaceDescriptor();
 
       if (!detection?.descriptor) {
+        onRecognitionResult?.([]);
         updateDebugInfo({
           currentFrameFaces: 0,
           recognizedFaces: 0,
@@ -284,6 +290,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
 
       const liveEmbedding = normalizeEmbedding(Array.from(detection.descriptor));
       if (!liveEmbedding || liveEmbedding.length !== EMBEDDING_LENGTH) {
+        onRecognitionResult?.([]);
         updateDebugInfo({
           currentFrameFaces: 1,
           recognizedFaces: 0,
@@ -300,9 +307,9 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
 
       let recognition: FaceRecognition = {
         box: detection.detection.box,
-        label: 'unknown',
+        label: rawMatch ? referenceLabelRef.current : 'unknown',
         distance,
-        isMatch: false,
+        isMatch: rawMatch,
       };
       let hasConfirmedMismatch = mismatchReportedRef.current;
 
@@ -377,17 +384,22 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     videoRef,
   ]);
 
+  const processRecognitionRef = useRef(processRecognition);
+  useEffect(() => {
+    processRecognitionRef.current = processRecognition;
+  }, [processRecognition]);
+
   useEffect(() => {
     if (!enabled || !isReady) {
       return;
     }
 
     const intervalId = setInterval(() => {
-      void processRecognition();
+      void processRecognitionRef.current();
     }, VERIFY_INTERVAL_MS);
 
     return () => clearInterval(intervalId);
-  }, [enabled, isReady, processRecognition]);
+  }, [enabled, isReady]);
 
   return null;
 };

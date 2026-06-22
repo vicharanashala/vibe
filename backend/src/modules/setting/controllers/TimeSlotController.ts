@@ -76,6 +76,46 @@ class ToggleTimeSlotsRequestBody {
   isActive: boolean;
 }
 
+// Request body for configuring the per-course hours budget from the
+// instructor's total estimated hours per category (all videos together, all
+// quizzes together, all projects together, etc.).
+class SetHoursBudgetRequestBody {
+  courseId: string;
+  courseVersionId: string;
+  categoryHours: {
+    VIDEO?: number;
+    QUIZ?: number;
+    BLOG?: number;
+    PROJECT?: number;
+    FEEDBACK?: number;
+  };
+  hoursFactor?: number;
+}
+
+// Request body for the Phase 3 fulfillment + bonus rules.
+class SetFulfillmentConfigRequestBody {
+  courseId: string;
+  courseVersionId: string;
+  fulfillmentThresholdPct?: number; // 0–100, default 90
+  bonusOnFulfillment?: boolean;
+}
+
+// Request body for capacity-derived per-slot caps (Option A).
+class SetCapacityConfigRequestBody {
+  courseId: string;
+  courseVersionId: string;
+  targetConcurrentStudents: number; // total students the backend is provisioned for
+  headroomFactor?: number; // 0 < x <= 1, default 0.7
+}
+
+// Request body for granting a student extra committed hours.
+class ExtendStudentHoursRequestBody {
+  courseId: string;
+  courseVersionId: string;
+  studentId: string;
+  extraHours: number;
+}
+
 // Response for time slot operations
 class TimeSlotResponse {
   success: boolean;
@@ -360,6 +400,211 @@ class TimeSlotController {
         throw error;
       }
       throw new InternalServerError(`Failed to update time slot: ${error}`);
+    }
+  }
+
+  @OpenAPI({
+    summary: 'Check time-slot access for the current student',
+    description:
+      "Returns whether the calling student can currently access the course under its time-slot rules. Used by the player to poll for a live cut-off when a booked window ends.",
+  })
+  @Authorized()
+  @Get('/check-access/:courseId/:courseVersionId')
+  @HttpCode(200)
+  async checkTimeSlotAccess(
+    @Param('courseId') courseId: string,
+    @Param('courseVersionId') courseVersionId: string,
+    @CurrentUser() user: IUser,
+  ): Promise<{ canAccess: boolean; message?: string }> {
+    try {
+      return await this.timeSlotService.canStudentAccessCourse(
+        user._id.toString(),
+        courseId,
+        courseVersionId,
+      );
+    } catch (error) {
+      throw new InternalServerError(`Failed to check time slot access: ${error}`);
+    }
+  }
+
+  @OpenAPI({
+    summary: 'Set the per-course hours budget',
+    description:
+      "Stores the students' committed-hours budget as the sum of the instructor's total estimated hours per category (all videos together, all quizzes together, all projects together, etc.). Captured when the feature is enabled.",
+  })
+  @Authorized()
+  @Put('/budget')
+  @HttpCode(200)
+  @ResponseSchema(TimeSlotResponse, {
+    description: 'Hours budget configured successfully',
+  })
+  async setHoursBudget(
+    @Body() body: SetHoursBudgetRequestBody,
+    @CurrentUser() user: IUser,
+    @Ability(getItemAbility) { ability },
+  ): Promise<TimeSlotResponse> {
+    const itemResource = subject('Item', { versionId: body.courseVersionId });
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
+    try {
+      const data = await this.timeSlotService.configureHoursBudget(
+        body.courseId,
+        body.courseVersionId,
+        body.categoryHours ?? {},
+        body.hoursFactor,
+        user._id.toString(),
+      );
+      return {
+        success: true,
+        message: 'Hours budget configured successfully',
+        data,
+      };
+    } catch (error) {
+      if (
+        error instanceof BadRequestError ||
+        error instanceof NotFoundError
+      ) {
+        throw error;
+      }
+      throw new InternalServerError(`Failed to set hours budget: ${error}`);
+    }
+  }
+
+  @OpenAPI({
+    summary: 'Set the fulfillment & bonus rules',
+    description:
+      'Stores the Phase 3 fulfillment threshold (active share of a window, 0–100, default 90) and whether fulfilling a window grants a same-day bonus booking.',
+  })
+  @Authorized()
+  @Put('/fulfillment')
+  @HttpCode(200)
+  @ResponseSchema(TimeSlotResponse, {
+    description: 'Fulfillment settings configured successfully',
+  })
+  async setFulfillmentConfig(
+    @Body() body: SetFulfillmentConfigRequestBody,
+    @Ability(getItemAbility) { ability },
+  ): Promise<TimeSlotResponse> {
+    const itemResource = subject('Item', { versionId: body.courseVersionId });
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
+    try {
+      const data = await this.timeSlotService.configureFulfillment(
+        body.courseId,
+        body.courseVersionId,
+        body.fulfillmentThresholdPct,
+        body.bonusOnFulfillment ?? false,
+      );
+      return {
+        success: true,
+        message: 'Fulfillment settings configured successfully',
+        data,
+      };
+    } catch (error) {
+      if (error instanceof BadRequestError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new InternalServerError(
+        `Failed to set fulfillment settings: ${error}`,
+      );
+    }
+  }
+
+  @OpenAPI({
+    summary: 'Set the booking capacity budget',
+    description:
+      "Derives each time slot's maxStudents from a single capacity knob — the total students the backend is provisioned to serve at once — so per-slot caps stay within the infra budget. perSlotCap = floor(targetConcurrentStudents × headroomFactor ÷ maxOverlappingWindows). A slot is never capped below its already-booked count.",
+  })
+  @Authorized()
+  @Put('/capacity')
+  @HttpCode(200)
+  @ResponseSchema(TimeSlotResponse, {
+    description: 'Capacity settings configured successfully',
+  })
+  async setCapacityConfig(
+    @Body() body: SetCapacityConfigRequestBody,
+    @Ability(getItemAbility) { ability },
+  ): Promise<TimeSlotResponse> {
+    const itemResource = subject('Item', { versionId: body.courseVersionId });
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
+    try {
+      const data = await this.timeSlotService.configureCapacity(
+        body.courseId,
+        body.courseVersionId,
+        body.targetConcurrentStudents,
+        body.headroomFactor,
+      );
+      return {
+        success: true,
+        message: 'Capacity settings configured successfully',
+        data,
+      };
+    } catch (error) {
+      if (error instanceof BadRequestError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new InternalServerError(`Failed to set capacity settings: ${error}`);
+    }
+  }
+
+  @OpenAPI({
+    summary: 'Grant a student extra committed hours',
+    description:
+      "Adds extra hours to a student's committed-hours budget (instructor action when a student has used up their hours).",
+  })
+  @Authorized()
+  @Put('/extend')
+  @HttpCode(200)
+  @ResponseSchema(TimeSlotResponse, {
+    description: 'Extra hours granted successfully',
+  })
+  async extendStudentHours(
+    @Body() body: ExtendStudentHoursRequestBody,
+    @CurrentUser() user: IUser,
+    @Ability(getItemAbility) { ability },
+  ): Promise<TimeSlotResponse> {
+    const itemResource = subject('Item', { versionId: body.courseVersionId });
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
+    try {
+      const data = await this.timeSlotService.extendStudentHours(
+        body.courseId,
+        body.courseVersionId,
+        body.studentId,
+        body.extraHours,
+        user._id.toString(),
+      );
+      return {
+        success: true,
+        message: 'Extra hours granted successfully',
+        data,
+      };
+    } catch (error) {
+      if (
+        error instanceof BadRequestError ||
+        error instanceof NotFoundError ||
+        error instanceof ForbiddenError
+      ) {
+        throw error;
+      }
+      throw new InternalServerError(`Failed to grant extra hours: ${error}`);
     }
   }
 

@@ -1,4 +1,5 @@
 import { injectable, inject } from 'inversify';
+import { ClientSession } from 'mongodb';
 import { GLOBAL_TYPES } from '#root/types.js';
 import {
   BadRequestError,
@@ -10,8 +11,14 @@ import {
   MongoDatabase,
   ISettingRepository,
   ICourseRepository,
+  ISlotBookingRepository,
   ITimeSlot,
 } from '#shared/index.js';
+import {
+  SlotBookingKind,
+  SlotBookingStatus,
+  ID,
+} from '#shared/interfaces/models.js';
 import { EnrollmentService } from '#users/services/EnrollmentService.js';
 import { USERS_TYPES } from '#users/types.js';
 
@@ -30,8 +37,155 @@ export class TimeSlotService extends BaseService {
 
     @inject(GLOBAL_TYPES.Database)
     private readonly mongoDatabase: MongoDatabase,
+
+    @inject(GLOBAL_TYPES.SlotBookingRepo)
+    private readonly slotBookingRepo: ISlotBookingRepository,
   ) {
     super(mongoDatabase);
+  }
+
+  /** Current IST date (YYYY-MM-DD), the previous IST date, and minutes-since-midnight. */
+  private getISTDateParts(): {date: string; prevDate: string; minutes: number} {
+    const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+    const fmt = (d: Date) =>
+      `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+    const prev = new Date(istNow.getTime() - 24 * 60 * 60 * 1000);
+    return {
+      date: fmt(istNow),
+      prevDate: fmt(prev),
+      minutes: istNow.getUTCHours() * 60 + istNow.getUTCMinutes(),
+    };
+  }
+
+  /**
+   * Whether a booking covers the current IST minute, accounting for overnight
+   * windows that span two calendar days (a same-day booking only matches on its
+   * own date; an overnight booking matches its evening tail on its date and its
+   * morning tail on the next date).
+   */
+  private bookingCoversNow(
+    booking: {from: string; to: string; date: string},
+    todayDate: string,
+    nowMinutes: number,
+  ): boolean {
+    const fromMin = this.toMinutes(booking.from);
+    const toMin = this.toMinutes(booking.to);
+    const overnight = fromMin >= toMin;
+    if (booking.date === todayDate) {
+      return overnight
+        ? nowMinutes >= fromMin
+        : nowMinutes >= fromMin && nowMinutes <= toMin;
+    }
+    // booking.date is the previous day — only an overnight morning tail applies
+    return overnight ? nowMinutes <= toMin : false;
+  }
+
+  private toMinutes(time: string): number {
+    const [h, m] = time.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  /**
+   * Maximum number of slots simultaneously active at any instant on a 24-hour
+   * IST clock, treating each slot as a half-open [from, to) minute interval.
+   * Overnight slots (to <= from) wrap past midnight, covering [from, 24:00) and
+   * [00:00, to) — so they correctly overlap early-morning slots. This is the
+   * divisor for capacity planning: real peak concurrency is the SUM of the caps
+   * of all windows overlapping at the same clock time, so dividing the budget by
+   * this keeps that sum within budget. Half-open intervals mean back-to-back
+   * slots (one ending exactly when the next starts) do NOT overlap. At least 1.
+   */
+  private computeMaxOverlappingWindows(
+    slots: {from: string; to: string}[],
+  ): number {
+    if (!slots || slots.length === 0) return 1;
+    const coverage = new Array<number>(24 * 60).fill(0);
+    const mark = (a: number, b: number) => {
+      for (let i = a; i < b; i++) coverage[i] += 1;
+    };
+    for (const s of slots) {
+      const start = this.toMinutes(s.from);
+      const end = this.toMinutes(s.to);
+      if (end > start) {
+        mark(start, end);
+      } else {
+        // Overnight (or full-day when equal): wraps across midnight.
+        mark(start, 24 * 60);
+        mark(0, end);
+      }
+    }
+    let max = 0;
+    for (const c of coverage) if (c > max) max = c;
+    return Math.max(1, max);
+  }
+
+  /** Per-slot booking cap derived from the capacity budget. At least 1. */
+  private deriveSlotCapacity(
+    targetConcurrentStudents: number,
+    headroomFactor: number,
+    maxOverlappingWindows: number,
+  ): number {
+    const bookable = targetConcurrentStudents * headroomFactor;
+    return Math.max(1, Math.floor(bookable / maxOverlappingWindows));
+  }
+
+  /** IST study dates currently inside the advance-booking window (today..+2). */
+  private openBookingDates(): string[] {
+    const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+    const fmt = (d: Date) =>
+      `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+    return [0, 1, 2].map((n) =>
+      fmt(new Date(istNow.getTime() + n * 24 * 60 * 60 * 1000)),
+    );
+  }
+
+  /**
+   * Migration dual-write: record a slot choice/assignment as a slotBooking for
+   * the current IST day. Idempotent — skips if the student already has an
+   * active booking for this slot today.
+   */
+  private async recordSlotBooking(
+    studentUserId: string,
+    enrollmentId: ID,
+    courseId: string,
+    courseVersionId: string,
+    timeSlot: { from: string; to: string },
+    session: ClientSession,
+  ): Promise<void> {
+    const { date } = this.getISTDateParts();
+    const existing = await this.slotBookingRepo.findActiveForStudent(
+      studentUserId,
+      courseId,
+      courseVersionId,
+      date,
+      session,
+    );
+    if (existing.some(b => b.from === timeSlot.from && b.to === timeSlot.to)) {
+      return;
+    }
+    const fromMin = this.toMinutes(timeSlot.from);
+    const toMin = this.toMinutes(timeSlot.to);
+    let durationMin = toMin - fromMin;
+    if (durationMin <= 0) durationMin += 24 * 60; // overnight wrap
+    const now = new Date();
+    await this.slotBookingRepo.createBooking(
+      {
+        userId: studentUserId,
+        enrollmentId,
+        courseId,
+        courseVersionId,
+        date,
+        from: timeSlot.from,
+        to: timeSlot.to,
+        overnight: fromMin >= toMin,
+        kind: SlotBookingKind.BASE,
+        status: SlotBookingStatus.BOOKED,
+        hoursReserved: Math.round((durationMin / 60) * 100) / 100,
+        createdAt: now,
+        updatedAt: now,
+      },
+      session,
+    );
   }
 
   /**
@@ -39,7 +193,7 @@ export class TimeSlotService extends BaseService {
    */
   private isTimeslotFull(timeSlot: ITimeSlot): boolean {
     if (!timeSlot.maxStudents) return false; // No limit set
-    return timeSlot.studentIds.length > timeSlot.maxStudents;
+    return timeSlot.studentIds.length >= timeSlot.maxStudents;
   }
 
   /**
@@ -210,6 +364,24 @@ export class TimeSlotService extends BaseService {
             { from: slot.from, to: slot.to },
             session,
           );
+
+          // Dual-write (migration): mirror the teacher's assignment into the
+          // bookings collection so the demand view counts these students too.
+          const enr = await this.enrollmentService.findEnrollment(
+            studentId,
+            courseId,
+            courseVersionId,
+          );
+          if (enr) {
+            await this.recordSlotBooking(
+              studentId,
+              enr._id,
+              courseId,
+              courseVersionId,
+              { from: slot.from, to: slot.to },
+              session,
+            );
+          }
         }
       }
 
@@ -309,57 +481,13 @@ export class TimeSlotService extends BaseService {
         session,
       );
 
-      // Initialize timeslots if not exists
-      if (!existingTimeslots) {
-        const newTimeslots = {
-          isActive,
-          slots: [],
-        };
-        
-        const result = await this.settingsRepo.updateTimeslotsSettings(
-          courseId,
-          courseVersionId,
-          newTimeslots,
-          session,
-        );
-        
-        return !!result;
-      }
-
-      // If toggling off, delete all slots and remove assigned slots from enrollments
-      if (!isActive && existingTimeslots.slots && existingTimeslots.slots.length > 0) {
-        // Remove time slot from all student enrollments
-        for (const slot of existingTimeslots.slots) {
-          // Find students assigned to this time slot
-          const enrollments = await this.enrollmentService.findEnrollmentsByTimeSlot(
-            courseId,
-            courseVersionId,
-            { from: slot.from, to: slot.to },
-            session,
-          );
-
-          // Remove time slot from each student's enrollment
-          for (const enrollment of enrollments) {
-            const studentUserId = typeof enrollment.userId === 'string' 
-              ? enrollment.userId 
-              : enrollment.userId.toString();
-            
-            await this.enrollmentService.removeSpecificTimeSlotFromStudent(
-              studentUserId,
-              courseId,
-              courseVersionId,
-              { from: slot.from, to: slot.to },
-              session,
-            );
-          }
-      }
-    }
-
-    // Update existing timeslots with new isActive value and empty slots if toggling off
-    const updatedTimeslots = {
-        isActive,
-        slots: isActive ? (existingTimeslots.slots || []) : []
-      };
+      // Preserve the configured slots, allowance, and existing bookings —
+      // toggling off only flips the flag so the whole setup can be restored
+      // intact by re-enabling. (Bookings live in their own collection and are
+      // untouched here.)
+      const updatedTimeslots = existingTimeslots
+        ? { ...existingTimeslots, isActive }
+        : { isActive, slots: [] };
 
       const result = await this.settingsRepo.updateTimeslotsSettings(
         courseId,
@@ -370,6 +498,272 @@ export class TimeSlotService extends BaseService {
 
       return !!result;
     });
+  }
+
+  /**
+   * Set the per-course hours budget from the instructor's per-category time
+   * estimates (minutes per item), captured when the feature is enabled. The
+   * budget = Σ(itemCount[category] × estimate[category]) hours × factor.
+   */
+  async configureHoursBudget(
+    courseId: string,
+    courseVersionId: string,
+    categoryHours: {
+      VIDEO?: number;
+      QUIZ?: number;
+      BLOG?: number;
+      PROJECT?: number;
+      FEEDBACK?: number;
+    },
+    hoursFactor: number | undefined,
+    userId: string,
+  ): Promise<{
+    totalBudgetHours: number;
+    totalCategoryHours: number;
+  }> {
+    return this._withTransaction(async (session) => {
+      const version = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!version) {
+        throw new NotFoundError('Course version not found.');
+      }
+
+      // The instructor estimates the TOTAL hours for all items of each kind
+      // together (e.g. "~10h of video across the course, a 2h project") — not a
+      // per-item rate. The committed-hours budget is simply their sum.
+      const categories = ['VIDEO', 'QUIZ', 'BLOG', 'PROJECT', 'FEEDBACK'] as const;
+
+      let totalCategoryHours = 0;
+      for (const cat of categories) {
+        const h = categoryHours[cat] ?? 0;
+        if (h < 0) {
+          throw new BadRequestError(
+            `Invalid hours for ${cat}: ${h}. Must be >= 0.`,
+          );
+        }
+        totalCategoryHours += h;
+      }
+      totalCategoryHours = Math.round(totalCategoryHours * 100) / 100;
+
+      const factor = hoursFactor && hoursFactor > 0 ? hoursFactor : 1;
+      const totalBudgetHours =
+        Math.round(totalCategoryHours * factor * 100) / 100;
+
+      const existing = await this.settingsRepo.readTimeslotsSettings(
+        courseId,
+        courseVersionId,
+        session,
+      );
+      const updated = {
+        ...(existing ?? { isActive: true, slots: [] }),
+        categoryBudgetHours: categoryHours,
+        hoursFactor: factor,
+        totalBudgetHours,
+      };
+
+      const result = await this.settingsRepo.updateTimeslotsSettings(
+        courseId,
+        courseVersionId,
+        updated,
+        session,
+      );
+      if (!result) {
+        throw new InternalServerError('Failed to save the hours budget.');
+      }
+
+      return { totalBudgetHours, totalCategoryHours };
+    });
+  }
+
+  /**
+   * Configure the Phase 3 fulfillment + bonus rules: the active-share threshold
+   * a booked window must clear to count as FULFILLED (0–100, default 90), and
+   * whether fulfilling a window grants a same-day bonus booking. Preserves the
+   * rest of the timeslots config.
+   */
+  async configureFulfillment(
+    courseId: string,
+    courseVersionId: string,
+    fulfillmentThresholdPct: number | undefined,
+    bonusOnFulfillment: boolean,
+  ): Promise<{fulfillmentThresholdPct: number; bonusOnFulfillment: boolean}> {
+    return this._withTransaction(async (session) => {
+      const threshold = fulfillmentThresholdPct ?? 90;
+      if (
+        typeof threshold !== 'number' ||
+        Number.isNaN(threshold) ||
+        threshold < 0 ||
+        threshold > 100
+      ) {
+        throw new BadRequestError(
+          `Invalid fulfillment threshold: ${fulfillmentThresholdPct}. Must be between 0 and 100.`,
+        );
+      }
+
+      const existing = await this.settingsRepo.readTimeslotsSettings(
+        courseId,
+        courseVersionId,
+        session,
+      );
+      const updated = {
+        ...(existing ?? {isActive: true, slots: []}),
+        fulfillmentThresholdPct: threshold,
+        bonusOnFulfillment: !!bonusOnFulfillment,
+      };
+
+      const result = await this.settingsRepo.updateTimeslotsSettings(
+        courseId,
+        courseVersionId,
+        updated,
+        session,
+      );
+      if (!result) {
+        throw new InternalServerError('Failed to save the fulfillment settings.');
+      }
+
+      return {
+        fulfillmentThresholdPct: threshold,
+        bonusOnFulfillment: !!bonusOnFulfillment,
+      };
+    });
+  }
+
+  /**
+   * Capacity planning (Option A): derive each slot's maxStudents from a single
+   * knob — the total students the backend is provisioned to serve at once —
+   * instead of hand-setting caps. perSlotCap = floor(target × headroom ÷
+   * maxOverlappingWindows), so the sum of caps over any overlapping set stays
+   * within budget. A slot's cap is never lowered below the count it has ALREADY
+   * committed across the open booking window (today..+2), so live bookings are
+   * never invalidated.
+   */
+  async configureCapacity(
+    courseId: string,
+    courseVersionId: string,
+    targetConcurrentStudents: number,
+    headroomFactor: number | undefined,
+  ): Promise<{
+    targetConcurrentStudents: number;
+    capacityHeadroomFactor: number;
+    maxOverlappingWindows: number;
+    derivedPerSlotCap: number;
+    slots: {from: string; to: string; maxStudents: number}[];
+  }> {
+    return this._withTransaction(async (session) => {
+      if (
+        typeof targetConcurrentStudents !== 'number' ||
+        Number.isNaN(targetConcurrentStudents) ||
+        targetConcurrentStudents <= 0
+      ) {
+        throw new BadRequestError(
+          `Invalid targetConcurrentStudents: ${targetConcurrentStudents}. Must be greater than 0.`,
+        );
+      }
+      const headroom = headroomFactor ?? 0.7;
+      if (
+        typeof headroom !== 'number' ||
+        Number.isNaN(headroom) ||
+        headroom <= 0 ||
+        headroom > 1
+      ) {
+        throw new BadRequestError(
+          `Invalid headroom factor: ${headroomFactor}. Must be between 0 (exclusive) and 1 (inclusive).`,
+        );
+      }
+
+      const existing = await this.settingsRepo.readTimeslotsSettings(
+        courseId,
+        courseVersionId,
+        session,
+      );
+      if (!existing || !existing.slots || existing.slots.length === 0) {
+        throw new NotFoundError(
+          'No time slots are defined for this course; add slots before configuring capacity.',
+        );
+      }
+
+      const maxOverlap = this.computeMaxOverlappingWindows(existing.slots);
+      const derivedCap = this.deriveSlotCapacity(
+        targetConcurrentStudents,
+        headroom,
+        maxOverlap,
+      );
+
+      // Guard: never set a slot's cap below what it has already committed across
+      // the open booking window, or live bookings would exceed the new cap.
+      const openDates = this.openBookingDates();
+      const slots = await Promise.all(
+        existing.slots.map(async (slot) => {
+          let booked = 0;
+          for (const date of openDates) {
+            const n = await this.slotBookingRepo.countActiveInSlot(
+              courseId,
+              courseVersionId,
+              date,
+              {from: slot.from, to: slot.to},
+              session,
+            );
+            if (n > booked) booked = n;
+          }
+          return {...slot, maxStudents: Math.max(derivedCap, booked)};
+        }),
+      );
+
+      const updated = {
+        ...existing,
+        slots,
+        targetConcurrentStudents,
+        capacityHeadroomFactor: headroom,
+      };
+
+      const result = await this.settingsRepo.updateTimeslotsSettings(
+        courseId,
+        courseVersionId,
+        updated,
+        session,
+      );
+      if (!result) {
+        throw new InternalServerError('Failed to save the capacity settings.');
+      }
+
+      return {
+        targetConcurrentStudents,
+        capacityHeadroomFactor: headroom,
+        maxOverlappingWindows: maxOverlap,
+        derivedPerSlotCap: derivedCap,
+        slots: slots.map((s) => ({
+          from: s.from,
+          to: s.to,
+          maxStudents: s.maxStudents as number,
+        })),
+      };
+    });
+  }
+
+  /**
+   * Grant a student extra committed hours on top of the course budget
+   * (instructor action when a student has exhausted their hours).
+   */
+  async extendStudentHours(
+    courseId: string,
+    courseVersionId: string,
+    studentId: string,
+    extraHours: number,
+    userId: string,
+  ): Promise<{ commitmentExtraHours: number }> {
+    if (!extraHours || extraHours <= 0) {
+      throw new BadRequestError('extraHours must be greater than 0.');
+    }
+    const commitmentExtraHours =
+      await this.enrollmentService.grantCommitmentExtraHours(
+        studentId,
+        courseId,
+        courseVersionId,
+        extraHours,
+      );
+    return { commitmentExtraHours };
   }
 
   /**
@@ -558,11 +952,23 @@ export class TimeSlotService extends BaseService {
         throw new InternalServerError('Failed to update enrollment.');
       }
 
+      // Dual-write (migration): also record the choice as a slot booking so the
+      // bookings collection and the demand view stay accurate while the legacy
+      // assignedTimeSlots path is retired.
+      await this.recordSlotBooking(
+        studentUserId,
+        enrollment._id,
+        courseId,
+        courseVersionId,
+        timeSlot,
+        session,
+      );
+
       return true;
     });
   }
 
-  
+
   /**
    * Teacher removes a student from a specific time slot
    */
@@ -660,6 +1066,28 @@ export class TimeSlotService extends BaseService {
   }
 
   /**
+   * Same gate as canStudentAccessCourse, but for callers that only have the
+   * course version id (e.g. the section-items endpoint, whose route has no
+   * courseId). Resolves the owning courseId from the version, then delegates.
+   */
+  async canStudentAccessCourseByVersion(
+    userId: string,
+    courseVersionId: string,
+    cohortId?: string,
+  ): Promise<{ canAccess: boolean; message?: string }> {
+    const version = await this.courseRepo.readVersion(courseVersionId);
+    if (!version) {
+      return { canAccess: false, message: 'Course version not found.' };
+    }
+    return this.canStudentAccessCourse(
+      userId,
+      version.courseId.toString(),
+      courseVersionId,
+      cohortId,
+    );
+  }
+
+  /**
    * Check if student can access course based on time slot
    */
   async canStudentAccessCourse(
@@ -681,38 +1109,89 @@ export class TimeSlotService extends BaseService {
       }
 
       // Get student enrollment
-      const enrollment = await this.enrollmentService.findEnrollment(
+      let enrollment = await this.enrollmentService.findEnrollment(
         userId,
         courseId,
         courseVersionId,
         cohortId,
       );
 
+      // The enrollment row's cohortId may be null or differ from the course's
+      // cohortId, which makes the strict cohort match above miss an otherwise
+      // valid enrollment. We're verifying enrollment here, not the cohort, so
+      // retry cohort-agnostic before declaring the student "not enrolled".
+      if (!enrollment && cohortId) {
+        enrollment = await this.enrollmentService.findEnrollment(
+          userId,
+          courseId,
+          courseVersionId,
+        );
+      }
+
       if (!enrollment) {
         return { canAccess: false, message: 'Student not enrolled in this course.' };
       }
 
-      if (!enrollment.assignedTimeSlots || enrollment.assignedTimeSlots.length === 0) {
-        return { canAccess: true, message: 'No time slot assigned to this student.' };
+      // Feature active but no slots configured yet → don't lock everyone out
+      // the moment the toggle flips.
+      if (!timeslots.slots || timeslots.slots.length === 0) {
+        return { canAccess: true };
       }
 
-      // Check if current time is within any of the assigned slots
-      const currentTime = this.getCurrentISTTime();
-      const hasAccess = enrollment.assignedTimeSlots.some(timeSlot => 
-        this.isCurrentTimeInSlot(timeSlot)
+      const { date, prevDate, minutes } = this.getISTDateParts();
+
+      // NEW source of truth: per-day slot bookings (today + yesterday, so an
+      // overnight window that spills past midnight still grants access).
+      const [todayBookings, prevBookings] = await Promise.all([
+        this.slotBookingRepo.findActiveForStudent(
+          userId,
+          courseId,
+          courseVersionId,
+          date,
+          session,
+        ),
+        this.slotBookingRepo.findActiveForStudent(
+          userId,
+          courseId,
+          courseVersionId,
+          prevDate,
+          session,
+        ),
+      ]);
+      const bookingCovers = [...todayBookings, ...prevBookings].some(b =>
+        this.bookingCoversNow(b, date, minutes),
       );
-      
-      if (!hasAccess) {
-        const timeSlotsStr = enrollment.assignedTimeSlots
-          .map(slot => `${slot.from} to ${slot.to}`)
-          .join(', ');
+
+      // LEGACY source during the transition: enrollment.assignedTimeSlots.
+      const legacySlots = enrollment.assignedTimeSlots ?? [];
+      const legacyCovers = legacySlots.some(slot =>
+        this.isCurrentTimeInSlot(slot),
+      );
+
+      if (bookingCovers || legacyCovers) {
+        return { canAccess: true };
+      }
+
+      // Nothing covers the current time. No commitment at all → they haven't
+      // booked; otherwise they're simply outside their window.
+      const hasAnyCommitment =
+        todayBookings.length > 0 || legacySlots.length > 0;
+      if (!hasAnyCommitment) {
         return {
           canAccess: false,
-          message: `Course access is only allowed during these time slots: ${timeSlotsStr} IST. Current time: ${currentTime}`,
+          message:
+            'You must book a time slot to access this course. Please choose a slot to continue.',
         };
       }
 
-      return { canAccess: true };
+      const windows = [
+        ...todayBookings.map(b => `${b.from} to ${b.to}`),
+        ...legacySlots.map(s => `${s.from} to ${s.to}`),
+      ].join(', ');
+      return {
+        canAccess: false,
+        message: `Course access is only allowed during your booked time slots: ${windows} IST. Current time: ${this.getCurrentISTTime()}`,
+      };
     });
   }
 }
