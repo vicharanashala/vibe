@@ -1,12 +1,12 @@
-import { Clock, Trophy, Medal, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, Play, Activity, Award, Shield as LucideShield } from "lucide-react";
+import { Clock, Trophy, Medal, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, Play, Activity, Shield as LucideShield, MoreHorizontal } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLeaderboard, useCourseVersionById, useCheckTimeSlotAccessOnDemand } from "@/hooks/hooks";
 import { toast } from "sonner";
@@ -61,13 +61,8 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isTimeslotModalOpen, setIsTimeslotModalOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
-  const [isSupportOpen, setIsSupportOpen] = useState(false);
+  const [isForumOpen, setIsForumOpen] = useState(false);
   // const [showPolicies, setShowPolicies] = useState(false);
-  const supportEmail =
-    enrollment.courseId === "692f030a945e82ec875e9116"
-      ? "vibe-support@vicharanashala.zohodesk"
-      : "internship-support@vicharanashala.zohodesk";
-
 
   const progress = Number(Math.min(enrollment.percentCompleted ?? 0, 100).toFixed(2));
 
@@ -113,6 +108,11 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const completedLessons = enrollment.completedItems as number || 0;
   const isCompleted = (typeof enrollment.percentCompleted === 'number' && enrollment.percentCompleted >= 100) || false;
 
+  // Instructor name(s) for display (UI only — uses existing enrollment data).
+  const instructorName = Array.isArray(enrollment.course?.instructors)
+    ? enrollment.course.instructors.map((i: any) => i?.name).filter(Boolean).join(', ')
+    : '';
+
   const GURU_SETU_VERSION_ID = "6981df886e100cfe04f9c4ae";
   const isNotGuruSetu = versionId !== GURU_SETU_VERSION_ID;
 
@@ -134,7 +134,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   useEffect(() => {
     if (!enrollment) return
-   
+
   })
 
   const handleContinue = async () => {
@@ -175,231 +175,147 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   if (variant === 'dashboard' || variant === 'available') {
     const themes = [
-      { bg: "bg-[#F3E8FF]", icon: "text-[#A855F7]", progress: "bg-[#A855F7]", iconComponent: <Play className="h-10 w-10 md:h-12 md:w-12" /> },
-      { bg: "bg-[#DBEAFE]", icon: "text-[#3B82F6]", progress: "bg-[#3B82F6]", iconComponent: <Activity className="h-10 w-10 md:h-12 md:w-12" /> },
-      { bg: "bg-[#FCE7F3]", icon: "text-[#EC4899]", progress: "bg-[#EC4899]", iconComponent: <Users className="h-10 w-10 md:h-12 md:w-12" /> },
+      { bg: "bg-[#F3E8FF]", icon: "text-[#A855F7]", progress: "bg-[#A855F7]", iconComponent: <Play className="w-10 md:w-12 h-10 md:h-12" /> },
+      { bg: "bg-[#DBEAFE]", icon: "text-[#3B82F6]", progress: "bg-[#3B82F6]", iconComponent: <Activity className="w-10 md:w-12 h-10 md:h-12" /> },
+      { bg: "bg-[#FCE7F3]", icon: "text-[#EC4899]", progress: "bg-[#EC4899]", iconComponent: <Users className="w-10 md:w-12 h-10 md:h-12" /> },
     ];
     const theme = themes[index % themes.length];
 
     return (
-      <div className={cn("[perspective:1000px] transition-all duration-300 hover:-translate-y-1", className)}>
+      <div className={cn("transition-all hover:-translate-y-1 duration-300 [perspective:1000px]", className)}>
         <div className={cn("relative w-full transition-all duration-700 [transform-style:preserve-3d]", isFlipped && "[transform:rotateY(180deg)]")}>
           {/* Front Side - Determines the height */}
           <div className="relative w-full [backface-visibility:hidden]">
             <Card
               className={cn(
-                "border-0 bg-white dark:bg-card overflow-hidden flex flex-col rounded-[24px] shadow-sm transition-shadow duration-300 group",
+                "group flex flex-col shadow-sm rounded-[24px] overflow-hidden transition-shadow duration-300",
+                "border bg-white border-neutral-200/80 ring-1 ring-black/[0.02]",
+                "dark:bg-white/[0.03] dark:border-white/[0.07] dark:ring-white/[0.04]",
                 variant !== 'available' ? "cursor-pointer hover:shadow-md" : "cursor-default"
               )}
               onClick={() => variant !== 'available' && setIsFlipped(true)}
             >
               {/* Thumbnail/Icon Area */}
-              <div className={cn("relative w-full aspect-[4/3] flex items-center justify-center transition-colors duration-300", theme.bg)}>
-                <div className={cn("transition-transform duration-500 group-hover:scale-110", theme.icon)}>
+              <div className={cn("relative flex justify-center items-center w-full aspect-[4/3] transition-colors duration-300", theme.bg, "dark:bg-gradient-to-br dark:from-white/[0.06] dark:to-white/[0.02]")}>
+                <div className={cn("group-hover:scale-110 transition-transform duration-500", theme.icon)}>
                   {theme.iconComponent}
                 </div>
                 {enrollment.hasNewItemsAfterCompletion && (
-                  <Badge className="absolute top-4 right-4 bg-yellow-400 text-yellow-900 border-0">New Content</Badge>
+                  <Badge className="top-4 right-4 absolute bg-yellow-400 border-0 text-yellow-900">New Content</Badge>
                 )}
-                <div className="absolute top-4 left-4 p-2 rounded-full bg-white/20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Info className="h-4 w-4 text-white" />
+                <div className="top-4 left-4 absolute bg-white/20 opacity-0 group-hover:opacity-100 backdrop-blur-sm p-2 rounded-full transition-opacity">
+                  <Info className="w-4 h-4 text-white" />
                 </div>
               </div>
 
-              <CardContent className="p-6 pb-10 flex flex-col">
+              <CardContent className="flex flex-col p-6 pb-10">
                 <div className="flex flex-wrap items-center gap-2 mb-4">
-                  <Badge variant="secondary" className="bg-[#F1F5F9] text-[#64748B] dark:bg-slate-800 dark:text-slate-400 border-0 font-medium px-3">Course</Badge>
+                  <Badge variant="secondary" className="bg-[#F1F5F9] dark:bg-slate-800 px-3 border-0 font-medium text-[#64748B] dark:text-slate-400">Course</Badge>
                   {enrollment.cohortName && (
-                    <Badge variant="outline" className="border-primary/30 text-primary dark:bg-primary/10 dark:text-blue-400 dark:border-blue-400/30 font-medium px-3">
+                    <Badge variant="outline" className="dark:bg-primary/10 px-3 border-primary/30 dark:border-blue-400/30 font-medium text-primary dark:text-blue-400">
                       {enrollment.cohortName}
                     </Badge>
                   )}
-                  {isCompleted && <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 font-medium">Completed</Badge>}
+                  {isCompleted && <Badge className="bg-green-100 dark:bg-green-900/30 border-0 font-medium text-green-700 dark:text-green-400">Completed</Badge>}
                 </div>
 
                 <h3
-                  className="font-bold text-xl text-foreground mb-1 line-clamp-2 leading-tight break-words min-h-[3.25rem]"
+                  className="mb-1 min-h-[3.25rem] font-bold text-foreground text-xl break-words line-clamp-2 leading-tight"
                   title={enrollment?.course?.name || `Course ${index + 1}`}
                 >
                   {enrollment?.course?.name || `Course ${index + 1}`}
                 </h3>
                 <p
-                  className="text-sm text-muted-foreground mb-6 line-clamp-1 break-words min-h-[1.25rem]"
-                  title={enrollment?.course?.description || "Accelerate your learning journey"}
+                  className="mb-6 min-h-[1.25rem] text-muted-foreground text-sm break-words line-clamp-1"
+                  title={instructorName || enrollment?.course?.description || "Accelerate your learning journey"}
                 >
-                  {enrollment?.course?.description || "Accelerate your learning journey"}
+                  {instructorName || enrollment?.course?.description || "Accelerate your learning journey"}
                 </p>
 
                 <div className="space-y-4">
                   {variant !== 'available' && (
                     <div className="space-y-2">
-                      <div className="flex justify-between items-center text-sm font-semibold">
+                      <div className="flex justify-between items-center font-semibold text-sm">
 
                         {enrollment.courseId !== "6981df886e100cfe04f9c4ad" && <> <span className="text-muted-foreground">Progress</span><span className="text-foreground">{progress.toFixed(0)}%</span></>}
                       </div>
 
-                      {enrollment.courseId !== "6981df886e100cfe04f9c4ad" ? (<div className="h-2 w-full bg-[#F1F5F9] dark:bg-slate-800 rounded-full overflow-hidden">
-                        <div className={cn("h-full rounded-full transition-all duration-700 ease-out", theme.progress)} style={{ width: `${progress}%` }} />
-                      </div>) : (<div className="flex justify-between items-center text-sm font-semibold">
+                      {enrollment.courseId !== "6981df886e100cfe04f9c4ad" ? (<div className="bg-[#F1F5F9] dark:bg-white/10 rounded-full w-full h-2 overflow-hidden">
+                        <div className={cn("rounded-full h-full transition-all duration-700 ease-out", theme.progress)} style={{ width: `${progress}%` }} />
+                      </div>) : (<div className="flex justify-between items-center font-semibold text-sm">
                         <span className="text-muted-foreground">Progress</span>
                         <span>{enrollment.completedItems}/{enrollment.contentCounts?.totalItems} (More videos soon)</span>
                       </div>)}
 
+                      {enrollment.courseId !== "6981df886e100cfe04f9c4ad" && totalLessons > 0 && (
+                        <p className="text-muted-foreground text-xs">{completedLessons} of {totalLessons} lessons</p>
+                      )}
+
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 gap-3 pt-2">
-                    <Button
-                      onClick={(e) => { e.stopPropagation(); handleContinue(); }}
-                      className={cn(
-                        "w-full h-12 rounded-xl text-lg font-bold transition-all duration-300 shadow-md active:scale-95 flex items-center justify-center gap-2",
-                        variant === 'available' ? "bg-primary text-primary-foreground" : isStart ? "bg-[#22C55E] text-white" : "bg-[#FACC15] text-black"
-                      )}
-                    >
-                      {variant === 'available' ? (
-                        <span className="flex items-center gap-2">
-                          Register Now
-                          <ExternalLink className="h-4 w-4" />
-                        </span>
-                      ) : (
-                        <>
-                          {isStart ? 'Start Course' : isCompleted ? 'View Course' : 'Continue Learning'}
-                          <Play className="h-4 w-4 fill-current" />
-                        </>
-                      )}
-                    </Button>
+                  <div className="gap-3 grid grid-cols-1 pt-2">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={(e) => { e.stopPropagation(); handleContinue(); }}
+                        className={cn(
+                          "flex flex-1 justify-center items-center gap-2 shadow-md rounded-xl h-12 font-bold text-base active:scale-95 transition-all duration-300",
+                          variant === 'available' ? "bg-primary text-primary-foreground" : isStart ? "bg-[#22C55E] text-white" : "bg-primary text-primary-foreground hover:bg-primary/90"
+                        )}
+                      >
+                        {variant === 'available' ? (
+                          <span className="flex items-center gap-2">
+                            Register Now
+                            <ExternalLink className="w-4 h-4" />
+                          </span>
+                        ) : (
+                          <>
+                            {isStart ? 'Start Course' : isCompleted ? 'View Course' : 'Continue Learning'}
+                            <Play className="fill-current w-4 h-4" />
+                          </>
+                        )}
+                      </Button>
 
-                    <div className="flex gap-2">
-                      {isRankVisible && (
-                        <div onClick={(e) => e.stopPropagation()} className="flex-1">
-                          <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
-                            <DialogTrigger asChild>
-                              <Button variant="outline" className="w-full rounded-lg border-2 h-10 text-[10px] lg:text-xs font-bold px-1" size="sm">
-                                <Trophy className="h-3 w-3 lg:h-3.5 lg:w-3.5 mr-1 text-yellow-500 flex-shrink-0" />
-                                <span className="truncate">Rank</span>
+                      {variant !== 'available' && isNotGuruSetu && (
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="icon" className="border-2 rounded-xl w-12 h-12" aria-label="More course actions">
+                                <MoreHorizontal className="w-5 h-5" />
                               </Button>
-                            </DialogTrigger>
-                            <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} />
-                          </Dialog>
-                        </div>
-                      )}
-                      {variant !== 'available' && isHpSystem && (
-                        <div onClick={(e) => e.stopPropagation()} className="flex-1">
-                          <Button
-                            variant="outline"
-                            className="w-full rounded-lg border-2 h-10 text-[10px] lg:text-xs font-bold px-1"
-                            size="sm"
-                            onClick={() => navigate({ to: `/student/hp-system/${versionId}/${enrollment.cohortName || 'default'}/activities` })}
-                          >
-                            <Activity className="h-3 w-3 lg:h-3.5 lg:w-3.5 mr-1 text-blue-500 flex-shrink-0" />
-                            <span className="truncate">HP</span>
-                          </Button>
-                        </div>
-                      )}
-                      {isTimeslotActive && (
-                        <div onClick={(e) => e.stopPropagation()} className="flex-1">
-                          <Button
-                            variant="outline"
-                            className="w-full rounded-lg border-2 h-10 text-[10px] lg:text-xs font-bold px-1"
-                            size="sm"
-                            onClick={() => setIsTimeslotModalOpen(true)}
-                          >
-                            <Clock className="h-3 w-3 lg:h-3.5 lg:w-3.5 mr-1 text-green-500 flex-shrink-0" />
-                            <span className="truncate">{hasAssignedTimeslot ? 'Slot' : 'Pick Slot'}</span>
-                          </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              {isRankVisible && (
+                                <DropdownMenuItem onClick={() => setIsLeaderboardOpen(true)}>
+                                  <Trophy className="mr-2 w-4 h-4 text-yellow-500" /> Leaderboard
+                                </DropdownMenuItem>
+                              )}
+                              {isHpSystem && (
+                                <DropdownMenuItem onClick={() => navigate({ to: `/student/hp-system/${versionId}/${enrollment.cohortName || 'default'}/activities` })}>
+                                  <Activity className="mr-2 w-4 h-4 text-blue-500" /> HP System
+                                </DropdownMenuItem>
+                              )}
+                              {isTimeslotActive && (
+                                <DropdownMenuItem onClick={() => setIsTimeslotModalOpen(true)}>
+                                  <Clock className="mr-2 w-4 h-4 text-green-500" /> {hasAssignedTimeslot ? 'Time Slot' : 'Pick Slot'}
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem onClick={() => setIsDetailsOpen(true)}>
+                                <Info className="mr-2 w-4 h-4 text-blue-500" /> Full Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setShowPolicies(true)}>
+                                <LucideShield className="mr-2 w-4 h-4 text-indigo-500" /> Policies
+                              </DropdownMenuItem>
+                              {supportLink && (
+                                <DropdownMenuItem onClick={() => setIsForumOpen(true)}>
+                                  <MessageCircle className="mr-2 w-4 h-4 text-blue-500" /> Forum
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       )}
                     </div>
-
-                    {variant !== 'available' && isNotGuruSetu && (
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 h-9 text-[10px] lg:text-xs font-bold rounded-lg border-2"
-                          onClick={(e) => { e.stopPropagation(); setShowPolicies(true); }}
-                        >
-                          <LucideShield className="h-3.5 w-3.5 mr-1 text-indigo-500" />
-                          Policies
-                        </Button>
-                        {supportLink && (
-                          <div onClick={(e) => e.stopPropagation()} className="flex-1">
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="outline" size="sm" className="w-full h-9 text-[10px] lg:text-xs font-bold rounded-lg border-2">
-                                  <MessageCircle className="h-3.5 w-3.5 mr-1 text-blue-500" />
-                                  Forum
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="w-full max-w-lg">
-                                <DialogHeader>
-                                  <DialogTitle>Forum Details</DialogTitle>
-                                </DialogHeader>
-                                <Separator className="my-4" />
-                                <div className="space-y-4">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                                      <MessageCircle className="w-4 h-4 text-primary-foreground" />
-                                    </div>
-                                    <h3 className="text-lg font-semibold">Discord Community</h3>
-                                    <Sparkles className="w-4 h-4 text-primary" />
-                                  </div>
-                                  <div className="rounded-xl border bg-primary/5 p-6 space-y-5">
-                                    <div className="flex items-start justify-between gap-4">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-14 h-14 rounded-xl bg-[#5865F2] flex items-center justify-center shadow-md">
-                                          <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z" />
-                                          </svg>
-                                        </div>
-                                        <div>
-                                          <p className="font-semibold text-base">Join Our Community</p>
-                                          <p className="text-sm text-muted-foreground">Connect with fellow students</p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <p className="text-sm text-muted-foreground leading-relaxed">
-                                      Get help, share resources, and connect with your coursemates in our exclusive Discord server.
-                                    </p>
-                                    <div className="flex items-center gap-2.5 pt-1">
-                                      <Button asChild className="flex-1">
-                                        <a href={supportLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
-                                          <ExternalLink className="w-4 h-4" />
-                                          Join Discord
-                                        </a>
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="icon"
-                                        onClick={async () => {
-                                          try {
-                                            await navigator.clipboard.writeText(supportLink);
-                                            setCopied(true);
-                                            setTimeout(() => setCopied(false), 2000);
-                                          } catch {
-                                            setCopyError(true);
-                                            setTimeout(() => setCopyError(false), 2000);
-                                          }
-                                        }}
-                                        disabled={copied}
-                                      >
-                                        {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
-                                      </Button>
-                                    </div>
-                                    {(copied || copyError) && (
-                                      <div className={cn("text-xs px-3 py-2 rounded-lg border flex items-center gap-2", copied ? "text-primary bg-primary/10 border-primary/20" : "text-red-500 bg-red-50 border-red-100")}>
-                                        {copied ? <Check className="w-3 h-3" /> : <Info className="w-3 h-3" />}
-                                        {copied ? "Link copied to clipboard" : "Failed to copy link"}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </div>
               </CardContent>
@@ -407,85 +323,85 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           </div>
 
           {/* Back Side - Stretches to match front height */}
-          <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] bg-white dark:bg-slate-900 rounded-[24px] p-6 border-2 border-primary/20 shadow-xl flex flex-col cursor-pointer" onClick={() => setIsFlipped(false)}>
-            <div className="flex-1 overflow-y-auto scrollbar-hide pr-1">
-              <div className="flex items-center justify-between mb-4">
-                <Badge className={cn("font-bold px-3 py-1", theme.bg, theme.icon.replace('text-', 'bg-').replace('[', '').replace(']', '/10'))}>
+          <div className="absolute inset-0 flex flex-col bg-white dark:bg-slate-900 shadow-xl p-6 border-2 border-primary/20 rounded-[24px] w-full h-full cursor-pointer [backface-visibility:hidden] [transform:rotateY(180deg)]" onClick={() => setIsFlipped(false)}>
+            <div className="flex-1 pr-1 overflow-y-auto scrollbar-hide">
+              <div className="flex justify-between items-center mb-4">
+                <Badge className={cn("px-3 py-1 font-bold", theme.bg, theme.icon.replace('text-', 'bg-').replace('[', '').replace(']', '/10'))}>
                   Course Details
                 </Badge>
-                <div className="p-2 rounded-full bg-slate-100 dark:bg-slate-800">
-                  <Play className={cn("h-5 w-5", theme.icon)} />
+                <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-full">
+                  <Play className={cn("w-5 h-5", theme.icon)} />
                 </div>
               </div>
 
-              <h3 className="font-bold text-lg text-foreground mb-4">{enrollment?.course?.name || `Course ${index + 1}`}</h3>
+              <h3 className="mb-4 font-bold text-foreground text-lg">{enrollment?.course?.name || `Course ${index + 1}`}</h3>
 
               <div className="space-y-4 mb-6">
                 <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1.5">
-                    <Info className="h-3 w-3" /> Description
+                  <h4 className="flex items-center gap-1.5 mb-1 font-bold text-[10px] text-muted-foreground uppercase tracking-wider">
+                    <Info className="w-3 h-3" /> Description
                   </h4>
-                  <p className="text-xs text-foreground/80 leading-relaxed line-clamp-4">
+                  <p className="text-foreground/80 text-xs line-clamp-4 leading-relaxed">
                     {enrollment?.course?.description || "No description available for this course. Explore our structured curriculum designed to accelerate your learning journey."}
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 py-3 border-y border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground font-medium">Version</span>
-                    <span className="text-foreground font-bold">{courseVersionData?.version || courseVersionData?.name || versionId.substring(0, 8)}</span>
+                <div className="gap-3 grid grid-cols-1 py-3 border-slate-100 border-y dark:border-slate-800">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-medium text-muted-foreground">Version</span>
+                    <span className="font-bold text-foreground">{courseVersionData?.version || courseVersionData?.name || versionId.substring(0, 8)}</span>
                   </div>
                   {enrollment.cohortName && (
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground font-medium">Cohort</span>
-                      <span className="text-foreground font-bold truncate max-w-[120px]">{enrollment.cohortName}</span>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-medium text-muted-foreground">Cohort</span>
+                      <span className="max-w-[120px] font-bold text-foreground truncate">{enrollment.cohortName}</span>
                     </div>
                   )}
                   {/* Detailed Counts */}
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-1">
-                    <div className="flex items-center justify-between text-[11px]">
+                  <div className="gap-x-4 gap-y-2 grid grid-cols-2 pt-1">
+                    <div className="flex justify-between items-center text-[11px]">
                       <span className="text-muted-foreground">Total Items</span>
-                      <span className="text-foreground font-bold">{totalLessons}</span>
+                      <span className="font-bold text-foreground">{totalLessons}</span>
                     </div>
-                    <div className="flex items-center justify-between text-[11px]">
+                    <div className="flex justify-between items-center text-[11px]">
                       <span className="text-muted-foreground">Modules</span>
-                      <span className="text-foreground font-bold">{moduleCount}</span>
+                      <span className="font-bold text-foreground">{moduleCount}</span>
                     </div>
-                    <div className="flex items-center justify-between text-[11px]">
+                    <div className="flex justify-between items-center text-[11px]">
                       <span className="text-muted-foreground">Sections</span>
-                      <span className="text-foreground font-bold">{sectionCount}</span>
+                      <span className="font-bold text-foreground">{sectionCount}</span>
                     </div>
-                    <div className="flex items-center justify-between text-[11px]">
+                    <div className="flex justify-between items-center text-[11px]">
                       <span className="text-muted-foreground">Videos</span>
-                      <span className="text-foreground font-bold">{videoCount}</span>
+                      <span className="font-bold text-foreground">{videoCount}</span>
                     </div>
                     {quizCount > 0 && (
-                      <div className="flex items-center justify-between text-[11px]">
+                      <div className="flex justify-between items-center text-[11px]">
                         <span className="text-muted-foreground">Quizzes</span>
-                        <span className="text-foreground font-bold">{quizCount}</span>
+                        <span className="font-bold text-foreground">{quizCount}</span>
                       </div>
                     )}
                     {articleCount > 0 && (
-                      <div className="flex items-center justify-between text-[11px]">
+                      <div className="flex justify-between items-center text-[11px]">
                         <span className="text-muted-foreground">Articles</span>
-                        <span className="text-foreground font-bold">{articleCount}</span>
+                        <span className="font-bold text-foreground">{articleCount}</span>
                       </div>
                     )}
                     {projectCount > 0 && (
-                      <div className="flex items-center justify-between text-[11px]">
+                      <div className="flex justify-between items-center text-[11px]">
                         <span className="text-muted-foreground">Projects</span>
-                        <span className="text-foreground font-bold">{projectCount}</span>
+                        <span className="font-bold text-foreground">{projectCount}</span>
                       </div>
                     )}
                   </div>
 
                   {/* Timeslot Info */}
-                  <div className="flex items-center justify-between text-xs pt-2 mt-1 border-t border-slate-50 dark:border-slate-800/50">
-                    <span className="text-muted-foreground font-medium flex items-center gap-1">
-                      <Clock className="h-3 w-3" /> Timeslot
+                  <div className="flex justify-between items-center mt-1 pt-2 border-slate-50 dark:border-slate-800/50 border-t text-xs">
+                    <span className="flex items-center gap-1 font-medium text-muted-foreground">
+                      <Clock className="w-3 h-3" /> Timeslot
                     </span>
                     <span className={cn(
-                      "font-bold truncate max-w-[140px]",
+                      "max-w-[140px] font-bold truncate",
                       timeSlot ? "text-green-600 dark:text-green-400" : "text-muted-foreground"
                     )}>
                       {timeslotStr}
@@ -495,25 +411,25 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               </div>
             </div>
 
-            <div className="mt-auto space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-              <div className={cn("grid gap-3", isTimeslotActive ? "grid-cols-2" : "grid-cols-1")} onClick={(e) => e.stopPropagation()}>
+            <div className="space-y-3 mt-auto pt-4 border-slate-100 dark:border-slate-800 border-t">
+              <div className={cn("gap-3 grid", isTimeslotActive ? "grid-cols-2" : "grid-cols-1")} onClick={(e) => e.stopPropagation()}>
                 {variant !== 'available' && (
                   <>
                     <Button
                       variant="outline"
-                      className="w-full rounded-lg h-9 text-[10px] font-bold border-2"
+                      className="border-2 rounded-lg w-full h-9 font-bold text-[10px]"
                       onClick={() => setIsDetailsOpen(true)}
                     >
-                      <Info className="h-3.5 w-3.5 mr-1 text-blue-500" />
+                      <Info className="mr-1 w-3.5 h-3.5 text-blue-500" />
                       Full Details
                     </Button>
                     {isTimeslotActive && (
                       <Button
                         variant="outline"
-                        className="w-full rounded-lg h-9 text-[10px] font-bold border-2"
+                        className="border-2 rounded-lg w-full h-9 font-bold text-[10px]"
                         onClick={() => setIsTimeslotModalOpen(true)}
                       >
-                        <Clock className="h-3.5 w-3.5 mr-1 text-green-500" />
+                        <Clock className="mr-1 w-3.5 h-3.5 text-green-500" />
                         {hasAssignedTimeslot ? 'Timeslot' : 'Pick Slot'}
                       </Button>
                     )}
@@ -524,12 +440,12 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               <Button
                 onClick={(e) => { e.stopPropagation(); handleContinue(); }}
                 className={cn(
-                  "w-full h-10 rounded-xl text-xs font-bold transition-all duration-300 shadow-md active:scale-95 flex items-center justify-center gap-2",
+                  "flex justify-center items-center gap-2 shadow-md rounded-xl w-full h-10 font-bold text-xs active:scale-95 transition-all duration-300",
                   variant === 'available' ? "bg-primary text-primary-foreground" : isStart ? "bg-[#22C55E] text-white" : "bg-[#FACC15] text-black"
                 )}
               >
                 {variant === 'available' ? 'Register Now' : isStart ? 'Start Course' : isCompleted ? 'View Course' : 'Continue Learning'}
-                <ExternalLink className="h-3.5 w-3.5" />
+                <ExternalLink className="w-3.5 h-3.5" />
               </Button>
             </div>
           </div>
@@ -559,6 +475,87 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           enrollmentDate={enrollment.enrollmentDate}
           currentProgressPercent={progress}
         />
+
+        {/* Leaderboard — opened from the overflow menu (kept fully functional) */}
+        {isRankVisible && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
+              <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} cohortId={cohortId} />
+            </Dialog>
+          </div>
+        )}
+
+        {/* Forum — opened from the overflow menu (kept fully functional) */}
+        {variant !== 'available' && isNotGuruSetu && supportLink && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <Dialog open={isForumOpen} onOpenChange={setIsForumOpen}>
+              <DialogContent className="w-full max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Forum Details</DialogTitle>
+                </DialogHeader>
+                <Separator className="my-4" />
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="flex justify-center items-center bg-primary rounded-lg w-8 h-8">
+                      <MessageCircle className="w-4 h-4 text-primary-foreground" />
+                    </div>
+                    <h3 className="font-semibold text-lg">Discord Community</h3>
+                    <Sparkles className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="space-y-5 bg-primary/5 p-6 border rounded-xl">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex justify-center items-center bg-[#5865F2] shadow-md rounded-xl w-14 h-14">
+                          <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-base">Join Our Community</p>
+                          <p className="text-muted-foreground text-sm">Connect with fellow students</p>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      Get help, share resources, and connect with your coursemates in our exclusive Discord server.
+                    </p>
+                    <div className="flex items-center gap-2.5 pt-1">
+                      <Button asChild className="flex-1">
+                        <a href={supportLink} target="_blank" rel="noopener noreferrer" className="flex justify-center items-center gap-2">
+                          <ExternalLink className="w-4 h-4" />
+                          Join Discord
+                        </a>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(supportLink);
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
+                          } catch {
+                            setCopyError(true);
+                            setTimeout(() => setCopyError(false), 2000);
+                          }
+                        }}
+                        disabled={copied}
+                      >
+                        {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                    {(copied || copyError) && (
+                      <div className={cn("flex items-center gap-2 px-3 py-2 border rounded-lg text-xs", copied ? "text-primary bg-primary/10 border-primary/20" : "text-red-500 bg-red-50 border-red-100")}>
+                        {copied ? <Check className="w-3 h-3" /> : <Info className="w-3 h-3" />}
+                        {copied ? "Link copied to clipboard" : "Failed to copy link"}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
       </div>
     );
   }
@@ -567,7 +564,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   return (
     <Card className={className}>
       <CardHeader>
-        <div className="flex items-start justify-between">
+        <div className="flex justify-between items-start">
           <div>
             <CardTitle className="text-lg">
               {enrollment?.course?.name || `Course ${index + 1}`}
@@ -583,7 +580,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           <div className="flex flex-col items-end gap-1">
             <Badge variant="outline">{progress.toFixed(2)}% complete</Badge>
             {isCompleted && (
-              <Badge className="bg-green-100 text-green-800 border-0 font-normal">
+              <Badge className="bg-green-100 border-0 font-normal text-green-800">
                 Completed
               </Badge>
             )}
@@ -600,14 +597,14 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
             <Progress value={progress} className="h-2" />
           </div>
 
-          <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+          <div className="gap-4 grid grid-cols-2 text-muted-foreground text-sm">
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
+              <Clock className="w-4 h-4" />
               <span>{completedLessons} / {totalLessons} Lessons</span>
             </div>
             {enrollment.enrollmentDate && (
               <div className="flex items-center gap-2">
-                <Medal className="h-4 w-4" />
+                <Medal className="w-4 h-4" />
                 <span>Enrolled {new Date(enrollment.enrollmentDate).toLocaleDateString()}</span>
               </div>
             )}
@@ -622,7 +619,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="icon" title="Leaderboard">
-                      <Trophy className="h-4 w-4 text-yellow-500" />
+                      <Trophy className="w-4 h-4 text-yellow-500" />
                     </Button>
                   </DialogTrigger>
                   <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} cohortId={cohortId} />
@@ -630,12 +627,12 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               )}
               {isHpSystem && (
                 <Button variant="outline" size="icon" title="HP System" onClick={() => navigate({ to: `/student/hp-system/${versionId}/${enrollment.cohortName || 'default'}/activities` })}>
-                  <Activity className="h-4 w-4 text-blue-500" />
+                  <Activity className="w-4 h-4 text-blue-500" />
                 </Button>
               )}
               {isTimeslotActive && (
                 <Button variant="outline" size="icon" title="Timeslot" onClick={() => setIsTimeslotModalOpen(true)}>
-                  <Clock className="h-4 w-4 text-green-500" />
+                  <Clock className="w-4 h-4 text-green-500" />
                 </Button>
               )}
             </div>
@@ -649,17 +646,17 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 export const CourseCardSkeleton = ({ variant }: { variant: string }) => {
   if (variant === 'dashboard' || variant === 'available') {
     return (
-      <Card className="border-0 bg-white dark:bg-card overflow-hidden flex flex-col rounded-[24px] shadow-sm animate-pulse">
-        <div className="w-full aspect-[4/3] bg-slate-100 dark:bg-slate-800" />
+      <Card className="flex flex-col bg-white dark:bg-card shadow-sm border-0 rounded-[24px] overflow-hidden animate-pulse">
+        <div className="bg-slate-100 dark:bg-slate-800 w-full aspect-[4/3]" />
         <CardContent className="p-6">
-          <Skeleton className="h-4 w-20 mb-4" />
-          <Skeleton className="h-6 w-full mb-2" />
-          <Skeleton className="h-4 w-3/4 mb-6" />
+          <Skeleton className="mb-4 w-20 h-4" />
+          <Skeleton className="mb-2 w-full h-6" />
+          <Skeleton className="mb-6 w-3/4 h-4" />
           <div className="space-y-2 mb-6">
-            <Skeleton className="h-2 w-full" />
-            <Skeleton className="h-2 w-full" />
+            <Skeleton className="w-full h-2" />
+            <Skeleton className="w-full h-2" />
           </div>
-          <Skeleton className="h-12 w-full rounded-xl" />
+          <Skeleton className="rounded-xl w-full h-12" />
         </CardContent>
       </Card>
     );
@@ -670,22 +667,22 @@ export const CourseCardSkeleton = ({ variant }: { variant: string }) => {
       <CardHeader>
         <div className="flex justify-between">
           <div className="space-y-2">
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-4 w-32" />
+            <Skeleton className="w-48 h-6" />
+            <Skeleton className="w-32 h-4" />
           </div>
-          <Skeleton className="h-6 w-24" />
+          <Skeleton className="w-24 h-6" />
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Skeleton className="h-2 w-full" />
+        <Skeleton className="w-full h-2" />
         <div className="flex justify-between">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-4 w-32" />
+          <Skeleton className="w-32 h-4" />
+          <Skeleton className="w-32 h-4" />
         </div>
         <div className="flex gap-2">
-          <Skeleton className="h-10 flex-1" />
-          <Skeleton className="h-10 w-10" />
-          <Skeleton className="h-10 w-10" />
+          <Skeleton className="flex-1 h-10" />
+          <Skeleton className="w-10 h-10" />
+          <Skeleton className="w-10 h-10" />
         </div>
       </CardContent>
     </Card>
@@ -697,45 +694,45 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen, cohortId }
   const { finishers, active, totalPages, activeTotal, isLoading, error, myStats } = useLeaderboard(courseId, versionId, page, 100, isOpen, cohortId);
 
   return (
-    <DialogContent className="max-w-4xl h-[85vh] flex flex-col overflow-hidden">
+    <DialogContent className="flex flex-col max-w-4xl h-[85vh] overflow-hidden">
       <DialogHeader className="flex-shrink-0 pb-4">
         <DialogTitle className="flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-yellow-600" />
+          <Trophy className="w-5 h-5 text-yellow-600" />
           {courseName || 'Course'} Leaderboard
         </DialogTitle>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Finishers ranked by how fast they completed; active learners by effort in the last 7 days.
         </p>
       </DialogHeader>
 
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full pr-4">
+        <ScrollArea className="pr-4 h-full">
           {isLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 10 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
+                <Skeleton key={i} className="w-full h-12" />
               ))}
             </div>
           ) : error ? (
-            <p className="text-muted-foreground text-center py-8">{error}</p>
+            <p className="py-8 text-muted-foreground text-center">{error}</p>
           ) : finishers.length === 0 && active.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No leaderboard data available.</p>
+            <p className="py-8 text-muted-foreground text-center">No leaderboard data available.</p>
           ) : (
             <LeaderboardLeagues finishers={finishers} active={active} myId={myStats?.userId} />
           )}
         </ScrollArea>
       </div>
 
-      <div className="flex-shrink-0 pt-4 border-t border-border/50 bg-background flex items-center justify-between">
+      <div className="flex flex-shrink-0 justify-between items-center bg-background pt-4 border-border/50 border-t">
         {myStats ? (
-          <div className="flex items-center gap-6 px-4 py-3 rounded-xl bg-primary/5 border border-primary/10">
+          <div className="flex items-center gap-6 bg-primary/5 px-4 py-3 border border-primary/10 rounded-xl">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Your Rank</span>
-              <span className="font-bold text-xl text-yellow-500">#{myStats.rank}</span>
+              <span className="font-bold text-[10px] text-muted-foreground uppercase tracking-wider">Your Rank</span>
+              <span className="font-bold text-yellow-500 text-xl">#{myStats.rank}</span>
             </div>
-            <div className="w-px h-6 bg-border/50" />
+            <div className="bg-border/50 w-px h-6" />
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+              <span className="font-bold text-[10px] text-muted-foreground uppercase tracking-wider">
                 {myStats.league === "finishers" ? "Finished in" : "This week"}
               </span>
               <Badge variant="outline" className="font-bold">
