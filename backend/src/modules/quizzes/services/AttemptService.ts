@@ -68,6 +68,7 @@ import {
   IStudentSegmentQuestion,
 } from '#root/modules/studentQuestions/classes/transformers/StudentSegmentQuestion.js';
 import { STUDENT_QUESTION_TYPES } from '#root/modules/studentQuestions/types.js';
+import { isEligibleForReview } from '#root/modules/studentQuestions/services/crowdGate.js';
 
 const PEER_QUESTION_DEFAULT_POINTS = 0;
 const PEER_QUESTION_DEFAULT_TIME_LIMIT_SECONDS = 60;
@@ -120,7 +121,10 @@ class AttemptService extends BaseService {
     super(database);
   }
 
-  private async _getQuestionsForAttempt(quiz: QuizItem): Promise<{
+  private async _getQuestionsForAttempt(
+    quiz: QuizItem,
+    userId: string,
+  ): Promise<{
     questionDetails: IQuestionDetails[];
     questionRenderViews: IQuestionRenderView[];
   }> {
@@ -154,29 +158,15 @@ class AttemptService extends BaseService {
       );
     }
 
-    // Phase 3: append APPROVED student MCQs tied to the video segments
-    // immediately preceding this quiz (contiguous run, no other quiz in between).
-    // These are rendered as ungraded extras: points=0, skipped in grading.
-    if (quiz._id) {
-      const precedingSegmentIds = await this._findPrecedingVideoSegments(
-        quiz._id.toString(),
-      );
-      if (precedingSegmentIds.length > 0) {
-        const approved = await this.studentQuestionRepo.findApprovedForSegments(
-          precedingSegmentIds,
-        );
-        for (const sq of approved) {
-          questionDetails.push({
-            questionId: sq._id as ObjectId,
-            parameterMap: null,
-            source: 'STUDENT_GENERATED',
-          });
-          questionRenderViews.push(
-            this._adaptStudentQuestionToRenderView(sq),
-          );
-        }
-      }
-    }
+    // Crowd questions are NOT served to students. Student-submitted questions
+    // must pass instructor validation + approval before any student answers
+    // them — peer-validation-by-serving (the V3 COLLECTING flow) is disabled
+    // because un-approved submissions can be nonsensical. They stay parked in
+    // the separate "Submitted – Pending Validation" bank until an instructor
+    // approves them into the graded bank. The serving helpers
+    // (_findPrecedingVideoSegments / _pickCollectingQuestion /
+    // _adaptStudentQuestionToRenderView) are retained intentionally so this
+    // path can be re-enabled if peer-validation is reinstated.
 
     return { questionDetails, questionRenderViews };
   }
@@ -210,12 +200,89 @@ class AttemptService extends BaseService {
   }
 
   /**
+   * Stage-2 serving: pick the single best COLLECTING crowd question for this
+   * student from the given segments — fewest responses first, excluding the
+   * student's own submissions and ones they have already answered. Returns null
+   * when none qualify (attempt then gets no extra question).
+   */
+  private async _pickCollectingQuestion(
+    segmentIds: string[],
+    userId: string,
+  ): Promise<IStudentSegmentQuestion | null> {
+    // Pull a small candidate set ordered by fewest responses, then drop any the
+    // student already answered and take the first remaining.
+    const candidates = await this.studentQuestionRepo.findCollectingForSegments({
+      segmentIds,
+      excludeUserId: userId,
+      limit: 10,
+    });
+    if (candidates.length === 0) return null;
+    const answered = new Set(
+      await this.studentQuestionRepo.listAnsweredQuestionIds(
+        userId,
+        candidates.map(c => (c._id as ObjectId).toString()),
+      ),
+    );
+    return (
+      candidates.find(c => !answered.has((c._id as ObjectId).toString())) ?? null
+    );
+  }
+
+  /**
+   * Stage-2 capture. For each ungraded peer question served on this attempt,
+   * record the student's answer (scored against the persisted correct lot-item)
+   * plus their 👍/👎, then advance the promotion gate. Idempotent per
+   * (question, student) via the repository. Best-effort: never throws.
+   */
+  private async _capturePeerResponses(
+    attemptId: string,
+    quizId: string,
+    userId: string | ObjectId,
+    answers: IQuestionAnswer[],
+    cohortId?: string,
+  ): Promise<void> {
+    try {
+      const attempt = await this.attemptRepository.getById(
+        attemptId,
+        quizId,
+        cohortId,
+      );
+      if (!attempt?.questionDetails) return;
+      const peerDetails = attempt.questionDetails.filter(
+        qd => qd.source === 'STUDENT_GENERATED',
+      );
+      for (const qd of peerDetails) {
+        const qId = qd.questionId.toString();
+        const ans = answers.find(a => a.questionId.toString() === qId);
+        if (!ans) continue; // unanswered peer question → no response recorded
+        const selectedLotItemId = (
+          ans.answer as {lotItemId?: string | ObjectId} | undefined
+        )?.lotItemId?.toString();
+        const isCorrect =
+          !!qd.peerCorrectLotItemId &&
+          selectedLotItemId === qd.peerCorrectLotItemId.toString();
+        const counters = await this.studentQuestionRepo.recordCrowdResponse({
+          studentQuestionId: qId,
+          userId: userId.toString(),
+          isCorrect,
+          thumb: ans.thumb,
+        });
+        if (counters && isEligibleForReview(counters)) {
+          await this.studentQuestionRepo.markEligible(qId);
+        }
+      }
+    } catch (err) {
+      console.warn('crowd-q: peer response capture failed (non-fatal)', err);
+    }
+  }
+
+  /**
    * Phase 3 adapter. Converts a single-answer student MCQ into a
    * SOL-shaped render view marked as peer-contributed (ungraded).
    */
   private _adaptStudentQuestionToRenderView(
     sq: IStudentSegmentQuestion,
-  ): IQuestionRenderView {
+  ): {renderView: IQuestionRenderView; correctLotItemId: ObjectId} {
     const lotItems: ILotItem[] = sq.options.map(
       (option: IStudentQuestionOption) => ({
         _id: new ObjectId(),
@@ -223,6 +290,9 @@ class AttemptService extends BaseService {
         explaination: '',
       }),
     );
+    // Capture the correct option's lot-item id BEFORE shuffling so we can
+    // persist it for ungraded scoring at capture time.
+    const correctLotItemId = lotItems[sq.correctOptionIndex]._id as ObjectId;
     // Shuffle so the correct option isn't always at the same index
     for (let i = lotItems.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -240,7 +310,7 @@ class AttemptService extends BaseService {
       lotItems,
       isPeerContributed: true,
     } as unknown as IQuestionRenderView;
-    return renderView;
+    return {renderView, correctLotItemId};
   }
 
   private _buildGradingResult(
@@ -498,7 +568,7 @@ class AttemptService extends BaseService {
 
       //4. Fetch questions for the quiz attempt
       const { questionDetails, questionRenderViews } =
-        await this._getQuestionsForAttempt(quiz);
+        await this._getQuestionsForAttempt(quiz, userObjecId.toString());
 
 
       //5. Create a new attempt
@@ -689,6 +759,11 @@ class AttemptService extends BaseService {
     )
     /* -------------------- UPDATE SUBMISSION (SMALL WRITE) -------------------- */
     await this.submissionRepository.update(submissionId, { gradingResult });
+
+    // Stage-2 crowd capture: record the student's ungraded answer + 👍/👎 to any
+    // served peer question and advance the promotion gate. Best-effort — must
+    // never affect the quiz submission outcome.
+    await this._capturePeerResponses(attemptId, quizId, userId, answers, cohortId);
     const isPassed = gradingResult.gradingStatus === "PASSED"
     if (!isSkipped && (!isItemCompleted || isPassed)) {
       // Resolve the quiz's actual moduleId/sectionId rather than trusting
