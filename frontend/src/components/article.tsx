@@ -126,8 +126,9 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                         cohortId: currentCourse.cohortId || undefined,
                     }
                 });
+                completedItemIdsRef.current.add(currentCourse!.itemId);
             }
-            completedItemIdsRef.current.add(currentCourse!.itemId);
+            
             itemStartedRef.current = false;
         } catch (error: any) {
             console.error('❌ handleStopItem error:', error);

@@ -2629,7 +2629,7 @@ class ProgressService extends BaseService {
       // ----------------------------------------------------
       // 11. FINAL PROGRESS UPDATE
       // ----------------------------------------------------
-      await this.progressRepository.updateProgress(
+      const updatedProgress = await this.progressRepository.updateProgress(
         userId,
         courseId,
         courseVersionId,
@@ -2637,6 +2637,9 @@ class ProgressService extends BaseService {
         cohortId,
         session,
       );
+      if (!updatedProgress) {
+        throw new InternalServerError('Progress could not be updated');
+      }
 
       justCompleted = newProgress.completed === true && !wasAlreadyCompleted;
     });

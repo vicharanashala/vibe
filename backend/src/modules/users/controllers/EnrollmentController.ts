@@ -29,6 +29,7 @@ import {
 } from '#users/classes/validators/EnrollmentValidators.js';
 import {QuizScoresExportResponseDto} from '../dtos/QuizScoresExportDto.js';
 import {EnrollmentService} from '#users/services/EnrollmentService.js';
+import {UserService} from '#users/services/UserService.js';
 
 import {USERS_TYPES} from '#users/types.js';
 import {injectable, inject} from 'inversify';
@@ -79,6 +80,8 @@ export class EnrollmentController {
   constructor(
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+    @inject(USERS_TYPES.UserService)
+    private readonly userService: UserService,
   ) {}
 
   @OpenAPI({
@@ -415,6 +418,74 @@ export class EnrollmentController {
     });
 
     return response;
+  }
+
+  @OpenAPI({
+    summary: 'Reset face reference for a student',
+    description:
+      'Removes the faceEmbedding and profileImage from the user document, allowing the student to re-register their face.',
+  })
+  @Authorized()
+  @Post('/:userId/enrollments/courses/:courseId/versions/:versionId/reset-face')
+  @UseInterceptor(AuditTrailsHandler)
+  @HttpCode(200)
+  async resetFaceReference(
+    @Params() params: EnrollmentParams,
+    @Ability(getEnrollmentAbility) {ability, user},
+    @Req() req: Request,
+  ): Promise<{message: string}> {
+    const {userId, courseId, versionId} = params;
+
+    // Fetch enrollment to get the role for permission checking
+    const enrollmentData = await this.enrollmentService.findAnyEnrollment(
+      userId,
+      courseId,
+      versionId,
+    );
+    if (!enrollmentData) {
+      throw new NotFoundError('Enrollment not found');
+    }
+
+    const enrollmentResource = subject('Enrollment', {
+      courseId,
+      versionId,
+      role: enrollmentData.role,
+    });
+    if (!ability.can(EnrollmentActions.Modify, enrollmentResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to reset face reference for this student',
+      );
+    }
+
+    await this.userService.editUser(userId, {
+      profileImage: null as any,
+      faceEmbedding: null as any,
+    });
+
+    setAuditTrail(req, {
+      category: AuditCategory.ENROLLMENT,
+      action: AuditAction.ENROLLMENT_MODIFY,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        userId: ObjectId.createFromHexString(userId),
+      },
+      changes: {
+        after: {
+          profileImage: null,
+          faceEmbedding: null,
+        },
+      },
+      outcome: {status: OutComeStatus.SUCCESS},
+    });
+
+    return {message: 'Face reference reset successfully'};
   }
 
   @OpenAPI({

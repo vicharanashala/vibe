@@ -7082,3 +7082,62 @@ export function useUserEnrollmentStats(enabled: boolean = true): {
     refetch: result.refetch,
   };
 }
+
+export function useResetFace(): {
+  mutate: (variables: { params: { path: { userId: string, courseId: string, versionId: string } } }) => void,
+  mutateAsync: (variables: { params: { path: { userId: string, courseId: string, versionId: string } } }) => Promise<any>,
+  isPending: boolean,
+  error: string | null,
+  isSuccess: boolean,
+  isError: boolean,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const [status, setStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
+  const [error, setError] = useState<string | null>(null);
+
+  const mutateAsync = useCallback(async (variables: { params: { path: { userId: string, courseId: string, versionId: string } } }) => {
+    setStatus('pending');
+    setError(null);
+    try {
+      const authToken = localStorage.getItem('firebase-auth-token');
+      const { userId, courseId, versionId } = variables.params.path;
+      const response = await fetch(
+        `${import.meta.env.VITE_BASE_URL}/users/${userId}/enrollments/courses/${courseId}/versions/${versionId}/reset-face`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to reset face reference: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setStatus('success');
+      return data;
+    } catch (err: any) {
+      setStatus('error');
+      setError(err.message || 'Failed to reset face reference');
+      throw err;
+    }
+  }, []);
+
+  const mutate = useCallback((variables: { params: { path: { userId: string, courseId: string, versionId: string } } }) => {
+    mutateAsync(variables).catch(() => {});
+  }, [mutateAsync]);
+
+  return {
+    mutate,
+    mutateAsync,
+    isPending: status === 'pending',
+    error,
+    isSuccess: status === 'success',
+    isError: status === 'error',
+    status,
+  };
+}
