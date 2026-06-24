@@ -3,8 +3,17 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, Loader2, XCircle, Maximize, Minimize, FastForward } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, Loader2, XCircle, Maximize, Minimize, FastForward, Hand } from 'lucide-react';
 import { useSkipOptionalItem, useStartItem, useStopItem, useStoreWatchTimeTrack, useUpsertWatchTime } from '../hooks/hooks';
+import React, { lazy, Suspense } from 'react';
+
+const SignLanguageWindow = lazy(() => import('./SignLanguageWindow/SignLanguageWindow'));
+
+interface SignLanguageState {
+  isVisible: boolean;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+}
 
 
 import { useCourseStore } from '../store/course-store';
@@ -61,6 +70,38 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSeekTimeRef = useRef<number>(0);
   const lastSeekErrorToastRef = useRef<number>(0);
+
+  const signLanguageToggleRef = useRef<HTMLButtonElement>(null);
+  const [signLanguageState, setSignLanguageState] = useState<SignLanguageState>(() => {
+    try {
+      const saved = localStorage.getItem('sign_language_window_prefs');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof window !== 'undefined') {
+          const clampedX = Math.min(Math.max(0, parsed.position.x), window.innerWidth - 100);
+          const clampedY = Math.min(Math.max(0, parsed.position.y), window.innerHeight - 100);
+          parsed.position = { x: clampedX, y: clampedY };
+        }
+        return parsed;
+      }
+    } catch (e) {
+      console.error('Failed to parse sign_language_window_prefs', e);
+    }
+    return {
+      isVisible: false,
+      position: { x: typeof window !== 'undefined' ? window.innerWidth - 240 - 16 : 0, y: typeof window !== 'undefined' ? window.innerHeight - 135 - 16 : 0 },
+      size: { width: 240, height: 135 }
+    };
+  });
+
+  const updateSignLanguageState = (updates: Partial<SignLanguageState>) => {
+    setSignLanguageState(prev => {
+      const newState = { ...prev, ...updates };
+      localStorage.setItem('sign_language_window_prefs', JSON.stringify(newState));
+      return newState;
+    });
+  };
+
   const [playerReady, setPlayerReady] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -1850,6 +1891,37 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
 
               <TooltipProvider>
+                {/* Sign Language Toggle */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      ref={signLanguageToggleRef}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateSignLanguageState({ isVisible: !signLanguageState.isVisible });
+                      }}
+                      variant="ghost"
+                      size="icon"
+                      className={`rounded-sm relative group transition-colors duration-200 ${signLanguageState.isVisible
+                        ? "text-black dark:text-white"
+                        : "text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
+                        }`}
+                      aria-pressed={signLanguageState.isVisible}
+                      aria-label="Toggle sign language interpreter"
+                    >
+                      <span className="scale-[1.4] flex items-center justify-center">
+                        <Hand className="h-6 w-6" strokeWidth={2.5} />
+                      </span>
+                      {signLanguageState.isVisible && (
+                        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-[2px] bg-red-500 rounded-full"></span>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Toggle Sign Language Interpreter</p>
+                  </TooltipContent>
+                </Tooltip>
+
                 {/* Subtitles */}
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -2035,6 +2107,22 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           user-select: none !important;
         }
       `}</style>
+
+      <Suspense fallback={null}>
+        <SignLanguageWindow
+          isVisible={signLanguageState.isVisible}
+          onClose={() => updateSignLanguageState({ isVisible: false })}
+          interpreterVideoSrc={(currentCourse as any)?.interpreterVideoSrc || null}
+          playing={playing}
+          currentTime={currentTime}
+          playbackRate={playbackRate}
+          position={signLanguageState.position}
+          size={signLanguageState.size}
+          onPositionChange={(pos) => updateSignLanguageState({ position: pos })}
+          onSizeChange={(size) => updateSignLanguageState({ size })}
+          returnFocusRef={signLanguageToggleRef}
+        />
+      </Suspense>
     </div >
   );
 }
